@@ -11,7 +11,7 @@ impl EvidencePort for EvidenceFake {
         let samples = publication.samples();
         if samples.is_empty()
             || samples.iter().any(|sample| {
-                !sample.complete_inventory
+                sample.inventory != ryo_benchmark_contracts::domain::measurements::types::InventoryStatus::Complete
                     || sample.name.0.is_empty()
                     || matches!(
                         sample.measurement.resources,

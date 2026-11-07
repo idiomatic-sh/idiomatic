@@ -32,8 +32,8 @@ pub(super) fn selected_consumer_keeps_unselected_producer_without_its_diagnostic
     let producer = RuleId::try_from("PRODUCER").unwrap();
     let request = WorkerRequest {
         performance: Default::default(),
-        selected_rules: Some(vec![consumer.clone()]),
-        rule_observations: Some(
+        selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(vec![consumer.clone()]),
+        rule_observations: ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Declared(
             BTreeMap::from([(
                 consumer.clone(),
                 vec![ObservationBinding {
@@ -56,17 +56,17 @@ pub(super) fn selected_consumer_keeps_unselected_producer_without_its_diagnostic
             )])
             .into(),
         ),
-        rule_context: None,
-        project_search_roots: None,
+        rule_context: ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+        project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
         given_project_inventory: Default::default(),
         project_context_mode: Default::default(),
-        context_manifest: None,
+        context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
         root: root.path().into(),
         rules,
         query_modules: BTreeMap::new(),
         rule_applicability: BTreeMap::new(),
-        parser_configuration: Some("python-target=3.10".into()),
-        source_language: None,
+        parser_configuration: ryo_benchmark_contracts::domain::requests::types::ParserSelection::Named(ryo_benchmark_contracts::domain::requests::types::ParserConfigurationName("python-target=3.10".into())),
+        source_language: ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
         files: vec![ryo::linter::RelativePath("case.py".into())],
         state: ryo_benchmark_contracts::domain::requests::types::WorkerState::Retained(
             root.path().join("cache"),

@@ -1,8 +1,8 @@
-//! Local snapshot validation and its private wire schema.
+//! The context port, implemented with the local filesystem.
+
 pub(crate) mod adapter;
+mod constants;
+mod writer;
+
 #[cfg(test)]
 mod adapter_test;
-mod constants;
-pub(crate) mod schemas;
-#[cfg(test)]
-mod schemas_test;

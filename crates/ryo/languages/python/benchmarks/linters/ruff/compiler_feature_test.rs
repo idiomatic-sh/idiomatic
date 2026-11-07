@@ -4,12 +4,8 @@ use ryo_benchmark::cases::{Case, CaseName, Expect, Word, run};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::path::Path;
 
-#[path = "engine_test/context_case_test.rs"]
-mod context_case_test;
-use context_case_test::{ContextCase, check_case, stage_modules};
-#[path = "engine_test/scope_test.rs"]
-mod scope_test;
-use scope_test::{
+use super::context_case_test::{ContextCase, check_case, stage_modules};
+use super::scope_test::{
     authored_suppression_cohort_queries_validate_through_public_sdk_contracts,
     declared_configuration_uses_real_sdk_scope_and_hosted_inputs_on_unchanged_source,
 };

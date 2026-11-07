@@ -49,7 +49,7 @@ def expected_context_identity(case: dict[str, object], mode: str) -> dict[str, o
     def frame(value: bytes) -> None:
         digest.update(len(value).to_bytes(8, 'little'))
         digest.update(value)
-    frame(b'listed-disk-context-v1')
+    frame(b'listed-disk-context')
     frame(os.fsencode(logical))
     for role, files in ((b'source', sources), (b'auxiliary', auxiliary)):
         frame(role)

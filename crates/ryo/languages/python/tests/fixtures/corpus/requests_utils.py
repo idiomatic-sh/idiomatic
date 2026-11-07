@@ -866,7 +866,7 @@ def resolve_proxies(request, proxies, trust_env=True):
     input to resolve a mapping of target proxies. This will consider settings
     such as NO_PROXY to strip proxy configurations.
 
-    :param request: Request or PreparedRequest
+    :param request: Request or PreparedWorkerRequest
     :param proxies: A dictionary of schemes or schemes and hosts to proxy URLs
     :param trust_env: Boolean declaring whether to trust environment configs
 

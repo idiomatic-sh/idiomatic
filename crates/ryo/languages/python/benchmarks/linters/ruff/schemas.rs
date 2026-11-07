@@ -4,7 +4,7 @@ use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::reports::types::BenchmarkFinding;
 use ryo_benchmark_contracts::domain::reports::types::RunReport;
-use ryo_benchmark_contracts::domain::requests::types::RunRequest;
+use ryo_benchmark_contracts::domain::requests::types::{ApplicabilityPolicy, RuleLabel, RunRequest};
 use serde::Deserialize;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
@@ -88,9 +88,8 @@ impl TryFrom<RuffReportSchema<'_>> for RunReport {
         } = schema;
         check_status(output)?;
         let declared_missing = |file: &RelativePath| {
-            request.context_manifest.as_ref().is_some_and(|manifest| {
-                ryo_benchmark::domain::suite::service::declares_missing(manifest, file)
-            })
+            matches!(&request.context_manifest, ryo_benchmark_contracts::domain::requests::types::ContextSeal::Sealed(manifest) if
+                ryo_benchmark::domain::suite::service::declares_missing(manifest, file) == ryo_benchmark::domain::suite::types::ContextAbsence::Sealed)
         };
         if sources.keys().any(|file| !request.files.contains(file))
             || request
@@ -168,13 +167,14 @@ impl TryFrom<RuffReportSchema<'_>> for RunReport {
         Ok(RunReport {
             execution_metadata:
                 ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Unavailable {
-                    reason: "Ruff JSON findings format has no rule/file execution accounting"
-                        .into(),
+                    reason: ryo_benchmark_contracts::domain::reports::types::UnavailableReason(
+                        "Ruff JSON findings format has no rule/file execution accounting".into(),
+                    ),
                 },
-            project_context: None,
+            project_context: ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
             diagnostics,
             skipped: Vec::new(),
-            coverage: None,
+            coverage: ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Unaccounted,
             files: request.files.clone(),
         })
     }
@@ -249,7 +249,13 @@ pub(super) fn configuration_arguments(
         arguments.push("--config".into());
         arguments.push(section(
             "external",
-            strings(configuration.external_prefixes.clone()),
+            strings(
+                configuration
+                    .external_prefixes
+                    .iter()
+                    .map(|prefix| prefix.0.clone())
+                    .collect(),
+            ),
         )?);
     }
     if !configuration.disabled_rules.is_empty() {
@@ -259,7 +265,7 @@ pub(super) fn configuration_arguments(
             let text = absolute
                 .to_str()
                 .ok_or_else(|| Error::Invalid("non-UTF8 configuration path".into()))?;
-            let literal = ryo_benchmark::domain::suite::rule_context::literal_glob(text);
+            let literal = ryo_benchmark::domain::rule_context::service::literal_glob(text);
             let rules: Vec<_> = rules.iter().map(ToString::to_string).collect();
             entries.insert(literal, strings(rules));
         }
@@ -267,4 +273,28 @@ pub(super) fn configuration_arguments(
         arguments.push(section("per-file-ignores", toml::Value::Table(entries))?);
     }
     Ok(arguments)
+}
+
+#[derive(Debug, Deserialize)]
+/// The pinned registry of Ruff's rule phases, as pinned beside the profiles.
+struct PinnedPhasesSchema {
+    /// The pinned phase facts of each rule.
+    rules: BTreeMap<String, PinnedRuleSchema>,
+}
+#[derive(Debug, Deserialize)]
+/// The phase fact of one pinned rule that a worker request must agree with.
+struct PinnedRuleSchema {
+    /// Whether the rule runs on every source or only on sources the parser accepts.
+    applicability: String,
+}
+
+/// Decode the pinned phase policy of every rule the registry pins.
+pub(super) fn pinned_rule_phases() -> Result<BTreeMap<RuleLabel, ApplicabilityPolicy>, Error> {
+    let registry: PinnedPhasesSchema = serde_json::from_str(crate::constants::PINNED_RULE_PHASES)
+        .map_err(|error| Error::Invalid(error.to_string()))?;
+    Ok(registry
+        .rules
+        .into_iter()
+        .map(|(rule, pinned)| (RuleLabel(rule), ApplicabilityPolicy(pinned.applicability)))
+        .collect())
 }

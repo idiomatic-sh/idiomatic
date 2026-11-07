@@ -2,7 +2,9 @@
 pub(crate) mod adapter;
 #[cfg(test)]
 mod adapter_test;
-mod schemas;
+mod report;
+mod request;
+mod rules;
 
 pub(crate) mod connection;
 pub(crate) mod constants;

@@ -30,13 +30,16 @@ fn subject((): Input) -> Result<Value, Failure> {
                 .expect("selected rules")
                 .into_iter()
                 .collect(),
-            selected_pairs: 1,
+            selected_pairs: crate::outbound::engine::types::SelectedPairs(1),
             hosted: Vec::new(),
         },
     );
     let report = configured.execute().expect("actual port fake executes");
     assert_eq!(report.files, request.files);
-    Ok(report.coverage.expect("accounting retained").selected)
+    let ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(coverage) = report.coverage else {
+        panic!("accounting retained");
+    };
+    Ok(coverage.selected.0)
 }
 #[test]
 fn succeeds() {

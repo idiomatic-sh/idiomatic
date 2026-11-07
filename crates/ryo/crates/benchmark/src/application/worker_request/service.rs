@@ -1,5 +1,5 @@
 //! Classify the sealed primary inventory once before the outbound SDK execution boundary.
-use super::{constants, types::PreparedRequest};
+use super::{constants, types::PreparedWorkerRequest};
 use crate::domain::suite::service::context_input_path;
 use crate::domain::suite::service::declares_missing;
 use crate::outbound::engine::types::PreparedMissingInputs;
@@ -12,24 +12,23 @@ use std::collections::BTreeSet;
 ///
 /// # Errors
 /// Refuses a mismatched mode, source seal, or requested path inventory.
-pub fn prepare(request: WorkerRequest) -> Result<PreparedRequest, Error> {
+pub fn prepare(request: WorkerRequest) -> Result<PreparedWorkerRequest, Error> {
     let missing = classify(&request)?;
-    Ok(PreparedRequest { request, missing })
+    Ok(PreparedWorkerRequest { request, missing })
 }
 fn classify(request: &WorkerRequest) -> Result<PreparedMissingInputs, Error> {
-    crate::domain::suite::service::validate_selected_rules(request.selected_rules.as_deref())?;
-    let selected_rules = request.selected_rules.clone().ok_or_else(|| {
-        Error::Invalid(constants::WORKER_REQUIRES_A_RESOLVED_DIAGNOSTIC_SELECT.into())
-    })?;
-    if let Some(context) = &request.rule_context {
-        crate::domain::suite::rule_context::check(context, &request.files)?;
-        crate::domain::suite::rule_context::check_selection(
-            context,
-            request.selected_rules.as_deref(),
-        )?;
+    crate::domain::suite::service::validate_selected_rules(&request.selected_rules)?;
+    let ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(selected_rules) = request.selected_rules.clone() else {
+        return Err(Error::Invalid(
+            constants::WORKER_REQUIRES_A_RESOLVED_DIAGNOSTIC_SELECT.into(),
+        ));
+    };
+    if let ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Prepared(context) = &request.rule_context {
+        crate::domain::rule_context::service::check(context, &request.files)?;
+        crate::domain::rule_context::service::check_selection(context, &request.selected_rules)?;
     }
 
-    if let Some(roots) = &request.project_search_roots {
+    if let ryo_benchmark_contracts::domain::requests::types::SearchRoots::Declared(roots) = &request.project_search_roots {
         for root in roots {
             if !root.0.is_empty() {
                 ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath::try_from(std::path::Path::new(root.0.as_ref()))?;
@@ -41,7 +40,7 @@ fn classify(request: &WorkerRequest) -> Result<PreparedMissingInputs, Error> {
     }
     if request.given_project_inventory.completeness
         == ryo::linter::ProjectInventoryCompleteness::CompleteWithinDeclaredScope
-        && request.project_search_roots.is_none()
+        && request.project_search_roots == ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared
     {
         return Err(Error::Invalid(
             constants::COMPLETE_GIVEN_PROJECT_INVENTORY_REQUIRES_DE.into(),
@@ -57,8 +56,8 @@ fn classify(request: &WorkerRequest) -> Result<PreparedMissingInputs, Error> {
         ));
     }
     let selected_missing = match (request.project_context_mode, &request.context_manifest) {
-        (ProjectContextMode::Isolated, None) => BTreeSet::new(),
-        (ProjectContextMode::ListedDisk, Some(manifest)) => {
+        (ProjectContextMode::Isolated, ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed) => BTreeSet::new(),
+        (ProjectContextMode::ListedDisk, ryo_benchmark_contracts::domain::requests::types::ContextSeal::Sealed(manifest)) => {
             let requested: BTreeSet<_> = request
                 .files
                 .iter()
@@ -68,7 +67,10 @@ fn classify(request: &WorkerRequest) -> Result<PreparedMissingInputs, Error> {
             let selected_missing: BTreeSet<_> = request
                 .files
                 .iter()
-                .filter(|file| declares_missing(manifest, file))
+                .filter(|file| {
+                    declares_missing(manifest, file)
+                        == crate::domain::suite::types::ContextAbsence::Sealed
+                })
                 .cloned()
                 .collect();
             let missing_in_context: BTreeSet<_> = selected_missing
@@ -139,7 +141,7 @@ pub fn configure<'a>(
     let context = crate::outbound::engine::types::EngineConfiguration {
         selected_missing: missing.selected_missing,
         selected_rules,
-        selected_pairs: configured.selected_pairs,
+        selected_pairs: crate::outbound::engine::types::SelectedPairs(configured.selected_pairs),
         hosted: configured.hosted,
     };
     Ok(crate::outbound::engine::types::configured_engine_session::value::ConfiguredEngineSession::new(session, context))

@@ -1,19 +1,17 @@
 //! Certification of a measure invocation: what it names, what it stages, which contestant it builds and what it reports.
-use super::commands;
 use super::constants;
 use super::constants::{
     CANONICAL_BENCHMARK_REQUIRES_EXPLI, CASE_INVENTORY, REGISTERED_CASE_RESULTS,
 };
+use super::locations;
 use super::request_input::BenchmarkArgument;
-use ryo_benchmark::domain::suite::service::require_accounted;
 use ryo_benchmark::domain::suite::types::audit::value::Audit;
 use ryo_benchmark::domain::suite::types::certificate::value::Certificate;
 use ryo_benchmark::inbound::use_cases::stage_suite::{
     interface::StageSuiteUseCase as _, use_case::StageSuiteUseCaseImpl,
 };
 use ryo_benchmark::outbound::suite::interface::SuitePort;
-use ryo_benchmark::outbound::suite::types::ArtifactPath;
-use ryo_benchmark_contracts::domain::measurements::types::MeasurementMode;
+use ryo_benchmark::outbound::suite::types::{ArtifactPath, ArtifactText};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::requests::types::{BenchmarkCoverage, CertificationCases};
 use ryo_benchmark_contracts::domain::workloads::types::rule_count::value::RuleCount;
@@ -72,7 +70,9 @@ fn registered_cases(
         .ok_or_else(|| Error::Invalid(CANONICAL_BENCHMARK_REQUIRES_EXPLI.into()))?;
     Ok(CertificationCases::Registered {
         registration: PathBuf::from(input).canonicalize()?,
-        output: suite_source.scratch(ArtifactPath(cache), REGISTERED_CASE_RESULTS)?,
+        output: suite_source
+            .retained_directory(ArtifactPath(cache), ArtifactText(REGISTERED_CASE_RESULTS))?
+            .0,
     })
 }
 
@@ -89,17 +89,22 @@ pub(super) fn stage(
     cache: &Path,
     authored: &[ryo::linter::RuleId],
 ) -> Result<StagedSuite, Error> {
-    let scratch = suite_source.scratch(ArtifactPath(cache), constants::CERTIFICATION_PREFIX)?;
+    let scratch = suite_source
+        .retained_directory(
+            ArtifactPath(cache),
+            ArtifactText(constants::CERTIFICATION_PREFIX),
+        )?
+        .0;
     let profile = scratch.join(constants::PROFILE_DIRECTORY);
     StageSuiteUseCaseImpl::new(suite_source.as_ref()).stage_suite(
-        &commands::directory(),
+        &locations::directory(),
         &profile,
         authored,
         StagePurpose::Execution,
     )?;
     let workload = scratch.join(constants::WORKLOAD_DIRECTORY);
     suite_source.stage_projects(
-        ArtifactPath(&commands::directory().join(constants::LANGUAGE_DIRECTORY)),
+        ArtifactPath(&locations::directory().join(constants::LANGUAGE_DIRECTORY)),
         ArtifactPath(&workload),
     )?;
     Ok(StagedSuite {
@@ -158,18 +163,6 @@ fn profile_cases(audit: Audit, selection: Option<Selection<'_>>) -> Result<Certi
         audit,
         cases: CertificationCases::Profile,
     })
-}
-
-/// An accounted run is held to the declared inventory; a diagnostic one to nothing.
-fn measurement_mode(
-    scope: BenchmarkCoverage,
-    inventory: Vec<ryo::linter::RuleId>,
-) -> MeasurementMode {
-    if scope == BenchmarkCoverage::Accounted {
-        MeasurementMode::Benchmark { inventory }
-    } else {
-        MeasurementMode::Diagnostic
-    }
 }
 
 /// How many rules the tool ships, defers and leaves pending, and how many of the shipped ones are authored.
@@ -231,25 +224,6 @@ pub(super) fn announce(
         profile.display()
     )?;
     Ok(())
-}
-
-/// The mode the run is measured in, after the accounted run has shown its inventory and every run its authored rules.
-pub(super) fn held_to(
-    scope: BenchmarkCoverage,
-    audit: &Audit,
-    tool: &Tool,
-    inventory: Vec<ryo::linter::RuleId>,
-) -> Result<MeasurementMode, Error> {
-    if scope == BenchmarkCoverage::Accounted {
-        require_accounted(audit, tool)?;
-    }
-    let mode = measurement_mode(scope, inventory);
-    ryo_benchmark::domain::measurements::service::require_inventory(
-        &mode,
-        audit.authored(),
-        Some(audit.authored()),
-    )?;
-    Ok(mode)
 }
 
 impl RuleTally {

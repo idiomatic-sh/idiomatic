@@ -29,11 +29,11 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn subject(nonempty: Input) -> Result<Value, Failure> {
     let tool = Tool {
         rule_observation_selection:
-            ryo_benchmark_contracts::domain::workloads::types::ObservationSelectionPolicy::Declared,
+            ryo_benchmark_contracts::domain::context::types::ObservationSelectionPolicy::Declared,
         supporting_rules: Vec::new(),
         rule_observations: Default::default(),
-        rule_context: None,
-        file_observation: None,
+        rule_context: ryo_benchmark_contracts::domain::workloads::types::RuleContextProfile::Undeclared,
+        file_observation: ryo_benchmark_contracts::domain::workloads::types::FileObservation::Undeclared,
         project_context_mode:
             ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
         tool: "fixture".into(),
@@ -48,9 +48,9 @@ fn subject(nonempty: Input) -> Result<Value, Failure> {
         pending: std::collections::BTreeMap::default(),
         query_modules: std::collections::BTreeMap::default(),
         rule_applicability: std::collections::BTreeMap::default(),
-        parser_configuration: None,
-        source_language: None,
-        project_search_roots: None,
+        parser_configuration: ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
+        source_language: ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
+        project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
     };
     AuditUseCaseImpl::new(Arc::new(SuiteFake::default()))
         .audit(std::path::Path::new("."), &tool)

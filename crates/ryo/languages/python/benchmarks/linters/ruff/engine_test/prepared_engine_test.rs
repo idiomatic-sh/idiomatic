@@ -45,6 +45,16 @@ pub(super) fn fixture_cohort(names: &[&str]) -> Vec<ryo::linter::RuleId> {
         .collect()
 }
 
+/// The module registry of a worker request, keyed by logical module name.
+pub(super) fn module_names(
+    modules: BTreeMap<String, std::path::PathBuf>,
+) -> BTreeMap<ryo_benchmark_contracts::domain::requests::types::QueryModuleName, std::path::PathBuf> {
+    modules
+        .into_iter()
+        .map(|(name, path)| (ryo_benchmark_contracts::domain::requests::types::QueryModuleName(name), path))
+        .collect()
+}
+
 pub(super) fn suppress_modules() -> BTreeMap<String, std::path::PathBuf> {
     BTreeMap::from([
         (
@@ -78,9 +88,9 @@ pub(super) fn suppress_modules() -> BTreeMap<String, std::path::PathBuf> {
     ])
 }
 
-pub(super) fn default_frontend_projection() -> Result<factory::FrontendDiagnosticProjection, Error>
+pub(super) fn default_frontend_projection() -> Result<ryo_benchmark::outbound::engine::types::FrontendDiagnosticProjection, Error>
 {
-    Ok(factory::FrontendDiagnosticProjection {
+    Ok(ryo_benchmark::outbound::engine::types::FrontendDiagnosticProjection {
         rule: ryo::linter::RuleId::try_from("invalid-syntax")
             .map_err(|error| Error::Invalid(error.to_string()))?,
         query: ryo::query::RyoQlQuery::try_from(
@@ -90,8 +100,8 @@ pub(super) fn default_frontend_projection() -> Result<factory::FrontendDiagnosti
     })
 }
 
-pub(super) fn custom_frontend_projection() -> Result<factory::FrontendDiagnosticProjection, Error> {
-    Ok(factory::FrontendDiagnosticProjection {
+pub(super) fn custom_frontend_projection() -> Result<ryo_benchmark::outbound::engine::types::FrontendDiagnosticProjection, Error> {
+    Ok(ryo_benchmark::outbound::engine::types::FrontendDiagnosticProjection {
         rule: ryo::linter::RuleId::try_from("parser-check")
             .map_err(|error| Error::Invalid(error.to_string()))?,
         query: ryo::query::RyoQlQuery::try_from(r#"let diagnostics = select id, file, span from "syntax-error" where message = "nonlocal declaration not allowed at module level";

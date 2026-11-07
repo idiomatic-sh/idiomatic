@@ -1,4 +1,10 @@
 //! Executable acceptance scenarios colocated with the shared benchmark operations.
+#[path = "../src/inbound/use_cases/account_defaults/acceptance.rs"]
+mod account_defaults;
+
+#[path = "../src/inbound/use_cases/admit_measurement/acceptance.rs"]
+mod admit_measurement;
+
 #[path = "../src/inbound/use_cases/audit/acceptance.rs"]
 mod audit;
 
@@ -8,11 +14,17 @@ mod compare;
 #[path = "../src/inbound/use_cases/measure/acceptance.rs"]
 mod measure;
 
+#[path = "../src/inbound/use_cases/measure_corpus/acceptance.rs"]
+mod measure_corpus;
+
 #[path = "../src/inbound/use_cases/run_ryo/acceptance.rs"]
 mod run_ryo;
 
 #[path = "../src/inbound/use_cases/certify/acceptance.rs"]
 mod certify;
+
+#[path = "../src/inbound/use_cases/check_worker_request/acceptance.rs"]
+mod check_worker_request;
 
 #[path = "../src/inbound/use_cases/collect/acceptance.rs"]
 mod collect;
@@ -25,6 +37,9 @@ mod publish;
 
 #[path = "../src/inbound/use_cases/prepare_cases/acceptance.rs"]
 mod prepare_cases;
+
+#[path = "../src/inbound/use_cases/select_cases/acceptance.rs"]
+mod select_cases;
 
 #[path = "../src/inbound/use_cases/stage_suite/acceptance.rs"]
 mod stage_suite;

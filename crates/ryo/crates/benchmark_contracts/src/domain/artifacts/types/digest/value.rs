@@ -14,7 +14,7 @@ impl ArtifactDigest {
     /// Refuses duplicate/unordered paths or a length outside the canonical framing.
     pub fn file_metadata<'a>(
         metadata: Option<impl IntoIterator<Item = super::super::FileMetadataEntry<'a>>>,
-    ) -> Result<Option<Self>, crate::domain::reports::errors::ReportsError> {
+    ) -> Result<Option<Self>, crate::domain::artifacts::errors::ArtifactsError> {
         use sha2::{Digest as _, Sha256};
         metadata
             .map(|values| {
@@ -23,7 +23,7 @@ impl ArtifactDigest {
                 let mut previous = None;
                 for entry in values {
                     if previous.is_some_and(|path| path >= entry.path) {
-                        return Err(crate::domain::reports::errors::ReportsError::Invalid(
+                        return Err(crate::domain::artifacts::errors::ArtifactsError::Invalid(
                             crate::domain::artifacts::constants::METADATA_ORDER.into(),
                         ));
                     }
@@ -32,7 +32,7 @@ impl ArtifactDigest {
                     hash.update(
                         u64::try_from(bytes.len())
                             .map_err(|_| {
-                                crate::domain::reports::errors::ReportsError::Invalid(
+                                crate::domain::artifacts::errors::ArtifactsError::Invalid(
                                     crate::domain::artifacts::constants::METADATA_PATH_LENGTH
                                         .into(),
                                 )

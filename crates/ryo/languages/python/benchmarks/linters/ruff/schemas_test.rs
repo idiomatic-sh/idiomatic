@@ -20,6 +20,7 @@ enum SchemaInput {
     Offset(&'static str, usize, usize),
     UnavailableSource,
     RuleConfiguration,
+    PinnedPhases,
 }
 type Input = SchemaInput;
 type Value = usize;
@@ -106,6 +107,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || SchemaInput::RuleConfiguration,
         expect: Expect::Value(4),
     },
+    Case {
+        name: CaseName("the_pinned_registry_decodes_the_phase_of_every_rule"),
+        word: Word::Succeeds,
+        input: || SchemaInput::PinnedPhases,
+        expect: Expect::Value(2),
+    },
 ];
 
 fn subject(input: Input) -> Result<Value, Failure> {
@@ -119,6 +126,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
         SchemaInput::RuleConfiguration => {
             Ok(rule_configuration_arguments_round_trip_as_toml_including_control_characters())
         }
+        SchemaInput::PinnedPhases => Ok(the_pinned_registry_decodes_the_phase_of_every_rule()),
     }
 }
 
@@ -143,14 +151,14 @@ fn unavailable_source_accepts_only_declared_file_origin_without_a_fix() -> usize
     let file = RelativePath("missing.py".into());
     let request = RunRequest {
         performance: Default::default(),
-        selected_rules: None,
-        rule_observations: None,
-        rule_context: None,
-        project_search_roots: None,
+        selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Frozen,
+        rule_observations: ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+        rule_context: ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+        project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
         given_project_inventory: Default::default(),
-        staged_sources: None,
-        file_metadata: None,
-        context_manifest: Some(ContextManifest {
+        staged_sources: ryo_benchmark_contracts::domain::requests::types::StagedSources::Unlisted,
+        file_metadata: ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared,
+        context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Sealed(ContextManifest {
             boundary: "/snapshot".into(),
             logical_root: "project".into(),
             auxiliary_files: Default::default(),
@@ -167,7 +175,7 @@ fn unavailable_source_accepts_only_declared_file_origin_without_a_fix() -> usize
         super::schemas::decode(
             request,
             &ProcessOutput {
-                signal: None,
+                signal: ryo_benchmark_contracts::domain::measurements::types::TerminationSignal::Exited,
                 status: ProcessExitCode(1),
                 stdout: CapturedBytes(serde_json::to_vec(&vec![finding]).unwrap()),
                 stderr: CapturedBytes(Vec::new()),
@@ -183,7 +191,8 @@ fn unavailable_source_accepts_only_declared_file_origin_without_a_fix() -> usize
     assert_eq!(report.diagnostics[0].end.0, 0);
     let diagnostics = report.diagnostics.len();
     let mut undeclared = request.clone();
-    undeclared.context_manifest = None;
+    undeclared.context_manifest =
+        ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed;
     assert!(matches!(
         decode(&undeclared, finding.clone()),
         Err(Error::Invalid(_))
@@ -202,7 +211,10 @@ fn unavailable_source_accepts_only_declared_file_origin_without_a_fix() -> usize
 fn rule_configuration_arguments_round_trip_as_toml_including_control_characters() -> usize {
     use ryo_benchmark_contracts::domain::context::types::RuleConfiguration;
     let configuration = RuleConfiguration {
-        external_prefixes: vec!["V\u{7f}\n\"".into(), "é\\".into()],
+        external_prefixes: vec![
+            ryo_benchmark_contracts::domain::context::types::ExternalPrefix("V\u{7f}\n\"".into()),
+            ryo_benchmark_contracts::domain::context::types::ExternalPrefix("é\\".into()),
+        ],
         disabled_rules: std::collections::BTreeMap::from([(
             ryo::linter::RelativePath("pkg/[é]\u{7f}.py".into()),
             vec!["F401".try_into().unwrap()],
@@ -220,14 +232,29 @@ fn rule_configuration_arguments_round_trip_as_toml_including_control_characters(
             .iter()
             .map(|v| v.as_str().unwrap())
             .collect::<Vec<_>>(),
-        configuration.external_prefixes
+        configuration
+            .external_prefixes
+            .iter()
+            .map(|prefix| prefix.0.as_str())
+            .collect::<Vec<_>>()
     );
     let disabled: toml::Value = toml::from_str(args[3].to_str().unwrap()).unwrap();
     let expected =
-        ryo_benchmark::domain::suite::rule_context::literal_glob("/root/pkg/[é]\u{7f}.py");
+        ryo_benchmark::domain::rule_context::service::literal_glob("/root/pkg/[é]\u{7f}.py");
     assert_eq!(
         disabled["lint"]["per-file-ignores"][expected.as_str()][0].as_str(),
         Some("F401")
     );
     args.len()
+}
+
+fn the_pinned_registry_decodes_the_phase_of_every_rule() -> usize {
+    use ryo_benchmark_contracts::domain::requests::types::{ApplicabilityPolicy, RuleLabel};
+    let phases = super::schemas::pinned_rule_phases().unwrap();
+    [("UP045", "accepted-syntax"), ("EXE004", "always")]
+        .into_iter()
+        .filter(|(rule, policy)| {
+            phases.get(&RuleLabel((*rule).into())) == Some(&ApplicabilityPolicy((*policy).into()))
+        })
+        .count()
 }

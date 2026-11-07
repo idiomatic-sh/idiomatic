@@ -1,9 +1,10 @@
 //! Every evidence destination accepts complete samples and refuses incomplete publication.
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use super::sample::SampleInput;
 use crate::outbound::evidence::interface::EvidencePort;
 use ryo_benchmark_contracts::domain::measurements::types::Measurement;
 use ryo_benchmark_contracts::domain::measurements::types::Resources;
-use ryo_benchmark_contracts::domain::measurements::types::{PublicationSample, SampleName};
+use ryo_benchmark_contracts::domain::measurements::types::SampleName;
 use ryo_benchmark_contracts::domain::reports::types::RunReport;
 use std::time::Duration;
 
@@ -20,7 +21,7 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
             let samples = (CASES[1].input)();
             let original = samples[0].measurement.clone();
             vec![SampleInput {
-                complete_inventory: false,
+                inventory: ryo_benchmark_contracts::domain::measurements::types::InventoryStatus::Diagnostic,
                 name: SampleName("diagnostic/reference".into()),
                 measurement: original,
             }]
@@ -32,7 +33,7 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || {
             vec![SampleInput {
-                complete_inventory:true,
+                inventory: ryo_benchmark_contracts::domain::measurements::types::InventoryStatus::Complete,
                 name: ryo_benchmark_contracts::domain::measurements::types::SampleName(
                     "project/contestant/cold".into(),
                 ),
@@ -47,13 +48,13 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
                     report: RunReport {
                         execution_metadata:
                             ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete,
-                        project_context: None,
+                        project_context: ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
                         skipped: Vec::new(),
-                        coverage: Some(ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
-                            selected: 1,
-                            evaluated: 1,
-                            skipped: 0,
-                            unknown_or_unread: 0,
+                        coverage: ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
+                            selected: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
+                            evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
+                            skipped: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
+                            unknown_or_unread: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
                         }),
                         diagnostics: vec![],
                         files: vec![ryo::linter::RelativePath("input".into())],
@@ -74,7 +75,7 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             vec![SampleInput {
-                complete_inventory:true,
+                inventory: ryo_benchmark_contracts::domain::measurements::types::InventoryStatus::Complete,
                 name: ryo_benchmark_contracts::domain::measurements::types::SampleName(
                     "project/contestant/cold".into(),
                 ),
@@ -84,13 +85,13 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
                     report: RunReport {
                         execution_metadata:
                             ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete,
-                        project_context: None,
+                        project_context: ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
                         skipped: Vec::new(),
-                        coverage: Some(ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
-                            selected: 1,
-                            evaluated: 1,
-                            skipped: 0,
-                            unknown_or_unread: 0,
+                        coverage: ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
+                            selected: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
+                            evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
+                            skipped: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
+                            unknown_or_unread: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
                         }),
                         diagnostics: vec![],
                         files: vec![ryo::linter::RelativePath("input".into())],
@@ -121,21 +122,4 @@ pub fn check(adapter: &impl EvidencePort) {
     };
     run(CASES, Word::Succeeds, subject);
     run(CASES, Word::Refuses, subject);
-}
-
-/// Owned test data, not a certification or measurement proof.
-#[derive(Clone)]
-pub struct SampleInput {
-    complete_inventory: bool,
-    name: SampleName,
-    measurement: Measurement,
-}
-impl SampleInput {
-    fn publication(&self) -> PublicationSample<'_> {
-        PublicationSample {
-            complete_inventory: self.complete_inventory,
-            name: &self.name,
-            measurement: &self.measurement,
-        }
-    }
 }

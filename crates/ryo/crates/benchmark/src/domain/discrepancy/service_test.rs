@@ -1,17 +1,21 @@
 //! Behavioral proof of `discrepancy`: a pinned reference may differ from the intended contract only with complete, known evidence.
 use super::errors::DiscrepancyError;
-use super::fixtures::{case, evidence, identity, profile};
+use super::fixtures::{accounted, case, differing, evidence, identity, profile};
 use super::service::{
     check_evidence, complete, identity_digest, matches_intended, output_digest, reference_digest,
     reference_expected, require_distinct, validate_pins,
 };
-use super::types::{Contestant, IntentMatch};
+use super::types::{Contestant, IntentAgreement};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use ryo_benchmark_contracts::domain::measurements::types::ProcessExitCode;
 use ryo_benchmark_contracts::domain::process::types::{ProcessFailure, ReferenceExpectation};
-use ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata;
+use ryo_benchmark_contracts::domain::reports::types::{
+    CoverageAccounting, ExecutionMetadata, PairCount, UnavailableReason,
+};
 use ryo_benchmark_contracts::domain::workloads::types::{
-    CaseComparison, DiscrepancyBasis, discrepancy_evidence::value::DiscrepancyEvidence,
+    CaseComparison, DiscrepancyBasis, PreparedReferenceBehavior,
+    discrepancy_evidence::value::{DiscrepancyEvidence, ParserTarget},
 };
 
 /// What a row asks of the rules.
@@ -69,10 +73,10 @@ fn digest(letter: &str) -> ArtifactDigest {
     ArtifactDigest(letter.repeat(64))
 }
 
-fn agreement(answer: IntentMatch) -> Outcome {
+fn agreement(answer: IntentAgreement) -> Outcome {
     match answer {
-        IntentMatch::Matches => Outcome::Equal,
-        IntentMatch::Differs => Outcome::Different,
+        IntentAgreement::Matches => Outcome::Equal,
+        IntentAgreement::Differs => Outcome::Different,
     }
 }
 
@@ -139,11 +143,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || {
             edited(Operation::Evidence, |case| {
-                case.reference_discrepancy
-                    .as_mut()
-                    .unwrap()
-                    .evidence
-                    .push(evidence());
+                differing(case).evidence.push(evidence());
             })
         },
         expect: Expect::Value(Outcome::Accepted),
@@ -159,7 +159,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             edited(Operation::Complete(Contestant::Candidate), |case| {
-                case.expected.coverage = None
+                case.expected.coverage = CoverageAccounting::Unaccounted
             })
         },
         expect: Expect::Error(DiscrepancyError::CoverageNotCompleteAndKnown),
@@ -175,7 +175,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             unavailable(ExecutionMetadata::Unavailable {
-                reason: "not observed".into(),
+                reason: UnavailableReason("not observed".into()),
             })
         },
         expect: Expect::Error(DiscrepancyError::CoverageNotCompleteAndKnown),
@@ -185,7 +185,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             edited(Operation::Complete(Contestant::Candidate), |case| {
-                case.expected.coverage.as_mut().unwrap().unknown_or_unread = 1;
+                accounted(&mut case.expected).unknown_or_unread = PairCount(1);
             })
         },
         expect: Expect::Error(DiscrepancyError::CoverageNotCompleteAndKnown),
@@ -233,13 +233,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             edited(Operation::ReferenceExpected, |case| {
-                case.reference_discrepancy.as_mut().unwrap().expected =
-                    ReferenceExpectation::ProcessFailure(ProcessFailure {
-                        exit: 2,
-                        stdout: Vec::new(),
-                        stderr: Vec::new(),
-                        observations: Vec::new(),
-                    });
+                differing(case).expected = ReferenceExpectation::ProcessFailure(ProcessFailure {
+                    exit: ProcessExitCode(2),
+                    stdout: Vec::new(),
+                    stderr: Vec::new(),
+                    observations: Vec::new(),
+                });
             })
         },
         expect: Expect::Error(DiscrepancyError::ProcessExpectationNotDiagnostic),
@@ -255,11 +254,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             edited(Operation::Distinct, |case| {
-                case.reference_discrepancy
-                    .as_mut()
-                    .unwrap()
-                    .evidence
-                    .push(evidence());
+                differing(case).evidence.push(evidence());
                 case.comparison = CaseComparison::Rule;
             })
         },
@@ -271,7 +266,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edited(Operation::Distinct, |case| {
                 let expected = case.expected.clone();
-                let item = case.reference_discrepancy.as_mut().unwrap();
+                let item = differing(case);
                 item.evidence.push(evidence());
                 item.expected = ReferenceExpectation::Diagnostics(expected);
             })
@@ -283,7 +278,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             edited(Operation::Evidence, |case| {
-                let item = case.reference_discrepancy.as_mut().unwrap();
+                let item = differing(case);
                 item.evidence.push(evidence());
                 item.basis = DiscrepancyBasis::ToolContract;
             })
@@ -295,28 +290,24 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             edited(Operation::Evidence, |case| {
-                case.reference_discrepancy
-                    .as_mut()
-                    .unwrap()
-                    .evidence
-                    .push(match evidence() {
-                        DiscrepancyEvidence::Language {
-                            path,
-                            sha256,
-                            kind,
-                            language_version,
-                            version_rationale,
-                            ..
-                        } => DiscrepancyEvidence::Language {
-                            path,
-                            sha256,
-                            kind,
-                            language_version,
-                            version_rationale,
-                            target_configuration: "python3.8".into(),
-                        },
-                        other => other,
-                    });
+                differing(case).evidence.push(match evidence() {
+                    DiscrepancyEvidence::Language {
+                        path,
+                        sha256,
+                        kind,
+                        language_version,
+                        version_rationale,
+                        ..
+                    } => DiscrepancyEvidence::Language {
+                        path,
+                        sha256,
+                        kind,
+                        language_version,
+                        version_rationale,
+                        target_configuration: ParserTarget("python3.8".into()),
+                    },
+                    other => other,
+                });
             })
         },
         expect: Expect::Error(DiscrepancyError::EvidenceDoesNotSupportConfiguration),
@@ -325,7 +316,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 fn subject(input: Input) -> Result<Value, Failure> {
     let case = &input.case;
-    let item = case.reference_discrepancy.as_ref().unwrap();
+    let PreparedReferenceBehavior::Differs(item) = &case.reference_discrepancy else {
+        panic!("the fixture case documents a difference")
+    };
     match input.operation {
         Operation::ReferenceAgainstIntendedDigest => Ok(equal(
             &reference_digest(&item.expected),

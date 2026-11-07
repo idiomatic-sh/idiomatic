@@ -1,8 +1,15 @@
 //! Pure validation shared by artifact auditing and case execution.
+use super::types::{CaseOwnership, ContextAbsence};
 use crate::domain::suite::constants;
 use crate::domain::suite::types::audit::value::Audit;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::workloads::types::Cases;
+use ryo_benchmark_contracts::domain::reports::types::{CoverageAccounting, ProjectContext};
+use ryo_benchmark_contracts::domain::requests::types::{
+    CohortSelection, ContextSeal, FileMetadataDeclaration, StagedSources,
+};
+use ryo_benchmark_contracts::domain::workloads::types::{
+    Cases, ContextDeclaration, InventoryDeclaration, ReferenceBehavior, RequestedFiles,
+};
 use std::path::{Component, Path};
 
 /// Materialized source identity includes context files, independently of requested diagnostics.
@@ -10,17 +17,21 @@ use std::path::{Component, Path};
 pub fn materialized_sources(
     request: &ryo_benchmark_contracts::domain::requests::types::RunRequest,
 ) -> Vec<std::path::PathBuf> {
-    request
-        .staged_sources
-        .as_deref()
+    let listed = match &request.staged_sources {
+        StagedSources::Listed(files) => Some(files),
+        StagedSources::Unlisted => None,
+    };
+    listed
         .unwrap_or(&request.files)
         .iter()
         .filter(|file| {
-            request.staged_sources.is_some()
-                || !request
-                    .context_manifest
-                    .as_ref()
-                    .is_some_and(|manifest| declares_missing(manifest, file))
+            listed.is_some()
+                || match &request.context_manifest {
+                    ContextSeal::Sealed(manifest) => {
+                        declares_missing(manifest, file) == ContextAbsence::Unnamed
+                    }
+                    ContextSeal::Unsealed => true,
+                }
         })
         .map(|file| std::path::PathBuf::from(file.0.as_ref()))
         .collect()
@@ -31,8 +42,12 @@ pub fn materialized_sources(
 pub fn owns_cases(
     tool: &ryo_benchmark_contracts::domain::workloads::types::Tool,
     rule: &ryo::linter::RuleId,
-) -> bool {
-    tool.defaults.contains(rule)
+) -> CaseOwnership {
+    if tool.defaults.contains(rule) {
+        CaseOwnership::Owns
+    } else {
+        CaseOwnership::Supports
+    }
 }
 
 /// Require a nonempty complete implementation inventory.
@@ -120,8 +135,12 @@ pub fn validate_case_sources(cases: &Cases) -> Result<(), Error> {
     }
     let mut names = std::collections::BTreeSet::new();
     for case in &cases.cases {
-        validate_selected_rules(case.selected_rules.as_deref())?;
-        if (case.files.is_empty() && case.requested_files.as_ref().is_none_or(Vec::is_empty))
+        validate_selected_rules(&case.selected_rules)?;
+        if (case.files.is_empty()
+            && match &case.requested_files {
+                RequestedFiles::Legacy => true,
+                RequestedFiles::Explicit(requested) => requested.is_empty(),
+            })
             || case.name.0.trim().is_empty()
             || !names.insert(&case.name)
         {
@@ -132,14 +151,14 @@ pub fn validate_case_sources(cases: &Cases) -> Result<(), Error> {
         for name in case.files.keys() {
             ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath::try_from(Path::new(name.0.as_ref()))?;
         }
-        if let Some(requested) = &case.requested_files {
+        if let RequestedFiles::Explicit(requested) = &case.requested_files {
             let selected: std::collections::BTreeSet<_> = requested.iter().collect();
             if requested.is_empty() || selected.len() != requested.len() {
                 return Err(Error::Invalid(
                     constants::EXPLICIT_SOURCE_INVENTORY_MUST_NAME_EACH.into(),
                 ));
             }
-            if let Some(context) = &case.context {
+            if let ContextDeclaration::Declared(context) = &case.context {
                 if case.files.keys().any(|path| !selected.contains(path)) {
                     return Err(Error::Invalid(
                         constants::SEALED_DISK_CONTEXT_MUST_SELECT_EVERY.into(),
@@ -148,7 +167,8 @@ pub fn validate_case_sources(cases: &Cases) -> Result<(), Error> {
                 for path in requested {
                     ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath::try_from(Path::new(path.0.as_ref()))?;
                     if !case.files.contains_key(path)
-                        && !context_missing(&context.logical_root, &context.missing, path)
+                        && context_missing(&context.logical_root, &context.missing, path)
+                            == ContextAbsence::Unnamed
                     {
                         return Err(Error::Invalid(
                             constants::REQUESTED_UNAVAILABLE_SOURCE_LACKS_A_CONTEXT.into(),
@@ -162,13 +182,14 @@ pub fn validate_case_sources(cases: &Cases) -> Result<(), Error> {
                     ));
                 }
                 for path in case.files.keys().filter(|path| !selected.contains(path)) {
-                    let inventory = case.given_project_inventory.as_ref().ok_or_else(|| {
-                        Error::Invalid(
+                    let InventoryDeclaration::Declared(inventory) = &case.given_project_inventory
+                    else {
+                        return Err(Error::Invalid(
                             constants::UNSELECTED_GIVEN_SOURCE_REQUIRES_AN_EXPLICIT.into(),
-                        )
-                    })?;
+                        ));
+                    };
                     if !inventory.entries.iter().any(|entry| {
-                        entry.path == *path && entry.state == ryo::linter::ProjectEntryState::File
+                        entry.path == *path && entry.state == ryo::linter::ProjectEntryState::Regular
                     }) {
                         return Err(Error::Invalid(
                             constants::UNSELECTED_GIVEN_SOURCE_LACKS_A_MATCHING.into(),
@@ -177,7 +198,7 @@ pub fn validate_case_sources(cases: &Cases) -> Result<(), Error> {
                 }
             }
         }
-        if let Some(values) = &case.file_metadata {
+        if let FileMetadataDeclaration::Declared(values) = &case.file_metadata {
             for name in values.keys() {
                 ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath::try_from(Path::new(name.0.as_ref()))?;
                 if !case.files.contains_key(name) {
@@ -187,7 +208,7 @@ pub fn validate_case_sources(cases: &Cases) -> Result<(), Error> {
                 }
             }
         }
-        if case.reference_discrepancy.is_some()
+        if matches!(case.reference_discrepancy, ReferenceBehavior::Differs(_))
             && case.comparison
                 != ryo_benchmark_contracts::domain::workloads::types::CaseComparison::Full
         {
@@ -195,11 +216,11 @@ pub fn validate_case_sources(cases: &Cases) -> Result<(), Error> {
                 constants::REFERENCE_DISCREPANCIES_REQUIRE_FULL_COMPARI.into(),
             ));
         }
-        for expected in case.expected.iter().chain(
-            case.reference_discrepancy
-                .iter()
-                .flat_map(|item| &item.expected),
-        ) {
+        let reference_expected = match &case.reference_discrepancy {
+            ReferenceBehavior::Agrees => &[][..],
+            ReferenceBehavior::Differs(item) => item.expected.as_slice(),
+        };
+        for expected in case.expected.iter().chain(reference_expected) {
             if case.comparison
                 == ryo_benchmark_contracts::domain::workloads::types::CaseComparison::Full
                 && matches!(
@@ -213,10 +234,7 @@ pub fn validate_case_sources(cases: &Cases) -> Result<(), Error> {
             }
             let source = match case.files.get(&expected.file) {
                 Some(source) => source,
-                None if case
-                    .requested_files
-                    .as_ref()
-                    .is_some_and(|paths| paths.contains(&expected.file))
+                None if matches!(&case.requested_files, RequestedFiles::Explicit(paths) if paths.contains(&expected.file))
                     && expected.start.0 == 0
                     && expected.end.0 == 0 =>
                 {
@@ -243,7 +261,7 @@ pub fn validate_case_sources(cases: &Cases) -> Result<(), Error> {
 pub fn declares_missing(
     manifest: &ryo_benchmark_contracts::domain::context::types::ContextManifest,
     file: &ryo::linter::RelativePath,
-) -> bool {
+) -> ContextAbsence {
     context_missing(&manifest.logical_root, &manifest.missing, file)
 }
 
@@ -252,13 +270,17 @@ fn context_missing(
     root: &Path,
     missing: &[std::path::PathBuf],
     file: &ryo::linter::RelativePath,
-) -> bool {
+) -> ContextAbsence {
     let input = context_input_path(root, file);
-    missing.iter().any(|path| {
+    if missing.iter().any(|path| {
         path.components()
             .filter(|part| *part != Component::CurDir)
             .eq(input.components().filter(|part| *part != Component::CurDir))
-    })
+    }) {
+        ContextAbsence::Sealed
+    } else {
+        ContextAbsence::Unnamed
+    }
 }
 
 /// A requested logical input's boundary-relative path, consistent with context materialization.
@@ -272,9 +294,12 @@ pub(crate) fn context_input_path(
         .collect()
 }
 
-/// Admit only explicit, nonempty, duplicate-free cohorts. None preserves historical profile selection.
-pub fn validate_selected_rules(rules: Option<&[ryo::linter::RuleId]>) -> Result<(), Error> {
-    if let Some(rules) = rules {
+/// Admit only explicit, nonempty, duplicate-free cohorts. A frozen selection preserves the historical profile selection.
+///
+/// # Errors
+/// Refuses an explicit cohort that is empty or repeats a rule.
+pub fn validate_selected_rules(rules: &CohortSelection) -> Result<(), Error> {
+    if let CohortSelection::Explicit(rules) = rules {
         let unique: std::collections::BTreeSet<_> = rules.iter().collect();
         if rules.is_empty() || unique.len() != rules.len() {
             return Err(Error::Invalid(
@@ -334,10 +359,10 @@ pub(crate) fn expected_report(
     let mut report = ryo_benchmark_contracts::domain::reports::types::RunReport {
         execution_metadata:
             ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Unknown,
-        project_context: None,
+        project_context: ProjectContext::NotRequested,
         files,
         skipped: Vec::new(),
-        coverage: None,
+        coverage: CoverageAccounting::Unaccounted,
         diagnostics: expected
             .into_iter()
             .map(

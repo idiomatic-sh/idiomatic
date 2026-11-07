@@ -172,24 +172,10 @@ pub(crate) const REQUEST_JSON: &str = "request.json";
 pub(crate) const ROOT_TMP_PROJECT_FILES_A_PY: &str = r#"{"root":"/tmp/project","files":["a.py"]}"#;
 /// Text `--request-file`.
 pub(crate) const REQUEST_FILE: &str = "--request-file";
-/// Text `parser_configuration`.
-pub(crate) const PARSER_CONFIGURATION: &str = "parser_configuration";
-/// Text `rule_applicability`.
-pub(crate) const RULE_APPLICABILITY: &str = "rule_applicability";
-/// Text `UP045`.
-pub(crate) const UP045: &str = "UP045";
-/// Text `accepted-syntax`.
-pub(crate) const ACCEPTED_SYNTAX: &str = "accepted-syntax";
-/// Text `EXE004`.
-pub(crate) const EXE004: &str = "EXE004";
 /// Text `python-target=3.11`.
 pub(crate) const PYTHON_TARGET_3_11: &str = "python-target=3.11";
 /// Text `python-target=3.9`.
 pub(crate) const PYTHON_TARGET_3_9: &str = "python-target=3.9";
-/// Text `request must be an object`.
-pub(crate) const REQUEST_MUST_BE_AN_OBJECT: &str = "request must be an object";
-/// Text `unreviewed`.
-pub(crate) const UNREVIEWED: &str = "unreviewed";
 /// Text `python-target=3.7`.
 pub(crate) const PYTHON_TARGET_3_7: &str = "python-target=3.7";
 /// Text `python-target=3.8`.

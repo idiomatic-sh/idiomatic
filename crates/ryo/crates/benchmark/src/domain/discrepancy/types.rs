@@ -23,7 +23,7 @@ pub(crate) enum Contestant {
 
 /// Whether a report agrees with the intended contract.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum IntentMatch {
+pub(crate) enum IntentAgreement {
     /// The report is exactly what the intended contract asks.
     Matches,
     /// The report differs from the intended contract.
@@ -71,4 +71,19 @@ pub(crate) struct ReferenceProof {
     pub intended_output: ArtifactDigest,
     /// The declared file metadata.
     pub file_metadata: OptionalDigest,
+}
+
+impl std::fmt::Display for Contestant {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(match self {
+            Self::Reference => ryo_benchmark_contracts::domain::receipts::constants::REFERENCE,
+            Self::Candidate => ryo_benchmark_contracts::domain::receipts::constants::CANDIDATE,
+        })
+    }
+}
+
+/// What comparing one contestant's report with its expectation showed.
+pub(crate) struct Judgement {
+    /// Nothing, or both raw finding multisets and skip arrays of the difference.
+    pub comparison: Result<(), ryo_benchmark_contracts::domain::reports::types::Difference>,
 }

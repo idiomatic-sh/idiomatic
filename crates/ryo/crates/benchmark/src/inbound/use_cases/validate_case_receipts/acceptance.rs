@@ -5,9 +5,12 @@ use ryo_benchmark::inbound::use_cases::validate_case_receipts::{
     use_case::ValidateCaseReceiptsUseCaseImpl,
 };
 fn subject(scenario: Scenario) -> Result<usize, &'static str> {
-    let use_case = ValidateCaseReceiptsUseCaseImpl::new(std::sync::Arc::new(
-        ryo_benchmark::outbound::inventory::factory::local(),
-    ));
+    let use_case = ValidateCaseReceiptsUseCaseImpl::new(
+        std::sync::Arc::new(ryo_benchmark::outbound::receipts::factory::local(
+            ryo_benchmark::outbound::receipts::types::CaseReceipts::Unrecorded,
+        )),
+        std::sync::Arc::new(ryo_benchmark::outbound::inventory::factory::local()),
+    );
     exercise(&use_case, scenario)
 }
 #[then("receipt validation admits the shared producer registration")]

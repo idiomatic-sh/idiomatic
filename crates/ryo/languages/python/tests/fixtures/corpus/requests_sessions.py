@@ -33,7 +33,7 @@ from .hooks import default_hooks, dispatch_hook
 from .models import (  # noqa: F401
     DEFAULT_REDIRECT_LIMIT,
     REDIRECT_STATI,
-    PreparedRequest,
+    PreparedWorkerRequest,
     Request,
 )
 from .status_codes import codes
@@ -455,14 +455,14 @@ class Session(SessionRedirectMixin):
         self.close()
 
     def prepare_request(self, request):
-        """Constructs a :class:`PreparedRequest <PreparedRequest>` for
-        transmission and returns it. The :class:`PreparedRequest` has settings
+        """Constructs a :class:`PreparedWorkerRequest <PreparedWorkerRequest>` for
+        transmission and returns it. The :class:`PreparedWorkerRequest` has settings
         merged from the :class:`Request <Request>` instance and those of the
         :class:`Session`.
 
         :param request: :class:`Request` instance to prepare with this
             session's settings.
-        :rtype: requests.PreparedRequest
+        :rtype: requests.PreparedWorkerRequest
         """
         cookies = request.cookies or {}
 
@@ -480,7 +480,7 @@ class Session(SessionRedirectMixin):
         if self.trust_env and not auth and not self.auth:
             auth = get_netrc_auth(request.url)
 
-        p = PreparedRequest()
+        p = PreparedWorkerRequest()
         p.prepare(
             method=request.method.upper(),
             url=request.url,
@@ -671,7 +671,7 @@ class Session(SessionRedirectMixin):
         return self.request("DELETE", url, **kwargs)
 
     def send(self, request, **kwargs):
-        """Send a given PreparedRequest.
+        """Send a given PreparedWorkerRequest.
 
         :rtype: requests.Response
         """

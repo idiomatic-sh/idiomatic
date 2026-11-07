@@ -4,8 +4,9 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo::linter::{RelativePath, RuleId, SkipReason, Skipped};
 use ryo_benchmark_contracts::domain::reports::service::require_complete_execution;
 use ryo_benchmark_contracts::domain::reports::types::{
-    BenchmarkFinding, Comparison, ComparisonContract, ExecutionMetadata, ReportComparison,
-    RuleCoverage, RunReport, SourceByteOffset,
+    BenchmarkFinding, Comparison, ComparisonContract, CoverageAccounting, ExecutionMetadata,
+    PairCount, ProjectContext, ReportComparison, RuleCoverage, RunReport, SourceByteOffset,
+    UnavailableReason,
 };
 use std::borrow::Cow;
 
@@ -54,13 +55,17 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(Verdict::Compared(EXACT)),
     },
     Case {
-        name: CaseName("an unknown reference execution is incomparable under the diagnostics contract"),
+        name: CaseName(
+            "an unknown reference execution is incomparable under the diagnostics contract",
+        ),
         word: Word::Succeeds,
         input: || unobservable(ExecutionMetadata::Unknown, ComparisonContract::Diagnostics),
         expect: Expect::Value(Verdict::Compared(UNPROVEN)),
     },
     Case {
-        name: CaseName("an unavailable reference execution is incomparable under the diagnostics contract"),
+        name: CaseName(
+            "an unavailable reference execution is incomparable under the diagnostics contract",
+        ),
         word: Word::Succeeds,
         input: || {
             unobservable(
@@ -116,7 +121,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("an unknown reference execution leaves full parity unproven"),
         word: Word::Refuses,
-        input: || unobservable(ExecutionMetadata::Unknown, ComparisonContract::CompleteReport),
+        input: || {
+            unobservable(
+                ExecutionMetadata::Unknown,
+                ComparisonContract::CompleteReport,
+            )
+        },
         expect: Expect::Error(Refusal::Differs(UNPROVEN)),
     },
     Case {
@@ -196,26 +206,34 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             let (_, mut candidate) = skipping();
             candidate.skipped.push(candidate.skipped[0].clone());
-            let coverage = candidate.coverage.as_mut().expect("fixture coverage");
-            coverage.selected = 2;
-            coverage.skipped = 2;
+            let coverage = accounted(&mut candidate);
+            coverage.selected = PairCount(2);
+            coverage.skipped = PairCount(2);
             Check::Execution(candidate)
         },
         expect: Expect::Error(Refusal::Invalid(Cow::Borrowed(INVALID_SKIPS))),
     },
 ];
 
+/// The accounted coverage of a fixture report.
+fn accounted(report: &mut RunReport) -> &mut RuleCoverage {
+    match &mut report.coverage {
+        CoverageAccounting::Accounted(coverage) => coverage,
+        CoverageAccounting::Unaccounted => panic!("fixture coverage"),
+    }
+}
+
 fn report() -> RunReport {
     RunReport {
         execution_metadata: ExecutionMetadata::Complete,
-        project_context: None,
+        project_context: ProjectContext::NotRequested,
         files: vec![RelativePath("input.txt".into())],
         skipped: Vec::new(),
-        coverage: Some(RuleCoverage {
-            selected: 1,
-            evaluated: 1,
-            skipped: 0,
-            unknown_or_unread: 0,
+        coverage: CoverageAccounting::Accounted(RuleCoverage {
+            selected: PairCount(1),
+            evaluated: PairCount(1),
+            skipped: PairCount(0),
+            unknown_or_unread: PairCount(0),
         }),
         diagnostics: Vec::new(),
     }
@@ -248,7 +266,7 @@ fn missing_file() -> Input {
 fn unobservable(capability: ExecutionMetadata, contract: ComparisonContract) -> Input {
     let mut reference = report();
     reference.execution_metadata = capability;
-    reference.coverage = None;
+    reference.coverage = CoverageAccounting::Unaccounted;
     Check::Reports(contract, reference, report())
 }
 
@@ -256,16 +274,16 @@ fn unobservable(capability: ExecutionMetadata, contract: ComparisonContract) -> 
 fn unwaived(failure: usize) -> Input {
     let mut reference = report();
     reference.execution_metadata = ExecutionMetadata::Unavailable {
-        reason: "findings-only".into(),
+        reason: UnavailableReason("findings-only".into()),
     };
-    reference.coverage = None;
+    reference.coverage = CoverageAccounting::Unaccounted;
     let mut candidate = report();
     match failure {
         0 => candidate.execution_metadata = ExecutionMetadata::Unknown,
-        1 => candidate.coverage = None,
-        2 => candidate.coverage.as_mut().expect("fixture coverage").unknown_or_unread = 1,
-        3 => candidate.coverage.as_mut().expect("fixture coverage").selected = 2,
-        _ => candidate.coverage.as_mut().expect("fixture coverage").skipped = 1,
+        1 => candidate.coverage = CoverageAccounting::Unaccounted,
+        2 => accounted(&mut candidate).unknown_or_unread = PairCount(1),
+        3 => accounted(&mut candidate).selected = PairCount(2),
+        _ => accounted(&mut candidate).skipped = PairCount(1),
     }
     Check::Reports(ComparisonContract::Diagnostics, reference, candidate)
 }
@@ -278,9 +296,9 @@ fn skipping() -> (RunReport, RunReport) {
         path: candidate.files[0].clone(),
         reason: SkipReason::SyntaxRejected,
     });
-    let coverage = candidate.coverage.as_mut().expect("fixture coverage");
-    coverage.evaluated = 0;
-    coverage.skipped = 1;
+    let coverage = accounted(&mut candidate);
+    coverage.evaluated = PairCount(0);
+    coverage.skipped = PairCount(1);
     (report(), candidate)
 }
 

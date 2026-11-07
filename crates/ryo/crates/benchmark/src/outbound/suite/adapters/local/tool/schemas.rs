@@ -29,7 +29,7 @@ struct ToolSchema {
     file_observation: Option<String>,
     #[serde(default, rename = "project-context-mode")]
     /// Explicit project lookup mode for this invocation.
-    project_context_mode: crate::outbound::context::adapters::local::schemas::ModeSchema,
+    project_context_mode: ModeSchema,
     /// Reference tool name.
     tool: String,
     /// Exact expected version output.
@@ -80,7 +80,7 @@ impl TryFrom<ToolSchema> for types::Tool {
         }
         let mut query_modules = BTreeMap::new();
         for (id, path) in wire.query_modules {
-            let _module = ryo::query::QueryModuleSource::try_new(&id, "module source")
+            let _module = ryo::query::QueryModuleSource::try_new(&id, crate::outbound::suite::adapters::local::constants::MODULE_SOURCE)
                 .map_err(|error| Error::Invalid(error.to_string()))?;
             let path = std::path::PathBuf::from(path);
             ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath::try_from(std::path::Path::new(&path))?;
@@ -112,7 +112,11 @@ impl TryFrom<ToolSchema> for types::Tool {
         for (id, applicability) in &wire.rule_applicability {
             let parsed_id = rule(id)?;
             if (!defaults.contains(&parsed_id) && !supporting_rules.contains(&parsed_id))
-                || !matches!(applicability.as_str(), "always" | "accepted-syntax")
+                || !matches!(
+                    applicability.as_str(),
+                    crate::outbound::suite::adapters::local::constants::ALWAYS
+                        | crate::outbound::suite::adapters::local::constants::ACCEPTED_SYNTAX
+                )
             {
                 return Err(Error::Invalid(format!(
                     "invalid rule applicability policy: {id} -> {applicability}"
@@ -148,8 +152,8 @@ impl TryFrom<ToolSchema> for types::Tool {
         }
         Ok(Self {
             file_observation: match wire.file_observation.as_deref() {
-                None => None,
-                Some("posix-executable") => Some(types::FileObservation::PosixExecutable),
+                None => ryo_benchmark_contracts::domain::workloads::types::FileObservation::Undeclared,
+                Some("posix-executable") => ryo_benchmark_contracts::domain::workloads::types::FileObservation::PosixExecutable,
                 Some(_) => {
                     return Err(Error::Invalid(
                         "unsupported file observation requirement".into(),
@@ -162,14 +166,15 @@ impl TryFrom<ToolSchema> for types::Tool {
             sha256: wire.sha256.into_iter().map(Into::into).collect(),
             defaults,
             supporting_rules,
-            rule_context: wire
-                .rule_context
-                .map(TryInto::try_into)
-                .transpose()
-                .map_err(Error::Invalid)?,
+            rule_context: match wire.rule_context {
+                Some(declaration) => ryo_benchmark_contracts::domain::workloads::types::RuleContextProfile::Declared(
+                    declaration.try_into().map_err(Error::Invalid)?,
+                ),
+                None => ryo_benchmark_contracts::domain::workloads::types::RuleContextProfile::Undeclared,
+            },
             rule_observation_selection: match wire.rule_observation_selection.as_deref() {
-                None | Some("declared") => types::ObservationSelectionPolicy::Declared,
-                Some("selected") => types::ObservationSelectionPolicy::Selected,
+                None | Some("declared") => ryo_benchmark_contracts::domain::context::types::ObservationSelectionPolicy::Declared,
+                Some("selected") => ryo_benchmark_contracts::domain::context::types::ObservationSelectionPolicy::Selected,
                 Some(_) => {
                     return Err(Error::Invalid(
                         "unknown profile observation-selection policy".into(),
@@ -180,11 +185,27 @@ impl TryFrom<ToolSchema> for types::Tool {
                 .map_err(Error::Invalid)?,
             deferred: dispositions(wire.deferred)?,
             pending: dispositions(wire.pending)?,
-            query_modules,
-            rule_applicability: wire.rule_applicability,
-            parser_configuration: wire.parser_configuration,
-            source_language: wire.source_language,
-            project_search_roots: project_search_roots(wire.project_search_roots)?,
+            query_modules: query_modules
+                .into_iter()
+                .map(|(name, path)| (ryo_benchmark_contracts::domain::requests::types::QueryModuleName(name), path))
+                .collect(),
+            rule_applicability: wire
+                .rule_applicability
+                .into_iter()
+                .map(|(rule, policy)| (ryo_benchmark_contracts::domain::requests::types::RuleLabel(rule), ryo_benchmark_contracts::domain::requests::types::ApplicabilityPolicy(policy)))
+                .collect(),
+            parser_configuration: match wire.parser_configuration {
+                Some(name) => ryo_benchmark_contracts::domain::requests::types::ParserSelection::Named(ryo_benchmark_contracts::domain::requests::types::ParserConfigurationName(name)),
+                None => ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
+            },
+            source_language: match wire.source_language {
+                Some(name) => ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Selected(ryo_benchmark_contracts::domain::requests::types::SourceLanguageName(name)),
+                None => ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
+            },
+            project_search_roots: match project_search_roots(wire.project_search_roots)? {
+                Some(roots) => ryo_benchmark_contracts::domain::requests::types::SearchRoots::Declared(roots),
+                None => ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
+            },
         })
     }
 }
@@ -226,4 +247,65 @@ fn dispositions(
 /// Validate a rule identifier before it enters the benchmark domain.
 fn rule(value: &str) -> Result<ryo::linter::RuleId, Error> {
     ryo::linter::RuleId::try_from(value).map_err(|error| Error::Invalid(error.to_string()))
+}
+
+/// Rewrite a profile document so it selects exactly the authored rules and keeps the definitions the others need.
+pub(in super::super) fn narrowed(
+    original: &str,
+    authored: &[ryo::linter::RuleId],
+    definitions: &std::collections::BTreeSet<ryo::linter::RuleId>,
+) -> Result<String, Error> {
+    use crate::outbound::suite::adapters::local::constants;
+    let mut value: toml::Value = toml::from_str(original)?;
+    let table = value
+        .as_table_mut()
+        .ok_or_else(|| Error::Invalid(constants::PROFILE_MUST_BE_A_TABLE.into()))?;
+    table.insert(
+        constants::DEFAULTS.into(),
+        toml::Value::Array(
+            authored
+                .iter()
+                .map(|id| toml::Value::String(id.to_string()))
+                .collect(),
+        ),
+    );
+    table.insert(
+        constants::SUPPORTING_RULES.into(),
+        toml::Value::Array(
+            definitions
+                .iter()
+                .filter(|id| !authored.contains(id))
+                .map(|id| toml::Value::String(id.to_string()))
+                .collect(),
+        ),
+    );
+    table.remove(constants::PENDING);
+    table.remove(constants::DEFERRED);
+    for key in [constants::RULE_OBSERVATIONS, constants::RULE_APPLICABILITY] {
+        if let Some(entries) = table.get_mut(key).and_then(toml::Value::as_table_mut) {
+            entries.retain(|id, _| definitions.iter().any(|rule| rule.as_ref() == id));
+        }
+    }
+    toml::to_string(&value).map_err(|error| Error::Invalid(error.to_string()))
+}
+
+/// Explicit project lookup mode a profile declares.
+#[derive(Clone, Copy, Debug, Default, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+enum ModeSchema {
+    /// Source-only execution with no external project lookup.
+    #[default]
+    Isolated,
+    /// Disk lookup constrained by the sealed context manifest.
+    ListedDisk,
+}
+impl From<ModeSchema>
+    for ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode
+{
+    fn from(mode: ModeSchema) -> Self {
+        match mode {
+            ModeSchema::Isolated => Self::Isolated,
+            ModeSchema::ListedDisk => Self::ListedDisk,
+        }
+    }
 }

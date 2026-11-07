@@ -5,6 +5,7 @@ use super::service::{check_archives, group_digest, output_digest};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::discrepancy::fixtures::profile;
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use ryo_benchmark_contracts::domain::measurements::types::ProcessExitCode;
 use ryo_benchmark_contracts::domain::process::types::ProcessFailure;
 use ryo_benchmark_contracts::domain::workloads::types::Tool;
 
@@ -135,7 +136,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
         }
         Operation::OutputOfEditedExit => {
             let mut edited = input.process.clone();
-            edited.exit = 3;
+            edited.exit = ProcessExitCode(3);
             Ok(if output_digest(&edited) == output_digest(&input.process) {
                 Outcome::Accepted
             } else {

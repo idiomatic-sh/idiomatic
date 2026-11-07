@@ -1,5 +1,13 @@
 //! Actual public suite verification over independent source inputs and real child processes.
 use super::fixtures::{Refusal, Scenario, exercise};
+use super::{
+    interface::VerifyReferenceCasesUseCase as _, use_case::VerifyReferenceCasesUseCaseImpl,
+};
+use crate::outbound::{
+    execution::interface::ExecutionPort, linter::interface::LinterPort, suite::interface::SuitePort,
+};
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
+use std::path::Path;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 type Input = Scenario;
 type Value = usize;
@@ -18,8 +26,22 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Error(Refusal::MissingSource),
     },
 ];
+fn verify(
+    suite: &dyn SuitePort,
+    reference: &dyn LinterPort,
+    execution: &dyn ExecutionPort,
+    rules: &Path,
+    scratch: &Path,
+) -> Result<usize, ReportsError> {
+    let inventory = crate::outbound::inventory::factory::local();
+    let context = crate::outbound::context::factory::local();
+    let receipts = crate::outbound::receipts::fixtures::fake::ReceiptsFake::default();
+    VerifyReferenceCasesUseCaseImpl::new(suite, &receipts, &context, reference, execution, &inventory)
+        .verify_reference_cases(rules, scratch)
+        .map(|count| count.0)
+}
 fn subject(input: Input) -> Result<Value, Failure> {
-    exercise(input)
+    exercise(input, verify)
 }
 #[test]
 fn succeeds() {
@@ -29,3 +51,6 @@ fn succeeds() {
 fn refuses() {
     run(CASES, Word::Refuses, subject);
 }
+
+mod native;
+mod reference;

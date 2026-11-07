@@ -1,14 +1,6 @@
 //! Constructs the one SDK engine adapter with explicit diagnostic projection and tracing.
 use super::adapters::local::adapter::EngineLocalAdapter;
-
-/// An authored query that maps selected provider diagnostics to a benchmark rule identity.
-#[derive(Clone, Debug)]
-pub struct FrontendDiagnosticProjection {
-    /// The benchmark/reference rule identity emitted for selected rows.
-    pub rule: ryo::linter::RuleId,
-    /// Nonblank RyoQL source selecting which provider diagnostics become findings; the linter compiles it at runtime.
-    pub query: ryo::query::RyoQlQuery,
-}
+use super::types::FrontendDiagnosticProjection;
 
 /// Construct the SDK engine. Tracing is a separate diagnostic worker configuration.
 #[must_use]

@@ -1,0 +1,109 @@
+description = "A language's comparative lint benchmark: shared project inputs and local linter integrations."
+why = "Project revisions and edit patches belong to the language. Each pinned linter owns its inventory and external adapter: tool invocation, decoding, shipped-default profile and canonical rules/<id>/query.ryoql plus cases.toml. The shared benchmark application owns inventory execution, per-rule PASS/FAIL status, continuation and result publication. Linter composition wires those existing capabilities; it cannot become a language-specific execution/status loop. Active query and cases assets must be paired; archived profile snapshots remain evidence, not another active source. The shared benchmark crate audits these inputs before measuring; incomplete defaults never produce a parity or performance claim. Shared-engine acceptance requires every established language benchmark and registered comparative profile, with exact pinned corpora, profiles, settings, source and executable identities. Required workloads, conditions, and metrics come from those declarations and must not disappear from both sides unnoticed. Each supported cold, retained-cache warm, and edit CPU, wall, and memory bound passes independently; gains elsewhere never offset a regression. Failed, skipped, absent, or incomplete evidence is not green. Optional comparative corpora are not established coverage until their own inputs and gates are admitted."
+specs = [
+  { spec = "idiomatic.ryo/benchmark-linter@0.2.1", include = ["linters/{linter}"], count = { min = 0 }, params = { source-line-limit = 400 }, description = "The pinned inventory, external adapter and canonical rule assets of each linter." },
+  { alias = "linter-adapter", spec = "idiomatic.arch/adapter@0.2.0", include = ["linters/{linter}"], count = { min = 0 }, params = { core = "ryo_benchmark", port = "linter" }, description = "The shared harness owns the port; the existing adapter spec governs its external implementation." },
+]
+rules = [
+  { rule = "comparative-shared-inputs", include = ["benchmark.toml", "patches/**", "linters/*/bench.rs"], description = "A comparative linter runner requires the shared project profile and at least two pinned edit patches; a provider-only workload does not invent them." },
+]
+templates = [
+  { template = "language-bench-provider", file = "provider/bench.rs", params = { lang = { param = "lang" } }, description = "Every language provider has one generated all-relations workload and growth check." },
+  { template = "provider-support", file = "provider/performance/{*support}", count = { min = 0 }, description = "Optional provider workload modules remain below the provider runner." },
+  { template = "manifest", file = "benchmark.toml", count = { min = 0 }, description = "The language's shared pinned workloads." },
+  { template = "patch", file = "patches/{project}.patch", count = { min = 0, max = 3 }, description = "Shared deterministic project edits." },
+]
+[[scenarios]]
+given.files.'provider/bench.rs' = ''
+id = "complete-shape"
+scenario = "All benchmark artifacts are placed."
+given.files.'benchmark.toml' = ''
+given.files.'patches/one.patch' = ''
+given.files.'patches/two.patch' = ''
+given.files.'linters/tool/benchmark.toml' = ''
+given.files.'linters/tool/bench.rs' = ''
+given.files.'linters/tool/tests.rs' = ''
+given.files.'linters/tool/composition.rs' = ''
+given.files.'linters/tool/adapter.rs' = ''
+given.files.'linters/tool/adapter_test.rs' = ''
+given.files.'linters/tool/schemas.rs' = ''
+given.files.'linters/tool/schemas_test.rs' = ''
+given.files.'linters/tool/settings.rs' = ''
+given.files.'linters/tool/rules/F001/query.ryoql' = ''
+given.files.'linters/tool/rules/F001/cases.toml' = ''
+
+then.only = ["idiomatic.ryo/benchmark#closed", "idiomatic.ryo/benchmark-linter#closed", "idiomatic.ryo/benchmark-linter/companions"]
+[[scenarios]]
+given.files.'provider/bench.rs' = ''
+id = "stray-artifact"
+scenario = "Unowned benchmark artifacts are rejected."
+given.files.'benchmark.toml' = ''
+given.files.'patches/one.patch' = ''
+given.files.'patches/two.patch' = ''
+given.files.'linters/tool/benchmark.toml' = ''
+given.files.'linters/tool/bench.rs' = ''
+given.files.'linters/tool/tests.rs' = ''
+given.files.'linters/tool/composition.rs' = ''
+given.files.'linters/tool/adapter.rs' = ''
+given.files.'linters/tool/adapter_test.rs' = ''
+given.files.'linters/tool/schemas.rs' = ''
+given.files.'linters/tool/schemas_test.rs' = ''
+given.files.'linters/tool/settings.rs' = ''
+given.files.'linters/tool/rules/F001/query.ryoql' = ''
+given.files.'linters/tool/rules/F001/cases.toml' = ''
+given.files.'reference/unowned.txt' = ''
+then.findings = [{ rule = 'benchmark#closed', path = 'reference/unowned.txt' }]
+
+then.only = ["idiomatic.ryo/benchmark#closed", "idiomatic.ryo/benchmark-linter#closed", "idiomatic.ryo/benchmark-linter/companions"]
+
+[[scenarios]]
+given.files.'provider/bench.rs' = ''
+id = "external-schema-tests-preserve-conversions"
+scenario = "The Cargo test owner replaces only nested registration, keeping schema conversions governed."
+given.files.'linters/tool/tests.rs' = '''
+mod schemas;
+#[path = "schemas_test.rs"]
+mod schemas_test;
+'''
+given.files.'linters/tool/schemas.rs' = '''
+//! The shape of the data this adapter does not control.
+pub(super) struct StoredSchema { pub(super) value: String }
+impl From<StoredSchema> for String {
+    fn from(value: StoredSchema) -> Self { value.value }
+}
+'''
+then.only = ['idiomatic.arch/schemas#template', 'idiomatic.arch/schema-name', 'idiomatic.ryo/benchmark-linter/cargo-schema-tests#template']
+
+[[scenarios]]
+given.files.'provider/bench.rs' = ''
+id = "external-schema-tests-still-refuse-missing-conversion"
+scenario = "An externally tested schema cannot omit its conversion into core types."
+given.files.'linters/tool/tests.rs' = '''
+mod schemas;
+#[path = "schemas_test.rs"]
+mod schemas_test;
+'''
+given.files.'linters/tool/schemas.rs' = '''
+//! The shape of the data this adapter does not control.
+pub(super) struct StoredSchema { pub(super) value: String }
+'''
+then.only = ['idiomatic.arch/schema-name']
+then.findings = [{ rule = 'idiomatic.arch/schema-name', path = 'linters/tool/schemas.rs', line = 2 }]
+
+[[scenarios]]
+given.files.'provider/bench.rs' = ''
+id = "external-schema-tests-must-register-cases"
+scenario = "The explicit owner must compile the adjacent schema cases."
+given.files.'linters/tool/tests.rs' = 'mod schemas;'
+given.files.'linters/tool/schemas.rs' = '''
+//! The shape of the data this adapter does not control.
+pub(super) struct StoredSchema { pub(super) value: String }
+impl From<StoredSchema> for String {
+    fn from(value: StoredSchema) -> Self { value.value }
+}
+'''
+then.only = ['idiomatic.ryo/benchmark-linter/cargo-schema-tests#template']
+then.findings = [{ rule = 'idiomatic.ryo/benchmark-linter/cargo-schema-tests#template', path = 'linters/tool/tests.rs' }]
+
+[params]
+lang = { type = "identifier", description = "The parent language directory name." }

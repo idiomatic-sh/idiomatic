@@ -11,12 +11,18 @@ use ryo::linter::{
 };
 use ryo_benchmark_contracts::domain::context::types::CaseContext;
 use ryo_benchmark_contracts::domain::reports::types::SourceByteOffset;
+use ryo_benchmark_contracts::domain::requests::types::{
+    CohortSelection, ConfigurationOverride, FileMetadataDeclaration, InputDeclaration, SearchRoots,
+};
 use ryo_benchmark_contracts::domain::workloads::types::Case as SuiteCase;
 use ryo_benchmark_contracts::domain::workloads::types::CaseComparison;
 use ryo_benchmark_contracts::domain::workloads::types::Cases;
 use ryo_benchmark_contracts::domain::workloads::types::Expected;
 use ryo_benchmark_contracts::domain::workloads::types::ExpectedRule;
 use ryo_benchmark_contracts::domain::workloads::types::benchmark_case_name::value::BenchmarkCaseName;
+use ryo_benchmark_contracts::domain::workloads::types::{
+    ContextDeclaration, InventoryDeclaration, ReferenceBehavior, RequestedFiles,
+};
 use std::borrow::Cow;
 
 /// What a case hands the part under test.
@@ -28,7 +34,7 @@ enum Check {
     /// The sources of the cases alone.
     Sources(SuiteCase),
     /// An explicit rule selection.
-    Selection(Option<Vec<RuleId>>),
+    Selection(CohortSelection),
 }
 
 type Input = Check;
@@ -64,8 +70,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || {
             edited(explicit_missing(), |case| {
-                case.context.as_mut().unwrap().logical_root = ".".into();
-                case.context.as_mut().unwrap().missing = vec!["missing.py".into()];
+                let context = declared(&mut case.context);
+                context.logical_root = ".".into();
+                context.missing = vec!["missing.py".into()];
             })
         },
         expect: Expect::Value(()),
@@ -73,19 +80,23 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a given project inventory stages an unselected local module"),
         word: Word::Succeeds,
-        input: || Check::Sources(sibling(ProjectEntryState::File)),
+        input: || Check::Sources(sibling(ProjectEntryState::Regular)),
         expect: Expect::Value(()),
     },
     Case {
         name: CaseName("no explicit selection keeps the historical profile selection"),
         word: Word::Succeeds,
-        input: || Check::Selection(None),
+        input: || Check::Selection(CohortSelection::Frozen),
         expect: Expect::Value(()),
     },
     Case {
         name: CaseName("one unique selected rule is accepted"),
         word: Word::Succeeds,
-        input: || Check::Selection(Some(vec![RuleId::try_from("F401").unwrap()])),
+        input: || {
+            Check::Selection(CohortSelection::Explicit(vec![
+                RuleId::try_from("F401").unwrap(),
+            ]))
+        },
         expect: Expect::Value(()),
     },
     Case {
@@ -146,7 +157,11 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("there is no source byte at a missing path"),
         word: Word::Refuses,
-        input: || edited(explicit_missing(), |case| case.expected[0].end = SourceByteOffset(1)),
+        input: || {
+            edited(explicit_missing(), |case| {
+                case.expected[0].end = SourceByteOffset(1)
+            })
+        },
         expect: Expect::Error(Cow::Borrowed(constants::MISSING_SOURCE)),
     },
     Case {
@@ -154,10 +169,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             edited(explicit_missing(), |case| {
-                case.requested_files
-                    .as_mut()
-                    .unwrap()
-                    .push(RelativePath("missing.py".into()));
+                explicit(&mut case.requested_files).push(RelativePath("missing.py".into()));
             })
         },
         expect: Expect::Error(Cow::Borrowed(
@@ -169,7 +181,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             edited(explicit_missing(), |case| {
-                case.requested_files.as_mut().unwrap().remove(0);
+                explicit(&mut case.requested_files).remove(0);
             })
         },
         expect: Expect::Error(Cow::Borrowed(
@@ -180,8 +192,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("unselected bytes need an observation"),
         word: Word::Refuses,
         input: || {
-            edited(sibling(ProjectEntryState::File), |case| {
-                case.given_project_inventory = None;
+            edited(sibling(ProjectEntryState::Regular), |case| {
+                case.given_project_inventory = InventoryDeclaration::Undeclared;
             })
         },
         expect: Expect::Error(Cow::Borrowed(
@@ -199,19 +211,45 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("an empty explicit selection is refused"),
         word: Word::Refuses,
-        input: || Check::Selection(Some(Vec::new())),
-        expect: Expect::Error(Cow::Borrowed(constants::SELECTED_RULES_MUST_BE_NONEMPTY_AND)),
+        input: || Check::Selection(CohortSelection::Explicit(Vec::new())),
+        expect: Expect::Error(Cow::Borrowed(
+            constants::SELECTED_RULES_MUST_BE_NONEMPTY_AND,
+        )),
     },
     Case {
         name: CaseName("a duplicated selected rule is refused"),
         word: Word::Refuses,
         input: || {
             let rule = RuleId::try_from("F401").unwrap();
-            Check::Selection(Some(vec![rule.clone(), rule]))
+            Check::Selection(CohortSelection::Explicit(vec![rule.clone(), rule]))
         },
-        expect: Expect::Error(Cow::Borrowed(constants::SELECTED_RULES_MUST_BE_NONEMPTY_AND)),
+        expect: Expect::Error(Cow::Borrowed(
+            constants::SELECTED_RULES_MUST_BE_NONEMPTY_AND,
+        )),
     },
 ];
+
+/// The declared context of a case.
+///
+/// # Panics
+/// When the case declares no context.
+fn declared(context: &mut ContextDeclaration) -> &mut CaseContext {
+    match context {
+        ContextDeclaration::Declared(context) => context,
+        ContextDeclaration::Undeclared => panic!("the fixture declares a context"),
+    }
+}
+
+/// The explicit requested files of a case.
+///
+/// # Panics
+/// When the case's inventory is the legacy one.
+fn explicit(requested: &mut RequestedFiles) -> &mut Vec<RelativePath> {
+    match requested {
+        RequestedFiles::Explicit(files) => files,
+        RequestedFiles::Legacy => panic!("the fixture requests files explicitly"),
+    }
+}
 
 fn edited(mut case: SuiteCase, change: impl FnOnce(&mut SuiteCase)) -> Input {
     change(&mut case);
@@ -222,15 +260,15 @@ fn edited(mut case: SuiteCase, change: impl FnOnce(&mut SuiteCase)) -> Input {
 fn bare(name: &str) -> SuiteCase {
     SuiteCase {
         performance: Default::default(),
-        selected_rules: None,
-        rule_observations: None,
-        rule_context: None,
-        requested_files: None,
-        project_search_roots: None,
-        given_project_inventory: None,
-        file_metadata: None,
-        reference_discrepancy: None,
-        context: None,
+        selected_rules: CohortSelection::Frozen,
+        rule_observations: InputDeclaration::Undeclared,
+        rule_context: ConfigurationOverride::Inherited,
+        requested_files: RequestedFiles::Legacy,
+        project_search_roots: SearchRoots::Undeclared,
+        given_project_inventory: InventoryDeclaration::Undeclared,
+        file_metadata: FileMetadataDeclaration::Undeclared,
+        reference_discrepancy: ReferenceBehavior::Agrees,
+        context: ContextDeclaration::Undeclared,
         comparison: CaseComparison::Full,
         name: BenchmarkCaseName(name.into()),
         files: Default::default(),
@@ -271,8 +309,8 @@ fn explicit_missing() -> SuiteCase {
     let readable = RelativePath("companion.py".into());
     let missing = RelativePath("missing.py".into());
     SuiteCase {
-        requested_files: Some(vec![readable.clone(), missing.clone()]),
-        context: Some(CaseContext {
+        requested_files: RequestedFiles::Explicit(vec![readable.clone(), missing.clone()]),
+        context: ContextDeclaration::Declared(CaseContext {
             logical_root: "project".into(),
             auxiliary_files: Default::default(),
             missing: vec!["project/missing.py".into()],
@@ -293,9 +331,9 @@ fn sibling(state: ProjectEntryState) -> SuiteCase {
     let importer = RelativePath("main.py".into());
     let sibling = RelativePath("localmod.py".into());
     SuiteCase {
-        requested_files: Some(vec![importer.clone()]),
-        project_search_roots: Some(vec![RelativePath("".into())]),
-        given_project_inventory: Some(GivenProjectInventory {
+        requested_files: RequestedFiles::Explicit(vec![importer.clone()]),
+        project_search_roots: SearchRoots::Declared(vec![RelativePath("".into())]),
+        given_project_inventory: InventoryDeclaration::Declared(GivenProjectInventory {
             entries: vec![ProjectEntryObservation {
                 path: sibling.clone(),
                 state,
@@ -316,7 +354,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
         Check::Defaults(audit) => require_complete(&audit),
         Check::Polarity(rule, cases) => validate_cases(&rule, &cases),
         Check::Sources(case) => validate_case_sources(&Cases { cases: vec![case] }),
-        Check::Selection(rules) => validate_selected_rules(rules.as_deref()),
+        Check::Selection(rules) => validate_selected_rules(&rules),
     }
     .map_err(|error| error.to_string().into())
 }

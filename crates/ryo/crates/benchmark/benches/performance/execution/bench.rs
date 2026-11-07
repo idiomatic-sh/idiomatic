@@ -4,7 +4,7 @@
     reason = "missing benchmark prerequisites must fail visibly"
 )]
 use ryo_benchmark::outbound::execution::{
-    factory::{direct, process, timed},
+    factory::{bounded, direct, process, timed},
     interface::ExecutionPort as _,
 };
 use ryo_benchmark_contracts::domain::measurements::types::Invocation;
@@ -76,4 +76,20 @@ fn direct_child(bencher: divan::Bencher<'_, '_>) {
     let adapter = direct();
     let input = invocation();
     bencher.bench_local(|| adapter.run(input.clone()).expect("direct child starts"));
+}
+
+#[divan::bench]
+/// Measure the deadline-bounded wall execution that file-backed capture adds to process launch.
+fn bounded_child(bencher: divan::Bencher<'_, '_>) {
+    let adapter = bounded(std::time::Duration::from_secs(60));
+    let input = invocation();
+    bencher.bench_local(|| {
+        let output = adapter.run(input.clone()).expect("bounded child starts");
+        assert_eq!(output.status.0, 0_i32, "workload must exit successfully");
+        assert_eq!(
+            output.stdout.0, b"result",
+            "workload output must survive capture"
+        );
+        divan::black_box(output)
+    });
 }

@@ -230,7 +230,7 @@ class RequestHooksMixin:
 class Request(RequestHooksMixin):
     """A user-created :class:`Request <Request>` object.
 
-    Used to prepare a :class:`PreparedRequest <PreparedRequest>`, which is sent to the server.
+    Used to prepare a :class:`PreparedWorkerRequest <PreparedWorkerRequest>`, which is sent to the server.
 
     :param method: HTTP method to use.
     :param url: URL to send.
@@ -252,7 +252,7 @@ class Request(RequestHooksMixin):
       >>> import requests
       >>> req = requests.Request('GET', 'https://httpbin.org/get')
       >>> req.prepare()
-      <PreparedRequest [GET]>
+      <PreparedWorkerRequest [GET]>
     """
 
     def __init__(
@@ -293,8 +293,8 @@ class Request(RequestHooksMixin):
         return f"<Request [{self.method}]>"
 
     def prepare(self):
-        """Constructs a :class:`PreparedRequest <PreparedRequest>` for transmission and returns it."""
-        p = PreparedRequest()
+        """Constructs a :class:`PreparedWorkerRequest <PreparedWorkerRequest>` for transmission and returns it."""
+        p = PreparedWorkerRequest()
         p.prepare(
             method=self.method,
             url=self.url,
@@ -310,8 +310,8 @@ class Request(RequestHooksMixin):
         return p
 
 
-class PreparedRequest(RequestEncodingMixin, RequestHooksMixin):
-    """The fully mutable :class:`PreparedRequest <PreparedRequest>` object,
+class PreparedWorkerRequest(RequestEncodingMixin, RequestHooksMixin):
+    """The fully mutable :class:`PreparedWorkerRequest <PreparedWorkerRequest>` object,
     containing the exact bytes that will be sent to the server.
 
     Instances are generated from a :class:`Request <Request>` object, and
@@ -324,7 +324,7 @@ class PreparedRequest(RequestEncodingMixin, RequestHooksMixin):
       >>> req = requests.Request('GET', 'https://httpbin.org/get')
       >>> r = req.prepare()
       >>> r
-      <PreparedRequest [GET]>
+      <PreparedWorkerRequest [GET]>
 
       >>> s = requests.Session()
       >>> s.send(r)
@@ -377,10 +377,10 @@ class PreparedRequest(RequestEncodingMixin, RequestHooksMixin):
         self.prepare_hooks(hooks)
 
     def __repr__(self):
-        return f"<PreparedRequest [{self.method}]>"
+        return f"<PreparedWorkerRequest [{self.method}]>"
 
     def copy(self):
-        p = PreparedRequest()
+        p = PreparedWorkerRequest()
         p.method = self.method
         p.url = self.url
         p.headers = self.headers.copy() if self.headers is not None else None
@@ -614,7 +614,7 @@ class PreparedRequest(RequestEncodingMixin, RequestHooksMixin):
         given cookies using cookielib. Due to cookielib's design, the header
         will not be regenerated if it already exists, meaning this function
         can only be called once for the life of the
-        :class:`PreparedRequest <PreparedRequest>` object. Any subsequent calls
+        :class:`PreparedWorkerRequest <PreparedWorkerRequest>` object. Any subsequent calls
         to ``prepare_cookies`` will have no actual effect, unless the "Cookie"
         header is removed beforehand.
         """
@@ -698,7 +698,7 @@ class Response:
         #: value of the ``stream`` keyword argument.
         self.elapsed = datetime.timedelta(0)
 
-        #: The :class:`PreparedRequest <PreparedRequest>` object to which this
+        #: The :class:`PreparedWorkerRequest <PreparedWorkerRequest>` object to which this
         #: is a response.
         self.request = None
 
@@ -783,7 +783,7 @@ class Response:
 
     @property
     def next(self):
-        """Returns a PreparedRequest for the next request in a redirect chain, if there is one."""
+        """Returns a PreparedWorkerRequest for the next request in a redirect chain, if there is one."""
         return self._next
 
     @property

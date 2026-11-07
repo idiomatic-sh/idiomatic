@@ -58,6 +58,14 @@ impl From<ReportsError> for DiscrepancyAttachmentError {
     }
 }
 
+impl From<ryo_benchmark_contracts::domain::artifacts::errors::ArtifactsError>
+    for DiscrepancyAttachmentError
+{
+    fn from(error: ryo_benchmark_contracts::domain::artifacts::errors::ArtifactsError) -> Self {
+        Self::Refused(RefusalText(error.to_string()))
+    }
+}
+
 impl From<DiscrepancyAttachmentError> for ReportsError {
     fn from(error: DiscrepancyAttachmentError) -> Self {
         Self::Invalid(error.to_string())

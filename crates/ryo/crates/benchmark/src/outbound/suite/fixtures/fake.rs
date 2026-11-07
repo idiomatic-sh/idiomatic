@@ -1,10 +1,26 @@
 //! Empty in-memory suite preserves the distinction between defaults and implementations.
-use crate::outbound::suite::interface::SuitePort;
-use crate::outbound::suite::types::{ArtifactPath, ArtifactSet};
+use crate::outbound::suite::interface::{ScopedDirectory, SuitePort};
+use crate::outbound::suite::types::{
+    ArtifactBytes, ArtifactPath, ArtifactSet, ArtifactSize, ArtifactText,
+    MaterializedCase, MaterializedContext, RetainedDirectory, RuleQuery, SelectedName, SourceDigest,
+};
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::workloads::types::Suite;
 use ryo_benchmark_contracts::domain::workloads::types::Tool;
+
+/// The local adapter the fake leaves physical operations to.
+fn local() -> impl SuitePort {
+    crate::outbound::suite::factory::local()
+}
+/// The scratch directory the fake hands out, removed when it drops.
+#[derive(Debug)]
+pub struct ScopedDirectoryFake(tempfile::TempDir);
+impl ScopedDirectory for ScopedDirectoryFake {
+    fn path(&self) -> &std::path::Path {
+        self.0.path()
+    }
+}
 #[expect(
     clippy::partial_pub_fields,
     clippy::field_scoped_visibility_modifiers,
@@ -13,8 +29,6 @@ use ryo_benchmark_contracts::domain::workloads::types::Tool;
 #[derive(Clone, Debug, Default)]
 /// Deterministic suite substitute for orchestration and contract tests.
 pub struct SuiteFake {
-    /// Per-instance receipt output selected by orchestration tests.
-    pub(crate) case_receipt: Option<std::path::PathBuf>,
     /// The profile available from this deterministic artifact source.
     pub(crate) profile: Option<Tool>,
     /// The projects available from this deterministic artifact source.
@@ -26,101 +40,93 @@ pub struct SuiteFake {
     /// Whether this fixture has independently validated its declared source and evidence inputs.
     pub(crate) discrepancy_artifacts_valid: bool,
     /// Raw authored wire data for application conversion tests.
-    pub(crate) reference_wires: Vec<crate::outbound::suite::types::discrepancy::CaseReferenceWire>,
+    pub(crate) reference_claims: Vec<crate::outbound::suite::types::CaseClaim>,
 }
 impl SuitePort for SuiteFake {
     fn validate_file_metadata(
         &self,
         request: &ryo_benchmark_contracts::domain::requests::types::RunRequest,
     ) -> Result<(), Error> {
-        crate::outbound::suite::factory::local().validate_file_metadata(request)
-    }
-
-    fn case_receipt_file(&self) -> Option<std::path::PathBuf> {
-        self.case_receipt.clone()
+        local().validate_file_metadata(request)
     }
 
     fn case_source_digest(
         &self,
         root: ArtifactPath<'_>,
-        files: &[std::path::PathBuf],
-    ) -> Result<String, crate::outbound::suite::types::discrepancy::ArtifactError> {
-        crate::outbound::suite::factory::local().case_source_digest(root, files)
+        files: ArtifactSet<'_>,
+    ) -> Result<SourceDigest, crate::outbound::suite::errors::SuiteError> {
+        local().case_source_digest(root, files)
     }
     fn read_discrepancy_artifacts(
         &self,
         profile: ArtifactPath<'_>,
-        artifacts: &[crate::outbound::suite::types::discrepancy::EvidenceArtifact],
+        artifacts: &[crate::outbound::suite::types::EvidenceArtifact],
     ) -> Result<
-        std::collections::BTreeMap<std::path::PathBuf, Vec<u8>>,
-        crate::outbound::suite::types::discrepancy::ArtifactError,
+        std::collections::BTreeMap<std::path::PathBuf, ArtifactBytes>,
+        crate::outbound::suite::errors::SuiteError,
     > {
-        crate::outbound::suite::factory::local().read_discrepancy_artifacts(profile, artifacts)
+        local().read_discrepancy_artifacts(profile, artifacts)
     }
 
-    fn record_case(
-        &self,
-        receipt: ArtifactPath<'_>,
-        record: crate::outbound::suite::types::observation_document::ObservationDocument,
-        process: Option<crate::outbound::suite::types::process::CapturedProcess<'_>>,
-    ) -> Result<(), crate::outbound::suite::types::discrepancy::ArtifactError> {
-        crate::outbound::suite::factory::local().record_case(receipt, record, process)
-    }
-
-    fn case_observations(
-        &self,
-        receipt: ArtifactPath<'_>,
-    ) -> Result<
-        Vec<crate::outbound::suite::types::observation_document::ObservationDocument>,
-        crate::outbound::suite::types::discrepancy::ArtifactError,
-    > {
-        crate::outbound::suite::factory::local().case_observations(receipt)
-    }
-
-    fn case_reference_wires(
+    fn case_claims(
         &self,
         _: ArtifactPath<'_>,
         _: &[ryo::linter::RuleId],
     ) -> Result<
-        Vec<crate::outbound::suite::types::discrepancy::CaseReferenceWire>,
-        crate::outbound::suite::types::discrepancy::ArtifactError,
+        Vec<crate::outbound::suite::types::CaseClaim>,
+        crate::outbound::suite::errors::SuiteError,
     > {
-        Ok(self.reference_wires.clone())
+        Ok(self.reference_claims.clone())
     }
     fn verify_discrepancy_artifacts(
         &self,
-        _: crate::outbound::suite::types::discrepancy::CaseArtifacts<'_>,
-    ) -> Result<(), crate::outbound::suite::types::discrepancy::ArtifactError> {
+        _: crate::outbound::suite::types::CaseArtifacts<'_>,
+    ) -> Result<(), crate::outbound::suite::errors::SuiteError> {
         if self.discrepancy_artifacts_valid {
             Ok(())
         } else {
             Err(
-                crate::outbound::suite::types::discrepancy::ArtifactError::Invalid(
+                crate::outbound::suite::errors::SuiteError::Invalid(
                     "fixture has no independent discrepancy artifacts".into(),
                 ),
             )
         }
     }
-    fn scratch(&self, parent: ArtifactPath<'_>, prefix: &str) -> Result<std::path::PathBuf, Error> {
-        crate::outbound::suite::factory::local().scratch(parent, prefix)
+    fn scoped_directory(
+        &self,
+        ArtifactPath(parent): ArtifactPath<'_>,
+        ArtifactText(prefix): ArtifactText<'_>,
+    ) -> Result<Box<dyn ScopedDirectory>, Error> {
+        let mut builder = tempfile::Builder::new();
+        let _prefixed = builder.prefix(prefix);
+        let directory = if parent.as_os_str().is_empty() {
+            builder.tempdir()?
+        } else {
+            builder.tempdir_in(parent)?
+        };
+        Ok(Box::new(ScopedDirectoryFake(directory)))
     }
-    fn discard(&self, directory: ArtifactPath<'_>) -> Result<(), Error> {
-        crate::outbound::suite::factory::local().discard(directory)
+    fn retained_directory(
+        &self,
+        parent: ArtifactPath<'_>,
+        prefix: ArtifactText<'_>,
+    ) -> Result<RetainedDirectory, Error> {
+        local().retained_directory(parent, prefix)
     }
     fn copy_file(&self, from: ArtifactPath<'_>, to: ArtifactPath<'_>) -> Result<(), Error> {
-        crate::outbound::suite::factory::local().copy_file(from, to)
+        local().copy_file(from, to)
     }
     fn ensure_directory(&self, directory: ArtifactPath<'_>) -> Result<std::path::PathBuf, Error> {
-        crate::outbound::suite::factory::local().ensure_directory(directory)
+        local().ensure_directory(directory)
     }
-    fn write_text(&self, file: ArtifactPath<'_>, text: &str) -> Result<(), Error> {
-        crate::outbound::suite::factory::local().write_text(file, text)
+    fn write_text(&self, file: ArtifactPath<'_>, text: ArtifactText<'_>) -> Result<(), Error> {
+        local().write_text(file, text)
     }
-    fn selection(&self, file: ArtifactPath<'_>) -> Result<Vec<String>, Error> {
-        crate::outbound::suite::factory::local().selection(file)
+    fn selection(&self, file: ArtifactPath<'_>) -> Result<Vec<SelectedName>, Error> {
+        local().selection(file)
     }
-    fn total_size(&self, files: &[std::path::PathBuf]) -> Result<u64, Error> {
-        crate::outbound::suite::factory::local().total_size(files)
+    fn total_size(&self, files: ArtifactSet<'_>) -> Result<ArtifactSize, Error> {
+        local().total_size(files)
     }
     fn digest(&self, ArtifactPath(path): ArtifactPath<'_>) -> Result<ArtifactDigest, Error> {
         self.artifact_digests
@@ -130,16 +136,6 @@ impl SuitePort for SuiteFake {
     }
     fn stage_projects(&self, _: ArtifactPath<'_>, _: ArtifactPath<'_>) -> Result<(), Error> {
         Err(std::io::Error::from(std::io::ErrorKind::NotFound).into())
-    }
-    fn seal_context(
-        &self,
-        _: ArtifactPath<'_>,
-        _: &[ryo::linter::RelativePath],
-        _: &[std::path::PathBuf],
-    ) -> Result<ryo_benchmark_contracts::domain::context::types::ContextManifest, Error> {
-        Err(Error::Invalid(
-            "fixture has no observed disk context".into(),
-        ))
     }
     fn stage(
         &self,
@@ -161,7 +157,7 @@ impl SuitePort for SuiteFake {
         &self,
         _: ArtifactPath<'_>,
         _: &ryo::linter::RuleId,
-    ) -> Result<Option<String>, Error> {
+    ) -> Result<Option<RuleQuery>, Error> {
         Ok(None)
     }
     fn rule_cases(
@@ -178,7 +174,8 @@ impl SuitePort for SuiteFake {
         &self,
         _: ArtifactPath<'_>,
         _: &ryo_benchmark_contracts::domain::workloads::types::Case,
-    ) -> Result<crate::outbound::suite::types::MaterializedCase, Error> {
+        _: &MaterializedContext,
+    ) -> Result<MaterializedCase, Error> {
         Err(std::io::Error::from(std::io::ErrorKind::NotFound).into())
     }
     fn materialize_inventory(

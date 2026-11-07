@@ -35,7 +35,7 @@ impl<'a> ConfiguredEngineSession<'a> {
     pub fn execute(
         self,
     ) -> Result<
-        ryo_benchmark_contracts::domain::reports::types::RunReport,
+        crate::outbound::engine::types::EngineRun,
         ryo_benchmark_contracts::domain::reports::errors::ReportsError,
     > {
         self.session.execute(self.context)

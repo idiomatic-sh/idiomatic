@@ -22,16 +22,41 @@ pub struct RunReport {
     /// Whether the producer actually reports rule/file execution outcomes; absent evidence is never known zero.
     pub execution_metadata: ExecutionMetadata,
     /// Actual project lookups and their sealed snapshot identity, when explicitly enabled.
-    pub project_context: Option<ProjectContextReceipt>,
+    pub project_context: ProjectContext,
     /// Finding multiset, preserving duplicate occurrences.
     pub diagnostics: Vec<BenchmarkFinding>,
     /// Rules explicitly skipped for syntax applicability, kept separate from empty findings.
     pub skipped: Vec<ryo::linter::Skipped>,
     /// Candidate execution accounting; external references may not expose this distinction.
-    pub coverage: Option<RuleCoverage>,
+    pub coverage: CoverageAccounting,
     /// Exact relative source paths submitted to the tool.
     pub files: Vec<RelativePath>,
 }
+
+/// The project lookups of a report, when explicitly enabled.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ProjectContext {
+    /// No project context was requested, so no lookup was observed.
+    NotRequested,
+    /// The lookups actually used and their sealed snapshot identity.
+    Observed(ProjectContextReceipt),
+}
+
+/// Whether a report accounts for the rule/file pairs it selected.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CoverageAccounting {
+    /// The producer exposes no per-pair accounting.
+    Unaccounted,
+    /// Every selected pair is accounted for.
+    Accounted(RuleCoverage),
+}
+
+/// Format-level reason a producer cannot expose execution outcomes.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct UnavailableReason(
+    /// The limitation, without inferred execution semantics.
+    pub String,
+);
 
 /// What a report's producer can establish about per-rule execution.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -42,7 +67,7 @@ pub enum ExecutionMetadata {
     /// The declared format cannot expose per-rule execution outcomes.
     Unavailable {
         /// Format-level limitation, without inferred execution semantics.
-        reason: String,
+        reason: UnavailableReason,
     },
     /// Coverage and every skipped pair are explicitly reported and must validate.
     Complete,
@@ -81,14 +106,21 @@ pub enum ComparisonContract {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RuleCoverage {
     /// Selected rule/file pairs before applicability checks.
-    pub selected: usize,
+    pub selected: PairCount,
     /// Selected pairs whose query ran.
-    pub evaluated: usize,
+    pub evaluated: PairCount,
     /// Pairs skipped after explicit syntax rejection.
-    pub skipped: usize,
+    pub skipped: PairCount,
     /// Pairs unavailable because the engine returned unknown or unread state.
-    pub unknown_or_unread: usize,
+    pub unknown_or_unread: PairCount,
 }
+
+/// A number of rule/file pairs.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
+pub struct PairCount(
+    /// Count of rule/file pairs.
+    pub usize,
+);
 
 /// Sorted finding multisets retained when comparison does not agree.
 #[derive(Clone, Debug, PartialEq, Eq)]

@@ -10,8 +10,14 @@ use crate::domain::discrepancy::errors::DiscrepancyError;
 use crate::domain::discrepancy::fixtures::case;
 use crate::domain::registered_inputs::types::RefusalText;
 use crate::outbound::suite::fixtures::fake::SuiteFake;
-use crate::outbound::suite::types::discrepancy::{DiscrepancyBasisWire, EvidenceWire};
-use crate::outbound::suite::types::process::ProcessFailureWire;
+use crate::outbound::suite::types::{ClaimedEvidence, ClaimedProcess};
+use ryo_benchmark_contracts::domain::documents::types::text::value::Sha256Text;
+use ryo_benchmark_contracts::domain::documents::types::text::value::{CaseName as DocumentCaseName, PathText};
+use ryo_benchmark_contracts::domain::measurements::types::ProcessExitCode;
+use ryo_benchmark_contracts::domain::process::types::ProcessFailure;
+use ryo_benchmark_contracts::domain::reports::types::SourceByteOffset;
+use ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
+use ryo_benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::{Rationale, SourceRevision, WitnessCase};
 use std::path::Path;
 
 /// What an accepted attachment answers.
@@ -24,13 +30,13 @@ type Input = Attachment;
 type Value = Outcome;
 type Failure = DiscrepancyAttachmentError;
 
-fn process() -> ProcessFailureWire {
-    ProcessFailureWire::ProcessFailure {
-        exit: 2,
+fn process() -> ClaimedProcess {
+    ClaimedProcess::Failure(ProcessFailure {
+        exit: ProcessExitCode(2),
         stdout: Vec::new(),
         stderr: Vec::new(),
         observations: Vec::new(),
-    }
+    })
 }
 
 const CASES: &[Case<Input, Value, Failure>] = &[
@@ -44,7 +50,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a tool contract wire with its two evidence rows attaches"),
         word: Word::Succeeds,
         input: || {
-            with(DiscrepancyBasisWire::ToolContract, |item| {
+            with(DiscrepancyBasis::ToolContract, |item| {
                 item.evidence = vec![public_contract(), prior_worker()];
             })
         },
@@ -74,9 +80,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("two expectations for one case are refused"),
         word: Word::Refuses,
         input: || Attachment {
-            wires: vec![
-                wire(DiscrepancyBasisWire::LanguageDefect, discrepancy()),
-                wire(DiscrepancyBasisWire::LanguageDefect, discrepancy()),
+            claims: vec![
+                wire(DiscrepancyBasis::LanguageDefect, discrepancy()),
+                wire(DiscrepancyBasis::LanguageDefect, discrepancy()),
             ],
             ..language()
         },
@@ -86,10 +92,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("an expectation for no executable case is refused"),
         word: Word::Refuses,
         input: || {
-            let mut other = wire(DiscrepancyBasisWire::LanguageDefect, discrepancy());
-            other.name = "elsewhere".into();
+            let mut other = wire(DiscrepancyBasis::LanguageDefect, discrepancy());
+            other.name = DocumentCaseName("elsewhere".into());
             Attachment {
-                wires: vec![other],
+                claims: vec![other],
                 ..language()
             }
         },
@@ -108,8 +114,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a process expectation cannot also declare diagnostics"),
         word: Word::Refuses,
         input: || {
-            with(DiscrepancyBasisWire::LanguageDefect, |item| {
-                item.process = Some(process())
+            with(DiscrepancyBasis::LanguageDefect, |item| {
+                item.process = process()
             })
         },
         expect: Expect::Error(DiscrepancyAttachmentError::ProcessAlsoDeclaresDiagnostics),
@@ -118,8 +124,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a diagnostic in a file the case does not request is refused"),
         word: Word::Refuses,
         input: || {
-            with(DiscrepancyBasisWire::LanguageDefect, |item| {
-                item.expected[0].file = "other.py".into()
+            with(DiscrepancyBasis::LanguageDefect, |item| {
+                item.expected[0].file = PathText("other.py".into())
             })
         },
         expect: Expect::Error(DiscrepancyAttachmentError::InvalidSourceRange),
@@ -128,8 +134,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a diagnostic range that ends before it starts is refused"),
         word: Word::Refuses,
         input: || {
-            with(DiscrepancyBasisWire::LanguageDefect, |item| {
-                item.expected[0].start = 5
+            with(DiscrepancyBasis::LanguageDefect, |item| {
+                item.expected[0].start = SourceByteOffset(5)
             })
         },
         expect: Expect::Error(DiscrepancyAttachmentError::InvalidSourceRange),
@@ -138,9 +144,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a tool contract difference cannot be a process failure"),
         word: Word::Refuses,
         input: || {
-            with(DiscrepancyBasisWire::ToolContract, |item| {
+            with(DiscrepancyBasis::ToolContract, |item| {
                 item.expected.clear();
-                item.process = Some(process());
+                item.process = process();
             })
         },
         expect: Expect::Error(DiscrepancyAttachmentError::ToolContractNeedsDiagnostics),
@@ -149,20 +155,20 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("language evidence without a rationale is refused"),
         word: Word::Refuses,
         input: || {
-            with(DiscrepancyBasisWire::LanguageDefect, |item| {
+            with(DiscrepancyBasis::LanguageDefect, |item| {
                 item.evidence = vec![match language_evidence() {
-                    EvidenceWire::LanguageSpec {
+                    ClaimedEvidence::LanguageSpec {
                         path,
                         sha256,
                         language_version,
                         target_configuration,
                         ..
-                    } => EvidenceWire::LanguageSpec {
+                    } => ClaimedEvidence::LanguageSpec {
                         path,
                         sha256,
                         language_version,
                         target_configuration,
-                        version_rationale: " ".into(),
+                        version_rationale: Rationale(" ".into()),
                     },
                     other => other,
                 }];
@@ -174,21 +180,21 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("tool contract evidence without a pinned revision is refused"),
         word: Word::Refuses,
         input: || {
-            with(DiscrepancyBasisWire::ToolContract, |item| {
+            with(DiscrepancyBasis::ToolContract, |item| {
                 item.evidence = vec![
                     match public_contract() {
-                        EvidenceWire::PublicToolContract {
+                        ClaimedEvidence::PublicToolContract {
                             path,
                             sha256,
                             source_path,
                             rationale,
                             ..
-                        } => EvidenceWire::PublicToolContract {
+                        } => ClaimedEvidence::PublicToolContract {
                             path,
                             sha256,
                             source_path,
                             rationale,
-                            source_revision: "abc".into(),
+                            source_revision: SourceRevision("abc".into()),
                         },
                         other => other,
                     },
@@ -202,11 +208,11 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("prior worker evidence without a named control is refused"),
         word: Word::Refuses,
         input: || {
-            with(DiscrepancyBasisWire::ToolContract, |item| {
+            with(DiscrepancyBasis::ToolContract, |item| {
                 item.evidence = vec![
                     public_contract(),
                     match prior_worker() {
-                        EvidenceWire::PriorWorkerRun {
+                        ClaimedEvidence::PriorWorkerRun {
                             path,
                             sha256,
                             worker_sha256,
@@ -215,7 +221,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                             control_profile_sha256,
                             rationale,
                             ..
-                        } => EvidenceWire::PriorWorkerRun {
+                        } => ClaimedEvidence::PriorWorkerRun {
                             path,
                             sha256,
                             worker_sha256,
@@ -223,7 +229,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                             control_query_sha256,
                             control_profile_sha256,
                             rationale,
-                            witness_case: " ".into(),
+                            witness_case: WitnessCase(" ".into()),
                         },
                         other => other,
                     },
@@ -235,14 +241,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("language evidence cannot support a tool contract difference"),
         word: Word::Refuses,
-        input: || with(DiscrepancyBasisWire::ToolContract, |_| {}),
+        input: || with(DiscrepancyBasis::ToolContract, |_| {}),
         expect: Expect::Error(DiscrepancyAttachmentError::EvidenceDoesNotMatchAuthority),
     },
     Case {
         name: CaseName("a tool contract difference needs both of its evidence rows"),
         word: Word::Refuses,
         input: || {
-            with(DiscrepancyBasisWire::ToolContract, |item| {
+            with(DiscrepancyBasis::ToolContract, |item| {
                 item.evidence = vec![public_contract()]
             })
         },
@@ -252,8 +258,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("an uppercase certificate identity is refused"),
         word: Word::Refuses,
         input: || {
-            with(DiscrepancyBasisWire::LanguageDefect, |item| {
-                item.identity.profile_sha256 = "A".repeat(64)
+            with(DiscrepancyBasis::LanguageDefect, |item| {
+                item.identity.profile_sha256 = Sha256Text("A".repeat(64))
             })
         },
         expect: Expect::Error(DiscrepancyAttachmentError::Identity(
@@ -278,12 +284,15 @@ fn subject(input: Input) -> Result<Value, Failure> {
             Profile::Served => Some(crate::domain::discrepancy::fixtures::profile()),
             Profile::Missing => None,
         },
-        reference_wires: input.wires,
+        reference_claims: input.claims,
         ..SuiteFake::default()
     };
     let mut cases = vec![input.case];
     attach(&suite, Path::new(input.rules), &mut cases).map_err(words_dropped)?;
-    assert!(cases[0].reference_discrepancy.is_some());
+    assert!(matches!(
+        cases[0].reference_discrepancy,
+        ryo_benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior::Differs(_)
+    ));
     Ok(Outcome::Attached)
 }
 

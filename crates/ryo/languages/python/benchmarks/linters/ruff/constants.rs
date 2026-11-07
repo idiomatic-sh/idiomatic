@@ -31,12 +31,6 @@ pub(crate) const ONE_WORKER: &str = "1";
 pub(crate) const EMPTY_INPUT: &str = "empty input list would make Ruff walk the directory";
 /// Refusal for duplicated requested source paths.
 pub(crate) const DUPLICATE_INPUT: &str = "duplicate requested source file";
-/// Refusal when discovery escapes the corpus root.
-pub(crate) const DISCOVERED_OUTSIDE: &str = "discovered file outside corpus";
-/// Refusal for paths outside the text-based benchmark contract.
-pub(crate) const NON_UTF8_PATH: &str = "non-UTF8 corpus path";
-/// Refusal when discovery supplies no source files.
-pub(crate) const EMPTY_DISCOVERY: &str = "empty discovered corpus";
 /// Select the exact compared rule set.
 pub(crate) const SELECT: &str = "--select";
 /// Pin syntax and target-gated diagnostics to the prepared Python 3.10 oracle.
@@ -58,25 +52,6 @@ pub(crate) const RULES_DIRECTORY: &str = "rules";
 /// Text `worker requires an explicit supported...`.
 pub(crate) const WORKER_REQUIRES_AN_EXPLICIT_SUPPOR: &str =
     "worker requires an explicit supported parser configuration";
-/// Text `parser_configuration`.
-pub(crate) const PARSER_CONFIGURATION: &str = "parser_configuration";
-/// Text `worker parser configuration differs f...`.
-pub(crate) const WORKER_PARSER_CONFIGURATION_DIFFER: &str =
-    "worker parser configuration differs from its profile identity";
-/// Text `rule_applicability`.
-pub(crate) const RULE_APPLICABILITY: &str = "rule_applicability";
-/// Text `worker requires explicit selected rul...`.
-pub(crate) const WORKER_REQUIRES_EXPLICIT_SELECTED: &str =
-    "worker requires explicit selected rule applicability";
-/// Text `always`.
-pub(crate) const ALWAYS: &str = "always";
-/// Text `accepted-syntax`.
-pub(crate) const ACCEPTED_SYNTAX: &str = "accepted-syntax";
-/// Text `applicability`.
-pub(crate) const APPLICABILITY: &str = "applicability";
-/// Text `worker rule applicability differs fro...`.
-pub(crate) const WORKER_RULE_APPLICABILITY_DIFFERS: &str =
-    "worker rule applicability differs from the pinned phase policy";
 /// Text `python-target=3.7`.
 pub(crate) const PYTHON_TARGET_3_7: &str = "python-target=3.7";
 /// Text `py37`.
@@ -118,3 +93,27 @@ pub(crate) const UNSUPPORTED_OR_MISSING_RUFF_PARSER: &str =
     "unsupported or missing Ruff parser configuration";
 /// The phases of the pinned Ruff rules, as pinned beside the profiles.
 pub(crate) const PINNED_RULE_PHASES: &str = include_str!("profiles/pinned-rule-phases.json");
+/// Text `linux`.
+pub(crate) const LINUX: &str = "linux";
+/// Text `/proc/sys/kernel/osrelease`.
+pub(crate) const PROC_SYS_KERNEL_OSRELEASE: &str = "/proc/sys/kernel/osrelease";
+/// Text `/proc/version`.
+pub(crate) const PROC_VERSION: &str = "/proc/version";
+/// Text `microsoft`.
+pub(crate) const MICROSOFT: &str = "microsoft";
+/// Text `/.dockerenv`.
+pub(crate) const DOCKERENV: &str = "/.dockerenv";
+/// Text `/run/.containerenv`.
+pub(crate) const RUN_CONTAINERENV: &str = "/run/.containerenv";
+/// Text `/proc/self/cgroup`.
+pub(crate) const PROC_SELF_CGROUP: &str = "/proc/self/cgroup";
+/// Text `docker`.
+pub(crate) const DOCKER: &str = "docker";
+/// Text `/container`.
+pub(crate) const CONTAINER: &str = "/container";
+/// Text `/lxc`.
+pub(crate) const LXC: &str = "/lxc";
+/// Text `kubepods`.
+pub(crate) const KUBEPODS: &str = "kubepods";
+/// The arguments that make the pinned reference list the files it selects by default, one path per line.
+pub(crate) const DISCOVERY_ARGUMENTS: [&str; 4] = [CHECK, ISOLATED, SHOW_FILES, CURRENT_DIRECTORY];

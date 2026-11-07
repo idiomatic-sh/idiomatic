@@ -38,3 +38,54 @@ impl<'a> IntoIterator for &'a RuleObservationDeclarations {
         self.0.iter()
     }
 }
+
+impl RuleObservationDeclarations {
+    /// Resolve only profile defaults for the selected rules; an explicit case declaration bypasses this policy.
+    #[must_use]
+    pub fn project_profile(
+        &self,
+        selected: &[RuleId],
+        policy: crate::domain::context::types::ObservationSelectionPolicy,
+    ) -> Self {
+        if !selected.iter().any(|id| self.contains_key(id)) {
+            return Self::default();
+        }
+        let selected: std::collections::BTreeSet<_> = selected.iter().collect();
+        let mut pending: Vec<RuleId> = selected
+            .iter()
+            .filter(|id| self.contains_key(**id))
+            .map(|id| (**id).clone())
+            .collect();
+        let mut resolved = Self::default();
+        while let Some(id) = pending.pop() {
+            if resolved.contains_key(&id) {
+                continue;
+            }
+            let Some(authored) = self.get(&id) else {
+                continue;
+            };
+            let mut bindings = authored.clone();
+            if policy == crate::domain::context::types::ObservationSelectionPolicy::Selected {
+                for binding in &mut bindings {
+                    binding.producers.retain(|producer| match producer {
+                        ryo::linter::ObservationProducer::Output { rule, .. }
+                        | ryo::linter::ObservationProducer::NoQuery { rule } => {
+                            selected.contains(rule)
+                        }
+                    });
+                }
+            }
+            for binding in &bindings {
+                for producer in &binding.producers {
+                    if let ryo::linter::ObservationProducer::Output { rule, .. } = producer
+                        && self.contains_key(rule)
+                    {
+                        pending.push(rule.clone());
+                    }
+                }
+            }
+            resolved.insert(id, bindings);
+        }
+        resolved
+    }
+}

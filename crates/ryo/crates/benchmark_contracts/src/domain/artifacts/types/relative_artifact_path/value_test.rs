@@ -1,6 +1,7 @@
 //! The path retains its borrowed identity and rejects escaping component forms.
 use super::value::RelativeArtifactPath;
-use ryo::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::artifacts::errors::ArtifactsError;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use std::path::Path;
 type Input = &'static str;
 type Value = ();
@@ -39,7 +40,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 ];
 fn subject(input: Input) -> Result<Value, Failure> {
     let path = Path::new(input);
-    let relative = RelativeArtifactPath::try_from(path).map_err(|_| ())?;
+    let relative = RelativeArtifactPath::try_from(path).map_err(|error| match error {
+        ArtifactsError::Invalid(_) => (),
+    })?;
     assert!(
         std::ptr::eq(relative.as_ref(), path),
         "validation borrows the caller's address"

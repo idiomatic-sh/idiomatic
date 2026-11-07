@@ -1,6 +1,8 @@
 //! Child startup, tool work, serialization and waiting are inside wall time.
 use crate::outbound::execution::adapters::process::constants;
 use crate::outbound::execution::interface::ExecutionPort;
+use crate::outbound::execution::types::ExitObservationMode;
+use crate::outbound::execution::types::process_exit::value::decode;
 use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
 use ryo_benchmark_contracts::domain::measurements::types::Invocation;
 use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
@@ -19,8 +21,12 @@ pub(crate) struct ExecutionProcessAdapter {
     pub(crate) timeout: Option<Duration>,
 }
 impl ExecutionPort for ExecutionProcessAdapter {
-    fn observes_completed_processes_without_deadline(&self) -> bool {
-        self.timeout.is_none()
+    fn exit_observation(&self) -> ExitObservationMode {
+        if self.timeout.is_none() {
+            ExitObservationMode::Direct
+        } else {
+            ExitObservationMode::Mediated
+        }
     }
 
     fn profile(&self) -> ryo_benchmark_contracts::domain::measurements::types::ExecutionProfile {
@@ -98,18 +104,23 @@ impl ExecutionPort for ExecutionProcessAdapter {
                 );
                 (
                     ryo_benchmark_contracts::domain::measurements::types::ProcessExitCode(124),
-                    None,
+                    ryo_benchmark_contracts::domain::measurements::types::TerminationSignal::Exited,
                     out,
                     err,
                 )
             } else {
-                let (code, signal) = crate::outbound::execution::status::decode(status)?;
-                (code, signal, out, err)
+                let exit = decode(status).map_err(|error| Error::Invalid(error.to_string()))?;
+                (exit.code, exit.termination, out, err)
             }
         } else {
             let output = command.output()?;
-            let (status, signal) = crate::outbound::execution::status::decode(output.status)?;
-            (status, signal, output.stdout, output.stderr)
+            let exit = decode(output.status).map_err(|error| Error::Invalid(error.to_string()))?;
+            (
+                exit.code,
+                exit.termination,
+                output.stdout,
+                output.stderr,
+            )
         };
         Ok(ProcessOutput {
             signal,

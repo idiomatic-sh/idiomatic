@@ -1,6 +1,6 @@
 //! The existing value and its behaviour, owned together.
 /// Number of independently executed correctness cases.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct CaseCount(
     /// Number of independently authored cases checked.
     pub usize,

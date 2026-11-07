@@ -1,7 +1,7 @@
 //! Behavioral proof of `registered_inputs`: what a case may declare about its files and project scope.
 use super::errors::RegisteredInputsError;
 use super::service::{metadata_digest, project_inputs_digest};
-use super::types::{ObservationDeclaration, RegisteredInputs};
+use super::types::{ObservationDeclaration, RefusalText, RegisteredInputs};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo::linter::{GivenProjectInventory, RelativePath};
 use ryo_benchmark_contracts::domain::artifacts::types::{
@@ -82,6 +82,21 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Error(RegisteredInputsError::UndeclaredMetadataSource),
     },
     Case {
+        name: CaseName("metadata naming an escaping path is refused with the library's words"),
+        word: Word::Refuses,
+        input: || {
+            (
+                Identity::FileMetadata,
+                declaring(
+                    &["../escape"],
+                    ObservationDeclaration::Absent,
+                    Some(&[("../escape", FileExecutable::Set)]),
+                ),
+            )
+        },
+        expect: Expect::Error(RegisteredInputsError::Refused(RefusalText(String::new()))),
+    },
+    Case {
         name: CaseName("a required observation without its metadata is refused"),
         word: Word::Refuses,
         input: || {
@@ -114,6 +129,12 @@ fn subject((identity, inputs): Input) -> Result<Value, Failure> {
         Identity::FileMetadata => metadata_digest(&inputs),
         Identity::ProjectInputs => project_inputs_digest(&inputs),
     }
+    .map_err(|failure| match failure {
+        RegisteredInputsError::Refused(_) => {
+            RegisteredInputsError::Refused(RefusalText(String::new()))
+        }
+        other => other,
+    })
 }
 
 #[test]

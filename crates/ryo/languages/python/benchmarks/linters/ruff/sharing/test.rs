@@ -1,5 +1,8 @@
 //! Actual configured classes and explicit barriers, through the production SDK.
-use super::fixtures::{Observation, diagnostics_of, django, expected_routes, observe, record, recorded_django_diagnostics};
+use super::fixtures::{
+    measurement::{diagnostics_of, django, record, recorded_django_diagnostics},
+    observation::{Observation, expected_routes, observe},
+};
 use ryo_benchmark::cases::{Case, CaseName, Expect, Word, run};
 use std::collections::BTreeSet;
 type Input = ();
@@ -297,7 +300,10 @@ fn verify(observed: Observation) -> Result<Value, Failure> {
     let mut project_read = BTreeSet::new();
     for event in &project {
         assert_eq!(event.classes.len() as u64, event.result_slots);
-        assert_eq!(event.passes, 1, "one source pass for this project population");
+        assert_eq!(
+            event.passes, 1,
+            "one source pass for this project population"
+        );
         for class in &event.classes {
             assert_eq!(
                 observed.classes.get(class),
@@ -366,7 +372,7 @@ fn the_one_path_answers_the_django_canary_as_recorded() -> Result<(), Box<dyn st
         .as_ref()
         .map_err(|error| format!("the one path must answer django-n999: {error}"))?;
     assert_eq!(
-        diagnostics_of(report, super::fixtures::DJANGO_RULE)?,
+        diagnostics_of(report, super::fixtures::measurement::DJANGO_RULE)?,
         recorded_django_diagnostics()?,
         "the one path answers N999 over Django as the checkpoint recorded it"
     );

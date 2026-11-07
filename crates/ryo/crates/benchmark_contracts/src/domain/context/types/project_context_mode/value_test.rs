@@ -1,8 +1,6 @@
-//! The process spelling participates in existing invocation and case identities.
+//! Isolation is the default of an undeclared context mode.
 use super::value::ProjectContextMode;
 #[test]
-fn explicit_context_modes_preserve_wire_identity_and_default_isolation() {
+fn undeclared_context_mode_defaults_to_isolation() {
     assert_eq!(ProjectContextMode::default(), ProjectContextMode::Isolated);
-    assert_eq!(ProjectContextMode::Isolated.as_str(), "isolated");
-    assert_eq!(ProjectContextMode::ListedDisk.as_str(), "listed-disk");
 }

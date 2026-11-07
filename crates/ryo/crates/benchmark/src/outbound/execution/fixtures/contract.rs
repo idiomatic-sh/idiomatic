@@ -1,7 +1,10 @@
 //! Execution preserves exit status and both streams; launch failure is distinct.
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::execution::interface::ExecutionPort;
-use ryo_benchmark_contracts::domain::measurements::types::Invocation;
+use crate::outbound::execution::types::ExitObservationMode;
+use ryo_benchmark_contracts::domain::measurements::types::{
+    Invocation, SignalNumber, TerminationSignal,
+};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::path::PathBuf;
 /// Execution requests and independently materialized launch failures.
@@ -199,6 +202,7 @@ fn missing() -> Invocation {
 pub fn check(adapter: &impl ExecutionPort) {
     let subject = |input| {
         let profile = adapter.profile();
+        let mode = adapter.exit_observation();
         let temporary = tempfile::tempdir().expect("isolated permission fixture");
         let mut call = invocation();
         let large = matches!(input, Operation::LargeStreams);
@@ -248,7 +252,7 @@ pub fn check(adapter: &impl ExecutionPort) {
             Operation::PathShadow => {
                 let path = temporary.path().join(super::driver::python());
                 std::fs::write(&path, "not an executable").expect("shadow file");
-                let existing = std::env::var_os("PATH").expect("native interpreter PATH");
+                let existing = native_path(adapter);
                 let _previous = call.environment.insert(
                     "PATH".into(),
                     std::env::join_paths(
@@ -276,22 +280,37 @@ pub fn check(adapter: &impl ExecutionPort) {
         // child's 127 exit code (the separate valid-child case preserves it).
         if cfg!(target_os = "macos") && invalid_image {
             assert_eq!(output.status.0, 127_i32);
-            assert_eq!(output.signal, None);
+            assert_eq!(output.signal, TerminationSignal::Exited);
             assert!(output.stdout.0.is_empty());
             assert!(!output.stderr.0.is_empty());
-            let _observation = observe(adapter, &profile, &output, large);
+            let _observation = observe(adapter, &profile, &mode, &output, large);
             return Err(Failure::ExecutableFormat);
         }
-        Ok(observe(adapter, &profile, &output, large))
+        Ok(observe(adapter, &profile, &mode, &output, large))
     };
     run(CASES, Word::Succeeds, subject);
     run(CASES, Word::Refuses, subject);
+}
+
+/// The search path the native interpreter child inherits, observed through the adapter under test.
+#[expect(
+    clippy::expect_used,
+    reason = "fixture setup failures must fail the contract test"
+)]
+fn native_path(adapter: &impl ExecutionPort) -> std::ffi::OsString {
+    let mut call = invocation();
+    call.arguments = super::driver::snippet(super::driver::PATH);
+    let output = adapter.run(call).expect("native interpreter PATH");
+    String::from_utf8(output.stdout.0)
+        .expect("native interpreter PATH text")
+        .into()
 }
 
 /// Check profile stability, resource mode, and independently specified output streams.
 fn observe(
     adapter: &impl ExecutionPort,
     profile: &ryo_benchmark_contracts::domain::measurements::types::ExecutionProfile,
+    mode: &ExitObservationMode,
     output: &ryo_benchmark_contracts::domain::measurements::types::ProcessOutput,
     large: bool,
 ) -> Value {
@@ -301,6 +320,11 @@ fn observe(
         adapter.profile(),
         *profile,
         "execution profile must remain immutable"
+    );
+    assert_eq!(
+        adapter.exit_observation(),
+        *mode,
+        "exit observation mode must remain immutable"
     );
     assert!(
         matches!(
@@ -316,12 +340,17 @@ fn observe(
     #[cfg(unix)]
     assert_eq!(
         output.signal,
-        (output.status.0 < 0_i32).then_some(-output.status.0),
+        if output.status.0 < 0_i32 {
+            TerminationSignal::Signalled(ryo_benchmark_contracts::domain::measurements::types::SignalNumber(-output.status.0))
+        } else {
+            TerminationSignal::Exited
+        },
         "a signaled child must preserve its signal independently of measured resources"
     );
     #[cfg(not(unix))]
     assert_eq!(
-        output.signal, None,
+        output.signal,
+        TerminationSignal::Exited,
         "native numeric exit codes never invent a Unix signal"
     );
     (

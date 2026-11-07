@@ -37,7 +37,12 @@ fn signaled_child_retains_native_resources() {
             directory: ".".into(),
         })
         .expect("signaled child observation");
-    assert_eq!(output.signal, Some(15_i32));
+    assert_eq!(
+        output.signal,
+        ryo_benchmark_contracts::domain::measurements::types::TerminationSignal::Signalled(
+            ryo_benchmark_contracts::domain::measurements::types::SignalNumber(15)
+        )
+    );
     assert_eq!(output.status.0, -15_i32);
     assert_eq!(output.stdout.0, b"partial");
     assert!(!output.wall.is_zero());

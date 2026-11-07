@@ -1,8 +1,13 @@
-//! Local filesystem inventory artifacts.
-pub(crate) mod adapter;
+//! The inventory port, implemented with the local filesystem.
 
-mod case_artifacts;
+pub(crate) mod adapter;
+mod case;
 mod constants;
-mod schemas;
+mod discrepancy;
+mod invocation;
+mod output;
+mod registration;
+pub(crate) mod types;
+
 #[cfg(test)]
-mod schemas_test;
+mod adapter_test;

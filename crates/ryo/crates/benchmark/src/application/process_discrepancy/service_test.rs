@@ -5,11 +5,9 @@ use super::service::matches;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::discrepancy::types::{OptionalDigest, ReferenceKind};
 use crate::domain::registered_inputs::types::RefusalText;
-use crate::outbound::inventory::types::{FailedInvocation, InvocationDocument, Pin, Signal};
-use crate::outbound::suite::types::{
-    observation_document::ExitStatus,
-    text::{PathText, ReasonText, Sha256Text, YesNo},
-};
+use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::{FailedInvocation, InvocationDocument};
+use ryo_benchmark_contracts::domain::documents::types::text::value::{Pin, Signal};
+use ryo_benchmark_contracts::domain::documents::types::text::value::{ExitStatus, PathText, ReasonText, Sha256Text, YesNo};
 use crate::outbound::suite::fixtures::fake::SuiteFake;
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
 use ryo_benchmark_contracts::domain::measurements::types::ProcessExitCode;
@@ -51,7 +49,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a case without a process expectation has nothing to match"),
         word: Word::Refuses,
-        input: || edited(|actual| actual.case.reference_discrepancy = None),
+        input: || edited(|actual| actual.case.reference_discrepancy = ryo_benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior::Agrees),
         expect: Expect::Error(ProcessDiscrepancyError::NoProcessExpectation),
     },
     Case {
@@ -107,7 +105,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a signalled process is not a completed failure"),
         word: Word::Refuses,
-        input: || edited(|actual| actual.output.signal = Some(15)),
+        input: || edited(|actual| actual.output.signal = ryo_benchmark_contracts::domain::measurements::types::TerminationSignal::Signalled(ryo_benchmark_contracts::domain::measurements::types::SignalNumber(15))),
         expect: Expect::Error(ProcessDiscrepancyError::TerminationDiffers),
     },
     Case {

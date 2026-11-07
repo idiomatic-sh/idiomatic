@@ -1,10 +1,12 @@
 //! Artifact filenames, executable protocol and refusal vocabulary.
 /// Shared filename for tool profiles and language workload manifests.
-pub(super) const MANIFEST: &str = "benchmark.toml";
+pub(super) const MANIFEST: &str =
+    ryo_benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST;
 /// Directory containing authored rule definitions.
 pub(super) const RULES: &str = "rules";
 /// Executable RyoQL source filename within one rule directory.
-pub(super) const QUERY: &str = "query.ryoql";
+pub(super) const QUERY: &str =
+    ryo_benchmark_contracts::domain::requests::constants::QUERY_FILE;
 /// Independent fixture filename within one rule directory.
 pub(super) const CASES: &str = "cases.toml";
 /// Reference tool argument used to verify its reported version.
@@ -27,7 +29,8 @@ pub(super) const PATCH_ESCAPE: &str = "patch escapes the shared suite directory"
 /// Refusal when a case source path has no materializable parent.
 pub(super) const MISSING_CASE_PARENT: &str = "missing case parent";
 /// Text of the module source in this part.
-pub(super) const MODULE_SOURCE: &str = "module source";
+pub(super) const MODULE_SOURCE: &str =
+    ryo_benchmark_contracts::domain::requests::constants::MODULE_NAME_PROBE;
 /// Text of the profile must be a table in this part.
 pub(super) const PROFILE_MUST_BE_A_TABLE: &str = "profile must be a table";
 /// Text of the defaults in this part.
@@ -42,30 +45,6 @@ pub(super) const DEFERRED: &str = "deferred";
 pub(super) const RULE_OBSERVATIONS: &str = "rule-observations";
 /// Text of the rule applicability in this part.
 pub(super) const RULE_APPLICABILITY: &str = "rule-applicability";
-/// Text of the receipt filename must be utf8 in this part.
-pub(super) const RECEIPT_FILENAME_MUST_BE_UTF8: &str = "receipt filename must be UTF8";
-/// Text of the dot in this part.
-pub(super) const DOT: &str = ".";
-/// Text of the unsafe receipt file identity in this part.
-pub(super) const UNSAFE_RECEIPT_FILE_IDENTITY: &str = "unsafe receipt file identity";
-/// Text of the invalid framed process case key in this part.
-pub(super) const INVALID_FRAMED_PROCESS_CASE_KEY: &str = "invalid framed process case key";
-/// Text of the stdout in this part.
-pub(super) const STDOUT: &str = "stdout";
-/// Text of the stdout bin in this part.
-pub(super) const STDOUT_BIN: &str = "stdout.bin";
-/// Text of the stderr in this part.
-pub(super) const STDERR: &str = "stderr";
-/// Text of the stderr bin in this part.
-pub(super) const STDERR_BIN: &str = "stderr.bin";
-/// Text of the invocation in this part.
-pub(super) const INVOCATION: &str = "invocation";
-/// Text of the invocation json in this part.
-pub(super) const INVOCATION_JSON: &str = "invocation.json";
-/// Text of the raw artifact path is not utf8 in this part.
-pub(super) const RAW_ARTIFACT_PATH_IS_NOT_UTF8: &str = "raw artifact path is not UTF8";
-/// Text of the slash in this part.
-pub(super) const SLASH: &str = "/";
 /// Text of the check001 in this part.
 #[cfg(test)]
 pub(super) const CHECK001: &str = "CHECK001";
@@ -99,7 +78,8 @@ pub(super) const FIRST: &[u8] = b"first";
 pub(super) const N_002_CASES_JSONL: &str = "002.cases.jsonl";
 /// Text of the cases jsonl in this part.
 #[cfg(test)]
-pub(super) const CASES_JSONL: &str = "cases.jsonl";
+pub(super) const CASES_JSONL: &str =
+    ryo_benchmark_contracts::domain::receipts::constants::CASES_JSONL;
 /// Text of the changed in this part.
 #[cfg(test)]
 pub(super) const CHANGED: &[u8] = b"changed";
@@ -148,7 +128,8 @@ pub(super) const SOURCE_TEXT: &str = "source_text";
 /// Text of the contract assertion in this part.
 pub(super) const CONTRACT_ASSERTION: &str = "contract_assertion";
 /// Text of the source sha256 in this part.
-pub(super) const SOURCE_SHA256: &str = "source_sha256";
+pub(super) const SOURCE_SHA256: &str =
+    ryo_benchmark_contracts::domain::receipts::constants::SOURCE_SHA256;
 /// Text of the prior worker control v1 in this part.
 pub(super) const PRIOR_WORKER_CONTROL_V1: &str = "prior-worker-control/v1";
 /// Text of the worker sha256 in this part.
@@ -182,13 +163,16 @@ pub(super) const STATUS: &str = "status";
 /// Text of the command in this part.
 pub(super) const COMMAND: &str = "command";
 /// Text of the verify cases in this part.
-pub(super) const VERIFY_CASES: &str = "verify-cases";
+pub(super) const VERIFY_CASES: &str =
+    ryo_benchmark_contracts::domain::receipts::constants::VERIFY_CASES;
 /// Text of the stage root in this part.
 pub(super) const STAGE_ROOT: &str = "stage_root";
 /// Text of the candidate in this part.
-pub(super) const CANDIDATE: &str = "candidate";
+pub(super) const CANDIDATE: &str =
+    ryo_benchmark_contracts::domain::receipts::constants::CANDIDATE;
 /// Text of the complete in this part.
-pub(super) const COMPLETE: &str = "complete";
+pub(super) const COMPLETE: &str =
+    ryo_benchmark_contracts::domain::receipts::constants::COMPLETE;
 /// Text of the error 2 in this part.
 pub(super) const ERROR_2: &str = "error";
 /// Text of the case passed in this part.
@@ -196,7 +180,8 @@ pub(super) const CASE_PASSED: &str = "case_passed";
 /// Text of the skipped in this part.
 pub(super) const SKIPPED: &str = "skipped";
 /// Text of the diagnostics in this part.
-pub(super) const DIAGNOSTICS: &str = "diagnostics";
+pub(super) const DIAGNOSTICS: &str =
+    ryo_benchmark_contracts::domain::receipts::constants::DIAGNOSTICS;
 /// Text of the expected in this part.
 pub(super) const EXPECTED: &str = "expected";
 /// Text of the coverage in this part.
@@ -253,12 +238,14 @@ pub(super) const GIVEN_PROJECT_MISSING_ENTRY_COLLIDES_WITH: &str =
 /// Text of the given project non file entry requires in this part.
 pub(super) const GIVEN_PROJECT_NON_FILE_ENTRY_REQUIRES: &str =
     "Given project non-file entry requires a materialization contract";
-/// Refuse a process observation that has no raw artifacts to point at.
-pub(super) const PROCESS_OBSERVATION_NEEDS_RAW_ARTIFACTS: &str =
-    "a process observation needs its three raw artifacts";
 /// Text of an identity that is not a lowercase SHA256.
 pub(super) const DISCREPANCY_REQUIRES_LOWERCASE_SHA256_IDENTITIES: &str =
     "discrepancy requires lowercase SHA256 identities";
 /// Text of a process failure without a positive exit.
 pub(super) const PROCESS_FAILURE_REQUIRES_A_POSITIVE_NUMERIC_EXIT: &str =
     "process failure requires a positive numeric exit";
+/// The applicability policy under which a rule runs on every file.
+pub(super) const ALWAYS: &str = ryo_benchmark_contracts::domain::requests::constants::ALWAYS;
+/// The applicability policy under which a rule is skipped on a file the parser rejects.
+pub(super) const ACCEPTED_SYNTAX: &str =
+    ryo_benchmark_contracts::domain::requests::constants::ACCEPTED_SYNTAX;

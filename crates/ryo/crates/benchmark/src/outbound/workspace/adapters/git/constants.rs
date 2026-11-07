@@ -14,7 +14,7 @@ pub(super) const NO_PROMPT: &str = "0";
 /// Refusal when patch input cannot reach the child process.
 pub(super) const MISSING_STDIN: &str = "git stdin missing";
 /// Inspect checkout cleanliness.
-pub(super) const STATUS: &str = "status";
+pub(super) const STATUS_COMMAND: &str = "status";
 /// Request stable machine-readable status output.
 pub(super) const PORCELAIN: &str = "--porcelain";
 /// Include every untracked file in the cleanliness check.

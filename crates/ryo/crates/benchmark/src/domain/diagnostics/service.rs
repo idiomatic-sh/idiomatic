@@ -107,3 +107,33 @@ pub fn compare_with_contract(
 pub fn compare(reference: &RunReport, candidate: &RunReport) -> Result<(), Difference> {
     compare_with_contract(reference, candidate, ComparisonContract::CompleteReport).map(|_| ())
 }
+
+/// Validate decoded coverage without treating a rejected report as a process failure.
+///
+/// # Errors
+/// Refuses duplicate requested inputs, a report whose files differ from the request, and a diagnostic outside the files or with an inverted span.
+pub fn validate_coverage(
+    requested: &[ryo::linter::RelativePath],
+    report: &RunReport,
+) -> Result<(), ryo_benchmark_contracts::domain::reports::errors::ReportsError> {
+    use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+    let mut expected = requested.to_vec();
+    expected.sort();
+    if expected
+        .windows(2)
+        .any(|pair| matches!(pair, [first, second] if first == second))
+    {
+        return Err(Error::Invalid(super::constants::DUPLICATE_INPUT.into()));
+    }
+    let mut actual = report.files.clone();
+    actual.sort();
+    if actual != expected {
+        return Err(Error::Invalid(super::constants::INPUT_COVERAGE.into()));
+    }
+    for finding in &report.diagnostics {
+        if actual.binary_search(&finding.file).is_err() || finding.start > finding.end {
+            return Err(Error::Invalid(format!("invalid diagnostic: {finding:?}")));
+        }
+    }
+    Ok(())
+}

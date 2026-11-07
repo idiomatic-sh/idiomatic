@@ -38,9 +38,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 ];
 
 fn subject(field: Input) -> Result<Value, Failure> {
-    let use_case = ValidateCaseReceiptsUseCaseImpl::new(Arc::new(
-        crate::outbound::inventory::factory::local(),
-    ));
+    let use_case = ValidateCaseReceiptsUseCaseImpl::new(
+        Arc::new(crate::outbound::receipts::factory::local(
+            crate::outbound::receipts::types::CaseReceipts::Unrecorded,
+        )),
+        Arc::new(crate::outbound::inventory::factory::local()),
+    );
     exercise(&use_case, field)
 }
 

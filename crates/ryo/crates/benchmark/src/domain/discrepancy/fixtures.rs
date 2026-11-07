@@ -3,13 +3,22 @@ use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDi
 use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
 use ryo_benchmark_contracts::domain::process::types::ReferenceExpectation;
 use ryo_benchmark_contracts::domain::reports::types::{
-    BenchmarkFinding, ExecutionMetadata, RuleCoverage, RunReport, SourceByteOffset,
+    BenchmarkFinding, CoverageAccounting, ExecutionMetadata, PairCount, ProjectContext,
+    RuleCoverage, RunReport, SourceByteOffset,
 };
-use ryo_benchmark_contracts::domain::requests::types::RunRequest;
+use ryo_benchmark_contracts::domain::requests::types::{
+    CohortSelection, ContextSeal, FileMetadataDeclaration, InputDeclaration,
+    ParserConfigurationName, ParserSelection, ProviderSelection, RuleContextPreparation,
+    RunRequest, SearchRoots, StagedSources,
+};
+use ryo_benchmark_contracts::domain::context::types::ObservationSelectionPolicy;
 use ryo_benchmark_contracts::domain::workloads::types::{
-    CaseComparison, DiscrepancyBasis, ObservationSelectionPolicy, PreparedCase,
-    PreparedReferenceDiscrepancy, ReferenceDiscrepancyIdentity, Tool,
-    discrepancy_evidence::value::{DiscrepancyEvidence, DiscrepancyEvidenceKind},
+    CaseComparison, DiscrepancyBasis, DiscrepancyReason, FileObservation,
+    MetadataDigestDeclaration, PreparedCase, PreparedReferenceBehavior,
+    PreparedReferenceDiscrepancy, ReferenceDiscrepancyIdentity, RuleContextProfile, Tool,
+    discrepancy_evidence::value::{
+        DiscrepancyEvidence, DiscrepancyEvidenceKind, LanguageVersion, ParserTarget, Rationale,
+    },
 };
 use std::collections::BTreeMap;
 
@@ -17,14 +26,14 @@ use std::collections::BTreeMap;
 pub(crate) fn report() -> RunReport {
     RunReport {
         execution_metadata: ExecutionMetadata::Complete,
-        project_context: None,
+        project_context: ProjectContext::NotRequested,
         diagnostics: Vec::new(),
         skipped: Vec::new(),
-        coverage: Some(RuleCoverage {
-            selected: 1,
-            evaluated: 1,
-            skipped: 0,
-            unknown_or_unread: 0,
+        coverage: CoverageAccounting::Accounted(RuleCoverage {
+            selected: PairCount(1),
+            evaluated: PairCount(1),
+            skipped: PairCount(0),
+            unknown_or_unread: PairCount(0),
         }),
         files: vec![ryo::linter::RelativePath("case.py".into())],
     }
@@ -33,7 +42,7 @@ pub(crate) fn report() -> RunReport {
 /// The identity both pins and certificates of the fixture share.
 pub(crate) fn identity() -> ReferenceDiscrepancyIdentity {
     ReferenceDiscrepancyIdentity {
-        file_metadata_sha256: None,
+        file_metadata_sha256: MetadataDigestDeclaration::Undeclared,
         tool: "fixture".into(),
         version: "1.0".into(),
         observed_executable_sha256: ArtifactDigest("a".repeat(64)),
@@ -61,25 +70,25 @@ pub(crate) fn case() -> PreparedCase {
         name: "independent-contract".into(),
         request: RunRequest {
             performance: Default::default(),
-            selected_rules: None,
-            rule_observations: None,
-            rule_context: None,
-            project_search_roots: None,
+            selected_rules: CohortSelection::Frozen,
+            rule_observations: InputDeclaration::Undeclared,
+            rule_context: RuleContextPreparation::Unconfigured,
+            project_search_roots: SearchRoots::Undeclared,
             given_project_inventory: Default::default(),
-            staged_sources: None,
-            file_metadata: None,
+            staged_sources: StagedSources::Unlisted,
+            file_metadata: FileMetadataDeclaration::Undeclared,
             root: ".".into(),
             state: "cache".into(),
             files: expected.files.clone(),
-            context_manifest: None,
+            context_manifest: ContextSeal::Unsealed,
         },
         expected,
-        reference_discrepancy: Some(PreparedReferenceDiscrepancy {
+        reference_discrepancy: PreparedReferenceBehavior::Differs(PreparedReferenceDiscrepancy {
             basis: DiscrepancyBasis::LanguageDefect,
             expected: ReferenceExpectation::Diagnostics(reference),
             identity: identity(),
             evidence: Vec::new(),
-            reason: "independent language contract".into(),
+            reason: DiscrepancyReason("independent language contract".into()),
         }),
     }
 }
@@ -90,8 +99,8 @@ pub(crate) fn profile() -> Tool {
         rule_observation_selection: ObservationSelectionPolicy::Declared,
         supporting_rules: Vec::new(),
         rule_observations: Default::default(),
-        rule_context: None,
-        file_observation: None,
+        rule_context: RuleContextProfile::Undeclared,
+        file_observation: FileObservation::Undeclared,
         project_context_mode: ProjectContextMode::Isolated,
         tool: "fixture".into(),
         version: "1.0".into(),
@@ -101,9 +110,9 @@ pub(crate) fn profile() -> Tool {
         pending: BTreeMap::default(),
         query_modules: BTreeMap::default(),
         rule_applicability: BTreeMap::default(),
-        parser_configuration: Some("python3.10".into()),
-        source_language: None,
-        project_search_roots: None,
+        parser_configuration: ParserSelection::Named(ryo_benchmark_contracts::domain::requests::types::ParserConfigurationName("python3.10".into())),
+        source_language: ProviderSelection::Unspecified,
+        project_search_roots: SearchRoots::Undeclared,
     }
 }
 
@@ -113,8 +122,30 @@ pub(crate) fn evidence() -> DiscrepancyEvidence {
         path: "semantic-authority.txt".into(),
         sha256: ArtifactDigest("f".repeat(64)),
         kind: DiscrepancyEvidenceKind::LanguageSpec,
-        language_version: "toy-v1".into(),
-        target_configuration: "python3.10".into(),
-        version_rationale: "toy fixture contract".into(),
+        language_version: LanguageVersion("toy-v1".into()),
+        target_configuration: ParserTarget("python3.10".into()),
+        version_rationale: Rationale("toy fixture contract".into()),
+    }
+}
+
+/// The documented reference difference of a case that has one.
+///
+/// # Panics
+/// When the case's reference agrees with the intended behavior.
+pub(crate) fn differing(case: &mut PreparedCase) -> &mut PreparedReferenceDiscrepancy {
+    match &mut case.reference_discrepancy {
+        PreparedReferenceBehavior::Differs(item) => item,
+        PreparedReferenceBehavior::Agrees => panic!("the fixture case documents a difference"),
+    }
+}
+
+/// The accounted coverage of a report.
+///
+/// # Panics
+/// When the report carries no accounting.
+pub(crate) fn accounted(report: &mut RunReport) -> &mut RuleCoverage {
+    match &mut report.coverage {
+        CoverageAccounting::Accounted(coverage) => coverage,
+        CoverageAccounting::Unaccounted => panic!("the fixture report accounts its coverage"),
     }
 }

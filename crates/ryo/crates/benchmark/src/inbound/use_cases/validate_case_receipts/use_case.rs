@@ -1,19 +1,21 @@
 //! Compose a boundary-owned registration and raw bytes with the existing shared validator.
 use super::interface::ValidateCaseReceiptsUseCase;
-use crate::application::run::receipt_validation;
+use crate::application::receipt_validation::service as receipt_validation;
 use crate::outbound::inventory::interface::InventoryPort;
-use ryo_benchmark_contracts::domain::process::types::ReceiptAudit;
+use crate::outbound::receipts::{interface::ReceiptsPort, types::ReceiptPath};
+use ryo_benchmark_contracts::domain::receipts::types::ReceiptAudit;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::{path::Path, sync::Arc};
 /// The edge selects the artifact store; application code does not hardwire it.
 pub struct ValidateCaseReceiptsUseCaseImpl {
+    receipts: Arc<dyn ReceiptsPort>,
     store: Arc<dyn InventoryPort>,
 }
 impl ValidateCaseReceiptsUseCaseImpl {
     /// Inject the existing inventory artifact boundary.
     #[must_use]
-    pub fn new(store: Arc<dyn InventoryPort>) -> Self {
-        Self { store }
+    pub fn new(receipts: Arc<dyn ReceiptsPort>, store: Arc<dyn InventoryPort>) -> Self {
+        Self { receipts, store }
     }
 }
 impl std::fmt::Debug for ValidateCaseReceiptsUseCaseImpl {
@@ -28,8 +30,12 @@ impl ValidateCaseReceiptsUseCase for ValidateCaseReceiptsUseCaseImpl {
         registration: &Path,
         receipt: &Path,
     ) -> Result<ReceiptAudit, Error> {
-        let registration = self.store.load(registration).map_err(Error::Invalid)?;
-        let captured = self.store.observations(receipt).map_err(Error::Invalid)?;
-        receipt_validation::validate(&registration, &captured)
+        let registration = self.store.load(registration)?;
+        let records = self
+            .receipts
+            .case_observations(ReceiptPath(receipt))
+            .map_err(|error| Error::Invalid(error.to_string()))?;
+        let raw = self.store.raw_artifacts(receipt, &records)?;
+        receipt_validation::validate(&registration, &records, &raw)
     }
 }

@@ -28,7 +28,7 @@ pub(crate) fn audit(
     }
     let mut supporting_seen = BTreeSet::new();
     let mut implemented = BTreeSet::new();
-    let rules = directory.join(super::constants::RULES);
+    let rules = directory.join(crate::domain::suite::constants::RULES);
     for rule in suite.rule_ids(ArtifactPath(&rules))? {
         if !defaults.contains(&rule) && !tool.supporting_rules.contains(&rule) {
             return Err(Error::Invalid(format!(
@@ -36,7 +36,7 @@ pub(crate) fn audit(
             )));
         }
         let query = suite.rule_query(ArtifactPath(&rules), &rule)?;
-        if query.as_ref().is_some_and(|query| query.trim().is_empty()) {
+        if query.as_ref().is_some_and(|query| query.0.trim().is_empty()) {
             return Err(Error::Invalid(format!("empty query for {rule}")));
         }
         if tool.supporting_rules.contains(&rule) {

@@ -2,8 +2,11 @@
 use super::value::Certificate;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::suite::types::audit::value::Audit;
-use crate::outbound::linter::{fixtures::fake::LinterFake, interface::LinterPort as _};
-use ryo_benchmark_contracts::domain::requests::types::RunRequest;
+use ryo_benchmark_contracts::domain::measurements::types::Invocation;
+use ryo_benchmark_contracts::domain::requests::types::{
+    CohortSelection, ContextSeal, FileMetadataDeclaration, InputDeclaration,
+    RuleContextPreparation, RunRequest, SearchRoots, StagedSources,
+};
 const CASES: &[Case<(), (bool, usize), ()>] = &[Case {
     name: CaseName("evidence exposes only its content identity and verified count"),
     word: Word::Succeeds,
@@ -17,19 +20,24 @@ const CASES: &[Case<(), (bool, usize), ()>] = &[Case {
 fn subject(_: ()) -> Result<(bool, usize), ()> {
     let request = RunRequest {
         performance: Default::default(),
-        selected_rules: None,
-        rule_observations: None,
-        rule_context: None,
-        project_search_roots: None,
+        selected_rules: CohortSelection::Frozen,
+        rule_observations: InputDeclaration::Undeclared,
+        rule_context: RuleContextPreparation::Unconfigured,
+        project_search_roots: SearchRoots::Undeclared,
         given_project_inventory: Default::default(),
-        staged_sources: None,
-        file_metadata: None,
-        context_manifest: None,
+        staged_sources: StagedSources::Unlisted,
+        file_metadata: FileMetadataDeclaration::Undeclared,
+        context_manifest: ContextSeal::Unsealed,
         root: ".".into(),
         files: vec![ryo::linter::RelativePath("file".into())],
         state: "cache".into(),
     };
-    let profile = LinterFake::default().prepare(&request).unwrap();
+    let profile = Invocation {
+        executable: "fixture".into(),
+        arguments: Vec::new(),
+        environment: std::collections::BTreeMap::new(),
+        directory: ".".into(),
+    };
     let certificate = Certificate {
         case_source: ryo_benchmark_contracts::domain::requests::types::CertificationCases::Profile,
         coverage: Audit {

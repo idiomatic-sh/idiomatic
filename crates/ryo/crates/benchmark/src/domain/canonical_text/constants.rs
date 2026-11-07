@@ -14,3 +14,5 @@ pub(super) const ESCAPED_RETURN: &str = "\\r";
 pub(super) const ESCAPED_TAB: &str = "\\t";
 pub(super) const ESCAPED_BACKSPACE: &str = "\\b";
 pub(super) const ESCAPED_FORM_FEED: &str = "\\f";
+/// The key under which a canonical document names a file.
+pub(crate) const FILE: &str = "file";

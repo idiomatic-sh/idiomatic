@@ -63,7 +63,7 @@ impl ExecutionPort for Execution {
             return Err(std::io::Error::from_raw_os_error(2).into());
         }
         Ok(ProcessOutput {
-            signal: None,
+            signal: ryo_benchmark_contracts::domain::measurements::types::TerminationSignal::Exited,
             status: ProcessExitCode(126),
             stdout: CapturedBytes(vec![255]),
             stderr: CapturedBytes(Vec::new()),

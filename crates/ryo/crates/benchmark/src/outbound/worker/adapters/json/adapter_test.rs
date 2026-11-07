@@ -138,14 +138,14 @@ fn subject(operation: Input) -> Result<Value, Failure> {
     let temporary = tempfile::tempdir().map_err(|_invalid_parser| Refusal::Unexpected)?;
     let request = RunRequest {
         performance: Default::default(),
-        selected_rules: None,
-        rule_observations: None,
-        rule_context: None,
-        project_search_roots: None,
+        selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Frozen,
+        rule_observations: ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+        rule_context: ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+        project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
         given_project_inventory: Default::default(),
-        staged_sources: None,
-        file_metadata: None,
-        context_manifest: None,
+        staged_sources: ryo_benchmark_contracts::domain::requests::types::StagedSources::Unlisted,
+        file_metadata: ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared,
+        context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
         root: "workspace".into(),
         files: vec![ryo::linter::RelativePath("source.txt".into())],
         state: temporary.path().join("cache"),
@@ -163,7 +163,10 @@ fn subject(operation: Input) -> Result<Value, Failure> {
             r#"{"root":"workspace","rules":"rules","files":["source.txt"],"cache":"cache"}"#.into()
         }
     };
-    let child = crate::outbound::worker::factory::json(payload, Box::new(output));
+    let child = crate::outbound::worker::factory::json(
+        crate::outbound::worker::types::WorkerSource::Argument(payload),
+        Box::new(output),
+    );
     let mut expected_report = report();
     if matches!(operation, Operation::RoundTrip) {
         let skipped_rule = ryo::linter::RuleId::try_from("other").expect("fixture rule");
@@ -212,7 +215,7 @@ fn subject(operation: Input) -> Result<Value, Failure> {
                 .decode(
                     &request,
                     ProcessOutput {
-                        signal: None,
+                        signal: ryo_benchmark_contracts::domain::measurements::types::TerminationSignal::Exited,
                         status: ryo_benchmark_contracts::domain::measurements::types::ProcessExitCode(0),
                         stdout: ryo_benchmark_contracts::domain::measurements::types::CapturedBytes(
                             capture.bytes.clone(),

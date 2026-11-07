@@ -4,6 +4,8 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo::linter::RuleId;
 use ryo_benchmark_contracts::domain::measurements::types::MeasurementMode;
 type Input = (MeasurementMode, Vec<RuleId>, Option<Vec<RuleId>>);
+type Value = ();
+type Failure = ();
 fn ids(names: &[&str]) -> Vec<RuleId> {
     names
         .iter()
@@ -19,7 +21,7 @@ fn benchmark(authored: &[&str], selected: Option<&[&str]>) -> Input {
         selected.map(ids),
     )
 }
-const CASES: &[Case<Input, (), ()>] = &[
+const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("full inventory accepts reordered identities"),
         word: Word::Succeeds,
@@ -83,7 +85,7 @@ const CASES: &[Case<Input, (), ()>] = &[
         expect: Expect::Error(()),
     },
 ];
-fn subject((mode, authored, selected): Input) -> Result<(), ()> {
+fn subject((mode, authored, selected): Input) -> Result<Value, Failure> {
     require_inventory(&mode, &authored, selected.as_deref()).map_err(|_| ())
 }
 #[test]

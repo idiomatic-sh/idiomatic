@@ -99,7 +99,13 @@ pub(super) fn certified() -> Validation {
         .prepare(&validation.case.request)
         .expect("fixture invocation");
     let settings = text_digest(
-        &settings_text(&invocation, &validation.case, &profile()).expect("fixture settings"),
+        &settings_text(
+            &LinterFake::default(),
+            &invocation,
+            &validation.case,
+            &profile(),
+        )
+        .expect("fixture settings"),
     );
     let expected = output_digest(&validation.case.expected);
     let item = validation
@@ -166,9 +172,9 @@ pub(super) fn archived(record: Record) -> Validation {
         step: Step::Archives(Archive {
             root,
             process: ProcessFailure {
-                exit: 2,
-                stdout: vec![OutputPart::Literal("payload".into())],
-                stderr: vec![OutputPart::Literal("issue".into())],
+                exit: ryo_benchmark_contracts::domain::measurements::types::ProcessExitCode(2),
+                stdout: vec![OutputPart::Literal(ryo_benchmark_contracts::domain::process::types::OutputText("payload".into()))],
+                stderr: vec![OutputPart::Literal(ryo_benchmark_contracts::domain::process::types::OutputText("issue".into()))],
                 observations,
             },
         }),

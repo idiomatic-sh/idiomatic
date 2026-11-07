@@ -16,6 +16,7 @@ name = "ryo_benchmark"
 ryo-benchmark-contracts = { package = "idiomatic-sh-ryo-benchmark-contracts", path = "../benchmark_contracts", version = "0.1.2" }
 globset.workspace = true
 ryo = { package = "idiomatic-sh-ryo-sdk", path = "../sdk", version = "0.1.2" }
+ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.1.2" }
 serde.workspace = true
 serde_json.workspace = true
 toml.workspace = true

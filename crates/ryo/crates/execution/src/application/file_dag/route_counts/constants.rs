@@ -1,7 +1,6 @@
 //! Diagnostic vocabulary of the opt-in route accounting.
 pub(super) const MAX_KEYS: usize = 32_768;
-pub(super) const RESOURCE_ROUTES_TARGET: &str =
-    crate::application::file_dag::derived::constants::TARGET_RESOURCE_ROUTES;
+pub(super) const RESOURCE_ROUTES_TARGET: &str = ryo_values::domain::table_words::constants::RESOURCE_ROUTES_TARGET;
 pub(super) const RESOURCE_ROUTES_EVENT: &str = "resource_routes";
 pub(super) const UNCLASSIFIED: &str = "unclassified";
 

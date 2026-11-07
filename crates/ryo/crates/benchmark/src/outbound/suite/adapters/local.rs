@@ -1,12 +1,16 @@
 //! Local boundary implementation.
 pub(crate) mod adapter;
 mod constants;
-mod cases;
+mod rule_cases;
 mod corpus;
 mod declarations;
-mod observation;
+mod evidence;
+mod file_metadata;
 mod process;
+mod reference;
+mod selection;
 mod tool;
+mod writer;
 
 #[cfg(test)]
 mod adapter_test;
@@ -14,11 +18,6 @@ mod adapter_test;
 #[cfg(any(test, feature = "fixtures"))]
 mod fixtures;
 
-mod discrepancy_artifacts;
 
-mod case_observations;
 
-#[cfg(test)]
-mod process_schema_test;
 
-mod input_metadata;

@@ -95,3 +95,6 @@ fn refuses() {
 fn subject(input: Input) -> Result<Value, Failure> {
     exercise(input, CertifyUseCaseImpl::new)
 }
+
+mod registered;
+mod substituted;

@@ -2,6 +2,7 @@
 #[cfg(any(test, feature = "fixtures"))]
 pub mod fixtures;
 pub mod interface;
+mod service;
 pub mod use_case;
 #[cfg(test)]
-mod use_case_test;
+pub(crate) mod use_case_test;

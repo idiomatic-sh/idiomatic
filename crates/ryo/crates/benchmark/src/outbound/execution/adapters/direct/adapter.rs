@@ -3,6 +3,8 @@
 use super::{constants, schemas};
 use crate::outbound::execution::interface::ExecutionPort;
 #[cfg(target_os = "linux")]
+use crate::outbound::execution::types::process_exit::value::decode;
+#[cfg(target_os = "linux")]
 use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
 use ryo_benchmark_contracts::domain::measurements::types::Invocation;
 use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
@@ -61,10 +63,10 @@ impl ExecutionPort for ExecutionDirectAdapter {
             Ok((usage, stdout, stderr))
         })?;
         let wall = start.elapsed();
-        let (status, signal) = crate::outbound::execution::status::decode(usage.status)?;
+        let exit = decode(usage.status).map_err(|error| Error::Invalid(error.to_string()))?;
         Ok(ProcessOutput {
-            signal,
-            status,
+            signal: exit.termination,
+            status: exit.code,
             stdout: CapturedBytes(stdout),
             stderr: CapturedBytes(stderr),
             wall,

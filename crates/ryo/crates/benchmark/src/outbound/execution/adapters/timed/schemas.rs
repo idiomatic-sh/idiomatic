@@ -86,7 +86,14 @@ struct ObservationSchema {
 impl From<ObservationSchema> for ProcessOutput {
     fn from(output: ObservationSchema) -> Self {
         Self {
-            signal: output.signal,
+            signal: output.signal.map_or(
+                ryo_benchmark_contracts::domain::measurements::types::TerminationSignal::Exited,
+                |number| {
+                    ryo_benchmark_contracts::domain::measurements::types::TerminationSignal::Signalled(
+                        ryo_benchmark_contracts::domain::measurements::types::SignalNumber(number),
+                    )
+                },
+            ),
             status: ProcessExitCode(output.status),
             stdout: CapturedBytes(output.stdout),
             stderr: CapturedBytes(output.stderr),

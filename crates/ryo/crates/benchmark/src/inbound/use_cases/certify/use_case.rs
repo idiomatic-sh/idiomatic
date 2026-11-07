@@ -10,6 +10,10 @@ use std::sync::Arc;
 pub struct CertifyUseCaseImpl {
     /// Artifact validation and exact content fingerprinting boundary.
     suite: Arc<dyn SuitePort>,
+    /// Case receipt recording boundary.
+    receipts: Arc<dyn crate::outbound::receipts::interface::ReceiptsPort>,
+    /// Sealed disk context validation and fingerprinting boundary.
+    context: Arc<dyn crate::outbound::context::interface::ContextPort>,
     /// Pinned reference tool preparation and decoding boundary.
     reference: Arc<dyn LinterPort>,
     /// Candidate tool preparation and decoding boundary.
@@ -22,6 +26,8 @@ impl CertifyUseCaseImpl {
     /// Bind the four independently replaceable boundaries.
     pub fn new(
         suite: Arc<dyn SuitePort>,
+        receipts: Arc<dyn crate::outbound::receipts::interface::ReceiptsPort>,
+        context: Arc<dyn crate::outbound::context::interface::ContextPort>,
         reference: Arc<dyn LinterPort>,
         candidate: Arc<dyn LinterPort>,
         execution: Arc<dyn ExecutionPort>,
@@ -29,6 +35,8 @@ impl CertifyUseCaseImpl {
     ) -> Self {
         Self {
             suite,
+            receipts,
+            context,
             reference,
             candidate,
             execution,
@@ -50,6 +58,8 @@ impl CertifyUseCase for CertifyUseCaseImpl {
     ) -> Result<Certificate, Error> {
         super::service::certify(
             self.suite.as_ref(),
+            self.receipts.as_ref(),
+            self.context.as_ref(),
             self.reference.as_ref(),
             self.candidate.as_ref(),
             self.execution.as_ref(),

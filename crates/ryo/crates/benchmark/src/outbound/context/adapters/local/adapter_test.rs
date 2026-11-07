@@ -2,6 +2,7 @@
 use super::adapter::*;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_benchmark_contracts::domain::context::types::CaseContext;
+use ryo_benchmark_contracts::domain::context::types::ContextBytes;
 use ryo_benchmark_contracts::domain::context::types::ContextManifest;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::{collections::BTreeMap, path::Path};
@@ -10,7 +11,7 @@ fn fixture(root: &Path) -> Result<ContextManifest, Error> {
         &root.join("boundary"),
         &CaseContext {
             logical_root: "pkg".into(),
-            auxiliary_files: BTreeMap::from([("pkg/__init__.py".into(), b"".to_vec())]),
+            auxiliary_files: BTreeMap::from([("pkg/__init__.py".into(), ContextBytes(Vec::new()))]),
             missing: vec!["__init__.py".into()],
         },
         &BTreeMap::from([(
@@ -167,7 +168,7 @@ fn path_roles_and_symlinked_context_are_not_accepted() -> Result<(), Error> {
     let _removed_missing = manifest.missing.pop();
     let _previous = manifest
         .auxiliary_files
-        .insert("pkg/mod.py".into(), artifact(b"import pkg.mod\n"));
+        .insert("pkg/mod.py".into(), artifact(&ContextBytes(b"import pkg.mod\n".to_vec())));
     let _verified_6 = validate(&manifest, &root).expect_err("expected refusal");
     let _removed_auxiliary = manifest.auxiliary_files.remove(Path::new("pkg/mod.py"));
     std::fs::remove_file(root.join("__init__.py"))?;
@@ -212,5 +213,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
 }
 #[test]
 fn succeeds() {
+    crate::outbound::context::fixtures::contract::check(&ContextLocalAdapter);
+    crate::outbound::context::fixtures::contract::check(&crate::outbound::context::factory::local());
     run(CASES, Word::Succeeds, subject);
 }

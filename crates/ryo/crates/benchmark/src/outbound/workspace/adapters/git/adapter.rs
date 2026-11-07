@@ -71,7 +71,7 @@ fn clean(root: &Path) -> Result<(), Error> {
     if !git(
         root,
         GitArguments(&[
-            constants::STATUS,
+            constants::STATUS_COMMAND,
             constants::PORCELAIN,
             constants::UNTRACKED,
         ]),

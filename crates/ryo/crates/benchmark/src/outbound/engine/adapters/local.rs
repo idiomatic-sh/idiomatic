@@ -1,7 +1,9 @@
-//! Local boundary implementation.
+//! The engine port, implemented with the local SDK.
 pub(crate) mod adapter;
+mod writer;
+mod schemas;
+
 mod constants;
-mod diagnostic_events;
 
 #[cfg(test)]
 mod adapter_test;

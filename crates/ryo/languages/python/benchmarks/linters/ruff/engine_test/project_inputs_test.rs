@@ -41,6 +41,7 @@ pub(super) fn listed_project_inputs_and_invalid_sources_keep_distinct_readers() 
     let cases =
         ryo_benchmark::inbound::use_cases::prepare_cases::use_case::PrepareCasesUseCaseImpl::new(
             &suite::local(),
+            &ryo_benchmark::outbound::context::factory::local(),
         )
         .prepare_cases(&rules, &scratch.path().join(CASES))?;
     let selected = [
@@ -59,19 +60,19 @@ pub(super) fn listed_project_inputs_and_invalid_sources_keep_distinct_readers() 
         let _new = seen.insert(case.name.0.as_ref());
         let report = engine.run_prepared(WorkerRequest {
             performance: Default::default(),
-            selected_rules: Some(vec![ryo::linter::RuleId::try_from(RUF200).unwrap()]),
-            rule_observations: None,
-            rule_context: None,
-            project_search_roots: None,
+            selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(vec![ryo::linter::RuleId::try_from(RUF200).unwrap()]),
+            rule_observations: ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+            rule_context: ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+            project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
             given_project_inventory: Default::default(),
             project_context_mode: ProjectContextMode::ListedDisk,
             context_manifest: case.request.context_manifest.clone(),
             root: case.request.root.clone(),
             rules: rules.clone(),
             query_modules: BTreeMap::new(),
-            rule_applicability: BTreeMap::from([(RUF200.into(), ALWAYS.into())]),
-            parser_configuration: Some(PYTHON_TARGET_3_10.into()),
-            source_language: Some(PYTHON.into()),
+            rule_applicability: BTreeMap::from([(ryo_benchmark_contracts::domain::requests::types::RuleLabel(RUF200.into()), ryo_benchmark_contracts::domain::requests::types::ApplicabilityPolicy(ALWAYS.into()))]),
+            parser_configuration: ryo_benchmark_contracts::domain::requests::types::ParserSelection::Named(ryo_benchmark_contracts::domain::requests::types::ParserConfigurationName(PYTHON_TARGET_3_10.into())),
+            source_language: ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Selected(ryo_benchmark_contracts::domain::requests::types::SourceLanguageName(PYTHON.into())),
             files: case.request.files.clone(),
             state: WorkerState::Fresh,
         })?;

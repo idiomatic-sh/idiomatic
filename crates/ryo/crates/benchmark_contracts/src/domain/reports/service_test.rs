@@ -1,10 +1,13 @@
 //! Complete execution needs explicit accounting, even when there are no findings.
 use super::{
     constants,
+    errors::ReportsError,
     service::require_complete_execution,
-    types::{ExecutionMetadata, RuleCoverage, RunReport},
+    types::{
+        CoverageAccounting, ExecutionMetadata, PairCount, ProjectContext, RuleCoverage, RunReport,
+    },
 };
-use ryo::cases::{Case, CaseName, Expect, Word, run};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo::linter::{RelativePath, RuleId, SkipReason, Skipped};
 
 #[derive(Clone, Copy)]
@@ -22,6 +25,7 @@ enum Scenario {
     ForeignSkip,
     DuplicateSkip,
     Overflow,
+    InvalidReason,
 }
 type Input = Scenario;
 type Value = ();
@@ -105,8 +109,22 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Scenario::Overflow,
         expect: Expect::Error(std::borrow::Cow::Borrowed(constants::INCONSISTENT_COVERAGE)),
     },
+    Case {
+        name: CaseName("an invalid observation keeps its reason and displays it unchanged"),
+        word: Word::Succeeds,
+        input: || Scenario::InvalidReason,
+        expect: Expect::Value(()),
+    },
 ];
 fn subject(scenario: Input) -> Result<Value, Failure> {
+    if matches!(scenario, Scenario::InvalidReason) {
+        let error = ReportsError::Invalid("coverage is missing".into());
+        let message = error.to_string();
+        return match error {
+            ReportsError::Invalid(reason) if reason == message && reason == "coverage is missing" => Ok(()),
+            other => Err(other.to_string().into()),
+        };
+    }
     let file = RelativePath("input.txt".into());
     let skip = Skipped {
         rule: RuleId::try_from("A001").expect("fixture rule"),
@@ -115,35 +133,37 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     };
     let mut report = RunReport {
         execution_metadata: ExecutionMetadata::Complete,
-        project_context: None,
+        project_context: ProjectContext::NotRequested,
         diagnostics: Vec::new(),
         skipped: Vec::new(),
-        coverage: Some(RuleCoverage {
-            selected: 1,
-            evaluated: 1,
-            skipped: 0,
-            unknown_or_unread: 0,
+        coverage: CoverageAccounting::Accounted(RuleCoverage {
+            selected: PairCount(1),
+            evaluated: PairCount(1),
+            skipped: PairCount(0),
+            unknown_or_unread: PairCount(0),
         }),
         files: vec![file.clone()],
     };
     if matches!(scenario, Scenario::MissingCoverage) {
-        report.coverage = None;
+        report.coverage = CoverageAccounting::Unaccounted;
         return require_complete_execution(&report).map_err(|error| error.to_string().into());
     }
-    let coverage = report.coverage.as_mut().expect("complete fixture coverage");
+    let CoverageAccounting::Accounted(mut coverage) = report.coverage else {
+        return Err("complete fixture coverage".into());
+    };
     match scenario {
         Scenario::Complete => {}
         Scenario::KnownSkip | Scenario::ForeignSkip | Scenario::DuplicateSkip => {
-            coverage.evaluated = 0;
-            coverage.skipped = 1;
+            coverage.evaluated = PairCount(0);
+            coverage.skipped = PairCount(1);
             report.skipped.push(skip);
             if matches!(scenario, Scenario::ForeignSkip) {
                 report.skipped[0].path = RelativePath("other.txt".into());
             }
             if matches!(scenario, Scenario::DuplicateSkip) {
                 report.skipped.push(report.skipped[0].clone());
-                coverage.selected = 2;
-                coverage.skipped = 2;
+                coverage.selected = PairCount(2);
+                coverage.skipped = PairCount(2);
             }
         }
         Scenario::Unknown => report.execution_metadata = ExecutionMetadata::Unknown,
@@ -151,22 +171,24 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::EmptyFiles => report.files.clear(),
         Scenario::DuplicateFiles => report.files.push(file),
         Scenario::TooFewSelected => {
-            coverage.selected = 0;
-            coverage.evaluated = 0;
+            coverage.selected = PairCount(0);
+            coverage.evaluated = PairCount(0);
         }
-        Scenario::Unread => coverage.unknown_or_unread = 1,
-        Scenario::WrongTotal => coverage.selected = 2,
+        Scenario::Unread => coverage.unknown_or_unread = PairCount(1),
+        Scenario::WrongTotal => coverage.selected = PairCount(2),
         Scenario::MissingSkip => {
-            coverage.evaluated = 0;
-            coverage.skipped = 1;
+            coverage.evaluated = PairCount(0);
+            coverage.skipped = PairCount(1);
         }
+        Scenario::InvalidReason => unreachable!("handled before the report is built"),
         Scenario::Overflow => {
-            coverage.selected = usize::MAX;
-            coverage.evaluated = usize::MAX;
-            coverage.skipped = 1;
+            coverage.selected = PairCount(usize::MAX);
+            coverage.evaluated = PairCount(usize::MAX);
+            coverage.skipped = PairCount(1);
             report.skipped.push(skip);
         }
     }
+    report.coverage = CoverageAccounting::Accounted(coverage);
     require_complete_execution(&report).map_err(|error| error.to_string().into())
 }
 #[test]

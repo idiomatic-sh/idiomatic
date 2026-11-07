@@ -3,7 +3,12 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::suite::constants;
 use crate::domain::suite::service::audited;
 use ryo_benchmark_contracts::domain::reports::types::AuthoredInventory;
-use ryo_benchmark_contracts::domain::workloads::types::Tool;
+use ryo_benchmark_contracts::domain::requests::types::{
+    ParserSelection, ProviderSelection, SearchRoots,
+};
+use ryo_benchmark_contracts::domain::workloads::types::{
+    FileObservation, RuleContextProfile, Tool,
+};
 use std::borrow::Cow;
 
 type Input = AuthoredInventory;
@@ -67,11 +72,11 @@ fn inventory(implemented: &[&str], missing: &[&str]) -> Input {
 fn tool() -> Tool {
     Tool {
         rule_observation_selection:
-            ryo_benchmark_contracts::domain::workloads::types::ObservationSelectionPolicy::Declared,
+            ryo_benchmark_contracts::domain::context::types::ObservationSelectionPolicy::Declared,
         supporting_rules: vec![],
         rule_observations: Default::default(),
-        rule_context: None,
-        file_observation: None,
+        rule_context: RuleContextProfile::Undeclared,
+        file_observation: FileObservation::Undeclared,
         project_context_mode: Default::default(),
         tool: "fixture".into(),
         version: "1".into(),
@@ -80,9 +85,9 @@ fn tool() -> Tool {
         pending: Default::default(),
         query_modules: Default::default(),
         rule_applicability: Default::default(),
-        parser_configuration: None,
-        source_language: None,
-        project_search_roots: None,
+        parser_configuration: ParserSelection::Unspecified,
+        source_language: ProviderSelection::Unspecified,
+        project_search_roots: SearchRoots::Undeclared,
         defaults: vec!["A001".try_into().unwrap(), "B001".try_into().unwrap()],
     }
 }

@@ -53,6 +53,7 @@ fn staged(root: &Path) -> Result<(PathBuf, Vec<PreparedCase>), Error> {
     let cases =
         ryo_benchmark::inbound::use_cases::prepare_cases::use_case::PrepareCasesUseCaseImpl::new(
             &ryo_benchmark::outbound::suite::factory::local(),
+            &ryo_benchmark::outbound::context::factory::local(),
         )
         .prepare_cases(&profile.join("rules"), &root.join("cases"))?;
     Ok((profile, cases))
@@ -60,9 +61,9 @@ fn staged(root: &Path) -> Result<(PathBuf, Vec<PreparedCase>), Error> {
 fn request(profile: &Path, case: &PreparedCase, cache: &Path) -> WorkerRequest {
     WorkerRequest {
         performance: Default::default(),
-        selected_rules: Some(vec![case.rule.clone()]),
-        rule_observations: None,
-        rule_context: None,
+        selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(vec![case.rule.clone()]),
+        rule_observations: ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+        rule_context: ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
         project_search_roots: case.request.project_search_roots.clone(),
         given_project_inventory: case.request.given_project_inventory.clone(),
         project_context_mode: ProjectContextMode::ListedDisk,
@@ -78,10 +79,22 @@ fn request(profile: &Path, case: &PreparedCase, cache: &Path) -> WorkerRequest {
             modules
         },
         rule_applicability: BTreeMap::new(),
-        parser_configuration: Some("python-target=3.10".into()),
-        source_language: None,
+        parser_configuration: ryo_benchmark_contracts::domain::requests::types::ParserSelection::Named(ryo_benchmark_contracts::domain::requests::types::ParserConfigurationName("python-target=3.10".into())),
+        source_language: ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
         files: case.request.files.clone(),
         state: WorkerState::Retained(cache.to_owned()),
+    }
+}
+fn sealed(seal: &ryo_benchmark_contracts::domain::requests::types::ContextSeal) -> &ContextManifest {
+    match seal {
+        ryo_benchmark_contracts::domain::requests::types::ContextSeal::Sealed(manifest) => manifest,
+        ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed => panic!("seal"),
+    }
+}
+fn sealed_mut(seal: &mut ryo_benchmark_contracts::domain::requests::types::ContextSeal) -> &mut ContextManifest {
+    match seal {
+        ryo_benchmark_contracts::domain::requests::types::ContextSeal::Sealed(manifest) => manifest,
+        ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed => panic!("seal"),
     }
 }
 fn content_hash(
@@ -117,9 +130,9 @@ fn exact_root_and_package_controls_reach_the_real_local_adapter() -> Result<(), 
         // Authored expectations declare diagnostics, not observed execution metadata.
         ryo_benchmark::domain::diagnostics::service::compare_diagnostics(&case.expected, &result)
             .map_err(|difference| Error::Invalid(format!("{}:{difference:?}", case.name.0)))?;
-        let receipt = result
-            .project_context
-            .expect("ListedDisk has an active receipt");
+        let ryo_benchmark_contracts::domain::reports::types::ProjectContext::Observed(receipt) = result.project_context else {
+            panic!("ListedDisk has an active receipt");
+        };
         assert_eq!(receipt.mode, ProjectContextMode::ListedDisk);
         assert_eq!(receipt.actual_root, case.request.root);
         assert!(!receipt.dependencies.is_empty());
@@ -155,13 +168,13 @@ fn shared_cache_root_mode_and_source_edits_preserve_project_evidence() -> Result
     );
     let mut isolated = request(&profile, pkg, &cache);
     isolated.project_context_mode = ProjectContextMode::Isolated;
-    isolated.context_manifest = None;
+    isolated.context_manifest = ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed;
     let result = engine.run_prepared(isolated.clone())?;
     assert!(
         result.diagnostics.is_empty(),
         "Given mode cannot reuse Disk package rows"
     );
-    assert!(result.project_context.is_none());
+    assert_eq!(result.project_context, ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested);
     isolated
         .files
         .push(ryo::linter::RelativePath("__init__.py".into()));
@@ -173,7 +186,7 @@ fn shared_cache_root_mode_and_source_edits_preserve_project_evidence() -> Result
     let bytes = b"import other.mod\n";
     std::fs::write(edited.root.join("mod.py"), bytes)?;
     changed_manifest(
-        edited.context_manifest.as_mut().expect("seal"),
+        sealed_mut(&mut edited.context_manifest),
         Path::new("pkg/mod.py"),
         bytes,
     );
@@ -194,35 +207,27 @@ fn changed_undeclared_escaping_and_unreadable_context_never_certify() -> Result<
     let engine = factory::local(super::prepared_engine_test::python_310(), None);
     let cache = scratch.path().join("cache");
     let mut undeclared = request(&profile, case, &cache);
-    undeclared
-        .context_manifest
-        .as_mut()
-        .expect("seal")
+    sealed_mut(&mut undeclared.context_manifest)
         .missing
         .clear();
     assert!(
-        undeclared
-            .context_manifest
-            .as_ref()
-            .expect("base seal")
+        sealed(&undeclared.context_manifest)
             .missing
             .is_empty()
     );
     let discovered = engine.run_prepared(undeclared)?;
     assert_eq!(
-        discovered
-            .project_context
-            .expect("observed context")
+        match discovered.project_context {
+            ryo_benchmark_contracts::domain::reports::types::ProjectContext::Observed(receipt) => receipt,
+            ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested => panic!("observed context"),
+        }
             .dependencies
             .get(std::path::Path::new("../__init__.py")),
         Some(&None),
         "the candidate must report the actual absent ancestor despite an empty base missing list"
     );
     let mut escape = request(&profile, case, &cache);
-    escape
-        .context_manifest
-        .as_mut()
-        .expect("seal")
+    sealed_mut(&mut escape.context_manifest)
         .missing
         .push("../outside".into());
     let _verified_1 = engine.run_prepared(escape).expect_err("expected refusal");
@@ -235,7 +240,7 @@ fn changed_undeclared_escaping_and_unreadable_context_never_certify() -> Result<
         "auxiliary bytes cannot change after sealing"
     );
     std::fs::write(case.request.root.join("__init__.py"), "")?;
-    let manifest = case.request.context_manifest.as_ref().expect("seal");
+    let manifest = sealed(&case.request.context_manifest);
     std::fs::write(manifest.boundary.join("__init__.py"), "")?;
     assert!(
         matches!(
@@ -269,16 +274,13 @@ fn ancestor_marker_appearance_removal_and_edits_invalidate_warm_project_rows() -
     let cache = scratch.path().join("cache");
     let mut asked = request(&profile, case, &cache);
     let marker = PathBuf::from("pkg2/__init__.py");
-    asked
-        .context_manifest
-        .as_mut()
-        .expect("base seal")
+    sealed_mut(&mut asked.context_manifest)
         .missing
         .retain(|path| path != &marker);
     let absent = engine.run_prepared(asked.clone())?;
     assert!(absent.diagnostics.is_empty());
     assert_eq!(absent, engine.run_prepared(asked.clone())?);
-    let added_seal = asked.context_manifest.as_mut().expect("seal");
+    let added_seal = sealed_mut(&mut asked.context_manifest);
     std::fs::write(added_seal.boundary.join(&marker), b"")?;
     added_seal.missing.retain(|path| path != &marker);
     let _previous = added_seal
@@ -287,7 +289,7 @@ fn ancestor_marker_appearance_removal_and_edits_invalidate_warm_project_rows() -
     let added = engine.run_prepared(asked.clone())?;
     assert_eq!(added.diagnostics.len(), 1);
     assert_eq!(added, engine.run_prepared(asked.clone())?);
-    let edited_seal = asked.context_manifest.as_mut().expect("seal");
+    let edited_seal = sealed_mut(&mut asked.context_manifest);
     std::fs::write(edited_seal.boundary.join(&marker), b"# edited\n")?;
     changed_manifest(edited_seal, &marker, b"# edited\n");
     let edited = engine.run_prepared(asked.clone())?;
@@ -296,7 +298,7 @@ fn ancestor_marker_appearance_removal_and_edits_invalidate_warm_project_rows() -
         edited.project_context, added.project_context,
         "kept dependency content identity must refresh"
     );
-    let removed_seal = asked.context_manifest.as_mut().expect("seal");
+    let removed_seal = sealed_mut(&mut asked.context_manifest);
     std::fs::remove_file(removed_seal.boundary.join(&marker))?;
     let _removed = removed_seal.auxiliary_files.remove(&marker);
     let removed = engine.run_prepared(asked.clone())?;

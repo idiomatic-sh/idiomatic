@@ -11,13 +11,18 @@ use self::tool_name::value::ToolName;
 use self::tool_version::value::ToolVersion;
 use crate::domain::artifacts::types::digest::value::ArtifactDigest;
 use crate::domain::context::types::CaseContext;
+use crate::domain::context::types::ObservationSelectionPolicy;
 use crate::domain::context::types::ContextManifest;
 use crate::domain::context::types::RuleConfiguration;
 use crate::domain::context::types::RuleContextDeclaration;
 use crate::domain::context::types::project_context_mode::value::ProjectContextMode;
 use crate::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations;
 use crate::domain::reports::types::SourceByteOffset;
-use crate::domain::requests::types::{PerformanceOptions, RunRequest};
+use crate::domain::requests::types::{
+    ApplicabilityPolicy, FileMetadataDeclaration, InputDeclaration, ParserSelection,
+    PerformanceOptions, QueryModuleName, RuleLabel, CohortSelection, RunRequest, SearchRoots,
+    ProviderSelection,
+};
 use ryo::linter::RelativePath;
 use ryo::linter::RuleId;
 use ryo::linter::SourceText;
@@ -46,15 +51,6 @@ pub struct Project {
     pub patch: PathBuf,
 }
 
-/// How profile-default bindings choose producers; explicit case bindings are always declared.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ObservationSelectionPolicy {
-    /// Bind exactly the profile's declared producers, independent of diagnostic selection.
-    Declared,
-    /// Bind only producers in the resolved diagnostic cohort.
-    Selected,
-}
-
 /// The independently pinned reference executable and its shipped defaults.
 #[derive(Clone, Debug)]
 pub struct Tool {
@@ -65,9 +61,9 @@ pub struct Tool {
     /// Default authored named inputs; case overrides are explicit and source-bound.
     pub rule_observations: RuleObservationDeclarations,
     /// Optional explicitly declared request-scope rule configuration inputs.
-    pub rule_context: Option<RuleContextDeclaration>,
+    pub rule_context: RuleContextProfile,
     /// File observation this correctness profile requires for every declared source.
-    pub file_observation: Option<FileObservation>,
+    pub file_observation: FileObservation,
     /// Whether the candidate receives an isolated input or an explicitly sealed disk context.
     pub project_context_mode: ProjectContextMode,
     /// Reference executable identity reported by its version command.
@@ -83,20 +79,31 @@ pub struct Tool {
     /// Assessed tractable work still pending implementation, never counted as a deferral.
     pub pending: BTreeMap<RuleId, CapabilityName>,
     /// Explicit logical query-module IDs mapped to safe profile-relative source paths.
-    pub query_modules: BTreeMap<String, PathBuf>,
+    pub query_modules: BTreeMap<QueryModuleName, PathBuf>,
     /// Pinned phase policy for authored candidate rules; absent entries retain legacy Always.
-    pub rule_applicability: BTreeMap<String, String>,
+    pub rule_applicability: BTreeMap<RuleLabel, ApplicabilityPolicy>,
     /// Optional parser configuration that must be shared by reference and candidate.
-    pub parser_configuration: Option<String>,
+    pub parser_configuration: ParserSelection,
     /// Explicit source provider selected by the request edge, if any.
-    pub source_language: Option<String>,
+    pub source_language: ProviderSelection,
     /// Ordered project import roots; absence keeps namespace membership unknown.
-    pub project_search_roots: Option<Vec<RelativePath>>,
+    pub project_search_roots: SearchRoots,
+}
+
+/// The request-scope rule configuration a profile declares.
+#[derive(Clone, Debug)]
+pub enum RuleContextProfile {
+    /// The profile declares no request-scope configuration.
+    Undeclared,
+    /// The profile declares this configuration.
+    Declared(RuleContextDeclaration),
 }
 
 /// Generic input observation required by a profile's comparison contract.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FileObservation {
+    /// The profile declares no file observation.
+    Undeclared,
     /// Actual POSIX execute bits must be declared, staged and observed.
     PosixExecutable,
 }
@@ -133,22 +140,22 @@ pub struct Case {
     /// Explicit execution and diagnostic policy for this case.
     pub performance: PerformanceOptions,
     /// Explicit rule cohort for this case; absence preserves the frozen profile selection.
-    pub selected_rules: Option<Vec<RuleId>>,
+    pub selected_rules: CohortSelection,
     /// Explicit named input declarations for the configured consumer queries.
-    pub rule_observations: Option<RuleObservationDeclarations>,
+    pub rule_observations: InputDeclaration,
     /// Explicit complete override of the profile rule configuration.
-    pub rule_context: Option<RuleConfiguration>,
+    pub rule_context: ConfigurationOverride,
     /// Optional case-specific ordered import roots; an empty declared list is meaningful.
-    pub project_search_roots: Option<Vec<RelativePath>>,
+    pub project_search_roots: SearchRoots,
     /// Explicit host entry observations for a Given source corpus.
-    pub given_project_inventory: Option<ryo::linter::GivenProjectInventory>,
+    pub given_project_inventory: InventoryDeclaration,
     /// Explicit primary inventory, including selected paths sealed absent by the context.
-    /// None preserves the legacy inventory of exactly the source-text map's keys.
-    pub requested_files: Option<Vec<RelativePath>>,
-    /// Explicit per-file POSIX executable bits; None preserves legacy byte-only identity.
-    pub file_metadata: Option<BTreeMap<RelativePath, bool>>,
+    /// `Legacy` preserves the inventory of exactly the source-text map's keys.
+    pub requested_files: RequestedFiles,
+    /// Explicit per-file POSIX executable bits; `Undeclared` preserves legacy byte-only identity.
+    pub file_metadata: FileMetadataDeclaration,
     /// Explicit logical root and auxiliary context, excluded from the lint file inventory.
-    pub context: Option<CaseContext>,
+    pub context: ContextDeclaration,
     /// Whether all diagnostics or only the enclosing rule are asserted.
     pub comparison: CaseComparison,
     /// Human-readable identity of this correctness case.
@@ -158,7 +165,52 @@ pub struct Case {
     /// Expected finding multiset; an empty list is a negative case.
     pub expected: Vec<Expected>,
     /// Optional pinned reference behavior that intentionally differs from the candidate contract.
-    pub reference_discrepancy: Option<ReferenceDiscrepancy>,
+    pub reference_discrepancy: ReferenceBehavior,
+}
+
+/// Whether a case's reference tool behaves as the candidate contract intends.
+#[derive(Clone, Debug)]
+pub enum ReferenceBehavior {
+    /// The reference agrees with the intended behavior.
+    Agrees,
+    /// The reference differs, with documented evidence.
+    Differs(ReferenceDiscrepancy),
+}
+
+/// The case-specific override of the profile rule configuration.
+#[derive(Clone, Debug)]
+pub enum ConfigurationOverride {
+    /// The profile configuration applies unchanged.
+    Inherited,
+    /// This configuration replaces the profile's completely.
+    Overridden(RuleConfiguration),
+}
+
+/// Host entry observations of a Given source corpus.
+#[derive(Clone, Debug)]
+pub enum InventoryDeclaration {
+    /// No entries are declared.
+    Undeclared,
+    /// These entries are declared.
+    Declared(ryo::linter::GivenProjectInventory),
+}
+
+/// The primary inventory of a case.
+#[derive(Clone, Debug)]
+pub enum RequestedFiles {
+    /// The inventory is exactly the source-text map's keys.
+    Legacy,
+    /// This inventory, including paths sealed absent by the context.
+    Explicit(Vec<RelativePath>),
+}
+
+/// The logical root and auxiliary files of a case.
+#[derive(Clone, Debug)]
+pub enum ContextDeclaration {
+    /// The case supplies no context.
+    Undeclared,
+    /// This context is supplied.
+    Declared(CaseContext),
 }
 
 /// Evidence for a documented reference defect, never a wildcard diagnostic exception.
@@ -171,14 +223,21 @@ pub struct ReferenceDiscrepancy {
     /// Independent language/specification observations, checked by content digest.
     pub evidence: Vec<DiscrepancyEvidence>,
     /// Explanation of the independently intended behavior and reference disagreement.
-    pub reason: String,
+    pub reason: DiscrepancyReason,
 }
+
+/// Why a reference discrepancy is accepted.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DiscrepancyReason(
+    /// The explanation of the intended behavior and reference disagreement.
+    pub String,
+);
 
 /// Immutable identities required before admitting a reference discrepancy.
 #[derive(Clone, Debug)]
 pub struct ReferenceDiscrepancyIdentity {
     /// Separate declared-metadata identity; absent only for legacy unspecified observations.
-    pub file_metadata_sha256: Option<ArtifactDigest>,
+    pub file_metadata_sha256: MetadataDigestDeclaration,
     /// Reference tool name.
     pub tool: ToolName,
     /// Exact reference version.
@@ -195,6 +254,15 @@ pub struct ReferenceDiscrepancyIdentity {
     pub reference_output_sha256: ArtifactDigest,
     /// Exact normalized intended candidate report; changing expectations invalidates evidence.
     pub intended_output_sha256: ArtifactDigest,
+}
+
+/// The digest of the declared file metadata of a discrepancy's source.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum MetadataDigestDeclaration {
+    /// Absent only for legacy unspecified observations.
+    Undeclared,
+    /// The case declares file metadata, under this digest.
+    Declared(ArtifactDigest),
 }
 
 /// The authority asserted by a documented two-sided difference.
@@ -218,7 +286,7 @@ pub struct PreparedReferenceDiscrepancy {
     /// Independent evidence retained for reporting and stale-artifact refusal.
     pub evidence: Vec<DiscrepancyEvidence>,
     /// Human-readable explanation retained beside raw parity mismatches.
-    pub reason: String,
+    pub reason: DiscrepancyReason,
 }
 
 /// An independently authored case materialized by the suite boundary.
@@ -235,7 +303,16 @@ pub struct PreparedCase {
     /// Independently authored findings and input coverage.
     pub expected: crate::domain::reports::types::RunReport,
     /// Optional separate reference expectation; never changes the intended candidate output.
-    pub reference_discrepancy: Option<PreparedReferenceDiscrepancy>,
+    pub reference_discrepancy: PreparedReferenceBehavior,
+}
+
+/// Whether a prepared case's reference tool differs from the intended behavior.
+#[derive(Clone, Debug)]
+pub enum PreparedReferenceBehavior {
+    /// The reference agrees with the intended behavior.
+    Agrees,
+    /// The reference differs, with validated evidence.
+    Differs(PreparedReferenceDiscrepancy),
 }
 
 /// One expected finding in a case, located by UTF-8 byte offsets.
@@ -250,8 +327,6 @@ pub struct Expected {
     /// Exclusive end offset in UTF-8 bytes.
     pub end: SourceByteOffset,
 }
-
-/// Complete per-rule verification status, independent of any tool's rule count.
 
 /// Whether this concrete contestant implements the declared configuration contract.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -271,19 +346,19 @@ pub enum StagePurpose {
     Execution,
 }
 
-pub mod suite_language;
+mod suite_language;
 
-pub mod project_name;
+mod project_name;
 
-pub mod repository_url;
+mod repository_url;
 
-pub mod project_revision;
+mod project_revision;
 
 pub mod tool_name;
 
 pub mod tool_version;
 
-pub mod tool_digest;
+mod tool_digest;
 
 pub mod capability_name;
 

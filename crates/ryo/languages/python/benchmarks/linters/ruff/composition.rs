@@ -6,8 +6,8 @@ use std::{path::PathBuf, sync::Arc};
 mod certification;
 mod commands;
 pub(crate) mod constants;
-mod corpus;
 mod diagnostic_protocol;
+mod locations;
 mod measure;
 mod output;
 mod request_input;
@@ -70,7 +70,7 @@ pub(crate) fn run(
             );
             suite_source.verify_tool(
                 ArtifactPath(&executable),
-                &suite_source.profile(ArtifactPath(&self::commands::directory()))?,
+                &suite_source.profile(ArtifactPath(&self::locations::directory()))?,
             )
         }
         _ => Err(Error::Invalid(self::constants::USAGE.into())),

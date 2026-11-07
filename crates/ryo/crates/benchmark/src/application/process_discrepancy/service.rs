@@ -2,9 +2,13 @@
 use super::errors::ProcessDiscrepancyError as Failure;
 use crate::domain::discrepancy::types::{OptionalDigest, ReferenceKind, ReferenceProof};
 use crate::domain::process_failure::service::expected;
-use crate::outbound::inventory::types::{CompleteInvocation, InvocationDocument, Pin, Signal};
-use crate::outbound::suite::types::text::YesNo;
-use crate::outbound::suite::{interface::SuitePort, types::discrepancy::CaseArtifacts};
+use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::{CompleteInvocation, InvocationDocument};
+use ryo_benchmark_contracts::domain::documents::types::text::value::{Pin, Signal};
+use ryo_benchmark_contracts::domain::documents::types::text::value::YesNo;
+use crate::outbound::suite::{
+    interface::SuitePort,
+    types::{ArtifactMetadata, CaseArtifacts},
+};
 use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
 use ryo_benchmark_contracts::domain::workloads::types::PreparedCase;
 use std::path::{Path, PathBuf};
@@ -44,8 +48,8 @@ pub(crate) fn matches(
 ) -> Result<(), Failure> {
     let process = expected(case).ok_or(Failure::NoProcessExpectation)?;
     let actual = require_identity(invocation, proof)?;
-    if output.signal.is_some()
-        || output.status.0 != process.exit
+    if output.signal != ryo_benchmark_contracts::domain::measurements::types::TerminationSignal::Exited
+        || output.status != process.exit
         || actual.signal != Signal::Absent
         || actual.observer_no_deadline != YesNo::Yes
     {
@@ -57,44 +61,58 @@ pub(crate) fn matches(
         .iter()
         .map(|file| PathBuf::from(file.0.as_ref()))
         .collect::<Vec<_>>();
-    let stdout = crate::domain::suite::process::service::expand(
+    let stdout = crate::domain::process_output::service::expand(
         &process.stdout,
         &case.request.root,
         &files,
-    )?;
-    let stderr = crate::domain::suite::process::service::expand(
+    )
+    .map_err(|error| error.to_string())?;
+    let stderr = crate::domain::process_output::service::expand(
         &process.stderr,
         &case.request.root,
         &files,
-    )?;
-    if stdout != output.stdout.0 || stderr != output.stderr.0 {
+    )
+    .map_err(|error| error.to_string())?;
+    if stdout != output.stdout || stderr != output.stderr {
         return Err(Failure::BytesDiffer);
     }
     let profile_root = rules.parent().ok_or(Failure::MissingProfileBoundary)?;
-    let metadata_files = case
-        .request
-        .file_metadata
-        .as_ref()
-        .map(|values| {
-            values
-                .keys()
-                .map(|file| PathBuf::from(file.0.as_ref()))
-                .collect::<Vec<_>>()
-        })
-        .unwrap_or_default();
+    let metadata_files = match &case.request.file_metadata {
+        ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Declared(values) => values
+            .keys()
+            .map(|file| PathBuf::from(file.0.as_ref()))
+            .collect::<Vec<_>>(),
+        ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared => Vec::new(),
+    };
     suite
         .verify_discrepancy_artifacts(CaseArtifacts {
             profile: profile_root,
             root: &case.request.root,
             files: &files,
             file_metadata_files: &metadata_files,
-            file_metadata_sha256: match &proof.file_metadata {
-                OptionalDigest::Absent => None,
-                OptionalDigest::Pinned(digest) => Some(digest.0.as_str()),
+            file_metadata: match &proof.file_metadata {
+                OptionalDigest::Absent => ArtifactMetadata::Undeclared,
+                OptionalDigest::Pinned(digest) => ArtifactMetadata::Declared(digest),
             },
-            source_sha256: &proof.source.0,
+            source_sha256: &proof.source,
             evidence: &[],
         })
         .map_err(|error| Failure::from(error.to_string()))?;
     Ok(())
+}
+
+/// Match a captured attempt against its declared failure, when the attempt kept raw bytes and a proof binds them.
+pub(crate) fn matches_capture(
+    case: &PreparedCase,
+    capture: &crate::domain::process_failure::types::CaptureRecord,
+    proof: Option<&ReferenceProof>,
+    suite: &dyn SuitePort,
+    rules: &Path,
+) -> Option<Result<(), Failure>> {
+    let (crate::domain::process_failure::types::CaptureRecord::Kept(kept), Some(proof)) =
+        (capture, proof)
+    else {
+        return None;
+    };
+    Some(matches(case, &kept.invocation, &kept.output, proof, suite, rules))
 }
