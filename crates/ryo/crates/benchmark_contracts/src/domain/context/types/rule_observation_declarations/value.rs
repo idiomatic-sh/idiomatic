@@ -45,7 +45,7 @@ impl RuleObservationDeclarations {
     pub fn project_profile(
         &self,
         selected: &[RuleId],
-        policy: crate::domain::workloads::types::ObservationSelectionPolicy,
+        policy: crate::domain::context::types::ObservationSelectionPolicy,
     ) -> Self {
         if !selected.iter().any(|id| self.contains_key(id)) {
             return Self::default();
@@ -65,7 +65,7 @@ impl RuleObservationDeclarations {
                 continue;
             };
             let mut bindings = authored.clone();
-            if policy == crate::domain::workloads::types::ObservationSelectionPolicy::Selected {
+            if policy == crate::domain::context::types::ObservationSelectionPolicy::Selected {
                 for binding in &mut bindings {
                     binding.producers.retain(|producer| match producer {
                         ryo::linter::ObservationProducer::Output { rule, .. }

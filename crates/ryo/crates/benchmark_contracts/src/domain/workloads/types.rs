@@ -11,6 +11,7 @@ use self::tool_name::value::ToolName;
 use self::tool_version::value::ToolVersion;
 use crate::domain::artifacts::types::digest::value::ArtifactDigest;
 use crate::domain::context::types::CaseContext;
+use crate::domain::context::types::ObservationSelectionPolicy;
 use crate::domain::context::types::ContextManifest;
 use crate::domain::context::types::RuleConfiguration;
 use crate::domain::context::types::RuleContextDeclaration;
@@ -48,15 +49,6 @@ pub struct Project {
     pub revision: ProjectRevision,
     /// Edit patch path relative to the language benchmark directory.
     pub patch: PathBuf,
-}
-
-/// How profile-default bindings choose producers; explicit case bindings are always declared.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ObservationSelectionPolicy {
-    /// Bind exactly the profile's declared producers, independent of diagnostic selection.
-    Declared,
-    /// Bind only producers in the resolved diagnostic cohort.
-    Selected,
 }
 
 /// The independently pinned reference executable and its shipped defaults.

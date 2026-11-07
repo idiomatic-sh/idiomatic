@@ -52,6 +52,15 @@ pub struct ProjectContextReceipt {
         std::collections::BTreeMap<std::path::PathBuf, Option<ryo::linter::DependencyFingerprint>>,
 }
 
+/// How profile-default bindings choose producers; explicit case bindings are always declared.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ObservationSelectionPolicy {
+    /// Bind exactly the profile's declared producers, independent of diagnostic selection.
+    Declared,
+    /// Bind only producers in the resolved diagnostic cohort.
+    Selected,
+}
+
 pub mod project_context_mode;
 pub mod rule_observation_declarations;
 

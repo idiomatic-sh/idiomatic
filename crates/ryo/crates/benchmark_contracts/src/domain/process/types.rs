@@ -30,7 +30,7 @@ pub enum OutputPart {
     },
 }
 /// A safe profile-relative raw artifact and its exact byte identity.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ProcessArtifact {
     /// Profile-relative file, never an implicit external read.
     pub path: PathBuf,
@@ -38,7 +38,7 @@ pub struct ProcessArtifact {
     pub sha256: ArtifactDigest,
 }
 /// One archived invocation; two are required for each exact executable group.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ProcessObservation {
     /// Exact binary; another approved architecture is not equivalent evidence.
     pub executable_sha256: ArtifactDigest,
@@ -50,7 +50,7 @@ pub struct ProcessObservation {
     pub stderr: ProcessArtifact,
 }
 /// An expected completed numeric failure, never a timeout, signal or spawn failure.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ProcessFailure {
     /// Exact nonzero numeric process status.
     pub exit: ProcessExitCode,
