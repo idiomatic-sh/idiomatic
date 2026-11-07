@@ -1,11 +1,14 @@
 //! Execution evidence is compared only under a declared capability and the contract asked for.
+use super::errors::InventoryComparisonError;
 use super::service::compare;
-use crate::domain::inventory_receipts::fixtures::observed_row;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::outbound::suite::types::{
+use crate::domain::inventory_receipts::fixtures::observed_row;
+use crate::domain::registered_inputs::types::RefusalText;
+use ryo_benchmark_contracts::domain::documents::types::{
     finding::SkippedPair,
-    observation_document::ObservationDocument,
-    text::{PathText, RuleName, ContestantSide},
+    observation_document::{ExitStatus, ObservationDocument, ProcessObservation},
+    reference_discrepancy::ExpectationKind,
+    text::{ContestantSide, PathText, RuleName, YesNo},
 };
 use ryo_benchmark_contracts::domain::reports::types::{
     Comparison, ComparisonContract, ExecutionMetadata, RuleCoverage,
@@ -13,15 +16,7 @@ use ryo_benchmark_contracts::domain::reports::types::{
 
 type Input = (ObservationDocument, ObservationDocument, ComparisonContract);
 type Value = Comparison;
-/// Why the evidence was refused.
-#[derive(Debug, PartialEq, Eq)]
-enum Failure {
-    ContractUnsatisfied,
-    CapabilityMissing,
-    CapabilityUndeclared,
-    AccountingAsserted,
-    Other,
-}
+type Failure = InventoryComparisonError;
 
 fn skipped() -> Vec<SkippedPair> {
     vec![SkippedPair {
@@ -32,10 +27,10 @@ fn skipped() -> Vec<SkippedPair> {
 
 fn coverage() -> RuleCoverage {
     RuleCoverage {
-        selected: 1,
-        evaluated: 0,
-        skipped: 1,
-        unknown_or_unread: 0,
+        selected: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
+        evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
+        skipped: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
+        unknown_or_unread: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
     }
 }
 
@@ -64,6 +59,30 @@ fn available_reference() -> ObservationDocument {
     candidate()
 }
 
+/// A reference process observed instead of diagnostics.
+fn process_observation() -> ProcessObservation {
+    ProcessObservation {
+        kind: ExpectationKind::ProcessFailure,
+        exit: ExitStatus(1),
+        signal: None,
+        actual_request_root: PathText("/cases/root".into()),
+        observer_no_deadline: YesNo::Yes,
+        executable_sha256: None,
+        settings_sha256: None,
+        metadata_error: None,
+        template_sha256: None,
+        artifacts: None,
+    }
+}
+
+fn process_reference() -> ObservationDocument {
+    ObservationDocument {
+        side: ContestantSide::Reference,
+        process_observation: Some(process_observation()),
+        ..candidate()
+    }
+}
+
 fn with_metadata(metadata: Option<ExecutionMetadata>) -> ObservationDocument {
     ObservationDocument {
         execution_metadata: metadata,
@@ -72,6 +91,85 @@ fn with_metadata(metadata: Option<ExecutionMetadata>) -> ObservationDocument {
 }
 
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("an observed file without a path is refused"),
+        word: Word::Refuses,
+        input: || {
+            (
+                ObservationDocument {
+                    files: vec![PathText(String::new())],
+                    ..available_reference()
+                },
+                candidate(),
+                ComparisonContract::Diagnostics,
+            )
+        },
+        expect: Expect::Error(InventoryComparisonError::InvalidExecutionFile),
+    },
+    Case {
+        name: CaseName("an observation without a skip list is refused"),
+        word: Word::Refuses,
+        input: || {
+            (
+                ObservationDocument {
+                    skipped: None,
+                    ..available_reference()
+                },
+                candidate(),
+                ComparisonContract::Diagnostics,
+            )
+        },
+        expect: Expect::Error(InventoryComparisonError::MissingExecutionSkips),
+    },
+    Case {
+        name: CaseName("a skipped rule without an identity is refused"),
+        word: Word::Refuses,
+        input: || {
+            (
+                ObservationDocument {
+                    skipped: Some(vec![SkippedPair {
+                        rule: RuleName(String::new()),
+                        path: PathText("input".into()),
+                    }]),
+                    ..available_reference()
+                },
+                candidate(),
+                ComparisonContract::Diagnostics,
+            )
+        },
+        expect: Expect::Error(InventoryComparisonError::InvalidSkippedRule),
+    },
+    Case {
+        name: CaseName("a process failure under a complete-report contract is refused"),
+        word: Word::Refuses,
+        input: || {
+            (
+                process_reference(),
+                candidate(),
+                ComparisonContract::CompleteReport,
+            )
+        },
+        expect: Expect::Error(InventoryComparisonError::ProcessFailureHasNoCompleteReport),
+    },
+    Case {
+        name: CaseName(
+            "a process failure against an unaccounted candidate is refused with its own words",
+        ),
+        word: Word::Refuses,
+        input: || {
+            (
+                process_reference(),
+                ObservationDocument {
+                    coverage: None,
+                    ..candidate()
+                },
+                ComparisonContract::Diagnostics,
+            )
+        },
+        expect: Expect::Error(InventoryComparisonError::CandidateExecutionIncomplete(
+            RefusalText(String::new()),
+        )),
+    },
     Case {
         name: CaseName("an unavailable reference is incomparable under the diagnostics contract"),
         word: Word::Succeeds,
@@ -108,7 +206,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 ComparisonContract::CompleteReport,
             )
         },
-        expect: Expect::Error(Failure::ContractUnsatisfied),
+        expect: Expect::Error(InventoryComparisonError::ExecutionEvidenceUnsatisfied),
     },
     Case {
         name: CaseName("a reference whose coverage disagrees with the candidate is refused"),
@@ -117,8 +215,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             (
                 ObservationDocument {
                     coverage: Some(RuleCoverage {
-                        evaluated: 1,
-                        skipped: 0,
+                        evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
+                        skipped: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
                         ..coverage()
                     }),
                     ..available_reference()
@@ -127,7 +225,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 ComparisonContract::Diagnostics,
             )
         },
-        expect: Expect::Error(Failure::ContractUnsatisfied),
+        expect: Expect::Error(InventoryComparisonError::ExecutionEvidenceUnsatisfied),
     },
     Case {
         name: CaseName("an absent capability is refused"),
@@ -139,7 +237,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 ComparisonContract::Diagnostics,
             )
         },
-        expect: Expect::Error(Failure::CapabilityMissing),
+        expect: Expect::Error(InventoryComparisonError::MissingExecutionCapability),
     },
     Case {
         name: CaseName("an unknown capability is refused"),
@@ -151,7 +249,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 ComparisonContract::Diagnostics,
             )
         },
-        expect: Expect::Error(Failure::CapabilityUndeclared),
+        expect: Expect::Error(InventoryComparisonError::UndeclaredExecutionCapability),
     },
     Case {
         name: CaseName("an unavailable capability without a reason is refused"),
@@ -165,7 +263,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 ComparisonContract::Diagnostics,
             )
         },
-        expect: Expect::Error(Failure::CapabilityUndeclared),
+        expect: Expect::Error(InventoryComparisonError::UndeclaredExecutionCapability),
     },
     Case {
         name: CaseName("an unavailable capability that asserts skips is refused"),
@@ -180,7 +278,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 ComparisonContract::Diagnostics,
             )
         },
-        expect: Expect::Error(Failure::AccountingAsserted),
+        expect: Expect::Error(InventoryComparisonError::UnavailableCapabilityAsserted),
     },
     Case {
         name: CaseName("a candidate with unread pairs is refused"),
@@ -190,7 +288,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 unavailable_reference(),
                 ObservationDocument {
                     coverage: Some(RuleCoverage {
-                        unknown_or_unread: 1,
+                        unknown_or_unread: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
                         ..coverage()
                     }),
                     ..candidate()
@@ -198,20 +296,22 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 ComparisonContract::Diagnostics,
             )
         },
-        expect: Expect::Error(Failure::ContractUnsatisfied),
+        expect: Expect::Error(InventoryComparisonError::ExecutionEvidenceUnsatisfied),
     },
 ];
 
-fn subject((reference, candidate, contract): Input) -> Result<Value, Failure> {
-    compare(&reference, &candidate, contract).map_err(|text| match text.as_str() {
-        "execution evidence does not satisfy the declared contract" => Failure::ContractUnsatisfied,
-        "missing or malformed execution capability" => Failure::CapabilityMissing,
-        "execution capability is not explicitly declared" => Failure::CapabilityUndeclared,
-        "unavailable execution capability contains asserted accounting" => {
-            Failure::AccountingAsserted
+/// A refusal in a library's words is one kind of refusal, whatever the words.
+fn words_dropped(error: Failure) -> Failure {
+    match error {
+        InventoryComparisonError::CandidateExecutionIncomplete(_) => {
+            InventoryComparisonError::CandidateExecutionIncomplete(RefusalText(String::new()))
         }
-        _ => Failure::Other,
-    })
+        other => other,
+    }
+}
+
+fn subject((reference, candidate, contract): Input) -> Result<Value, Failure> {
+    compare(&reference, &candidate, contract).map_err(words_dropped)
 }
 
 #[test]

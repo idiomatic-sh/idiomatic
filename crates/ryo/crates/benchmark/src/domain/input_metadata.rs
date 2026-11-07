@@ -1,5 +1,5 @@
 //! Canonical identity for optional declared input metadata.
-mod constants;
+pub(crate) mod errors;
 pub mod service;
 #[cfg(test)]
 mod service_test;

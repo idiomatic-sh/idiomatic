@@ -5,8 +5,12 @@ use crate::outbound::inventory::types::case_document::{
     ExpectationContract, FileMetadata, FileObservation, InventoryCompleteness, ProjectEntry,
     ProjectInventory, ProjectInventoryDocument, ProjectScope,
 };
-use crate::outbound::suite::types::{
-    finding::{FindingOffset, Finding},
+use ryo::linter::RelativePath;
+use ryo_benchmark_contracts::domain::artifacts::types::{
+    FileExecutable, FileMetadataEntry, digest::value::ArtifactDigest,
+};
+use ryo_benchmark_contracts::domain::documents::types::{
+    finding::{Finding, FindingOffset},
     observation_document::{
         ContextMode, ContextRun, FileMetadataDigest, IntentMatch, ObservationDocument,
         ProjectContextRecord, ProjectInputsDigest, ReferenceExpectation, RuleCohort,
@@ -17,13 +21,9 @@ use crate::outbound::suite::types::{
         ReferenceDiscrepancy,
     },
     text::{
-        CanonicalJson, CaseName, PathText, ReasonText, RuleName, SchemaName, Sha256Text, ContestantSide,
-        YesNo,
+        CanonicalJson, CaseName, ContestantSide, PathText, ReasonText, RuleName, SchemaName,
+        Sha256Text, YesNo,
     },
-};
-use ryo::linter::RelativePath;
-use ryo_benchmark_contracts::domain::artifacts::types::{
-    FileExecutable, FileMetadataEntry, digest::value::ArtifactDigest,
 };
 use ryo_benchmark_contracts::domain::reports::types::{
     ComparisonContract, ExecutionMetadata, RuleCoverage,
@@ -98,10 +98,10 @@ pub fn observed_row(rule: &str, name: &str, side: ContestantSide) -> Observation
         expectation_contract: ComparisonContract::Diagnostics,
         execution_metadata: Some(ExecutionMetadata::Complete),
         coverage: Some(RuleCoverage {
-            selected: 1,
-            evaluated: 1,
-            skipped: 0,
-            unknown_or_unread: 0,
+            selected: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
+            evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
+            skipped: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
+            unknown_or_unread: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
         }),
         context_manifest: ContextRun::Isolated,
         project_context: ProjectContextRecord::NotCarried,
@@ -292,8 +292,7 @@ pub fn project_scope(roots: &[&str], state: EntryState, row_identity: Option<&st
         }],
     };
     declared.0[0].project_search_roots = ProjectScope::Roots(vec![PathText("src".into())]);
-    declared.0[0].given_project_inventory =
-        ProjectInventory::Declared(inventory(EntryState::File));
+    declared.0[0].given_project_inventory = ProjectInventory::Declared(inventory(EntryState::File));
     let digest = project_inputs_digest(
         &crate::domain::inventory_receipts::service::registered_inputs(&declared.0[0]),
     )

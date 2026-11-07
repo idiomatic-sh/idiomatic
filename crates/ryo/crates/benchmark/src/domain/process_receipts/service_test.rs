@@ -1,20 +1,28 @@
 //! Behavioral proof of `process_receipts`: a reference process receipt is rebuilt from registration and actual roots.
-use super::errors::ProcessReceiptsError;
-use super::fixtures::{Documents, edited, invocation, passing, process, stdout_path};
-use super::service::validate;
-use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::process_failure::errors::ProcessFailureError;
-use crate::domain::registered_inputs::types::RefusalText;
-use crate::outbound::inventory::types::{
-    ArgumentText, FailedInvocation, InvocationDocument, Pin, Signal, case_document::Comparison,
-};
-use crate::outbound::suite::types::{
-    observation_document::ExitStatus,
-    text::{CanonicalJson, PathText, ReasonText, Sha256Text, YesNo},
-};
-use crate::outbound::suite::types::process::ProcessFailureWire;
-use sha2::Digest as _;
 use std::collections::BTreeMap;
+
+use ryo_benchmark_contracts::domain::documents::types::{
+    observation_document::ExitStatus,
+    text::{PathText, ReasonText, Sha256Text, YesNo},
+};
+use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
+use sha2::Digest as _;
+
+use super::{
+    errors::ProcessReceiptsError,
+    fixtures::{Documents, edited, passing, process, stdout_path},
+    service::validate,
+};
+use crate::{
+    cases::{Case, CaseName, Expect, Word, run},
+    domain::{process_failure::errors::ProcessFailureError, registered_inputs::types::RefusalText},
+    outbound::{
+        inventory::types::{
+            FailedInvocation, InvocationDocument, Pin, Signal, case_document::Comparison,
+        },
+        suite::types::process::ProcessFailureWire,
+    },
+};
 
 /// What an accepted receipt answers.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -114,11 +122,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("an observer with a deadline is refused"),
         word: Word::Refuses,
-        input: || {
-            edited(passing, |d| {
-                process(d).observer_no_deadline = YesNo::No
-            })
-        },
+        input: || edited(passing, |d| process(d).observer_no_deadline = YesNo::No),
         expect: Expect::Error(ProcessReceiptsError::ReferenceVariantDiffers),
     },
     Case {
@@ -225,7 +229,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edited(passing, |d| {
                 let path = stdout_path(d);
-                d.artifacts.insert(path, b"forged".to_vec());
+                d.artifacts.insert(path, CapturedBytes(b"forged".to_vec()));
             })
         },
         expect: Expect::Error(ProcessReceiptsError::CapturedByteDigestDiffers),
@@ -236,17 +240,11 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edited(passing, |d| {
                 let path = stdout_path(d);
-                d.artifacts.insert(path, b"forged".to_vec());
+                d.artifacts.insert(path, CapturedBytes(b"forged".to_vec()));
                 process(d).artifacts.as_mut().unwrap().stdout.sha256 = bytes_digest(b"forged");
             })
         },
         expect: Expect::Error(ProcessReceiptsError::CapturedBytesDifferFromTemplates),
-    },
-    Case {
-        name: CaseName("an undecoded raw invocation is refused"),
-        word: Word::Refuses,
-        input: || edited(passing, |d| d.invocations.clear()),
-        expect: Expect::Error(ProcessReceiptsError::MissingRawInvocation),
     },
     Case {
         name: CaseName("a capture that failed to record its identity is refused"),
@@ -259,120 +257,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             })
         },
         expect: Expect::Error(ProcessReceiptsError::MetadataCaptureFailed),
-    },
-    Case {
-        name: CaseName("file metadata the invocation binds alone is refused"),
-        word: Word::Refuses,
-        input: || {
-            edited(passing, |d| {
-                invocation(d).file_metadata_sha256 = Pin::Sha256(sha('9'))
-            })
-        },
-        expect: Expect::Error(ProcessReceiptsError::InvocationFileMetadataDiffers),
-    },
-    Case {
-        name: CaseName("another tool in the invocation is refused"),
-        word: Word::Refuses,
-        input: || edited(passing, |d| invocation(d).tool = ReasonText("other".into())),
-        expect: Expect::Error(ProcessReceiptsError::InvocationToolDiffers),
-    },
-    Case {
-        name: CaseName("another version in the invocation is refused"),
-        word: Word::Refuses,
-        input: || edited(passing, |d| invocation(d).version = ReasonText("2".into())),
-        expect: Expect::Error(ProcessReceiptsError::InvocationVersionDiffers),
-    },
-    Case {
-        name: CaseName("another request root in the invocation is refused"),
-        word: Word::Refuses,
-        input: || {
-            edited(passing, |d| {
-                invocation(d).actual_request_root = PathText("/elsewhere".into())
-            })
-        },
-        expect: Expect::Error(ProcessReceiptsError::InvocationRootDiffers),
-    },
-    Case {
-        name: CaseName("other files in the invocation are refused"),
-        word: Word::Refuses,
-        input: || {
-            edited(passing, |d| {
-                invocation(d).files = vec![PathText("other.py".into())]
-            })
-        },
-        expect: Expect::Error(ProcessReceiptsError::InvocationFilesDiffer),
-    },
-    Case {
-        name: CaseName("another source identity in the invocation is refused"),
-        word: Word::Refuses,
-        input: || edited(passing, |d| invocation(d).source_sha256 = Pin::Absent),
-        expect: Expect::Error(ProcessReceiptsError::InvocationSourceDiffers),
-    },
-    Case {
-        name: CaseName("another executable in the invocation is refused"),
-        word: Word::Refuses,
-        input: || edited(passing, |d| invocation(d).executable_sha256 = sha('b')),
-        expect: Expect::Error(ProcessReceiptsError::InvocationExecutableDiffers),
-    },
-    Case {
-        name: CaseName("another settings identity in the invocation is refused"),
-        word: Word::Refuses,
-        input: || edited(passing, |d| invocation(d).settings_sha256 = sha('9')),
-        expect: Expect::Error(ProcessReceiptsError::InvocationSettingsDiffer),
-    },
-    Case {
-        name: CaseName("another profile identity in the invocation is refused"),
-        word: Word::Refuses,
-        input: || edited(passing, |d| invocation(d).profile_sha256 = sha('9')),
-        expect: Expect::Error(ProcessReceiptsError::InvocationProfileDiffers),
-    },
-    Case {
-        name: CaseName("another exit status in the invocation is refused"),
-        word: Word::Refuses,
-        input: || edited(passing, |d| invocation(d).exit = ExitStatus(3)),
-        expect: Expect::Error(ProcessReceiptsError::InvocationExitDiffers),
-    },
-    Case {
-        name: CaseName("a signal in the invocation is refused"),
-        word: Word::Refuses,
-        input: || {
-            edited(passing, |d| {
-                invocation(d).signal = Signal::Number(ExitStatus(15))
-            })
-        },
-        expect: Expect::Error(ProcessReceiptsError::InvocationSignalDiffers),
-    },
-    Case {
-        name: CaseName("a deadline in the invocation is refused"),
-        word: Word::Refuses,
-        input: || edited(passing, |d| invocation(d).observer_no_deadline = YesNo::No),
-        expect: Expect::Error(ProcessReceiptsError::InvocationObserverDiffers),
-    },
-    Case {
-        name: CaseName("normalized settings that do not hash to the pinned identity are refused"),
-        word: Word::Refuses,
-        input: || {
-            edited(passing, |d| {
-                invocation(d).normalized_settings.canonical = CanonicalJson("{}".into())
-            })
-        },
-        expect: Expect::Error(ProcessReceiptsError::MissingPinnedNormalizedInvocation),
-    },
-    Case {
-        name: CaseName("an invocation without a state boundary is refused"),
-        word: Word::Refuses,
-        input: || edited(passing, |d| invocation(d).state = PathText(String::new())),
-        expect: Expect::Error(ProcessReceiptsError::RawStateMissing),
-    },
-    Case {
-        name: CaseName("raw argv that does not establish the pinned settings is refused"),
-        word: Word::Refuses,
-        input: || {
-            edited(passing, |d| {
-                invocation(d).arguments = vec![ArgumentText("--changed-flag".into())]
-            })
-        },
-        expect: Expect::Error(ProcessReceiptsError::RawSettingsNotEstablished),
     },
     Case {
         name: CaseName("archived captures sharing a raw artifact are refused"),
@@ -427,3 +311,6 @@ fn succeeds() {
 fn refuses() {
     run(CASES, Word::Refuses, subject);
 }
+
+#[cfg(test)]
+mod invocation_test;

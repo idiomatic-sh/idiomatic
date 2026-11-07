@@ -1,8 +1,8 @@
 //! Validate native case observations; expectation comparison stays in the existing verifier.
 use super::errors::InventoryReceiptsError;
 use super::types::{ReceiptCounts, Tally};
-use crate::domain::process_receipts::service as process_receipts;
 use crate::domain::inventory_comparison::service as inventory_execution;
+use crate::domain::process_receipts::service as process_receipts;
 use crate::domain::registered_inputs::{
     service as inputs,
     types::{ObservationDeclaration, RegisteredInputs},
@@ -14,18 +14,19 @@ use crate::outbound::inventory::types::{
         FileObservation, InventoryCompleteness, ProjectInventory, ProjectScope,
     },
 };
-use crate::outbound::suite::types::{
+use ryo::linter::{
+    GivenProjectInventory, ProjectEntryObservation, ProjectEntryState,
+    ProjectInventoryCompleteness, RelativePath,
+};
+use ryo_benchmark_contracts::domain::documents::types::{
     finding::Finding,
     observation_document::{
         ContextMode, ContextRun, FileMetadataDigest, ObservationDocument, ProjectContextRecord,
         ProjectInputsDigest, ReferenceExpectation, SourceIdentity, ToolContractRecord,
     },
-    text::{PathText, Sha256Text, ContestantSide, YesNo},
+    text::{ContestantSide, PathText, Sha256Text, YesNo},
 };
-use ryo::linter::{
-    GivenProjectInventory, ProjectEntryObservation, ProjectEntryState,
-    ProjectInventoryCompleteness, RelativePath,
-};
+use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
 use ryo_benchmark_contracts::domain::reports::types::{ComparisonContract, ExecutionMetadata};
 use ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
 use std::collections::HashSet;
@@ -131,7 +132,7 @@ pub(crate) fn validate(
 pub(crate) fn validate_with_artifacts(
     cases: &[CaseDocument],
     observations: &[ObservationDocument],
-    artifacts: &std::collections::BTreeMap<std::path::PathBuf, Vec<u8>>,
+    artifacts: &std::collections::BTreeMap<std::path::PathBuf, CapturedBytes>,
     invocations: &std::collections::BTreeMap<std::path::PathBuf, InvocationDocument>,
 ) -> Result<ReceiptCounts, Failure> {
     if cases.is_empty() || observations.len() != cases.len() * 2 {
@@ -204,7 +205,7 @@ pub(crate) fn validate_with_artifacts(
             let row = observations
                 .iter()
                 .find(|row| row.rule == case.rule && row.name == case.name && row.side == side)
-                .ok_or(Failure::SideReceiptCount)?;
+                .ok_or(Failure::NativeCaseReceiptCount)?;
             if row.rule_context != case.rule_context {
                 return Err(Failure::RuleContextDiffers);
             }
@@ -214,7 +215,7 @@ pub(crate) fn validate_with_artifacts(
             if row.selected_rules != case.selected_rules {
                 return Err(Failure::SelectedCohortDiffers);
             }
-            if row.observation_schema.0 != "benchmark-case/v2"
+            if row.observation_schema.0 != crate::domain::suite::constants::BENCHMARK_CASE_V2
                 || row.expectation_contract != declared
             {
                 return Err(Failure::ExpectationContractDiffers);
@@ -237,14 +238,14 @@ pub(crate) fn validate_with_artifacts(
             }
             if (row.documented_reference_discrepancy == YesNo::Yes)
                 != (basis == Some(DiscrepancyBasis::LanguageDefect))
-                || (row.documented_tool_contract_difference == ToolContractRecord::Recorded(YesNo::Yes))
+                || (row.documented_tool_contract_difference
+                    == ToolContractRecord::Recorded(YesNo::Yes))
                     != (basis == Some(DiscrepancyBasis::ToolContract))
             {
                 return Err(Failure::DiscrepancyAuthorityDiffers);
             }
             if process && side == ContestantSide::Reference {
-                process_receipts::validate(case, row, artifacts, invocations)
-                    .map_err(String::from)?;
+                process_receipts::validate(case, row, artifacts, invocations)?;
             } else {
                 if row.process_observation.is_some() {
                     return Err(Failure::UnexpectedProcessObservation);

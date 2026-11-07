@@ -1,5 +1,4 @@
 //! Reconstruct expected bytes from registration and actual request roots, never case_passed alone.
-use super::constants;
 use super::errors::ProcessReceiptsError as Failure;
 use crate::domain::canonical_text::{service::text_digest, types::Document};
 use crate::domain::invocation_identity::{
@@ -12,12 +11,13 @@ use crate::outbound::inventory::types::{
     Signal,
     case_document::{CaseDocument, Comparison},
 };
-use crate::outbound::suite::types::{
+use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use ryo_benchmark_contracts::domain::documents::types::{
     observation_document::{ExitStatus, ObservationDocument},
     reference_discrepancy::{ArtifactPointer, ExpectationKind},
     text::{PathText, Sha256Text, YesNo},
 };
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
 use ryo_benchmark_contracts::domain::process::types::ProcessFailure;
 use sha2::Digest as _;
 use std::{
@@ -26,13 +26,13 @@ use std::{
 };
 
 fn raw<'a>(
-    artifacts: &'a BTreeMap<PathBuf, Vec<u8>>,
+    artifacts: &'a BTreeMap<PathBuf, CapturedBytes>,
     pointer: &ArtifactPointer,
-) -> Result<&'a [u8], Failure> {
+) -> Result<&'a CapturedBytes, Failure> {
     let bytes = artifacts
         .get(Path::new(&pointer.path.0))
         .ok_or(Failure::MissingCapturedProcessBytes)?;
-    if pointer.sha256.0 != format!("{:x}", sha2::Sha256::digest(bytes)) {
+    if pointer.sha256.0 != format!("{:x}", sha2::Sha256::digest(&bytes.0)) {
         return Err(Failure::CapturedByteDigestDiffers);
     }
     Ok(bytes)
@@ -65,7 +65,7 @@ fn require_reference_variant(
         || captured.kind != ExpectationKind::ProcessFailure
         || captured.metadata_error.is_some()
         || captured.observer_no_deadline != YesNo::Yes
-        || captured.exit != ExitStatus(i64::from(process.exit))
+        || captured.exit != ExitStatus(i64::from(process.exit.0))
         || captured.signal.is_some()
         || captured.executable_sha256.as_ref() != Some(&pinned)
         || captured.settings_sha256.as_ref() != Some(&identity.settings)
@@ -189,7 +189,7 @@ fn require_settings(case: &CaseDocument, invocation: &CompleteInvocation) -> Res
 pub(crate) fn validate(
     case: &CaseDocument,
     reference: &ObservationDocument,
-    artifacts: &BTreeMap<PathBuf, Vec<u8>>,
+    artifacts: &BTreeMap<PathBuf, CapturedBytes>,
     invocations: &BTreeMap<PathBuf, InvocationDocument>,
 ) -> Result<(), Failure> {
     let wire = case
@@ -228,23 +228,21 @@ pub(crate) fn validate(
         .iter()
         .map(|file| PathBuf::from(&file.0))
         .collect::<Vec<_>>();
-    let stdout = crate::domain::process_output::service::expand(
-        &process.stdout,
-        Path::new(&root.0),
-        &files,
-    )
-    .map_err(|error| error.to_string())?;
-    let stderr = crate::domain::process_output::service::expand(
-        &process.stderr,
-        Path::new(&root.0),
-        &files,
-    )
-    .map_err(|error| error.to_string())?;
+    let stdout =
+        crate::domain::process_output::service::expand(&process.stdout, Path::new(&root.0), &files)
+            .map_err(|error| error.to_string())?;
+    let stderr =
+        crate::domain::process_output::service::expand(&process.stderr, Path::new(&root.0), &files)
+            .map_err(|error| error.to_string())?;
     let expected_key = crate::domain::process_output::service::observation_key(
-        &crate::domain::process_output::types::ObservationIdentity {
+        &crate::domain::process_output::types::ReceiptKeyParts {
             rule: crate::domain::canonical_text::types::Label::from(case.rule.0.as_str()),
             name: crate::domain::canonical_text::types::Label::from(case.name.0.as_str()),
-            side: crate::domain::canonical_text::types::Label::from(constants::REFERENCE),
+            side: crate::domain::canonical_text::types::Label::from(
+                crate::domain::discrepancy::types::Contestant::Reference
+                    .to_string()
+                    .as_str(),
+            ),
         },
     );
     let pointers = captured
@@ -260,7 +258,8 @@ pub(crate) fn validate(
             return Err(Failure::ArtifactBelongsToAnotherCase);
         }
     }
-    if raw(artifacts, &pointers.stdout)? != stdout.0 || raw(artifacts, &pointers.stderr)? != stderr.0 {
+    if *raw(artifacts, &pointers.stdout)? != stdout || *raw(artifacts, &pointers.stderr)? != stderr
+    {
         return Err(Failure::CapturedBytesDifferFromTemplates);
     }
     let _record = raw(artifacts, &pointers.invocation)?;

@@ -10,15 +10,8 @@ use ryo::linter::{
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
 use std::collections::BTreeMap;
 
-fn text(value: &str) -> Fragment {
-    Fragment::from(value)
-}
-
 /// Explicit project context only; legacy undeclared/partial-empty cases retain no new digest.
-fn document(
-    roots: Option<&[RelativePath]>,
-    inventory: &GivenProjectInventory,
-) -> Option<Fragment> {
+fn document(roots: Option<&[RelativePath]>, inventory: &GivenProjectInventory) -> Option<Fragment> {
     if roots.is_none()
         && inventory.entries.is_empty()
         && inventory.completeness == ProjectInventoryCompleteness::Partial
@@ -37,8 +30,11 @@ fn document(
                 ProjectEntryState::Unknown => constants::ENTRY_UNKNOWN,
             };
             Fragment::Object(BTreeMap::from([
-                (Label::from(constants::ENTRY_PATH), text(entry.path.0.as_ref())),
-                (Label::from(constants::ENTRY_STATE), text(state)),
+                (
+                    Label::from(constants::ENTRY_PATH),
+                    Fragment::from(entry.path.0.as_ref()),
+                ),
+                (Label::from(constants::ENTRY_STATE), Fragment::from(state)),
             ]))
         })
         .collect::<Vec<_>>();
@@ -52,13 +48,21 @@ fn document(
         (
             Label::from(constants::PROJECT_SEARCH_ROOTS),
             roots.map_or(Fragment::Null, |roots| {
-                Fragment::List(roots.iter().map(|root| text(root.0.as_ref())).collect())
+                Fragment::List(
+                    roots
+                        .iter()
+                        .map(|root| Fragment::from(root.0.as_ref()))
+                        .collect(),
+                )
             }),
         ),
         (
             Label::from(constants::GIVEN_PROJECT_INVENTORY),
             Fragment::Object(BTreeMap::from([
-                (Label::from(constants::COMPLETENESS), text(completeness)),
+                (
+                    Label::from(constants::COMPLETENESS),
+                    Fragment::from(completeness),
+                ),
                 (Label::from(constants::ENTRIES), Fragment::List(entries)),
             ])),
         ),

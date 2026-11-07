@@ -7,6 +7,6 @@ pub(super) const FILE: &str = "file";
 pub(super) const START: &str = "start";
 pub(super) const END: &str = "end";
 /// Reference contestant label in differential failures.
-pub(crate) const REFERENCE: &str = "reference";
+pub(super) const REFERENCE: &str = "reference";
 /// Candidate contestant label in differential failures.
-pub(crate) const CANDIDATE: &str = "candidate";
+pub(super) const CANDIDATE: &str = "candidate";

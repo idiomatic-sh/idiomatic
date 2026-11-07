@@ -1,14 +1,13 @@
 //! Stable optional input identity, distinct truth states and required-observation admission.
-use super::constants;
+use super::errors::InputMetadataError;
 use super::service::require;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo::linter::RelativePath;
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
 use ryo_benchmark_contracts::domain::artifacts::types::{FileExecutable, FileMetadataEntry};
-use ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
+use ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration;
 use ryo_benchmark_contracts::domain::workloads::types::FileObservation;
-use std::borrow::Cow;
 use std::collections::BTreeMap;
 
 /// What each scenario observes.
@@ -21,6 +20,7 @@ enum Scenario {
     RequiredWithoutMetadata,
     RequiredWithEmptyMetadata,
     RequiredWithKnownFalse,
+    NamesUndeclaredSource,
 }
 
 /// What a scenario answers.
@@ -38,7 +38,7 @@ enum Verdict {
 
 type Input = Scenario;
 type Value = Verdict;
-type Failure = Cow<'static, str>;
+type Failure = InputMetadataError;
 
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
@@ -72,38 +72,37 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(Verdict::Admitted),
     },
     Case {
+        name: CaseName("metadata naming a source the case never declared is refused"),
+        word: Word::Refuses,
+        input: || Scenario::NamesUndeclaredSource,
+        expect: Expect::Error(InputMetadataError::UndeclaredSource),
+    },
+    Case {
         name: CaseName("a required observation without metadata is refused"),
         word: Word::Refuses,
         input: || Scenario::RequiredWithoutMetadata,
-        expect: Expect::Error(Cow::Borrowed(
-            constants::REQUIRED_FILE_OBSERVATIONS_ARE_MISSING,
-        )),
+        expect: Expect::Error(InputMetadataError::RequiredObservationsMissing),
     },
     Case {
         name: CaseName("a required observation with empty metadata is refused"),
         word: Word::Refuses,
         input: || Scenario::RequiredWithEmptyMetadata,
-        expect: Expect::Error(Cow::Borrowed(
-            constants::REQUIRED_FILE_OBSERVATIONS_ARE_MISSING,
-        )),
+        expect: Expect::Error(InputMetadataError::RequiredObservationsMissing),
     },
 ];
 
-fn digest(
-    metadata: &BTreeMap<RelativePath, bool>,
-) -> Result<Option<ArtifactDigest>, ReportsError> {
+fn digest(metadata: &BTreeMap<RelativePath, bool>) -> Result<Option<ArtifactDigest>, ReportsError> {
     ArtifactDigest::file_metadata(Some(metadata).map(|values| {
-        values
-            .iter()
-            .map(|(path, executable)| FileMetadataEntry {
-                path,
-                executable: if *executable {
-                    FileExecutable::Set
-                } else {
-                    FileExecutable::Unset
-                },
-            })
+        values.iter().map(|(path, executable)| FileMetadataEntry {
+            path,
+            executable: if *executable {
+                FileExecutable::Set
+            } else {
+                FileExecutable::Unset
+            },
+        })
     }))
+    .map_err(ReportsError::from)
 }
 
 fn distinct(
@@ -129,15 +128,15 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         .map(|()| Verdict::Admitted)
     };
     match scenario {
-        Scenario::Unspecified => ArtifactDigest::file_metadata(
-            None::<std::iter::Empty<FileMetadataEntry<'_>>>,
-        )
-        .map(|value| value.map_or(Verdict::Legacy, |_| Verdict::Bound)),
-        Scenario::DeclaredEmpty => digest(&empty)
-            .map(|value| value.map_or(Verdict::Legacy, |_| Verdict::Bound)),
-        Scenario::ModeDiffers => {
-            distinct(&no, &BTreeMap::from([(file.clone(), true)]))
+        Scenario::Unspecified => {
+            ArtifactDigest::file_metadata(None::<std::iter::Empty<FileMetadataEntry<'_>>>)
+                .map_err(ReportsError::from)
+                .map(|value| value.map_or(Verdict::Legacy, |_| Verdict::Bound))
         }
+        Scenario::DeclaredEmpty => {
+            digest(&empty).map(|value| value.map_or(Verdict::Legacy, |_| Verdict::Bound))
+        }
+        Scenario::ModeDiffers => distinct(&no, &BTreeMap::from([(file.clone(), true)])),
         Scenario::PathFramingDiffers => distinct(
             &BTreeMap::from([
                 (RelativePath("ab".into()), true),
@@ -148,15 +147,33 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 (RelativePath("bc".into()), false),
             ]),
         ),
+        Scenario::NamesUndeclaredSource => require(
+            FileObservation::Undeclared,
+            std::slice::from_ref(&file),
+            &FileMetadataDeclaration::Declared(BTreeMap::from([(
+                RelativePath("other.py".into()),
+                FileExecutable::Set,
+            )])),
+        )
+        .map(|()| Verdict::Admitted),
         Scenario::RequiredWithoutMetadata => required(&FileMetadataDeclaration::Undeclared),
-        Scenario::RequiredWithEmptyMetadata => required(&FileMetadataDeclaration::Declared(
-            BTreeMap::new(),
-        )),
+        Scenario::RequiredWithEmptyMetadata => {
+            required(&FileMetadataDeclaration::Declared(BTreeMap::new()))
+        }
         Scenario::RequiredWithKnownFalse => required(&FileMetadataDeclaration::Declared(
             BTreeMap::from([(file.clone(), FileExecutable::Unset)]),
         )),
     }
-    .map_err(|error| error.to_string().into())
+    .map_err(|error| {
+        let text = error.to_string();
+        [
+            InputMetadataError::UndeclaredSource,
+            InputMetadataError::RequiredObservationsMissing,
+        ]
+        .into_iter()
+        .find(|refusal| refusal.to_string() == text)
+        .expect("a refusal of this part")
+    })
 }
 
 #[test]

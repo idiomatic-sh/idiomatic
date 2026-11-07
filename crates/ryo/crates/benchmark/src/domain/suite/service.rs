@@ -1,11 +1,11 @@
 //! Pure validation shared by artifact auditing and case execution.
+use super::types::{CaseOwnership, ContextAbsence};
 use crate::domain::suite::constants;
 use crate::domain::suite::types::audit::value::Audit;
-use super::types::{CaseOwnership, ContextAbsence};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::reports::types::{CoverageAccounting, ProjectContext};
 use ryo_benchmark_contracts::domain::requests::types::{
-    ContextSeal, FileMetadataDeclaration, RuleSelection, StagedSources,
+    CohortSelection, ContextSeal, FileMetadataDeclaration, StagedSources,
 };
 use ryo_benchmark_contracts::domain::workloads::types::{
     Cases, ContextDeclaration, InventoryDeclaration, ReferenceBehavior, RequestedFiles,
@@ -298,8 +298,8 @@ pub(crate) fn context_input_path(
 ///
 /// # Errors
 /// Refuses an explicit cohort that is empty or repeats a rule.
-pub fn validate_selected_rules(rules: &RuleSelection) -> Result<(), Error> {
-    if let RuleSelection::Explicit(rules) = rules {
+pub fn validate_selected_rules(rules: &CohortSelection) -> Result<(), Error> {
+    if let CohortSelection::Explicit(rules) = rules {
         let unique: std::collections::BTreeSet<_> = rules.iter().collect();
         if rules.is_empty() || unique.len() != rules.len() {
             return Err(Error::Invalid(

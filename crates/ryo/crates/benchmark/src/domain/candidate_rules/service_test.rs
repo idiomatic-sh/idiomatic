@@ -8,8 +8,8 @@ use ryo_benchmark_contracts::domain::{
     },
     reports::{errors::ReportsError, types::PairCount},
     requests::types::{
-        ContextSeal, ObservationDeclaration, ParserSelection, RuleContextPreparation,
-        RuleSelection, SearchRoots, SourceProvider, WorkerRequest, WorkerState,
+        CohortSelection, ContextSeal, InputDeclaration, ParserSelection, ProviderSelection,
+        RuleContextPreparation, SearchRoots, WorkerRequest, WorkerState,
     },
 };
 use std::collections::{BTreeMap, BTreeSet};
@@ -36,8 +36,8 @@ fn rule() -> Rule {
 fn request() -> WorkerRequest {
     WorkerRequest {
         performance: Default::default(),
-        selected_rules: RuleSelection::Explicit(vec![id("A001")]),
-        rule_observations: ObservationDeclaration::Undeclared,
+        selected_rules: CohortSelection::Explicit(vec![id("A001")]),
+        rule_observations: InputDeclaration::Undeclared,
         rule_context: RuleContextPreparation::Unconfigured,
         project_search_roots: SearchRoots::Undeclared,
         given_project_inventory: Default::default(),
@@ -48,7 +48,7 @@ fn request() -> WorkerRequest {
         query_modules: BTreeMap::new(),
         rule_applicability: BTreeMap::new(),
         parser_configuration: ParserSelection::Unspecified,
-        source_language: SourceProvider::Unspecified,
+        source_language: ProviderSelection::Unspecified,
         files: vec![RelativePath("input.py".into())],
         state: WorkerState::Fresh,
     }
@@ -174,7 +174,7 @@ fn missing_context_selection_is_refused() -> Result<Value, Failure> {
             disabled_rules: BTreeMap::new(),
         },
     });
-    request.selected_rules = RuleSelection::Frozen;
+    request.selected_rules = CohortSelection::Frozen;
     let mut rules = BTreeMap::from([(id("A001"), rule())]);
     match service::project(&request, &mut rules, PairCount(2)) {
         Err(ReportsError::Invalid(message))

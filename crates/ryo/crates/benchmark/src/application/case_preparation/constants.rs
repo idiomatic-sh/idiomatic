@@ -1,6 +1,6 @@
 //! Names owned by this suite operation.
 pub(super) const CACHE: &str = "cache";
-pub(super) const NO_EXECUTABLE_CASES: &str = "no executable rule cases";
+pub(super) const NO_EXECUTABLE_CASES: &str = crate::domain::suite::constants::NO_CASES;
 pub(super) const MISSING_PROFILE_PARENT: &str = "case rules have no profile parent";
 pub(super) const REQUIRED_METADATA: &str =
     "file-observation-required profile needs explicit metadata for every source";

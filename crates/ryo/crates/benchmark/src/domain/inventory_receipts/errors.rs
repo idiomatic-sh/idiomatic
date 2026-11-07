@@ -1,5 +1,7 @@
 //! Why a receipt is refused.
-use crate::domain::registered_inputs::{errors::RegisteredInputsError, types::RefusalText};
+use crate::domain::inventory_comparison::errors::InventoryComparisonError;
+use crate::domain::process_receipts::errors::ProcessReceiptsError;
+use crate::domain::registered_inputs::errors::RegisteredInputsError;
 
 /// A refused receipt: each refusal of the registered and native documents is its own variant.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
@@ -37,9 +39,6 @@ pub(crate) enum InventoryReceiptsError {
     /// Refuses: discrepancy intention differs from registered case.
     #[error("discrepancy intention differs from registered case")]
     DiscrepancyIntentionDiffers,
-    /// Refuses: missing or duplicate native side receipt.
-    #[error("missing or duplicate native side receipt")]
-    SideReceiptCount,
     /// Refuses: native configured rule context differs from registration.
     #[error("native configured rule context differs from registration")]
     RuleContextDiffers,
@@ -97,15 +96,12 @@ pub(crate) enum InventoryReceiptsError {
     /// The registered case's input identities are refused.
     #[error(transparent)]
     Inputs(#[from] RegisteredInputsError),
-    /// A not yet typed neighbour refused with these words.
-    #[error("{}", .0.0)]
-    Refused(RefusalText),
-}
-
-impl From<String> for InventoryReceiptsError {
-    fn from(text: String) -> Self {
-        Self::Refused(RefusalText(text))
-    }
+    /// The reference process receipt is refused.
+    #[error(transparent)]
+    Process(#[from] ProcessReceiptsError),
+    /// The two native observations cannot be compared.
+    #[error(transparent)]
+    Comparison(#[from] InventoryComparisonError),
 }
 
 impl From<InventoryReceiptsError> for String {

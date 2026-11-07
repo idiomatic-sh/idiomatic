@@ -1,7 +1,8 @@
 //! A process failure with two archived captures of one exact executable.
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use ryo_benchmark_contracts::domain::measurements::types::ProcessExitCode;
 use ryo_benchmark_contracts::domain::process::types::{
-    OutputPart, PathEncoding, ProcessArtifact, ProcessFailure, ProcessObservation,
+    OutputPart, OutputText, PathEncoding, ProcessArtifact, ProcessFailure, ProcessObservation,
 };
 
 fn capture(attempt: usize, executable: &str) -> ProcessObservation {
@@ -20,10 +21,10 @@ fn capture(attempt: usize, executable: &str) -> ProcessObservation {
 /// A completed numeric failure with a literal stdout and a declared input path in stderr.
 pub(super) fn process() -> ProcessFailure {
     ProcessFailure {
-        exit: 2,
-        stdout: vec![OutputPart::Literal("payload".into())],
+        exit: ProcessExitCode(2),
+        stdout: vec![OutputPart::Literal(OutputText("payload".into()))],
         stderr: vec![
-            OutputPart::Literal("open ".into()),
+            OutputPart::Literal(OutputText("open ".into())),
             OutputPart::InputPath {
                 file: "case.py".into(),
                 encoding: PathEncoding::Utf8Bytes,

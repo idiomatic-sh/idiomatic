@@ -53,8 +53,12 @@ impl BenchmarkSample {
         &self,
     ) -> ryo_benchmark_contracts::domain::measurements::types::PublicationSample<'_> {
         ryo_benchmark_contracts::domain::measurements::types::PublicationSample {
-            complete_inventory: self.eligibility
-                == crate::domain::measurements::types::MeasurementEligibility::CompleteInventory,
+            inventory: match self.eligibility {
+                crate::domain::measurements::types::MeasurementEligibility::CompleteInventory => {
+                    ryo_benchmark_contracts::domain::measurements::types::InventoryStatus::Complete
+                }
+                _ => ryo_benchmark_contracts::domain::measurements::types::InventoryStatus::Diagnostic,
+            },
             name: &self.name,
             measurement: &self.measurement,
         }

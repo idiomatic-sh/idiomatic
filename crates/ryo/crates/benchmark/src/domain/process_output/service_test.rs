@@ -1,7 +1,7 @@
 //! Legitimate path substitution and independent byte-preservation negatives.
 use super::errors::ProcessOutputError;
 use super::service::{expand, observation_key};
-use super::types::ObservationIdentity;
+use super::types::ReceiptKeyParts;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::canonical_text::types::Label;
 use ryo_benchmark_contracts::domain::process::types::OutputPart as Part;
@@ -103,7 +103,7 @@ fn slot(file: &str) -> Result<Value, Failure> {
 }
 
 fn key(rule: &str, name: &str, side: &str) -> String {
-    observation_key(&ObservationIdentity {
+    observation_key(&ReceiptKeyParts {
         rule: Label::from(rule),
         name: Label::from(name),
         side: Label::from(side),
@@ -112,19 +112,23 @@ fn key(rule: &str, name: &str, side: &str) -> String {
 }
 
 fn distinct(left: &str, right: &str) -> Result<Value, Failure> {
-    Ok(Cow::Borrowed(if left == right { "same" } else { "distinct" }))
+    Ok(Cow::Borrowed(if left == right {
+        "same"
+    } else {
+        "distinct"
+    }))
 }
 
 fn subject(scenario: Input) -> Result<Value, Failure> {
     match scenario {
         Scenario::UnicodeJsonPath => {
             let parts = [
-                Part::Literal("{\"file\":\"".into()),
+                Part::Literal(ryo_benchmark_contracts::domain::process::types::OutputText("{\"file\":\"".into())),
                 Part::InputPath {
                     file: "é\".py".into(),
                     encoding: Encoding::JsonStringContent,
                 },
-                Part::Literal("\",\"assertion\":\"x < y\"}".into()),
+                Part::Literal(ryo_benchmark_contracts::domain::process::types::OutputText("\",\"assertion\":\"x < y\"}".into())),
             ];
             expand(&parts, Path::new("/tmp/日本"), &[PathBuf::from("é\".py")])
                 .map(|bytes| String::from_utf8_lossy(&bytes.0).into_owned().into())
@@ -137,14 +141,10 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::EscapingSlot => slot("../case.py"),
         Scenario::AbsoluteSlot => slot("/case.py"),
         Scenario::EmptySlot => slot(""),
-        Scenario::BoundaryShift => distinct(
-            &key("a", "bc", "reference"),
-            &key("ab", "c", "reference"),
-        ),
-        Scenario::RoleShift => distinct(
-            &key("a", "bc", "reference"),
-            &key("a", "bc", "candidate"),
-        ),
+        Scenario::BoundaryShift => {
+            distinct(&key("a", "bc", "reference"), &key("ab", "c", "reference"))
+        }
+        Scenario::RoleShift => distinct(&key("a", "bc", "reference"), &key("a", "bc", "candidate")),
         Scenario::KeyLength => Ok(key("a", "../name", "reference").len().to_string().into()),
     }
 }

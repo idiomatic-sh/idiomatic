@@ -9,7 +9,9 @@ use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDi
 use ryo_benchmark_contracts::domain::process::types::{
     OutputPart, PathEncoding, ProcessArtifact, ProcessFailure, ReferenceExpectation,
 };
-use ryo_benchmark_contracts::domain::workloads::types::{PreparedCase, Tool};
+use ryo_benchmark_contracts::domain::workloads::types::{
+    PreparedCase, PreparedReferenceBehavior, Tool,
+};
 use std::collections::{BTreeMap, BTreeSet};
 
 fn parts(values: &[OutputPart]) -> Fragment {
@@ -24,7 +26,7 @@ fn parts(values: &[OutputPart]) -> Fragment {
                     ),
                     (
                         Label::from(constants::VALUE),
-                        Fragment::from(value.as_str()),
+                        Fragment::from(value.0.as_str()),
                     ),
                 ])),
                 OutputPart::InputPath { file, encoding } => Fragment::Object(BTreeMap::from([
@@ -64,13 +66,12 @@ fn artifact(value: &ProcessArtifact) -> Fragment {
 
 /// Closed expectation lookup; a process failure is never a diagnostic report.
 pub(crate) fn expected(case: &PreparedCase) -> Option<&ProcessFailure> {
-    match case
-        .reference_discrepancy
-        .as_ref()
-        .map(|item| &item.expected)
-    {
-        Some(ReferenceExpectation::ProcessFailure(process)) => Some(process),
-        _ => None,
+    match &case.reference_discrepancy {
+        PreparedReferenceBehavior::Differs(item) => match &item.expected {
+            ReferenceExpectation::ProcessFailure(process) => Some(process),
+            ReferenceExpectation::Diagnostics(_) => None,
+        },
+        PreparedReferenceBehavior::Agrees => None,
     }
 }
 
@@ -83,7 +84,7 @@ pub(crate) fn output_digest(process: &ProcessFailure) -> ArtifactDigest {
         ),
         (
             Label::from(constants::EXIT),
-            Fragment::Number(Quantity(i64::from(process.exit))),
+            Fragment::Number(Quantity(i64::from(process.exit.0))),
         ),
         (Label::from(constants::SIGNAL), Fragment::Null),
         (Label::from(constants::STDOUT), parts(&process.stdout)),

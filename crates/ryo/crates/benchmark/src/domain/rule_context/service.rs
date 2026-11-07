@@ -6,7 +6,7 @@ use ryo_benchmark_contracts::domain::context::types::PreparedRuleContext;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::reports::types::PairCount;
 use ryo_benchmark_contracts::domain::requests::types::{
-    ConfigurationOverride, RuleContextPreparation, RuleSelection,
+    CohortSelection, ConfigurationOverride, RuleContextPreparation,
 };
 use ryo_benchmark_contracts::domain::workloads::types::{
     RuleConfigurationSupport, RuleContextProfile,
@@ -56,10 +56,7 @@ pub fn resolve(
 }
 
 /// Validate declarative addresses against the actual request, without doing path-pattern matching.
-pub fn check(
-    prepared: &PreparedRuleContext,
-    files: &[RelativePath],
-) -> Result<(), Error> {
+pub fn check(prepared: &PreparedRuleContext, files: &[RelativePath]) -> Result<(), Error> {
     let names = [
         &prepared.tables.selected,
         &prepared.tables.disabled,
@@ -104,9 +101,9 @@ pub fn check(
 /// Refuses a frozen cohort and a disabled rule outside the explicit cohort.
 pub fn check_selection(
     prepared: &PreparedRuleContext,
-    selected: &RuleSelection,
+    selected: &CohortSelection,
 ) -> Result<(), Error> {
-    let RuleSelection::Explicit(selected) = selected else {
+    let CohortSelection::Explicit(selected) = selected else {
         return Err(Error::Invalid(
             constants::RULE_CONTEXT_REQUIRES_AN_EXPLICIT_SELECTED.into(),
         ));
@@ -142,7 +139,7 @@ pub fn selected_pairs(
     files: &[RelativePath],
 ) -> Result<PairCount, Error> {
     check(prepared, files)?;
-    check_selection(prepared, &RuleSelection::Explicit(selected.to_vec()))?;
+    check_selection(prepared, &CohortSelection::Explicit(selected.to_vec()))?;
     let all = selected
         .len()
         .checked_mul(files.len())

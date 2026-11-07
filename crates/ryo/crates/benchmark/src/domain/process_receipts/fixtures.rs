@@ -1,26 +1,28 @@
 //! A registered process-failure case and the reference observation, artifacts and invocation record that satisfy it.
 use crate::domain::canonical_text::{service::text_digest, types::Document};
+use crate::domain::inventory_receipts::fixtures::{observed_row, registered_case};
 use crate::domain::process_failure::service::{group_digest, output_digest};
 use crate::outbound::inventory::types::{
     ArgumentText, CompleteInvocation, InvocationDocument, NormalizedSettings, Pin, Signal,
     case_document::{CaseDocument, Comparison},
 };
-use crate::domain::inventory_receipts::fixtures::{observed_row, registered_case};
-use crate::outbound::suite::types::{
+use crate::outbound::suite::types::process::{
+    OutputPartWire, ProcessArtifactWire, ProcessFailureWire, ProcessObservationWire,
+};
+use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use ryo_benchmark_contracts::domain::documents::types::{
     observation_document::{
-        ExitStatus, ObservationDocument, ProcessArtifacts, ProcessObservation,
-        ReferenceExpectation,
+        ExitStatus, ObservationDocument, ProcessArtifacts, ProcessObservation, ReferenceExpectation,
     },
     reference_discrepancy::{
         ArtifactPointer, DiscrepancyIdentity, DiscrepancyValidation, ExpectationKind,
         ObservedExecutable, ReferenceDiscrepancy,
     },
-    text::{CanonicalJson, CaseName, PathText, ReasonText, RuleName, Sha256Text, ContestantSide, YesNo},
+    text::{
+        CanonicalJson, CaseName, ContestantSide, PathText, ReasonText, RuleName, Sha256Text, YesNo,
+    },
 };
-use crate::outbound::suite::types::process::{
-    OutputPartWire, ProcessArtifactWire, ProcessFailureWire, ProcessObservationWire,
-};
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
 use ryo_benchmark_contracts::domain::process::types::ProcessFailure;
 use ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
 use sha2::Digest as _;
@@ -35,7 +37,7 @@ pub(crate) struct Documents {
     /// The reference side's observation row.
     pub row: ObservationDocument,
     /// The raw bytes the row points at.
-    pub artifacts: BTreeMap<PathBuf, Vec<u8>>,
+    pub artifacts: BTreeMap<PathBuf, CapturedBytes>,
     /// The raw invocation record the row points at.
     pub invocations: BTreeMap<PathBuf, InvocationDocument>,
 }
@@ -100,7 +102,7 @@ fn pointer(location: &str, bytes: &[u8]) -> ArtifactPointer {
 pub(crate) fn passing() -> Documents {
     let process = ProcessFailure::try_from(wire()).expect("registered process failure");
     let key = crate::domain::process_output::service::observation_key(
-        &crate::domain::process_output::types::ObservationIdentity {
+        &crate::domain::process_output::types::ReceiptKeyParts {
             rule: crate::domain::canonical_text::types::Label::from("A001"),
             name: crate::domain::canonical_text::types::Label::from("matched"),
             side: crate::domain::canonical_text::types::Label::from("reference"),
@@ -108,7 +110,11 @@ pub(crate) fn passing() -> Documents {
     )
     .0;
     let location = |file: &str| format!("attempt/{key}/{file}");
-    let (stdout, stderr, record) = (b"payload".to_vec(), b"issue".to_vec(), b"{}".to_vec());
+    let (stdout, stderr, record) = (
+        CapturedBytes(b"payload".to_vec()),
+        CapturedBytes(b"issue".to_vec()),
+        CapturedBytes(b"{}".to_vec()),
+    );
     let settings = Sha256Text(text_digest(&Document(CANONICAL.into())).0);
     let case = CaseDocument {
         rule: RuleName("A001".into()),
@@ -171,9 +177,9 @@ pub(crate) fn passing() -> Documents {
             metadata_error: None,
             template_sha256: Some(Sha256Text(output_digest(&process).0)),
             artifacts: Some(ProcessArtifacts {
-                stdout: pointer(&location("stdout.bin"), &stdout),
-                stderr: pointer(&location("stderr.bin"), &stderr),
-                invocation: pointer(&location("invocation.json"), &record),
+                stdout: pointer(&location("stdout.bin"), &stdout.0),
+                stderr: pointer(&location("stderr.bin"), &stderr.0),
+                invocation: pointer(&location("invocation.json"), &record.0),
             }),
         }),
         ..observed_row("A001", "matched", ContestantSide::Reference)

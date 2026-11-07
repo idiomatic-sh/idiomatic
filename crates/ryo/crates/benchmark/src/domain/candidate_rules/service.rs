@@ -8,7 +8,7 @@ use ryo::linter::{
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::reports::types::PairCount;
 use ryo_benchmark_contracts::domain::requests::types::{
-    RuleContextPreparation, RuleSelection, WorkerRequest,
+    CohortSelection, RuleContextPreparation, WorkerRequest,
 };
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -24,7 +24,7 @@ pub(crate) fn project(
         });
     };
     crate::domain::rule_context::service::check(prepared, &request.files)?;
-    let RuleSelection::Explicit(selected) = &request.selected_rules else {
+    let CohortSelection::Explicit(selected) = &request.selected_rules else {
         return Err(Error::Invalid(
             constants::RULE_CONTEXT_REQUIRES_THE_EXPLICIT_CONFIGURE.into(),
         ));
@@ -79,20 +79,29 @@ pub(crate) fn project(
         hosted: vec![
             table(
                 HostRelationName(prepared.tables.selected.0.as_str().into()),
-                vec![column(HostColumnName(constants::CODE.into()), HostKind::Text)],
+                vec![column(
+                    HostColumnName(constants::CODE.into()),
+                    HostKind::Text,
+                )],
                 selected_rows,
             ),
             table(
                 HostRelationName(prepared.tables.disabled.0.as_str().into()),
                 vec![
-                    column(HostColumnName(constants::FILE_COLUMN.into()), HostKind::File),
+                    column(
+                        HostColumnName(constants::FILE_COLUMN.into()),
+                        HostKind::File,
+                    ),
                     column(HostColumnName(constants::CODE.into()), HostKind::Text),
                 ],
                 disabled_rows,
             ),
             table(
                 HostRelationName(prepared.tables.external.0.as_str().into()),
-                vec![column(HostColumnName(constants::PREFIX.into()), HostKind::Text)],
+                vec![column(
+                    HostColumnName(constants::PREFIX.into()),
+                    HostKind::Text,
+                )],
                 external_rows,
             ),
         ],

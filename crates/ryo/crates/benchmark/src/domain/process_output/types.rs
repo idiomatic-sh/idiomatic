@@ -3,7 +3,7 @@ use crate::domain::canonical_text::types::Label;
 
 /// The exact text of the three parts a receipt identity frames.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct ObservationIdentity {
+pub(crate) struct ReceiptKeyParts {
     /// The rule observed.
     pub rule: Label,
     /// The case observed.

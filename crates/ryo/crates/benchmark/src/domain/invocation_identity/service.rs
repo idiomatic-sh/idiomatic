@@ -5,6 +5,7 @@ use super::types::{Boundaries, InvocationText};
 use crate::domain::observations::service::project_profile;
 use ryo_benchmark_contracts::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations;
 use ryo_benchmark_contracts::domain::measurements::types::Invocation;
+use ryo_benchmark_contracts::domain::requests::types::{CohortSelection, InputDeclaration};
 use ryo_benchmark_contracts::domain::workloads::types::{PreparedCase, Tool};
 use std::ffi::OsStr;
 use std::path::PathBuf;
@@ -16,7 +17,7 @@ pub(crate) fn normalize_text(value: &InvocationText, boundaries: &Boundaries) ->
             .0
             .replace(&boundaries.state.0, constants::STATE)
             .replace(&boundaries.root.0, constants::ROOT)
-            .replace(constants::BACKSLASH, constants::SLASH),
+            .replace(constants::BACKSLASH, constants::NORMALIZED_SEPARATOR),
     )
 }
 
@@ -62,7 +63,7 @@ pub(crate) fn effective_observations(
     case: &PreparedCase,
     profile: &Tool,
 ) -> Option<RuleObservationDeclarations> {
-    if let Some(declarations) = &case.request.rule_observations {
+    if let InputDeclaration::Declared(declarations) = &case.request.rule_observations {
         return Some(declarations.clone());
     }
     if profile.rule_observations.is_empty() {
@@ -70,10 +71,10 @@ pub(crate) fn effective_observations(
     }
     let declarations = project_profile(
         &profile.rule_observations,
-        case.request
-            .selected_rules
-            .as_deref()
-            .unwrap_or(&profile.defaults),
+        match &case.request.selected_rules {
+            CohortSelection::Explicit(selected) => selected,
+            CohortSelection::Frozen => &profile.defaults,
+        },
         profile.rule_observation_selection,
     );
     (!declarations.is_empty()).then_some(declarations)

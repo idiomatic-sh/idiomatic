@@ -1,7 +1,7 @@
 //! Digests, expectations and admission rules of a reference discrepancy, over plain inputs.
 use super::constants;
 use super::errors::DiscrepancyError;
-use super::types::{Contestant, IdentityText, IntentMatch};
+use super::types::{Contestant, IdentityText, IntentAgreement};
 use crate::domain::canonical_text::{
     service::digest,
     types::{Fragment, Label, Quantity},
@@ -9,10 +9,14 @@ use crate::domain::canonical_text::{
 use crate::domain::diagnostics::service::compare_diagnostics as compare;
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
 use ryo_benchmark_contracts::domain::process::types::ReferenceExpectation;
-use ryo_benchmark_contracts::domain::reports::types::{RunReport, SourceByteOffset};
+use ryo_benchmark_contracts::domain::reports::types::{
+    CoverageAccounting, PairCount, RunReport, SourceByteOffset,
+};
+use ryo_benchmark_contracts::domain::requests::types::ParserSelection;
 use ryo_benchmark_contracts::domain::workloads::types::{
-    CaseComparison, DiscrepancyBasis, PreparedCase, PreparedReferenceDiscrepancy,
-    ReferenceDiscrepancyIdentity, Tool, discrepancy_evidence::value::DiscrepancyEvidence,
+    CaseComparison, DiscrepancyBasis, PreparedCase, PreparedReferenceBehavior,
+    PreparedReferenceDiscrepancy, ReferenceDiscrepancyIdentity, Tool,
+    discrepancy_evidence::value::DiscrepancyEvidence,
 };
 use std::collections::BTreeMap;
 
@@ -92,25 +96,23 @@ pub(crate) fn reference_digest(expected: &ReferenceExpectation) -> ArtifactDiges
 
 /// Preserve the strict intended contract unless an independently pinned reference differs.
 pub(crate) fn reference_expected(case: &PreparedCase) -> Result<&RunReport, DiscrepancyError> {
-    match case
-        .reference_discrepancy
-        .as_ref()
-        .map(|item| &item.expected)
-    {
-        None => Ok(&case.expected),
-        Some(ReferenceExpectation::Diagnostics(report)) => Ok(report),
-        Some(ReferenceExpectation::ProcessFailure(_)) => {
-            Err(DiscrepancyError::ProcessExpectationNotDiagnostic)
-        }
+    match &case.reference_discrepancy {
+        PreparedReferenceBehavior::Agrees => Ok(&case.expected),
+        PreparedReferenceBehavior::Differs(item) => match &item.expected {
+            ReferenceExpectation::Diagnostics(report) => Ok(report),
+            ReferenceExpectation::ProcessFailure(_) => {
+                Err(DiscrepancyError::ProcessExpectationNotDiagnostic)
+            }
+        },
     }
 }
 
 /// Raw parity remains false for the pinned reference disagreement even when intended behavior passes.
-pub(crate) fn matches_intended(case: &PreparedCase, actual: &RunReport) -> IntentMatch {
+pub(crate) fn matches_intended(case: &PreparedCase, actual: &RunReport) -> IntentAgreement {
     if compare(&case.expected, actual).is_ok() {
-        IntentMatch::Matches
+        IntentAgreement::Matches
     } else {
-        IntentMatch::Differs
+        IntentAgreement::Differs
     }
 }
 
@@ -120,7 +122,10 @@ pub(crate) fn complete(
     report: &RunReport,
     contestant: Contestant,
 ) -> Result<(), DiscrepancyError> {
-    if case.reference_discrepancy.is_none() {
+    if matches!(
+        case.reference_discrepancy,
+        PreparedReferenceBehavior::Agrees
+    ) {
         return Ok(());
     }
     let candidate = contestant == Contestant::Candidate;
@@ -128,13 +133,15 @@ pub(crate) fn complete(
         && ryo_benchmark_contracts::domain::reports::service::require_complete_execution(report)
             .is_err())
         || !report.skipped.is_empty()
-        || report.coverage.is_some_and(|coverage| {
-            coverage.selected == 0
-                || coverage.unknown_or_unread != 0
-                || coverage.skipped != 0
-                || coverage.evaluated != coverage.selected
-        })
-        || (candidate && report.coverage.is_none())
+        || match report.coverage {
+            CoverageAccounting::Accounted(coverage) => {
+                coverage.selected == PairCount(0)
+                    || coverage.unknown_or_unread != PairCount(0)
+                    || coverage.skipped != PairCount(0)
+                    || coverage.evaluated != coverage.selected
+            }
+            CoverageAccounting::Unaccounted => candidate,
+        }
     {
         return Err(DiscrepancyError::CoverageNotCompleteAndKnown);
     }
@@ -148,7 +155,7 @@ pub(crate) fn require_distinct(
 ) -> Result<(), DiscrepancyError> {
     if case.comparison != CaseComparison::Full
         || matches!(&item.expected, ReferenceExpectation::Diagnostics(report) if compare(&case.expected, report).is_ok())
-        || item.reason.trim().is_empty()
+        || item.reason.0.trim().is_empty()
         || item.evidence.is_empty()
     {
         return Err(DiscrepancyError::ExpectationsNotDistinctFullEvidenced);
@@ -191,10 +198,12 @@ pub(crate) fn check_evidence(
                     ..
                 },
             ) => {
-                if language_version.trim().is_empty()
-                    || version_rationale.trim().is_empty()
-                    || profile.parser_configuration.as_deref()
-                        != Some(target_configuration.as_str())
+                if language_version.0.trim().is_empty()
+                    || version_rationale.0.trim().is_empty()
+                    || !matches!(
+                        &profile.parser_configuration,
+                        ParserSelection::Named(name) if name.0 == target_configuration.0
+                    )
                 {
                     return Err(DiscrepancyError::EvidenceDoesNotSupportConfiguration);
                 }
@@ -208,4 +217,34 @@ pub(crate) fn check_evidence(
         }
     }
     Ok(())
+}
+
+/// Judge one contestant's decoded report against what the case expects of it.
+///
+/// The report is projected to the case's comparison scope first, and a candidate must account for its execution completely.
+///
+/// # Errors
+/// Refuses a candidate with incomplete execution accounting, a process expectation used as diagnostics, and a report a discrepancy cannot admit.
+pub(crate) fn judge(
+    case: &PreparedCase,
+    contestant: Contestant,
+    mut report: RunReport,
+) -> Result<super::types::Judgement, ryo_benchmark_contracts::domain::reports::errors::ReportsError> {
+    if contestant == Contestant::Candidate {
+        ryo_benchmark_contracts::domain::reports::service::require_complete_execution(&report)?;
+    }
+    if case.comparison == CaseComparison::Rule {
+        report.diagnostics.retain(|finding| {
+            finding.rule == case.rule
+                || finding.rule.as_ref() == crate::domain::diagnostics::constants::FRONTEND_SYNTAX
+        });
+    }
+    let expected = match contestant {
+        Contestant::Reference => reference_expected(case)?,
+        Contestant::Candidate => &case.expected,
+    };
+    complete(case, &report, contestant)?;
+    Ok(super::types::Judgement {
+        comparison: compare(expected, &report),
+    })
 }
