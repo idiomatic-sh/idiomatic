@@ -7,8 +7,8 @@ use ryo_derived::domain::raw_words::types::RawWords;
 use ryo_derived::domain::request::types::DerivedRequest;
 use ryo_derived::inbound::use_cases::build::interface::BuildUseCase as _;
 use ryo_derived::inbound::use_cases::build::use_case::BuildUseCaseImpl;
-use ryo_derived::inbound::use_cases::prepare::interface::PrepareUseCase as _;
-use ryo_derived::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
+use ryo_derived::inbound::use_cases::prepare_derived::interface::PrepareDerivedUseCase as _;
+use ryo_derived::inbound::use_cases::prepare_derived::use_case::PrepareDerivedUseCaseImpl;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::types::{RowCount, Table};
@@ -25,7 +25,7 @@ fn runs(world: &mut Behavior) {
         cells: vec![Value::Number(Integer(4)), Value::Number(Integer(5))],
         count: RowCount(2),
     };
-    let prepared = PrepareUseCaseImpl::new().prepare(
+    let prepared = PrepareDerivedUseCaseImpl::new().prepare(
         DerivedRequest::Equality {
             columns: vec![ColumnIndex(0)],
         },

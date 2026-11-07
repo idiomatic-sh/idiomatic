@@ -9,7 +9,7 @@ use ryo_derived::domain::contract::types::{BuildInputs, BuildOutcome, BuildWorks
 use ryo_derived::domain::fault::types::DerivedFault;
 use ryo_derived::domain::request::types::DerivedRequest;
 use ryo_derived::inbound::use_cases::build::interface::BuildUseCase;
-use ryo_derived::inbound::use_cases::prepare::interface::PrepareUseCase;
+use ryo_derived::inbound::use_cases::prepare_derived::interface::PrepareDerivedUseCase;
 use ryo_derived::inbound::use_cases::view::interface::ViewUseCase;
 use ryo_relations::domain::relations::types::CellKind;
 
@@ -29,7 +29,7 @@ impl DerivedUseCaseAdapter {
 
 impl DerivedPort for DerivedUseCaseAdapter {
     fn prepare(&self, request: DerivedRequest, schemas: Vec<Vec<CellKind>>) -> PreparedDerived {
-        PrepareUseCase::prepare(&*self.use_cases.prepare, request, schemas)
+        PrepareDerivedUseCase::prepare(&*self.use_cases.prepare, request, schemas)
     }
     fn build(
         &self,

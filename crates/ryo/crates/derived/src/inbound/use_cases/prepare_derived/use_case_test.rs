@@ -1,7 +1,7 @@
-//! What the `prepare` use case promises, against the fakes of the ports it calls, from its fixtures.
+//! What the `prepare_derived` use case promises, against the fakes of the ports it calls, from its fixtures.
 
-use super::interface::PrepareUseCase;
-use super::use_case::PrepareUseCaseImpl;
+use super::interface::PrepareDerivedUseCase;
+use super::use_case::PrepareDerivedUseCaseImpl;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::fault::types::DerivedFault;
 use crate::domain::request::types::DerivedRequest;
@@ -39,7 +39,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
         Scenario::PresentColumn => ColumnIndex(0),
         Scenario::AbsentColumn => ColumnIndex(3),
     };
-    let prepared = PrepareUseCaseImpl::new().prepare(
+    let prepared = PrepareDerivedUseCaseImpl::new().prepare(
         DerivedRequest::Equality { columns: vec![column] },
         vec![vec![CellKind::Number]],
     );

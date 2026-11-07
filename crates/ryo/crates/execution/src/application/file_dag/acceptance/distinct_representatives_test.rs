@@ -6,7 +6,7 @@ use ryo_derived::domain::fault::types::DerivedFault;
 use ryo_derived::domain::contract::types::BuildInputs;
 use ryo_derived::domain::request::types::DerivedRequest;
 use ryo_derived::inbound::use_cases::build::interface::BuildUseCase;
-use ryo_derived::inbound::use_cases::prepare::interface::PrepareUseCase;
+use ryo_derived::inbound::use_cases::prepare_derived::interface::PrepareDerivedUseCase;
 use ryo_derived::inbound::use_cases::view::interface::ViewUseCase;
 use ryo_relations::domain::relations::types::{CellKind, ColumnsView, FactColumn};
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};

@@ -1,8 +1,8 @@
 //! The derived capability's acceptance runner: every use case's colocated feature, run through its steps over one world.
 #[path = "../src/inbound/use_cases/build/acceptance.rs"]
 mod build;
-#[path = "../src/inbound/use_cases/prepare/acceptance.rs"]
-mod prepare;
+#[path = "../src/inbound/use_cases/prepare_derived/acceptance.rs"]
+mod prepare_derived;
 #[path = "../src/inbound/use_cases/view/acceptance.rs"]
 mod view;
 

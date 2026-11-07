@@ -14,7 +14,7 @@ use ryo_derived::domain::equality::types::KeyIndex;
 use ryo_derived::domain::row_cells::types::RowCells;
 use ryo_derived::domain::request::types::DerivedRequest;
 use ryo_derived::inbound::use_cases::build::interface::BuildUseCase;
-use ryo_derived::inbound::use_cases::prepare::interface::PrepareUseCase;
+use ryo_derived::inbound::use_cases::prepare_derived::interface::PrepareDerivedUseCase;
 use ryo_derived::inbound::use_cases::view::interface::ViewUseCase;
 use ryo_relations::domain::relations::types::{CellKind, Integer};
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};

@@ -1,13 +1,13 @@
 //! The three derived use cases the adapter calls, which the edge built.
 use ryo_derived::inbound::use_cases::build::interface::BuildUseCase;
-use ryo_derived::inbound::use_cases::prepare::interface::PrepareUseCase;
+use ryo_derived::inbound::use_cases::prepare_derived::interface::PrepareDerivedUseCase;
 use ryo_derived::inbound::use_cases::view::interface::ViewUseCase;
 use std::sync::Arc;
 
 /// The three derived use cases, composed once at an edge and injected.
 pub(crate) struct DerivedUseCases {
     /// The preparation of requests.
-    pub prepare: Arc<dyn PrepareUseCase + Send + Sync>,
+    pub prepare: Arc<dyn PrepareDerivedUseCase + Send + Sync>,
     /// The build of payloads.
     pub build: Arc<dyn BuildUseCase + Send + Sync>,
     /// The view of payloads.

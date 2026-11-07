@@ -1,7 +1,7 @@
 //! The `positions` service's cases, on values alone.
 use crate::outbound::derived::interface::DerivedPort as _;
 use ryo_derived::inbound::use_cases::build::interface::BuildUseCase;
-use ryo_derived::inbound::use_cases::prepare::interface::PrepareUseCase;
+use ryo_derived::inbound::use_cases::prepare_derived::interface::PrepareDerivedUseCase;
 use ryo_derived::inbound::use_cases::view::interface::ViewUseCase;
 
 use ryo_language::domain::completion::service::{completion, name_kind};
