@@ -1,4 +1,5 @@
-//! Actual derived activation visits and allocator blocks exclude dormant compiled roots.
+//! Actual derived activation visits and allocator blocks exclude dormant compiled roots, and the facts finish reads a stored
+//! population without allocating a copy of its words.
 mod fixtures;
 use fixtures::file::measure;
 use fixtures::project::measure_project;
@@ -21,6 +22,7 @@ enum Input {
     ProjectSparse,
     ProjectDense,
     ProjectUncounted,
+    FactsFinishBorrows,
 }
 fn same_cost(left: Sample, right: Sample) {
     assert_eq!(left.work, right.work);
@@ -164,9 +166,55 @@ fn subject(input: Input) -> Result<(), OperatingError> {
                 "allocation measurement must detect an uncounted dormant scan"
             );
         }
+        Input::FactsFinishBorrows => {
+            let (blocks, bytes) = facts_finish_blocks().map_err(|error| {
+                OperatingError::ObservationIncomplete {
+                    reason: error.to_string(),
+                }
+            })?;
+            // One block for the sources and one for the joined list: no block for the words, which are the worker's own.
+            // Before one copy (checkpoint 322) the same read made four: the clone of the words and the sources, then the
+            // concatenation of each.
+            assert!(blocks <= 2, "the finish allocated {blocks} blocks");
+            assert!(bytes < WORDS, "the finish copied the words: {bytes} bytes");
+        }
     }
     Ok(())
 }
+/// How many packed bytes the stored population of the facts finish case holds.
+const WORDS: usize = 4096;
+
+/// The blocks and bytes one read of a stored population from the memory facts finish allocates.
+fn facts_finish_blocks()
+-> Result<(u64, u64), ryo_execution::outbound::facts::errors::FactsError> {
+    use ryo_execution::outbound::facts::interface::FactsPort as _;
+    let facts = ryo_execution::outbound::facts::factory::memory();
+    let worker = facts.worker()?;
+    let proof = ryo_values::domain::records::types::FrontierProof {
+        rule: ryo_values::domain::records::types::ProducerRule(0),
+        input: ryo_values::domain::records::types::FrontierOrdinal(0),
+        rule_digest: ryo_values::domain::stored_facts::types::Digest([0; 16]),
+        coverage: ryo_values::domain::records::types::FrontierCoverage::Complete,
+    };
+    worker.keep(
+        ryo_values::domain::stored_facts::types::Bucket(3),
+        ryo_execution::outbound::facts::types::WordsToKeep {
+            words: &ryo_values::domain::stored_facts::types::PackedWords(vec![1; WORDS]),
+            file: ryo_relations::domain::relations::types::FileId(0),
+            proof: &proof,
+        },
+    )?;
+    let finished = facts.finish(&mut std::iter::once(worker))?;
+    let before = dhat::HeapStats::get();
+    let kept = finished.kept(ryo_values::domain::stored_facts::types::Bucket(3))?;
+    let after = dhat::HeapStats::get();
+    assert_eq!(kept.words.0.0.len(), WORDS);
+    Ok((
+        after.total_blocks - before.total_blocks,
+        after.total_bytes - before.total_bytes,
+    ))
+}
+
 const CASES: &[Case<Input, (), OperatingError>] = &[
     Case {
         name: CaseName("same_131_rule_sparse_intent_reads_only_its_required_metadata"),
@@ -236,6 +284,12 @@ const CASES: &[Case<Input, (), OperatingError>] = &[
         name: CaseName("an_uncounted_dormant_project_scan_is_detected_by_allocation"),
         word: Word::Succeeds,
         input: || Input::ProjectUncounted,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("the_facts_finish_reads_a_stored_population_without_copying_its_words"),
+        word: Word::Succeeds,
+        input: || Input::FactsFinishBorrows,
         expect: Expect::Value(()),
     },
 ];

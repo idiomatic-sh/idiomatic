@@ -258,14 +258,14 @@ fn diagnose_invalid_utf8(
 /// are parsed again before relocation so semantic token text and child order survive.
 fn append_annotation(
     builder: &mut languages::TableBuilder<'_>,
-    candidate: &AnnotationCandidate,
+    candidate: &AnnotationCandidate<'_>,
     source: languages::NameText<'_>,
     inherited: languages::EmbeddedMapping,
 ) {
     append_literal(
         builder,
         candidate.host,
-        &candidate.literal,
+        candidate.literal,
         source,
         inherited,
     );
