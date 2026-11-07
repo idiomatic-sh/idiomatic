@@ -524,7 +524,7 @@ fn frontier_compatible(
         if frontier_state(*frame, slot).map_err(|_| incomplete())? != ProducerReadiness::Complete {
             // Logical unavailability may be localized only by independently
             // admitted physical provenance, never by a cached readiness bit.
-            if !matches!(physical, CoverageState::Partial { files }
+            if !matches!(physical, CoverageState::Partial { files, .. }
                 if files.contains(&None) || files.contains(&Some(*file)))
                 && !matches!(physical, CoverageState::Inapplicable { files }
                     if files.contains(file))

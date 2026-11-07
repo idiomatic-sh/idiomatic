@@ -27,7 +27,7 @@ use ryo_values::domain::plans::types::{Operation, Plan};
 use ryo_values::domain::runs::types::RuleId;
 
 /// The place of the `kind` column of a relation, when it has one.
-fn kind_place(relation: Relation) -> Option<ColumnIndex> {
+pub(crate) fn kind_place(relation: Relation) -> Option<ColumnIndex> {
     let kind = kind_column(relation)?;
     columns(relation)
         .into_iter()
@@ -36,7 +36,7 @@ fn kind_place(relation: Relation) -> Option<ColumnIndex> {
 }
 
 /// Whether a comparison lets a row of this kind through, as far as it can be told from the comparison alone.
-fn admits(comparison: &PlanComparison, kind: &LackingKind) -> Passage {
+pub(crate) fn admits(comparison: &PlanComparison, kind: &LackingKind) -> Passage {
     let kind: &str = &kind.0;
     let Operand::Literal(QueryLiteral::Text(text)) = &comparison.right else {
         return Passage::LetsThrough;
