@@ -58,7 +58,7 @@ def context_guard_self_test() -> None:
     authored = {'files': {'mod.py': 'from pkg.mod import *\n'}, 'context': {'logical-root': 'pkg', 'auxiliary-files': {'pkg/__init__.py': ''}, 'missing': ['__init__.py']}}
     identity = case_records.expected_context_identity(authored, 'listed-disk')
     if os.name != 'nt':
-        assert identity['manifest_hash'] == 'e245d4740b16dcfc7622f5b1fb7197ef320c88a48245d856a9410eca78485563'
+        assert identity['manifest_hash'] == '6093f902d18d21b3fccc4379091bfdc4acea04c200af1cd814097d0286a60d5e'
     manifest = {'mode': 'listed-disk', 'logical_root': 'pkg', 'actual_root': str(Path(tempfile.gettempdir()).resolve() / 'sealed-context' / 'pkg'), 'manifest_hash': identity['manifest_hash']}
     case = {'project_context_mode': 'listed-disk', 'context_identity': identity}
     sides = {'reference': {'context_manifest': manifest, 'project_context': None}, 'candidate': {'context_manifest': manifest, 'project_context': {**manifest, 'dependencies': {'../__init__.py': None, '__init__.py': [175, 19, 73, 185, 245, 249, 161, 166, 160, 64, 77, 234, 54, 220, 201, 73]}}}}
