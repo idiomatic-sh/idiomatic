@@ -27,16 +27,17 @@ pub(crate) fn demand(contract: SemanticContract, used: usize) -> DemandProgram {
     }
 }
 
-struct DraftRegion {
-    phase: StepScope,
-    nodes: Vec<usize>,
-    instructions: Vec<Instruction>,
-    inputs: Vec<NodeInput>,
-    needs: Result<Vec<crate::domain::trust::types::RelationRead>, OperatingError>,
+pub(super) struct DraftRegion {
+    pub(super) phase: StepScope,
+    pub(super) nodes: Vec<usize>,
+    pub(super) instructions: Vec<Instruction>,
+    pub(super) inputs: Vec<NodeInput>,
+    pub(super) needs: Result<Vec<crate::domain::trust::types::RelationRead>, OperatingError>,
     /// Whether every instruction's answer depends only on its operation and inputs.
-    sharing: RegionSharing,
+    pub(super) sharing: RegionSharing,
 }
 /// The canonical inputs of a region: producers named by the region that now serves them.
+/// Built once per region; every later comparison and lookup reads this form.
 fn canonical(draft: &DraftRegion, mapping: &[usize]) -> Vec<NodeInput> {
     draft
         .inputs
@@ -48,7 +49,13 @@ fn canonical(draft: &DraftRegion, mapping: &[usize]) -> Vec<NodeInput> {
         .collect()
 }
 /// Equal regions of different rules compute once: same instructions, same inputs, same bindings.
-fn equivalent(left: &DraftRegion, right: &DraftRegion, mapping: &[usize]) -> bool {
+/// Compares only; the canonical inputs of both sides are already built.
+fn equivalent(
+    left: &DraftRegion,
+    left_inputs: &[NodeInput],
+    right: &DraftRegion,
+    right_inputs: &[NodeInput],
+) -> bool {
     left.phase == right.phase
         && left.instructions.len() == right.instructions.len()
         && left
@@ -56,7 +63,81 @@ fn equivalent(left: &DraftRegion, right: &DraftRegion, mapping: &[usize]) -> boo
             .iter()
             .zip(&right.instructions)
             .all(|(a, b)| a.operation == b.operation && a.partition == b.partition)
-        && canonical(left, mapping) == canonical(right, mapping)
+        && left_inputs == right_inputs
+}
+/// The bucket of a region: a hash of everything `equivalent` compares except the phase.
+/// Equivalent regions always share a bucket; a collision is settled by `equivalent`.
+fn bucket(draft: &DraftRegion, canonical: &[NodeInput]) -> RegionBucket {
+    use std::hash::{Hash, Hasher};
+    let mut state = std::hash::DefaultHasher::new();
+    canonical.hash(&mut state);
+    draft.instructions.len().hash(&mut state);
+    for instruction in &draft.instructions {
+        instruction.operation.hash(&mut state);
+        instruction.partition.hash(&mut state);
+    }
+    RegionBucket(state.finish())
+}
+/// Equivalent regions of different rules compute once; their readers add up.
+/// The first equivalent earlier region serves the later one.
+pub(super) fn merge_equivalent(
+    drafts: &mut [Option<DraftRegion>],
+    mapping: &mut [usize],
+    representative: &mut [usize],
+    readers: &mut [ReaderMultiplicity],
+) -> RegionMerge {
+    let mut merge = RegionMerge {
+        shared: Vec::new(),
+        comparisons: 0,
+    };
+    // Canonical inputs of each kept region, built when it is kept; its children are
+    // final by then because every child region precedes it.
+    let mut kept_inputs: Vec<Vec<NodeInput>> = vec![Vec::new(); drafts.len()];
+    let mut buckets: std::collections::HashMap<RegionBucket, Vec<usize>> =
+        std::collections::HashMap::new();
+    for at in 0..drafts.len() {
+        let Some(draft) = drafts[at].as_ref() else {
+            continue;
+        };
+        if draft.sharing == RegionSharing::RuleScoped {
+            continue;
+        }
+        let inputs = canonical(draft, mapping);
+        let key = bucket(draft, &inputs);
+        let twin = buckets.get(&key).and_then(|candidates| {
+            candidates.iter().copied().find(|earlier| {
+                merge.comparisons += 1;
+                drafts[*earlier]
+                    .as_ref()
+                    .is_some_and(|kept| equivalent(kept, &kept_inputs[*earlier], draft, &inputs))
+            })
+        });
+        let Some(twin) = twin else {
+            merge.shared.push(at);
+            buckets.entry(key).or_default().push(at);
+            kept_inputs[at] = inputs;
+            continue;
+        };
+        let Some(merged) = drafts[at].take() else {
+            continue;
+        };
+        if let Some(kept) = drafts[twin].as_ref() {
+            for (node, served) in merged.nodes.iter().zip(&kept.nodes) {
+                representative[*node] = *served;
+            }
+        }
+        for node in &merged.nodes {
+            mapping[*node] = twin;
+        }
+        for input in &merged.inputs {
+            if let NodeInput::Node(child) = input {
+                let producer = mapping[child.0];
+                readers[producer].0 = readers[producer].0.saturating_sub(1);
+            }
+        }
+        readers[twin].0 += readers[at].0;
+    }
+    merge
 }
 /// The analysis graph is consumed. Its native regions, layouts, cuts, liveness
 /// tables and original-plan execution copies do not survive into this program.
@@ -160,42 +241,7 @@ pub(crate) fn compile(
         .collect();
     // A merged node is served by its twin's instruction at the same place in the region.
     let mut representative: Vec<usize> = (0..count).collect();
-    let mut shared: Vec<usize> = Vec::new();
-    for at in 0..drafts.len() {
-        let Some(draft) = drafts[at].as_ref() else {
-            continue;
-        };
-        if draft.sharing == RegionSharing::RuleScoped {
-            continue;
-        }
-        let twin = shared.iter().copied().find(|earlier| {
-            drafts[*earlier]
-                .as_ref()
-                .is_some_and(|earlier| equivalent(earlier, draft, &mapping))
-        });
-        let Some(twin) = twin else {
-            shared.push(at);
-            continue;
-        };
-        let Some(merged) = drafts[at].take() else {
-            continue;
-        };
-        if let Some(kept) = drafts[twin].as_ref() {
-            for (node, served) in merged.nodes.iter().zip(&kept.nodes) {
-                representative[*node] = *served;
-            }
-        }
-        for node in &merged.nodes {
-            mapping[*node] = twin;
-        }
-        for input in &merged.inputs {
-            if let NodeInput::Node(child) = input {
-                let producer = mapping[child.0];
-                readers[producer].0 = readers[producer].0.saturating_sub(1);
-            }
-        }
-        readers[twin].0 += readers[at].0;
-    }
+    merge_equivalent(&mut drafts, &mut mapping, &mut representative, &mut readers);
     let mut dense = vec![usize::MAX; drafts.len()];
     let mut next = 0;
     for (at, region) in drafts.iter().enumerate() {

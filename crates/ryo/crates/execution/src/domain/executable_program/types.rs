@@ -33,7 +33,7 @@ pub(crate) enum InputSource {
         member: usize,
     },
 }
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum PartitionRequirement {
     RequestInvariant,
     CurrentFile,
@@ -347,4 +347,14 @@ impl SelectionAlternative {
     pub(crate) fn logical(&self) -> LogicalInstruction {
         self.logical
     }
+}
+/// The bucket equivalent regions share: a hash of what their comparison reads.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub(super) struct RegionBucket(pub u64);
+/// What merging equivalent regions kept and how many comparisons it made.
+#[derive(Debug)]
+pub(super) struct RegionMerge {
+    /// The kept regions in order.
+    pub shared: Vec<usize>,
+    pub comparisons: usize,
 }
