@@ -317,6 +317,7 @@ pub(in super::super) fn compare_delivery_with_port(
 }
 #[derive(Debug, Default)]
 struct ContinuesAfterDriverRefusal(std::sync::atomic::AtomicUsize);
+impl crate::outbound::operators::interface::OperatorsPort for ContinuesAfterDriverRefusal {}
 impl ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase
     for ContinuesAfterDriverRefusal
 {

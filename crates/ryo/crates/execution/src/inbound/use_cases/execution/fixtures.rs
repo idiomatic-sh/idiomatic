@@ -117,10 +117,12 @@ pub(super) struct Preparation {
     derived: DerivedAccess,
 }
 /// The real operators capability, as the engine composes it.
-pub(super) fn operators() -> ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl {
-    ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(Arc::new(
-        ryo_operators::outbound::matching::factory::use_case(),
-    ))
+pub(super) fn operators() -> impl OperatorsPort {
+    crate::outbound::operators::factory::use_case(
+        ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(Arc::new(
+            ryo_operators::outbound::matching::factory::use_case(),
+        )),
+    )
 }
 impl Preparation {
     /// The preparation over the real operators and derived views.

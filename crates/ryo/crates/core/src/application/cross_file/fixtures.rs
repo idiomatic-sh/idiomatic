@@ -354,6 +354,7 @@ pub(super) struct ProjectCalls {
     pub(super) aggregates: std::sync::atomic::AtomicUsize,
 }
 
+impl ryo_execution::outbound::operators::interface::OperatorsPort for ProjectCalls {}
 impl ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase for ProjectCalls {
     fn operators(
         &self,

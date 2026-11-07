@@ -1,5 +1,6 @@
 //! The `operators` port.
 
+pub mod adapter;
 pub mod interface;
 pub mod factory;
 

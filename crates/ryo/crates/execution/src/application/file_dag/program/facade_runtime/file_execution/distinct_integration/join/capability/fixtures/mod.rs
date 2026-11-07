@@ -16,6 +16,7 @@ pub(in super::super) struct Witness {
     pub(in super::super) refuse: bool,
     pub(in super::super) only_columns: bool,
 }
+impl crate::outbound::operators::interface::OperatorsPort for Witness {}
 impl OperatorsUseCase for Witness {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
         if let OperatorCall::EqualityJoin { input } = &call {

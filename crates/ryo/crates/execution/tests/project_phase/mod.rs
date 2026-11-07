@@ -793,6 +793,7 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
     use ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl;
     #[derive(Debug, Default)]
     struct UnionSemanticCalls(AtomicUsize);
+    impl ryo_execution::outbound::operators::interface::OperatorsPort for UnionSemanticCalls {}
     impl OperatorsUseCase for UnionSemanticCalls {
         fn operators(
             &self,

@@ -25,6 +25,7 @@ struct ProjectPressure {
     reductions: AtomicUsize,
     pressure: MemoryPressure,
 }
+impl ryo_execution::outbound::operators::interface::OperatorsPort for ProjectPressure {}
 impl OperatorsUseCase for ProjectPressure {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
         let reduction = matches!(&call, OperatorCall::ReduceCount { .. });

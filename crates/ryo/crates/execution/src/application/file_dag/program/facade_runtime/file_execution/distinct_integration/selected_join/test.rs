@@ -9,6 +9,7 @@ use ryo_operators::domain::contract::types::PortableOperatorFault;
 /// Observe only actual Join driver work, excluding prepared walks and publication delivery.
 #[derive(Debug, Default)]
 struct JoinReads(std::sync::Mutex<Vec<(u64, u64)>>);
+impl crate::outbound::operators::interface::OperatorsPort for JoinReads {}
 impl OperatorsUseCase for JoinReads {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
         let before = matches!(&call, OperatorCall::EqualityJoin { .. }).then(read_row_counts);

@@ -19,6 +19,7 @@ fn actual_column_join_counts_matching_visits_not_population_size_even_on_refusal
         witness: Arc<Witness>,
         refuse: bool,
     }
+    impl crate::outbound::operators::interface::OperatorsPort for AfterFirstMatch {}
     impl OperatorsUseCase for AfterFirstMatch {
         fn operators(
             &self,

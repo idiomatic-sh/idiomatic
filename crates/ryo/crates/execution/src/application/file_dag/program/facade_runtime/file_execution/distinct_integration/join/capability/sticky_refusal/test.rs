@@ -11,6 +11,7 @@ use ryo_operators::domain::contract::types::PortableOperatorFault;
 struct KeepsCalling {
     refuse_project: bool,
 }
+impl crate::outbound::operators::interface::OperatorsPort for KeepsCalling {}
 impl OperatorsUseCase for KeepsCalling {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
         match call {

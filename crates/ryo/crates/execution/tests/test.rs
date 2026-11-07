@@ -645,6 +645,7 @@ struct ReductionAudit {
     reductions: std::sync::atomic::AtomicUsize,
     emissions: std::sync::atomic::AtomicUsize,
 }
+impl ryo_execution::outbound::operators::interface::OperatorsPort for ReductionAudit {}
 impl ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase for ReductionAudit {
     fn operators(
         &self,

@@ -50,6 +50,7 @@ struct ObservedSemantics {
     projects: AtomicUsize,
     appends: AtomicUsize,
 }
+impl crate::outbound::operators::interface::OperatorsPort for ObservedSemantics {}
 impl OperatorsUseCase for ObservedSemantics {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
         let refuse = match &call {

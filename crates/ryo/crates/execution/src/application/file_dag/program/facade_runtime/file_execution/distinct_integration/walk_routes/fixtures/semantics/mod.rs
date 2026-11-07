@@ -42,6 +42,7 @@ impl Meanings {
         }
     }
 }
+impl crate::outbound::operators::interface::OperatorsPort for Meanings {}
 impl OperatorsUseCase for Meanings {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
         match &call {

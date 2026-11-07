@@ -14,6 +14,7 @@ pub struct OperatorsFake {
     /// Refuse before the portable implementation runs.
     pub refuses: bool,
 }
+impl OperatorsPort for OperatorsFake {}
 impl ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase for OperatorsFake {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
         self.calls.fetch_add(1, Ordering::Relaxed);

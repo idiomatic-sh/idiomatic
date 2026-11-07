@@ -38,6 +38,7 @@ fn shared_tree_positions_keep_native_join_projection_refusal_and_replay() {
         calls: AtomicUsize,
         refuse: bool,
     }
+    impl ryo_execution::outbound::operators::interface::OperatorsPort for ObservedJoin {}
     impl OperatorsUseCase for ObservedJoin {
         fn operators(
             &self,

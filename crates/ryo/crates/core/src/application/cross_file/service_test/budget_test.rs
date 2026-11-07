@@ -37,6 +37,7 @@ struct GrowingMemory {
     actual: ProjectCalls,
     resident: AtomicU64,
 }
+impl ryo_execution::outbound::operators::interface::OperatorsPort for GrowingMemory {}
 impl OperatorsUseCase for GrowingMemory {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
         let answer = self.actual.operators(call);

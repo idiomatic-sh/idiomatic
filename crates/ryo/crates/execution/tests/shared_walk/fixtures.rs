@@ -45,6 +45,7 @@ use std::sync::{
 };
 #[derive(Debug, Default)]
 pub(super) struct SemanticCalls(AtomicUsize);
+impl ryo_execution::outbound::operators::interface::OperatorsPort for SemanticCalls {}
 impl OperatorsUseCase for SemanticCalls {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
         if matches!(&call, OperatorCall::Select { .. }) {

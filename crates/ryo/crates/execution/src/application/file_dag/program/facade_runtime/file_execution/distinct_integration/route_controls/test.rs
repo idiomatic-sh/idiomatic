@@ -18,6 +18,7 @@ struct MeaningCalls {
     joins: AtomicUsize,
     sets: AtomicUsize,
 }
+impl crate::outbound::operators::interface::OperatorsPort for MeaningCalls {}
 impl OperatorsUseCase for MeaningCalls {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
         match &call {

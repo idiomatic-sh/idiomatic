@@ -5,6 +5,7 @@ use super::super::fixtures::describe;
 use ryo_values::domain::query_operators::types::OperationKind;
 #[derive(Debug)]
 struct RefusingSemantics;
+impl crate::outbound::operators::interface::OperatorsPort for RefusingSemantics {}
 impl ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase
     for RefusingSemantics
 {

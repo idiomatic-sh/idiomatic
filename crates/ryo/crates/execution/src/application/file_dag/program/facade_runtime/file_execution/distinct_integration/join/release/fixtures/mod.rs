@@ -13,6 +13,7 @@ pub(super) struct OrderedPort {
     pub(super) calls: AtomicUsize,
     pub(super) refuse: bool,
 }
+impl crate::outbound::operators::interface::OperatorsPort for OrderedPort {}
 impl OperatorsUseCase for OrderedPort {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
         if matches!(call, OperatorCall::OrderedExistence { .. }) {
