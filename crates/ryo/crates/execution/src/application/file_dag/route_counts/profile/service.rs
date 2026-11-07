@@ -38,6 +38,7 @@ pub(in super::super) fn with_borrow_mut<R>(
 }
 
 /// Runs `visit` over the calling thread's profile.
+#[cfg(any(test, feature = "diagnostic-row-progress"))]
 pub(in super::super) fn with_borrow<R>(visit: impl FnOnce(&Option<Box<RouteState>>) -> R) -> R {
     with_borrow_mut(|state| visit(state))
 }
