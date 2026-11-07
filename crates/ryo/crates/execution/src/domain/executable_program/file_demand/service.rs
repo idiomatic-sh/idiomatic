@@ -1,10 +1,12 @@
 //! Compile immutable file-intent root obligations once for the whole request.
 use super::super::types::{
     ConsumerObligation, ExecutableProgram, FileReaderGraph, InputSource, ReaderMultiplicity,
-    RegionId, RuleProgram,
+    RegionId, Remaining, RemainingTable, RuleProgram,
 };
 use super::types::*;
-use crate::domain::{coverage::types::RuleIndex, operating::errors::OperatingError};
+use crate::domain::{
+    coverage::types::RuleIndex, operating::errors::OperatingError, readiness::types::RegionCount,
+};
 use ryo_values::domain::{
     plan_parts::types::StepScope,
     records::types::ObservationIndex,
@@ -206,38 +208,79 @@ pub(crate) fn readers(
     }
     Ok(FileReaderGraph {
         consumers: compiled,
+        remaining: Default::default(),
+    })
+}
+
+/// Initial reader counts for the selected roots, computed once and shared by every
+/// later file that selects the same roots.
+pub(crate) fn remaining(
+    graph: &FileReaderGraph,
+    regions: RegionCount,
+    selected: &std::collections::HashMap<RegionId, ReaderMultiplicity>,
+) -> Result<Remaining, OperatingError> {
+    let mut memo = graph
+        .remaining
+        .lock()
+        .map_err(|_| OperatingError::NotRun)?;
+    if let Some(table) = &memo.table
+        && table.selected == *selected
+    {
+        return Ok(Remaining {
+            table: std::sync::Arc::clone(table),
+            computations: memo.computations,
+        });
+    }
+    let table = std::sync::Arc::new(table(graph, regions, selected)?);
+    memo.computations += 1;
+    memo.table = Some(std::sync::Arc::clone(&table));
+    Ok(Remaining {
+        table,
+        computations: memo.computations,
     })
 }
 
 /// Count only selected external roots and their potentially live direct consumers.
 /// Duplicate dependency edges remain distinct; shared consumers are counted once.
-pub(crate) fn remaining(
+fn table(
     graph: &FileReaderGraph,
+    regions: RegionCount,
     selected: &std::collections::HashMap<RegionId, ReaderMultiplicity>,
-    producer: RegionId,
-) -> Result<ReaderMultiplicity, OperatingError> {
-    let mut consumers = std::collections::HashMap::<RegionId, ReaderMultiplicity>::new();
+) -> Result<RemainingTable, OperatingError> {
+    let mut consumers =
+        vec![std::collections::HashMap::<RegionId, ReaderMultiplicity>::new(); regions.0];
     for root in selected.keys() {
-        let roots = graph.consumers.get(root).ok_or(OperatingError::NotRun)?;
-        if let Some(users) = roots.get(&producer) {
+        let producers = graph.consumers.get(root).ok_or(OperatingError::NotRun)?;
+        for (producer, users) in producers {
+            let slot = consumers
+                .get_mut(producer.0)
+                .ok_or(OperatingError::NotRun)?;
             for user in users {
-                let consumer = user.consumer;
-                let multiplicity = user.readers;
-                consumers
-                    .entry(consumer)
-                    .and_modify(|count| *count = ReaderMultiplicity(count.0.max(multiplicity.0)))
-                    .or_insert(multiplicity);
+                slot.entry(user.consumer)
+                    .and_modify(|count| *count = ReaderMultiplicity(count.0.max(user.readers.0)))
+                    .or_insert(user.readers);
             }
         }
     }
-    consumers.values().try_fold(
-        selected.get(&producer).copied().unwrap_or_default(),
-        |count, used| {
-            count
-                .0
-                .checked_add(used.0)
-                .map(ReaderMultiplicity)
-                .ok_or(OperatingError::ShapeMismatch)
-        },
-    )
+    let counts = consumers
+        .iter()
+        .enumerate()
+        .map(|(at, users)| {
+            users.values().try_fold(
+                selected.get(&RegionId(at)).copied().unwrap_or_default(),
+                |count, used| {
+                    count
+                        .0
+                        .checked_add(used.0)
+                        .map(ReaderMultiplicity)
+                        .ok_or(OperatingError::ShapeMismatch)
+                },
+            )
+        })
+        .collect::<Result<Vec<_>, _>>()?
+        .into_boxed_slice();
+    Ok(RemainingTable {
+        selected: selected.clone(),
+        counts,
+    })
 }

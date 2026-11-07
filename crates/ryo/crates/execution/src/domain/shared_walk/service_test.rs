@@ -163,24 +163,27 @@ fn distinct_single_consumer_predicates_share_the_walk() {
     assert_eq!(batch.visits(ClassPlace(1)).0, 1);
 }
 
+/// A plan with an invalid regular expression before or after its name test.
+fn with_invalid(name: &str, first: bool) -> Plan {
+    let mut each = plan(name);
+    let Operation::Select { comparisons, .. } = &mut each.steps[0].operation else {
+        unreachable!()
+    };
+    let at = if first { 0 } else { comparisons.len() };
+    comparisons.insert(
+        at,
+        PlanComparison {
+            test: Test::Matches,
+            left: Operand::Column(ColumnIndex(2)),
+            right: Operand::Literal(QueryLiteral::Text(LiteralText("[".into()))),
+            origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
+        },
+    );
+    each
+}
+
 fn predicate_order_preserves_errors_and_short_circuits() {
-    let mut first = plan("absent-kind");
-    let Operation::Select { comparisons, .. } = &mut first.steps[0].operation else {
-        unreachable!()
-    };
-    let invalid = PlanComparison {
-        test: Test::Matches,
-        left: Operand::Column(ColumnIndex(2)),
-        right: Operand::Literal(QueryLiteral::Text(LiteralText("[".into()))),
-        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
-    };
-    comparisons.insert(0, invalid.clone());
-    let mut second = plan("absent-kind");
-    let Operation::Select { comparisons, .. } = &mut second.steps[0].operation else {
-        unreachable!()
-    };
-    comparisons.push(invalid);
-    let plans = [first, second];
+    let plans = [with_invalid("absent-kind", true), with_invalid("absent-kind", false)];
     let bindings = vec![Vec::new(); plans.len()];
     let prepared = PreparedWalk::compile(&plans, &bindings);
     let batch = evaluate_plans(&prepared, &bindings, &[ClassPlace(0), ClassPlace(1)]);
@@ -191,6 +194,19 @@ fn predicate_order_preserves_errors_and_short_circuits() {
         ))
     ));
     assert!(batch.class(ClassPlace(1)).unwrap().positions.0.is_empty());
+}
+
+fn memo_builds_an_erroring_predicate_once_and_reuses_hits() {
+    let plans = [with_invalid("word", true), with_invalid("other", true)];
+    let bindings = vec![Vec::new(); plans.len()];
+    let prepared = PreparedWalk::compile(&plans, &bindings);
+    let batch = evaluate_plans(&prepared, &bindings, &[ClassPlace(0), ClassPlace(1)]);
+    assert!([ClassPlace(0), ClassPlace(1)].into_iter().all(|class| matches!(
+        batch.class(class).map(|result| &result.completion),
+        Some(Err(crate::domain::operating::errors::OperatingError::InvalidRegex { .. }))
+    )));
+    assert_eq!(batch.counts().predicate_tests.0, 1);
+    assert_eq!(batch.counts().predicate_reuses.0, 1);
 }
 
 pub(crate) fn add_pattern(plans: &mut [Plan; 4], parameter: u32) {
@@ -294,6 +310,7 @@ enum Scenario {
     Distinct,
     Ready,
     SourceOrder,
+    MemoReuse,
 }
 
 type Input = Scenario;
@@ -320,6 +337,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(1),
     },
     Case {
+        name: CaseName("memoised predicates reuse hits and build an error once"),
+        word: Word::Succeeds,
+        input: || Scenario::MemoReuse,
+        expect: Expect::Value(1),
+    },
+    Case {
         name: CaseName("first source row owns first error"),
         word: Word::Succeeds,
         input: || Scenario::SourceOrder,
@@ -333,6 +356,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
         Scenario::Distinct => distinct_single_consumer_predicates_share_the_walk(),
         Scenario::Ready => any_equivalent_consumer_can_name_the_ready_class(),
         Scenario::SourceOrder => different_kind_errors_keep_the_first_source_row(),
+        Scenario::MemoReuse => memo_builds_an_erroring_predicate_once_and_reuses_hits(),
     }
     Ok(1)
 }

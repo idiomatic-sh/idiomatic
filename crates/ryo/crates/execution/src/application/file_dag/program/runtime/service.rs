@@ -185,12 +185,7 @@ pub(crate) struct ProgramExecution {
 /// Qualified state for the same interpreter; never an independent execution owner.
 enum RootReaders {
     Declared,
-    Selected(
-        std::collections::HashMap<
-            RegionId,
-            crate::domain::executable_program::types::ReaderMultiplicity,
-        >,
-    ),
+    Selected(Arc<crate::domain::executable_program::types::RemainingTable>),
 }
 pub(in crate::application::file_dag::program) struct RuntimeState {
     generation: Arc<()>,
