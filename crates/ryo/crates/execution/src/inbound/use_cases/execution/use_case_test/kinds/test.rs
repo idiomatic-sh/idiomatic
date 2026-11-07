@@ -1,8 +1,8 @@
 //! The `kind_sets` service's cases: the elements of a named kind are found among that kind, and a file nothing read teaches nothing.
 use super::super::super::fixtures;
 
-use ryo_language::domain::completion::service::{completion, name_kind};
 use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
+use ryo_language::domain::completion::service::{completion, name_kind};
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::kind_index::service::index_kinds;
 use ryo_language::domain::symbols::types::ByteSlice;
@@ -19,10 +19,10 @@ use crate::domain::operating::types::KindNaming;
 use crate::domain::table_model::types::{Rows, Verdict};
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::plan_parts::types::PlanComparison;
 use ryo_values::domain::plan_parts::types::Input as PlanInput;
 use ryo_values::domain::plan_parts::types::LiteralText;
 use ryo_values::domain::plan_parts::types::Operand;
+use ryo_values::domain::plan_parts::types::PlanComparison;
 use ryo_values::domain::plan_parts::types::QueryLiteral;
 use ryo_values::domain::plan_parts::types::Test;
 use ryo_values::domain::plans::types::Operation;

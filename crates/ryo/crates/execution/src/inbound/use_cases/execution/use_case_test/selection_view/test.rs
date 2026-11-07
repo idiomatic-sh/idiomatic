@@ -13,7 +13,7 @@ use ryo_values::{
     cases::{Case, CaseName, Expect, Word, run},
     domain::{
         plan_parts::types::{
-            ColumnIndex, PlanComparison, Input as Source, Operand, QueryLiteral, Test,
+            ColumnIndex, Input as Source, Operand, PlanComparison, QueryLiteral, Test,
         },
         plans::types::Operation,
         rows::types::{RowIndex, Table},

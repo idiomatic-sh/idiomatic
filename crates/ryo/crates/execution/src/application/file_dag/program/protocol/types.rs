@@ -3,8 +3,8 @@ use crate::application::file_dag::program::admission::ApplicabilityReason;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::types::RowsFed;
 use ryo_relations::domain::relations::types::Words;
-use ryo_values::domain::records::types::ObservationIndex;
 use ryo_values::domain::plan_parts::types::StepScope;
+use ryo_values::domain::records::types::ObservationIndex;
 use ryo_values::domain::rows::types::Table;
 
 pub struct CaptureScope<'a> {

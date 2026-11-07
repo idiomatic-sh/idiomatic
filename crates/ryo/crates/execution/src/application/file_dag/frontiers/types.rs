@@ -81,7 +81,10 @@ impl FrontierCache {
         providers: (usize, usize),
         acquire: impl FnOnce() -> Result<PreparedFrontiers, E>,
     ) -> Result<PreparedFrontiers, E> {
-        let mut held = self.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let mut held = self
+            .0
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         held.retain(|entry| entry.rows.strong_count() > 0);
         if let Some((rows, entry)) = held.iter().find_map(|entry| {
             let key = &entry.key;
@@ -151,8 +154,9 @@ impl PreparedFrontiers {
         program: &std::sync::Arc<crate::domain::executable_program::types::ExecutableProgram>,
         required: &crate::application::file_dag::program::admission::RequiredPartitions,
     ) -> Result<(), crate::domain::operating::errors::OperatingError> {
-        if !std::sync::Arc::ptr_eq(&self.program, program) || self.required.same_request(required)
-            == crate::application::file_dag::program::admission::Agreement::Different
+        if !std::sync::Arc::ptr_eq(&self.program, program)
+            || self.required.same_request(required)
+                == crate::application::file_dag::program::admission::Agreement::Different
         {
             return Err(crate::domain::operating::errors::OperatingError::NotRead);
         }

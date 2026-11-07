@@ -5,7 +5,7 @@ use crate::domain::table_model::service::check_columns;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::plan_parts::service::parameter_in;
 use ryo_values::domain::plan_parts::types::{
-    PlanComparison, Operand, ParameterId, QueryLiteral, TableKey,
+    Operand, ParameterId, PlanComparison, QueryLiteral, TableKey,
 };
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 

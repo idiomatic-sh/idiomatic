@@ -122,7 +122,12 @@ pub(super) fn union_rows(
 }
 
 /// Row keys of the staged union rows, one marker per row when no column is visible.
-pub(super) fn union_keys(tree: &TreeRows<'_>, output: &LoweredShape, slots: &Slots, keys: &mut Keys) {
+pub(super) fn union_keys(
+    tree: &TreeRows<'_>,
+    output: &LoweredShape,
+    slots: &Slots,
+    keys: &mut Keys,
+) {
     keys.0.clear();
     if output.columns.is_empty() {
         // Every visible key is empty; one physical marker per row preserves cardinality
@@ -247,8 +252,7 @@ pub(super) fn antijoin(
     work: &mut PositionWork,
     counts: &WorkCounters,
 ) -> Result<Positions, OperatingError> {
-    let Operation::Antijoin { left_on, .. } = operation
-    else {
+    let Operation::Antijoin { left_on, .. } = operation else {
         return Err(OperatingError::WrongOperation);
     };
     let left = inputs

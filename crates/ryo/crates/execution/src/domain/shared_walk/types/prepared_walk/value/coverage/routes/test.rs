@@ -14,14 +14,11 @@ use crate::{
     cases::{Case, CaseName, Expect, Word, run},
     domain::executable_program::types::{InputSource, LogicalInstruction},
 };
-use ryo_values::domain::{
-    plan_parts::types::{Input as Source, RepeatedRows, StepId, ObservationBindingId},
-    plans::{
-        service::kind_of,
-        types::{Operation},
-    },
-};
 use ryo_values::domain::query_operators::types::OperationKind;
+use ryo_values::domain::{
+    plan_parts::types::{Input as Source, ObservationBindingId, RepeatedRows, StepId},
+    plans::{service::kind_of, types::Operation},
+};
 use std::collections::HashSet;
 
 fn engine(route: Option<WalkRoute>) -> Option<Route> {

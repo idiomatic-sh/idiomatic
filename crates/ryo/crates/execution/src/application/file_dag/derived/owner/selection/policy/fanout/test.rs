@@ -19,7 +19,7 @@ use ryo_relations::domain::terms::service::term_symbol;
 use ryo_relations::domain::terms::types::{DeclarationKind, NameText, Symbol};
 use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, PlanComparison, LiteralText, Operand, ParameterId, QueryLiteral, Test,
+    ColumnIndex, LiteralText, Operand, ParameterId, PlanComparison, QueryLiteral, Test,
 };
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::rows::types::Table;

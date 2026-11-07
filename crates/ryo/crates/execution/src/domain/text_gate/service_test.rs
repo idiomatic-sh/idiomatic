@@ -10,7 +10,7 @@ use crate::domain::table_scratch::types::{ComparisonNumbers, KindsBy};
 use ryo_relations::domain::relations::types::Integer;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, PlanComparison, LiteralText, Operand, ParameterId, QueryLiteral, Test,
+    ColumnIndex, LiteralText, Operand, ParameterId, PlanComparison, QueryLiteral, Test,
 };
 
 /// What a row of the cases does.

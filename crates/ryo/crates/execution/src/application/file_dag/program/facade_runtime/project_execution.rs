@@ -87,7 +87,11 @@ pub(crate) fn open_project<'a>(
             .map_err(|_| OperatingError::WrongOperation)?;
     }
     let execution = scope.execution.get().ok_or(OperatingError::NotRun)?;
-    let ordinary = scope.sources(&owner, &frontiers.ordinary.sources, &frontiers.ordinary.rows)?;
+    let ordinary = scope.sources(
+        &owner,
+        &frontiers.ordinary.sources,
+        &frontiers.ordinary.rows,
+    )?;
     Ok(ProjectRun {
         program,
         services: Arc::clone(&services),

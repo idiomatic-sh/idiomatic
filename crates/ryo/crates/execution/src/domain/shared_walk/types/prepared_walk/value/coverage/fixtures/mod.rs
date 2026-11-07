@@ -1,7 +1,7 @@
 //! Plans use the normal operator, graph and physical-program compilers.
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, StepId};
 use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
-use ryo_values::domain::plan_parts::types::StepScope;
 
 pub(super) mod catalog;
 pub(super) mod meaning;

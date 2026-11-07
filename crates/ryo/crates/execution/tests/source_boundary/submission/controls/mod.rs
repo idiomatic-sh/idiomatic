@@ -213,7 +213,12 @@ pub(super) fn install_undeclared_rule() {
         };
         assert!(
             stage
-                .install(RuleIndex(3), PublicationSlot::Reserved(worker), transfer, vec![])
+                .install(
+                    RuleIndex(3),
+                    PublicationSlot::Reserved(worker),
+                    transfer,
+                    vec![]
+                )
                 .is_err()
         );
     });
@@ -270,7 +275,10 @@ pub(super) fn every_trait_method_has_its_own_variant() {
             .unwrap_or_else(|| panic!("{name} is declared in interface.rs"));
         let body = &interface[start..];
         let body = &body[..body.find("\n}\n").expect("a trait body ends")];
-        let methods = body.lines().filter(|line| line.starts_with("    fn ")).count();
+        let methods = body
+            .lines()
+            .filter(|line| line.starts_with("    fn "))
+            .count();
         let variants = ALL
             .iter()
             .filter(|method| format!("{method:?}").starts_with(prefix))

@@ -6,15 +6,15 @@ use crate::domain::operating::types::OperatorContext;
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
 use crate::domain::table_model::types::Verdict;
 use crate::domain::table_scratch::types::OperatorScratch;
-use ryo_language::domain::completion::service::{completion, name_kind};
 use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
+use ryo_language::domain::completion::service::{completion, name_kind};
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
 use ryo_relations::domain::relations::types::{FileId, KindBits, Offset};
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, PlanComparison, LiteralText, Operand, QueryLiteral, Test,
+    ColumnIndex, LiteralText, Operand, PlanComparison, QueryLiteral, Test,
 };
 
 /// One authored kind comparison at the supplied input column.

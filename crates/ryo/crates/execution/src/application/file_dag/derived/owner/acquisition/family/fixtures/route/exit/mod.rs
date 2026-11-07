@@ -41,7 +41,11 @@ pub(in crate::application::file_dag) fn entry(kind: DerivedKind) -> Entry {
         DerivedKind::Adjacency | DerivedKind::Membership => Entry::Graph,
     }
 }
-pub(in crate::application::file_dag::derived::owner::acquisition::family::fixtures::route) fn released(kind: DerivedKind, exit: Exit, ledger: (usize, usize, usize)) {
+pub(in crate::application::file_dag::derived::owner::acquisition::family::fixtures::route) fn released(
+    kind: DerivedKind,
+    exit: Exit,
+    ledger: (usize, usize, usize),
+) {
     assert_eq!(
         ledger,
         (0, 0, 0),
@@ -51,7 +55,12 @@ pub(in crate::application::file_dag::derived::owner::acquisition::family::fixtur
 /// The exit itself: the handles and results of the production entry are dropped and the generation
 /// is still live, so nothing but the entry's own release can have returned the required bytes to
 /// `floor`, what the owner keeps for its admitted sources until the generation retires.
-pub(in crate::application::file_dag::derived::owner::acquisition::family::fixtures::route) fn released_at_exit(kind: DerivedKind, exit: Exit, ledger: (usize, usize, usize), floor: usize) {
+pub(in crate::application::file_dag::derived::owner::acquisition::family::fixtures::route) fn released_at_exit(
+    kind: DerivedKind,
+    exit: Exit,
+    ledger: (usize, usize, usize),
+    floor: usize,
+) {
     assert_eq!(
         ledger.0, floor,
         "{kind:?} {exit:?}: the exit itself releases the required lease, before the generation retires"

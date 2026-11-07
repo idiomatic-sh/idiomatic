@@ -1,5 +1,5 @@
 use super::*;
-use ryo_values::domain::plan_parts::types::{PlanComparison, JoinColumn};
+use ryo_values::domain::plan_parts::types::{JoinColumn, PlanComparison};
 use ryo_values::domain::plans::types::{Emit, PlanStep};
 
 fn fixture() -> (Plan, Vec<CellKind>) {

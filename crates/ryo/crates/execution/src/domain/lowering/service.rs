@@ -10,9 +10,9 @@ use super::types::{
     RowWidth,
 };
 use crate::domain::table_cells::types::TreeForm;
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input, JoinColumn, Side};
 use ryo_values::domain::plans::types::{Operation, Plan};
-use ryo_values::domain::plan_parts::types::StepScope;
 
 /// What the column `column` of the elements of a tree holds.
 fn element_field(column: ColumnIndex) -> ElementPart {

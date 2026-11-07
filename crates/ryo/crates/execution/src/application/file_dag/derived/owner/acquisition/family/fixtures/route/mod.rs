@@ -1,9 +1,9 @@
 //! Each family leaves through the production entry that acquires it; every exit ends with the
 //! owner generation retired and `(required, optional, unique) == (0, 0, 0)` asserted here.
 //! `RawKeyOrder` needs a `KernelPermit`, so its exits are the program-level `raw_scope` cases.
+use self::exit::{Entry, Exit, entry};
 use crate::domain::operating::errors::OperatingError;
 use ryo_derived::domain::contract::types::DerivedKind;
-use self::exit::{Entry, Exit, entry};
 
 pub(in crate::application::file_dag) mod exit;
 mod graph;

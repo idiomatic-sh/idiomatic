@@ -5,7 +5,7 @@ use crate::domain::stored_selection::types::program::value::SelectionProgram;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, PlanComparison, Input as Source, Operand, ParameterId, RepeatedRows, StepId, Test,
+    ColumnIndex, Input as Source, Operand, ParameterId, PlanComparison, RepeatedRows, StepId, Test,
     WholeNumber,
 };
 use ryo_values::domain::plans::types::{Operation, PlanStep};

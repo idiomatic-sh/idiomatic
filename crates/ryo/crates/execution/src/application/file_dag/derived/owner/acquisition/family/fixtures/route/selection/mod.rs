@@ -30,7 +30,7 @@ use ryo_relations::domain::{
 use ryo_values::domain::{
     files::types::SourceView,
     plan_parts::types::{
-        ColumnIndex, PlanComparison, LiteralText, Operand, ParameterId, QueryLiteral, Test,
+        ColumnIndex, LiteralText, Operand, ParameterId, PlanComparison, QueryLiteral, Test,
     },
     query_bindings::types::ParameterBinding,
 };

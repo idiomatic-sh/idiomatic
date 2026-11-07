@@ -1,7 +1,9 @@
 //! One compact admission operation for diagnostic and observed project phases.
 //! Store reads and name/spelling preparation keep their existing eager order;
 //! row-cell allocation belongs to the shared executable invocation owner.
-use super::types::{FrontierCache, FrontierInput, FrontierSource, PackedFrontier, PreparedFrontiers};
+use super::types::{
+    FrontierCache, FrontierInput, FrontierSource, PackedFrontier, PreparedFrontiers,
+};
 use crate::outbound::facts::{
     errors::FactsError,
     interface::{FactsFinish, FactsWorker},

@@ -36,7 +36,10 @@ pub(super) fn names_word(line: &str, word: &str) -> bool {
     line.match_indices(word).any(|(at, _)| {
         let identifier = |c: char| c.is_alphanumeric() || c == '_';
         !line[..at].chars().next_back().is_some_and(identifier)
-            && !line[at + word.len()..].chars().next().is_some_and(identifier)
+            && !line[at + word.len()..]
+                .chars()
+                .next()
+                .is_some_and(identifier)
     })
 }
 fn is_test_gate(line: &str) -> bool {

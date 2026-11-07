@@ -5,10 +5,7 @@ use super::super::types::{
 };
 use super::types::*;
 use crate::domain::{coverage::types::RuleIndex, operating::errors::OperatingError};
-use ryo_values::domain::{
-    plan_parts::types::StepScope,
-    records::types::ObservationIndex,
-};
+use ryo_values::domain::{plan_parts::types::StepScope, records::types::ObservationIndex};
 
 fn region(
     program: &ExecutableProgram,

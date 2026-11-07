@@ -3,15 +3,12 @@ use super::{fixtures::*, service::schema_of, types::InputShape};
 use crate::domain::{features::service::catalog, operating::errors::OperatingError};
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_relations::domain::relations::types::Relation;
+use ryo_values::domain::query_operators::types::OperationKind;
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, HostedNumber, Input as Source, JoinColumn, Side},
-    plans::{
-        service::kind_of,
-        types::{Operation},
-    },
+    plans::{service::kind_of, types::Operation},
     run_metadata::types::Feature,
 };
-use ryo_values::domain::query_operators::types::OperationKind;
 const FROM: Source = Source::Relation(Relation::Function);
 
 #[test]

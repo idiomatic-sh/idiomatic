@@ -21,7 +21,9 @@ pub(crate) struct Staged<'s, 'a> {
 }
 
 /// Adapt the source rows; none when they are not tree rows this module can read.
-pub(crate) fn stage<'s, 'a>(rows: &'s [Rows<'a>]) -> Result<Option<Staged<'s, 'a>>, OperatingError> {
+pub(crate) fn stage<'s, 'a>(
+    rows: &'s [Rows<'a>],
+) -> Result<Option<Staged<'s, 'a>>, OperatingError> {
     let Some(tree) = source_tree(rows)? else {
         return Ok(None);
     };
@@ -69,19 +71,19 @@ pub(crate) fn stage<'s, 'a>(rows: &'s [Rows<'a>]) -> Result<Option<Staged<'s, 'a
 impl Staged<'_, '_> {
     fn inputs(&self) -> Result<Vec<PositionInput<'_>>, OperatingError> {
         self.rows
-        .iter()
+            .iter()
             .zip(&self.direct)
-        .map(|(rows, direct)| match (rows, direct) {
-            (Rows::Positioned(view), None) => Ok(PositionInput {
-                shape: view.shape,
-                rows: view.positions,
-            }),
-            (_, Some((shape, positions))) => Ok(PositionInput {
-                shape,
-                rows: positions,
-            }),
-            _ => Err(OperatingError::WrongOperation),
-        })
+            .map(|(rows, direct)| match (rows, direct) {
+                (Rows::Positioned(view), None) => Ok(PositionInput {
+                    shape: view.shape,
+                    rows: view.positions,
+                }),
+                (_, Some((shape, positions))) => Ok(PositionInput {
+                    shape,
+                    rows: positions,
+                }),
+                _ => Err(OperatingError::WrongOperation),
+            })
             .collect::<Result<_, _>>()
     }
 

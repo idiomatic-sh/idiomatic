@@ -10,8 +10,8 @@ use crate::domain::table_reach::{
 };
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plans::types::Operation;
-use ryo_values::domain::query_operators::types::OperationKind;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
+use ryo_values::domain::query_operators::types::OperationKind;
 use {
     ryo_values::domain::rows::service::cell, ryo_values::domain::rows::service::column_in,
     ryo_values::domain::rows::service::row_in,

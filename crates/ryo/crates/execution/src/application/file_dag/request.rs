@@ -36,7 +36,8 @@ impl RequestOperators {
         relation_kinds: &dyn Fn(Relation) -> &'s [CellKind],
         semantic: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
     ) -> Result<Self, OperatingError> {
-        let semantic: crate::application::file_dag::derived::owner::types::DerivedAccess = semantic.into();
+        let semantic: crate::application::file_dag::derived::owner::types::DerivedAccess =
+            semantic.into();
         let host_kinds = hosted
             .iter()
             .map(|relation| {

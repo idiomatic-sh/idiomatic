@@ -92,7 +92,7 @@ use ryo_values::domain::query_bindings::types::ParameterBinding;
 #[test]
 fn predicate_prefixes_share_only_the_referenced_bound_values_in_authored_order() {
     use ryo_values::domain::plan_parts::types::{
-        ColumnIndex, PlanComparison, Input, Operand, ParameterId, QueryLiteral, Test,
+        ColumnIndex, Input, Operand, ParameterId, PlanComparison, QueryLiteral, Test,
     };
     use ryo_values::domain::plans::types::Operation;
     let mut authored = plans();

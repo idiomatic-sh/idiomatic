@@ -11,11 +11,11 @@ use crate::domain::source_partitions::types::source_partitions::value::SourcePar
 use crate::domain::trust::types::RelationRead;
 
 use ryo_values::domain::hosted::types::HostRelation;
-use ryo_values::domain::records::types::ObservationIndex;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::InputNumber;
 use ryo_values::domain::plans::types::Emit;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
+use ryo_values::domain::records::types::ObservationIndex;
 use ryo_values::domain::rule_requests::types::RuleSpec;
 use std::sync::Arc;
 
@@ -211,7 +211,8 @@ pub(crate) fn prepare(
     derived: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
     identity: ObservationIdentity,
 ) -> Result<Arc<PreparedProgram>, OperatingError> {
-    let derived: crate::application::file_dag::derived::owner::types::DerivedAccess = derived.into();
+    let derived: crate::application::file_dag::derived::owner::types::DerivedAccess =
+        derived.into();
     if rule_digests.len() != rules.len() {
         return Err(OperatingError::WrongOperation);
     }

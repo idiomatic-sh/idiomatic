@@ -22,7 +22,9 @@ use crate::domain::table_scratch::types::{
     Candidates, KindSet, KindSetPlace, KindTest, NamingPlace, NamingTest,
 };
 use crate::domain::table_texts::types::{Datum, TextView};
-use ryo_values::domain::plan_parts::types::{ColumnIndex, PlanComparison, Operand, QueryLiteral, Test};
+use ryo_values::domain::plan_parts::types::{
+    ColumnIndex, Operand, PlanComparison, QueryLiteral, Test,
+};
 
 /// Whether the comparison asks of the kind of an element something fixed, which the sets of kinds decide.
 pub(crate) fn names_a_kind(comparison: &PlanComparison) -> KindNaming {

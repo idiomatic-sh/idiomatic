@@ -13,8 +13,8 @@ use ryo_relations::domain::relations::types::CellKind;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::plan_parts::types::PlanComparison;
 use ryo_values::domain::plan_parts::types::JoinColumn;
+use ryo_values::domain::plan_parts::types::PlanComparison;
 use ryo_values::domain::stored_facts::types::ArenaBytes;
 
 /// An application-owned, file-scoped semantic demand port. Operators borrow it;

@@ -10,9 +10,9 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::positions::types::{Positions, Slots};
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
 use crate::domain::table_model::types::{PositionedRows, Rows, SelectedRows, StoredSelection};
+use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::completion::service::{completion, name_kind};
 use ryo_language::domain::elements::types::Elements;
-use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
 use ryo_relations::domain::relations::{
     constants::NO_SYMBOL,

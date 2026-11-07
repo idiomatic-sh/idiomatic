@@ -42,8 +42,12 @@ impl SourceInputs<'_, '_> {
                 .regions()
                 .get(region.0)
                 .ok_or(OperatingError::NotRun)?;
-            let column = crate::domain::executable_program::service::column(&code.route).filter(|_| inputs.len() == 2);
-            let ordered = crate::domain::executable_program::service::ordered_existence(&code.route).filter(|shape| {
+            let column = crate::domain::executable_program::service::column(&code.route)
+                .filter(|_| inputs.len() == 2);
+            let ordered = crate::domain::executable_program::service::ordered_existence(
+                &code.route,
+            )
+            .filter(|shape| {
                 inputs.len() == 1
                     && inputs[0].has_root(ProducerRoot::Region(shape.source))
                         == crate::application::file_dag::program::admission::Agreement::Same

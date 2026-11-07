@@ -2,7 +2,7 @@
 use crate::domain::stored_selection::types::Selector;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, PlanComparison, Operand, ParameterId, Test, WholeNumber,
+    ColumnIndex, Operand, ParameterId, PlanComparison, Test, WholeNumber,
 };
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use std::sync::Arc;

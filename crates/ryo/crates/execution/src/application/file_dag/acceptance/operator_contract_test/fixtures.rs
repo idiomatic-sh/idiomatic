@@ -28,7 +28,11 @@ impl crate::domain::operating::types::SemanticLookup for KnownSyntax {
     ) -> Result<Vec<RenderOutcome>, crate::domain::operating::errors::OperatingError> {
         Ok(requests
             .iter()
-            .map(|_| RenderOutcome::Known(ryo_language::domain::semantics::types::RenderedNode(Arc::from("a"))))
+            .map(|_| {
+                RenderOutcome::Known(ryo_language::domain::semantics::types::RenderedNode(
+                    Arc::from("a"),
+                ))
+            })
             .collect())
     }
 }

@@ -9,7 +9,8 @@ use ryo_relations::domain::relations::service::ALL;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, PlanComparison, HostedNumber, Input, Operand, ParameterId, RepeatedRows, StepId, Test,
+    ColumnIndex, HostedNumber, Input, Operand, ParameterId, PlanComparison, RepeatedRows, StepId,
+    Test,
 };
 use ryo_values::domain::plans::types::{Operation, PlanStep};
 

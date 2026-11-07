@@ -10,10 +10,10 @@ use crate::application::file_dag::program::facade_runtime::types::ProjectFrontie
 use crate::application::file_dag::program::native_walk::project::service::ProjectWalk;
 use crate::application::file_dag::program::native_walk::{Deliveries, RetainedBatches};
 use crate::application::file_dag::program::protocol::types::ProjectBatch;
+use crate::domain::shared_walk::types::WalkCounts;
 use crate::domain::{
     completion::types::CoverageState, coverage::types::Partials, table_model::types::Frontier,
 };
-use crate::domain::shared_walk::types::WalkCounts;
 
 /// What the project walk did for one batch of four rules over the given source populations.
 struct Observed {
@@ -152,15 +152,25 @@ fn one_population_is_read_once_for_every_rule_of_its_cohort() {
     let seen = exercise(PhaseExit::Complete, [2, 2, 2, 2]);
     assert_eq!(seen.delivered, 4, "every rule of the cohort is delivered");
     assert_eq!(seen.counts.passes.0, 1, "one source pass serves four rules");
-    assert_eq!(seen.counts.source_rows.0, 2, "the population's rows are walked once");
-    assert_eq!(seen.retained, RetainedBatches(0), "the last consumer retired the batch");
+    assert_eq!(
+        seen.counts.source_rows.0, 2,
+        "the population's rows are walked once"
+    );
+    assert_eq!(
+        seen.retained,
+        RetainedBatches(0),
+        "the last consumer retired the batch"
+    );
 }
 
 #[test]
 fn a_cohort_of_a_second_population_reads_its_own_source() {
     let seen = exercise(PhaseExit::Complete, [2, 2, 8, 8]);
     assert_eq!(seen.delivered, 4);
-    assert_eq!(seen.counts.passes.0, 2, "two populations are two source passes");
+    assert_eq!(
+        seen.counts.passes.0, 2,
+        "two populations are two source passes"
+    );
     assert_eq!(
         seen.counts.source_rows.0, 4,
         "each population's rows are walked once, never shared with the other"
@@ -172,16 +182,29 @@ fn a_cohort_of_a_second_population_reads_its_own_source() {
 fn retirement_follows_a_failing_terminal_result() {
     let seen = exercise(PhaseExit::SemanticFailure, [2, 2, 2, 2]);
     assert_eq!(seen.delivered, 4);
-    assert_eq!(seen.counts.passes.0, 1, "an error in one rule does not reread the source");
-    assert_eq!(seen.retained, RetainedBatches(0), "the error left no batch behind");
+    assert_eq!(
+        seen.counts.passes.0, 1,
+        "an error in one rule does not reread the source"
+    );
+    assert_eq!(
+        seen.retained,
+        RetainedBatches(0),
+        "the error left no batch behind"
+    );
 }
 
 #[test]
 fn retirement_follows_a_cancelled_batch() {
     let seen = exercise(PhaseExit::RefuseLaterCohort, [2, 2, 8, 8]);
     assert!(seen.refused, "the guard refused the later cohort");
-    assert_eq!(seen.delivered, 3, "earlier terminal deliveries survive the cancellation");
-    assert_eq!(seen.counts.passes.0, 1, "the refused cohort never reads its source");
+    assert_eq!(
+        seen.delivered, 3,
+        "earlier terminal deliveries survive the cancellation"
+    );
+    assert_eq!(
+        seen.counts.passes.0, 1,
+        "the refused cohort never reads its source"
+    );
     assert_eq!(
         seen.retained,
         RetainedBatches(0),

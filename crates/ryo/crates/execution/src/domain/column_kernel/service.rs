@@ -18,11 +18,11 @@ use ryo_derived::domain::contract::types::KeyIndex;
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
 use ryo_relations::domain::relations::service::kinds;
 use ryo_relations::domain::relations::types::{CellKind, ColumnsView};
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{
-    PlanComparison, Input, JoinColumn, Operand, QueryLiteral, Side, Test,
+    Input, JoinColumn, Operand, PlanComparison, QueryLiteral, Side, Test,
 };
 use ryo_values::domain::plans::types::{Operation, Plan};
-use ryo_values::domain::plan_parts::types::StepScope;
 
 /// A typed equality against authored text has no row-dependent error. Nonempty
 /// text also cannot match a malformed Symbol that the ordinary evaluator reads

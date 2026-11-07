@@ -135,7 +135,9 @@ pub(super) struct AliasMember(pub usize);
 
 /// Private to the common invocation. A semantic kernel cannot import this trait.
 pub(super) trait Inputs {
-    fn population_scope(&self) -> crate::application::file_dag::relations::publication::types::ProducerScope;
+    fn population_scope(
+        &self,
+    ) -> crate::application::file_dag::relations::publication::types::ProducerScope;
     /// A dependency is polled without entering another invocation. The owner
     /// resumes this same admission action after its producer reaches a terminal state.
     fn dependency(
@@ -357,4 +359,3 @@ pub(super) fn alias_observation(
     alias.root = ProducerRoot::Input(InputSource::Observation(slot.0));
     Ok(alias)
 }
-

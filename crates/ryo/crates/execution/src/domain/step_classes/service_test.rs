@@ -345,7 +345,10 @@ fn a_class_never_spans_two_partitions() {
         scope: StepScope::CrossFile,
     });
     let merged = merge(&[frontier], &[Vec::new()]);
-    assert_eq!(merged.class_of[0], vec![Some(crate::domain::positions::types::ClassPlace(0)), None]);
+    assert_eq!(
+        merged.class_of[0],
+        vec![Some(crate::domain::positions::types::ClassPlace(0)), None]
+    );
 }
 
 const CASES: &[Case<Input, Value, Failure>] = &[

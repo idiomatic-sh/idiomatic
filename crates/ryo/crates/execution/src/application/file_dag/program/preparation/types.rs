@@ -11,14 +11,14 @@ use crate::domain::file_program::types::RuleSchedule;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::trust::types::RelationRead;
 use ryo_values::domain::hosted::types::HostRelation;
+use ryo_values::domain::plan_parts::types::Input;
+use ryo_values::domain::plan_parts::types::StepScope;
+use ryo_values::domain::plans::types::Emit;
+use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::records::types::ObservationIndex;
 use ryo_values::domain::records::types::ObservationReadinessLayout;
-use ryo_values::domain::plan_parts::types::Input;
-use ryo_values::domain::plans::types::Emit;
-use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::stored_facts::types::Bucket;
 use ryo_values::domain::stores::types::Reuse;
-use ryo_values::domain::query_bindings::types::ParameterBinding;
 use std::sync::Arc;
 
 /// Whether a rule renders syntax and so needs the semantic session.

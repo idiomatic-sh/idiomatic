@@ -1,7 +1,10 @@
 //! Normalize producer-local names at the owner-controlled publication boundary.
 use super::types::{Arena, Leaves, Leaving, Retained};
-use ryo_language::domain::symbols::{service::{intern_derived, name_made_across, text_of}, types::{ByteSlice, Symbols}};
 use ryo_language::domain::names::service::name_of;
+use ryo_language::domain::symbols::{
+    service::{intern_derived, name_made_across, text_of},
+    types::{ByteSlice, Symbols},
+};
 use ryo_relations::domain::relations::types::{
     Bytes, NamePlace, Offset, Origin, Value, WorkerNumber,
 };
@@ -63,8 +66,8 @@ fn normalize_frame(
     arena: Arena<'_>,
 ) -> Result<Vec<NamePlace>, super::types::PublicationReason> {
     use super::types::PublicationReason;
-    use ryo_language::domain::symbols::service::hash_of;
     use ryo_language::domain::names::service::{derived_of, places_of};
+    use ryo_language::domain::symbols::service::hash_of;
     use ryo_relations::domain::relations::types::{CROSS_FILE, CROSS_PLACE, PlaceNumber};
     use ryo_relations::domain::terms::types::Symbol;
 

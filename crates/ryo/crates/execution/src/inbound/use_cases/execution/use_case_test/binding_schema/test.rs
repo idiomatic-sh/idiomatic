@@ -3,7 +3,7 @@ use super::super::super::fixtures;
 use crate::domain::operating::errors::OperatingError;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::{
-    plan_parts::types::{ColumnIndex, PlanComparison, LiteralText, Operand, ParameterId, Test},
+    plan_parts::types::{ColumnIndex, LiteralText, Operand, ParameterId, PlanComparison, Test},
     query_bindings::types::ParameterBinding,
     rows::types::{RowCount, Table},
 };

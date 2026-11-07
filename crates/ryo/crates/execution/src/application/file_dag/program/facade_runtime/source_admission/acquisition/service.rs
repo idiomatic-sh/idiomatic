@@ -111,7 +111,8 @@ impl SourceInputs<'_, '_> {
                     &input,
                     &self.owner,
                 )?;
-                self.observations.insert(ObservationKey(slot), admitted.clone());
+                self.observations
+                    .insert(ObservationKey(slot), admitted.clone());
                 Ok(admitted)
             }
             InputSource::EmptyObservation(slot) => {

@@ -96,7 +96,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Error(Refusal::EligibleHeadMissing),
     },
     Case {
-        name: CaseName("a consistent census cannot conceal a project phase head relabelled as a barrier"),
+        name: CaseName(
+            "a consistent census cannot conceal a project phase head relabelled as a barrier",
+        ),
         word: Word::Rejects,
         input: || Scenario::ProjectPhase,
         expect: Expect::Error(Refusal::EligibleHeadMissing),

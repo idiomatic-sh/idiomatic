@@ -1,6 +1,8 @@
 //! The partition entry: families acquired through the `PartitionedClosure` cursor.
-use crate::application::file_dag::derived::owner::acquisition::family::fixtures::route::exit::{Exit, released};
 use crate::application::file_dag::derived::owner::acquisition::family::fixtures::numbers;
+use crate::application::file_dag::derived::owner::acquisition::family::fixtures::route::exit::{
+    Exit, released,
+};
 use crate::application::file_dag::{
     closure_partitions::PartitionedClosure, relations::RelationOwner, testing::program_derived_port,
 };
@@ -43,4 +45,3 @@ fn through_partition(
         }
     }
 }
-

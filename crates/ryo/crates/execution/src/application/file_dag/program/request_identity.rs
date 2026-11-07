@@ -78,7 +78,10 @@ impl RequestIdentity {
             CorpusInput::Unreadable { path, .. } => path,
         })
     }
-    pub(super) fn contains(&self, file: ryo_relations::domain::relations::types::FileId) -> CorpusMembership {
+    pub(super) fn contains(
+        &self,
+        file: ryo_relations::domain::relations::types::FileId,
+    ) -> CorpusMembership {
         if (file.0 as usize) < self.corpus.len() {
             CorpusMembership::Listed
         } else {

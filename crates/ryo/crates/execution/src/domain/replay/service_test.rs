@@ -16,7 +16,7 @@ use ryo_relations::domain::{
     terms::types::NameText,
 };
 use ryo_values::domain::{
-    plan_parts::types::{ColumnIndex, PlanComparison, LiteralText, Operand, QueryLiteral, Test},
+    plan_parts::types::{ColumnIndex, LiteralText, Operand, PlanComparison, QueryLiteral, Test},
     rows::types::RowCount,
 };
 

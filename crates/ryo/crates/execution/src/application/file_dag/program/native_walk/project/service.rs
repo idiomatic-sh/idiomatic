@@ -48,7 +48,11 @@ impl ProjectWalk {
         prepared: &PreparedProgram,
         class: ClassPlace,
     ) -> Result<(), OperatingError> {
-        let class_scope = prepared.walk().classes().get(class.0).map(|class| class.scope);
+        let class_scope = prepared
+            .walk()
+            .classes()
+            .get(class.0)
+            .map(|class| class.scope);
         if class_scope != Some(StepScope::CrossFile) {
             return Err(OperatingError::WrongOperation);
         }
@@ -239,7 +243,9 @@ impl ProjectWalk {
         self.retired.set(retired);
     }
     #[cfg(test)]
-    pub(in crate::application::file_dag::program) fn retained(&self) -> super::super::RetainedBatches {
+    pub(in crate::application::file_dag::program) fn retained(
+        &self,
+    ) -> super::super::RetainedBatches {
         super::super::RetainedBatches(self.batches.borrow().len())
     }
     #[cfg(test)]

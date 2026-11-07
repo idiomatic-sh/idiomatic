@@ -17,7 +17,7 @@ use crate::domain::table_scratch::types::{
     TextStarts, TextVerdicts, TextedFile, TreeSize,
 };
 use ryo_values::domain::plan_parts::service::each_column;
-use ryo_values::domain::plan_parts::types::{ColumnIndex, PlanComparison, Operand};
+use ryo_values::domain::plan_parts::types::{ColumnIndex, Operand, PlanComparison};
 
 /// The comparisons that ask of the text of an element something that does not depend on the element,
 /// by their place among the comparisons: what is decided once for each text and not for each element.
