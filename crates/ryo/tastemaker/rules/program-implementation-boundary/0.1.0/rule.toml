@@ -80,9 +80,9 @@ let engine-implementations = select * from named-implementations where
     or (glob_any(contract, "{Inputs,*::Inputs}") and source-tail = "application/file_dag/program/facade_runtime/source_admission.rs" and name = "SourceInputs")
     or (glob_any(contract, "{PrimitiveExecutor,*::PrimitiveExecutor}") and source-tail = "application/file_dag/execution.rs" and name = "CommonOperatorEngine")
     or (glob_any(contract, "{PrimitiveSemantics,*::PrimitiveSemantics}") and source-tail = "application/file_dag/execution.rs" and name = "PrimitiveSemanticsBridge");
-let registry-uses = select source, target, span, written, source-root, source-tail from local-dependencies where source-root = target-root and glob_any(source-tail, "{domain/operator/contract/registration.rs,domain/table_model/collections/representations/types/registered_representation/value.rs}");
+let registry-uses = select source, target, span, written, source-root, source-tail from local-dependencies where source-root = target-root and glob_any(source-tail, "{domain/operator/contract/registration.rs,domain/table_model/types/registered_representation/value.rs}");
 let registry-nodes = select id, file, span, kind from "syntax-tree" where text = "";
-let candidate-registry-owners = select * from "defines" where kind = "implementation" and ((name = "RegisteredOperator" and glob_any(file, "{src,**/src}/domain/operator/contract/registration.rs")) or (name = "RegisteredRepresentation" and glob_any(file, "{src,**/src}/domain/table_model/collections/representations/types/registered_representation/value.rs")));
+let candidate-registry-owners = select * from "defines" where kind = "implementation" and ((name = "RegisteredOperator" and glob_any(file, "{src,**/src}/domain/operator/contract/registration.rs")) or (name = "RegisteredRepresentation" and glob_any(file, "{src,**/src}/domain/table_model/types/registered_representation/value.rs")));
 let registry-roots = select id from registry-nodes where kind = "source-file";
 let root-children = select r.child as id from registry-roots as l join "syntax-child" as r on l.id = r.parent;
 let registry-owners = select l.id as id from candidate-registry-owners as l join root-children as r on l.id = r.id;
@@ -126,7 +126,7 @@ let imported-members = select l.target as file, r.name as name, l.source-root as
 let registered-members = union(left=direct-members, right=imported-members);
 let catalog-implementations = select l.file as file, l.span as span, l.contract as contract, l.source-tail as source-tail, l.source-root as source-root, l.name as name from named-implementations as l join registered-members as r on l.file = r.file and l.name = r.name and l.source-root = r.source-root where
     (glob_any(l.contract, "{OperatorsItem,*::OperatorsItem}") and r.registry = "domain/operator/contract/registration.rs")
-    or (glob_any(l.contract, "{RepresentationsItem,*::RepresentationsItem}") and r.registry = "domain/table_model/collections/representations/types/registered_representation/value.rs");
+    or (glob_any(l.contract, "{RepresentationsItem,*::RepresentationsItem}") and r.registry = "domain/table_model/types/registered_representation/value.rs");
 let authorized-implementations = union(left=engine-implementations, right=catalog-implementations);
 let registered-sites = select file, span from authorized-implementations;
 let implementation-sites = select file, span from implementations;
@@ -204,11 +204,11 @@ files.'src/domain/operator/contract/types.rs' = "pub trait PrimitiveSemantics {}
 
 files.'src/domain/operator/collections/operators/interface.rs' = "pub trait OperatorsItem {}"
 
-files.'src/domain/table_model.rs' = "pub mod collections;"
+files.'src/domain/table_model.rs' = "pub mod collections; pub mod types;"
 
 files.'src/domain/table_model/collections.rs' = "pub mod representations;"
 
-files.'src/domain/table_model/collections/representations.rs' = "pub mod interface; pub mod stored; pub mod types;"
+files.'src/domain/table_model/collections/representations.rs' = "pub mod interface; pub mod stored;"
 
 files.'src/domain/table_model/collections/representations/interface.rs' = "pub trait RepresentationsItem {}"
 
@@ -216,10 +216,10 @@ files.'src/domain/table_model/collections/representations/stored.rs' = "pub mod 
 
 files.'src/domain/table_model/collections/representations/stored/item.rs' = "use super::super::interface::RepresentationsItem; pub struct StoredItem; impl RepresentationsItem for StoredItem {}"
 
-files.'src/domain/table_model/collections/representations/types/registered_representation/value.rs' = "pub enum Kind { Stored } pub struct RegisteredRepresentation { kind: Kind } impl RegisteredRepresentation { fn item(&self) -> &'static dyn super::super::super::interface::RepresentationsItem { match self.kind { Kind::Stored => &super::super::super::stored::item::StoredItem } } }"
+files.'src/domain/table_model/types/registered_representation/value.rs' = "pub enum Kind { Stored } pub struct RegisteredRepresentation { kind: Kind } impl RegisteredRepresentation { fn item(&self) -> &'static dyn super::super::super::collections::representations::interface::RepresentationsItem { match self.kind { Kind::Stored => &super::super::super::collections::representations::stored::item::StoredItem } } }"
 
-files.'src/domain/table_model/collections/representations/types.rs' = 'pub mod registered_representation;'
-files.'src/domain/table_model/collections/representations/types/registered_representation/mod.rs' = 'pub mod value;'
+files.'src/domain/table_model/types.rs' = 'pub mod registered_representation;'
+files.'src/domain/table_model/types/registered_representation.rs' = 'pub mod value;'
 
 [[scenarios]]
 id = "direct-internal-import"
@@ -674,7 +674,7 @@ then.findings = [{path="src/domain/operator/collections/operators/select/item.rs
 [[scenarios]]
 id = "deleted-physical-registration"
 scenario = "Removing a physical match-arm registration cannot silently drop the corresponding implementation."
-given.files.'src/domain/table_model/collections/representations/types/registered_representation/value.rs' = "pub fn registered() {}"
+given.files.'src/domain/table_model/types/registered_representation/value.rs' = "pub fn registered() {}"
 then.findings = [{path="src/domain/table_model/collections/representations/stored/item.rs",line=1}]
 
 [[scenarios]]
@@ -790,7 +790,7 @@ then.findings = [{path="src/domain/operator/collections/operators/select/item.rs
 id = "physical-incidental-same-arm-does-not-register"
 scenario = "A physical block arm referring to Extra but returning StoredItem is not a pure catalog selection."
 given.files.'src/domain/table_model/collections/representations/stored/item.rs' = "use super::super::interface::RepresentationsItem; pub struct StoredItem; impl RepresentationsItem for StoredItem {}\npub struct Extra; impl RepresentationsItem for Extra {}"
-given.files.'src/domain/table_model/collections/representations/types/registered_representation/value.rs' = "pub enum Kind { Stored } pub struct RegisteredRepresentation { kind: Kind } impl RegisteredRepresentation { fn item(&self) -> &'static dyn super::super::super::interface::RepresentationsItem { match self.kind { Kind::Stored => { let _ = &super::super::super::stored::item::Extra; &super::super::super::stored::item::StoredItem } } } }"
+given.files.'src/domain/table_model/types/registered_representation/value.rs' = "pub enum Kind { Stored } pub struct RegisteredRepresentation { kind: Kind } impl RegisteredRepresentation { fn item(&self) -> &'static dyn super::super::super::collections::representations::interface::RepresentationsItem { match self.kind { Kind::Stored => { let _ = &super::super::super::collections::representations::stored::item::Extra; &super::super::super::collections::representations::stored::item::StoredItem } } } }"
 then.findings = [{path="src/domain/table_model/collections/representations/stored/item.rs",line=1}, {path="src/domain/table_model/collections/representations/stored/item.rs",line=2}]
 
 [[scenarios]]
@@ -804,7 +804,7 @@ then.findings = [{path="src/domain/operator/collections/operators/select/item.rs
 id = "physical-incidental-aliased-member-does-not-register"
 scenario = "A renamed physical incidental import remains outside typed catalog dispatch."
 given.files.'src/domain/table_model/collections/representations/stored/item.rs' = "use super::super::interface::RepresentationsItem; pub struct StoredItem; impl RepresentationsItem for StoredItem {}\npub struct Extra; impl RepresentationsItem for Extra {}"
-given.files.'src/domain/table_model/collections/representations/types/registered_representation/value.rs' = "use super::super::super::stored::item::{StoredItem as Selected, Extra as Incidental}; pub enum Kind { Stored } pub struct RegisteredRepresentation { kind: Kind } impl RegisteredRepresentation { fn item(&self) -> &'static dyn super::super::super::interface::RepresentationsItem { match self.kind { Kind::Stored => { let _ = &Incidental; &Selected } } } }"
+given.files.'src/domain/table_model/types/registered_representation/value.rs' = "use super::super::super::collections::representations::stored::item::{StoredItem as Selected, Extra as Incidental}; pub enum Kind { Stored } pub struct RegisteredRepresentation { kind: Kind } impl RegisteredRepresentation { fn item(&self) -> &'static dyn super::super::super::collections::representations::interface::RepresentationsItem { match self.kind { Kind::Stored => { let _ = &Incidental; &Selected } } } }"
 then.findings = [{path="src/domain/table_model/collections/representations/stored/item.rs",line=1}, {path="src/domain/table_model/collections/representations/stored/item.rs",line=2}]
 
 [[scenarios]]
@@ -819,10 +819,10 @@ then.findings = [{path="src/domain/operator/collections/operators/extra/item.rs"
 [[scenarios]]
 id = "new-physical-module-incidental-reference-does-not-register"
 scenario = "An adjacent physical implementation needs a direct selected arm, even when its file is mentioned."
-given.files.'src/domain/table_model/collections/representations.rs' = "pub mod interface; pub mod stored; pub mod types; pub mod extra;"
+given.files.'src/domain/table_model/collections/representations.rs' = "pub mod interface; pub mod stored; pub mod extra;"
 given.files.'src/domain/table_model/collections/representations/extra.rs' = "pub mod item;"
 given.files.'src/domain/table_model/collections/representations/extra/item.rs' = "use super::super::interface::RepresentationsItem; pub struct Extra; impl RepresentationsItem for Extra {}"
-given.files.'src/domain/table_model/collections/representations/types/registered_representation/value.rs' = "pub enum Kind { Stored, Other } pub struct RegisteredRepresentation { kind: Kind } impl RegisteredRepresentation { fn item(&self) -> &'static dyn super::super::super::interface::RepresentationsItem { match self.kind { Kind::Stored => &super::super::super::stored::item::StoredItem, Kind::Other => { let _ = &super::super::super::extra::item::Extra; &super::super::super::stored::item::StoredItem } } } }"
+given.files.'src/domain/table_model/types/registered_representation/value.rs' = "pub enum Kind { Stored, Other } pub struct RegisteredRepresentation { kind: Kind } impl RegisteredRepresentation { fn item(&self) -> &'static dyn super::super::super::collections::representations::interface::RepresentationsItem { match self.kind { Kind::Stored => &super::super::super::collections::representations::stored::item::StoredItem, Kind::Other => { let _ = &super::super::super::collections::representations::extra::item::Extra; &super::super::super::collections::representations::stored::item::StoredItem } } } }"
 then.findings = [{path="src/domain/table_model/collections/representations/extra/item.rs",line=1}]
 
 [[scenarios]]
@@ -834,7 +834,7 @@ then.findings = [{path="src/domain/operator/collections/operators/select/item.rs
 [[scenarios]]
 id = "physical-block-only-return-is-not-pure-registration"
 scenario = "Physical registry arms use the same direct immutable reference contract."
-given.files.'src/domain/table_model/collections/representations/types/registered_representation/value.rs' = "pub enum Kind { Stored } pub struct RegisteredRepresentation { kind: Kind } impl RegisteredRepresentation { fn item(&self) -> &'static dyn super::super::super::interface::RepresentationsItem { match self.kind { Kind::Stored => { &super::super::super::stored::item::StoredItem } } } }"
+given.files.'src/domain/table_model/types/registered_representation/value.rs' = "pub enum Kind { Stored } pub struct RegisteredRepresentation { kind: Kind } impl RegisteredRepresentation { fn item(&self) -> &'static dyn super::super::super::collections::representations::interface::RepresentationsItem { match self.kind { Kind::Stored => { &super::super::super::collections::representations::stored::item::StoredItem } } } }"
 then.findings = [{path="src/domain/table_model/collections/representations/stored/item.rs",line=1}]
 
 [[scenarios]]
@@ -845,7 +845,7 @@ given.files.'src/domain/operator/contract/registration.rs' = "use super::super::
 [[scenarios]]
 id = "aliased-selected-physical-is-registered"
 scenario = "A direct renamed physical selection retains its actual implementation identity."
-given.files.'src/domain/table_model/collections/representations/types/registered_representation/value.rs' = "use super::super::super::stored::item::StoredItem as Selected; pub enum Kind { Stored } pub struct RegisteredRepresentation { kind: Kind } impl RegisteredRepresentation { fn item(&self) -> &'static dyn super::super::super::interface::RepresentationsItem { match self.kind { Kind::Stored => &Selected } } }"
+given.files.'src/domain/table_model/types/registered_representation/value.rs' = "use super::super::super::collections::representations::stored::item::StoredItem as Selected; pub enum Kind { Stored } pub struct RegisteredRepresentation { kind: Kind } impl RegisteredRepresentation { fn item(&self) -> &'static dyn super::super::super::collections::representations::interface::RepresentationsItem { match self.kind { Kind::Stored => &Selected } } }"
 
 [[scenarios]]
 id = "operator-unrelated-method-match-does-not-register"
@@ -900,49 +900,49 @@ then.findings = [{path="src/domain/operator/collections/operators/select/item.rs
 id = "physical-unrelated-method-match-does-not-register"
 scenario = "A different method of the actual catalog owner cannot supply registration."
 given.files.'src/domain/table_model/collections/representations/stored/item.rs' = "use super::super::interface::RepresentationsItem; pub struct StoredItem; impl RepresentationsItem for StoredItem {}\npub struct Extra; impl RepresentationsItem for Extra {}"
-given.files.'src/domain/table_model/collections/representations/types/registered_representation/value.rs' = "pub enum Kind { Stored } pub struct RegisteredRepresentation { kind: Kind } impl RegisteredRepresentation { fn item(&self) -> &'static dyn super::super::super::interface::RepresentationsItem { match self.kind { Kind::Stored => &super::super::super::stored::item::StoredItem } } } impl RegisteredRepresentation { fn kind() -> &'static dyn super::super::super::interface::RepresentationsItem { match () { () => &super::super::super::stored::item::Extra } } }"
+given.files.'src/domain/table_model/types/registered_representation/value.rs' = "pub enum Kind { Stored } pub struct RegisteredRepresentation { kind: Kind } impl RegisteredRepresentation { fn item(&self) -> &'static dyn super::super::super::collections::representations::interface::RepresentationsItem { match self.kind { Kind::Stored => &super::super::super::collections::representations::stored::item::StoredItem } } } impl RegisteredRepresentation { fn kind() -> &'static dyn super::super::super::collections::representations::interface::RepresentationsItem { match () { () => &super::super::super::collections::representations::stored::item::Extra } } }"
 then.findings = [{path="src/domain/table_model/collections/representations/stored/item.rs",line=2}]
 
 [[scenarios]]
 id = "physical-other-owner-item-method-does-not-register"
 scenario = "A similarly named method of another owner is outside the designated selector."
 given.files.'src/domain/table_model/collections/representations/stored/item.rs' = "use super::super::interface::RepresentationsItem; pub struct StoredItem; impl RepresentationsItem for StoredItem {}\npub struct Extra; impl RepresentationsItem for Extra {}"
-given.files.'src/domain/table_model/collections/representations/types/registered_representation/value.rs' = "pub enum Kind { Stored } pub struct RegisteredRepresentation { kind: Kind } impl RegisteredRepresentation { fn item(&self) -> &'static dyn super::super::super::interface::RepresentationsItem { match self.kind { Kind::Stored => &super::super::super::stored::item::StoredItem } } } pub struct Other; impl Other { fn item(&self) -> &'static dyn super::super::super::interface::RepresentationsItem { match () { () => &super::super::super::stored::item::Extra } } }"
+given.files.'src/domain/table_model/types/registered_representation/value.rs' = "pub enum Kind { Stored } pub struct RegisteredRepresentation { kind: Kind } impl RegisteredRepresentation { fn item(&self) -> &'static dyn super::super::super::collections::representations::interface::RepresentationsItem { match self.kind { Kind::Stored => &super::super::super::collections::representations::stored::item::StoredItem } } } pub struct Other; impl Other { fn item(&self) -> &'static dyn super::super::super::collections::representations::interface::RepresentationsItem { match () { () => &super::super::super::collections::representations::stored::item::Extra } } }"
 then.findings = [{path="src/domain/table_model/collections/representations/stored/item.rs",line=2}]
 
 [[scenarios]]
 id = "physical-discarded-match-does-not-register"
 scenario = "Only the selector tail expression, not an unused earlier match in that method, registers types."
 given.files.'src/domain/table_model/collections/representations/stored/item.rs' = "use super::super::interface::RepresentationsItem; pub struct StoredItem; impl RepresentationsItem for StoredItem {}\npub struct Extra; impl RepresentationsItem for Extra {}"
-given.files.'src/domain/table_model/collections/representations/types/registered_representation/value.rs' = "pub enum Kind { Stored } pub struct RegisteredRepresentation { kind: Kind } impl RegisteredRepresentation { fn item(&self) -> &'static dyn super::super::super::interface::RepresentationsItem { let _ = match () { () => &super::super::super::stored::item::Extra }; match self.kind { Kind::Stored => &super::super::super::stored::item::StoredItem } } }"
+given.files.'src/domain/table_model/types/registered_representation/value.rs' = "pub enum Kind { Stored } pub struct RegisteredRepresentation { kind: Kind } impl RegisteredRepresentation { fn item(&self) -> &'static dyn super::super::super::collections::representations::interface::RepresentationsItem { let _ = match () { () => &super::super::super::collections::representations::stored::item::Extra }; match self.kind { Kind::Stored => &super::super::super::collections::representations::stored::item::StoredItem } } }"
 then.findings = [{path="src/domain/table_model/collections/representations/stored/item.rs",line=2}]
 
 [[scenarios]]
 id = "physical-guard-reference-does-not-register"
 scenario = "Mentioning an implementation inside the arm guard does not select it."
 given.files.'src/domain/table_model/collections/representations/stored/item.rs' = "use super::super::interface::RepresentationsItem; pub struct StoredItem; impl RepresentationsItem for StoredItem {}\npub struct Extra; impl RepresentationsItem for Extra {}"
-given.files.'src/domain/table_model/collections/representations/types/registered_representation/value.rs' = "pub enum Kind { Stored } pub struct RegisteredRepresentation { kind: Kind } impl RegisteredRepresentation { fn item(&self) -> &'static dyn super::super::super::interface::RepresentationsItem { match self.kind { Kind::Stored if { let _ = &super::super::super::stored::item::Extra; true } => &super::super::super::stored::item::StoredItem, Kind::Stored => &super::super::super::stored::item::StoredItem } } }"
+given.files.'src/domain/table_model/types/registered_representation/value.rs' = "pub enum Kind { Stored } pub struct RegisteredRepresentation { kind: Kind } impl RegisteredRepresentation { fn item(&self) -> &'static dyn super::super::super::collections::representations::interface::RepresentationsItem { match self.kind { Kind::Stored if { let _ = &super::super::super::collections::representations::stored::item::Extra; true } => &super::super::super::collections::representations::stored::item::StoredItem, Kind::Stored => &super::super::super::collections::representations::stored::item::StoredItem } } }"
 then.findings = [{path="src/domain/table_model/collections/representations/stored/item.rs",line=2}]
 
 [[scenarios]]
 id = "physical-guarded-result-is-not-pure-registration"
 scenario = "A guarded conditional result is not an unguarded constant catalog selection."
 given.files.'src/domain/table_model/collections/representations/stored/item.rs' = "use super::super::interface::RepresentationsItem; pub struct StoredItem; impl RepresentationsItem for StoredItem {}\npub struct Extra; impl RepresentationsItem for Extra {}"
-given.files.'src/domain/table_model/collections/representations/types/registered_representation/value.rs' = "pub enum Kind { Stored } pub struct RegisteredRepresentation { kind: Kind } impl RegisteredRepresentation { fn item(&self) -> &'static dyn super::super::super::interface::RepresentationsItem { match self.kind { Kind::Stored if false => &super::super::super::stored::item::Extra, Kind::Stored => &super::super::super::stored::item::StoredItem } } }"
+given.files.'src/domain/table_model/types/registered_representation/value.rs' = "pub enum Kind { Stored } pub struct RegisteredRepresentation { kind: Kind } impl RegisteredRepresentation { fn item(&self) -> &'static dyn super::super::super::collections::representations::interface::RepresentationsItem { match self.kind { Kind::Stored if false => &super::super::super::collections::representations::stored::item::Extra, Kind::Stored => &super::super::super::collections::representations::stored::item::StoredItem } } }"
 then.findings = [{path="src/domain/table_model/collections/representations/stored/item.rs",line=2}]
 
 [[scenarios]]
 id = "physical-pattern-reference-does-not-register"
 scenario = "A unit implementation in a match pattern supplies no selected result identity."
 given.files.'src/domain/table_model/collections/representations/stored/item.rs' = "use super::super::interface::RepresentationsItem; pub struct StoredItem; impl RepresentationsItem for StoredItem {}\npub struct Extra; impl RepresentationsItem for Extra {}"
-given.files.'src/domain/table_model/collections/representations/types/registered_representation/value.rs' = "pub enum Kind { Stored } pub struct RegisteredRepresentation { kind: Kind } impl RegisteredRepresentation { fn item(&self) -> &'static dyn super::super::super::interface::RepresentationsItem { match (self.kind, super::super::super::stored::item::Extra) { (Kind::Stored, super::super::super::stored::item::Extra) => &super::super::super::stored::item::StoredItem } } }"
+given.files.'src/domain/table_model/types/registered_representation/value.rs' = "pub enum Kind { Stored } pub struct RegisteredRepresentation { kind: Kind } impl RegisteredRepresentation { fn item(&self) -> &'static dyn super::super::super::collections::representations::interface::RepresentationsItem { match (self.kind, super::super::super::collections::representations::stored::item::Extra) { (Kind::Stored, super::super::super::collections::representations::stored::item::Extra) => &super::super::super::collections::representations::stored::item::StoredItem } } }"
 then.findings = [{path="src/domain/table_model/collections/representations/stored/item.rs",line=2}]
 
 [[scenarios]]
 id = "physical-nested-lookalike-owner-does-not-register"
 scenario = "A nested lookalike cannot impersonate the actual top-level catalog owner."
 given.files.'src/domain/table_model/collections/representations/stored/item.rs' = "use super::super::interface::RepresentationsItem; pub struct StoredItem; impl RepresentationsItem for StoredItem {}\npub struct Extra; impl RepresentationsItem for Extra {}"
-given.files.'src/domain/table_model/collections/representations/types/registered_representation/value.rs' = "pub enum Kind { Stored } pub struct RegisteredRepresentation { kind: Kind } impl RegisteredRepresentation { fn item(&self) -> &'static dyn super::super::super::interface::RepresentationsItem { match self.kind { Kind::Stored => &super::super::super::stored::item::StoredItem } } } fn unrelated() { struct RegisteredRepresentation; impl RegisteredRepresentation { fn item(&self) -> &'static dyn super::super::super::interface::RepresentationsItem { match () { () => &super::super::super::stored::item::Extra } } } }"
+given.files.'src/domain/table_model/types/registered_representation/value.rs' = "pub enum Kind { Stored } pub struct RegisteredRepresentation { kind: Kind } impl RegisteredRepresentation { fn item(&self) -> &'static dyn super::super::super::collections::representations::interface::RepresentationsItem { match self.kind { Kind::Stored => &super::super::super::collections::representations::stored::item::StoredItem } } } fn unrelated() { struct RegisteredRepresentation; impl RegisteredRepresentation { fn item(&self) -> &'static dyn super::super::super::collections::representations::interface::RepresentationsItem { match () { () => &super::super::super::collections::representations::stored::item::Extra } } } }"
 then.findings = [{path="src/domain/table_model/collections/representations/stored/item.rs",line=2}]
 
 [[scenarios]]

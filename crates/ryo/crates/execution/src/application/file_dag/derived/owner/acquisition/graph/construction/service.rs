@@ -56,7 +56,7 @@ pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn adja
                 plan,
                 admitted,
                 crate::domain::derived_views::types::DerivedInputs::Adjacency {
-                    rows: crate::domain::operator::contract::views::BorrowedRows::from(rows),
+                    rows: crate::domain::table_model::types::RepresentationInput::from(rows),
                     source,
                 },
                 &mut crate::domain::derived_views::types::DerivedScratch::default(),
@@ -125,7 +125,7 @@ pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn doma
                 plan,
                 admitted,
                 crate::domain::derived_views::types::DerivedInputs::Membership {
-                    rows: crate::domain::operator::contract::views::BorrowedRows::from(rows),
+                    rows: crate::domain::table_model::types::RepresentationInput::from(rows),
                     space: crate::domain::derived_views::types::MembershipSpace::Dense(
                         access.graph().vertices(),
                     ),

@@ -1,13 +1,14 @@
 //! Representation semantics expose no input scheduler or cache owner.
 use super::types::{
-    CellRead, PhysicalShape, RelationContract, RepresentationInput, RowRead,
+    CellRead, PhysicalShape, RelationContract, RowRead,
 };
 use crate::domain::operating::errors::OperatingError;
+use crate::domain::table_model::types::RepresentationInput;
 
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
-pub(super) trait RepresentationsItem: Sync {
+pub(in crate::domain::table_model) trait RepresentationsItem: Sync {
     /// Declare immutable metadata. Physical checks are deferred until demanded.
     fn prepare<'file>(
         &self,

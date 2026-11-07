@@ -4,7 +4,7 @@ use crate::application::file_dag::relations::admission::types::AdmissionOrigin;
 use crate::application::file_dag::relations::publication::types::*;
 use crate::application::file_dag::relations::types::Sameness;
 use crate::application::file_dag::relations::*;
-use crate::domain::table_model::collections::representations::publication::PublishedRelation;
+use crate::domain::table_model::types::PublishedRelation;
 impl<'a> BorrowedInput<'a> {
     pub(in crate::application::file_dag) fn require_publication(
         &self,

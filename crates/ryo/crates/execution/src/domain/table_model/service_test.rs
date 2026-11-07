@@ -1,20 +1,15 @@
 //! The `table_model` service's cases, on values alone.
 
-use ryo_language::domain::completion::service::{completion, name_kind};
-use ryo_language::domain::elements::service::kind_names;
-use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
-use ryo_language::domain::elements::types::Elements;
-use ryo_language::domain::symbols::types::ByteSlice;
-use ryo_language::domain::symbols::types::Symbols;
-use ryo_relations::domain::relations::constants::NO_SYMBOL;
-use ryo_relations::domain::relations::service::node_id;
-use ryo_relations::domain::relations::types::Flag;
-use ryo_relations::domain::relations::types::Integer;
-use ryo_relations::domain::relations::types::{
-    CellKind, FileId, KindBits, Offset, Position, Span, Value as Cell,
-};
-use ryo_relations::domain::terms::types::NameText;
+use ryo_relations::domain::relations::types::{CellKind, FactColumn, Integer, Value as Cell};
 use ryo_values::selects;
+
+use crate::domain::table_model::collections::representations::types::{
+    CellRead, PhysicalShape, RepresentationKind, RowRead,
+};
+use crate::domain::table_model::service::{borrowed, kind, registered};
+use crate::domain::table_model::types::StoredSelection;
+use ryo_relations::domain::relations::{service::to_bits, types::Relation};
+use std::sync::Arc;
 
 #[cfg(test)]
 mod materialization_test;
@@ -23,20 +18,19 @@ mod physical_test;
 #[cfg(test)]
 mod representations_test;
 #[cfg(test)]
+mod rows_test;
+#[cfg(test)]
 mod stored_keys_test;
 
 use super::types::Rows;
 use crate::domain::positions::service_test::prepared_index;
-use crate::domain::table_cells::types::{TreeForm, TreeRows};
 use ryo_derived::domain::contract::types::On;
-use ryo_relations::domain::relations::types::{ColumnsView, FactColumn};
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::errors::RowsError;
 use {
-    super::service::count_of, super::service::kinds_of, super::service::matching,
-    super::service::read_row, ryo_values::domain::rows::service::cell,
-    ryo_values::domain::rows::service::push_row, ryo_values::domain::rows::service::reset,
+    super::service::matching, ryo_values::domain::rows::service::cell,
+    ryo_values::domain::rows::service::push_row,
 };
 
 /// A scenario: what a row asks of the part.
@@ -58,7 +52,7 @@ fn misses_a_cell() -> Result<Value, RowsError> {
 }
 
 /// A table of two numbers a row.
-fn pairs(rows: &[[i64; 2]]) -> Table {
+pub(crate) fn pairs(rows: &[[i64; 2]]) -> Table {
     let mut table = Table {
         kinds: vec![CellKind::Number; 2],
         ..Table::default()
@@ -124,135 +118,6 @@ fn finds_a_key_among_many() -> Result<Value, RowsError> {
     ))
 }
 
-/// A stored relation reads row by row, each cell as its kind says, with the same room for every row.
-fn reads_a_stored_row() -> Value {
-    const KINDS: &[CellKind] = &[CellKind::Number, CellKind::Flag];
-    let columns = [FactColumn(vec![7, 8]), FactColumn(vec![0, 1])];
-    let rows = Rows::Stored(ColumnsView {
-        kinds: KINDS,
-        columns: &columns,
-    });
-    let mut scratch = Vec::new();
-    let second = read_row(&rows, RowIndex(1), &mut scratch).map(<[Cell]>::to_vec);
-    let missing = read_row(&rows, RowIndex(2), &mut scratch).is_none();
-    usize::from(
-        second == Some(vec![Cell::Number(Integer(8)), Cell::Flag(Flag::Raised)])
-            && missing
-            && count_of(&rows) == RowCount(2),
-    )
-}
-
-/// The elements of a tree are rows of `syntax-tree` and its edges are rows of `syntax-child`, read from the table.
-fn reads_the_rows_of_a_tree() -> Value {
-    let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
-    let mut builder = table_builder(&mut elements, &mut symbols, ByteSlice(b"abcd"));
-    enter_node(&mut builder, KindBits(1), Offset(0));
-    token(&mut builder, KindBits(2), Offset(0), Offset(2));
-    leave_node(&mut builder, Offset(4));
-    name_kind(
-        &mut completion(&mut elements, &mut symbols, ByteSlice(b"abcd"), FileId(0)),
-        KindBits(1),
-        NameText("file"),
-    );
-    name_kind(
-        &mut completion(&mut elements, &mut symbols, ByteSlice(b"abcd"), FileId(0)),
-        KindBits(2),
-        NameText("word"),
-    );
-    let (names, text) = (
-        kind_names(&elements)[1],
-        ryo_language::domain::elements::service::text_at(&elements, Position(1)),
-    );
-    let nodes = Rows::Tree(TreeRows {
-        elements: &elements,
-        file: FileId(3),
-        form: TreeForm::Elements,
-    });
-    let edges = Rows::Tree(TreeRows {
-        elements: &elements,
-        file: FileId(3),
-        form: TreeForm::Edges,
-    });
-    let mut scratch = Vec::new();
-    let token_row = read_row(&nodes, RowIndex(1), &mut scratch).map(<[Cell]>::to_vec);
-    let edge_row = read_row(&edges, RowIndex(0), &mut scratch).map(<[Cell]>::to_vec);
-    let id = |at: u32| Cell::Node(node_id(FileId(3), Position(at)));
-    let expected_token = vec![
-        id(1),
-        Cell::Symbol(kind_names(&elements)[2]),
-        Cell::Symbol(text),
-        Cell::File(FileId(3)),
-        Cell::Span(Span {
-            start: Offset(0),
-            end: Offset(2),
-        }),
-    ];
-    usize::from(
-        count_of(&nodes) == RowCount(2)
-            && count_of(&edges) == RowCount(1)
-            && token_row == Some(expected_token)
-            && edge_row
-                == Some(vec![
-                    id(0),
-                    id(1),
-                    Cell::Number(Integer(0)),
-                    Cell::Symbol(NO_SYMBOL),
-                    Cell::File(FileId(3)),
-                ])
-            && edge_row.as_ref().map(Vec::len) == Some(kinds_of(&edges).len())
-            && token_row.as_ref().map(Vec::len) == Some(kinds_of(&nodes).len())
-            && names != kind_names(&elements)[2]
-            && read_row(&edges, RowIndex(1), &mut scratch).is_none(),
-    )
-}
-
-/// A table computed already is looked up where it is, and the rows of a store are made into a table.
-fn a_computed_table_is_not_copied() -> Value {
-    const KINDS: &[CellKind] = &[CellKind::Number];
-    let computed = pairs(&[[1, 2]]);
-    let columns = [FactColumn(vec![7, 8, 9])];
-    let stored = Rows::Stored(ColumnsView {
-        kinds: KINDS,
-        columns: &columns,
-    });
-    let mut scratch = Vec::new();
-    let computed_rows = Rows::Computed(&computed);
-    let computed_view =
-        crate::domain::operator::contract::views::BorrowedRows::from(&computed_rows);
-    let read = computed_view
-        .read(RowIndex(0), &mut scratch)
-        .expect("computed row");
-    let same = std::ptr::eq(read.as_ptr(), computed.cells.as_ptr()) && scratch.is_empty();
-    let stored_view = crate::domain::operator::contract::views::BorrowedRows::from(&stored);
-    let copied = (0..stored_view.count())
-        .map(|at| {
-            stored_view
-                .read(RowIndex(at), &mut scratch)
-                .and_then(|row| row.first().copied())
-        })
-        .collect::<Option<Vec<_>>>();
-    usize::from(
-        same && copied
-            == Some(vec![
-                Cell::Number(Integer(7)),
-                Cell::Number(Integer(8)),
-                Cell::Number(Integer(9)),
-            ]),
-    )
-}
-
-/// A table emptied for the next file keeps the room a big file grew it to: the worker owns it to the end of the run.
-fn a_table_emptied_keeps_its_room() -> Value {
-    let mut table = Table {
-        kinds: vec![CellKind::Number],
-        ..Table::default()
-    };
-    table.cells.reserve(1 << 20);
-    let before = table.cells.capacity();
-    reset(&mut table, &[CellKind::Number]);
-    usize::from(table.cells.capacity() == before && before >= 1 << 20)
-}
-
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
@@ -271,30 +136,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_key_among_many_finds_exactly_its_rows"),
         word: Word::Succeeds,
         input: || finds_a_key_among_many,
-        expect: Expect::Value(1),
-    },
-    Case {
-        name: CaseName("a_stored_row_is_read_in_place_as_its_kinds"),
-        word: Word::Succeeds,
-        input: || || Ok(reads_a_stored_row()),
-        expect: Expect::Value(1),
-    },
-    Case {
-        name: CaseName("the_rows_of_a_tree_are_read_from_its_table"),
-        word: Word::Succeeds,
-        input: || || Ok(reads_the_rows_of_a_tree()),
-        expect: Expect::Value(1),
-    },
-    Case {
-        name: CaseName("a_computed_table_is_looked_up_where_it_is"),
-        word: Word::Succeeds,
-        input: || || Ok(a_computed_table_is_not_copied()),
-        expect: Expect::Value(1),
-    },
-    Case {
-        name: CaseName("a_table_emptied_keeps_its_room"),
-        word: Word::Succeeds,
-        input: || || Ok(a_table_emptied_keeps_its_room()),
         expect: Expect::Value(1),
     },
     Case {
@@ -320,3 +161,107 @@ fn refuses() {
 }
 
 use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
+
+pub(crate) fn compact(table: &Table) -> ryo_values::domain::table_words::types::CompactTable {
+    use ryo_relations::domain::relations::types::Words;
+    use ryo_values::domain::stored_facts::types::KeptWords;
+    use ryo_values::domain::table_words::{
+        service,
+        types::{DecodeMode, WordSlice},
+    };
+    let mut words = Words::default();
+    service::encode_table(table, &[], &mut words);
+    let ryo_values::domain::table_words::types::Admitted {
+        table: compact,
+        names,
+    } = ryo_values::domain::compact_table::service::admit_compact(
+        ryo_values::domain::table_words::types::CompactBacking(Arc::new(KeptWords(service::pack(
+            WordSlice(&words.0),
+        )))),
+        &mut Vec::new(),
+        DecodeMode::Complete,
+    )
+    .unwrap();
+    assert!(names.is_empty());
+    assert_eq!(
+        ryo_values::domain::compact_table::service::compact_rectangular(&compact),
+        ryo_values::domain::table_words::types::TableShape::Rectangular
+    );
+    compact
+}
+
+pub(crate) fn number(value: i64) -> Cell {
+    Cell::Number(Integer(value))
+}
+pub(crate) fn column(values: &[i64]) -> FactColumn {
+    FactColumn(
+        values
+            .iter()
+            .map(|value| to_bits(number(*value)).0)
+            .collect(),
+    )
+}
+pub(crate) fn selection(
+    rows: Vec<u32>,
+    columns: Vec<ColumnIndex>,
+    kinds: Vec<CellKind>,
+) -> Arc<StoredSelection> {
+    Arc::new(StoredSelection {
+        relation: Relation::Function,
+        rows: Arc::new(rows),
+        columns,
+        kinds,
+        identity: Arc::new(Default::default()),
+    })
+}
+pub(crate) fn values(read: RowRead<'_>) -> &[Cell] {
+    match read {
+        RowRead::Borrowed(row) | RowRead::Decoded(row) => row,
+        RowRead::MissingPhysical => panic!("declared row missing"),
+    }
+}
+pub(crate) fn check_rows(input: &Rows<'_>, expected: &[Vec<Cell>]) {
+    let raw = borrowed(input);
+    let item = registered(kind(raw));
+    let contract = item.prepare(raw).expect("metadata");
+    assert_eq!(item.inspect(&contract).unwrap(), PhysicalShape::Complete);
+    assert_eq!(contract.rows, RowCount(expected.len()));
+    assert_eq!(kind(item.bulk(raw).unwrap()), contract.kind);
+    for (at, wanted) in expected.iter().enumerate() {
+        let mut decode = vec![number(99); contract.kinds.len()];
+        assert_eq!(
+            values(item.row(raw, RowIndex(at), &mut decode).unwrap()),
+            wanted
+        );
+        let mut decode = Vec::new();
+        assert_eq!(
+            crate::domain::table_model::service::read_row(input, RowIndex(at), &mut decode)
+                .unwrap(),
+            wanted
+        );
+        for (at_column, wanted) in wanted.iter().enumerate() {
+            let at_column = ColumnIndex(u32::try_from(at_column).unwrap());
+            assert_eq!(
+                item.cell(raw, RowIndex(at), at_column).unwrap(),
+                CellRead::Cell(*wanted)
+            );
+            assert_eq!(
+                crate::domain::table_model::service::cell_at(input, RowIndex(at), at_column),
+                Some(*wanted)
+            );
+        }
+    }
+    // A zero-column Stored view has no physical row bound; callers enumerate
+    // only the zero rows declared by its contract, preserving legacy behavior.
+    if contract.rows != RowCount(0) || contract.kind != RepresentationKind::Stored {
+        let mut decode = vec![number(0); contract.kinds.len()];
+        assert!(matches!(
+            item.row(raw, RowIndex(usize::MAX), &mut decode).unwrap(),
+            RowRead::MissingPhysical
+        ));
+    }
+    assert_eq!(
+        item.cell(raw, RowIndex(0), ColumnIndex(u32::MAX)).unwrap(),
+        CellRead::MissingPhysical
+    );
+}

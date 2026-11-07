@@ -1,9 +1,8 @@
 //! Borrowed representation data; admission and retained ownership live in the engine.
 use crate::domain::operating::errors::OperatingError;
-use crate::domain::table_cells::types::TreeRows;
+use crate::domain::table_model::types::RepresentationInput;
 
-use ryo_relations::domain::relations::types::{CellKind, ColumnsView, Value};
-use ryo_values::domain::plan_parts::types::ColumnIndex;
+use ryo_relations::domain::relations::types::{CellKind, Value};
 /// The kind declaration is also the complete proof inventory; dispatch and
 /// real fixtures match it exhaustively, with no separately maintained ALL list.
 macro_rules! kinds {
@@ -17,21 +16,6 @@ macro_rules! kinds {
     };
 }
 kinds!(Stored, Selected, Tree, Computed, Compact, Positioned);
-pub(crate) mod registered_representation;
-#[derive(Clone, Copy)]
-pub(crate) enum RepresentationInput<'a> {
-    Stored(ColumnsView<'a>),
-    Selected {
-        source: ColumnsView<'a>,
-        positions: &'a [u32],
-        columns: &'a [ColumnIndex],
-        kinds: &'a [CellKind],
-    },
-    Tree(TreeRows<'a>),
-    Positioned(crate::domain::table_model::types::PositionedRows<'a>),
-    Computed(&'a Table),
-    Compact(&'a ryo_values::domain::table_words::types::CompactTable),
-}
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum PhysicalShape {
     Complete,
@@ -56,4 +40,4 @@ pub(crate) enum RowRead<'a> {
     MissingPhysical,
 }
 
-use ryo_values::domain::rows::types::{RowCount, Table};
+use ryo_values::domain::rows::types::RowCount;

@@ -161,7 +161,7 @@ pub(crate) fn prepare_with_schemas<'s>(
     let physical=plans.iter().enumerate().map(|(rule,plan)| {
         let selectors = &selection_plans[rule];
         plan.steps.iter().enumerate().map(|(at,_step)| {
-            crate::domain::table_model::collections::representations::publication::PreparedPhysical{selector:selectors.steps.get(at).cloned().flatten()}
+            crate::domain::table_model::types::PreparedPhysical{selector:selectors.steps.get(at).cloned().flatten()}
         }).collect()
     }).collect();
     let ordered_existence = Arc::new(

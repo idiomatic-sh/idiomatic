@@ -31,7 +31,7 @@ impl<'a> SelectionSource<'a> {
         if !std::ptr::eq(owner, relation_owner.derived())
             || crate::application::file_dag::relations::same_admitted_rows(
                 proof.rows(),
-                crate::domain::operator::contract::views::BorrowedRows::Stored(source),
+                crate::domain::table_model::types::RepresentationInput::Stored(source),
             ) == crate::application::file_dag::relations::types::Sameness::Different
         {
             return Err(OperatingError::NotRead);
@@ -137,7 +137,7 @@ impl SelectionSource<'_> {
                             plan,
                             DerivedInputs::Postings {
                                 rows:
-                                    crate::domain::operator::contract::views::BorrowedRows::Stored(
+                                    crate::domain::table_model::types::RepresentationInput::Stored(
                                         source,
                                     ),
                                 texts,

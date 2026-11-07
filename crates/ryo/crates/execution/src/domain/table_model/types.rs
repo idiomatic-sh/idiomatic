@@ -2,6 +2,7 @@
 //! constructor and no inherent impl.
 
 use ryo_relations::domain::relations::types::{CellKind, Value};
+use std::sync::Arc;
 use ryo_values::domain::rows::types::Table;
 
 use crate::domain::stored_selection::types::{SelectedPositions, SelectionIdentity};
@@ -135,3 +136,50 @@ pub(crate) enum Verdict {
 
 use ryo_values::domain::rows::types::RowIndex;
 
+/// Opaque immutable publication crossing the engine's domain port. A foreign
+/// implementation carries no authority: the application verifies its private
+/// record and current population epoch before admission or resolution.
+pub(crate) trait PublishedRelation: std::any::Any + std::fmt::Debug + Send + Sync {
+    fn as_any(&self) -> &dyn std::any::Any;
+}
+/// Reuse the existing selector compiler; neither member owns execution state.
+#[derive(Clone, Debug, Default)]
+pub(crate) struct PreparedPhysical {
+    pub selector: Option<Arc<Selector>>,
+}
+
+pub(crate) mod registered_representation;
+
+/// The representation a physical row source is held in.
+#[derive(Clone, Copy)]
+pub(crate) enum RepresentationInput<'a> {
+    Stored(ColumnsView<'a>),
+    Selected {
+        source: ColumnsView<'a>,
+        positions: &'a [u32],
+        columns: &'a [ColumnIndex],
+        kinds: &'a [CellKind],
+    },
+    Tree(TreeRows<'a>),
+    Positioned(PositionedRows<'a>),
+    Computed(&'a Table),
+    Compact(&'a ryo_values::domain::table_words::types::CompactTable),
+}
+
+impl<'f> From<&'f Rows<'f>> for RepresentationInput<'f> {
+    fn from(rows: &'f Rows<'f>) -> Self {
+        match rows {
+            Rows::Stored(source) => Self::Stored(*source),
+            Rows::Selected(view) => Self::Selected {
+                source: view.source,
+                positions: &view.selection.rows,
+                columns: &view.selection.columns,
+                kinds: &view.selection.kinds,
+            },
+            Rows::Tree(tree) => Self::Tree(*tree),
+            Rows::Computed(table) => Self::Computed(table),
+            Rows::Compact(table) => Self::Compact(table),
+            Rows::Positioned(view) => Self::Positioned(*view),
+        }
+    }
+}

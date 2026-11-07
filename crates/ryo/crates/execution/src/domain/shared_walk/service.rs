@@ -181,7 +181,7 @@ pub(crate) fn evaluate(
     if source_kinds != ryo_relations::domain::relations::service::kinds(relation)
         || matches!(rows, Rows::Tree(tree) if count != 0 && kind_names(tree.elements).is_empty())
         || count > u32::MAX as usize
-        || crate::domain::table_model::collections::representations::service::borrowed(rows)
+        || crate::domain::table_model::service::borrowed(rows)
             .validate()
             .is_err()
     {

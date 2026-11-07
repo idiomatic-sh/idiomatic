@@ -1,6 +1,7 @@
 //! Physical row semantics; policy and allocation ownership remain in the engine.
 use super::super::{interface::RepresentationsItem, types::*};
 use crate::domain::operating::errors::OperatingError;
+use crate::domain::table_model::types::RepresentationInput;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 pub(crate) struct ComputedItem;

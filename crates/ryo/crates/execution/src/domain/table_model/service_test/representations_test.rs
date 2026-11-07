@@ -3,9 +3,10 @@ use crate::domain::lowering::types::{ElementPart, LoweredColumn, LoweredShape, R
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::positions::types::{Positions, Slots};
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
-use crate::domain::table_model::collections::representations::service::{borrowed, kind, registered};
+use crate::domain::table_model::service::{borrowed, kind, registered};
 use crate::domain::table_model::collections::representations::types::*;
-use crate::domain::table_model::fixtures::{compact, number, column, selection, check_rows};
+use crate::domain::table_model::service_test::{compact, number, column, selection, check_rows};
+use crate::domain::table_model::types::RepresentationInput;
 use crate::domain::table_model::types::{PositionedRows, Rows, SelectedRows, StoredSelection};
 use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::elements::types::Elements;

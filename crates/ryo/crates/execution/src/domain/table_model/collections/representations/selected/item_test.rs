@@ -1,11 +1,12 @@
 //! The selected item reads the positions and columns a selection keeps of a stored relation and refuses every other representation.
 use super::super::{
     interface::RepresentationsItem,
-    types::{CellRead, PhysicalShape, RepresentationInput},
+    types::{CellRead, PhysicalShape},
 };
+use crate::domain::table_model::types::RepresentationInput;
 use super::item::SelectedItem;
 use crate::domain::operating::errors::OperatingError;
-use crate::domain::table_model::fixtures::{column, number, selection};
+use crate::domain::table_model::service_test::{column, number, selection};
 use ryo_relations::domain::relations::types::{CellKind, ColumnsView};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};

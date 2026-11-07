@@ -157,7 +157,7 @@ impl SelectionFixture {
         let population = self.owner.source(program.relation, &Rows::Stored(source))?;
         let proof = self.owner.admit(
             population.as_ref(),
-            crate::domain::operator::contract::views::BorrowedRows::Stored(source),
+            crate::domain::table_model::types::RepresentationInput::Stored(source),
         )?;
         // The real owner inspects the supplied representation before optional
         // selection reuse. A readable ragged backing follows its physical fallback.
@@ -194,7 +194,7 @@ impl SelectionFixture {
         let population = self.owner.source(relation, &Rows::Stored(source))?;
         let proof = self.owner.admit(
             population.as_ref(),
-            crate::domain::operator::contract::views::BorrowedRows::Stored(source),
+            crate::domain::table_model::types::RepresentationInput::Stored(source),
         )?;
         drop(proof);
         drop(population);

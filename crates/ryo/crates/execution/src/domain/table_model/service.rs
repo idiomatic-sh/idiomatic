@@ -10,8 +10,7 @@ use ryo_relations::domain::relations::types::{
 
 use super::constants::MATERIALIZED;
 use super::types::registered_representation::value::RegisteredRepresentation;
-use super::types::representation_input::value::RepresentationInput;
-use super::types::Rows;
+use super::types::{RepresentationInput, Rows};
 use super::collections::representations::types::RepresentationKind;
 use crate::domain::table_cells::service::{edge_of, element_of};
 use crate::domain::table_cells::types::{TreeForm, TreeRows};

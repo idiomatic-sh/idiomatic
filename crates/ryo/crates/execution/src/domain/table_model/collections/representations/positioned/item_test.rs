@@ -1,8 +1,9 @@
 //! The actual item validates tuple geometry before exposing borrowed cells.
 use super::super::{
     interface::RepresentationsItem,
-    types::{CellRead, PhysicalShape, RepresentationInput},
+    types::{CellRead, PhysicalShape},
 };
+use crate::domain::table_model::types::RepresentationInput;
 use super::item::PositionedItem;
 use crate::domain::{
     lowering::types::{ElementPart, LoweredColumn, LoweredShape, RowPosition, RowWidth},

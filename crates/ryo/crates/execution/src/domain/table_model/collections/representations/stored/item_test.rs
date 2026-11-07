@@ -1,11 +1,12 @@
 //! The stored item reads the columns of a relation where the store keeps them and refuses every other representation.
 use super::super::{
     interface::RepresentationsItem,
-    types::{CellRead, PhysicalShape, RepresentationInput},
+    types::{CellRead, PhysicalShape},
 };
+use crate::domain::table_model::types::RepresentationInput;
 use super::item::StoredItem;
 use crate::domain::operating::errors::OperatingError;
-use crate::domain::table_model::fixtures::{column, number};
+use crate::domain::table_model::service_test::{column, number};
 use ryo_relations::domain::relations::types::{CellKind, ColumnsView};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};

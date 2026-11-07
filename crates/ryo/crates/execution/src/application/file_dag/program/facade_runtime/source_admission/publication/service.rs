@@ -131,7 +131,7 @@ impl SourceInputs<'_, '_> {
         let resolved = self.owner.resolve(publication.as_ref(), self.read)?;
         let checked = self.owner.admit(
             publication.as_ref(),
-            crate::domain::table_model::types::representation_input::value::RepresentationInput::from(&resolved),
+            crate::domain::table_model::types::RepresentationInput::from(&resolved),
         )?;
         AdmittedInput::from_publication(
             Rc::clone(&self.owner),

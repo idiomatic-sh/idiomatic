@@ -140,9 +140,9 @@ pub(in crate::application::file_dag) struct AdmittedViewInputs<'a> {
     sources: AcquisitionSources<'a>,
 }
 enum AcquisitionSources<'a> {
-    Rows(Vec<crate::domain::operator::contract::views::BorrowedRows<'a>>),
+    Rows(Vec<crate::domain::table_model::types::RepresentationInput<'a>>),
     Dense {
-        rows: Vec<crate::domain::operator::contract::views::BorrowedRows<'a>>,
+        rows: Vec<crate::domain::table_model::types::RepresentationInput<'a>>,
         graph: Arc<ryo_derived::domain::contract::types::CompactGraph>,
     },
     Raw,

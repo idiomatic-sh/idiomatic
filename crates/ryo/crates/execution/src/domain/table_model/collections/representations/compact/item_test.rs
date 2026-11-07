@@ -1,11 +1,12 @@
 //! The compact item reads admitted packed rows and refuses every other representation.
 use super::super::{
     interface::RepresentationsItem,
-    types::{CellRead, PhysicalShape, RepresentationInput},
+    types::{CellRead, PhysicalShape},
 };
+use crate::domain::table_model::types::RepresentationInput;
 use super::item::CompactItem;
 use crate::domain::operating::errors::OperatingError;
-use crate::domain::table_model::fixtures::{compact, number};
+use crate::domain::table_model::service_test::{compact, number};
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};

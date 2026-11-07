@@ -1,9 +1,10 @@
 //! Missing rows and malformed rows stay distinct; foreign classifications refuse before reading.
 use crate::domain::{
     operating::errors::OperatingError,
-    table_model::collections::representations::{
+    table_model::{
+        collections::representations::types::{RepresentationKind, RowRead},
         service::registered,
-        types::{RepresentationInput, RepresentationKind, RowRead},
+        types::RepresentationInput,
     },
 };
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};

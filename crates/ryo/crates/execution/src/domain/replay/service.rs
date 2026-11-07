@@ -23,7 +23,7 @@ pub(crate) fn scan(
         rows,
         Rows::Computed(_) | Rows::Compact(_) | Rows::Positioned(_)
     ) {
-        crate::domain::table_model::collections::representations::service::borrowed(rows)
+        crate::domain::table_model::service::borrowed(rows)
             .validate()?;
     }
     for position in positions(count_of(rows)) {

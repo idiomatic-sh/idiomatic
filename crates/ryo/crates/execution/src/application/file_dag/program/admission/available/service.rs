@@ -49,7 +49,7 @@ impl AvailableInput {
         // remain immediate. No borrowed rows survive this synchronous boundary.
         let inspected = owner.inspect_available(
             publication.as_ref(),
-            crate::domain::operator::contract::views::BorrowedRows::from(&rows),
+            crate::domain::table_model::types::RepresentationInput::from(&rows),
         )?;
         let admission = match inspected {
             Ok(physical) => {
@@ -59,7 +59,7 @@ impl AvailableInput {
                     // remains deferred to the declared admission boundary.
                     drop(physical);
                     owner.normalize(&publication, rows).and_then(|normalized| {
-                        owner.admit(publication.as_ref(), crate::domain::operator::contract::views::BorrowedRows::from(&normalized))
+                        owner.admit(publication.as_ref(), crate::domain::table_model::types::RepresentationInput::from(&normalized))
                             .and_then(|proof| AdmittedInput::from_publication(Rc::clone(&owner), publication.clone(), &proof,
                                 root, ReadProof::complete(partition.clone())))
                     })

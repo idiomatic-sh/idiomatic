@@ -24,7 +24,7 @@ impl InvocationResources<'_> {
         if let Some(view) = view {
             observed.index_rows = view.rows.count();
             observed.index_representation = Some(
-                crate::domain::table_model::collections::representations::service::kind(view.rows),
+                crate::domain::table_model::service::kind(view.rows),
             );
         }
         let mut rows = self

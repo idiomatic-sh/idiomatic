@@ -1,6 +1,7 @@
 //! Pure row access over immutable positions and their admitted tree geometry.
 use super::super::{interface::RepresentationsItem, types::*};
 use crate::domain::{operating::errors::OperatingError, table_model::types::PositionedRows};
+use crate::domain::table_model::types::RepresentationInput;
 use ryo_relations::domain::relations::types::{Position, Value};
 use ryo_values::domain::{
     plan_parts::types::ColumnIndex,
