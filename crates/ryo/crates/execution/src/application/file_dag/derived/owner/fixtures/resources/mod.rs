@@ -1,5 +1,5 @@
-use crate::outbound::derived::interface::DerivedPort;
 //! Pure derived-owner fixtures; no operator evaluator or legacy transport.
+use crate::outbound::derived::interface::DerivedPort;
 use crate::application::file_dag::derived::owner::*;
 use crate::application::file_dag::relations::RelationOwner;
 use crate::domain::{
