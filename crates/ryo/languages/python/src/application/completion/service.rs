@@ -8,6 +8,8 @@ use crate::{
 };
 use ryo::languages;
 
+use super::constants::MODEL_PROMISED;
+
 /// The model is an explicit input promised by Parse::completion_requirement.
 #[expect(
     clippy::expect_used,
@@ -29,7 +31,7 @@ pub(crate) fn expand(
                 })
                 .collect::<Vec<_>>()
         })
-        .expect("Python completion requires the engine-prepared Declarations model");
+        .expect(MODEL_PROMISED);
     if !carriers.is_empty() {
         languages::append_embedded(completion, |builder| {
             syntax.expand_annotations(source, &carriers, builder)

@@ -2,7 +2,7 @@
 
 use super::constants::{CUTS, DIRECTORY_OWNER, HERE, MANIFEST, SEPARATOR, UP};
 
-use super::types::{Asked, Linking, Lying, Ownership, Relative, Settlement, Supply};
+use super::types::{Asked, PathLinking, Lying, Ownership, Relative, Settlement, Supply};
 use crate::domain::paths::types::EntryName;
 use crate::domain::paths::types::Height;
 use crate::domain::paths::types::RepoPath;
@@ -238,15 +238,15 @@ pub(crate) fn consulted_files(mut found: Vec<RepoPath>) -> Vec<ryo::languages::F
 
 /// Whether any of the relations asked for links the source files to one another.
 #[must_use]
-pub(crate) fn linking_of(wanted: &[ryo::languages::Relation]) -> Linking {
+pub(crate) fn linking_of(wanted: &[ryo::languages::Relation]) -> PathLinking {
     if wanted.iter().any(|each| {
         matches!(
             each,
             ryo::languages::Relation::SourceDependency | ryo::languages::Relation::AnalyzedSource
         )
     }) {
-        Linking::Asked
+        PathLinking::Asked
     } else {
-        Linking::NotAsked
+        PathLinking::NotAsked
     }
 }

@@ -3,7 +3,8 @@
 use super::super::errors::ManifestReadingError;
 use super::super::interface::ManifestReadingPort;
 use super::super::types::Claim;
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::selects;
 use ryo::languages::{FilePath, ManifestFile, ManifestText};
 
 /// What a row of the contract asks of an adapter.
@@ -77,7 +78,7 @@ pub(crate) const CASES: &[Case<Ask, Answer, Failure>] = &[
         word: Word::Refuses,
         input: || Ask::ReadsABrokenFile,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, ManifestReadingError::Unreadable { .. }))
+            selects!(error, ManifestReadingError::Unreadable { .. })
         }),
     },
 ];

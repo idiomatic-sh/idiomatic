@@ -2,7 +2,8 @@
 
 use super::super::errors::NotesError;
 use super::super::interface::NotesPort;
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::selects;
 use crate::domain::fact_notes::types::Note;
 use ryo::languages::Bytes;
 
@@ -33,13 +34,13 @@ pub(crate) const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("no_bytes_hold_no_note"),
         word: Word::Refuses,
         input: || Probe::NoNote,
-        expect: Expect::Refusal(|error| selects(matches!(error, NotesError::NotANote))),
+        expect: Expect::Refusal(|error| selects!(error, NotesError::NotANote)),
     },
     Case {
         name: CaseName("bytes_that_are_not_a_note_hold_none"),
         word: Word::Refuses,
         input: || Probe::NotANote,
-        expect: Expect::Refusal(|error| selects(matches!(error, NotesError::NotANote))),
+        expect: Expect::Refusal(|error| selects!(error, NotesError::NotANote)),
     },
     Case {
         name: CaseName("writing_a_note_replaces_what_the_room_held"),

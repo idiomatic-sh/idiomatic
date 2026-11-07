@@ -2,6 +2,7 @@
 
 use super::declared;
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::selects;
 use crate::outbound::manifest_reading::errors::ManifestReadingError;
 use crate::outbound::manifest_reading::fixtures::shown::{Files, declared_with};
 
@@ -69,9 +70,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || &[("requirements.txt", "-r base.txt\n")],
         expect: Expect::Refusal(|error| {
-            crate::cases::selects(
-                matches!(error, ManifestReadingError::Unreadable { reason } if reason.contains("base.txt")),
-            )
+            selects!(error, ManifestReadingError::Unreadable { reason } if reason.contains("base.txt"))
         }),
     },
     Case {
