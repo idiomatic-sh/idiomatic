@@ -86,7 +86,7 @@ mod domain {
           }
         }
       }
-      pub use executable_program::value::ExecutableProgram;
+      pub(crate) use executable_program::value::ExecutableProgram;
     }
     pub mod service {
       use super::types::*;
@@ -179,7 +179,7 @@ pub mod domain {
   pub mod executable_program {
     pub mod types {
       pub mod executable_program { pub mod value { pub struct ExecutableProgram; } }
-      pub use executable_program::value::ExecutableProgram;
+      pub(crate) use executable_program::value::ExecutableProgram;
       pub struct RegionId(pub usize);
     }
     pub mod physical { pub struct PhysicalAuthorization; }

@@ -40,7 +40,7 @@ pub(super) enum Holder {
     AddedWorkspaceService,
 }
 impl Holder {
-    pub(super) const ALL: [Holder; 28] = [
+    pub(super) const ALL: [Holder; 29] = [
         Holder::AxisResources,
         Holder::AxisView,
         Holder::ClosurePartitions,

@@ -3,7 +3,7 @@ use super::fixtures::{Compilation, Expectation, Probe};
 mod kernel;
 pub(super) const KERNEL: &str = kernel::KERNEL;
 pub(super) const RAW_SCOPE: &str = kernel::RAW_SCOPE;
-pub(super) const INBOUND: &str = "src/inbound/use_cases/execution/use_case.rs";
+pub(super) const INBOUND: &str = "src/inbound/use_cases/prepare/use_case.rs";
 pub(super) const CACHE: &str = sealing::CACHE;
 pub(super) const TYPES: &str = sealing::TYPES;
 mod census;
@@ -134,7 +134,7 @@ const UNADMITTED_GRAPH_DEMAND: &str = r#"
 mod unadmitted_graph_demand { use crate::application::file_dag::derived::owner::{DerivedOwner, cache::types::CacheBackend, graphs::types::roots::value::DemandAnswers}; use crate::domain::stored_graph::types::GraphWalk; use ryo_derived::domain::adjacency::types::compact_graph::value::CompactGraph; use ryo_relations::domain::relations::types::{Value, Integer}; fn forge(owner: &DerivedOwner, graph: &CompactGraph, walk: &mut GraphWalk, cache: &mut CacheBackend) { let _ = DemandAnswers::new(owner, cache).reach(graph, &[], Value::Number(Integer(1)), walk); } const _: fn(&DerivedOwner, &CompactGraph, &mut GraphWalk, &mut CacheBackend) = forge; }
 "#;
 const BORROWED_LEASED_READ: &str = r#"
-mod borrowed_leased_read { use crate::application::file_dag::derived::owner::graphs::types::handles::service::{GraphHandle, DomainHandle}; fn read(graph: &GraphHandle, domain: &DomainHandle) -> usize { graph.graph().vertices().len() + domain.members().len() } const _: fn(&GraphHandle, &DomainHandle) -> usize = read; }
+mod borrowed_leased_read { use crate::application::file_dag::derived::owner::graphs::types::handles::service::{GraphHandle, DomainHandle}; fn read(graph: &GraphHandle, domain: &DomainHandle) -> usize { graph.graph().vertices().len() + domain.members().0.len() } const _: fn(&GraphHandle, &DomainHandle) -> usize = read; }
 "#;
 const OWNED_GRAPH_PRIVATE_FIELDS: &str = r#"
 mod owned_graph_private_fields { use super::GraphHandle as Authority; fn policy(value: &mut Authority) { value.sharing = crate::application::file_dag::derived::owner::graphs::types::handles::types::GraphSharing::Local; } const _: fn(&mut Authority) = policy; }

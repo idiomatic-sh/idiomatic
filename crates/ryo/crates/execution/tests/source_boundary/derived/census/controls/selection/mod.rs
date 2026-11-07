@@ -5,7 +5,7 @@ pub(in super::super) static SELECTOR_PLAN: Acquire = Acquire {
     positive: r#"
 mod census_selector_plan {
     use crate::application::file_dag::derived::owner::DerivedOwner;
-    use crate::domain::{derived_views::types::DerivedContract, operating::errors::OperatingError, stored_selection::types::Selector};
+    use crate::domain::{derived_views::types::contract::value::DerivedContract, operating::errors::OperatingError, stored_selection::types::Selector};
     use std::sync::Arc;
     fn plan(owner: &DerivedOwner, program: &Arc<Selector>) -> Result<Option<Arc<DerivedContract>>, OperatingError> { owner.selector_plan(program) }
     const _: () = { let _ = plan; };
@@ -66,7 +66,7 @@ pub(in super::super) static PREPARE_VIEWS: Acquire = Acquire {
     positive: r#"
 mod census_prepare_views {
     use crate::application::file_dag::derived::owner::selection::preparation::service::prepare_views_with_schemas;
-    use crate::domain::{operating::errors::OperatingError, stored_selection::types::Selector, derived_views::types::PreparedSelectionViews};
+    use crate::domain::{operating::errors::OperatingError, stored_selection::types::Selector, derived_views::types::contract::value::PreparedSelectionViews};
     use ryo_relations::domain::relations::types::{CellKind, Relation};
     use std::sync::Arc;
     fn prepare<'s>(selectors: Vec<Arc<Selector>>, resolver: &dyn Fn(Relation) -> &'s [CellKind], port: Arc<dyn crate::outbound::derived::interface::DerivedPort>) -> Result<Arc<PreparedSelectionViews>, OperatingError> { prepare_views_with_schemas(selectors, resolver, port) }

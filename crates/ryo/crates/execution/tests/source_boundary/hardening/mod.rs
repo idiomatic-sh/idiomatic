@@ -134,13 +134,13 @@ pub(super) fn controls() -> Vec<Probe> {
         accept(
             PROGRAM,
             format!(
-                "mod compiled_accessors {{ use {COMPILED}::{{Instruction, Region}}; fn count(region: &Region) -> usize {{ region.instructions().len() + region.instructions().iter().map(|instruction: &Instruction| instruction.inputs().len()).sum::<usize>() }} const _: fn(&Region) -> usize = count; }}"
+                "mod compiled_accessors {{ use {COMPILED}::instruction::value::Instruction; use {COMPILED}::region::value::Region; fn count(region: &Region) -> usize {{ region.instructions().len() + region.instructions().iter().map(|instruction: &Instruction| instruction.inputs().len()).sum::<usize>() }} const _: fn(&Region) -> usize = count; }}"
             ),
         ),
         refuse(
             PROGRAM,
             format!(
-                "mod read_region {{ use {COMPILED}::Region; fn read(region: &Region) {{ let _ = &region.instructions; }} const _: fn(&Region) = read; }}"
+                "mod read_region {{ use {COMPILED}::region::value::Region; fn read(region: &Region) {{ let _ = &region.instructions; }} const _: fn(&Region) = read; }}"
             ),
             "E0616",
             "instructions",
@@ -149,7 +149,7 @@ pub(super) fn controls() -> Vec<Probe> {
         refuse(
             PROGRAM,
             format!(
-                "mod retarget_region {{ use {COMPILED}::{{Region, RegionId}}; fn retarget(value: Region, id: RegionId) -> Region {{ Region {{ id, ..value }} }} const _: fn(Region, RegionId) -> Region = retarget; }}"
+                "mod retarget_region {{ use {COMPILED}::region::value::Region; use {COMPILED}::RegionId; fn retarget(value: Region, id: RegionId) -> Region {{ Region {{ id, ..value }} }} const _: fn(Region, RegionId) -> Region = retarget; }}"
             ),
             "E0451",
             "id",
@@ -158,7 +158,7 @@ pub(super) fn controls() -> Vec<Probe> {
         refuse(
             PROGRAM,
             format!(
-                "mod read_instruction {{ use {COMPILED}::Instruction; fn read(instruction: &Instruction) {{ let _ = &instruction.operation; }} const _: fn(&Instruction) = read; }}"
+                "mod read_instruction {{ use {COMPILED}::instruction::value::Instruction; fn read(instruction: &Instruction) {{ let _ = &instruction.operation; }} const _: fn(&Instruction) = read; }}"
             ),
             "E0616",
             "operation",
@@ -167,7 +167,7 @@ pub(super) fn controls() -> Vec<Probe> {
         refuse(
             PROGRAM,
             format!(
-                "mod retarget_instruction {{ use {COMPILED}::Instruction; use crate::domain::coverage::types::RuleIndex; fn retarget(instruction: &mut Instruction, producer: RuleIndex) {{ instruction.producer = producer; }} const _: fn(&mut Instruction, RuleIndex) = retarget; }}"
+                "mod retarget_instruction {{ use {COMPILED}::instruction::value::Instruction; use crate::domain::coverage::types::RuleIndex; fn retarget(instruction: &mut Instruction, producer: RuleIndex) {{ instruction.producer = producer; }} const _: fn(&mut Instruction, RuleIndex) = retarget; }}"
             ),
             "E0616",
             "producer",

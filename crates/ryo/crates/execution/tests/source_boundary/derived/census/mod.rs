@@ -14,16 +14,20 @@ mod scan;
 
 /// The only lines outside the owner tree that name the builder port, by file.
 const PORT_NAMES: &[(&str, &[&str])] = &[
-    ("outbound/derived/interface.rs", &[
-        "pub trait DerivedPort: PrepareUseCase + BuildUseCase + ViewUseCase + Send + Sync + std::fmt::Debug {}",
-        "impl<T: PrepareUseCase + BuildUseCase + ViewUseCase + Send + Sync + std::fmt::Debug> DerivedPort",
+    ("outbound/derived/interface.rs", &["pub trait DerivedPort: Send + Sync + std::fmt::Debug {"]),
+    ("outbound/derived/adapters/use_case/adapter.rs", &[
+        "use crate::outbound::derived::interface::DerivedPort;",
+        "impl DerivedPort for DerivedUseCaseAdapter {",
     ]),
     ("outbound/derived/factory.rs", &[
         "use crate::outbound::derived::interface::DerivedPort;",
+        "pub fn semantics() -> impl DerivedPort {",
         "pub fn use_case(semantics: impl DerivedPort) -> impl DerivedPort {",
     ]),
-    ("inbound/use_cases/execution/types.rs", &["pub use crate::outbound::derived::interface::DerivedPort;"]),
-    ("inbound/use_cases/execution/use_case.rs", &["pub fn new(operators: Arc<dyn OperatorsPort>, derived: Arc<dyn DerivedPort>) -> Self {"]),
+    ("inbound/use_cases/prepare/use_case.rs", &[
+        "use crate::outbound::derived::interface::DerivedPort;",
+        "pub fn new(operators: Arc<dyn OperatorsPort>, derived: Arc<dyn DerivedPort>) -> Self {",
+    ]),
 ];
 
 use entry::{Authority, Class, Entry};

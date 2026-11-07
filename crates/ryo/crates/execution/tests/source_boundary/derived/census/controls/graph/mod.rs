@@ -32,7 +32,7 @@ mod census_acquire_graph {
         r#"
 mod census_acquire_graph_denied {
     use crate::application::file_dag::derived::owner::{DerivedOwner, cache::types::CacheBackend};
-    use crate::domain::{derived_views::types::DerivedContract, table_model::types::Rows};
+    use crate::domain::{derived_views::types::contract::value::DerivedContract, table_model::types::Rows};
     use std::sync::Arc;
     fn bypass(owner: &DerivedOwner, plan: &Arc<DerivedContract>, rows: &Rows<'_>, cache: &mut CacheBackend) { let _ = owner.acquire_graph(plan, rows, cache); }
     const _: () = { let _ = bypass; };
@@ -54,7 +54,7 @@ mod census_acquire_graph_domain {
         r#"
 mod census_acquire_graph_domain_denied {
     use crate::application::file_dag::{derived::owner::{DerivedOwner, cache::types::CacheBackend, graphs::types::handles::service::DomainHandle}, workspace::GraphInput};
-    use crate::domain::derived_views::types::DerivedContract;
+    use crate::domain::derived_views::types::contract::value::DerivedContract;
     use std::sync::Arc;
     fn bypass(owner: &DerivedOwner, plan: &Arc<DerivedContract>, domain: &DomainHandle, input: &GraphInput<'_>, cache: &mut CacheBackend) { let _ = owner.acquire_graph_domain(plan, domain, input, cache); }
     const _: () = { let _ = bypass; };
