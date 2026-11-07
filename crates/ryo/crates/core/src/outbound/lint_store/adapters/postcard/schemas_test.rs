@@ -1,4 +1,4 @@
-//! What the schemas of the table of contents accept and refuse.
+//! What the schemas of the store file accept and refuse: the table of contents of one build is read by that build alone.
 
 use super::{contents, contents_bytes};
 use crate::outbound::lint_store::adapters::postcard::types::TableOfContents;

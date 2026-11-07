@@ -1,12 +1,13 @@
-//! The contents document of the postcard store: its wire shapes and their conversion from and into the core's tables.
+//! The shape of the data this adapter does not control, at the root of the store file: the table of contents that says where each section
+//! is and which build wrote them, so a run reads only the sections it needs.
 
-use super::super::types::{BucketSpan, FileOffset, SectionLength, SectionSpan, TableOfContents};
+use super::types::{BucketSpan, FileOffset, SectionLength, SectionSpan, TableOfContents};
 use std::borrow::Cow;
 use ryo_values::domain::stored_facts::types::Bucket;
 
 /// Where a section is in the file, in bytes.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub(in crate::outbound::lint_store::adapters::postcard) struct SpanSchema {
+pub(super) struct SpanSchema {
     /// Where it starts.
     pub start: u64,
     /// How long it is.
@@ -15,7 +16,7 @@ pub(in crate::outbound::lint_store::adapters::postcard) struct SpanSchema {
 
 /// Where the words of one bucket are in the file.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub(in crate::outbound::lint_store::adapters::postcard) struct BucketSpanSchema {
+pub(super) struct BucketSpanSchema {
     /// The bucket.
     pub bucket: u32,
     /// Where its section is.
@@ -24,7 +25,7 @@ pub(in crate::outbound::lint_store::adapters::postcard) struct BucketSpanSchema 
 
 /// The table of contents, last in the file: which build wrote it and where each section is.
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub(in crate::outbound::lint_store::adapters::postcard) struct ContentsSchema<'a> {
+pub(super) struct ContentsSchema<'a> {
     /// The build.
     #[serde(borrow)]
     pub build: Cow<'a, str>,
@@ -73,7 +74,7 @@ impl From<BucketSpan> for BucketSpanSchema {
 }
 
 /// The table of contents `build` writes, as its bytes.
-pub(in crate::outbound::lint_store::adapters::postcard) fn contents_bytes(
+pub(super) fn contents_bytes(
     build: &str,
     contents: &TableOfContents,
 ) -> Result<Vec<u8>, postcard::Error> {
@@ -90,7 +91,7 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn contents_bytes(
 }
 
 /// The table of contents `bytes` hold, when `build` wrote them.
-pub(in crate::outbound::lint_store::adapters::postcard) fn contents(build: &str, bytes: &[u8]) -> Option<TableOfContents> {
+pub(super) fn contents(build: &str, bytes: &[u8]) -> Option<TableOfContents> {
     // A table of contents that does not read back is a store kept by another build or cut short: nothing is kept.
     let Ok(contents) = postcard::from_bytes::<ContentsSchema<'_>>(bytes) else {
         return None;
