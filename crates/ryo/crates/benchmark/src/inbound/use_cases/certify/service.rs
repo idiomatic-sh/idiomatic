@@ -18,15 +18,13 @@ use crate::outbound::{
 };
 use crate::application::case_execution::{
     service::{candidate as run_candidate, run as run_case},
-    types::{AttemptOutcome, CaptureRecord, ProcessCapture},
+    types::AttemptOutcome,
 };
-use crate::application::case_observation::{
-    service::write as record,
-    types::{ObservedProcess, ProcessEvidence},
-};
+use crate::application::case_observation::service::write as record;
 use crate::application::case_selection::{service::select, types::ShardSelection};
 use crate::domain::discrepancy::service::judge;
 use crate::domain::discrepancy::types::{Contestant, ReferenceProof};
+use crate::domain::process_failure::types::CaptureRecord;
 use crate::domain::suite::constants;
 use crate::domain::suite::types::inventory::value::InventoryVerdict;
 use crate::outbound::receipts::interface::ReceiptsPort;
@@ -347,23 +345,28 @@ fn execute(
     ))
 }
 
-/// Match the actual reference process against its declared failure.
+/// Match the actual reference process against its declared failure, when one was captured.
 fn process_matches(
     case: &PreparedCase,
-    capture: &ProcessCapture,
-    proof: &ReferenceProof,
+    capture: &CaptureRecord,
+    proof: Option<&ReferenceProof>,
     suite: &dyn SuitePort,
     rules: &Path,
-) -> Result<(), Error> {
-    crate::application::process_discrepancy::service::matches(
-        case,
-        &capture.invocation,
-        &capture.output,
-        proof,
-        suite,
-        rules,
-    )?;
-    Ok(())
+) -> Option<Result<(), Error>> {
+    let (CaptureRecord::Kept(capture), Some(proof)) = (capture, proof) else {
+        return None;
+    };
+    Some(
+        crate::application::process_discrepancy::service::matches(
+            case,
+            &capture.invocation,
+            &capture.output,
+            proof,
+            suite,
+            rules,
+        )
+        .map_err(Error::from),
+    )
 }
 
 /// Execute admitted materialized cases through the same verification workflow.
@@ -460,7 +463,7 @@ fn verify_prepared_shard(
                             Some(&message),
                             YesNo::No,
                             proof.as_ref(),
-                            ProcessEvidence::Absent,
+                            &CaptureRecord::Absent,
                         )?;
                         failures.push(format!(
                             "{}/{} {contestant}: {}",
@@ -479,7 +482,7 @@ fn verify_prepared_shard(
                         None,
                         YesNo::from(comparison.is_ok()),
                         proof.as_ref(),
-                        evidence(&capture),
+                        &capture,
                     )?;
                     if let Err(difference) = comparison {
                         failures.push(format!(
@@ -495,9 +498,8 @@ fn verify_prepared_shard(
                 }
                 Err(error) => {
                     let assessment = (contestant == Contestant::Reference)
-                        .then_some(())
-                        .and(kept(&capture).zip(proof.as_ref()))
-                        .map(|(capture, proof)| process_matches(&case, capture, proof, suite, rules));
+                        .then(|| process_matches(&case, &capture, proof.as_ref(), suite, rules))
+                        .flatten();
                     let accepted = matches!(assessment, Some(Ok(())));
                     let message = ReasonText(match assessment {
                         Some(Err(mismatch)) => format!("{error}; {mismatch}"),
@@ -513,7 +515,7 @@ fn verify_prepared_shard(
                         if accepted { None } else { Some(&message) },
                         YesNo::from(accepted),
                         proof.as_ref(),
-                        evidence(&capture),
+                        &capture,
                     )?;
                     if !accepted {
                         failures.push(format!(
@@ -539,21 +541,3 @@ fn verify_prepared_shard(
     }
 }
 
-/// The raw process a captured attempt keeps beside its observation row.
-fn evidence(capture: &CaptureRecord) -> ProcessEvidence<'_> {
-    match capture {
-        CaptureRecord::Absent => ProcessEvidence::Absent,
-        CaptureRecord::Kept(kept) => ProcessEvidence::Kept(ObservedProcess {
-            invocation: &kept.invocation,
-            output: &kept.output,
-        }),
-    }
-}
-
-/// The captured attempt, when its raw bytes were kept.
-fn kept(capture: &CaptureRecord) -> Option<&ProcessCapture> {
-    match capture {
-        CaptureRecord::Absent => None,
-        CaptureRecord::Kept(kept) => Some(kept),
-    }
-}

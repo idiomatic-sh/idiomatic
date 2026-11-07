@@ -30,8 +30,6 @@ pub(super) const RECEIPT_ONLY_INVENTORY_CANNOT_AUTHORIZE_EXEC: &str =
 /// Text of the canonical inventory profile executable ident in this part.
 pub(super) const CANONICAL_INVENTORY_PROFILE_EXECUTABLE_IDENT: &str =
     "canonical inventory/profile/executable identity differs";
-/// A registered rule without a case-verification command cannot be verified.
-pub(super) const MISSING_VERIFICATION_COMMAND: &str = "missing verification command";
 /// The registered module names must be exactly the pinned ones.
 pub(super) const REGISTERED_MODULE_INVENTORY_DIFFERS_FROM_PIN: &str =
     "registered module inventory differs from pinned context profile";

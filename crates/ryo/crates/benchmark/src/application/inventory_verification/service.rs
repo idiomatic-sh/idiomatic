@@ -327,7 +327,7 @@ pub fn verify_context(
     store: &dyn InventoryPort,
 ) -> Result<(), FailureReason> {
     let RuleCommand::Registered(Command::CaseVerification { context }) = &entry.command else {
-        return Err(FailureReason(constants::MISSING_VERIFICATION_COMMAND.into()));
+        return Err(FailureReason(crate::domain::suite::constants::MISSING_VERIFICATION_COMMAND.into()));
     };
     if entry.artifacts.is_empty() {
         return Err(FailureReason(

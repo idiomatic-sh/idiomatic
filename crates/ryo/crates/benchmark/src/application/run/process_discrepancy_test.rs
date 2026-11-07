@@ -21,8 +21,8 @@ impl ExecutionPort for Observer {
     fn profile(&self) -> ExecutionProfile {
         self.0.profile()
     }
-    fn observes_completed_processes_without_deadline(&self) -> bool {
-        true
+    fn exit_observation(&self) -> crate::outbound::execution::types::ExitObservationMode {
+        crate::outbound::execution::types::ExitObservationMode::Direct
     }
     fn run(
         &self,
@@ -103,7 +103,7 @@ fn two_tool_neutral_providers_capture_archive_and_validate_without_a_report() {
         assert!(captured.records[0].diagnostics.is_none());
         assert_eq!(
             captured.records[0].raw_parity_matches_intended,
-            Some(crate::outbound::suite::types::text::YesNo::No)
+            Some(ryo_benchmark_contracts::domain::documents::types::text::value::YesNo::No)
         );
         assert_eq!(
             crate::application::inventory_receipts::service::validate_with_artifacts(
@@ -203,13 +203,7 @@ fn offline_replay_rejects_every_identity_and_candidate_completeness_mutation() {
 #[test]
 fn archived_pairs_are_required_for_each_actual_binary_and_raw_bytes_are_recomputed() {
     let fixture = fixtures::Fixture::new("identity");
-    let mut process = ryo_benchmark_contracts::domain::process::types::ProcessFailure::try_from(
-        serde_json::from_value::<crate::outbound::suite::types::process::ProcessFailureWire>(
-            fixture.case["reference_discrepancy"]["process"].clone(),
-        )
-        .unwrap(),
-    )
-    .unwrap();
+    let mut process = crate::inbound::use_cases::verify_reference_cases::use_case_test::process_identity::fixtures::process_failure(&fixture.case["reference_discrepancy"]["process"]);
     assert!(
         crate::domain::process_failure::service::group_digest(
             &process,
@@ -305,7 +299,7 @@ fn metadata_failure_preserves_process_bytes_and_cannot_be_admitted() {
     assert_eq!(loaded.artifacts.len(), 3);
     assert_eq!(
         loaded.records[0].case_passed,
-        crate::outbound::suite::types::text::YesNo::No
+        ryo_benchmark_contracts::domain::documents::types::text::value::YesNo::No
     );
     assert!(loaded.records[0].error.is_some());
 }
@@ -374,7 +368,7 @@ fn changing_raw_invocation_and_its_digest_does_not_establish_pinned_settings() {
     let mut invocation: Value = serde_json::from_slice(&captured.artifacts[&path]).unwrap();
     invocation["arguments"] = json!(["--changed-flag"]);
     let bytes = serde_json::to_vec(&invocation).unwrap();
-    pointer.sha256 = crate::outbound::suite::types::text::Sha256Text(format!(
+    pointer.sha256 = ryo_benchmark_contracts::domain::documents::types::text::value::Sha256Text(format!(
         "{:x}",
         sha2::Sha256::digest(&bytes)
     ));
@@ -423,8 +417,12 @@ fn unselected_context_source_remains_bound_to_discrepancy_identity() {
     );
     let suite = crate::outbound::suite::factory::local();
     let digest = suite
-        .case_source_digest(ArtifactPath(root.path()), &files)
-        .unwrap();
+        .case_source_digest(
+            ArtifactPath(root.path()),
+            crate::outbound::suite::types::ArtifactSet(&files),
+        )
+        .unwrap()
+        .0;
     let check = || {
         suite.verify_discrepancy_artifacts(CaseArtifacts {
             profile: root.path(),

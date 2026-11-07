@@ -1,5 +1,5 @@
 //! Convert one verification outcome into a durable boundary-owned observation.
-use super::types::ProcessEvidence;
+use crate::domain::process_failure::types::CaptureRecord;
 use crate::domain::canonical_text::types::Label;
 use crate::domain::process_output::types::ReceiptKeyParts;
 use crate::domain::discrepancy::types::{
@@ -147,7 +147,7 @@ pub(crate) fn write(
     error: Option<&ReasonText>,
     passed: YesNo,
     validation: Option<&ReferenceProof>,
-    process: ProcessEvidence<'_>,
+    capture: &CaptureRecord,
 ) -> Result<(), Error> {
     let CaseReceipts::Recorded(path) = receipts.case_receipts() else {
         return Ok(());
@@ -315,15 +315,17 @@ pub(crate) fn write(
             .map_or(IntentMatch::Unreported, IntentMatch::Matched),
         process_observation: ReferenceProcess::NotObserved,
     };
-    let kept = match process {
-        ProcessEvidence::Absent => None,
-        ProcessEvidence::Kept(observed) => Some((
+    let kept = match capture {
+        CaptureRecord::Absent => None,
+        CaptureRecord::Kept(observed) => Some((
             bound(
-                observed.invocation,
-                source_text.clone().map_or(Pin::Absent, |digest| Pin::Sha256(Sha256Text(digest))),
+                &observed.invocation,
+                source_text
+                    .clone()
+                    .map_or(Pin::Absent, |digest| Pin::Sha256(Sha256Text(digest))),
                 &record.file_metadata_sha256,
             ),
-            observed.output,
+            &observed.output,
         )),
     };
     if let Some((invocation, _)) = &kept {

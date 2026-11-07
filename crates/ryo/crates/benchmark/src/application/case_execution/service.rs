@@ -1,7 +1,8 @@
 //! Verification-only raw capture; measured runs keep their existing allocation path.
 use ryo_benchmark_contracts::domain::documents::types::text::value::{CanonicalJson, ExitStatus, PathText, ReasonText, Sha256Text, YesNo};
 use super::constants;
-use super::types::{AttemptOutcome, CaptureRecord, ProcessCapture};
+use super::types::AttemptOutcome;
+use crate::domain::process_failure::types::{CaptureRecord, ProcessCapture};
 use crate::domain::diagnostics::service::validate_coverage;
 use crate::domain::rule_context::service::admit_configuration;
 use crate::outbound::{
