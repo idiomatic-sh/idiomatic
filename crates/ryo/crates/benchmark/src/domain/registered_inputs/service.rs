@@ -53,6 +53,8 @@ pub(crate) fn project_inputs_digest(
     for entry in &inputs.inventory.entries {
         RelativeArtifactPath::try_from(Path::new(entry.path.0.as_ref())).map_err(refused)?;
     }
-    crate::domain::suite::project_inputs::digest(inputs.search_roots.as_deref(), &inputs.inventory)
-        .map_err(refused)
+    Ok(crate::domain::project_inputs::service::digest(
+        inputs.search_roots.as_deref(),
+        &inputs.inventory,
+    ))
 }

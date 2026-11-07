@@ -1,8 +1,9 @@
 //! The digest of the project scope is stable across languages.
-use super::{
-    GivenProjectInventory, ProjectEntryState, ProjectInventoryCompleteness, RelativePath, digest,
-};
+use super::service::digest;
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use ryo::linter::{
+    GivenProjectInventory, ProjectEntryState, ProjectInventoryCompleteness, RelativePath,
+};
 
 type Input = (Option<Vec<RelativePath>>, GivenProjectInventory);
 type Value = Digest;
@@ -68,7 +69,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 ];
 
 fn subject((roots, inventory): Input) -> Result<Value, Failure> {
-    let digested = digest(roots.as_deref(), &inventory).map_err(|_| ())?;
+    let digested = digest(roots.as_deref(), &inventory);
     Ok(match digested.map(|value| value.0) {
         None => Digest::Absent,
         Some(value) if value == PINNED => Digest::Pinned,

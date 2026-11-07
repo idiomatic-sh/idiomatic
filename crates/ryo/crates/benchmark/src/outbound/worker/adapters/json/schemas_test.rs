@@ -44,7 +44,7 @@ fn configured_context(request: &WorkerRequest) -> bool {
     };
     prepared.tables.selected == "chosen"
         && prepared.configuration.external_prefixes == ["V101"]
-        && crate::domain::suite::rule_context::selected_pairs(prepared, selected, &request.files)
+        && crate::domain::rule_context::service::selected_pairs(prepared, selected, &request.files)
             .is_ok_and(|pairs| pairs == 1)
 }
 

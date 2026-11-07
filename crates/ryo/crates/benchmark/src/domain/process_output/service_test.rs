@@ -1,51 +1,160 @@
 //! Legitimate path substitution and independent byte-preservation negatives.
-use super::service::expand;
+use super::errors::ProcessOutputError;
+use super::service::{expand, observation_key};
+use super::types::ObservationIdentity;
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::canonical_text::types::Label;
 use ryo_benchmark_contracts::domain::process::types::OutputPart as Part;
 use ryo_benchmark_contracts::domain::process::types::PathEncoding as Encoding;
+use std::borrow::Cow;
 use std::path::{Path, PathBuf};
-#[cfg(unix)]
-#[test]
-fn exact_unicode_json_path_content_does_not_escape_unrelated_bytes() {
-    let parts = [
-        Part::Literal("{\"file\":\"".into()),
-        Part::InputPath {
-            file: "é\".py".into(),
-            encoding: Encoding::JsonStringContent,
-        },
-        Part::Literal("\",\"assertion\":\"x < y\"}".into()),
-    ];
-    let actual = expand(&parts, Path::new("/tmp/日本"), &[PathBuf::from("é\".py")]).unwrap();
-    assert_eq!(
-        String::from_utf8(actual).unwrap(),
-        "{\"file\":\"/tmp/日本/é\\\".py\",\"assertion\":\"x < y\"}"
-    );
+
+/// What each scenario expands or frames.
+#[derive(Clone, Copy)]
+enum Scenario {
+    UnicodeJsonPath,
+    RelativeRoot,
+    EmptyRoot,
+    UnlistedSlot,
+    EscapingSlot,
+    AbsoluteSlot,
+    EmptySlot,
+    BoundaryShift,
+    RoleShift,
+    KeyLength,
 }
-#[test]
-fn unlisted_escaping_and_relative_root_slots_are_refused() {
-    for file in ["other.py", "../case.py", "/case.py", ""] {
-        let parts = [Part::InputPath {
-            file: file.into(),
-            encoding: Encoding::Utf8Bytes,
-        }];
-        assert!(expand(&parts, Path::new("/tmp/root"), &[PathBuf::from("case.py")]).is_err());
+
+type Input = Scenario;
+type Value = Cow<'static, str>;
+type Failure = ProcessOutputError;
+
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("a JSON path is escaped without touching unrelated bytes"),
+        word: Word::Succeeds,
+        input: || Scenario::UnicodeJsonPath,
+        expect: Expect::Value(Cow::Borrowed(
+            "{\"file\":\"/tmp/日本/é\\\".py\",\"assertion\":\"x < y\"}",
+        )),
+    },
+    Case {
+        name: CaseName("moving a byte between rule and case changes the key"),
+        word: Word::Succeeds,
+        input: || Scenario::BoundaryShift,
+        expect: Expect::Value(Cow::Borrowed("distinct")),
+    },
+    Case {
+        name: CaseName("the reference and candidate roles frame differently"),
+        word: Word::Succeeds,
+        input: || Scenario::RoleShift,
+        expect: Expect::Value(Cow::Borrowed("distinct")),
+    },
+    Case {
+        name: CaseName("a case name never becomes a path component of the key"),
+        word: Word::Succeeds,
+        input: || Scenario::KeyLength,
+        expect: Expect::Value(Cow::Borrowed("64")),
+    },
+    Case {
+        name: CaseName("a relative root is refused"),
+        word: Word::Refuses,
+        input: || Scenario::RelativeRoot,
+        expect: Expect::Error(ProcessOutputError::RootNotAbsoluteUtf8),
+    },
+    Case {
+        name: CaseName("an empty root is refused"),
+        word: Word::Refuses,
+        input: || Scenario::EmptyRoot,
+        expect: Expect::Error(ProcessOutputError::RootNotAbsoluteUtf8),
+    },
+    Case {
+        name: CaseName("an undeclared slot is refused"),
+        word: Word::Refuses,
+        input: || Scenario::UnlistedSlot,
+        expect: Expect::Error(ProcessOutputError::SlotNotDeclared),
+    },
+    Case {
+        name: CaseName("an escaping slot is refused"),
+        word: Word::Refuses,
+        input: || Scenario::EscapingSlot,
+        expect: Expect::Error(ProcessOutputError::SlotNotDeclared),
+    },
+    Case {
+        name: CaseName("an absolute slot is refused"),
+        word: Word::Refuses,
+        input: || Scenario::AbsoluteSlot,
+        expect: Expect::Error(ProcessOutputError::SlotNotDeclared),
+    },
+    Case {
+        name: CaseName("an empty slot is refused"),
+        word: Word::Refuses,
+        input: || Scenario::EmptySlot,
+        expect: Expect::Error(ProcessOutputError::SlotNotDeclared),
+    },
+];
+
+fn slot(file: &str) -> Result<Value, Failure> {
+    let parts = [Part::InputPath {
+        file: file.into(),
+        encoding: Encoding::Utf8Bytes,
+    }];
+    expand(&parts, Path::new("/tmp/root"), &[PathBuf::from("case.py")])
+        .map(|bytes| String::from_utf8_lossy(&bytes.0).into_owned().into())
+}
+
+fn key(rule: &str, name: &str, side: &str) -> String {
+    observation_key(&ObservationIdentity {
+        rule: Label::from(rule),
+        name: Label::from(name),
+        side: Label::from(side),
+    })
+    .0
+}
+
+fn distinct(left: &str, right: &str) -> Result<Value, Failure> {
+    Ok(Cow::Borrowed(if left == right { "same" } else { "distinct" }))
+}
+
+fn subject(scenario: Input) -> Result<Value, Failure> {
+    match scenario {
+        Scenario::UnicodeJsonPath => {
+            let parts = [
+                Part::Literal("{\"file\":\"".into()),
+                Part::InputPath {
+                    file: "é\".py".into(),
+                    encoding: Encoding::JsonStringContent,
+                },
+                Part::Literal("\",\"assertion\":\"x < y\"}".into()),
+            ];
+            expand(&parts, Path::new("/tmp/日本"), &[PathBuf::from("é\".py")])
+                .map(|bytes| String::from_utf8_lossy(&bytes.0).into_owned().into())
+        }
+        Scenario::RelativeRoot => expand(&[], Path::new("relative"), &[])
+            .map(|bytes| String::from_utf8_lossy(&bytes.0).into_owned().into()),
+        Scenario::EmptyRoot => expand(&[], Path::new(""), &[])
+            .map(|bytes| String::from_utf8_lossy(&bytes.0).into_owned().into()),
+        Scenario::UnlistedSlot => slot("other.py"),
+        Scenario::EscapingSlot => slot("../case.py"),
+        Scenario::AbsoluteSlot => slot("/case.py"),
+        Scenario::EmptySlot => slot(""),
+        Scenario::BoundaryShift => distinct(
+            &key("a", "bc", "reference"),
+            &key("ab", "c", "reference"),
+        ),
+        Scenario::RoleShift => distinct(
+            &key("a", "bc", "reference"),
+            &key("a", "bc", "candidate"),
+        ),
+        Scenario::KeyLength => Ok(key("a", "../name", "reference").len().to_string().into()),
     }
-    assert!(expand(&[], Path::new("relative"), &[]).is_err());
-    assert!(expand(&[], Path::new(""), &[]).is_err());
 }
 
 #[test]
-fn case_identity_framing_preserves_boundaries_and_roles() {
-    use super::service::observation_key;
-    assert_ne!(
-        observation_key("a", "bc", "reference"),
-        observation_key("ab", "c", "reference")
-    );
-    assert_ne!(
-        observation_key("a", "bc", "reference"),
-        observation_key("a", "bc", "candidate")
-    );
-    assert_eq!(
-        observation_key("a", "../name", "reference").unwrap().len(),
-        64
-    );
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
 }

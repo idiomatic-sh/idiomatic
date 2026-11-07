@@ -295,7 +295,7 @@ pub fn project_scope(roots: &[&str], state: EntryState, row_identity: Option<&st
     declared.0[0].given_project_inventory =
         ProjectInventory::Declared(inventory(EntryState::File));
     let digest = project_inputs_digest(
-        &crate::application::inventory_receipts::service::registered_inputs(&declared.0[0]),
+        &crate::domain::inventory_receipts::service::registered_inputs(&declared.0[0]),
     )
     .ok()
     .flatten()

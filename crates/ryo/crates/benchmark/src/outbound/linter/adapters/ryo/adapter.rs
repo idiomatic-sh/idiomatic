@@ -44,7 +44,7 @@ impl LinterPort for LinterRyoAdapter {
             .selected_rules
             .clone()
             .unwrap_or_else(|| self.defaults.clone());
-        let profile_observations = crate::domain::suite::observations::project_profile(
+        let profile_observations = crate::domain::observations::service::project_profile(
             &self.rule_observations,
             &selected_rules,
             self.rule_observation_selection,

@@ -1,8 +1,8 @@
 //! Native case receipt validation against the registered cases.
-pub mod errors;
+pub(crate) mod errors;
 #[cfg(test)]
 pub mod fixtures;
-pub mod service;
+pub(crate) mod service;
 #[cfg(test)]
 mod service_test;
-pub mod types;
+pub(crate) mod types;

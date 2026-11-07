@@ -1,8 +1,8 @@
 //! Validate native case observations; expectation comparison stays in the existing verifier.
 use super::errors::InventoryReceiptsError;
 use super::types::{ReceiptCounts, Tally};
-use crate::application::process_receipts::service as process_receipts;
-use crate::application::run::inventory_execution;
+use crate::domain::process_receipts::service as process_receipts;
+use crate::domain::inventory_comparison::service as inventory_execution;
 use crate::domain::registered_inputs::{
     service as inputs,
     types::{ObservationDeclaration, RegisteredInputs},

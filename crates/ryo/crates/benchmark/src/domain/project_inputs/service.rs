@@ -1,17 +1,24 @@
 //! Canonical identity for optional project namespace inputs used by both contestants.
-use crate::domain::suite::constants;
+use super::constants;
+use crate::domain::canonical_text::{
+    service::digest as document_digest,
+    types::{Fragment, Label},
+};
 use ryo::linter::{
     GivenProjectInventory, ProjectEntryState, ProjectInventoryCompleteness, RelativePath,
 };
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use sha2::{Digest as _, Sha256};
+use std::collections::BTreeMap;
+
+fn text(value: &str) -> Fragment {
+    Fragment::from(value)
+}
 
 /// Explicit project context only; legacy undeclared/partial-empty cases retain no new digest.
-#[must_use]
-pub fn value(
+fn document(
     roots: Option<&[RelativePath]>,
     inventory: &GivenProjectInventory,
-) -> Option<serde_json::Value> {
+) -> Option<Fragment> {
     if roots.is_none()
         && inventory.entries.is_empty()
         && inventory.completeness == ProjectInventoryCompleteness::Partial
@@ -23,40 +30,46 @@ pub fn value(
         .iter()
         .map(|entry| {
             let state = match entry.state {
-                ProjectEntryState::File => constants::FILE,
-                ProjectEntryState::Directory => constants::DIRECTORY,
-                ProjectEntryState::Other => constants::OTHER,
-                ProjectEntryState::Missing => constants::MISSING,
-                ProjectEntryState::Unknown => constants::UNKNOWN,
+                ProjectEntryState::File => constants::ENTRY_FILE,
+                ProjectEntryState::Directory => constants::ENTRY_DIRECTORY,
+                ProjectEntryState::Other => constants::ENTRY_OTHER,
+                ProjectEntryState::Missing => constants::ENTRY_MISSING,
+                ProjectEntryState::Unknown => constants::ENTRY_UNKNOWN,
             };
-            serde_json::json!({constants::PATH: entry.path.0.as_ref(), constants::STATE: state})
+            Fragment::Object(BTreeMap::from([
+                (Label::from(constants::ENTRY_PATH), text(entry.path.0.as_ref())),
+                (Label::from(constants::ENTRY_STATE), text(state)),
+            ]))
         })
         .collect::<Vec<_>>();
-    Some(serde_json::json!({
-        constants::PROJECT_SEARCH_ROOTS: roots.map(|roots| roots.iter().map(|root| root.0.as_ref()).collect::<Vec<_>>()),
-        constants::GIVEN_PROJECT_INVENTORY: {
-            constants::COMPLETENESS: match inventory.completeness {
-                ProjectInventoryCompleteness::Partial => constants::PARTIAL,
-                ProjectInventoryCompleteness::CompleteWithinDeclaredScope => constants::COMPLETE_WITHIN_DECLARED_SCOPE,
-            },
-            constants::ENTRIES: entries,
+    let completeness = match inventory.completeness {
+        ProjectInventoryCompleteness::Partial => constants::PARTIAL,
+        ProjectInventoryCompleteness::CompleteWithinDeclaredScope => {
+            constants::COMPLETE_WITHIN_DECLARED_SCOPE
         }
-    }))
+    };
+    Some(Fragment::Object(BTreeMap::from([
+        (
+            Label::from(constants::PROJECT_SEARCH_ROOTS),
+            roots.map_or(Fragment::Null, |roots| {
+                Fragment::List(roots.iter().map(|root| text(root.0.as_ref())).collect())
+            }),
+        ),
+        (
+            Label::from(constants::GIVEN_PROJECT_INVENTORY),
+            Fragment::Object(BTreeMap::from([
+                (Label::from(constants::COMPLETENESS), text(completeness)),
+                (Label::from(constants::ENTRIES), Fragment::List(entries)),
+            ])),
+        ),
+    ])))
 }
 
-/// Hash the canonical JSON bytes; object keys are sorted by serde_json's map representation.
+/// Hash the canonical JSON bytes; object keys are sorted by the canonical document renderer.
+#[must_use]
 pub fn digest(
     roots: Option<&[RelativePath]>,
     inventory: &GivenProjectInventory,
-) -> Result<Option<ArtifactDigest>, serde_json::Error> {
-    value(roots, inventory)
-        .map(|value| {
-            serde_json::to_vec(&value)
-                .map(|bytes| ArtifactDigest(format!("{:x}", Sha256::digest(bytes))))
-        })
-        .transpose()
+) -> Option<ArtifactDigest> {
+    document(roots, inventory).map(|fragment| document_digest(&fragment))
 }
-
-#[cfg(test)]
-#[path = "project_inputs_test.rs"]
-mod tests;

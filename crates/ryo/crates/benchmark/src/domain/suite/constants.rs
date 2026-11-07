@@ -18,71 +18,9 @@ pub(super) const INVALID_SOURCE_RANGE: &str = "expected finding has invalid UTF-
 /// Only distinct authored default rules may enter a selected profile.
 pub(super) const INVALID_SELECTION: &str =
     "selected subset must contain distinct authored default rules";
-
 /// Full-report expectations must identify every diagnostic independently.
 pub(super) const MISSING_DIAGNOSTIC_IDENTITY: &str =
     "full-report expectations require explicit rule identities";
-/// Text of the metadata names an undeclared source in this part.
-pub(super) const METADATA_NAMES_AN_UNDECLARED_SOURCE: &str = "metadata names an undeclared source";
-/// Text of the required file observations are missing in this part.
-pub(super) const REQUIRED_FILE_OBSERVATIONS_ARE_MISSING: &str =
-    "required file observations are missing";
-/// Text of the process observation requires an absolute utf in this part.
-pub(super) const PROCESS_OBSERVATION_REQUIRES_AN_ABSOLUTE_UTF: &str =
-    "process observation requires an absolute UTF8 request root";
-/// Text of the process output slot is not a in this part.
-pub(super) const PROCESS_OUTPUT_SLOT_IS_NOT_A: &str =
-    "process output slot is not a declared safe input";
-/// Text of the process input path is not utf8 in this part.
-pub(super) const PROCESS_INPUT_PATH_IS_NOT_UTF8: &str = "process input path is not UTF8";
-/// Text of the ryo case process v1 in this part.
-pub(super) const RYO_CASE_PROCESS_V1: &[u8] = b"ryo-case-process-v1";
-/// Text of the file in this part.
-pub(super) const FILE: &str = "file";
-/// Text of the directory in this part.
-pub(super) const DIRECTORY: &str = "directory";
-/// Text of the other in this part.
-pub(super) const OTHER: &str = "other";
-/// Text of the missing in this part.
-pub(super) const MISSING: &str = "missing";
-/// Text of the unknown in this part.
-pub(super) const UNKNOWN: &str = "unknown";
-/// Text of the path in this part.
-pub(super) const PATH: &str = "path";
-/// Text of the state in this part.
-pub(super) const STATE: &str = "state";
-/// Text of the project search roots in this part.
-pub(super) const PROJECT_SEARCH_ROOTS: &str = "project_search_roots";
-/// Text of the given project inventory in this part.
-pub(super) const GIVEN_PROJECT_INVENTORY: &str = "given_project_inventory";
-/// Text of the completeness in this part.
-pub(super) const COMPLETENESS: &str = "completeness";
-/// Text of the partial in this part.
-pub(super) const PARTIAL: &str = "partial";
-/// Text of the complete within declared scope in this part.
-pub(super) const COMPLETE_WITHIN_DECLARED_SCOPE: &str = "complete-within-declared-scope";
-/// Text of the entries in this part.
-pub(super) const ENTRIES: &str = "entries";
-/// Text of the case rule configuration requires the profile in this part.
-pub(super) const CASE_RULE_CONFIGURATION_REQUIRES_THE_PROFILE: &str =
-    "case rule configuration requires the profile's explicit context declaration";
-/// Text of the rule configuration tables must be distinct in this part.
-pub(super) const RULE_CONFIGURATION_TABLES_MUST_BE_DISTINCT: &str =
-    "rule configuration tables must be distinct nonblank declared names";
-/// Text of the disabled rule lists contain each rule in this part.
-pub(super) const DISABLED_RULE_LISTS_CONTAIN_EACH_RULE: &str =
-    "disabled-rule lists contain each rule once";
-/// Text of the rule context requires an explicit selected in this part.
-pub(super) const RULE_CONTEXT_REQUIRES_AN_EXPLICIT_SELECTED: &str =
-    "rule context requires an explicit selected-rule cohort";
-/// Text of the disabled rules must belong to the in this part.
-pub(super) const DISABLED_RULES_MUST_BELONG_TO_THE: &str =
-    "disabled rules must belong to the configured selected cohort";
-/// Text of the configured pair count overflows in this part.
-pub(super) const CONFIGURED_PAIR_COUNT_OVERFLOWS: &str = "configured pair count overflows";
-/// Text of the disabled pairs exceed the selected cohort in this part.
-pub(super) const DISABLED_PAIRS_EXCEED_THE_SELECTED_COHORT: &str =
-    "disabled pairs exceed the selected cohort";
 /// Text of the explicit source inventory must name each in this part.
 pub(super) const EXPLICIT_SOURCE_INVENTORY_MUST_NAME_EACH: &str =
     "explicit source inventory must name each selected source exactly once";
@@ -118,3 +56,11 @@ pub(super) const INVENTORY_MUST_CONTAIN_UNIQUE_NONEMPTY_RULE: &str =
     "inventory must contain unique nonempty rule IDs";
 /// Text of the not run in this part.
 pub(super) const NOT_RUN: &str = "not run";
+/// The pinned linter profile file inside a profile directory.
+pub(crate) const BENCHMARK_TOML: &str = "benchmark.toml";
+/// The authored query file inside a rule directory.
+pub(crate) const QUERY_RYOQL: &str = "query.ryoql";
+/// A registered rule whose command is absent cannot be verified.
+pub(crate) const MISSING_VERIFICATION_COMMAND: &str = "missing verification command";
+/// The schema every written observation row follows.
+pub(crate) const BENCHMARK_CASE_V2: &str = "benchmark-case/v2";

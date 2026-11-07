@@ -2,7 +2,7 @@
 use super::constants;
 use super::errors::InvocationIdentityError;
 use super::types::{Boundaries, InvocationText};
-use crate::domain::suite::observations::project_profile;
+use crate::domain::observations::service::project_profile;
 use ryo_benchmark_contracts::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations;
 use ryo_benchmark_contracts::domain::measurements::types::Invocation;
 use ryo_benchmark_contracts::domain::workloads::types::{PreparedCase, Tool};

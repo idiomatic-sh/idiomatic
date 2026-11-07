@@ -1,10 +1,11 @@
 //! Stable optional input identity, distinct truth states and required-observation admission.
 use super::constants;
-use super::input_metadata::require;
+use super::service::require;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo::linter::RelativePath;
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
 use ryo_benchmark_contracts::domain::artifacts::types::{FileExecutable, FileMetadataEntry};
+use ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
 use ryo_benchmark_contracts::domain::workloads::types::FileObservation;
 use std::borrow::Cow;
@@ -119,9 +120,9 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     let file = RelativePath("λ.py".into());
     let empty = BTreeMap::new();
     let no = BTreeMap::from([(file.clone(), false)]);
-    let required = |metadata: Option<&BTreeMap<RelativePath, bool>>| {
+    let required = |metadata: &FileMetadataDeclaration| {
         require(
-            Some(FileObservation::PosixExecutable),
+            FileObservation::PosixExecutable,
             std::slice::from_ref(&file),
             metadata,
         )
@@ -147,9 +148,13 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 (RelativePath("bc".into()), false),
             ]),
         ),
-        Scenario::RequiredWithoutMetadata => required(None),
-        Scenario::RequiredWithEmptyMetadata => required(Some(&empty)),
-        Scenario::RequiredWithKnownFalse => required(Some(&no)),
+        Scenario::RequiredWithoutMetadata => required(&FileMetadataDeclaration::Undeclared),
+        Scenario::RequiredWithEmptyMetadata => required(&FileMetadataDeclaration::Declared(
+            BTreeMap::new(),
+        )),
+        Scenario::RequiredWithKnownFalse => required(&FileMetadataDeclaration::Declared(
+            BTreeMap::from([(file.clone(), FileExecutable::Unset)]),
+        )),
     }
     .map_err(|error| error.to_string().into())
 }

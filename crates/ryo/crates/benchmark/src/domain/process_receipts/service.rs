@@ -228,21 +228,25 @@ pub(crate) fn validate(
         .iter()
         .map(|file| PathBuf::from(&file.0))
         .collect::<Vec<_>>();
-    let stdout = crate::domain::suite::process::service::expand(
+    let stdout = crate::domain::process_output::service::expand(
         &process.stdout,
         Path::new(&root.0),
         &files,
-    )?;
-    let stderr = crate::domain::suite::process::service::expand(
+    )
+    .map_err(|error| error.to_string())?;
+    let stderr = crate::domain::process_output::service::expand(
         &process.stderr,
         Path::new(&root.0),
         &files,
-    )?;
-    let expected_key = crate::domain::suite::process::service::observation_key(
-        case.rule.0.as_str(),
-        case.name.0.as_str(),
-        constants::REFERENCE,
-    )?;
+    )
+    .map_err(|error| error.to_string())?;
+    let expected_key = crate::domain::process_output::service::observation_key(
+        &crate::domain::process_output::types::ObservationIdentity {
+            rule: crate::domain::canonical_text::types::Label::from(case.rule.0.as_str()),
+            name: crate::domain::canonical_text::types::Label::from(case.name.0.as_str()),
+            side: crate::domain::canonical_text::types::Label::from(constants::REFERENCE),
+        },
+    );
     let pointers = captured
         .artifacts
         .as_ref()
@@ -251,12 +255,12 @@ pub(crate) fn validate(
         if Path::new(&pointer.path.0)
             .components()
             .nth(1)
-            .is_none_or(|part| part.as_os_str() != expected_key.as_str())
+            .is_none_or(|part| part.as_os_str() != expected_key.0.as_str())
         {
             return Err(Failure::ArtifactBelongsToAnotherCase);
         }
     }
-    if raw(artifacts, &pointers.stdout)? != stdout || raw(artifacts, &pointers.stderr)? != stderr {
+    if raw(artifacts, &pointers.stdout)? != stdout.0 || raw(artifacts, &pointers.stderr)? != stderr.0 {
         return Err(Failure::CapturedBytesDifferFromTemplates);
     }
     let _record = raw(artifacts, &pointers.invocation)?;

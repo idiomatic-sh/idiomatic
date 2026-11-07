@@ -6,44 +6,46 @@ use ryo::linter::{
     HostText, Rule, RuleId,
 };
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
+use ryo_benchmark_contracts::domain::reports::types::PairCount;
+use ryo_benchmark_contracts::domain::requests::types::{
+    RuleContextPreparation, RuleSelection, WorkerRequest,
+};
 use std::collections::{BTreeMap, BTreeSet};
 
 pub(crate) fn project(
     request: &WorkerRequest,
     rules: &mut BTreeMap<RuleId, Rule>,
-    selected_pairs: usize,
+    selected_pairs: PairCount,
 ) -> Result<CandidateConfiguration, Error> {
-    let Some(prepared) = &request.rule_context else {
+    let RuleContextPreparation::Prepared(prepared) = &request.rule_context else {
         return Ok(CandidateConfiguration {
             hosted: Vec::new(),
             selected_pairs,
         });
     };
-    crate::domain::suite::rule_context::check(prepared, &request.files)?;
-    let selected = request.selected_rules.as_deref().ok_or_else(|| {
-        Error::Invalid(constants::RULE_CONTEXT_REQUIRES_THE_EXPLICIT_CONFIGURE.into())
-    })?;
+    crate::domain::rule_context::service::check(prepared, &request.files)?;
+    let RuleSelection::Explicit(selected) = &request.selected_rules else {
+        return Err(Error::Invalid(
+            constants::RULE_CONTEXT_REQUIRES_THE_EXPLICIT_CONFIGURE.into(),
+        ));
+    };
     let context = &prepared.configuration;
     for (file, disabled) in &context.disabled_rules {
-        let pattern = crate::domain::suite::rule_context::literal_glob(file.0.as_ref());
+        let pattern = crate::domain::rule_context::service::literal_glob(file);
         for id in disabled {
             // Configuration can describe codes outside this execution cohort.
             let Some(rule) = rules.get_mut(id) else {
                 continue;
             };
             rule.exclude.push(
-                Glob::try_from(pattern.as_str())
+                Glob::try_from(pattern.0.as_str())
                     .map_err(|error| Error::Invalid(error.to_string()))?,
             );
         }
     }
-    let column = |name: &str, kind| HostColumn {
-        name: HostColumnName(name.into()),
-        kind,
-    };
-    let table = |name: &str, columns, rows| HostRelation {
-        name: HostRelationName(name.into()),
+    let column = |name: HostColumnName, kind| HostColumn { name, kind };
+    let table = |name: HostRelationName, columns, rows| HostRelation {
+        name,
         columns,
         rows,
     };
@@ -66,31 +68,31 @@ pub(crate) fn project(
     let external_rows = context
         .external_prefixes
         .iter()
-        .map(|prefix| HostRow(vec![Cell::Text(HostText(prefix.as_str().into()))]))
+        .map(|prefix| HostRow(vec![Cell::Text(HostText(prefix.0.as_str().into()))]))
         .collect();
     Ok(CandidateConfiguration {
-        selected_pairs: crate::domain::suite::rule_context::selected_pairs(
+        selected_pairs: crate::domain::rule_context::service::selected_pairs(
             prepared,
             selected,
             &request.files,
         )?,
         hosted: vec![
             table(
-                &prepared.tables.selected,
-                vec![column(constants::CODE, HostKind::Text)],
+                HostRelationName(prepared.tables.selected.0.as_str().into()),
+                vec![column(HostColumnName(constants::CODE.into()), HostKind::Text)],
                 selected_rows,
             ),
             table(
-                &prepared.tables.disabled,
+                HostRelationName(prepared.tables.disabled.0.as_str().into()),
                 vec![
-                    column(constants::FILE, HostKind::File),
-                    column(constants::CODE, HostKind::Text),
+                    column(HostColumnName(constants::FILE_COLUMN.into()), HostKind::File),
+                    column(HostColumnName(constants::CODE.into()), HostKind::Text),
                 ],
                 disabled_rows,
             ),
             table(
-                &prepared.tables.external,
-                vec![column(constants::PREFIX, HostKind::Text)],
+                HostRelationName(prepared.tables.external.0.as_str().into()),
+                vec![column(HostColumnName(constants::PREFIX.into()), HostKind::Text)],
                 external_rows,
             ),
         ],
@@ -109,7 +111,7 @@ pub(crate) fn retain_producers(
     if let Some(frontend) = frontend {
         retained.insert(frontend.clone());
     }
-    retained = crate::domain::suite::observations::closure(retained, |id| {
+    retained = crate::domain::observations::service::closure(retained, |id| {
         rules.get(id).map(|rule| rule.observations.as_slice())
     });
     for id in &retained {

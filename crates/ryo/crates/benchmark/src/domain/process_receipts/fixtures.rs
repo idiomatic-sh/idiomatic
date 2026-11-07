@@ -5,7 +5,7 @@ use crate::outbound::inventory::types::{
     ArgumentText, CompleteInvocation, InvocationDocument, NormalizedSettings, Pin, Signal,
     case_document::{CaseDocument, Comparison},
 };
-use crate::application::inventory_receipts::fixtures::{observed_row, registered_case};
+use crate::domain::inventory_receipts::fixtures::{observed_row, registered_case};
 use crate::outbound::suite::types::{
     observation_document::{
         ExitStatus, ObservationDocument, ProcessArtifacts, ProcessObservation,
@@ -99,9 +99,14 @@ fn pointer(location: &str, bytes: &[u8]) -> ArtifactPointer {
 /// The documents of a reference process receipt that validates.
 pub(crate) fn passing() -> Documents {
     let process = ProcessFailure::try_from(wire()).expect("registered process failure");
-    let key =
-        crate::domain::suite::process::service::observation_key("A001", "matched", "reference")
-            .expect("framed key");
+    let key = crate::domain::process_output::service::observation_key(
+        &crate::domain::process_output::types::ObservationIdentity {
+            rule: crate::domain::canonical_text::types::Label::from("A001"),
+            name: crate::domain::canonical_text::types::Label::from("matched"),
+            side: crate::domain::canonical_text::types::Label::from("reference"),
+        },
+    )
+    .0;
     let location = |file: &str| format!("attempt/{key}/{file}");
     let (stdout, stderr, record) = (b"payload".to_vec(), b"issue".to_vec(), b"{}".to_vec());
     let settings = Sha256Text(text_digest(&Document(CANONICAL.into())).0);

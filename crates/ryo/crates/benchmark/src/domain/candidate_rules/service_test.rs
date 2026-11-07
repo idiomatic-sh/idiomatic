@@ -3,9 +3,14 @@ use super::service;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo::linter::{Cell, HostRow, HostText, RelativePath, Rule, RuleId};
 use ryo_benchmark_contracts::domain::{
-    context::types::{PreparedRuleContext, RuleConfiguration, RuleContextTables},
-    reports::errors::ReportsError,
-    requests::types::{WorkerRequest, WorkerState},
+    context::types::{
+        ExternalPrefix, PreparedRuleContext, RuleConfiguration, RuleContextTables, TableName,
+    },
+    reports::{errors::ReportsError, types::PairCount},
+    requests::types::{
+        ContextSeal, ObservationDeclaration, ParserSelection, RuleContextPreparation,
+        RuleSelection, SearchRoots, SourceProvider, WorkerRequest, WorkerState,
+    },
 };
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -31,19 +36,19 @@ fn rule() -> Rule {
 fn request() -> WorkerRequest {
     WorkerRequest {
         performance: Default::default(),
-        selected_rules: Some(vec![id("A001")]),
-        rule_observations: None,
-        rule_context: None,
-        project_search_roots: None,
+        selected_rules: RuleSelection::Explicit(vec![id("A001")]),
+        rule_observations: ObservationDeclaration::Undeclared,
+        rule_context: RuleContextPreparation::Unconfigured,
+        project_search_roots: SearchRoots::Undeclared,
         given_project_inventory: Default::default(),
         project_context_mode: Default::default(),
-        context_manifest: None,
+        context_manifest: ContextSeal::Unsealed,
         root: "root".into(),
         rules: "rules".into(),
         query_modules: BTreeMap::new(),
         rule_applicability: BTreeMap::new(),
-        parser_configuration: None,
-        source_language: None,
+        parser_configuration: ParserSelection::Unspecified,
+        source_language: SourceProvider::Unspecified,
         files: vec![RelativePath("input.py".into())],
         state: WorkerState::Fresh,
     }
@@ -107,20 +112,20 @@ fn missing_producers_refuse_before_retaining_or_excluding_rules() -> Result<Valu
 fn configuration_projects_exact_declared_tables_and_disabled_pairs() -> Result<Value, Failure> {
     let mut request = request();
     request.files.push(RelativePath("other.py".into()));
-    request.rule_context = Some(PreparedRuleContext {
+    request.rule_context = RuleContextPreparation::Prepared(PreparedRuleContext {
         tables: RuleContextTables {
-            selected: "selected".into(),
-            disabled: "disabled".into(),
-            external: "external".into(),
+            selected: TableName("selected".into()),
+            disabled: TableName("disabled".into()),
+            external: TableName("external".into()),
         },
         configuration: RuleConfiguration {
-            external_prefixes: vec!["EXT".into()],
+            external_prefixes: vec![ExternalPrefix("EXT".into())],
             disabled_rules: BTreeMap::from([(request.files[0].clone(), vec![id("A001")])]),
         },
     });
     let mut rules = BTreeMap::from([(id("A001"), rule())]);
-    let configured = service::project(&request, &mut rules, 2).unwrap();
-    assert_eq!(configured.selected_pairs, 1);
+    let configured = service::project(&request, &mut rules, PairCount(2)).unwrap();
+    assert_eq!(configured.selected_pairs, PairCount(1));
     assert_eq!(configured.hosted.len(), 3);
     assert_eq!(
         configured
@@ -158,20 +163,20 @@ fn configuration_projects_exact_declared_tables_and_disabled_pairs() -> Result<V
 
 fn missing_context_selection_is_refused() -> Result<Value, Failure> {
     let mut request = request();
-    request.rule_context = Some(PreparedRuleContext {
+    request.rule_context = RuleContextPreparation::Prepared(PreparedRuleContext {
         tables: RuleContextTables {
-            selected: "selected".into(),
-            disabled: "disabled".into(),
-            external: "external".into(),
+            selected: TableName("selected".into()),
+            disabled: TableName("disabled".into()),
+            external: TableName("external".into()),
         },
         configuration: RuleConfiguration {
             external_prefixes: vec![],
             disabled_rules: BTreeMap::new(),
         },
     });
-    request.selected_rules = None;
+    request.selected_rules = RuleSelection::Frozen;
     let mut rules = BTreeMap::from([(id("A001"), rule())]);
-    match service::project(&request, &mut rules, 2) {
+    match service::project(&request, &mut rules, PairCount(2)) {
         Err(ReportsError::Invalid(message))
             if message == "rule context requires the explicit configured selection" =>
         {

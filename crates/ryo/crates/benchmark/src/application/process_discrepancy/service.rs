@@ -57,17 +57,19 @@ pub(crate) fn matches(
         .iter()
         .map(|file| PathBuf::from(file.0.as_ref()))
         .collect::<Vec<_>>();
-    let stdout = crate::domain::suite::process::service::expand(
+    let stdout = crate::domain::process_output::service::expand(
         &process.stdout,
         &case.request.root,
         &files,
-    )?;
-    let stderr = crate::domain::suite::process::service::expand(
+    )
+    .map_err(|error| error.to_string())?;
+    let stderr = crate::domain::process_output::service::expand(
         &process.stderr,
         &case.request.root,
         &files,
-    )?;
-    if stdout != output.stdout.0 || stderr != output.stderr.0 {
+    )
+    .map_err(|error| error.to_string())?;
+    if stdout != output.stdout || stderr != output.stderr {
         return Err(Failure::BytesDiffer);
     }
     let profile_root = rules.parent().ok_or(Failure::MissingProfileBoundary)?;

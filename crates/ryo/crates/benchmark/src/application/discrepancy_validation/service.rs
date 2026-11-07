@@ -244,7 +244,10 @@ pub(crate) fn validate_archives(
         .collect::<Vec<_>>();
     let bytes = suite
         .read_discrepancy_artifacts(ArtifactPath(profile_root), &artifacts)
-        .map_err(refused)?;
+        .map_err(refused)?
+        .into_iter()
+        .map(|(path, bytes)| (path, bytes.0))
+        .collect::<std::collections::BTreeMap<_, _>>();
     let files = case
         .request
         .files
@@ -259,18 +262,20 @@ pub(crate) fn validate_archives(
             return Err(Failure::ArchivedBytesDiffer);
         };
         let root = metadata.actual_request_root.0.as_str();
-        let stdout = crate::domain::suite::process::service::expand(
+        let stdout = crate::domain::process_output::service::expand(
             &process.stdout,
             Path::new(root),
             &files,
         )
-        .map_err(refused)?;
-        let stderr = crate::domain::suite::process::service::expand(
+        .map_err(refused)?
+        .0;
+        let stderr = crate::domain::process_output::service::expand(
             &process.stderr,
             Path::new(root),
             &files,
         )
-        .map_err(refused)?;
+        .map_err(refused)?
+        .0;
         let source = identity.source_sha256.0.as_str();
         let file_metadata = identity
             .file_metadata_sha256

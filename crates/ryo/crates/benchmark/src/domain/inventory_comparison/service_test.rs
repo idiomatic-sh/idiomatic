@@ -1,6 +1,6 @@
 //! Execution evidence is compared only under a declared capability and the contract asked for.
-use super::compare;
-use crate::application::inventory_receipts::fixtures::observed_row;
+use super::service::compare;
+use crate::domain::inventory_receipts::fixtures::observed_row;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::suite::types::{
     finding::SkippedPair,
