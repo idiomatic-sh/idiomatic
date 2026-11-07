@@ -12,7 +12,6 @@ use crate::domain::{
     derived_views::types::{DerivedInputs, DerivedScratch, ViewRequest},
     operating::errors::OperatingError,
     operation_schema::types::InputShape,
-    operator::contract::
     positions::service_test::{SMALL_SOURCE, SmallTree, small_tree},
     table_cells::types::{TreeForm, TreeRows},
     table_model::types::Rows,

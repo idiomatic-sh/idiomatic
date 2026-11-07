@@ -12,7 +12,6 @@ use crate::domain::operating::types::OperatorContext;
 use crate::domain::{
     coverage::types::RuleIndex,
     executable_program::types::{InputSource, PartitionRequirement, ProducerPartitions},
-    operator::contract::
     table_model::types::Rows,
 };
 use crate::domain::table_model::types::RepresentationInput as BorrowedRows;

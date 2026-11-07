@@ -8,7 +8,6 @@ use crate::{
     application::file_dag::workspace::InvocationWorkspace,
     domain::{
         operating::{errors::OperatingError, types::OperatorContext},
-        operator::contract::
         table_model::{service::count_of, types::Rows},
     },
 };

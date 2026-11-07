@@ -7,7 +7,6 @@ use crate::application::file_dag::derived::owner::selection::types::*;
 use crate::domain::{
     derived_views::types::{DerivedInputs, DerivedScratch, contract::value::PreparedSelectorViews},
     operating::{errors::OperatingError, types::OperatorContext},
-    operator::contract::
     stored_selection::types::{CandidateRepeat, Selector},
     table_model::service::matching_stored,
 };

@@ -14,7 +14,6 @@ use ryo_values::domain::plan_parts::types::{
 use std::sync::Arc;
 use {
     crate::domain::operating::types::OperatorContext,
-    crate::domain::operator::contract::
     crate::domain::stored_selection::types::Selector,
     crate::domain::table_model::collections::representations::types::PhysicalShape,
     crate::domain::table_model::types::Rows, crate::domain::stored_selection::types::SelectionIdentity,
@@ -81,7 +80,7 @@ fn exercise_real_selector(limit: Retention) {
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
-        matcher: crate::domain::matching::types::Matcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl),
+        matcher: crate::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl),
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: SourceView(b""),

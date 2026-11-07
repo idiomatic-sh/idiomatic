@@ -3,7 +3,6 @@ use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
 use crate::domain::{
     derived_views::types::{contract::value::DerivedContract, DerivedInputs, DerivedScratch},
     operating::{errors::OperatingError, types::OperatorContext},
-    operator::contract::
     stored_selection::types::Selector,
     table_model::{
         service::check_columns,

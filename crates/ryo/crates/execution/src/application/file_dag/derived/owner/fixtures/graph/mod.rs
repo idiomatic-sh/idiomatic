@@ -14,7 +14,6 @@ use crate::application::file_dag::{
 };
 use crate::domain::{
     coverage::types::Partial,
-    operator::contract::
     stored_graph::types::{GraphWalk, Orientation, VertexId},
     table_model::types::Rows,
 };

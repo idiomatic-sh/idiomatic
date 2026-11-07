@@ -3,7 +3,6 @@ use super::RelationOwner;
 use crate::domain::{
     coverage::types::{Lacking, Partial},
     operating::errors::OperatingError,
-    operator::contract::
     table_model::{
         collections::representations::types::{PhysicalShape, RepresentationKind},
         types::{PublishedRelation, Rows, SelectedRows, StoredSelection},

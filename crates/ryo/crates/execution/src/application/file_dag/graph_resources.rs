@@ -4,7 +4,6 @@ use ryo_values::domain::plan_parts::types::ColumnIndex;
 use {
     crate::domain::derived_views::types::*, crate::domain::operating::errors::OperatingError,
     crate::domain::operation_schema::types::InputShape,
-    crate::domain::operator::contract::
     ryo_values::domain::rows::service::push_row,
 };
 use crate::domain::table_model::types::RepresentationInput as BorrowedRows;

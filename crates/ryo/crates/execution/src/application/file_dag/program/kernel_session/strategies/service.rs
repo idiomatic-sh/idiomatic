@@ -9,7 +9,6 @@ use crate::{
             errors::OperatingError,
             types::{Emit, OperatorContext},
         },
-        operator::contract::
         table_model::{service::count_of, types::Rows},
     },
 };

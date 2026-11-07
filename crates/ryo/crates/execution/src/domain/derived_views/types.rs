@@ -13,7 +13,6 @@ use std::sync::Arc;
 use crate::domain::positions::types::{Keys, Stride};
 use {
     crate::domain::operator::contract::resources::DfsResources,
-    crate::domain::operator::contract::
     crate::domain::operator::contract::views::PredicateProgram,
     crate::domain::stored_graph::types::GraphSource,
     crate::domain::stored_selection::types::{BorrowedPositions, Selector}, crate::domain::table_cells::types::TreeRows,

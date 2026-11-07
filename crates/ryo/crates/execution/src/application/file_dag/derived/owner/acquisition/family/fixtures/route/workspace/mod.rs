@@ -12,7 +12,6 @@ use crate::domain::{
     derived_views::types::contract::value::PreparedViewUse,
     operating::errors::OperatingError,
     operation_schema::types::InputShape,
-    operator::contract::
     table_cells::types::{TreeForm, TreeRows},
     table_model::types::Rows,
     table_texts::types::Texts,

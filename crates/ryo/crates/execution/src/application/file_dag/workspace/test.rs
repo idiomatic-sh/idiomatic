@@ -5,7 +5,6 @@ use crate::domain::{
     derived_views::types::{contract::value::PreparedViewUse, *},
     operating::{errors::OperatingError, types::OperatorContext},
     operation_schema::types::InputShape,
-    operator::contract::
     table_model::types::Rows,
 };
 use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
@@ -101,7 +100,7 @@ fn context<'a>(
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
-        matcher: crate::domain::matching::types::Matcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl),
+        matcher: crate::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl),
         bindings: &[] as &[ParameterBinding],
         symbols: symbols.into(),
         source: ryo_values::domain::files::types::SourceView(&[]),

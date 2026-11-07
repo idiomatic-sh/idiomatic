@@ -11,7 +11,6 @@ use crate::application::file_dag::derived::owner::selection::types::{
 use crate::domain::{
     derived_views::types::contract::value::PreparedSelectorViews,
     operating::types::{Memo, NameCount, OperatorContext},
-    operator::contract::
     stored_selection::types::Selector,
     table_model::service::check_columns,
 };

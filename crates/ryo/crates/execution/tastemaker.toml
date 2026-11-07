@@ -69,6 +69,8 @@ templates = [
   { template = "idiomatic.arch/service", file = "src/domain/operator/contract/derived.rs", params = { concept = "contract" }, description = "One part of the concept's service: pure functions over the domain's types." },
   { template = "idiomatic.arch/service", file = "src/domain/operator/contract/failure.rs", params = { concept = "contract" }, description = "One part of the concept's service: pure functions over the domain's types." },
   { template = "idiomatic.arch/service", file = "src/domain/operator/contract/graph.rs", params = { concept = "contract" }, description = "One part of the concept's service: pure functions over the domain's types." },
+  { template = "idiomatic.arch/service", file = "src/domain/operator/contract/lease.rs", params = { concept = "contract" }, description = "The primitive lease and its counters: the borrowed context a primitive reaches its capabilities through." },
+  { template = "idiomatic.ryo/executable-lowering", file = "src/domain/operator/contract.rs", description = "The operator contract part: module declarations of its parts." },
   { template = "idiomatic.arch/service", file = "src/domain/operator/contract/graph_view.rs", params = { concept = "contract" }, description = "One part of the concept's service: pure functions over the domain's types." },
   { template = "idiomatic.arch/service", file = "src/domain/operator/contract/join.rs", params = { concept = "contract" }, description = "One part of the concept's service: pure functions over the domain's types." },
   { template = "idiomatic.arch/unit-test", file = "src/domain/operator/contract/join_result_test.rs", params = { kind = "concept", part = "join_result" }, description = "Proves one part's body beside it, in the one test shape." },
