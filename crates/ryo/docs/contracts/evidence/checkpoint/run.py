@@ -78,16 +78,23 @@ def finish(v):
  return 1 if bad or text!=old else 0
 if __name__=='__main__' and sys.argv[1:]==['--check']: sys.exit(finish(json.loads(validation_json.read_text())))
 locks=[open('/workspaces/.cargo-build.lock','a'),open('/tmp/ryo-cargo-serial.lock','a')]
-for lock in locks: fcntl.flock(lock,fcntl.LOCK_EX)
+def locked(run):
+ """Runs one command under the build locks, so other agents' short runs interleave between this batch's commands."""
+ for lock in locks: fcntl.flock(lock,fcntl.LOCK_EX)
+ try: return run()
+ finally:
+  for lock in locks: fcntl.flock(lock,fcntl.LOCK_UN)
 assert not subprocess.check_output(['git','status','--porcelain'],text=True).strip(), 'freeze source before validation'
 head=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()
 # The shared target directory serves several worktrees whose crates have equal build hashes; cargo
 # trusts source mtimes, so artifacts another worktree built after this tree's edits would be reused.
 # Touching the sources under the lock makes every artifact this run uses come from this tree.
-for d,dirs,fs in os.walk('crates/ryo'):
- dirs[:]=[x for x in dirs if x not in ('target','.git','node_modules')]
- for f in fs:
-  if f.endswith(('.rs','.toml')): os.utime(os.path.join(d,f))
+def touch_sources():
+ for d,dirs,fs in os.walk('crates/ryo'):
+  dirs[:]=[x for x in dirs if x not in ('target','.git','node_modules')]
+  for f in fs:
+   if f.endswith(('.rs','.toml')): os.utime(os.path.join(d,f))
+locked(touch_sources)
 def is_test(path):
  parts=path.split('/')
  return any(x in ('tests','test','fixtures') for x in parts[:-1]) or parts[-1] in ('test.rs','tests.rs') or parts[-1].endswith('_test.rs')
@@ -109,7 +116,7 @@ out_dir.mkdir(parents=True,exist_ok=True)
 for name,cmd in commands:
  print('START '+name,flush=True)
  started=time.time()
- with (out_dir/(name+'.log')).open('w') as out: r=subprocess.run(cmd,stdout=out,stderr=subprocess.STDOUT)
+ with (out_dir/(name+'.log')).open('w') as out: r=locked(lambda: subprocess.run(cmd,stdout=out,stderr=subprocess.STDOUT))
  result={'source':head,'command':cmd,'exit':r.returncode,'elapsed_seconds':time.time()-started}
  if name=='tm_source': result['findings']=finding_split(cmd,out_dir/(name+'.log'))
  (out_dir/(name+'.json')).write_text(json.dumps(result,indent=2))
