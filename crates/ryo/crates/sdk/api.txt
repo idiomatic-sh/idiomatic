@@ -569,24 +569,6 @@ pub fn ryo::linter::Corpus::eq(&self, &ryo::linter::Corpus) -> bool
 impl core::fmt::Debug for ryo::linter::Corpus
 pub fn ryo::linter::Corpus::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for ryo::linter::Corpus
-pub enum ryo::linter::lint::types::FlagState
-pub ryo::linter::lint::types::FlagState::Off
-pub ryo::linter::lint::types::FlagState::On
-impl core::clone::Clone for ryo::linter::FlagState
-pub fn ryo::linter::FlagState::clone(&self) -> ryo::linter::FlagState
-impl core::cmp::Eq for ryo::linter::FlagState
-impl core::cmp::Ord for ryo::linter::FlagState
-pub fn ryo::linter::FlagState::cmp(&self, &ryo::linter::FlagState) -> core::cmp::Ordering
-impl core::cmp::PartialEq for ryo::linter::FlagState
-pub fn ryo::linter::FlagState::eq(&self, &ryo::linter::FlagState) -> bool
-impl core::cmp::PartialOrd for ryo::linter::FlagState
-pub fn ryo::linter::FlagState::partial_cmp(&self, &ryo::linter::FlagState) -> core::option::Option<core::cmp::Ordering>
-impl core::fmt::Debug for ryo::linter::FlagState
-pub fn ryo::linter::FlagState::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::hash::Hash for ryo::linter::FlagState
-pub fn ryo::linter::FlagState::hash<__H: core::hash::Hasher>(&self, &mut __H)
-impl core::marker::Copy for ryo::linter::FlagState
-impl core::marker::StructuralPartialEq for ryo::linter::FlagState
 pub enum ryo::linter::lint::types::ObservationProducer
 pub ryo::linter::lint::types::ObservationProducer::NoQuery
 pub ryo::linter::lint::types::ObservationProducer::NoQuery::rule: ryo::linter::RuleId
@@ -601,36 +583,6 @@ pub fn ryo::linter::ObservationProducer::eq(&self, &ryo::linter::ObservationProd
 impl core::fmt::Debug for ryo::linter::ObservationProducer
 pub fn ryo::linter::ObservationProducer::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for ryo::linter::ObservationProducer
-#[non_exhaustive] pub enum ryo::linter::lint::types::ParameterValue
-pub ryo::linter::lint::types::ParameterValue::Flag(ryo::linter::FlagState)
-pub ryo::linter::lint::types::ParameterValue::Number(ryo::linter::ParameterNumber)
-pub ryo::linter::lint::types::ParameterValue::Numbers(ryo::linter::ParameterNumbers)
-pub ryo::linter::lint::types::ParameterValue::Tables(alloc::vec::Vec<ryo::linter::ParameterTable>)
-pub ryo::linter::lint::types::ParameterValue::Text(ryo::linter::ParameterText)
-pub ryo::linter::lint::types::ParameterValue::TextSets(alloc::vec::Vec<alloc::vec::Vec<ryo::linter::ParameterText>>)
-pub ryo::linter::lint::types::ParameterValue::Texts(alloc::vec::Vec<ryo::linter::ParameterText>)
-impl core::clone::Clone for ryo::linter::ParameterValue
-pub fn ryo::linter::ParameterValue::clone(&self) -> ryo::linter::ParameterValue
-impl core::cmp::Eq for ryo::linter::ParameterValue
-impl core::cmp::PartialEq for ryo::linter::ParameterValue
-pub fn ryo::linter::ParameterValue::eq(&self, &ryo::linter::ParameterValue) -> bool
-impl core::fmt::Debug for ryo::linter::ParameterValue
-pub fn ryo::linter::ParameterValue::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for ryo::linter::ParameterValue
-#[non_exhaustive] pub enum ryo::linter::lint::types::Place
-pub ryo::linter::lint::types::Place::At
-pub ryo::linter::lint::types::Place::At::column: ryo::linter::Column
-pub ryo::linter::lint::types::Place::At::line: ryo::linter::Line
-pub ryo::linter::lint::types::Place::Missing
-impl core::clone::Clone for ryo::linter::Place
-pub fn ryo::linter::Place::clone(&self) -> ryo::linter::Place
-impl core::cmp::Eq for ryo::linter::Place
-impl core::cmp::PartialEq for ryo::linter::Place
-pub fn ryo::linter::Place::eq(&self, &ryo::linter::Place) -> bool
-impl core::fmt::Debug for ryo::linter::Place
-pub fn ryo::linter::Place::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for ryo::linter::Place
-impl core::marker::StructuralPartialEq for ryo::linter::Place
 #[non_exhaustive] pub enum ryo::linter::lint::types::Port
 pub ryo::linter::lint::types::Port::Corpus
 pub ryo::linter::lint::types::Port::Facts
@@ -648,60 +600,6 @@ impl core::fmt::Debug for ryo::linter::Port
 pub fn ryo::linter::Port::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for ryo::linter::Port
 impl core::marker::StructuralPartialEq for ryo::linter::Port
-pub enum ryo::linter::lint::types::ProjectDependencyState
-pub ryo::linter::lint::types::ProjectDependencyState::Missing
-pub ryo::linter::lint::types::ProjectDependencyState::Present(ryo::linter::DependencyFingerprint)
-impl core::clone::Clone for ryo::linter::ProjectDependencyState
-pub fn ryo::linter::ProjectDependencyState::clone(&self) -> ryo::linter::ProjectDependencyState
-impl core::cmp::Eq for ryo::linter::ProjectDependencyState
-impl core::cmp::PartialEq for ryo::linter::ProjectDependencyState
-pub fn ryo::linter::ProjectDependencyState::eq(&self, &ryo::linter::ProjectDependencyState) -> bool
-impl core::fmt::Debug for ryo::linter::ProjectDependencyState
-pub fn ryo::linter::ProjectDependencyState::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for ryo::linter::ProjectDependencyState
-impl core::marker::StructuralPartialEq for ryo::linter::ProjectDependencyState
-pub enum ryo::linter::lint::types::ProjectEntryState
-pub ryo::linter::lint::types::ProjectEntryState::Directory
-pub ryo::linter::lint::types::ProjectEntryState::File
-pub ryo::linter::lint::types::ProjectEntryState::Missing
-pub ryo::linter::lint::types::ProjectEntryState::Other
-pub ryo::linter::lint::types::ProjectEntryState::Unknown
-impl core::clone::Clone for ryo::linter::ProjectEntryState
-pub fn ryo::linter::ProjectEntryState::clone(&self) -> ryo::linter::ProjectEntryState
-impl core::cmp::Eq for ryo::linter::ProjectEntryState
-impl core::cmp::PartialEq for ryo::linter::ProjectEntryState
-pub fn ryo::linter::ProjectEntryState::eq(&self, &ryo::linter::ProjectEntryState) -> bool
-impl core::fmt::Debug for ryo::linter::ProjectEntryState
-pub fn ryo::linter::ProjectEntryState::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for ryo::linter::ProjectEntryState
-impl core::marker::StructuralPartialEq for ryo::linter::ProjectEntryState
-pub enum ryo::linter::lint::types::ProjectInventoryCompleteness
-pub ryo::linter::lint::types::ProjectInventoryCompleteness::CompleteWithinDeclaredScope
-pub ryo::linter::lint::types::ProjectInventoryCompleteness::Partial
-impl core::clone::Clone for ryo::linter::ProjectInventoryCompleteness
-pub fn ryo::linter::ProjectInventoryCompleteness::clone(&self) -> ryo::linter::ProjectInventoryCompleteness
-impl core::cmp::Eq for ryo::linter::ProjectInventoryCompleteness
-impl core::cmp::PartialEq for ryo::linter::ProjectInventoryCompleteness
-pub fn ryo::linter::ProjectInventoryCompleteness::eq(&self, &ryo::linter::ProjectInventoryCompleteness) -> bool
-impl core::default::Default for ryo::linter::ProjectInventoryCompleteness
-pub fn ryo::linter::ProjectInventoryCompleteness::default() -> ryo::linter::ProjectInventoryCompleteness
-impl core::fmt::Debug for ryo::linter::ProjectInventoryCompleteness
-pub fn ryo::linter::ProjectInventoryCompleteness::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for ryo::linter::ProjectInventoryCompleteness
-impl core::marker::StructuralPartialEq for ryo::linter::ProjectInventoryCompleteness
-pub enum ryo::linter::lint::types::ProjectSearchScope
-pub ryo::linter::lint::types::ProjectSearchScope::Declared(alloc::vec::Vec<ryo::linter::RelativePath>)
-pub ryo::linter::lint::types::ProjectSearchScope::Undeclared
-impl core::clone::Clone for ryo::linter::ProjectSearchScope
-pub fn ryo::linter::ProjectSearchScope::clone(&self) -> ryo::linter::ProjectSearchScope
-impl core::cmp::Eq for ryo::linter::ProjectSearchScope
-impl core::cmp::PartialEq for ryo::linter::ProjectSearchScope
-pub fn ryo::linter::ProjectSearchScope::eq(&self, &ryo::linter::ProjectSearchScope) -> bool
-impl core::default::Default for ryo::linter::ProjectSearchScope
-pub fn ryo::linter::ProjectSearchScope::default() -> ryo::linter::ProjectSearchScope
-impl core::fmt::Debug for ryo::linter::ProjectSearchScope
-pub fn ryo::linter::ProjectSearchScope::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for ryo::linter::ProjectSearchScope
 pub enum ryo::linter::lint::types::RuleApplicability
 pub ryo::linter::lint::types::RuleApplicability::AcceptedSyntax
 pub ryo::linter::lint::types::RuleApplicability::Always
@@ -747,50 +645,6 @@ pub fn ryo::linter::CaseSource::eq(&self, &ryo::linter::CaseSource) -> bool
 impl core::fmt::Debug for ryo::linter::CaseSource
 pub fn ryo::linter::CaseSource::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for ryo::linter::CaseSource
-pub struct ryo::linter::lint::types::Column(pub u32)
-impl core::clone::Clone for ryo::linter::Column
-pub fn ryo::linter::Column::clone(&self) -> ryo::linter::Column
-impl core::cmp::Eq for ryo::linter::Column
-impl core::cmp::Ord for ryo::linter::Column
-pub fn ryo::linter::Column::cmp(&self, &ryo::linter::Column) -> core::cmp::Ordering
-impl core::cmp::PartialEq for ryo::linter::Column
-pub fn ryo::linter::Column::eq(&self, &ryo::linter::Column) -> bool
-impl core::cmp::PartialOrd for ryo::linter::Column
-pub fn ryo::linter::Column::partial_cmp(&self, &ryo::linter::Column) -> core::option::Option<core::cmp::Ordering>
-impl core::fmt::Debug for ryo::linter::Column
-pub fn ryo::linter::Column::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::hash::Hash for ryo::linter::Column
-pub fn ryo::linter::Column::hash<__H: core::hash::Hasher>(&self, &mut __H)
-impl core::marker::Copy for ryo::linter::Column
-impl core::marker::StructuralPartialEq for ryo::linter::Column
-pub struct ryo::linter::lint::types::DependencyBytes<'a>(pub &'a [u8])
-impl core::convert::From<ryo::linter::DependencyBytes<'_>> for ryo::linter::DependencyFingerprint
-pub fn ryo::linter::DependencyFingerprint::from(ryo::linter::DependencyBytes<'_>) -> Self
-impl<'a> core::clone::Clone for ryo::linter::DependencyBytes<'a>
-pub fn ryo::linter::DependencyBytes<'a>::clone(&self) -> ryo::linter::DependencyBytes<'a>
-impl<'a> core::cmp::Eq for ryo::linter::DependencyBytes<'a>
-impl<'a> core::cmp::PartialEq for ryo::linter::DependencyBytes<'a>
-pub fn ryo::linter::DependencyBytes<'a>::eq(&self, &ryo::linter::DependencyBytes<'a>) -> bool
-impl<'a> core::fmt::Debug for ryo::linter::DependencyBytes<'a>
-pub fn ryo::linter::DependencyBytes<'a>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl<'a> core::marker::Copy for ryo::linter::DependencyBytes<'a>
-impl<'a> core::marker::StructuralPartialEq for ryo::linter::DependencyBytes<'a>
-pub struct ryo::linter::lint::types::DependencyFingerprint(pub [u8; 16])
-impl core::clone::Clone for ryo::linter::DependencyFingerprint
-pub fn ryo::linter::DependencyFingerprint::clone(&self) -> ryo::linter::DependencyFingerprint
-impl core::cmp::Eq for ryo::linter::DependencyFingerprint
-impl core::cmp::Ord for ryo::linter::DependencyFingerprint
-pub fn ryo::linter::DependencyFingerprint::cmp(&self, &ryo::linter::DependencyFingerprint) -> core::cmp::Ordering
-impl core::cmp::PartialEq for ryo::linter::DependencyFingerprint
-pub fn ryo::linter::DependencyFingerprint::eq(&self, &ryo::linter::DependencyFingerprint) -> bool
-impl core::cmp::PartialOrd for ryo::linter::DependencyFingerprint
-pub fn ryo::linter::DependencyFingerprint::partial_cmp(&self, &ryo::linter::DependencyFingerprint) -> core::option::Option<core::cmp::Ordering>
-impl core::convert::From<ryo::linter::DependencyBytes<'_>> for ryo::linter::DependencyFingerprint
-pub fn ryo::linter::DependencyFingerprint::from(ryo::linter::DependencyBytes<'_>) -> Self
-impl core::fmt::Debug for ryo::linter::DependencyFingerprint
-pub fn ryo::linter::DependencyFingerprint::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for ryo::linter::DependencyFingerprint
-impl core::marker::StructuralPartialEq for ryo::linter::DependencyFingerprint
 #[non_exhaustive] pub struct ryo::linter::lint::types::Finding
 pub ryo::linter::lint::types::Finding::columns: alloc::vec::Vec<ryo::linter::FindingColumn>
 pub ryo::linter::lint::types::Finding::key: ryo::linter::FindingKey
@@ -831,19 +685,6 @@ pub fn ryo::linter::FindingKey::fmt(&self, &mut core::fmt::Formatter<'_>) -> cor
 impl core::hash::Hash for ryo::linter::FindingKey
 pub fn ryo::linter::FindingKey::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::StructuralPartialEq for ryo::linter::FindingKey
-pub struct ryo::linter::lint::types::GivenProjectInventory
-pub ryo::linter::lint::types::GivenProjectInventory::completeness: ryo::linter::ProjectInventoryCompleteness
-pub ryo::linter::lint::types::GivenProjectInventory::entries: alloc::vec::Vec<ryo::linter::ProjectEntryObservation>
-impl core::clone::Clone for ryo::linter::GivenProjectInventory
-pub fn ryo::linter::GivenProjectInventory::clone(&self) -> ryo::linter::GivenProjectInventory
-impl core::cmp::Eq for ryo::linter::GivenProjectInventory
-impl core::cmp::PartialEq for ryo::linter::GivenProjectInventory
-pub fn ryo::linter::GivenProjectInventory::eq(&self, &ryo::linter::GivenProjectInventory) -> bool
-impl core::default::Default for ryo::linter::GivenProjectInventory
-pub fn ryo::linter::GivenProjectInventory::default() -> ryo::linter::GivenProjectInventory
-impl core::fmt::Debug for ryo::linter::GivenProjectInventory
-pub fn ryo::linter::GivenProjectInventory::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for ryo::linter::GivenProjectInventory
 pub struct ryo::linter::lint::types::Glob(_)
 impl core::clone::Clone for ryo::linter::Glob
 pub fn ryo::linter::Glob::clone(&self) -> ryo::linter::Glob
@@ -887,22 +728,6 @@ pub fn ryo::linter::HostRow::eq(&self, &ryo::linter::HostRow) -> bool
 impl core::fmt::Debug for ryo::linter::HostRow
 pub fn ryo::linter::HostRow::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for ryo::linter::HostRow
-pub struct ryo::linter::lint::types::Line(pub u32)
-impl core::clone::Clone for ryo::linter::Line
-pub fn ryo::linter::Line::clone(&self) -> ryo::linter::Line
-impl core::cmp::Eq for ryo::linter::Line
-impl core::cmp::Ord for ryo::linter::Line
-pub fn ryo::linter::Line::cmp(&self, &ryo::linter::Line) -> core::cmp::Ordering
-impl core::cmp::PartialEq for ryo::linter::Line
-pub fn ryo::linter::Line::eq(&self, &ryo::linter::Line) -> bool
-impl core::cmp::PartialOrd for ryo::linter::Line
-pub fn ryo::linter::Line::partial_cmp(&self, &ryo::linter::Line) -> core::option::Option<core::cmp::Ordering>
-impl core::fmt::Debug for ryo::linter::Line
-pub fn ryo::linter::Line::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::hash::Hash for ryo::linter::Line
-pub fn ryo::linter::Line::hash<__H: core::hash::Hasher>(&self, &mut __H)
-impl core::marker::Copy for ryo::linter::Line
-impl core::marker::StructuralPartialEq for ryo::linter::Line
 #[non_exhaustive] pub struct ryo::linter::lint::types::LintReport
 pub ryo::linter::lint::types::LintReport::dependencies: alloc::vec::Vec<ryo::linter::ProjectDependency>
 pub ryo::linter::lint::types::LintReport::findings: alloc::vec::Vec<ryo::linter::Finding>
@@ -967,109 +792,6 @@ pub fn ryo::linter::ObservationBinding::eq(&self, &ryo::linter::ObservationBindi
 impl core::fmt::Debug for ryo::linter::ObservationBinding
 pub fn ryo::linter::ObservationBinding::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for ryo::linter::ObservationBinding
-pub struct ryo::linter::lint::types::ParameterCell
-pub ryo::linter::lint::types::ParameterCell::key: ryo::linter::ParameterText
-pub ryo::linter::lint::types::ParameterCell::value: ryo::linter::ParameterText
-impl core::clone::Clone for ryo::linter::ParameterCell
-pub fn ryo::linter::ParameterCell::clone(&self) -> ryo::linter::ParameterCell
-impl core::cmp::Eq for ryo::linter::ParameterCell
-impl core::cmp::PartialEq for ryo::linter::ParameterCell
-pub fn ryo::linter::ParameterCell::eq(&self, &ryo::linter::ParameterCell) -> bool
-impl core::fmt::Debug for ryo::linter::ParameterCell
-pub fn ryo::linter::ParameterCell::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for ryo::linter::ParameterCell
-pub struct ryo::linter::lint::types::ParameterName(pub alloc::boxed::Box<str>)
-impl core::clone::Clone for ryo::linter::ParameterName
-pub fn ryo::linter::ParameterName::clone(&self) -> ryo::linter::ParameterName
-impl core::cmp::Eq for ryo::linter::ParameterName
-impl core::cmp::Ord for ryo::linter::ParameterName
-pub fn ryo::linter::ParameterName::cmp(&self, &ryo::linter::ParameterName) -> core::cmp::Ordering
-impl core::cmp::PartialEq for ryo::linter::ParameterName
-pub fn ryo::linter::ParameterName::eq(&self, &ryo::linter::ParameterName) -> bool
-impl core::cmp::PartialOrd for ryo::linter::ParameterName
-pub fn ryo::linter::ParameterName::partial_cmp(&self, &ryo::linter::ParameterName) -> core::option::Option<core::cmp::Ordering>
-impl core::fmt::Debug for ryo::linter::ParameterName
-pub fn ryo::linter::ParameterName::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::hash::Hash for ryo::linter::ParameterName
-pub fn ryo::linter::ParameterName::hash<__H: core::hash::Hasher>(&self, &mut __H)
-impl core::marker::StructuralPartialEq for ryo::linter::ParameterName
-pub struct ryo::linter::lint::types::ParameterNumber(pub i64)
-impl core::clone::Clone for ryo::linter::ParameterNumber
-pub fn ryo::linter::ParameterNumber::clone(&self) -> ryo::linter::ParameterNumber
-impl core::cmp::Eq for ryo::linter::ParameterNumber
-impl core::cmp::Ord for ryo::linter::ParameterNumber
-pub fn ryo::linter::ParameterNumber::cmp(&self, &ryo::linter::ParameterNumber) -> core::cmp::Ordering
-impl core::cmp::PartialEq for ryo::linter::ParameterNumber
-pub fn ryo::linter::ParameterNumber::eq(&self, &ryo::linter::ParameterNumber) -> bool
-impl core::cmp::PartialOrd for ryo::linter::ParameterNumber
-pub fn ryo::linter::ParameterNumber::partial_cmp(&self, &ryo::linter::ParameterNumber) -> core::option::Option<core::cmp::Ordering>
-impl core::fmt::Debug for ryo::linter::ParameterNumber
-pub fn ryo::linter::ParameterNumber::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::hash::Hash for ryo::linter::ParameterNumber
-pub fn ryo::linter::ParameterNumber::hash<__H: core::hash::Hasher>(&self, &mut __H)
-impl core::marker::Copy for ryo::linter::ParameterNumber
-impl core::marker::StructuralPartialEq for ryo::linter::ParameterNumber
-pub struct ryo::linter::lint::types::ParameterNumbers(pub alloc::vec::Vec<i64>)
-impl core::clone::Clone for ryo::linter::ParameterNumbers
-pub fn ryo::linter::ParameterNumbers::clone(&self) -> ryo::linter::ParameterNumbers
-impl core::cmp::Eq for ryo::linter::ParameterNumbers
-impl core::cmp::Ord for ryo::linter::ParameterNumbers
-pub fn ryo::linter::ParameterNumbers::cmp(&self, &ryo::linter::ParameterNumbers) -> core::cmp::Ordering
-impl core::cmp::PartialEq for ryo::linter::ParameterNumbers
-pub fn ryo::linter::ParameterNumbers::eq(&self, &ryo::linter::ParameterNumbers) -> bool
-impl core::cmp::PartialOrd for ryo::linter::ParameterNumbers
-pub fn ryo::linter::ParameterNumbers::partial_cmp(&self, &ryo::linter::ParameterNumbers) -> core::option::Option<core::cmp::Ordering>
-impl core::fmt::Debug for ryo::linter::ParameterNumbers
-pub fn ryo::linter::ParameterNumbers::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::hash::Hash for ryo::linter::ParameterNumbers
-pub fn ryo::linter::ParameterNumbers::hash<__H: core::hash::Hasher>(&self, &mut __H)
-impl core::marker::StructuralPartialEq for ryo::linter::ParameterNumbers
-pub struct ryo::linter::lint::types::ParameterTable(pub alloc::vec::Vec<ryo::linter::ParameterCell>)
-impl core::clone::Clone for ryo::linter::ParameterTable
-pub fn ryo::linter::ParameterTable::clone(&self) -> ryo::linter::ParameterTable
-impl core::cmp::Eq for ryo::linter::ParameterTable
-impl core::cmp::PartialEq for ryo::linter::ParameterTable
-pub fn ryo::linter::ParameterTable::eq(&self, &ryo::linter::ParameterTable) -> bool
-impl core::fmt::Debug for ryo::linter::ParameterTable
-pub fn ryo::linter::ParameterTable::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for ryo::linter::ParameterTable
-pub struct ryo::linter::lint::types::ParameterText(pub alloc::boxed::Box<str>)
-impl core::clone::Clone for ryo::linter::ParameterText
-pub fn ryo::linter::ParameterText::clone(&self) -> ryo::linter::ParameterText
-impl core::cmp::Eq for ryo::linter::ParameterText
-impl core::cmp::Ord for ryo::linter::ParameterText
-pub fn ryo::linter::ParameterText::cmp(&self, &ryo::linter::ParameterText) -> core::cmp::Ordering
-impl core::cmp::PartialEq for ryo::linter::ParameterText
-pub fn ryo::linter::ParameterText::eq(&self, &ryo::linter::ParameterText) -> bool
-impl core::cmp::PartialOrd for ryo::linter::ParameterText
-pub fn ryo::linter::ParameterText::partial_cmp(&self, &ryo::linter::ParameterText) -> core::option::Option<core::cmp::Ordering>
-impl core::fmt::Debug for ryo::linter::ParameterText
-pub fn ryo::linter::ParameterText::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::hash::Hash for ryo::linter::ParameterText
-pub fn ryo::linter::ParameterText::hash<__H: core::hash::Hasher>(&self, &mut __H)
-impl core::marker::StructuralPartialEq for ryo::linter::ParameterText
-pub struct ryo::linter::lint::types::ProjectDependency
-pub ryo::linter::lint::types::ProjectDependency::path: ryo::linter::RelativePath
-pub ryo::linter::lint::types::ProjectDependency::state: ryo::linter::ProjectDependencyState
-impl core::clone::Clone for ryo::linter::ProjectDependency
-pub fn ryo::linter::ProjectDependency::clone(&self) -> ryo::linter::ProjectDependency
-impl core::cmp::Eq for ryo::linter::ProjectDependency
-impl core::cmp::PartialEq for ryo::linter::ProjectDependency
-pub fn ryo::linter::ProjectDependency::eq(&self, &ryo::linter::ProjectDependency) -> bool
-impl core::fmt::Debug for ryo::linter::ProjectDependency
-pub fn ryo::linter::ProjectDependency::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for ryo::linter::ProjectDependency
-pub struct ryo::linter::lint::types::ProjectEntryObservation
-pub ryo::linter::lint::types::ProjectEntryObservation::path: ryo::linter::RelativePath
-pub ryo::linter::lint::types::ProjectEntryObservation::state: ryo::linter::ProjectEntryState
-impl core::clone::Clone for ryo::linter::ProjectEntryObservation
-pub fn ryo::linter::ProjectEntryObservation::clone(&self) -> ryo::linter::ProjectEntryObservation
-impl core::cmp::Eq for ryo::linter::ProjectEntryObservation
-impl core::cmp::PartialEq for ryo::linter::ProjectEntryObservation
-pub fn ryo::linter::ProjectEntryObservation::eq(&self, &ryo::linter::ProjectEntryObservation) -> bool
-impl core::fmt::Debug for ryo::linter::ProjectEntryObservation
-pub fn ryo::linter::ProjectEntryObservation::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for ryo::linter::ProjectEntryObservation
 pub struct ryo::linter::lint::types::ProviderName(pub alloc::boxed::Box<str>)
 impl core::clone::Clone for ryo::linter::ProviderName
 pub fn ryo::linter::ProviderName::clone(&self) -> ryo::linter::ProviderName
