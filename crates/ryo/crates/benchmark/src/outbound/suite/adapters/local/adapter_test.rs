@@ -1,20 +1,24 @@
 //! Actual physical suite observations, exact digest bytes and profile decoding.
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::suite::fixtures::contract::check;
-use crate::outbound::suite::{factory::local, interface::SuitePort as _, types::ArtifactPath};
+use crate::outbound::suite::{
+    factory::local,
+    interface::SuitePort as _,
+    types::{ArtifactPath, CaseReceipts},
+};
 fn physical_contract() {
-    check(&local());
+    check(&local(CaseReceipts::Unrecorded));
 }
 fn exact_executable_digest_bytes() {
     let directory = tempfile::tempdir().expect("source artifacts");
     let bytes = directory.path().join("executable");
     std::fs::write(&bytes, b"abc").expect("digest fixture");
     assert_eq!(
-        local().digest(ArtifactPath(&bytes)).expect("digest").0,
+        local(CaseReceipts::Unrecorded).digest(ArtifactPath(&bytes)).expect("digest").0,
         "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
     );
     assert!(
-        matches!(local().digest(ArtifactPath(directory.path())), Err(ryo_benchmark_contracts::domain::reports::errors::ReportsError::Invalid(message)) if message == "executable digest requires a regular file")
+        matches!(local(CaseReceipts::Unrecorded).digest(ArtifactPath(directory.path())), Err(ryo_benchmark_contracts::domain::reports::errors::ReportsError::Invalid(message)) if message == "executable digest requires a regular file")
     );
 }
 fn optional_source_language_profile_preserves_default_and_validates_exact_names() {
@@ -26,7 +30,7 @@ fn optional_source_language_profile_preserves_default_and_validates_exact_names(
             format!("{base}{suffix}"),
         )
         .expect("profile bytes");
-        let profile = local()
+        let profile = local(CaseReceipts::Unrecorded)
             .profile(ArtifactPath(directory.path()))
             .expect("profile");
         assert_eq!(profile.source_language.as_deref(), expected);
@@ -38,7 +42,7 @@ fn optional_source_language_profile_preserves_default_and_validates_exact_names(
         )
         .expect("profile bytes");
         assert!(matches!(
-            local().profile(ArtifactPath(directory.path())),
+            local(CaseReceipts::Unrecorded).profile(ArtifactPath(directory.path())),
             Err(_refused_profile)
         ));
     }

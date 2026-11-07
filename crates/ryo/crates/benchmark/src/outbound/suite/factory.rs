@@ -1,13 +1,7 @@
-//! Builds the suite adapters from dependencies chosen by the composition.
+//! Builds the suite adapter from dependencies chosen by the composition.
 use super::adapters::local::adapter::SuiteLocalAdapter;
-/// Construct the local implementation of the suite contract.
+/// Construct the local implementation of the suite contract with the case-receipt destination the edge chose.
 #[must_use]
-pub fn local() -> impl super::interface::SuitePort {
-    SuiteLocalAdapter::new(None)
-}
-
-/// Construct the local suite with an explicit raw case-receipt destination.
-#[must_use]
-pub fn local_with_case_receipts(path: std::path::PathBuf) -> impl super::interface::SuitePort {
-    SuiteLocalAdapter::new(Some(path))
+pub fn local(case_receipts: super::types::CaseReceipts) -> impl super::interface::SuitePort {
+    SuiteLocalAdapter::new(case_receipts)
 }

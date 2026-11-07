@@ -1,7 +1,8 @@
 //! Load and validate the suite's external artifacts.
-use super::types::ArtifactPath;
-use super::types::ArtifactSet;
-use crate::outbound::suite::constants;
+use super::types::{
+    ArtifactBytes, ArtifactPath, ArtifactSet, ArtifactSize, ArtifactText, RuleQuery,
+    ScratchDirectory, SelectedName, SourceDigest,
+};
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::workloads::types::Suite;
@@ -9,24 +10,16 @@ use ryo_benchmark_contracts::domain::workloads::types::Tool;
 /// Read external suite artifacts and audit their authored default coverage.
 pub trait SuitePort {
     /// Reverify declared physical observations before each contestant prepares its input.
-    /// Legacy adapters may handle unspecified metadata; they cannot certify explicit observations.
+    ///
+    /// # Errors
+    /// Refuses drifted or unverifiable declared file metadata.
     fn validate_file_metadata(
         &self,
         request: &ryo_benchmark_contracts::domain::requests::types::RunRequest,
-    ) -> Result<(), Error> {
-        if request.file_metadata.is_some() {
-            Err(Error::Invalid(
-                constants::FILE_METADATA_VERIFICATION_IS_UNAVAILABLE.into(),
-            ))
-        } else {
-            Ok(())
-        }
-    }
+    ) -> Result<(), Error>;
 
     /// Optional receipt sink chosen at the outer edge; fixtures inject it without global state.
-    fn case_receipt_file(&self) -> Option<std::path::PathBuf> {
-        None
-    }
+    fn case_receipt_file(&self) -> Option<std::path::PathBuf>;
 
     /// Read the exact declared source bytes using canonical filename framing.
     ///
@@ -34,13 +27,9 @@ pub trait SuitePort {
     /// Refuses missing, unreadable or escaping sources.
     fn case_source_digest(
         &self,
-        _root: ArtifactPath<'_>,
-        _files: &[std::path::PathBuf],
-    ) -> Result<String, super::types::discrepancy::ArtifactError> {
-        Err(super::types::discrepancy::ArtifactError::Invalid(
-            constants::CASE_SOURCE_READER_IS_UNAVAILABLE.into(),
-        ))
-    }
+        root: ArtifactPath<'_>,
+        files: ArtifactSet<'_>,
+    ) -> Result<SourceDigest, super::types::discrepancy::ArtifactError>;
 
     /// Read only explicitly named profile-relative artifact bytes.
     ///
@@ -48,30 +37,22 @@ pub trait SuitePort {
     /// Refuses missing, stale, escaping or non-regular files.
     fn read_discrepancy_artifacts(
         &self,
-        _profile: ArtifactPath<'_>,
-        _artifacts: &[super::types::discrepancy::EvidenceArtifact],
+        profile: ArtifactPath<'_>,
+        artifacts: &[super::types::discrepancy::EvidenceArtifact],
     ) -> Result<
-        std::collections::BTreeMap<std::path::PathBuf, Vec<u8>>,
+        std::collections::BTreeMap<std::path::PathBuf, ArtifactBytes>,
         super::types::discrepancy::ArtifactError,
-    > {
-        Err(super::types::discrepancy::ArtifactError::Invalid(
-            constants::ARTIFACT_READER_IS_UNAVAILABLE.into(),
-        ))
-    }
+    >;
     /// Append an application-owned observation and preserve optional raw process bytes.
     ///
     /// # Errors
     /// Refuses unsafe receipt names or failed artifact persistence.
     fn record_case(
         &self,
-        _receipt: ArtifactPath<'_>,
-        _record: super::types::observation_document::ObservationDocument,
-        _process: Option<super::types::process::CapturedProcess<'_>>,
-    ) -> Result<(), super::types::discrepancy::ArtifactError> {
-        Err(super::types::discrepancy::ArtifactError::Invalid(
-            constants::CASE_OBSERVATION_STORE_IS_UNAVAILABLE.into(),
-        ))
-    }
+        receipt: ArtifactPath<'_>,
+        record: super::types::observation_document::ObservationDocument,
+        process: Option<super::types::process::CapturedProcess<'_>>,
+    ) -> Result<(), super::types::discrepancy::ArtifactError>;
 
     /// Read every observation row of one receipt file.
     ///
@@ -79,15 +60,11 @@ pub trait SuitePort {
     /// Refuses unreadable receipts, malformed rows and fields the schema does not name.
     fn case_observations(
         &self,
-        _receipt: ArtifactPath<'_>,
+        receipt: ArtifactPath<'_>,
     ) -> Result<
         Vec<super::types::observation_document::ObservationDocument>,
         super::types::discrepancy::ArtifactError,
-    > {
-        Err(super::types::discrepancy::ArtifactError::Invalid(
-            constants::CASE_OBSERVATION_STORE_IS_UNAVAILABLE.into(),
-        ))
-    }
+    >;
 
     /// Decode the pinned linter profile below its artifact directory.
     ///
@@ -157,8 +134,8 @@ pub trait SuitePort {
     fn scratch(
         &self,
         parent: ArtifactPath<'_>,
-        prefix: &str,
-    ) -> Result<std::path::PathBuf, Error>;
+        prefix: ArtifactText<'_>,
+    ) -> Result<ScratchDirectory, Error>;
     /// Remove a directory made by `scratch` with everything beneath it.
     ///
     /// # Errors
@@ -178,17 +155,17 @@ pub trait SuitePort {
     ///
     /// # Errors
     /// Refuses an unwritable path.
-    fn write_text(&self, file: ArtifactPath<'_>, text: &str) -> Result<(), Error>;
+    fn write_text(&self, file: ArtifactPath<'_>, text: ArtifactText<'_>) -> Result<(), Error>;
     /// The names a selection file lists.
     ///
     /// # Errors
     /// Refuses a missing file or one that is not a list of names.
-    fn selection(&self, file: ArtifactPath<'_>) -> Result<Vec<String>, Error>;
+    fn selection(&self, file: ArtifactPath<'_>) -> Result<Vec<SelectedName>, Error>;
     /// The total size in bytes of these files.
     ///
     /// # Errors
     /// Refuses a file that cannot be inspected.
-    fn total_size(&self, files: &[std::path::PathBuf]) -> Result<u64, Error>;
+    fn total_size(&self, files: ArtifactSet<'_>) -> Result<ArtifactSize, Error>;
     /// Seal the actual requested/auxiliary corpus bytes before both disk contestants.
     /// # Errors
     /// Refuses missing, escaping, symlinked or changed inputs without inventing metadata.
@@ -196,7 +173,7 @@ pub trait SuitePort {
         &self,
         root: ArtifactPath<'_>,
         sources: &[ryo::linter::RelativePath],
-        tracked: &[std::path::PathBuf],
+        tracked: ArtifactSet<'_>,
     ) -> Result<ryo_benchmark_contracts::domain::context::types::ContextManifest, Error>;
     /// Materialize only the explicitly authored subset in an owned empty directory.
     ///
@@ -223,7 +200,7 @@ pub trait SuitePort {
         &self,
         rules: ArtifactPath<'_>,
         rule: &ryo::linter::RuleId,
-    ) -> Result<Option<String>, Error>;
+    ) -> Result<Option<RuleQuery>, Error>;
 
     /// Decode one owner's case declarations without deciding polarity or coverage.
     /// # Errors

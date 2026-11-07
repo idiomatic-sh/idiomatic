@@ -1,5 +1,6 @@
 //! Physical observation and staging, confined to the suite's filesystem edge.
 use crate::outbound::suite::adapters::local::constants;
+use crate::outbound::suite::types::{MaterializedCase, MaterializedContext};
 use ryo_benchmark_contracts::domain::artifacts::types::{FileExecutable, FileMetadataEntry};
 use ryo_benchmark_contracts::domain::artifacts::types::{
     digest::value::ArtifactDigest, relative_artifact_path::value::RelativeArtifactPath,
@@ -118,7 +119,7 @@ pub(super) fn actual_digest(root: &Path, files: &[std::path::PathBuf]) -> Result
 pub(super) fn materialize(
     boundary: &Path,
     sources: &ryo_benchmark_contracts::domain::workloads::types::Case,
-) -> Result<crate::outbound::suite::types::MaterializedCase, Error> {
+) -> Result<MaterializedCase, Error> {
     let context_manifest = sources
         .context
         .as_ref()
@@ -151,9 +152,9 @@ pub(super) fn materialize(
             stage(&path, *executable)?;
         }
     }
-    Ok(crate::outbound::suite::types::MaterializedCase {
+    Ok(MaterializedCase {
         root,
-        context_manifest,
+        context: context_manifest.map_or(MaterializedContext::Isolated, MaterializedContext::Sealed),
     })
 }
 

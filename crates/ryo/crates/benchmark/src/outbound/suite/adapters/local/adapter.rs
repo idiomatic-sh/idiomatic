@@ -1,7 +1,11 @@
 //! Validate pins, cases and rule coverage before running contestants.
 use super::{constants, discrepancy_artifacts};
 use crate::outbound::suite::interface::SuitePort;
-use crate::outbound::suite::types::{ArtifactPath, ArtifactSet};
+use crate::outbound::suite::types::{
+    ArtifactBytes, ArtifactPath, ArtifactSet, ArtifactSize, ArtifactText, CaseReceipts,
+    MaterializedCase, RuleQuery, ScratchDirectory, SelectedName,
+    SourceDigest,
+};
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
 use ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
@@ -85,8 +89,12 @@ pub(crate) struct SuiteLocalAdapter {
     case_receipts: Option<std::path::PathBuf>,
 }
 impl SuiteLocalAdapter {
-    /// Bind an optional receipt destination chosen explicitly by executable composition.
-    pub(crate) fn new(case_receipts: Option<std::path::PathBuf>) -> Self {
+    /// Bind the receipt destination chosen explicitly by executable composition.
+    pub(crate) fn new(case_receipts: CaseReceipts) -> Self {
+        let case_receipts = match case_receipts {
+            CaseReceipts::Unrecorded => None,
+            CaseReceipts::Recorded(path) => Some(path),
+        };
         Self { case_receipts }
     }
 }
@@ -105,9 +113,9 @@ impl SuitePort for SuiteLocalAdapter {
     fn case_source_digest(
         &self,
         root: ArtifactPath<'_>,
-        files: &[std::path::PathBuf],
-    ) -> Result<String, crate::outbound::suite::types::discrepancy::ArtifactError> {
-        discrepancy_artifacts::source_digest(root.0, files)
+        files: ArtifactSet<'_>,
+    ) -> Result<SourceDigest, crate::outbound::suite::types::discrepancy::ArtifactError> {
+        discrepancy_artifacts::source_digest(root.0, files.0).map(SourceDigest)
     }
 
     fn read_discrepancy_artifacts(
@@ -115,10 +123,15 @@ impl SuitePort for SuiteLocalAdapter {
         profile: ArtifactPath<'_>,
         artifacts: &[crate::outbound::suite::types::discrepancy::EvidenceArtifact],
     ) -> Result<
-        std::collections::BTreeMap<std::path::PathBuf, Vec<u8>>,
+        std::collections::BTreeMap<std::path::PathBuf, ArtifactBytes>,
         crate::outbound::suite::types::discrepancy::ArtifactError,
     > {
-        discrepancy_artifacts::read(profile.0, artifacts)
+        discrepancy_artifacts::read(profile.0, artifacts).map(|bytes| {
+            bytes
+                .into_iter()
+                .map(|(path, bytes)| (path, ArtifactBytes(bytes)))
+                .collect()
+        })
     }
     fn record_case(
         &self,
@@ -154,7 +167,11 @@ impl SuitePort for SuiteLocalAdapter {
     ) -> Result<(), crate::outbound::suite::types::discrepancy::ArtifactError> {
         super::discrepancy_artifacts::verify(artifacts)
     }
-    fn scratch(&self, ArtifactPath(parent): ArtifactPath<'_>, prefix: &str) -> Result<std::path::PathBuf, Error> {
+    fn scratch(
+        &self,
+        ArtifactPath(parent): ArtifactPath<'_>,
+        ArtifactText(prefix): ArtifactText<'_>,
+    ) -> Result<ScratchDirectory, Error> {
         let mut builder = tempfile::Builder::new();
         let _prefixed = builder.prefix(prefix);
         let directory = if parent.as_os_str().is_empty() {
@@ -162,7 +179,7 @@ impl SuitePort for SuiteLocalAdapter {
         } else {
             builder.tempdir_in(parent)?
         };
-        Ok(directory.keep())
+        Ok(ScratchDirectory(directory.keep()))
     }
     fn discard(&self, ArtifactPath(directory): ArtifactPath<'_>) -> Result<(), Error> {
         std::fs::remove_dir_all(directory).map_err(Into::into)
@@ -174,17 +191,22 @@ impl SuitePort for SuiteLocalAdapter {
         std::fs::create_dir_all(directory)?;
         directory.canonicalize().map_err(Into::into)
     }
-    fn write_text(&self, ArtifactPath(file): ArtifactPath<'_>, text: &str) -> Result<(), Error> {
+    fn write_text(
+        &self,
+        ArtifactPath(file): ArtifactPath<'_>,
+        ArtifactText(text): ArtifactText<'_>,
+    ) -> Result<(), Error> {
         std::fs::write(file, text).map_err(Into::into)
     }
-    fn selection(&self, ArtifactPath(file): ArtifactPath<'_>) -> Result<Vec<String>, Error> {
-        serde_json::from_slice(&std::fs::read(file)?).map_err(|error| Error::Invalid(error.to_string()))
+    fn selection(&self, ArtifactPath(file): ArtifactPath<'_>) -> Result<Vec<SelectedName>, Error> {
+        super::selection::schemas::names(&std::fs::read(file)?)
     }
-    fn total_size(&self, files: &[std::path::PathBuf]) -> Result<u64, Error> {
+    fn total_size(&self, ArtifactSet(files): ArtifactSet<'_>) -> Result<ArtifactSize, Error> {
         files
             .iter()
             .map(|file| std::fs::metadata(file).map(|metadata| metadata.len()))
             .sum::<Result<u64, _>>()
+            .map(ArtifactSize)
             .map_err(Into::into)
     }
     fn digest(&self, ArtifactPath(path): ArtifactPath<'_>) -> Result<ArtifactDigest, Error> {
@@ -208,9 +230,9 @@ impl SuitePort for SuiteLocalAdapter {
         &self,
         ArtifactPath(profile): ArtifactPath<'_>,
         rule: &ryo::linter::RuleId,
-    ) -> Result<Option<String>, Error> {
+    ) -> Result<Option<RuleQuery>, Error> {
         match std::fs::read_to_string(rule_directory(profile, rule)?.join(constants::QUERY)) {
-            Ok(query) => Ok(Some(query)),
+            Ok(query) => Ok(Some(RuleQuery(query))),
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
             Err(error) => Err(error.into()),
         }
@@ -235,7 +257,7 @@ impl SuitePort for SuiteLocalAdapter {
         &self,
         ArtifactPath(destination): ArtifactPath<'_>,
         case: &ryo_benchmark_contracts::domain::workloads::types::Case,
-    ) -> Result<crate::outbound::suite::types::MaterializedCase, Error> {
+    ) -> Result<MaterializedCase, Error> {
         super::input_metadata::materialize(destination, case)
     }
     fn materialize_inventory(
@@ -249,7 +271,7 @@ impl SuitePort for SuiteLocalAdapter {
         &self,
         ArtifactPath(root): ArtifactPath<'_>,
         sources: &[ryo::linter::RelativePath],
-        tracked: &[std::path::PathBuf],
+        ArtifactSet(tracked): ArtifactSet<'_>,
     ) -> Result<ryo_benchmark_contracts::domain::context::types::ContextManifest, Error> {
         crate::outbound::context::adapters::local::adapter::seal_existing(root, sources, tracked)
     }
