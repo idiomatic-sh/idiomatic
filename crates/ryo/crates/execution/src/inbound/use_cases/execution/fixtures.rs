@@ -1,10 +1,12 @@
 //! Authored request assembly; every operation runs through the public execution owner.
+use crate::outbound::facts::types::ResidentStability;
 use crate::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
-use crate::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
-use crate::inbound::use_cases::execution::use_case::PrepareUseCaseImpl;
-use crate::inbound::use_cases::prepare::interface::PrepareUseCase;
 use crate::inbound::use_cases::execution::interface::ExecutionUseCase;
-use super::use_case::PrepareUseCaseImpl;
+use crate::application::file_dag::derived::owner::types::DerivedAccess;
+use crate::application::file_dag::program::prepared_execution::service::prepare;
+use crate::domain::executable_program::types::RoutePolicy;
+use crate::outbound::derived::interface::DerivedPort;
+use crate::outbound::operators::interface::OperatorsPort;
 use crate::application::file_dag::program::file_session::types::FileInput;
 use crate::application::file_dag::program::file_session::types::SourceLanguage;
 use crate::application::file_dag::program::file_session::types::SourceRows;
@@ -17,8 +19,7 @@ use crate::inbound::use_cases::execution::interface::FileRuleIntent;
 use crate::inbound::use_cases::execution::interface::ObservationDemand;
 use crate::inbound::use_cases::execution::interface::RuleDemand;
 use crate::inbound::use_cases::execution::interface::RuleIndex;
-use crate::inbound::use_cases::prepare::interface::ObservationIdentity;
-use crate::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
+use crate::domain::prepared_request::types::ObservationIdentity;
 use ryo_language::domain::completion::service::{completion, name_kind};
 use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::{
@@ -101,11 +102,51 @@ pub(super) fn published_observed<'facts>(
     let (engine, prepared) = prepared(plan, bindings, hosted)?;
     run_prepared(&engine, &prepared, source, elements, symbols, read)
 }
+/// One authored request: its plans with their bindings, its rules, digests and hosted relations.
+pub(super) struct Authored {
+    pub(super) plans: Vec<Plan>,
+    pub(super) bindings: Vec<Vec<ParameterBinding>>,
+    pub(super) rules: Vec<RuleSpec>,
+    pub(super) digests: Vec<Digest>,
+    pub(super) hosted: Vec<HostRelation>,
+    pub(super) observations: ObservationIdentity,
+}
+/// The application's preparation over the operators and derived views it is given.
+pub(super) struct Preparation {
+    operators: Arc<dyn OperatorsPort>,
+    derived: DerivedAccess,
+}
+impl Preparation {
+    pub(super) fn new(operators: Arc<dyn OperatorsPort>, derived: Arc<dyn DerivedPort>) -> Self {
+        Self {
+            operators,
+            derived: derived.into(),
+        }
+    }
+    /// The program of an authored request, assembled and prepared as the engine prepares it.
+    pub(super) fn prepare(&self, request: Authored) -> Result<PreparedExecutionProgram, OperatingError> {
+        let compiled = crate::domain::prepared_request::service::assemble(
+            request.plans,
+            request.bindings,
+            &request.rules,
+        )?;
+        prepare(
+            compiled,
+            &request.rules,
+            &request.digests,
+            &request.hosted,
+            request.observations,
+            Arc::clone(&self.operators),
+            &self.derived,
+            RoutePolicy::default(),
+        )
+    }
+}
 pub(super) fn prepared(
     plan: Plan,
     bindings: Vec<ParameterBinding>,
     hosted: Vec<HostRelation>,
-) -> Result<(PrepareUseCaseImpl, PreparedExecutionProgram), OperatingError> {
+) -> Result<(Preparation, PreparedExecutionProgram), OperatingError> {
     prepared_many(vec![plan], vec![bindings], hosted)
 }
 /// One request of several authored rules, the first named as `prepared` names its only one.
@@ -113,8 +154,8 @@ pub(super) fn prepared_many(
     plans: Vec<Plan>,
     bindings: Vec<Vec<ParameterBinding>>,
     hosted: Vec<HostRelation>,
-) -> Result<(PrepareUseCaseImpl, PreparedExecutionProgram), OperatingError> {
-    let engine = PrepareUseCaseImpl::new(
+) -> Result<(Preparation, PreparedExecutionProgram), OperatingError> {
+    let engine = Preparation::new(
         Arc::new(
             ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
         ),
@@ -148,24 +189,24 @@ pub(super) fn prepared_many(
     let digests = (0..plans.len())
         .map(|at| Digest([u8::try_from(at).unwrap_or(u8::MAX); 16]))
         .collect();
-    let prepared = engine.prepare(PrepareRequest { plans: PlanSource::Authored { plans, bindings }, rules, digests, hosted, observations: ObservationIdentity::Independent })?;
+    let prepared = engine.prepare(Authored { plans, bindings, rules, digests, hosted, observations: ObservationIdentity::Independent })?;
     Ok((engine, prepared))
 }
 /// Repeat the supported public owner protocol over the same immutable compiled request.
 pub(super) fn run_prepared<'facts>(
-    engine: &PrepareUseCaseImpl,
+    _engine: &Preparation,
     prepared: &PreparedExecutionProgram,
     source: &[u8],
     elements: &Elements,
     symbols: &mut Symbols,
     read: &dyn Fn(Relation) -> Result<SourceRows<'facts>, OperatingError>,
 ) -> Result<(Table, crate::domain::operating::types::ExecutionObservation), OperatingError> {
-    run_prepared_context(engine, prepared, source, elements, symbols, read, None)
+    run_prepared_context(_engine, prepared, source, elements, symbols, read, None)
 }
 
 /// The same public owner with its real borrowed rendering capability.
 pub(super) fn run_prepared_context<'facts>(
-    engine: &PrepareUseCaseImpl,
+    _engine: &Preparation,
     prepared: &PreparedExecutionProgram,
     source: &[u8],
     elements: &Elements,
@@ -184,7 +225,7 @@ pub(super) fn run_prepared_context<'facts>(
     let mut file = request.open_file(
         FileInput {
             language: SourceLanguage::Recognized,
-            resident_stability: facts::ResidentStability::Stable,
+            resident_stability: ResidentStability::Stable,
             file: FileId(0),
             evaluation: &[],
             publication: &[],

@@ -1,5 +1,6 @@
 //! One request of two rules whose second has a step beyond its operator contract answers the second rule's error through the
 //! public file owner while the first rule delivers its rows: preparation succeeds, and the error is the second rule's alone.
+use crate::outbound::facts::types::ResidentStability;
 use super::super::super::fixtures;
 use crate::application::file_dag::program::file_session::types::FileInput;
 use crate::application::file_dag::program::file_session::types::SourceLanguage;
@@ -100,7 +101,7 @@ fn an_errored_rule_answers_its_error_while_its_sibling_delivers_rows() {
         .open_file(
             FileInput {
                 language: SourceLanguage::Recognized,
-                resident_stability: facts::ResidentStability::Stable,
+                resident_stability: ResidentStability::Stable,
                 file: FileId(0),
                 evaluation: &[],
                 publication: &[],

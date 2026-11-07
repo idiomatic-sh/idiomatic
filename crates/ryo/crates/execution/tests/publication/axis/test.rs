@@ -1,4 +1,5 @@
 //! Real native Axis failures must not leak partially evaluated held results.
+use ryo_execution::outbound::facts::types::ResidentStability;
 use super::super::*;
 use ryo_language::domain::{
     completion::fixtures as completion,
@@ -96,7 +97,7 @@ x
             .open_file(
                 FileInput {
                     language: SourceLanguage::Recognized,
-                    resident_stability: facts::ResidentStability::Stable,
+                    resident_stability: ResidentStability::Stable,
                     file: FileId(0),
                     evaluation: &[],
                     publication: &[],
@@ -174,7 +175,7 @@ fn ordinary_select_does_not_publish_a_prefix_before_late_predicate_failure() {
         .open_file(
             FileInput {
                 language: SourceLanguage::Recognized,
-                resident_stability: facts::ResidentStability::Stable,
+                resident_stability: ResidentStability::Stable,
                 file: FileId(0),
                 evaluation: &[],
                 publication: &[],

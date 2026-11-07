@@ -1,7 +1,7 @@
 //! Real relation, region, observation and member roots, including direct bound capture.
+use ryo_execution::outbound::facts::types::ResidentStability;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
-use ryo_execution::inbound::use_cases::execution::use_case::PrepareUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use crate::boundary_fixture::{authored_request, corpus, engine, source};
@@ -163,7 +163,7 @@ fn direct_bound_root_and_union_share_the_actual_member_before_producer_delivery(
             .open_file(
                 FileInput {
                     language: SourceLanguage::Recognized,
-                    resident_stability: facts::ResidentStability::Stable,
+                    resident_stability: ResidentStability::Stable,
                     file: FileId(0),
                     evaluation: &[],
                     publication: &[],
@@ -281,7 +281,7 @@ fn a_refused_named_member_cannot_be_replaced_with_a_typed_empty_or_provider_retr
         .open_file(
             FileInput {
                 language: SourceLanguage::Recognized,
-                resident_stability: facts::ResidentStability::Stable,
+                resident_stability: ResidentStability::Stable,
                 file: FileId(0),
                 evaluation: &[],
                 publication: &[],

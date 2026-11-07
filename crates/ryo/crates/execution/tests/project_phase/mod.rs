@@ -1,11 +1,10 @@
 //! A compiled project emit defers at file scope while real file frontiers remain available.
+use ryo_execution::outbound::facts::types::ResidentStability;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
-use ryo_execution::inbound::use_cases::execution::use_case::PrepareUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use crate::boundary_fixture::{authored_request, corpus, demand, engine, source};
 use ryo_execution::application::file_dag::program::project_phase::interface::ProjectStage;
-use ryo_execution::inbound::use_cases::execution::use_case::PrepareUseCaseImpl;
 use ryo_execution::application::file_dag::program::request_execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::application::file_dag::program::file_session::interface::FileExecution;
@@ -135,7 +134,7 @@ fn two_declared_roots_of_one_population_read_the_provider_once() {
             .open_file(
                 FileInput {
                     language: SourceLanguage::Recognized,
-                    resident_stability: facts::ResidentStability::Stable,
+                    resident_stability: ResidentStability::Stable,
                     file: FileId(0),
                     evaluation: &[],
                     publication: &[],
@@ -179,7 +178,7 @@ fn two_declared_roots_of_one_population_read_the_provider_once() {
             .open_file(
                 FileInput {
                     language: SourceLanguage::Recognized,
-                    resident_stability: facts::ResidentStability::Stable,
+                    resident_stability: ResidentStability::Stable,
                     file: FileId(0),
                     evaluation: &[],
                     publication: &[],
@@ -447,7 +446,7 @@ fn project_grouping_reads_only_actual_captured_function_names() {
             .open_file(
                 FileInput {
                     language: SourceLanguage::Recognized,
-                    resident_stability: facts::ResidentStability::Stable,
+                    resident_stability: ResidentStability::Stable,
                     file: file_id,
                     evaluation: &[],
                     publication: &[],
@@ -651,7 +650,7 @@ fn named_function_selection_replays_without_running_project_steps_or_hiding_abse
             .open_file(
                 FileInput {
                     language: SourceLanguage::Recognized,
-                    resident_stability: facts::ResidentStability::Stable,
+                    resident_stability: ResidentStability::Stable,
                     file: FileId(0),
                     evaluation: &[],
                     publication: &[],
@@ -1185,8 +1184,8 @@ fn project_text_identity_does_not_depend_on_inherited_arenas() {
     };
     use ryo_values::domain::plan_parts::types::{HostedNumber, LiteralText, Operand, QueryLiteral};
     use ryo_values::domain::row_texts::types::Cell;
-    use ryo_values::domain::stored_facts::types::ArenaBytes;
 
+    use ryo_values::domain::stored_facts::types::ArenaBytes;
     for use_parameter_rows in [false, true] {
         for arenas in [vec![], vec![ArenaBytes::default()]] {
             for selected in ["F401", "F822"] {

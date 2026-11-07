@@ -1,7 +1,7 @@
 //! Declared schema/resource and transport ordering through the real public owner.
+use ryo_execution::outbound::facts::types::ResidentStability;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
-use ryo_execution::inbound::use_cases::execution::use_case::PrepareUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
@@ -30,7 +30,7 @@ fn evaluate<'facts>(
         .open_file(
             FileInput {
                 language: SourceLanguage::Recognized,
-                resident_stability: facts::ResidentStability::Stable,
+                resident_stability: ResidentStability::Stable,
                 file: FileId(0),
                 evaluation: &[],
                 publication: &[],
@@ -123,7 +123,7 @@ fn deliver<'facts>(
         .open_file(
             FileInput {
                 language: SourceLanguage::Recognized,
-                resident_stability: facts::ResidentStability::Stable,
+                resident_stability: ResidentStability::Stable,
                 file: FileId(0),
                 evaluation: &[],
                 publication: &[],

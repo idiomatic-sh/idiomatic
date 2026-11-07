@@ -1,5 +1,6 @@
 //! Actual two-file named restoration and absence publication, including a
 //! downstream projection that would erase the completeness key if fused early.
+use ryo_execution::outbound::facts::types::ResidentStability;
 use super::super::super::*;
 use ryo_execution::application::file_dag::program::observation_stage::interface::ObservationExecution;
 use ryo_execution::application::file_dag::program::observation_stage::interface::ObservationPublication;
@@ -436,7 +437,7 @@ fn exercise_with(
             .open_file(
                 FileInput {
                     language: SourceLanguage::Recognized,
-                    resident_stability: facts::ResidentStability::Stable,
+                    resident_stability: ResidentStability::Stable,
                     file: file_id,
                     evaluation: &[],
                     publication: &[],

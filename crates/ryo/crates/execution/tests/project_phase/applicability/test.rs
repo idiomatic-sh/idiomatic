@@ -1,4 +1,5 @@
 //! Missing transport remains an error; explicit syntax rejection remains partial.
+use ryo_execution::outbound::facts::types::ResidentStability;
 use super::super::*;
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::{
@@ -97,7 +98,7 @@ fn exercise(case: Case) {
         .open_file(
             FileInput {
                 language: SourceLanguage::Recognized,
-                resident_stability: facts::ResidentStability::Stable,
+                resident_stability: ResidentStability::Stable,
                 file: FileId(0),
                 evaluation: &[],
                 publication: &[],
@@ -148,7 +149,7 @@ fn exercise(case: Case) {
             .open_file(
                 FileInput {
                     language: SourceLanguage::Recognized,
-                    resident_stability: facts::ResidentStability::Stable,
+                    resident_stability: ResidentStability::Stable,
                     file: FileId(1),
                     evaluation: &[],
                     publication: &[],
@@ -283,7 +284,7 @@ fn wholly_skipped_frontier_is_unavailable_without_fabricating_a_schema_or_rows()
         .open_file(
             FileInput {
                 language: SourceLanguage::Recognized,
-                resident_stability: facts::ResidentStability::Stable,
+                resident_stability: ResidentStability::Stable,
                 file: FileId(0),
                 evaluation: &[],
                 publication: &[],

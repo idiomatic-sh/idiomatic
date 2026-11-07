@@ -1,10 +1,9 @@
 //! Recursive producers and roots use the actual injected semantic capability, with terminal refusal.
+use super::super::super::fixtures::{Authored, Preparation};
+use crate::outbound::facts::types::ResidentStability;
 use crate::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
-use crate::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
-use crate::inbound::use_cases::execution::use_case::PrepareUseCaseImpl;
-use crate::inbound::use_cases::prepare::interface::PrepareUseCase;
 use crate::inbound::use_cases::execution::interface::ExecutionUseCase;
-use super::super::super::{fixtures, use_case::ExecutionUseCaseImpl};
+use super::super::super::fixtures;
 use crate::application::file_dag::program::file_session::types::FileInput;
 use crate::application::file_dag::program::file_session::types::SourceLanguage;
 use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
@@ -16,8 +15,7 @@ use crate::inbound::use_cases::execution::interface::ObservationDemand;
 use crate::inbound::use_cases::execution::interface::OperatingError;
 use crate::inbound::use_cases::execution::interface::RuleDemand;
 use crate::inbound::use_cases::execution::interface::RuleIndex;
-use crate::inbound::use_cases::prepare::interface::ObservationIdentity;
-use crate::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
+use crate::domain::prepared_request::types::ObservationIdentity;
 use ryo_language::domain::{elements::types::Elements, symbols::types::Symbols};
 use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
@@ -88,7 +86,7 @@ fn subject(refusal: Input) -> Result<Value, Failure> {
         projects: AtomicUsize::new(0),
         appends: AtomicUsize::new(0),
     });
-    let engine = PrepareUseCaseImpl::new(
+    let engine = Preparation::new(
         port.clone(),
         Arc::new(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new()),
     );
@@ -121,7 +119,7 @@ fn subject(refusal: Input) -> Result<Value, Failure> {
     }
     // An authored identity boundary keeps the union a genuine recursive producer.
     plan.frontier.push(Source::Step(StepId(2)));
-    let prepared = engine.prepare(PrepareRequest { plans: PlanSource::Authored { plans: vec![plan], bindings: vec![vec![]] }, rules: vec![RuleSpec {
+    let prepared = engine.prepare(Authored { plans: vec![plan], bindings: vec![vec![]], rules: vec![RuleSpec {
             id: RuleId("injected-semantics".into()),
             query: QueryBundle {
                 root: QueryDocumentSource {
@@ -153,7 +151,7 @@ fn subject(refusal: Input) -> Result<Value, Failure> {
     let mut file = request.open_file(
         FileInput {
             language: SourceLanguage::Recognized,
-            resident_stability: facts::ResidentStability::Stable,
+            resident_stability: ResidentStability::Stable,
             file: ryo_relations::domain::relations::types::FileId(0),
             evaluation: &[],
             publication: &[],

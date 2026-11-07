@@ -1,10 +1,9 @@
 //! Every operation executes through the real prepare/open_file/collect-or-deliver protocol.
+use super::super::super::fixtures::{Authored, Preparation};
+use crate::outbound::facts::types::ResidentStability;
 use crate::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
-use crate::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
-use crate::inbound::use_cases::execution::use_case::PrepareUseCaseImpl;
-use crate::inbound::use_cases::prepare::interface::PrepareUseCase;
 use crate::inbound::use_cases::execution::interface::ExecutionUseCase;
-use super::super::super::{fixtures as owner_fixtures, use_case::ExecutionUseCaseImpl};
+use super::super::super::fixtures as owner_fixtures;
 use crate::application::file_dag::program::file_session::types::FileInput;
 use crate::application::file_dag::program::file_session::types::SourceLanguage;
 use crate::application::file_dag::program::file_session::types::SourceRows;
@@ -18,8 +17,7 @@ use crate::inbound::use_cases::execution::interface::OperatingError;
 use crate::inbound::use_cases::execution::interface::RuleDemand;
 use crate::inbound::use_cases::execution::interface::RuleIndex;
 use crate::inbound::use_cases::execution::interface::SemanticLookup;
-use crate::inbound::use_cases::prepare::interface::ObservationIdentity;
-use crate::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
+use crate::domain::prepared_request::types::ObservationIdentity;
 use crate::outbound::operators::interface::OperatorsPort;
 use crate::application::file_dag::acceptance::operator_contract_test::fixtures::*;
 use crate::application::file_dag::acceptance::operator_contract_test::fixtures::values::KnownSyntax;
@@ -185,11 +183,11 @@ pub(in super::super) fn compare_delivery_with_port(
         owner_fixtures::table_inputs(operation.clone(), &refs, bindings, symbols)
     };
     let emit = authored.plan.emit.step;
-    let engine = PrepareUseCaseImpl::new(
+    let engine = Preparation::new(
         port,
         Arc::new(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new()),
     );
-    let preparation = engine.prepare(PrepareRequest { plans: PlanSource::Authored { plans: vec![authored.plan], bindings: vec![bindings.to_vec()] }, rules: vec![RuleSpec {
+    let preparation = engine.prepare(Authored { plans: vec![authored.plan], bindings: vec![bindings.to_vec()], rules: vec![RuleSpec {
             id: RuleId("operation-conformance".into()),
             query: QueryBundle {
                 root: QueryDocumentSource {
@@ -241,7 +239,7 @@ pub(in super::super) fn compare_delivery_with_port(
     let elements = Elements::default();
     let input = |diagnostic| FileInput {
         language: SourceLanguage::Recognized,
-        resident_stability: facts::ResidentStability::Stable,
+        resident_stability: ResidentStability::Stable,
         file: FileId(0),
         evaluation: &[],
         publication: &[],

@@ -1,3 +1,10 @@
+use ryo_execution::outbound::facts::types::ColumnsMut;
+use ryo_execution::outbound::facts::errors::FactsError;
+use ryo_execution::outbound::facts::interface::FactsFinish;
+use ryo_execution::outbound::facts::interface::FactsWorker;
+use ryo_execution::outbound::facts::types::KeptBucket;
+use ryo_execution::outbound::facts::types::ResidentStability;
+use ryo_execution::outbound::facts::types::WordsToKeep;
 use super::program::{corpus, engine, prepared};
 use super::subscriber::{Access, Activation, Sample};
 use ryo_execution::application::file_dag::program::request_execution::interface::ExecutionRequest;
@@ -21,28 +28,28 @@ use ryo_values::domain::stored_facts::types::Bucket;
 
 /// Compiled frontiers are empty, so no source row or kept bucket may be requested.
 struct NoFacts;
-impl facts::FactsFinish for NoFacts {
-    fn kept(&self, _: Bucket) -> Result<facts::KeptBucket, facts::FactsError> {
+impl FactsFinish for NoFacts {
+    fn kept(&self, _: Bucket) -> Result<KeptBucket, FactsError> {
         panic!("an activation rule has no file frontier to fetch")
     }
 }
-impl facts::FactsWorker for NoFacts {
-    fn resident_stability(&self) -> facts::ResidentStability {
-        facts::ResidentStability::Stable
+impl FactsWorker for NoFacts {
+    fn resident_stability(&self) -> ResidentStability {
+        ResidentStability::Stable
     }
-    fn rows(&self, _: Relation) -> Result<ColumnsView<'_>, facts::FactsError> {
+    fn rows(&self, _: Relation) -> Result<ColumnsView<'_>, FactsError> {
         panic!("an activation rule has no project relation to read")
     }
-    fn columns_mut(&mut self) -> Result<facts::ColumnsMut<'_>, facts::FactsError> {
+    fn columns_mut(&mut self) -> Result<ColumnsMut<'_>, FactsError> {
         panic!("an activation rule writes no facts")
     }
-    fn keep(&self, _: Bucket, _: facts::WordsToKeep<'_>) -> Result<(), facts::FactsError> {
+    fn keep(&self, _: Bucket, _: WordsToKeep<'_>) -> Result<(), FactsError> {
         panic!("an activation rule writes no facts")
     }
-    fn release(&mut self) -> Result<(), facts::FactsError> {
+    fn release(&mut self) -> Result<(), FactsError> {
         panic!("an activation rule writes no facts")
     }
-    fn finished(self: Box<Self>) -> Result<Box<dyn facts::FactsFinish>, facts::FactsError> {
+    fn finished(self: Box<Self>) -> Result<Box<dyn FactsFinish>, FactsError> {
         panic!("an activation rule writes no facts")
     }
 }

@@ -1,3 +1,4 @@
+use ryo_execution::outbound::facts::types::ResidentStability;
 use super::program::{corpus, engine, prepared};
 use super::subscriber::{Activation, Sample};
 use ryo_execution::application::file_dag::program::request_execution::interface::ExecutionRequest;
@@ -45,7 +46,7 @@ pub(crate) fn measure(total: usize, demanded: &[usize]) -> Sample {
                 .open_file(
                     FileInput {
                         language: SourceLanguage::Recognized,
-                        resident_stability: facts::ResidentStability::Stable,
+                        resident_stability: ResidentStability::Stable,
                         file: FileId(0),
                         evaluation: &[],
                         publication: &[],

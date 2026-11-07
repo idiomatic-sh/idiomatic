@@ -1,6 +1,5 @@
 //! Literal metadata and dynamic patterns are exercised through real prepared file owners.
-use crate::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
-use super::super::super::{fixtures, use_case::ExecutionUseCaseImpl};
+use super::super::super::fixtures;
 use crate::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
 use crate::domain::operating::errors::OperatingError;
 use ryo_language::domain::{
@@ -56,7 +55,7 @@ fn prepare(
     shadow: &Operation,
 ) -> Result<
     (
-        PrepareUseCaseImpl,
+        fixtures::Preparation,
         PreparedExecutionProgram,
         Symbols,
         Table,
@@ -87,7 +86,7 @@ fn prepare(
     Ok((engine, program, symbols, input))
 }
 fn evaluate(
-    engine: &PrepareUseCaseImpl,
+    engine: &fixtures::Preparation,
     program: &PreparedExecutionProgram,
     symbols: &mut Symbols,
 ) -> Result<(Table, usize, usize), Failure> {

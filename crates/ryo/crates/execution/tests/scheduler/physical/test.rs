@@ -1,7 +1,7 @@
 //! Hosted ordered dependencies use the same scheduler for both delivery modes.
+use ryo_execution::outbound::facts::types::ResidentStability;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
-use ryo_execution::inbound::use_cases::execution::use_case::PrepareUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use crate::boundary_fixture::{authored_request, corpus, demand, engine};
@@ -101,7 +101,7 @@ fn ordered_hosted_inputs_are_scheduled_once_before_collected_or_forwarded_delive
             .open_file(
                 FileInput {
                     language: SourceLanguage::Recognized,
-                    resident_stability: facts::ResidentStability::Stable,
+                    resident_stability: ResidentStability::Stable,
                     file: FileId(0),
                     evaluation: &[],
                     publication: &[],

@@ -1,7 +1,6 @@
 //! Shared tree positions keep native join projection refusal and replay, and pure projections share one scan.
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
-use ryo_execution::inbound::use_cases::execution::use_case::PrepareUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use super::super::super::fixtures::*;
 use super::super::super::no_catalog;
@@ -23,7 +22,6 @@ use ryo_values::domain::plan_parts::types::{ColumnIndex, Input, StepId, Test};
 use ryo_values::domain::plans::types::{Operation, PlanStep};
 #[test]
 fn shared_tree_positions_keep_native_join_projection_refusal_and_replay() {
-    use ryo_execution::inbound::use_cases::execution::use_case::PrepareUseCaseImpl;
     use ryo_operators::domain::equality_join::types::JoinInput;
     use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
     use ryo_operators::inbound::use_cases::operators::types::OperatorCall;

@@ -1,7 +1,6 @@
 //! Frontier and callback delivery share one atomic failure and one dependency contract in both orders.
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
-use ryo_execution::inbound::use_cases::execution::use_case::PrepareUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use super::super::super::fixtures::*;
 use super::super::super::no_catalog;
@@ -185,8 +184,8 @@ fn conditional_join_request(count: usize) -> PrepareRequest {
 }
 #[test]
 fn callback_and_frontier_use_one_dependency_contract_in_both_orders() {
-    use ryo_relations::domain::relations::types::{Words, WorkerNumber};
     let (engine, _) = engine();
+    use ryo_relations::domain::relations::types::{Words, WorkerNumber};
     let mut authored = conditional_join_request(1);
     authored.plans[0].frontier = vec![Input::Step(StepId(2))];
     let program = engine.prepare(authored).unwrap();

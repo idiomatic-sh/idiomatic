@@ -1,4 +1,5 @@
 //! Binary operators must demand the refusing RHS after a real nonempty successful LHS.
+use crate::outbound::facts::types::ResidentStability;
 use super::super::super::fixtures;
 use crate::application::file_dag::program::file_session::types::FileInput;
 use crate::application::file_dag::program::file_session::types::SourceLanguage;
@@ -120,7 +121,7 @@ fn subject((operator, missing, delivery): Input) -> Result<Value, Failure> {
             let mut file = request.open_file(
                 FileInput {
                     language: SourceLanguage::Recognized,
-                    resident_stability: facts::ResidentStability::Stable,
+                    resident_stability: ResidentStability::Stable,
                     file: FileId(0),
                     evaluation: &[],
                     publication: &[],

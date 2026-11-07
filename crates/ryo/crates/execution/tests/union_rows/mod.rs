@@ -1,7 +1,7 @@
 //! Both declared Union populations drive the same owner-held invocation.
+use ryo_execution::outbound::facts::types::ResidentStability;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
-use ryo_execution::inbound::use_cases::execution::use_case::PrepareUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use super::*;
@@ -82,7 +82,7 @@ fn union_consumes_both_populations_in_order_with_one_distinct_scope() {
                 .open_file(
                     FileInput {
                         language: SourceLanguage::Recognized,
-                        resident_stability: facts::ResidentStability::Stable,
+                        resident_stability: ResidentStability::Stable,
                         file: FileId(0),
                         evaluation: &[],
                         publication: &[],
@@ -141,7 +141,7 @@ fn union_stops_on_right_delivery_refusal_and_retries_with_a_new_distinct_scope()
         .open_file(
             FileInput {
                 language: SourceLanguage::Recognized,
-                resident_stability: facts::ResidentStability::Stable,
+                resident_stability: ResidentStability::Stable,
                 file: FileId(0),
                 evaluation: &[],
                 publication: &[],
@@ -252,7 +252,7 @@ fn union_preserves_left_source_refusal_and_demands_right_after_empty_left() {
             .open_file(
                 FileInput {
                     language: SourceLanguage::Recognized,
-                    resident_stability: facts::ResidentStability::Stable,
+                    resident_stability: ResidentStability::Stable,
                     file: FileId(0),
                     evaluation: &[],
                     publication: &[],

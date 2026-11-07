@@ -1,4 +1,5 @@
 //! The witness that implements every method of each entry trait.
+use ryo_execution::outbound::facts::interface::FactsFinish;
 use ryo_execution::application::file_dag::program::request_execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
@@ -268,7 +269,7 @@ impl ObservationPublication for Witness {
     }
     fn restore_frontiers(
         &mut self,
-        _: &dyn facts::FactsFinish,
+        _: &dyn FactsFinish,
         _: &[CorpusInput],
         _: &[Covered],
         _: &[Skipped],

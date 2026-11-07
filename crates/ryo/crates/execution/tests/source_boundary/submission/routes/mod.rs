@@ -1,4 +1,5 @@
 //! File and project submission routes over independent and named programs.
+use ryo_execution::outbound::facts::types::ResidentStability;
 use super::inventory::every_intent;
 use crate::boundary_fixture::{corpus, engine, prepared_rules};
 use crate::file_intents::named_request;
@@ -34,7 +35,7 @@ pub(super) fn file_route() {
             .open_file(
                 FileInput {
                     language: SourceLanguage::Recognized,
-                    resident_stability: facts::ResidentStability::Stable,
+                    resident_stability: ResidentStability::Stable,
                     file: FileId(0),
                     evaluation: &[],
                     publication: &[],

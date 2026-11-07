@@ -1,7 +1,6 @@
 //! Ordinary project rules share one preparation and refuse another generation.
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
-use ryo_execution::inbound::use_cases::execution::use_case::PrepareUseCaseImpl;
 use super::batch_test::assert_count_findings;
 use super::batch_test::evaluate_fixture;
 use crate::application::cross_file::fixtures::ProjectCalls;
@@ -15,7 +14,6 @@ use crate::domain::answering::types::Todo;
 use ryo_execution::application::file_dag::program::request_execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::application::file_dag::program::project_phase::interface::ProjectStage;
-use ryo_execution::inbound::use_cases::execution::use_case::PrepareUseCaseImpl;
 use ryo_execution::inbound::use_cases::metadata::interface::Covered;
 use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
 use ryo_language::domain::symbols::types::Symbols;

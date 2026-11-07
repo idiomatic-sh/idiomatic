@@ -1,10 +1,15 @@
 //! One project submission through the public phase, with the roots its guard was asked about.
+use ryo_execution::outbound::facts::types::ColumnsMut;
+use ryo_execution::outbound::facts::errors::FactsError;
+use ryo_execution::outbound::facts::interface::FactsFinish;
+use ryo_execution::outbound::facts::interface::FactsWorker;
+use ryo_execution::outbound::facts::types::KeptBucket;
+use ryo_execution::outbound::facts::types::ResidentStability;
+use ryo_execution::outbound::facts::types::WordsToKeep;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
-use ryo_execution::inbound::use_cases::execution::use_case::PrepareUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use crate::boundary_fixture::corpus;
-use ryo_execution::inbound::use_cases::execution::use_case::PrepareUseCaseImpl;
 use ryo_execution::application::file_dag::program::request_execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::application::file_dag::program::observation_stage::interface::ObservationExecution;
@@ -47,31 +52,31 @@ use ryo_values::domain::{
 
 /// No compiled rule in these programs has a file frontier or a project relation.
 struct NoFacts;
-impl facts::FactsFinish for NoFacts {
-    fn kept(&self, _: Bucket) -> Result<facts::KeptBucket, facts::FactsError> {
+impl FactsFinish for NoFacts {
+    fn kept(&self, _: Bucket) -> Result<KeptBucket, FactsError> {
         panic!("a submission control has no file frontier to fetch")
     }
 }
-impl facts::FactsWorker for NoFacts {
-    fn resident_stability(&self) -> facts::ResidentStability {
-        facts::ResidentStability::Stable
+impl FactsWorker for NoFacts {
+    fn resident_stability(&self) -> ResidentStability {
+        ResidentStability::Stable
     }
     fn rows(
         &self,
         _: ryo_relations::domain::relations::types::Relation,
-    ) -> Result<ryo_relations::domain::relations::types::ColumnsView<'_>, facts::FactsError> {
+    ) -> Result<ryo_relations::domain::relations::types::ColumnsView<'_>, FactsError> {
         panic!("a submission control has no project relation to read")
     }
-    fn columns_mut(&mut self) -> Result<facts::ColumnsMut<'_>, facts::FactsError> {
+    fn columns_mut(&mut self) -> Result<ColumnsMut<'_>, FactsError> {
         panic!("a submission control writes no facts")
     }
-    fn keep(&self, _: Bucket, _: facts::WordsToKeep<'_>) -> Result<(), facts::FactsError> {
+    fn keep(&self, _: Bucket, _: WordsToKeep<'_>) -> Result<(), FactsError> {
         panic!("a submission control writes no facts")
     }
-    fn release(&mut self) -> Result<(), facts::FactsError> {
+    fn release(&mut self) -> Result<(), FactsError> {
         panic!("a submission control writes no facts")
     }
-    fn finished(self: Box<Self>) -> Result<Box<dyn facts::FactsFinish>, facts::FactsError> {
+    fn finished(self: Box<Self>) -> Result<Box<dyn FactsFinish>, FactsError> {
         panic!("a submission control writes no facts")
     }
 }
@@ -378,8 +383,8 @@ pub(crate) fn foreign_phase_outcome(
 
 /// A compiled rule with no file frontier to fetch.
 pub(crate) struct NoFileFrontiers;
-impl facts::FactsFinish for NoFileFrontiers {
-    fn kept(&self, _: Bucket) -> Result<facts::KeptBucket, facts::FactsError> {
+impl FactsFinish for NoFileFrontiers {
+    fn kept(&self, _: Bucket) -> Result<KeptBucket, FactsError> {
         panic!("this compiled rule has no file frontier to fetch")
     }
 }

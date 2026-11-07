@@ -1,4 +1,5 @@
 //! A request execution begins over a prepared program, and its file owner reuses only recognized stable sources.
+use super::fixtures::{Authored, Preparation};
 use super::{interface::ExecutionUseCase, use_case::ExecutionUseCaseImpl};
 use crate::application::file_dag::program::facade_runtime::types::ReuseEligibility;
 use crate::application::file_dag::program::file_session::interface::FileExecution;
@@ -6,9 +7,6 @@ use crate::application::file_dag::program::file_session::types::{FileInput, Sour
 use crate::application::file_dag::program::request_execution::interface::ExecutionRequest;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::operating::errors::OperatingError;
-use crate::inbound::use_cases::prepare::interface::PrepareUseCase;
-use crate::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
-use crate::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
 use crate::domain::prepared_request::types::ObservationIdentity;
 use crate::outbound::facts::types::ResidentStability;
 use ryo_values::domain::files::types::{
@@ -58,7 +56,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 fn subject(input: Input) -> Result<Value, Failure> {
-    let prepare = PrepareUseCaseImpl::new(
+    let prepare = Preparation::new(
         Arc::new(
             ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(Arc::new(
                 ryo_operators::outbound::matching::factory::use_case(),
@@ -66,12 +64,8 @@ fn subject(input: Input) -> Result<Value, Failure> {
         ),
         Arc::new(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new()),
     );
-    let prepared = prepare.prepare(PrepareRequest {
-        plans: PlanSource::Authored {
-            plans: vec![],
-            bindings: vec![],
-        },
-        rules: vec![],
+    let prepared = prepare.prepare(Authored { plans: vec![],
+            bindings: vec![], rules: vec![],
         digests: vec![],
         hosted: vec![],
         observations: ObservationIdentity::Independent,

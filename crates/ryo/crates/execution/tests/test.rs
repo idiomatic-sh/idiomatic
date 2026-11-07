@@ -1,9 +1,10 @@
 //! The public protocol is the only execution entry used by these controls.
+use ryo_execution::outbound::query_language::errors::QueryLanguageError;
+use ryo_execution::outbound::query_language::interface::QueryLanguagePort;
+use ryo_execution::outbound::facts::types::ResidentStability;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
-use ryo_execution::inbound::use_cases::execution::use_case::PrepareUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
-use ryo_execution::inbound::use_cases::execution::use_case::PrepareUseCaseImpl;
 use ryo_execution::application::file_dag::program::request_execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::application::file_dag::program::file_session::interface::FileExecution;
@@ -62,7 +63,7 @@ fn public_file_run_publishes_once_and_finishes() {
         .open_file(
             FileInput {
                 language: SourceLanguage::Recognized,
-                resident_stability: facts::ResidentStability::Stable,
+                resident_stability: ResidentStability::Stable,
                 file: FileId(0),
                 evaluation: &[],
                 publication: &[],
@@ -122,7 +123,7 @@ fn public_file_run_refuses_replaced_symbol_population_before_reading() {
         .open_file(
             FileInput {
                 language: SourceLanguage::Recognized,
-                resident_stability: facts::ResidentStability::Stable,
+                resident_stability: ResidentStability::Stable,
                 file: FileId(0),
                 evaluation: &[],
                 publication: &[],
@@ -160,7 +161,7 @@ fn public_open_refuses_file_outside_request() {
         request.open_file(
             FileInput {
                 language: SourceLanguage::Recognized,
-                resident_stability: facts::ResidentStability::Stable,
+                resident_stability: ResidentStability::Stable,
                 file: FileId(9),
                 evaluation: &[],
                 publication: &[],
@@ -203,7 +204,7 @@ fn public_file_start_skipped_rule_cannot_be_executed() {
         .open_file(
             FileInput {
                 language: SourceLanguage::Recognized,
-                resident_stability: facts::ResidentStability::Stable,
+                resident_stability: ResidentStability::Stable,
                 file: FileId(0),
                 evaluation: &[],
                 publication: &[],
@@ -252,7 +253,7 @@ fn public_skip_of_one_shared_rule_preserves_the_other_rules_reader() {
         .open_file(
             FileInput {
                 language: SourceLanguage::Recognized,
-                resident_stability: facts::ResidentStability::Stable,
+                resident_stability: ResidentStability::Stable,
                 file: FileId(0),
                 evaluation: &[],
                 publication: &[],
@@ -327,13 +328,13 @@ fn public_skip_of_one_shared_rule_preserves_the_other_rules_reader() {
 /// A provider result, not a query parser or execution implementation: this
 /// control exercises the real compilation handover and every subsequent owner.
 struct AuthoredQueryProvider(Plan);
-impl query_language::QueryLanguagePort for AuthoredQueryProvider {
+impl QueryLanguagePort for AuthoredQueryProvider {
     fn compile(
         &self,
         _: &QueryBundle,
         _: &[ryo_values::domain::hosted::types::HostedRelation],
         _: &[ryo_values::domain::observations::types::BoundObservationInput],
-    ) -> Result<Plan, query_language::QueryLanguageError> {
+    ) -> Result<Plan, QueryLanguageError> {
         Ok(self.0.clone())
     }
     fn validate(
@@ -343,7 +344,7 @@ impl query_language::QueryLanguagePort for AuthoredQueryProvider {
         _: &[ryo_values::domain::observations::types::BoundObservationInput],
     ) -> Result<
         ryo_values::domain::descriptions::types::ValidateReport,
-        query_language::QueryLanguageError,
+        QueryLanguageError,
     > {
         Ok(ryo_values::domain::descriptions::types::ValidateReport {
             relations: vec![],
@@ -354,8 +355,8 @@ impl query_language::QueryLanguagePort for AuthoredQueryProvider {
 }
 #[test]
 fn public_compiled_independent_rules_keep_exact_per_rule_source_declarations() {
-    use ryo_execution::application::rule_compilation::service::ExecutionCompilation;
     use ryo_execution::application::rule_compilation::service::QueryCompilation;
+    use ryo_execution::application::rule_compilation::service::ExecutionCompilation;
     let engine = engine();
     let raw = authored_request(2);
     let compiler =
@@ -382,7 +383,7 @@ fn public_compiled_independent_rules_keep_exact_per_rule_source_declarations() {
         .open_file(
             FileInput {
                 language: SourceLanguage::Recognized,
-                resident_stability: facts::ResidentStability::Stable,
+                resident_stability: ResidentStability::Stable,
                 file: FileId(0),
                 evaluation: &[],
                 publication: &[],
@@ -507,7 +508,7 @@ fn closure_runs_every_partition_and_empty_input_through_the_owner() {
                 .open_file(
                     FileInput {
                         language: SourceLanguage::Recognized,
-                        resident_stability: facts::ResidentStability::Stable,
+                        resident_stability: ResidentStability::Stable,
                         file: FileId(0),
                         evaluation: &[],
                         publication: &[],
@@ -584,11 +585,11 @@ fn closure_runs_every_partition_and_empty_input_through_the_owner() {
 }
 
 #[test]
-fn independent_compilation_preserves_unused_steps_and_original_frontier_order() {
     use ryo_execution::application::rule_compilation::service::ExecutionCompilation;
+fn independent_compilation_preserves_unused_steps_and_original_frontier_order() {
     use ryo_execution::application::file_dag::program::prepared_execution::interface::PreparedExecution;
-    use ryo_execution::application::rule_compilation::service::PreparedQueries;
     use ryo_execution::application::rule_compilation::service::QueryCompilation;
+    use ryo_execution::application::rule_compilation::service::PreparedQueries;
     use ryo_values::domain::plan_parts::types::RepeatedRows;
     let engine = engine();
     let mut raw = authored_request(1);
@@ -702,7 +703,7 @@ fn public_group_reduction_and_emission_use_the_admitted_semantic_path() {
         .open_file(
             FileInput {
                 language: SourceLanguage::Recognized,
-                resident_stability: facts::ResidentStability::Stable,
+                resident_stability: ResidentStability::Stable,
                 file: FileId(0),
                 evaluation: &[],
                 publication: &[],

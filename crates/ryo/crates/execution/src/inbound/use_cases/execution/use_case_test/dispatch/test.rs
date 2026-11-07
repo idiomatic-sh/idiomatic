@@ -1,4 +1,5 @@
 //! File-valued dispatch uses a real hosted schema and both declared corpus entries.
+use crate::outbound::facts::types::ResidentStability;
 use super::super::super::fixtures;
 use crate::application::file_dag::program::file_session::types::FileInput;
 use crate::application::file_dag::program::file_session::types::SourceLanguage;
@@ -69,7 +70,7 @@ fn subject(_: Input) -> Result<Value, Failure> {
     let mut file = request.open_file(
         FileInput {
             language: SourceLanguage::Recognized,
-            resident_stability: facts::ResidentStability::Stable,
+            resident_stability: ResidentStability::Stable,
             file: FileId(0),
             evaluation: &[],
             publication: &[],

@@ -3,6 +3,7 @@ use super::inventory::{
     CAPTURES, DELIVERIES, DEMANDS, PROTOCOL, REASONS, REFUSALS, assert_inventory,
     covered, every_intent,
 };
+use ryo_execution::outbound::facts::types::ResidentStability;
 use super::routes::{file_route, project_route};
 use super::witness::{ALL, Method, Witness, implements_every_entry_trait};
 use crate::boundary_fixture::{corpus, demand, engine, prepared_rules};
@@ -153,7 +154,7 @@ pub(super) fn file_session_undeclared_rule() {
         .open_file(
             FileInput {
                 language: SourceLanguage::Recognized,
-                resident_stability: facts::ResidentStability::Stable,
+                resident_stability: ResidentStability::Stable,
                 file: ryo_relations::domain::relations::types::FileId(0),
                 evaluation: &[],
                 publication: &[],

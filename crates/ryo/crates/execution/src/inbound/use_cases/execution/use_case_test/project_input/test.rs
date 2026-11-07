@@ -1,4 +1,11 @@
 //! A project root cannot reconstruct an unhanded per-file step from a provider.
+use crate::outbound::facts::types::ColumnsMut;
+use crate::outbound::facts::errors::FactsError;
+use crate::outbound::facts::interface::FactsFinish;
+use crate::outbound::facts::interface::FactsWorker;
+use crate::outbound::facts::types::KeptBucket;
+use crate::outbound::facts::types::ResidentStability;
+use crate::outbound::facts::types::WordsToKeep;
 use super::super::super::fixtures;
 use crate::application::file_dag::program::project_phase::types::ProjectInput;
 use crate::application::file_dag::program::project_phase::types::ProjectTask;
@@ -26,34 +33,34 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 struct UnavailableFacts {
     reads: AtomicUsize,
 }
-fn denied() -> facts::FactsError {
-    facts::FactsError::Store {
+fn denied() -> FactsError {
+    FactsError::Store {
         reason: "no per-file frontier was handed over".into(),
     }
 }
-impl facts::FactsWorker for UnavailableFacts {
-    fn resident_stability(&self) -> facts::ResidentStability {
-        facts::ResidentStability::Stable
+impl FactsWorker for UnavailableFacts {
+    fn resident_stability(&self) -> ResidentStability {
+        ResidentStability::Stable
     }
-    fn rows(&self, _: Relation) -> Result<ColumnsView<'_>, facts::FactsError> {
+    fn rows(&self, _: Relation) -> Result<ColumnsView<'_>, FactsError> {
         self.reads.fetch_add(1, Ordering::Relaxed);
         Err(denied())
     }
-    fn columns_mut(&mut self) -> Result<facts::ColumnsMut<'_>, facts::FactsError> {
+    fn columns_mut(&mut self) -> Result<ColumnsMut<'_>, FactsError> {
         Err(denied())
     }
-    fn keep(&self, _: Bucket, _: facts::WordsToKeep<'_>) -> Result<(), facts::FactsError> {
+    fn keep(&self, _: Bucket, _: WordsToKeep<'_>) -> Result<(), FactsError> {
         panic!("project input refusal writes no frontier")
     }
-    fn release(&mut self) -> Result<(), facts::FactsError> {
+    fn release(&mut self) -> Result<(), FactsError> {
         panic!("the borrowed project fixture is not an execution-owned source")
     }
-    fn finished(self: Box<Self>) -> Result<Box<dyn facts::FactsFinish>, facts::FactsError> {
+    fn finished(self: Box<Self>) -> Result<Box<dyn FactsFinish>, FactsError> {
         panic!("the borrowed project fixture is never finished by execution")
     }
 }
-impl facts::FactsFinish for UnavailableFacts {
-    fn kept(&self, _: Bucket) -> Result<facts::KeptBucket, facts::FactsError> {
+impl FactsFinish for UnavailableFacts {
+    fn kept(&self, _: Bucket) -> Result<KeptBucket, FactsError> {
         panic!("the plan declares no restored frontier to fetch")
     }
 }

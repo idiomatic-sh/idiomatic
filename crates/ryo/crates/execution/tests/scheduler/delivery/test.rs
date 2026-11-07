@@ -1,4 +1,5 @@
 //! Sink refusal retries terminal delivery, while a new owner must admit a new population.
+use ryo_execution::outbound::facts::types::ResidentStability;
 use crate::boundary_fixture::{authored_request, corpus, demand, engine, source};
 use ryo_execution::application::file_dag::program::file_session::types::FileInput;
 use ryo_execution::application::file_dag::program::file_session::types::SourceLanguage;
@@ -60,7 +61,7 @@ fn sink_refusal_replays_delivery_without_restarting_the_shared_dependency_graph(
             .open_file(
                 FileInput {
                     language: SourceLanguage::Recognized,
-                    resident_stability: facts::ResidentStability::Stable,
+                    resident_stability: ResidentStability::Stable,
                     file: FileId(0),
                     evaluation: &[],
                     publication: &[],
@@ -169,7 +170,7 @@ fn an_unbound_rule_cannot_schedule_an_independent_provider_after_a_failed_siblin
         .open_file(
             FileInput {
                 language: SourceLanguage::Recognized,
-                resident_stability: facts::ResidentStability::Stable,
+                resident_stability: ResidentStability::Stable,
                 file: FileId(0),
                 evaluation: &[],
                 publication: &[],

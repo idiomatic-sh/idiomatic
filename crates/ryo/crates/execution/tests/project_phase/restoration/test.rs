@@ -1,4 +1,5 @@
 //! Named restoration retains partition-qualified physical coverage despite cached readiness.
+use ryo_execution::outbound::facts::types::ResidentStability;
 use super::super::*;
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::{
@@ -48,7 +49,7 @@ fn restored_named_frontier_keeps_skipped_partition_provenance_despite_complete_r
                 .open_file(
                     FileInput {
                         language: SourceLanguage::Recognized,
-                        resident_stability: facts::ResidentStability::Stable,
+                        resident_stability: ResidentStability::Stable,
                         file: file_id,
                         evaluation: &[],
                         publication: &[],

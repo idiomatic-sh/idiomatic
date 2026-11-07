@@ -1,4 +1,5 @@
 //! Deferred roots do not hide owning-phase faults or renumber file frontier refusals.
+use ryo_execution::outbound::facts::types::ResidentStability;
 use super::super::super::source_facts::fixtures::ProjectFacts;
 use super::super::fixtures::NoFileFrontiers;
 use crate::boundary_fixture::{
@@ -111,7 +112,7 @@ fn a_file_emit_defers_at_project_scope_but_its_real_file_failure_is_not_deferred
         .open_file(
             FileInput {
                 language: SourceLanguage::Recognized,
-                resident_stability: facts::ResidentStability::Stable,
+                resident_stability: ResidentStability::Stable,
                 file: FileId(0),
                 evaluation: &[],
                 publication: &[],
@@ -202,7 +203,7 @@ fn a_skipped_project_frontier_preserves_the_later_original_file_error_index() {
         .open_file(
             FileInput {
                 language: SourceLanguage::Recognized,
-                resident_stability: facts::ResidentStability::Stable,
+                resident_stability: ResidentStability::Stable,
                 file: FileId(0),
                 evaluation: &[],
                 publication: &[],

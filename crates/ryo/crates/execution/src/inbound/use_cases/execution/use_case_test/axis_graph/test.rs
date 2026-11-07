@@ -1,10 +1,9 @@
 //! Canonical stored graph acquisition and hosted ordinary traversal publish identical ordered bags.
+use super::super::super::fixtures::{Authored, Preparation};
+use crate::outbound::facts::types::ResidentStability;
 use crate::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
-use crate::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
-use crate::inbound::use_cases::execution::use_case::PrepareUseCaseImpl;
-use crate::inbound::use_cases::prepare::interface::PrepareUseCase;
 use crate::inbound::use_cases::execution::interface::ExecutionUseCase;
-use super::super::super::{fixtures, use_case::ExecutionUseCaseImpl};
+use super::super::super::fixtures;
 use crate::application::file_dag::program::file_session::types::FileInput;
 use crate::application::file_dag::program::file_session::types::SourceLanguage;
 use crate::application::file_dag::program::file_session::types::SourceRows;
@@ -17,8 +16,7 @@ use crate::inbound::use_cases::execution::interface::ObservationDemand;
 use crate::inbound::use_cases::execution::interface::OperatingError;
 use crate::inbound::use_cases::execution::interface::RuleDemand;
 use crate::inbound::use_cases::execution::interface::RuleIndex;
-use crate::inbound::use_cases::prepare::interface::ObservationIdentity;
-use crate::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
+use crate::domain::prepared_request::types::ObservationIdentity;
 use ryo_language::domain::{elements::types::Elements, symbols::types::Symbols};
 use ryo_relations::domain::relations::{
     service::{kinds, to_bits},
@@ -94,7 +92,7 @@ fn plan(direction: Direction, stored: bool, projected: bool) -> Plan {
     ])
 }
 fn execute(stored: bool, projected: bool) -> Result<Vec<Table>, OperatingError> {
-    let engine = PrepareUseCaseImpl::new(
+    let engine = Preparation::new(
         Arc::new(
             ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
         ),
@@ -104,7 +102,7 @@ fn execute(stored: bool, projected: bool) -> Result<Vec<Table>, OperatingError> 
         .into_iter()
         .map(|d| plan(d, stored, projected))
         .collect();
-    let prepared = engine.prepare(PrepareRequest { plans: PlanSource::Authored { plans: plans, bindings: vec![vec![]; 5] }, rules: AXES
+    let prepared = engine.prepare(Authored { plans: plans, bindings: vec![vec![]; 5], rules: AXES
             .iter()
             .map(|axis| RuleSpec {
                 id: RuleId((*axis).into()),
@@ -173,7 +171,7 @@ fn execute(stored: bool, projected: bool) -> Result<Vec<Table>, OperatingError> 
     let mut file = request.open_file(
         FileInput {
             language: SourceLanguage::Recognized,
-            resident_stability: facts::ResidentStability::Stable,
+            resident_stability: ResidentStability::Stable,
             file: FileId(0),
             evaluation: &[],
             publication: &[],

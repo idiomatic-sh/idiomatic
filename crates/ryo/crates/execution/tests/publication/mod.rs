@@ -1,7 +1,7 @@
 //! Publication policy is enforced by fresh public delivery, never a pre-collected root.
+use ryo_execution::outbound::facts::types::ResidentStability;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
-use ryo_execution::inbound::use_cases::execution::use_case::PrepareUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use super::*;
@@ -70,7 +70,7 @@ fn semantic_failure_discards_every_after_success_row() {
                 .open_file(
                     FileInput {
                         language: SourceLanguage::Recognized,
-                        resident_stability: facts::ResidentStability::Stable,
+                        resident_stability: ResidentStability::Stable,
                         file: FileId(0),
                         evaluation: &[],
                         publication: &[],
@@ -135,7 +135,7 @@ fn committed_rows_keep_order_and_delivery_refusal_remains_retryable() {
             .open_file(
                 FileInput {
                     language: SourceLanguage::Recognized,
-                    resident_stability: facts::ResidentStability::Stable,
+                    resident_stability: ResidentStability::Stable,
                     file: FileId(0),
                     evaluation: &[],
                     publication: &[],
@@ -313,7 +313,7 @@ fn captured_name_frames_do_not_inherit_previous_frame_place_numbers() {
             .open_file(
                 FileInput {
                     language: SourceLanguage::Recognized,
-                    resident_stability: facts::ResidentStability::Stable,
+                    resident_stability: ResidentStability::Stable,
                     file: FileId(0),
                     evaluation: &[],
                     publication: &[],

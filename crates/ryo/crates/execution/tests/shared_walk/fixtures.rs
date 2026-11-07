@@ -1,8 +1,8 @@
 //! Completed source data and authored requests; every execution enters the public owner.
+use ryo_execution::outbound::facts::types::ResidentStability;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use crate::boundary_fixture::authored_request;
-use ryo_execution::inbound::use_cases::execution::use_case::PrepareUseCaseImpl;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::application::file_dag::program::file_session::interface::FileExecution;
 use ryo_execution::inbound::use_cases::execution::interface::WalkPassCount;
@@ -157,7 +157,7 @@ pub(super) fn input<'a, 'facts>(
 ) -> FileInput<'a, 'facts> {
     FileInput {
         language: SourceLanguage::Recognized,
-        resident_stability: facts::ResidentStability::Stable,
+        resident_stability: ResidentStability::Stable,
         file,
         evaluation: &[],
         publication: &[],

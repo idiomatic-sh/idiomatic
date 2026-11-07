@@ -1,7 +1,6 @@
 //! One rule evaluated beside the project: its result, its skipped source and a foreign request.
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
-use ryo_execution::inbound::use_cases::execution::use_case::PrepareUseCaseImpl;
 use super::batch_test::evaluate_fixture;
 use crate::application::cross_file::fixtures::counting_plan;
 use crate::application::cross_file::fixtures::crossing;
@@ -14,7 +13,6 @@ use ryo_execution::application::file_dag::program::request_execution::interface:
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::application::file_dag::program::project_phase::interface::ProjectStage;
 use ryo_execution::application::file_dag::program::rule_outcome::types::ProjectBatch;
-use ryo_execution::inbound::use_cases::execution::use_case::PrepareUseCaseImpl;
 use ryo_execution::inbound::use_cases::metadata::interface::RelationRead;
 use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
 use ryo_language::domain::symbols::types::Symbols;
