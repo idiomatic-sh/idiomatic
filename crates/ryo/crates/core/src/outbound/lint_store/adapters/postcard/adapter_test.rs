@@ -412,7 +412,10 @@ fn only_the_buckets_asked_are_decoded(
     let asked = materialized_handed(&*read, &BucketsWanted::These(vec![Bucket(2)]))?;
     Ok(tables_read
         && asked.frontier == stored(1).handed.frontier
-        && read.handed(&BucketsWanted::These(vec![Bucket(5)])).is_err())
+        && matches!(
+            read.handed(&BucketsWanted::These(vec![Bucket(5)])),
+            Err(LintStoreError::Unreadable { .. })
+        ))
 }
 
 fn subject(question: Input) -> Result<Value, Failure> {
@@ -628,16 +631,22 @@ fn normalized_staging_preserves_store_bytes_and_snapshot_lifetime() -> Result<Va
         original.handed
     );
     // A later snapshot cannot resolve a descriptor, even while its owning snapshot remains alive.
-    assert!(warm.read_staged(&span, &mut loaded).is_err());
+    let _refused = warm
+        .read_staged(&span, &mut loaded)
+        .expect_err("a later snapshot cannot resolve a descriptor");
     let before = std::fs::read(staged_path.join("lint.store")).expect("published bytes");
-    assert!(warm.keep(original.clone(), &kept).is_err());
+    let _refused = warm
+        .keep(original.clone(), &kept)
+        .expect_err("a later snapshot cannot keep over the open one");
     assert_eq!(
         std::fs::read(staged_path.join("lint.store")).expect("old cache"),
         before
     );
     let mut malformed = kept.clone();
     malformed.staged[0].words.offset = ryo_values::domain::records::types::PayloadOffset(u64::MAX);
-    assert!(read.keep(original, &malformed).is_err());
+    let _refused = read
+        .keep(original, &malformed)
+        .expect_err("a malformed staged span is refused");
     assert_eq!(
         std::fs::read(staged_path.join("lint.store")).expect("old cache"),
         before
@@ -780,18 +789,16 @@ fn failed_write_flush_or_rename_never_publishes_or_removes_previous_cache() -> R
             renamed.set(true);
             std::fs::rename(&temporary, &target)
         });
-        assert!(result.is_err());
+        let _refused = result.expect_err("the failed rename is reported");
         assert!(!renamed.get());
         assert!(!temporary.exists());
         assert_eq!(std::fs::read(&target).expect("old cache"), previous);
     }
     std::fs::write(&temporary, b"fully flushed new file").expect("new file");
-    assert!(
-        published(&temporary, Ok(()), || Err(std::io::Error::other(
-            "rename failure"
-        )))
-        .is_err()
-    );
+    let _refused = published(&temporary, Ok(()), || {
+        Err(std::io::Error::other("rename failure"))
+    })
+    .expect_err("a failed rename is reported");
     assert!(!temporary.exists());
     assert_eq!(std::fs::read(&target).expect("old cache"), previous);
     Ok(true)
@@ -836,11 +843,15 @@ fn old_read_descriptors_survive_replacement_and_reject_other_snapshots() -> Resu
         old.read_old(descriptor, &mut loaded)
             .expect("original open file");
         assert_eq!(loaded, original.handed.frontier[0].words);
-        assert!(current.read_old(descriptor, &mut loaded).is_err());
+        let _refused = current
+            .read_old(descriptor, &mut loaded)
+            .expect_err("another snapshot's descriptor is refused");
     }
     let mut bad_bucket = descriptors[0];
     bad_bucket.bucket = Bucket(u32::MAX);
-    assert!(old.read_old(&bad_bucket, &mut loaded).is_err());
+    let _refused = old
+        .read_old(&bad_bucket, &mut loaded)
+        .expect_err("an absent bucket is refused");
     std::thread::scope(|scope| {
         let threads: Vec<_> = (0..4)
             .map(|_| {
@@ -891,9 +902,8 @@ fn an_open_snapshot_refuses_external_payload_truncation() -> Result<Value, Failu
         .set_len(descriptor.offset.0 + descriptor.length.0 - 1)
         .expect("truncate payload after snapshot creation");
     let mut loaded = PackedWords::default();
-    assert!(
-        snapshot.read_old(&descriptor, &mut loaded).is_err(),
-        "the cached original length must never turn truncated bytes into a successful read"
+    let _refused = snapshot.read_old(&descriptor, &mut loaded).expect_err(
+        "the cached original length must never turn truncated bytes into a successful read",
     );
     Ok(true)
 }
@@ -951,7 +961,9 @@ fn bucket_reader_observes_each_row_at_its_buffer_acquisition() -> Result<Value, 
         drop(file);
         let mut direct = PackedWords::default();
         if change_header {
-            assert!(snapshot.read_old(&second, &mut direct).is_err());
+            let _refused = snapshot
+                .read_old(&second, &mut direct)
+                .expect_err("a corrupt header is refused");
         } else {
             snapshot
                 .read_old(&second, &mut direct)
@@ -1020,7 +1032,9 @@ fn bucket_reader_acquires_other_bucket_after_mutation_or_truncation() -> Result<
             let _position = file.seek(SeekFrom::Start(second.header.0)).unwrap();
             file.write_all(&[0x7f]).expect("corrupt second header");
         }
-        assert!(batch.read(&second, &mut PackedWords::default()).is_err());
+        let _refused = batch
+            .read(&second, &mut PackedWords::default())
+            .expect_err("a corrupt header is refused by the batch");
     }
     Ok(true)
 }
@@ -1062,11 +1076,9 @@ fn bucket_readers_keep_snapshot_identity_across_concurrent_consumers() -> Result
         .begin_old_rows(&BucketsWanted::All)
         .unwrap()
         .unwrap();
-    assert!(
-        batch
-            .read(&foreign_descriptor, &mut PackedWords::default())
-            .is_err()
-    );
+    let _refused = batch
+        .read(&foreign_descriptor, &mut PackedWords::default())
+        .expect_err("a foreign descriptor is refused by the batch");
     snapshot
         .keep(stored(2), &KeptRows::default())
         .expect("replace published pathname");
