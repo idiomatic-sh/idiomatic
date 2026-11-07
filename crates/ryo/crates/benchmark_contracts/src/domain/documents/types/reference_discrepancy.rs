@@ -1,9 +1,9 @@
 //! A documented difference from the reference tool, and the validation a native side attests.
 use super::finding::Finding;
 use super::observation_document::ReferenceExpectation;
-use super::process::ProcessFailureWire;
+use crate::domain::process::types::ProcessFailure;
 use super::text::{PathText, ReasonText, Sha256Text};
-use ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
+use crate::domain::workloads::types::DiscrepancyBasis;
 
 /// The executable the evidence was observed with.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -53,7 +53,7 @@ pub struct ReferenceDiscrepancy {
     /// Why the difference is accepted.
     pub reason: ReasonText,
     /// The explicit process failure: present when the reference does not report diagnostics.
-    pub process: Option<ProcessFailureWire>,
+    pub process: Option<ProcessFailure>,
 }
 
 /// What kind of expectation the reference side was validated against.

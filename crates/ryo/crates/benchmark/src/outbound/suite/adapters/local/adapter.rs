@@ -97,7 +97,7 @@ impl SuitePort for SuiteLocalAdapter {
     fn record_case(
         &self,
         receipt: ArtifactPath<'_>,
-        record: crate::outbound::suite::types::observation_document::ObservationDocument,
+        record: ryo_benchmark_contracts::domain::documents::types::observation_document::ObservationDocument,
         process: Option<crate::outbound::suite::types::process::CapturedProcess<'_>>,
     ) -> Result<(), crate::outbound::suite::types::discrepancy::ArtifactError> {
         super::case_observations::record(receipt.0, record, process)
@@ -106,7 +106,7 @@ impl SuitePort for SuiteLocalAdapter {
         &self,
         receipt: ArtifactPath<'_>,
     ) -> Result<
-        Vec<crate::outbound::suite::types::observation_document::ObservationDocument>,
+        Vec<ryo_benchmark_contracts::domain::documents::types::observation_document::ObservationDocument>,
         crate::outbound::suite::types::discrepancy::ArtifactError,
     > {
         super::case_observations::read(receipt.0)

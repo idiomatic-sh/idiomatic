@@ -1,19 +1,14 @@
 //! The native receipt row: read back by the inventory and written by the case observer.
 //! Unknown fields are refused; the documents are a contract.
-use crate::outbound::suite::types::{
-    finding::{FindingOffset, Finding, SkippedPair},
-    observation_document::{
+use ryo_benchmark_contracts::domain::documents::types::{finding::{FindingOffset, Finding, SkippedPair}, observation_document::{
         ContextManifest, ContextMode, ContextRun, ExitStatus, FileMetadataDigest, IntentMatch,
         ObservationDocument, ProcessArtifacts, ProcessObservation, ProjectContextRecord,
         ProjectInputsDigest, ReferenceExpectation, RuleCohort, RuleContextRecord,
         RuleObservationsRecord, SourceIdentity, ToolContractRecord,
-    },
-    reference_discrepancy::{ArtifactPointer, DiscrepancyValidation, ExpectationKind},
-    text::{
+    }, reference_discrepancy::{ArtifactPointer, DiscrepancyValidation, ExpectationKind}, text::{
         CanonicalJson, CaseName, PathText, ReasonText, RuleName, SchemaName, Sha256Text, ContestantSide,
         YesNo,
-    },
-};
+    }};
 use ryo_benchmark_contracts::domain::reports::types::{
     ComparisonContract, ExecutionMetadata, RuleCoverage,
 };

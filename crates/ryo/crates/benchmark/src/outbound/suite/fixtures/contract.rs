@@ -1,11 +1,11 @@
 //! Physical artifact observations shared by suite adapters; audit policy stays in application.
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use ryo_benchmark_contracts::domain::documents::types::observation_document::ObservationDocument;
 use crate::outbound::suite::{
     interface::SuitePort,
     types::{
         ArtifactPath, ArtifactSet, ArtifactText, MaterializedContext,
         discrepancy::{CaseArtifacts, EvidenceArtifact, EvidenceRequirement},
-        observation_document::ObservationDocument,
     },
 };
 use ryo_benchmark_contracts::domain::{
@@ -290,14 +290,11 @@ fn given_file() -> ryo::linter::GivenProjectInventory {
 
 /// One complete observation row of a native side.
 fn observation() -> ObservationDocument {
-    use crate::outbound::suite::types::{
-        observation_document::{
+use ryo_benchmark_contracts::domain::documents::types::{observation_document::{
             ContextRun, FileMetadataDigest, IntentMatch, ProjectContextRecord,
             ProjectInputsDigest, ReferenceExpectation, RuleCohort, RuleContextRecord,
             RuleObservationsRecord, SourceIdentity, ToolContractRecord,
-        },
-        text::{CaseName, ContestantSide, RuleName, SchemaName, YesNo},
-    };
+        }, text::{CaseName, ContestantSide, RuleName, SchemaName, YesNo}};
     use ryo_benchmark_contracts::domain::reports::types::ComparisonContract;
     ObservationDocument {
         rule: RuleName("R1".into()),

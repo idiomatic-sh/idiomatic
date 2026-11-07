@@ -4,7 +4,7 @@ use super::reference_discrepancy::{ArtifactPointer, DiscrepancyValidation, Expec
 use super::text::{
     CanonicalJson, CaseName, PathText, ReasonText, RuleName, SchemaName, Sha256Text, ContestantSide, YesNo,
 };
-use ryo_benchmark_contracts::domain::reports::types::{
+use crate::domain::reports::types::{
     ComparisonContract, ExecutionMetadata, RuleCoverage,
 };
 

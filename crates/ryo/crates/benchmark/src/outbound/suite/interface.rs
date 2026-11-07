@@ -50,7 +50,7 @@ pub trait SuitePort {
     fn record_case(
         &self,
         receipt: ArtifactPath<'_>,
-        record: super::types::observation_document::ObservationDocument,
+        record: ryo_benchmark_contracts::domain::documents::types::observation_document::ObservationDocument,
         process: Option<super::types::process::CapturedProcess<'_>>,
     ) -> Result<(), super::types::discrepancy::ArtifactError>;
 
@@ -62,7 +62,7 @@ pub trait SuitePort {
         &self,
         receipt: ArtifactPath<'_>,
     ) -> Result<
-        Vec<super::types::observation_document::ObservationDocument>,
+        Vec<ryo_benchmark_contracts::domain::documents::types::observation_document::ObservationDocument>,
         super::types::discrepancy::ArtifactError,
     >;
 

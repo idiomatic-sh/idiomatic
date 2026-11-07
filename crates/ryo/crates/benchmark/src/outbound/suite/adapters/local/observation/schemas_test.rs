@@ -1,7 +1,7 @@
 //! The native receipt rows the producers write are read and written back byte-equivalent; a field they never write is refused.
 use super::ObservationSchema;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::outbound::suite::types::observation_document::ObservationDocument;
+use ryo_benchmark_contracts::domain::documents::types::observation_document::ObservationDocument;
 
 type Input = String;
 type Value = usize;

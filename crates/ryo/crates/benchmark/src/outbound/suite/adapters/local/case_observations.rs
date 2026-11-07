@@ -1,13 +1,8 @@
 //! Receipt-file scoped process artifacts; resumes never overwrite historical attempts.
 use super::observation::schemas::ObservationSchema;
 use crate::outbound::suite::adapters::local::constants;
-use crate::outbound::suite::types::{
-    discrepancy::ArtifactError,
-    observation_document::{ObservationDocument, ProcessArtifacts},
-    process::CapturedProcess,
-    reference_discrepancy::ArtifactPointer,
-    text::{PathText, Sha256Text},
-};
+use crate::outbound::suite::types::{discrepancy::ArtifactError, process::CapturedProcess};
+use ryo_benchmark_contracts::domain::documents::types::{observation_document::{ObservationDocument, ProcessArtifacts}, reference_discrepancy::ArtifactPointer, text::{PathText, Sha256Text}};
 use sha2::{Digest as _, Sha256};
 use std::{io::Write as _, path::Path};
 
@@ -151,16 +146,12 @@ mod tests {
         .unwrap()
     }
     fn row() -> ObservationDocument {
-        use crate::outbound::suite::types::{
-            observation_document::{
+use ryo_benchmark_contracts::domain::documents::types::{observation_document::{
                 ContextRun, ExitStatus, FileMetadataDigest, IntentMatch, ProcessObservation,
                 ProjectContextRecord, ProjectInputsDigest, ReferenceExpectation,
                 RuleCohort, RuleContextRecord, RuleObservationsRecord, SourceIdentity,
                 ToolContractRecord,
-            },
-            reference_discrepancy::ExpectationKind,
-            text::{CaseName, ReasonText, RuleName, SchemaName, ContestantSide, YesNo},
-        };
+            }, reference_discrepancy::ExpectationKind, text::{CaseName, ReasonText, RuleName, SchemaName, ContestantSide, YesNo}};
         use ryo_benchmark_contracts::domain::reports::types::ComparisonContract;
         ObservationDocument {
             rule: RuleName(constants::CHECK001.into()),
