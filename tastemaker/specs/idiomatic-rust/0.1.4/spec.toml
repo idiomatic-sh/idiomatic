@@ -638,3 +638,65 @@ pub struct Outcome {
 }
 '''
 then.only = ['idiomatic.arch/one-type-per-name']
+
+[[scenarios]]
+id = 'a-test-names-the-case-harness-of-another-crate'
+scenario = "An integration test runs its case table with the harness another crate ships under its `fixtures` feature: only the logic it names is refused."
+given.files.'tastemaker.toml' = '''
+workspace = { name = "fixture", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+closed = false
+specs = [
+  { spec = "idiomatic.arch/idiomatic-rust", include = ["demo", "other"], params = { test-contracts = [], apart = "nodirectory", allowed-paths = ["**/tests/**"], heap-accounting-owners = [], libraries = ["rayon::*"] } },
+]
+'''
+given.files.'Cargo.toml' = '''
+[workspace]
+members = ["demo", "other"]
+resolver = "3"
+'''
+given.files.'demo/Cargo.toml' = '''
+[package]
+name = "demo"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "demo"
+path = "src/lib.rs"
+
+[dev-dependencies]
+other = { package = "demo-other", path = "../other" }
+'''
+given.files.'other/Cargo.toml' = '''
+[package]
+name = "demo-other"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "other"
+path = "src/lib.rs"
+'''
+given.files.'other/src/lib.rs' = '''
+//! The other crate.
+
+pub mod cases {
+    /// Runs.
+    pub fn run() {}
+}
+
+pub mod domain {
+    /// Compares.
+    pub fn compare() {}
+}
+'''
+given.files.'demo/tests/test.rs' = '''
+//! The cases.
+
+use other::cases::run;
+use other::domain::compare;
+'''
+then.only = ['idiomatic.arch/test-imports']
+then.findings = [
+  { rule = 'idiomatic.arch/test-imports', path = 'demo/tests/test.rs', line = 4 },
+]
