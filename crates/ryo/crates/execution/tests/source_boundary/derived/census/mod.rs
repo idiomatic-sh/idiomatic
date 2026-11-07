@@ -15,15 +15,12 @@ mod scan;
 /// The only lines outside the owner tree that name the builder port, by file.
 const PORT_NAMES: &[(&str, &[&str])] = &[
     ("outbound/derived/interface.rs", &[
-        "pub trait DerivedPort:",
-        "ryo_derived::inbound::use_cases::derived::interface::DerivedUseCase + Send + Sync + std::fmt::Debug",
-        "> DerivedPort for T",
-        "T: ryo_derived::inbound::use_cases::derived::interface::DerivedUseCase",
+        "pub trait DerivedPort: PrepareUseCase + BuildUseCase + ViewUseCase + Send + Sync + std::fmt::Debug {}",
+        "impl<T: PrepareUseCase + BuildUseCase + ViewUseCase + Send + Sync + std::fmt::Debug> DerivedPort",
     ]),
     ("outbound/derived/factory.rs", &[
         "use crate::outbound::derived::interface::DerivedPort;",
-        "semantics: impl ryo_derived::inbound::use_cases::derived::interface::DerivedUseCase",
-        ") -> impl DerivedPort {",
+        "pub fn use_case(semantics: impl DerivedPort) -> impl DerivedPort {",
     ]),
     ("inbound/use_cases/execution/types.rs", &["pub use crate::outbound::derived::interface::DerivedPort;"]),
     ("inbound/use_cases/execution/use_case.rs", &["pub fn new(operators: Arc<dyn OperatorsPort>, derived: Arc<dyn DerivedPort>) -> Self {"]),

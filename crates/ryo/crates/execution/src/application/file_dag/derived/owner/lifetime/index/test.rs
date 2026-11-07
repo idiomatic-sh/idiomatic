@@ -26,14 +26,14 @@ fn fixture(columns: &[FactColumn]) -> ResourceFixture {
         panic!("actual equality view")
     };
     assert_eq!(
-        index.rows(),
-        &[
+        index.rows,
+        [
             ryo_values::domain::rows::types::RowIndex(0),
             ryo_values::domain::rows::types::RowIndex(1)
         ]
     );
     assert_eq!(
-        columns[1].0[index.rows()[0].0],
+        columns[1].0[index.rows[0].0],
         10,
         "the indexed first matching row retains its payload"
     );
@@ -153,7 +153,7 @@ fn backend_clear_preserves_one_required_backing_until_last_consumer_drops() {
         panic!("equality");
     };
     assert_eq!(
-        index.rows().len(),
+        index.rows.len(),
         2,
         "outstanding immutable resource remains readable"
     );

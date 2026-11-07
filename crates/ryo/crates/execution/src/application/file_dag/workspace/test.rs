@@ -148,7 +148,7 @@ fn immutable_demand_checks_identity_once_across_views_and_refuses_expired_proof(
         let DerivedView::Equality(index) = index.view().unwrap() else {
             panic!("equality")
         };
-        assert_eq!(index.rows().len(), 3);
+        assert_eq!(index.rows.len(), 3);
         let DerivedView::Membership(ryo_derived::domain::membership::types::MembershipView::Values(
             values,
         )) = members.view().unwrap()
@@ -297,7 +297,7 @@ fn normalized_physical_input_is_admitted_but_unproved_transform_is_not() {
         panic!("equality")
     };
     assert_eq!(
-        index.rows().len(),
+        index.rows.len(),
         crate::domain::table_model::service::count_of(&normalized).0
     );
     let transformed = table(&[8, 9], 2);

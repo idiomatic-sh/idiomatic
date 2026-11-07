@@ -587,7 +587,7 @@ fn stored_keys_reuse_empty_indexes_and_validate_columns_before_rows() {
     let full = prepared_index(&Rows::Stored(view), &on).expect("full");
     let order = prepared_index(&Rows::Stored(vacant), &on).expect("empty");
     assert_eq!(
-        full.rows().len(),
+        full.rows.len(),
         2,
         "new empty payload does not mutate an outstanding full index"
     );
