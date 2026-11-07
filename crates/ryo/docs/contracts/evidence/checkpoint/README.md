@@ -15,11 +15,10 @@ and core libraries), the Tastemaker checks (`tm_import_cli`, `tm_cli_source`,
 `tm_validate_no_heap_accounting`, the `no-heap-accounting@0.2.0` validation) and `ownership_edges`.
 
 At checkpoint 318 two commands are red by design and the rest are green:
-`core_allocation` (the Phase 7 measurement, bead ryo-l3mj) and `cli_tests`,
+`core_allocation` (the Phase 7 measurement) and `cli_tests`,
 whose `replay` target has six red tests, each named in `validation.json`
 (`results.cli_replay_reds`): the four `(b)` behaviour tests and the cache store
-size and warm peak tests, which wait for the coverage missing-kinds field
-(beads ryo-xqxb and ryo-7fqz). `tm_source` exits 1 because it reports its
+size and warm peak tests, which wait for the coverage missing-kinds field. `tm_source` exits 1 because it reports its
 findings; `run.py` records its total, its suppressed count and the production/test
 split per scoped directory in `tm_source.json` (`findings`), and `validation.json`
 holds the same for the validation318 run. The whole-tree `tm check --root crates/ryo` count, its suppressed
@@ -29,8 +28,8 @@ count and the file-level ownership cycle count (computed from
 `run.py` takes the build locks, refuses a dirty tree, writes `identity.json`
 (source revision plus the command list) beside itself, runs each command in
 order, and writes `<name>.log` and `<name>.json` (exit code, elapsed seconds) to
-the output directory. That directory is the first argument; the default is
-`/tmp/ryo-contract-validation-<source head>-<date>`. Raw outputs are never
+the output directory. That directory is the first argument; the default is a
+directory named for the source head and the date under the system temporary directory. Raw outputs are never
 committed; `validation.json` and `identity.json` are.
 
 The matrix's numbers come from `validation.json`, which records the exact

@@ -110,7 +110,7 @@ def finding_split(cmd,log):
 commands=json.loads((p/'commands.json').read_text())
 (p/'identity.json').write_text(json.dumps({'source':head,'commands':commands},indent=2))
 # Raw outputs (.log/.json per command) never live in the repository: they go to the directory given as the first argument,
-# by default /tmp/ryo-contract-validation-<source head>-<date>.
+# by default a directory named for the source head and the date under the system temporary directory.
 out_dir=Path(sys.argv[1]) if len(sys.argv)>1 else Path('/tmp/ryo-contract-validation-'+head[:10]+'-'+date.today().strftime('%Y%m%d'))
 out_dir.mkdir(parents=True,exist_ok=True)
 for name,cmd in commands:
