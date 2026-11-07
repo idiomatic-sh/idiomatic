@@ -12,9 +12,17 @@ Formats engine-reduced group keys, optional digest, and saturated count without 
 
 Combines borrowed row inputs in source order while preserving their column semantics.
 
+### axis
+
+Emits a row for each candidate an engine axis walk admits, in walk order, stopping at the first for the nearest ancestor.
+
 ### capture
 
 Enumerates nonempty path-slot matches over UTF-8 character boundaries with explicit slash-crossing behavior.
+
+### closure
+
+Emits the partition key, the source and each vertex the engine's reachability walk reaches from every source of every partition.
 
 ### contract
 
@@ -28,9 +36,17 @@ Marks the nodes that lie on a cycle of engine-prepared adjacency, where a compon
 
 Combines admitted matching rows while preserving bag order, projections, and deferred physical positions.
 
+### evaluation
+
+Evaluates one plan operation of any kind over the engine's driver port: one arm per kind, each calling that kind's own meaning.
+
 ### fits_rendered
 
 Measures the physical line width of a source prefix and an already rendered candidate, with tab stops and Unicode width.
+
+### ordered_dfs
+
+Emits each edge an ordered depth-first visit reaches from every distinct root, with the root's keys and the visit's ordinal.
 
 ### ordered_existence
 
