@@ -8,7 +8,7 @@ use super::types::ReceiptFile;
 use super::types::Registration;
 use super::types::Row;
 use super::types::Summary;
-use ryo_benchmark_contracts::domain::documents::types::observation_document::ObservationDocument;
+use ryo_benchmark_contracts::domain::documents::types::observation_document::value::ObservationDocument;
 use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
 use ryo_benchmark_contracts::domain::receipts::types::ReceiptAudit;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;

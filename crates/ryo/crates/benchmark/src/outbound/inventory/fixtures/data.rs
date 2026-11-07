@@ -3,7 +3,7 @@ use crate::outbound::inventory::types::{
     IdentityKey, ProviderName, ReceiptDigest, Row, RowInstance, RowReason, RowStatus, RunState,
     Summary,
 };
-use ryo_benchmark_contracts::domain::documents::types::text::{ReasonText, RuleName};
+use ryo_benchmark_contracts::domain::documents::types::text::value::{ReasonText, RuleName};
 use ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
 use std::collections::BTreeMap;
 

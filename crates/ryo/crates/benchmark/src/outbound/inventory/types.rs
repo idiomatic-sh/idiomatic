@@ -1,10 +1,8 @@
 //! The types of the `inventory` port: plain data, public fields and derives (`Clone`, `Debug`, `PartialEq`), with no constructor and no inherent impl, and no handle, file, lock or `dyn`: a handle is a trait in interface.rs.
-use ryo_benchmark_contracts::domain::documents::types::{
-    case_document::CaseDocument,
-    invocation_document::InvocationDocument,
-    observation_document::ObservationDocument,
-    text::{CanonicalJson, ReasonText, RuleName, Sha256Text},
-};
+use ryo_benchmark_contracts::domain::documents::types::case_document::value::CaseDocument;
+use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::InvocationDocument;
+use ryo_benchmark_contracts::domain::documents::types::observation_document::value::ObservationDocument;
+use ryo_benchmark_contracts::domain::documents::types::text::value::{CanonicalJson, ReasonText, RuleName, Sha256Text};
 use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
 use ryo_benchmark_contracts::domain::workloads::types::CaseCount;
 use std::{
