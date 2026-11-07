@@ -95,7 +95,7 @@ pub fn lint_with(linter: &Linter, mut request: LintRequest) -> Result<LintReport
     let report = super::composition::build(engine, rows.clone(), reading, &connections, settings)
         .lint(core)
         .map_err(schemas::error)?;
-    schemas::report(rows, report)
+    schemas::report(rows.take(), report)
 }
 
 /// The threads every run of the caller reads files on, built once: `workers` of them, at most as many as the machine has. A pool

@@ -33,5 +33,5 @@ pub fn run(
     )
     .lint(core)
     .map_err(schemas::error)?;
-    Ok(schemas::report(rows, report))
+    Ok(schemas::report(rows.take(), report))
 }

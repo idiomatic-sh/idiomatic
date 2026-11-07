@@ -240,7 +240,7 @@ fn converted_skip() -> Result<Value, Failure> {
         reason: ryo_values::domain::runs::types::SkipReason::SyntaxRejected,
     });
     let converted = report(
-        ryo_core::outbound::row_sink::factory::CollectorConnection::default(),
+        ryo_core::outbound::row_sink::types::Collected::default(),
         core,
     )
     .map_err(|_error| Refused::Policy)?;
@@ -297,7 +297,7 @@ fn written(
     let collected = ryo_core::outbound::row_sink::factory::CollectorConnection::default();
     let collector = collect(collected.clone());
     collector.row(&mut cells.iter().copied().map(LentCell::from));
-    match report(collected, CoreReport::default()) {
+    match report(collected.take(), CoreReport::default()) {
         Ok(read) => read.findings.into_iter().next(),
         Err(_refused) => None,
     }

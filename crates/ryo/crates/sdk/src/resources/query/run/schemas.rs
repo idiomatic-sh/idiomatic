@@ -37,7 +37,7 @@ struct RunErrorSchema(CoreError);
 /// What a run answered and the rows it wrote, offered to the conversion.
 struct RunReportSchema {
     /// Where the rows the run wrote were kept.
-    collector: ryo_core::outbound::row_sink::factory::CollectorConnection,
+    collected: ryo_core::outbound::row_sink::types::Collected,
     /// What the run answered.
     report: CoreReport,
 }
@@ -80,13 +80,7 @@ impl TryFrom<RunRequestSchema> for CoreRequest {
 
 impl From<RunReportSchema> for RunReport {
     fn from(schema: RunReportSchema) -> Self {
-        let RunReportSchema { collector, report } = schema;
-        let collected = std::mem::take(
-            &mut *collector
-                .0
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner),
-        );
+        let RunReportSchema { collected, report } = schema;
         Self {
             columns: collected
                 .columns
@@ -179,10 +173,10 @@ pub(super) fn request(request: RunRequest) -> Result<CoreRequest, RunError> {
 
 /// The caller's report for the rows a run wrote and what it answered.
 pub(super) fn report(
-    collector: ryo_core::outbound::row_sink::factory::CollectorConnection,
+    collected: ryo_core::outbound::row_sink::types::Collected,
     report: CoreReport,
 ) -> RunReport {
-    RunReportSchema { collector, report }.into()
+    RunReportSchema { collected, report }.into()
 }
 
 /// The caller's failure for the core's.
