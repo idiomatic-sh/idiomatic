@@ -383,5 +383,5 @@ impl ryo_execution::outbound::operators::interface::OperatorsPort for ProjectCal
 pub(super) fn service() -> CrossFile {
     CrossFile::new(std::sync::Arc::new(
         crate::outbound::corpus::fixtures::fake::CorpusFake::default(),
-    ), std::sync::Arc::new(crate::outbound::publication::factory::execution(std::sync::Arc::new(ryo_execution::inbound::use_cases::publication::use_case::PublicationUseCaseImpl::new()))))
+    ), std::sync::Arc::new(crate::outbound::publication::factory::execution()))
 }

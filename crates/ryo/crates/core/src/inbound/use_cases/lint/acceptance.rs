@@ -112,7 +112,7 @@ fn runs(world: &mut Behavior) {
             ),
             ryo_core::application::cross_file::service::CrossFile::new(Arc::clone(
                 &analysis_corpus,
-            ), std::sync::Arc::new(ryo_core::outbound::publication::factory::execution(std::sync::Arc::new(ryo_execution::inbound::use_cases::publication::use_case::PublicationUseCaseImpl::new())))),
+            ), std::sync::Arc::new(ryo_core::outbound::publication::factory::execution())),
             Arc::clone(&analysis_corpus),
             Arc::new(ryo_execution::outbound::facts::factory::memory()),
             Arc::clone(&analysis_language),

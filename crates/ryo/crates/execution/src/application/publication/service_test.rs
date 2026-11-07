@@ -1,10 +1,9 @@
-//! Complete and refused producer publication through the public use case.
+//! Complete and refused producer publication through the application service.
 use super::{
     errors::PublicationError,
     fixtures::{Scenario, subject as fixture_subject},
-    interface::PublicationReason,
-    use_case::PublicationUseCaseImpl,
 };
+use crate::domain::finish::types::PublicationReason;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 
 type Input = Scenario;
@@ -33,7 +32,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 fn subject(input: Input) -> Result<Value, Failure> {
-    fixture_subject(&PublicationUseCaseImpl::new(), input)
+    fixture_subject(input)
 }
 #[test]
 fn succeeds() {

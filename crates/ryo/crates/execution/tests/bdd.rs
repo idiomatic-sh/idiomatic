@@ -4,8 +4,6 @@ mod execution;
 mod metadata;
 #[path = "../src/inbound/use_cases/prepare/acceptance.rs"]
 mod prepare;
-#[path = "../src/inbound/use_cases/publication/acceptance.rs"]
-mod publication;
 
 #[derive(Debug, Default, cucumber::World)]
 struct Behavior {

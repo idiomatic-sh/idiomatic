@@ -1,5 +1,5 @@
-//! The publication use case's real producer table and storage scenarios.
-use super::{errors::PublicationError, interface::PublicationUseCase, types::PublicationInput};
+//! The publication service's real producer table and storage scenarios.
+use super::{errors::PublicationError, service::publication, types::PublicationInput};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CROSS_FILE, CellKind, Integer, Value, WorkerNumber};
 use ryo_values::domain::{
@@ -16,7 +16,6 @@ pub(super) enum Scenario {
 const NAME_BYTES: &[u8] = &[b'a', b'l', b'p', b'h', b'a'];
 
 pub(super) fn subject(
-    api: &impl PublicationUseCase,
     scenario: Scenario,
 ) -> Result<(), PublicationError> {
     let mut symbols = Symbols::default();
@@ -48,7 +47,7 @@ pub(super) fn subject(
     } else {
         WorkerNumber(0)
     };
-    let result = api.publication(PublicationInput {
+    let result = publication(PublicationInput {
         table: &mut table,
         symbols: &mut symbols,
         inherited: &[],

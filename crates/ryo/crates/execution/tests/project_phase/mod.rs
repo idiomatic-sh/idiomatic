@@ -1034,9 +1034,8 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
     let mut words = Words::default();
     let mut arena = ArenaBytes::default();
     let mut places = vec![];
-    ryo_execution::inbound::use_cases::publication::interface::PublicationUseCase::publication(
-        &ryo_execution::inbound::use_cases::publication::use_case::PublicationUseCaseImpl::new(),
-        ryo_execution::inbound::use_cases::publication::types::PublicationInput {
+    ryo_execution::application::publication::service::publication(
+        ryo_execution::application::publication::types::PublicationInput {
             table: &mut table,
             symbols: &mut symbols,
             inherited: stage.arenas(),

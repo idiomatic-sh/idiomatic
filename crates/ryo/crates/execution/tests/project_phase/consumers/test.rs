@@ -158,10 +158,8 @@ fn two_project_consumers_bind_their_own_slots_to_the_same_producer_in_both_order
         let mut arena = ArenaBytes::default();
         let mut places = vec![];
         let mut words = Words::default();
-        ryo_execution::inbound::use_cases::publication::interface::PublicationUseCase::publication(
-            &ryo_execution::inbound::use_cases::publication::use_case::PublicationUseCaseImpl::new(
-            ),
-            ryo_execution::inbound::use_cases::publication::types::PublicationInput {
+        ryo_execution::application::publication::service::publication(
+        ryo_execution::application::publication::types::PublicationInput {
                 table: &mut table,
                 symbols: &mut symbols,
                 inherited: stage.arenas(),
