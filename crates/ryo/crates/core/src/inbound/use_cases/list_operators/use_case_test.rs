@@ -19,8 +19,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
 }];
 
 fn subject((): Input) -> Result<Value, Failure> {
-    let report = ListOperatorsUseCaseImpl::new(crate::inbound::use_cases::lint::fixtures::engine::metadata())
-        .list_operators()?;
+    let report = ListOperatorsUseCaseImpl.list_operators()?;
     let names: Vec<&str> = report
         .operators
         .iter()

@@ -315,11 +315,7 @@ fn subject((text, declared, linked, compiler): Input) -> Result<Value, Failure> 
         Text::Written(written) => written.into(),
         Text::ExampleOf(operator) => MetadataUseCaseImpl.describe(operator).example.0,
     };
-    ValidateUseCaseImpl::new(
-        compiling,
-        language,
-        crate::inbound::use_cases::lint::fixtures::engine::metadata(),
-    )
+    ValidateUseCaseImpl::new(compiling, language)
         .validate(ValidateRequest {
             observations: Vec::new(),
             text: ryo_values::domain::query_tokens::types::QueryBundle::from(QueryText(text)),

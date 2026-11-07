@@ -20,10 +20,7 @@ fn runs(world: &mut Behavior) {
     let request = DescribeOperatorRequest {
         name: OperatorName(world.input.as_str().into()),
     };
-    world.answer = match DescribeOperatorUseCaseImpl::new(
-        ryo_core::inbound::use_cases::lint::fixtures::engine::metadata(),
-    )
-    .describe_operator(request) {
+    world.answer = match DescribeOperatorUseCaseImpl.describe_operator(request) {
         Ok(report) => format!("{} fields", report.operator.fields.len()),
         Err(error) => error.to_string(),
     };

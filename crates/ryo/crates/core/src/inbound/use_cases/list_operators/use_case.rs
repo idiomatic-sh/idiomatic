@@ -4,36 +4,26 @@ use super::errors::ListOperatorsError;
 use super::interface::ListOperatorsUseCase;
 use super::types::{ListOperatorsReport, OperatorSummary};
 use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
-use std::sync::Arc;
+use crate::application::metadata::service::kernel_metadata;
 
-/// `list_operators`, over the metadata use case that knows the operators.
-pub struct ListOperatorsUseCaseImpl {
-    /// Knows the operators and describes each.
-    metadata: Arc<dyn MetadataUseCase + Send + Sync>,
-}
-
-impl std::fmt::Debug for ListOperatorsUseCaseImpl {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct(std::any::type_name::<Self>())
-            .finish_non_exhaustive()
-    }
-}
+/// `list_operators`; the operators are the kernel's own, asked through the `metadata` application service, so it calls no port.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct ListOperatorsUseCaseImpl;
 
 impl ListOperatorsUseCaseImpl {
-    /// `list_operators` over the metadata use case the edge injects.
+    /// `list_operators`, which calls no port.
     #[must_use]
-    pub fn new(metadata: Arc<dyn MetadataUseCase + Send + Sync>) -> Self {
-        Self { metadata }
+    pub fn new() -> Self {
+        Self
     }
 }
 
 impl ListOperatorsUseCase for ListOperatorsUseCaseImpl {
     fn list_operators(&self) -> Result<ListOperatorsReport, ListOperatorsError> {
-        let operators = self
-            .metadata
+        let operators = kernel_metadata()
             .operators()
             .into_iter()
-            .map(|operator| self.metadata.describe(*operator))
+            .map(|operator| kernel_metadata().describe(*operator))
             .map(|description| OperatorSummary {
                 name: description.name,
                 summary: description.summary,

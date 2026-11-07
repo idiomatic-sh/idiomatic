@@ -15,10 +15,8 @@ fn given_input(world: &mut Behavior, value: String) {
 /// Runs `list_operators` over the scene the input names, keeping what it answered.
 #[when(expr = "list_operators runs")]
 fn runs(world: &mut Behavior) {
-    let report = ListOperatorsUseCaseImpl::new(
-        ryo_core::inbound::use_cases::lint::fixtures::engine::metadata(),
-    )
-    .list_operators()
+    let report = ListOperatorsUseCaseImpl
+        .list_operators()
         .expect("listing cannot fail");
     world.answer = format!("{} operators", report.operators.len());
 }

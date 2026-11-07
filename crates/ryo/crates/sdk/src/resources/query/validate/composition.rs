@@ -51,7 +51,6 @@ pub(crate) fn build(languages: Vec<Language>) -> impl ValidateUseCase {
             ryo_core::inbound::use_cases::validate::use_case::ValidateUseCaseImpl::new(
                 Arc::new(query_language::factory::use_case(compile, typecheck)),
                 Arc::new(language),
-                std::sync::Arc::new(ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl),
             )
         },
     })

@@ -35,7 +35,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 ];
 
 fn subject(name: Input) -> Result<Value, Failure> {
-    DescribeOperatorUseCaseImpl::new(crate::inbound::use_cases::lint::fixtures::engine::metadata())
+    DescribeOperatorUseCaseImpl
         .describe_operator(DescribeOperatorRequest {
             name: OperatorName(name.into()),
         })

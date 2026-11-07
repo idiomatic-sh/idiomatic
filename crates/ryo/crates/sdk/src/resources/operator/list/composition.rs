@@ -22,7 +22,7 @@ where
 pub(crate) fn build() -> impl ListOperatorsUseCase {
     compose(OperatorListParts {
         service: || {
-            ryo_core::inbound::use_cases::list_operators::use_case::ListOperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl))
+            ryo_core::inbound::use_cases::list_operators::use_case::ListOperatorsUseCaseImpl::new()
         },
     })
 }

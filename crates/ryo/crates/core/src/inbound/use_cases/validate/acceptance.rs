@@ -49,11 +49,7 @@ fn runs(world: &mut Behavior) {
         Vec::new()
     };
     let text = if input == "refuse" { REFUSED } else { input };
-    let use_case = ValidateUseCaseImpl::new(
-        Arc::new(query_language),
-        language,
-        ryo_core::inbound::use_cases::lint::fixtures::engine::metadata(),
-    );
+    let use_case = ValidateUseCaseImpl::new(Arc::new(query_language), language);
     world.answer = match use_case.validate(ValidateRequest {
         observations: Vec::new(),
         text: ryo_values::domain::query_tokens::types::QueryBundle::from(QueryText(text.into())),

@@ -2,6 +2,7 @@
 //! names against the kinds the linked languages have.
 
 use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
+use crate::application::metadata::service::kernel_metadata;
 use std::sync::Arc;
 
 use super::errors::ValidateError;
@@ -18,8 +19,6 @@ pub struct ValidateUseCaseImpl {
     query_language: Arc<dyn QueryLanguagePort>,
     /// Says which kinds the linked languages have.
     language: Arc<dyn LanguagePort>,
-    /// Says which kinds a query names that no linked language has.
-    metadata: Arc<dyn MetadataUseCase + Send + Sync>,
 }
 
 impl std::fmt::Debug for ValidateUseCaseImpl {
@@ -35,12 +34,10 @@ impl ValidateUseCaseImpl {
     pub fn new(
         query_language: Arc<dyn QueryLanguagePort>,
         language: Arc<dyn LanguagePort>,
-        metadata: Arc<dyn MetadataUseCase + Send + Sync>,
     ) -> Self {
         Self {
             query_language,
             language,
-            metadata,
         }
     }
 }
@@ -65,7 +62,7 @@ impl ValidateUseCase for ValidateUseCaseImpl {
             .map_err(|error| match error {
                 QueryLanguageError::Refused { error } => ValidateError::Uncompilable { error },
             })?;
-        match self.metadata.kind_refusal(&plan, &vocabularies) {
+        match kernel_metadata().kind_refusal(&plan, &vocabularies) {
             Some(message) => Err(ValidateError::UnknownKind {
                 reason: message.0.into(),
                 origin: message.1,

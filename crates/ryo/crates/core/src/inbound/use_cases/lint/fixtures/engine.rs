@@ -4,7 +4,6 @@ use std::sync::Arc;
 
 use crate::outbound::publication::interface::PublicationPort;
 use ryo_execution::inbound::use_cases::execution::types::{DerivedPort, OperatorsPort};
-use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
 
 /// The publication port over the engine's publication use case.
 #[must_use]
@@ -30,10 +29,4 @@ pub fn derived() -> Arc<dyn DerivedPort> {
     Arc::new(ryo_execution::outbound::derived::factory::use_case(
         ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
     ))
-}
-
-/// The metadata use case the engine decides over request metadata with.
-#[must_use]
-pub fn metadata() -> Arc<dyn MetadataUseCase + Send + Sync> {
-    Arc::new(ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl)
 }
