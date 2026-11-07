@@ -119,7 +119,7 @@ pub(in crate::inbound::use_cases::execution::use_case_test) fn population(relati
     }
 }
 #[derive(Clone, Copy)]
-pub(in crate::inbound::use_cases::execution::use_case_test) enum Supply {
+pub(in crate::inbound::use_cases::execution::use_case_test) enum InputSupply {
     Present,
     MissingLeft,
     MissingRight,
@@ -129,7 +129,7 @@ pub(in crate::inbound::use_cases::execution::use_case_test) enum Supply {
 pub(in crate::inbound::use_cases::execution::use_case_test) fn execute(
     plan: Plan,
     malformed: bool,
-    supply: Supply,
+    supply: InputSupply,
 ) -> (Result<Table, OperatingError>, [usize; 2]) {
     let mut symbols = Symbols::default();
     let symbol = intern_derived(&mut symbols, ByteSlice(b""), NameText("source"));
@@ -140,11 +140,11 @@ pub(in crate::inbound::use_cases::execution::use_case_test) fn execute(
     let read = |relation| match relation {
         Relation::Function => {
             counts[0].set(counts[0].get() + 1);
-            if matches!(supply, Supply::MissingLeft)
-                || (matches!(supply, Supply::MissingAfterFirst) && counts[0].get() > 1)
+            if matches!(supply, InputSupply::MissingLeft)
+                || (matches!(supply, InputSupply::MissingAfterFirst) && counts[0].get() > 1)
             {
                 Err(OperatingError::NotRead)
-            } else if matches!(supply, Supply::Changed) && counts[0].get() > 1 {
+            } else if matches!(supply, InputSupply::Changed) && counts[0].get() > 1 {
                 Ok(SourceRows::Computed(&changed))
             } else {
                 Ok(SourceRows::Computed(&left))
@@ -152,7 +152,7 @@ pub(in crate::inbound::use_cases::execution::use_case_test) fn execute(
         }
         Relation::Resolves => {
             counts[1].set(counts[1].get() + 1);
-            if matches!(supply, Supply::MissingRight) {
+            if matches!(supply, InputSupply::MissingRight) {
                 Err(OperatingError::NotRead)
             } else {
                 Ok(SourceRows::Computed(&right))
@@ -186,7 +186,7 @@ fn schema_before_physical() {
         let (result, calls) = execute(
             inputs::plan(vec![operation(kind, true)]),
             true,
-            Supply::Present,
+            InputSupply::Present,
         );
         assert_eq!(result, Err(layout_error(kind)), "{kind:?}");
         assert_eq!(
@@ -205,7 +205,7 @@ fn source_failure_before_local_layout() {
         let (result, calls) = execute(
             inputs::plan(vec![operation(kind, true)]),
             true,
-            Supply::MissingLeft,
+            InputSupply::MissingLeft,
         );
         assert_eq!(result, Err(OperatingError::NotRead), "{kind:?}");
         assert_eq!(calls, [1, 0]);
@@ -214,7 +214,7 @@ fn source_failure_before_local_layout() {
         let (result, calls) = execute(
             inputs::plan(vec![operation(kind, true)]),
             true,
-            Supply::MissingRight,
+            InputSupply::MissingRight,
         );
         assert_eq!(
             result,
@@ -229,7 +229,7 @@ fn valid_populations_and_generation_binding() {
         let (result, _) = execute(
             inputs::plan(vec![operation(kind, false)]),
             false,
-            Supply::Present,
+            InputSupply::Present,
         );
         let result = result.expect("valid metadata and physical populations execute normally");
         assert_eq!(
@@ -251,7 +251,7 @@ fn valid_populations_and_generation_binding() {
     let (changed, calls) = execute(
         inputs::plan(vec![operation(OperationKind::Project, false)]),
         false,
-        Supply::Changed,
+        InputSupply::Changed,
     );
     assert_eq!(
         changed,

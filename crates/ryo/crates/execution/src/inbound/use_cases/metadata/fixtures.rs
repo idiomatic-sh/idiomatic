@@ -20,7 +20,8 @@ use ryo_values::domain::plans::types::PlanStep;
 
 pub mod contract;
 
-pub(super) fn plan(relation: Relation, word: Option<&str>) -> Plan {
+/// A plan that selects `relation`, filtered by the kind `word` when one is given.
+pub fn plan(relation: Relation, word: Option<&str>) -> Plan {
     let comparisons = word
         .map(|text| PlanComparison {
             test: Test::Equal,
@@ -52,14 +53,15 @@ pub(super) fn plan(relation: Relation, word: Option<&str>) -> Plan {
         frontier: Vec::new(),
     }
 }
-pub(super) fn vocabularies() -> KindVocabularies {
+/// The kind vocabularies the metadata proofs read.
+pub fn vocabularies() -> KindVocabularies {
     KindVocabularies(vec![KindVocabulary {
         language: LanguageName("rust".into()),
         kinds: vec![KindWord("fn".into())],
     }])
 }
 /// Retain the former operator-service example/catalog assertion through public descriptors.
-pub(super) fn example_unknown_relations(example: &str) -> usize {
+pub fn example_unknown_relations(example: &str) -> usize {
     use ryo_relations::domain::relations::service::relation_named;
     use ryo_relations::domain::labels::types::NameRef;
     let fields = [

@@ -1,6 +1,6 @@
 //! Preflight precedence of producer failures, stored prefixes and registered kinds through the mandatory public execution owner.
 use super::super::super::fixtures;
-use super::super::admission_order::test::{Supply, execute, layout_error, operation, population};
+use super::super::admission_order::test::{InputSupply, execute, layout_error, operation, population};
 use crate::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
 use crate::inbound::use_cases::execution::interface::OperatingError;
 use crate::application::file_dag::program::file_session::types::SourceRows;
@@ -52,7 +52,7 @@ fn child_failure_and_resources_first() {
         columns: vec![ColumnIndex(99)],
         distinct: RepeatedRows::Kept,
     };
-    let (result, _) = execute(inputs::plan(vec![first, last]), true, Supply::Present);
+    let (result, _) = execute(inputs::plan(vec![first, last]), true, InputSupply::Present);
     assert_eq!(
         result,
         Err(OperatingError::ShapeMismatch),
@@ -63,7 +63,7 @@ fn child_failure_and_resources_first() {
         keys: vec![ColumnIndex(99)],
         distinct: None,
     };
-    let (result, calls) = execute(inputs::plan(vec![count]), true, Supply::MissingAfterFirst);
+    let (result, calls) = execute(inputs::plan(vec![count]), true, InputSupply::MissingAfterFirst);
     assert_eq!(
         result,
         Err(OperatingError::ShapeMismatch),
