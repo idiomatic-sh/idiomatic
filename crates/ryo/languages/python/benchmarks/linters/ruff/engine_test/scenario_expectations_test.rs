@@ -23,6 +23,7 @@ pub(super) fn input_file(scenario: EngineScenario) -> &'static str {
         | EngineScenario::QueryModuleInlineEquivalence
         | EngineScenario::TargetConfigurationCacheChange
         | EngineScenario::RejectedSyntaxWithProviderPartialsSkipsOnlyAcceptedSyntaxRules
+        | EngineScenario::ARejectedFileLeavesPt020Pt025AndPt026AnsweringTheValidFile
         | EngineScenario::SharedSuppressionFragmentMatchesTheHistoricalInlineQueries
         | EngineScenario::LiteralPropertiesReachEngineQueriesForTrueAndFalseBooleanNodes
         | EngineScenario::DecodedNumericPayloadsAndStrictGreaterCompositionReachEngineQueries
@@ -65,6 +66,7 @@ pub(super) fn source_for(scenario: EngineScenario) -> &'static str {
         | EngineScenario::QueryModuleInlineEquivalence
         | EngineScenario::TargetConfigurationCacheChange
         | EngineScenario::RejectedSyntaxWithProviderPartialsSkipsOnlyAcceptedSyntaxRules
+        | EngineScenario::ARejectedFileLeavesPt020Pt025AndPt026AnsweringTheValidFile
         | EngineScenario::SharedSuppressionFragmentMatchesTheHistoricalInlineQueries
         | EngineScenario::LiteralPropertiesReachEngineQueriesForTrueAndFalseBooleanNodes
         | EngineScenario::DecodedNumericPayloadsAndStrictGreaterCompositionReachEngineQueries
@@ -144,6 +146,7 @@ pub(super) fn expected_diagnostics(
         | EngineScenario::ProjectionCacheQueryChange
         | EngineScenario::QueryModuleInlineEquivalence
         | EngineScenario::RejectedSyntaxWithProviderPartialsSkipsOnlyAcceptedSyntaxRules
+        | EngineScenario::ARejectedFileLeavesPt020Pt025AndPt026AnsweringTheValidFile
         | EngineScenario::SharedSuppressionFragmentMatchesTheHistoricalInlineQueries
         | EngineScenario::LiteralPropertiesReachEngineQueriesForTrueAndFalseBooleanNodes
         | EngineScenario::DecodedNumericPayloadsAndStrictGreaterCompositionReachEngineQueries
