@@ -18,8 +18,8 @@ impl ProgramExecution {
         ] {
             let slot = Slot::touched(state, &mut slots, &self.program, id)?;
             let fed = slot.fed.first_mut().ok_or(OperatingError::NotRun)?;
-            for (total, found) in fed.0.iter_mut().zip(values) {
-                *total = total.saturating_add(found);
+            for (total, found) in fed.0.iter_mut().zip(values.0) {
+                *total = total.saturating_add(found.0);
             }
         }
         Ok(())

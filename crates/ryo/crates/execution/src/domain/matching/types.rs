@@ -8,6 +8,8 @@ pub(crate) struct PatternMatcher<'a>(pub &'a dyn ryo_matching::inbound::use_case
 
 impl std::fmt::Debug for PatternMatcher<'_> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.write_str("Matcher")
+        formatter
+            .debug_struct(std::any::type_name::<Self>())
+            .finish_non_exhaustive()
     }
 }
