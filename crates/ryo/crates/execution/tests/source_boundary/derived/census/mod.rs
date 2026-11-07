@@ -26,7 +26,7 @@ const PORT_NAMES: &[(&str, &[&str])] = &[
     ]),
     ("inbound/use_cases/prepare/use_case.rs", &[
         "use crate::outbound::derived::interface::DerivedPort;",
-        "pub fn new(operators: Arc<dyn OperatorsPort>, derived: Arc<dyn DerivedPort>) -> Self {",
+        "derived: Arc<dyn DerivedPort>,",
     ]),
 ];
 
