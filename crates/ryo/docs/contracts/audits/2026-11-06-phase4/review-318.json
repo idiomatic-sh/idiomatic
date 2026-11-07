@@ -81,9 +81,9 @@
  ],
  "acknowledged_open_not_reflagged": [
   "21 deferred derived newtypes (Phase 4 row c)",
-  "(b) replay group: 4 behaviour tests + cache store size + warm peak (ryo-xqxb, ryo-7fqz)",
-  "core_allocation budget (ryo-l3mj)",
-  "required walk/kernel rows ryo-ukm7, ryo-qe6j, ryo-2lzn, ryo-uofg and the Phase 7 acceptance row ryo-p4s1 (unticked by design)",
+  "(b) replay group: 4 behaviour tests + cache store size + warm peak",
+  "core_allocation budget",
+  "the required walk, kernel and cohort-decode rows and the Phase 7 acceptance row (unticked by design)",
   "deferred store/runtime crates"
  ]
 }

@@ -14,7 +14,8 @@ use ryo_relations::domain::relations::types::{
     Bytes, CROSS_FILE, Count, FileId, Offset, Origin, Span, TextHash, WorkerNumber,
 };
 use ryo_relations::domain::terms::service::term_symbol;
-use ryo_relations::domain::terms::types::{DeclarationKind, NameText};
+use ryo_relations::domain::declaration_kind::types::DeclarationKind;
+use ryo_relations::domain::terms::types::NameText;
 
 /// A scenario: what a row asks of the service.
 type Input = fn() -> usize;

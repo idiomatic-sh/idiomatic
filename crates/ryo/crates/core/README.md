@@ -80,9 +80,9 @@ The core domain's `reporting` concept.
 
 The core domain's `repository` concept: the files of a run as it finds them, and what an earlier run kept of them.
 
-### rules
+### run_rules
 
-The core domain's `rules` concept: the rules of a run as the domain reads them, and what is decided of them before any file is.
+The core domain's `run_rules` concept: the rules of a run as the domain reads them, and what is decided of them before any file is.
 
 ### storing
 

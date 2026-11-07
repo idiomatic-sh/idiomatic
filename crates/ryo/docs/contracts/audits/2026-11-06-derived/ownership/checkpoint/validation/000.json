@@ -1,0 +1,362 @@
+{
+  "307": {
+    "source": "839190fd547ff7e8d08b05a7c314741a7eec3f47",
+    "receipts": {
+      "libraries": {
+        "source": "839190fd547ff7e8d08b05a7c314741a7eec3f47",
+        "command": [
+          "cargo",
+          "test",
+          "--manifest-path",
+          "crates/ryo/Cargo.toml",
+          "--target-dir",
+          "/workspaces/idiomatic-benchmark-guards/target",
+          "--locked",
+          "--offline",
+          "-j6",
+          "--all-features",
+          "-p",
+          "idiomatic-sh-ryo-execution",
+          "-p",
+          "idiomatic-sh-ryo-core",
+          "-p",
+          "idiomatic-sh-ryo-sdk",
+          "-p",
+          "idiomatic-sh-ryo-values",
+          "-p",
+          "idiomatic-sh-ryo-query_language",
+          "-p",
+          "idiomatic-sh-ryo-operators",
+          "-p",
+          "idiomatic-sh-ryo-matching",
+          "-p",
+          "idiomatic-sh-ryo-derived",
+          "--lib",
+          "--no-fail-fast",
+          "-p",
+          "idiomatic-sh-ryo-benchmark",
+          "--",
+          "--test-threads=6"
+        ],
+        "exit": 101,
+        "elapsed_seconds": 52.94202208518982
+      },
+      "boundary": {
+        "source": "839190fd547ff7e8d08b05a7c314741a7eec3f47",
+        "command": [
+          "cargo",
+          "test",
+          "--manifest-path",
+          "crates/ryo/Cargo.toml",
+          "--target-dir",
+          "/workspaces/idiomatic-benchmark-guards/target",
+          "--locked",
+          "--offline",
+          "-j6",
+          "--all-features",
+          "-p",
+          "idiomatic-sh-ryo-execution",
+          "--test",
+          "boundary_contract",
+          "--",
+          "--test-threads=6"
+        ],
+        "exit": 0,
+        "elapsed_seconds": 237.63641142845154
+      },
+      "tm_guards": {
+        "source": "839190fd547ff7e8d08b05a7c314741a7eec3f47",
+        "command": [
+          "tm",
+          "--root",
+          "crates/ryo",
+          "validate",
+          "rule/program-implementation-boundary",
+          "rule/shared-walk-owner",
+          "rule/collection-members",
+          "rule/runtime-authority",
+          "template/value",
+          "template/value-module",
+          "template/value-test",
+          "--format",
+          "json"
+        ],
+        "exit": 0,
+        "elapsed_seconds": 0.04442572593688965
+      },
+      "tm_source": {
+        "source": "839190fd547ff7e8d08b05a7c314741a7eec3f47",
+        "command": [
+          "tm",
+          "--root",
+          "crates/ryo",
+          "check",
+          "--fix",
+          "crates/execution/src/application/file_dag/closure_partitions.rs",
+          "crates/execution/src/application/file_dag/derived.rs",
+          "crates/execution/src/application/file_dag/derived/owner.rs",
+          "crates/execution/src/application/file_dag/derived/owner/acquisition/admission/service.rs",
+          "crates/execution/src/application/file_dag/derived/owner/acquisition/admission/service/issuance/mod.rs",
+          "crates/execution/src/application/file_dag/derived/owner/acquisition/admission/service/issuance/service.rs",
+          "crates/execution/src/application/file_dag/derived/owner/acquisition/graph/construction/service.rs",
+          "crates/execution/src/application/file_dag/derived/owner/acquisition/graph/service.rs",
+          "crates/execution/src/application/file_dag/derived/owner/acquisition/selection/service.rs",
+          "crates/execution/src/application/file_dag/derived/owner/acquisition/service.rs",
+          "crates/execution/src/application/file_dag/derived/owner/fixtures/mod.rs",
+          "crates/execution/src/application/file_dag/derived/owner/graph.rs",
+          "crates/execution/src/application/file_dag/derived/owner/graph_fixture.rs",
+          "crates/execution/src/application/file_dag/derived/owner/graph_key.rs",
+          "crates/execution/src/application/file_dag/derived/owner/graph_lifetime_test.rs",
+          "crates/execution/src/application/file_dag/derived/owner/graph_policy.rs",
+          "crates/execution/src/application/file_dag/derived/owner/graphs/types/retained/types.rs",
+          "crates/execution/src/application/file_dag/derived/owner/observations.rs",
+          "crates/execution/src/application/file_dag/derived/owner/raw_scope.rs",
+          "crates/execution/src/application/file_dag/derived/owner/resource_fixture.rs",
+          "crates/execution/src/application/file_dag/derived/owner/selection/candidates/service.rs",
+          "crates/execution/src/application/file_dag/derived/owner/selection/fanout/service.rs",
+          "crates/execution/src/application/file_dag/derived/owner/selection/fixtures/mod.rs",
+          "crates/execution/src/application/file_dag/derived/owner/selection/literals/mod.rs",
+          "crates/execution/src/application/file_dag/derived/owner/selection/literals/service.rs",
+          "crates/execution/src/application/file_dag/derived/owner/selection/mod.rs",
+          "crates/execution/src/application/file_dag/derived/owner/selection/preparation/service.rs",
+          "crates/execution/src/application/file_dag/derived/owner/selection/retention/test.rs",
+          "crates/execution/src/application/file_dag/derived/owner/selection/types.rs",
+          "crates/execution/src/application/file_dag/derived/owner/witness/mod.rs",
+          "crates/execution/src/application/file_dag/derived/owner/witness/service.rs",
+          "crates/execution/src/application/file_dag/derived/owner_test.rs",
+          "crates/execution/src/application/file_dag/derived/population/mod.rs",
+          "crates/execution/src/application/file_dag/derived/population/types.rs",
+          "crates/execution/src/application/file_dag/execution.rs",
+          "crates/execution/src/application/file_dag/execution/lease.rs",
+          "crates/execution/src/application/file_dag/execution/lease/capability/mod.rs",
+          "crates/execution/src/application/file_dag/execution/lease/capability/service.rs",
+          "crates/execution/src/application/file_dag/executor.rs",
+          "crates/execution/src/application/file_dag/executor/response/mod.rs",
+          "crates/execution/src/application/file_dag/executor/response/types.rs",
+          "crates/execution/src/application/file_dag/invocation.rs",
+          "crates/execution/src/application/file_dag/invocation/index.rs",
+          "crates/execution/src/application/file_dag/invocation/native/mod.rs",
+          "crates/execution/src/application/file_dag/invocation/native/service.rs",
+          "crates/execution/src/application/file_dag/observations/cross.rs",
+          "crates/execution/src/application/file_dag/ordered_existence.rs",
+          "crates/execution/src/application/file_dag/program/admission.rs",
+          "crates/execution/src/application/file_dag/program/facade_runtime.rs",
+          "crates/execution/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/producer_lifetime/external/fixtures/mod.rs",
+          "crates/execution/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/producer_lifetime/external/mod.rs",
+          "crates/execution/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/producer_lifetime/external/test.rs",
+          "crates/execution/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/producer_lifetime/mod.rs",
+          "crates/execution/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/producer_lifetime/project/fixtures/mod.rs",
+          "crates/execution/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/producer_lifetime/project/mod.rs",
+          "crates/execution/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/producer_lifetime/project/test.rs",
+          "crates/execution/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/producer_lifetime/restoration/fixtures/mod.rs",
+          "crates/execution/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/producer_lifetime/restoration/mod.rs",
+          "crates/execution/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/producer_lifetime/restoration/test.rs",
+          "crates/execution/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/producer_lifetime/test.rs",
+          "crates/execution/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/readiness/fixtures/mod.rs",
+          "crates/execution/src/application/file_dag/program/facade_runtime/project_execution.rs",
+          "crates/execution/src/application/file_dag/program/facade_runtime/source_admission.rs",
+          "crates/execution/src/application/file_dag/program/kernel_session.rs",
+          "crates/execution/src/application/file_dag/program/native_join.rs",
+          "crates/execution/src/application/file_dag/program/native_join/lease/mod.rs",
+          "crates/execution/src/application/file_dag/program/native_join/lease/service.rs",
+          "crates/execution/src/application/file_dag/program/native_join/lease/service/dispatch/mod.rs",
+          "crates/execution/src/application/file_dag/program/native_join/lease/service/dispatch/service.rs",
+          "crates/execution/src/application/file_dag/program/native_walk.rs",
+          "crates/execution/src/application/file_dag/program/native_walk/lease/mod.rs",
+          "crates/execution/src/application/file_dag/program/native_walk/lease/service.rs",
+          "crates/execution/src/application/file_dag/program/project_population/types.rs",
+          "crates/execution/src/application/file_dag/program/runtime/service.rs",
+          "crates/execution/src/application/file_dag/program/runtime/service/lifecycle/fixtures.rs",
+          "crates/execution/src/application/file_dag/program/runtime/service/lifecycle/inputs/fixtures.rs",
+          "crates/execution/src/application/file_dag/program/runtime/types.rs",
+          "crates/execution/src/application/file_dag/program/selection.rs",
+          "crates/execution/src/application/file_dag/relations.rs",
+          "crates/execution/src/application/file_dag/relations/admission/mod.rs",
+          "crates/execution/src/application/file_dag/relations/admission/service.rs",
+          "crates/execution/src/application/file_dag/relations/admission/service/issuance/mod.rs",
+          "crates/execution/src/application/file_dag/relations/admission/service/issuance/service.rs",
+          "crates/execution/src/application/file_dag/relations/generation/mod.rs",
+          "crates/execution/src/application/file_dag/relations/generation/service.rs",
+          "crates/execution/src/application/file_dag/relations/handle/mod.rs",
+          "crates/execution/src/application/file_dag/relations/handle/service.rs",
+          "crates/execution/src/application/file_dag/relations/identity.rs",
+          "crates/execution/src/application/file_dag/relations/number/mod.rs",
+          "crates/execution/src/application/file_dag/relations/number/service.rs",
+          "crates/execution/src/application/file_dag/relations/number/service/issuance/mod.rs",
+          "crates/execution/src/application/file_dag/relations/number/service/issuance/service.rs",
+          "crates/execution/src/application/file_dag/relations/number/service/test.rs",
+          "crates/execution/src/application/file_dag/relations/owner_test.rs",
+          "crates/execution/src/application/file_dag/relations/owner_test/publication/mod.rs",
+          "crates/execution/src/application/file_dag/relations/owner_test/publication/test.rs",
+          "crates/execution/src/application/file_dag/relations/packed/mod.rs",
+          "crates/execution/src/application/file_dag/relations/packed/service.rs",
+          "crates/execution/src/application/file_dag/relations/packed/service/issuance/mod.rs",
+          "crates/execution/src/application/file_dag/relations/packed/service/issuance/service.rs",
+          "crates/execution/src/application/file_dag/relations/publication/mod.rs",
+          "crates/execution/src/application/file_dag/relations/publication/types.rs",
+          "crates/execution/src/application/file_dag/route_counts_test.rs",
+          "crates/execution/src/application/file_dag/scope.rs",
+          "crates/execution/src/application/file_dag/scope/types.rs",
+          "crates/execution/src/application/file_dag/workspace.rs",
+          "crates/execution/src/domain/operator/collections/operators/interface.rs",
+          "crates/execution/src/domain/operator/contract/registration.rs",
+          "crates/execution/src/domain/table_model/collections/representations/interface.rs",
+          "crates/execution/src/domain/table_model/collections/representations/registration.rs",
+          "crates/execution/src/domain/table_model/collections/representations/service.rs",
+          "crates/execution/src/domain/table_model/collections/representations/service_test.rs",
+          "crates/execution/src/domain/table_model/collections/representations/types.rs",
+          "crates/execution/src/domain/table_model/collections/representations/types/registered_representation/mod.rs",
+          "crates/execution/src/domain/table_model/collections/representations/types/registered_representation/value.rs",
+          "crates/execution/src/domain/table_model/collections/representations/types/registered_representation/value_test.rs",
+          "crates/execution/tests/source_boundary/derived/mod.rs",
+          "crates/execution/tests/source_boundary/derived/witness/mod.rs",
+          "crates/execution/tests/source_boundary/fixtures.rs",
+          "crates/execution/tests/source_boundary/mod.rs",
+          "crates/execution/tests/source_boundary/publication/fixtures/mod.rs",
+          "crates/execution/tests/source_boundary/publication/mod.rs",
+          "crates/execution/tests/source_boundary/test.rs",
+          "--format",
+          "json"
+        ],
+        "exit": 1,
+        "elapsed_seconds": 25.399353981018066
+      },
+      "ownership_edges": {
+        "source": "839190fd547ff7e8d08b05a7c314741a7eec3f47",
+        "command": [
+          "ryo",
+          "query",
+          "run",
+          "--root",
+          "crates/ryo",
+          "--text",
+          "let nodes = select id, kind, file, span from \"syntax-tree\" where text = \"\" and glob_any(file, \"crates/execution/src/**\");\nlet paths = select * from nodes where kind = \"path\";\nlet visibility = select * from nodes where kind = \"visibility\";\nlet nested = axis(from=visibility, relation=\"syntax-child\", direction=descendant, domain=paths);\nlet restricted = select r.file as source, r.span as span from nested as l join paths as r on l.related = r.id;\nlet declared = select source, target, written, span from \"source-dependency\" where glob_any(source, \"crates/execution/src/**\");\nlet dependencies = antijoin(left=declared, right=restricted, left-on=[\"source\",\"span\"], right-on=[\"source\",\"span\"]);\nemit dependencies subject source key(source,target,written,span);\n",
+          "--limit",
+          "100000",
+          "--format",
+          "json"
+        ],
+        "exit": 0,
+        "elapsed_seconds": 1.5312514305114746
+      }
+    },
+    "libraries": {
+      "execution": {
+        "passed": 459,
+        "failed": 0
+      },
+      "core": {
+        "passed": 177,
+        "failed": 6,
+        "disposition": "same deferred output/store failures"
+      },
+      "benchmark": {
+        "passed": 191,
+        "failed": 0
+      },
+      "sdk": {
+        "passed": 43,
+        "failed": 0
+      },
+      "other_five": {
+        "passed": 155,
+        "failed": 0
+      }
+    },
+    "boundary": {
+      "passed": 90,
+      "failed": 0,
+      "compiler_controls": 86,
+      "authorized": 18,
+      "forbidden": 68,
+      "Library": 79,
+      "LibraryTests": 7,
+      "inventory_by_home": {
+        "test.rs": 52,
+        "derived/mod.rs": 24,
+        "derived/witness/mod.rs": 7,
+        "publication/mod.rs": 3
+      }
+    },
+    "guard_assets": {
+      "proven": 7,
+      "kept": 7,
+      "failed": []
+    },
+    "source_tm": {
+      "findings": 493,
+      "suppressed": 0,
+      "paths": 123
+    },
+    "ownership_graph": {
+      "source": "839190fd547ff7e8d08b05a7c314741a7eec3f47",
+      "raw": "ownership_edges.log",
+      "occurrences": 5104,
+      "unique_edges": 2872,
+      "target_filter": [
+        "/file_dag/derived/owner",
+        "/program/runtime/",
+        "/program/native_walk"
+      ],
+      "targeted_cycles": [],
+      "other_cycles": [
+        [
+          "crates/execution/src/domain/matching/service.rs",
+          "crates/execution/src/domain/matching/types/prepared/value.rs"
+        ],
+        [
+          "crates/execution/src/domain/column_kernel/types.rs",
+          "crates/execution/src/domain/derived_views/types.rs",
+          "crates/execution/src/domain/file_program/types.rs",
+          "crates/execution/src/domain/operator/contract/types.rs",
+          "crates/execution/src/domain/ordered_existence/types.rs",
+          "crates/execution/src/domain/stored_selection/types.rs",
+          "crates/execution/src/domain/table_model/collections/representations/publication.rs"
+        ],
+        [
+          "crates/execution/src/domain/executable_program/column.rs",
+          "crates/execution/src/domain/executable_program/selection.rs",
+          "crates/execution/src/domain/executable_program/types.rs"
+        ],
+        [
+          "crates/execution/src/domain/tree_join/service.rs",
+          "crates/execution/src/domain/tree_join/service/driver.rs"
+        ],
+        [
+          "crates/execution/src/domain/operation_schema/service.rs",
+          "crates/execution/src/domain/operation_schema/types/traversal/value.rs"
+        ],
+        [
+          "crates/execution/src/domain/column_kernel/service.rs",
+          "crates/execution/src/domain/column_kernel/service/driver.rs"
+        ],
+        [
+          "crates/execution/src/application/file_dag/derived/prepare.rs",
+          "crates/execution/src/application/file_dag/derived/request.rs",
+          "crates/execution/src/application/file_dag/derived/request/identity.rs"
+        ],
+        [
+          "crates/execution/src/application/file_dag/invocation.rs",
+          "crates/execution/src/application/file_dag/invocation/groups.rs",
+          "crates/execution/src/application/file_dag/invocation/index.rs"
+        ],
+        [
+          "crates/execution/src/application/file_dag/frontiers/service.rs",
+          "crates/execution/src/application/file_dag/frontiers/types.rs",
+          "crates/execution/src/application/file_dag/program/context.rs",
+          "crates/execution/src/application/file_dag/program/facade_runtime.rs",
+          "crates/execution/src/application/file_dag/program/facade_runtime/file_execution.rs",
+          "crates/execution/src/application/file_dag/program/facade_runtime/project_execution.rs",
+          "crates/execution/src/application/file_dag/program/facade_runtime/source_admission.rs",
+          "crates/execution/src/application/file_dag/program/restored.rs"
+        ],
+        [
+          "crates/execution/src/application/file_dag/acceptance/operator_contract_test/fixtures.rs",
+          "crates/execution/src/application/file_dag/acceptance/operator_contract_test/fixtures/expectations.rs"
+        ]
+      ],
+      "unread_count": 5404,
+      "unread_rust": []
+    }
+  }
+}

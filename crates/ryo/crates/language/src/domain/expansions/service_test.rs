@@ -11,9 +11,8 @@ use crate::domain::elements::types::{Elements, SourceOrder};
 use crate::domain::symbols::service::text_of;
 use crate::domain::symbols::types::ByteSlice;
 use crate::domain::symbols::types::Symbols;
-use ryo_relations::domain::relations::types::{
-    Count, ElementOrigin, EmbeddedMapping, ExpansionId, KindBits, Offset, Position,
-};
+use ryo_relations::domain::relations::types::{Count, KindBits, Offset, Position};
+use ryo_relations::domain::elements::types::{ElementOrigin, EmbeddedMapping, ExpansionId};
 use ryo_relations::domain::terms::types::NameText;
 
 use crate::cases::{Case, CaseName, Expect, Word, run};

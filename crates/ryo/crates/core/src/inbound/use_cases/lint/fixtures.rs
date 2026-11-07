@@ -2,3 +2,4 @@
 //! every product's tests to call.
 
 pub mod contract;
+pub mod engine;

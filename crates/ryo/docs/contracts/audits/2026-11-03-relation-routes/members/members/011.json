@@ -1,0 +1,272 @@
+[
+  {
+    "variant": "Identifier",
+    "module": "identifier",
+    "group": "syntax",
+    "class": "Code",
+    "name": "identifier",
+    "optional": true,
+    "schema": {
+      "path": "crates/ryo/crates/relations/src/domain/relations/collections/relations/identifier/item.rs",
+      "line": 22,
+      "blob_sha256": "921e4cd504da00cba6cd08826169204c285cd5f773617f3b98cb8c1060f3f2f5"
+    },
+    "providers": {
+      "css": {
+        "declaration": "absence:NotYetRead",
+        "reader": null,
+        "capability_promised": false,
+        "effective": "unavailable:NotYetRead (capability not promised)",
+        "anchor": {
+          "path": "crates/ryo/languages/css/src/inbound/contracts/parse/contract.rs",
+          "line": 348,
+          "blob_sha256": "b54658cae65a4e331e6a25d6752ba25669542e0f9a93bb756ee58e36207b63f3"
+        },
+        "declared_semantic_na": null
+      },
+      "go": {
+        "declaration": "absence:NotYetRead",
+        "reader": null,
+        "capability_promised": false,
+        "effective": "unavailable:NotYetRead (capability not promised)",
+        "anchor": {
+          "path": "crates/ryo/languages/go/src/inbound/contracts/parse/contract.rs",
+          "line": 363,
+          "blob_sha256": "a2318c2b8acffc0f31bd35e70ac6396d97a6aa37cabbbd53549c903214e8bf7e"
+        },
+        "declared_semantic_na": null
+      },
+      "html": {
+        "declaration": "absence:NotYetRead",
+        "reader": null,
+        "capability_promised": false,
+        "effective": "unavailable:NotYetRead (capability not promised)",
+        "anchor": {
+          "path": "crates/ryo/languages/html/src/inbound/contracts/parse/contract.rs",
+          "line": 343,
+          "blob_sha256": "a6e047134d7340c4ff22f357ff4fd1961036126697e4d946aa082c38a18abf54"
+        },
+        "declared_semantic_na": null
+      },
+      "javascript": {
+        "declaration": "absence:NotYetRead",
+        "reader": null,
+        "capability_promised": false,
+        "effective": "unavailable:NotYetRead (capability not promised)",
+        "anchor": {
+          "path": "crates/ryo/languages/javascript/src/inbound/contracts/parse/contract.rs",
+          "line": 427,
+          "blob_sha256": "1226c83e2f2ca5013fa69691e3d4df66ba95e60f0383da53c26ba64659348edf"
+        },
+        "declared_semantic_na": null
+      },
+      "json": {
+        "declaration": "absence:NotCode",
+        "reader": null,
+        "capability_promised": true,
+        "effective": "absence:NotCode",
+        "anchor": {
+          "path": "crates/ryo/languages/json/src/inbound/contracts/parse/contract.rs",
+          "line": 333,
+          "blob_sha256": "9a4003c76f14d78a7f5362e85b1c34fa4b902f8ad837245bcacd2402543b8c0c"
+        },
+        "declared_semantic_na": "NotCode"
+      },
+      "markdown": {
+        "declaration": "absence:NotYetRead",
+        "reader": null,
+        "capability_promised": false,
+        "effective": "unavailable:NotYetRead (capability not promised)",
+        "anchor": {
+          "path": "crates/ryo/languages/markdown/src/inbound/contracts/parse/contract.rs",
+          "line": 350,
+          "blob_sha256": "30a175317abe4c1703c7ba28dc8fcafbc200d8bb998c110a14fe151213f263ad"
+        },
+        "declared_semantic_na": null
+      },
+      "python": {
+        "declaration": "reader",
+        "reader": "crate::domain::relations::collections::relations::identifier::item::IdentifierItem,",
+        "capability_promised": true,
+        "effective": "reader",
+        "anchor": {
+          "path": "crates/ryo/languages/python/src/inbound/contracts/parse/contract.rs",
+          "line": 435,
+          "blob_sha256": "50a2071ce341a0b495260df5542b2807bd8b6f87755e2f510cd4a8dbfe8b80cc"
+        },
+        "declared_semantic_na": null
+      },
+      "rust": {
+        "declaration": "absence:NotYetRead",
+        "reader": null,
+        "capability_promised": false,
+        "effective": "unavailable:NotYetRead (capability not promised)",
+        "anchor": {
+          "path": "crates/ryo/languages/rust/src/inbound/contracts/parse/contract.rs",
+          "line": 307,
+          "blob_sha256": "57577e2c7111b99f67530f7c68c66bc522c2b76511f0cf587b775398e2db588a"
+        },
+        "declared_semantic_na": null
+      },
+      "toml": {
+        "declaration": "absence:NotCode",
+        "reader": null,
+        "capability_promised": true,
+        "effective": "absence:NotCode",
+        "anchor": {
+          "path": "crates/ryo/languages/toml/src/inbound/contracts/parse/contract.rs",
+          "line": 333,
+          "blob_sha256": "da8a2b64f487ec0e844263fe15905e1626a445500efe31db2d4926feb85d21ba"
+        },
+        "declared_semantic_na": "NotCode"
+      },
+      "typescript": {
+        "declaration": "absence:NotYetRead",
+        "reader": null,
+        "capability_promised": false,
+        "effective": "unavailable:NotYetRead (capability not promised)",
+        "anchor": {
+          "path": "crates/ryo/languages/typescript/src/inbound/contracts/parse/contract.rs",
+          "line": 425,
+          "blob_sha256": "ad1521ee525b534ceb8d853c7b888dc9d327f395f5719d3de210ba0231dfa2de"
+        },
+        "declared_semantic_na": null
+      }
+    }
+  },
+  {
+    "variant": "ExpressionShape",
+    "module": "expression_shape",
+    "group": "syntax",
+    "class": "Code",
+    "name": "expression-shape",
+    "optional": true,
+    "schema": {
+      "path": "crates/ryo/crates/relations/src/domain/relations/collections/relations/expression_shape/item.rs",
+      "line": 21,
+      "blob_sha256": "d7888d96d46b6df48a718931fa0cecf96146eb7c865896483d9f0019cd7584ba"
+    },
+    "providers": {
+      "css": {
+        "declaration": "absence:NotYetRead",
+        "reader": null,
+        "capability_promised": false,
+        "effective": "unavailable:NotYetRead (capability not promised)",
+        "anchor": {
+          "path": "crates/ryo/languages/css/src/inbound/contracts/parse/contract.rs",
+          "line": 237,
+          "blob_sha256": "b54658cae65a4e331e6a25d6752ba25669542e0f9a93bb756ee58e36207b63f3"
+        },
+        "declared_semantic_na": null
+      },
+      "go": {
+        "declaration": "absence:NotYetRead",
+        "reader": null,
+        "capability_promised": false,
+        "effective": "unavailable:NotYetRead (capability not promised)",
+        "anchor": {
+          "path": "crates/ryo/languages/go/src/inbound/contracts/parse/contract.rs",
+          "line": 252,
+          "blob_sha256": "a2318c2b8acffc0f31bd35e70ac6396d97a6aa37cabbbd53549c903214e8bf7e"
+        },
+        "declared_semantic_na": null
+      },
+      "html": {
+        "declaration": "absence:NotYetRead",
+        "reader": null,
+        "capability_promised": false,
+        "effective": "unavailable:NotYetRead (capability not promised)",
+        "anchor": {
+          "path": "crates/ryo/languages/html/src/inbound/contracts/parse/contract.rs",
+          "line": 232,
+          "blob_sha256": "a6e047134d7340c4ff22f357ff4fd1961036126697e4d946aa082c38a18abf54"
+        },
+        "declared_semantic_na": null
+      },
+      "javascript": {
+        "declaration": "absence:NotYetRead",
+        "reader": null,
+        "capability_promised": false,
+        "effective": "unavailable:NotYetRead (capability not promised)",
+        "anchor": {
+          "path": "crates/ryo/languages/javascript/src/inbound/contracts/parse/contract.rs",
+          "line": 316,
+          "blob_sha256": "1226c83e2f2ca5013fa69691e3d4df66ba95e60f0383da53c26ba64659348edf"
+        },
+        "declared_semantic_na": null
+      },
+      "json": {
+        "declaration": "absence:NotCode",
+        "reader": null,
+        "capability_promised": false,
+        "effective": "unavailable:NotYetRead (capability not promised)",
+        "anchor": {
+          "path": "crates/ryo/languages/json/src/inbound/contracts/parse/contract.rs",
+          "line": 222,
+          "blob_sha256": "9a4003c76f14d78a7f5362e85b1c34fa4b902f8ad837245bcacd2402543b8c0c"
+        },
+        "declared_semantic_na": "NotCode"
+      },
+      "markdown": {
+        "declaration": "absence:NotYetRead",
+        "reader": null,
+        "capability_promised": false,
+        "effective": "unavailable:NotYetRead (capability not promised)",
+        "anchor": {
+          "path": "crates/ryo/languages/markdown/src/inbound/contracts/parse/contract.rs",
+          "line": 239,
+          "blob_sha256": "30a175317abe4c1703c7ba28dc8fcafbc200d8bb998c110a14fe151213f263ad"
+        },
+        "declared_semantic_na": null
+      },
+      "python": {
+        "declaration": "reader",
+        "reader": "crate::domain::relations::collections::relations::expression_shape::item::ExpressionShapeItem",
+        "capability_promised": true,
+        "effective": "reader",
+        "anchor": {
+          "path": "crates/ryo/languages/python/src/inbound/contracts/parse/contract.rs",
+          "line": 311,
+          "blob_sha256": "50a2071ce341a0b495260df5542b2807bd8b6f87755e2f510cd4a8dbfe8b80cc"
+        },
+        "declared_semantic_na": null
+      },
+      "rust": {
+        "declaration": "absence:NotYetRead",
+        "reader": null,
+        "capability_promised": false,
+        "effective": "unavailable:NotYetRead (capability not promised)",
+        "anchor": {
+          "path": "crates/ryo/languages/rust/src/inbound/contracts/parse/contract.rs",
+          "line": 196,
+          "blob_sha256": "57577e2c7111b99f67530f7c68c66bc522c2b76511f0cf587b775398e2db588a"
+        },
+        "declared_semantic_na": null
+      },
+      "toml": {
+        "declaration": "absence:NotCode",
+        "reader": null,
+        "capability_promised": false,
+        "effective": "unavailable:NotYetRead (capability not promised)",
+        "anchor": {
+          "path": "crates/ryo/languages/toml/src/inbound/contracts/parse/contract.rs",
+          "line": 222,
+          "blob_sha256": "da8a2b64f487ec0e844263fe15905e1626a445500efe31db2d4926feb85d21ba"
+        },
+        "declared_semantic_na": "NotCode"
+      },
+      "typescript": {
+        "declaration": "absence:NotYetRead",
+        "reader": null,
+        "capability_promised": false,
+        "effective": "unavailable:NotYetRead (capability not promised)",
+        "anchor": {
+          "path": "crates/ryo/languages/typescript/src/inbound/contracts/parse/contract.rs",
+          "line": 314,
+          "blob_sha256": "ad1521ee525b534ceb8d853c7b888dc9d327f395f5719d3de210ba0231dfa2de"
+        },
+        "declared_semantic_na": null
+      }
+    }
+  }
+]

@@ -4,7 +4,8 @@ use super::service::{
     by_path, catalog_schema, configuration, paths_of, schema_bytes, source_selection_identity,
 };
 use super::types::{DigestColumn, DigestRelation};
-use ryo_relations::domain::relations::types::{CellKind, NameRef};
+use ryo_relations::domain::relations::types::CellKind;
+use ryo_relations::domain::labels::types::NameRef;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::files::types::{CorpusEntry, CorpusInput, FileSize, Nanoseconds};

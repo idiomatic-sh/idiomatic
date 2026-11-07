@@ -200,7 +200,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             };
             let mut tables = tables(&[]);
             tables.hits = Hits::default();
-            yes(govern(&setting, &mut tables, &FilePath(path.into())))
+            yes(govern(&MetadataUseCaseImpl, &setting, &mut tables, &FilePath(path.into())))
         }
         Scenario::Checking(place) => u64::from(checking(FileOrder(place)) == Checking::Now),
         Scenario::AddFed => {
@@ -243,7 +243,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::GovernsRule(rule) => {
             let mut worker = tables(&[]);
             worker.mask = Mask(vec![0b10]);
-            yes(governs_rule(&worker, RuleIndex(rule)))
+            yes(governs_rule(&MetadataUseCaseImpl, &worker, RuleIndex(rule)))
         }
     })
 }

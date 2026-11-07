@@ -1,6 +1,5 @@
 //! Independent worker and fixture commands at the Cargo executable boundary.
 use super::super::{adapter::LinterRuffAdapter, settings::LinterRuffSettings};
-use super::certification::scratch;
 use super::constants;
 use super::constants::{
     CASE_RECEIPT_DESTINATION_MUST_BE_N, CASE_SELECTION, CASE_SELECTION_MUST_BE_NONEMPTY_AN,
@@ -177,7 +176,10 @@ pub(super) fn verify_cases(
     let candidate_observations = tool.rule_observations.clone();
     let candidate_observation_selection = tool.rule_observation_selection;
     let reference = Arc::new(reference(executable, tool)?);
-    let scratch = scratch(suite_source.as_ref(), constants::VERIFY_CASES_SCRATCH)?;
+    let scratch = suite_source.scratch(
+        ArtifactPath(std::path::Path::new(constants::DEFAULT_SCRATCH_ROOT)),
+        constants::VERIFY_CASES_SCRATCH,
+    )?;
     let root = suite_source.ensure_directory(ArtifactPath(&scratch))?;
     let profile = root.join(constants::PROFILE_DIRECTORY);
     ryo_benchmark::inbound::use_cases::stage_suite::use_case::StageSuiteUseCaseImpl::new(
@@ -265,7 +267,10 @@ pub(super) fn verify_reference_cases(
     let tool = suite_source.profile(ArtifactPath(&source))?;
     suite_source.verify_tool(ArtifactPath(&executable), &tool)?;
     let reference = reference(executable, tool)?;
-    let scratch = scratch(&suite_source, constants::VERIFY_REFERENCE_SCRATCH)?;
+    let scratch = suite_source.scratch(
+        ArtifactPath(std::path::Path::new(constants::DEFAULT_SCRATCH_ROOT)),
+        constants::VERIFY_REFERENCE_SCRATCH,
+    )?;
     let root = suite_source.ensure_directory(ArtifactPath(&scratch))?;
     let count = ryo_benchmark::inbound::use_cases::verify_reference_cases::use_case::VerifyReferenceCasesUseCaseImpl::new(&suite_source, &reference, &execution, &ryo_benchmark::outbound::inventory::factory::local()).verify_reference_cases(
         &source.join(crate::constants::RULES_DIRECTORY),
@@ -373,27 +378,4 @@ pub(super) fn audit(
         tool.defaults.len()
     )?;
     ryo_benchmark::domain::suite::service::require_accounted(&result, &tool)
-}
-
-/// Select the declared generic corpus mode and delegate all observation to the shared suite boundary.
-pub(super) fn seal_context(
-    suite: &dyn ryo_benchmark::outbound::suite::interface::SuitePort,
-    mode: ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode,
-    root: &std::path::Path,
-    files: &[ryo::linter::RelativePath],
-    tracked: &[std::path::PathBuf],
-) -> Result<
-    Option<ryo_benchmark_contracts::domain::context::types::ContextManifest>,
-    ryo_benchmark_contracts::domain::reports::errors::ReportsError,
-> {
-    match mode {
-        ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::Isolated => Ok(None),
-        ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::ListedDisk => suite
-            .seal_context(
-                ryo_benchmark::outbound::suite::types::ArtifactPath(root),
-                files,
-                tracked,
-            )
-            .map(Some),
-    }
 }

@@ -1,0 +1,261 @@
+[
+  {
+    "rows": [
+      "B3"
+    ],
+    "disposition": "keep_open",
+    "replacement_evidence": "Runtime issuers, raw derived storage/graph escape and core project-entry bypass are repaired; 70 execution compiler controls and 8 core controls pass. Remove P3-1 as an active defect.",
+    "remaining_responsibility": "Reconcile all current constructor/admission/dispatch/publication/retry/retirement callers with their actual owner and existing controls; the bounded probe inventory is not a whole-production route census."
+  },
+  {
+    "rows": [
+      "B4a.4",
+      "B4d.6"
+    ],
+    "disposition": "fixed_bounded_row",
+    "replacement_evidence": "SP-1 is closed: publication construction binds the exact publication to its proof, including same-owner canonical aliases; publication_constructor_rejects_same_owner_proof_substitution_even_for_canonical_aliases passes in301. Retain the existing current/restored provenance, refusal and population-identity controls; do not retain a constructor repair TODO.",
+    "remaining_responsibility": "No remaining demonstrated SP-1 fault; wider entry combinations are accounted in B4d.13, not by reopening this fixed mismatch."
+  },
+  {
+    "rows": [
+      "B4a.9"
+    ],
+    "disposition": "keep_open",
+    "replacement_evidence": "The actual runtime combined primary-semantic-error/cleanup-refusal control passes, including retained publication replay, atomic repeated retirement, sticky primary error and finish reporting cleanup refusal. All four actual project phase exit controls pass.",
+    "remaining_responsibility": "Complete the existing outer project/file delivery lifecycle census and supply any uncovered combined cleanup-failure/primary-error route controls; the missing proof is not the already-passing runtime conjunction."
+  },
+  {
+    "rows": [
+      "B4b.1"
+    ],
+    "disposition": "fixed_bounded_row",
+    "replacement_evidence": "Core ordinary/named preparation captures the supplied ordered occurrence inventory before preparation; every occurrence settles to task or explicit preparation failure before the private sealed batch can reach CrossFile. The same project-batch-owner guard covers open_project, project rule delivery and evaluate; all17 TM scenarios and all8 real-source core probes pass. Legitimate FileExecution and external SDK singleton paths pass.",
+    "remaining_responsibility": "This proves completeness of the supplied declared batch, not that a caller selected every globally configured root. Current selection/cached-result filtering is legitimate; no omitted production item was demonstrated. File-level TM association does not claim macro or receiver-type inference."
+  },
+  {
+    "rows": [
+      "B4b.4",
+      "B4b.5",
+      "B4b.12"
+    ],
+    "disposition": "retain_closed_update_evidence",
+    "replacement_evidence": "Ordinary and named callers use sealed complete preparation and ordered delivery; creation/preparation/cleanup remain legal. Same-queue singleton behavior remains supported. Add301 core sealing/runtime and8 compiler controls plus17 guard scenarios to historical evidence."
+  },
+  {
+    "rows": [
+      "B4b.10",
+      "B5.8"
+    ],
+    "disposition": "keep_open",
+    "replacement_evidence": "Actual project success, semantic failure, refusal before work and refusal before a later cohort all release real phase leases; file deduplicated external roots retain leases through replay failure and finish; held immutable graph/domain reads survive retirement while new demands reject stale ownership. All pass301.",
+    "remaining_responsibility": "Enumerate the remaining project/file × collected/callback × named/capture/restored failure/cleanup combinations. Reuse the passing controls and add only uncovered cases, especially duplicate external obligations combined with early failure/cleanup refusal in outer project delivery."
+  },
+  {
+    "rows": [
+      "B4c.9",
+      "B4c.11"
+    ],
+    "disposition": "keep_open",
+    "replacement_evidence": "Demanded-rule graph activation is integrated and relevant tests are inside execution452/452; no claim that activation-work coverage is complete.",
+    "remaining_responsibility": "Bind activation entry variants to independent work/allocation counters and demonstrate that adding dormant compiled roots does not add activation work; this is a bounded contract falsifier, not a performance run."
+  },
+  {
+    "rows": [
+      "B4c.12"
+    ],
+    "disposition": "fixed_bounded_control_keep_broader_open",
+    "replacement_evidence": "Deduplicated external-root real-lease/replay/finish control and atomic repeated-retirement/primary-error control pass301. Remove runtime-unrun language.",
+    "remaining_responsibility": "File duplicate-reader controls are proved. Remaining project delivery combinations belong to the shared lifecycle census in B4b.10/B5.8."
+  },
+  {
+    "rows": [
+      "B4d.4"
+    ],
+    "disposition": "retain_closed_update_evidence",
+    "replacement_evidence": "Direct aliases and synthetic observation union roots use actual producer publications; physical census now includes synthetic IDs and reads normalized observation barriers from resolved region.inputs. Actual census and publication controls pass301."
+  },
+  {
+    "rows": [
+      "B4d.12"
+    ],
+    "disposition": "keep_open",
+    "replacement_evidence": "Shared acquisition explicit representation refusal, native/raw success/fault controls and no-retry-on-semantic-error controls pass. Pre-callback ready coverage now distinguishes actual representation refusal from missing dispatch.",
+    "remaining_responsibility": "Finish the actual strategy/consumer decline and error precedence inventory; do not carry the rejected invalid-Project counterexample or the fixed omitted-submit blind spot."
+  },
+  {
+    "rows": [
+      "B4d.13"
+    ],
+    "disposition": "keep_open",
+    "replacement_evidence": "Existing production inbound and public boundary suites pass, including real project exits, named/observed source routes and deduplicated file delivery.",
+    "remaining_responsibility": "Enumerate the reachable file/project × collected/callback × named/capture/restored routes and map each to a real control or documented inapplicability. Whole-route completeness remains unproved."
+  },
+  {
+    "rows": [
+      "B4d.14"
+    ],
+    "disposition": "keep_open",
+    "replacement_evidence": "Exhaustive operation barrier classification, all-catalog relation/operator controls and all13 derived owner family controls pass.",
+    "remaining_responsibility": "Ensure adding a new source/physical route or callable implementation cannot avoid registration in the independent route/proof inventory; existing enum coverage alone does not enforce every callable route."
+  },
+  {
+    "rows": [
+      "B5.2"
+    ],
+    "disposition": "fixed_bounded_row",
+    "replacement_evidence": "The pub(super) issuer alias family is repaired with private runtime issuance and owner-bound capabilities. All46 runtime/admission and24 derived source compiler controls execute and pass in300; production postimages are unchanged at34db. Remove active issuer-alias repair language."
+  },
+  {
+    "rows": [
+      "B5.3",
+      "P3.6"
+    ],
+    "disposition": "fixed_bounded_row",
+    "replacement_evidence": "Only the actual mandatory ready callback can submit owner-admitted walk work. Protected constructors/factories remain private; execution-wide shared-walk placement guard covers aliases; runtime obligation is emitted before the callback. The omitted real callback negative and independent five demanded-root identity control pass301. Remove P3-1 scope-gap language.",
+    "remaining_responsibility": "Current protected ready/dispatch family is proved; registration of future implementations remains B4d.14 and unresolved general TM remains P3.11."
+  },
+  {
+    "rows": [
+      "B5.4",
+      "B5.11"
+    ],
+    "disposition": "fixed_bounded_row",
+    "replacement_evidence": "All70 actual execution-source compiler controls pass:14 authorized positives and56 intended-reason negatives, including internal runtime issuers and derived storage/payload/handle/demand escapes. All8 core sealing probes pass301:3 positives and5 negatives. Do not report only8 historical runtime probes or46 unrun probes."
+  },
+  {
+    "rows": [
+      "B5.5"
+    ],
+    "disposition": "keep_open",
+    "replacement_evidence": "Owner/generation/partition/root/population tests and foreign/stale/publication mismatch negatives pass on registered routes.",
+    "remaining_responsibility": "Finish the authoritative entry-to-retirement caller census and map the scope checks to every reachable boundary; no new failing scope route was found in this bounded successor."
+  },
+  {
+    "rows": [
+      "B5.9",
+      "B5.10",
+      "P3.11"
+    ],
+    "disposition": "keep_open",
+    "replacement_evidence": "Protected owner guards pass their bad/good scenarios and compiler controls, and the runtime cohort compiles/runs. General TM remains failing: graph142, current graph-controls23, walk102 and readiness1 are overlapping scopes, not additive totals; core guard0 with499 other findings.",
+    "remaining_responsibility": "Resolve real derived-owner and native-walk/runtime module cycles, coherent concept/test placement and other in-scope findings without visibility widening, suppression or arbitrary file splitting. Rebind checks to the final combined postimage."
+  },
+  {
+    "rows": [
+      "B5.12"
+    ],
+    "disposition": "retain_closed_update_evidence",
+    "replacement_evidence": "Required suites executed:301 execution452/452 and core177/183 (six recorded deferred output/store failures); core boundary1/1 with8 probes; reused300 execution boundary90/90 with70 probes, benchmark191/191, SDK43/43 and five other libraries155/155. Do not call all libraries green."
+  },
+  {
+    "rows": [
+      "B5.13"
+    ],
+    "disposition": "keep_open",
+    "replacement_evidence": "Trusted CI review validator remains ci/contract_review/command.py; current source review and receipts are retained.",
+    "remaining_responsibility": "Current-source success/failure proof of missing/stale/invalid review and mandatory structural/runtime suite execution remains a separate open gate. This reviewer did not execute it."
+  },
+  {
+    "rows": [
+      "B5.14",
+      "C7"
+    ],
+    "disposition": "update_checkpoint_keep_acceptance_open",
+    "replacement_evidence": "Exact paired successor review binds clean34db/treee8fcca; actual Opus retained round c3ab27e0-c831-4c7a-9b8c-310b50fb0bf1. Bounded functional findings are fixed.301 and demonstrably unchanged300 postimages supply runtime evidence.",
+    "remaining_responsibility": "Combined architectural acceptance remains blocked by in-scope structural TM and stale matrix reconciliation; no entire phase/category approval."
+  },
+  {
+    "rows": [
+      "C4a"
+    ],
+    "disposition": "keep_open",
+    "replacement_evidence": "New scheduler partition/owner admission controls pass including actual publication substitution and complete supplied-batch sealing.",
+    "remaining_responsibility": "Complete the current entry/retirement route census; deferred output lineage remains outside this wave."
+  },
+  {
+    "rows": [
+      "C5"
+    ],
+    "disposition": "retain_deferred_update_policy",
+    "replacement_evidence": "One user-authorized directional N999 full-Django2875 sample at775 is recorded:11.716s wall and1,045,807,104bytes RSS. It has no matched baseline or parity and supplies no acceptance/performance claim.",
+    "remaining_responsibility": "No performance fixes or further measurement are part of this structural wave."
+  },
+  {
+    "rows": [
+      "P3.2"
+    ],
+    "disposition": "fixed_bounded_row",
+    "replacement_evidence": "Physical route slots use actual instruction IDs with absent holes excluded; synthetic union heads are included and classified as observation barriers from resolved inputs. Diagnostic physical total is independently derived from program regions/instruction lengths. Actual two-input synthetic observation controls and independent static eligibility mutation controls pass301."
+  },
+  {
+    "rows": [
+      "P3.5"
+    ],
+    "disposition": "retain_closed_update_evidence",
+    "replacement_evidence": "Zero-column oracle now projects an actual empty output schema while preserving the two-row bag, instead of treating Select kept=[] as empty output. Selection cache controls pass301; output assertions were not weakened."
+  },
+  {
+    "rows": [
+      "P3.7"
+    ],
+    "disposition": "keep_open",
+    "replacement_evidence": "Provider/partition/observation/error barriers and explicit representation refusal controls pass; normalized synthetic observation metadata is fixed.",
+    "remaining_responsibility": "Close the remaining barrier/continuation strategy coverage through the same actual-route census, not by requiring dormant configured heads to execute."
+  },
+  {
+    "rows": [
+      "P3.10"
+    ],
+    "disposition": "keep_open_broader_row",
+    "replacement_evidence": "Real reentrant delivery and held immutable derived handle/read controls pass; owner-private buffers/Arc storage cannot escape the lease.",
+    "remaining_responsibility": "Complete the result-consumer/continuation lifetime mapping across all production routes; passing held graph and current shared-result controls are retained evidence, not an outstanding read defect."
+  },
+  {
+    "rows": [
+      "P3.12"
+    ],
+    "disposition": "keep_open",
+    "replacement_evidence": "Actual canonical413 inventory sharing ran through production RunRyoUseCase in300 and passed1/1. Runtime-ready identities precede ready callbacks and map to compiled classes; missing mapping or omitted dispatch fails.301 independent five demanded-root identity plus skipped-callback negative pass. The twoDispatch fixture repair preserves all assertions and proves first registration from another thread remains observable.",
+    "remaining_responsibility": "The actual413 fixture proves reached eligible heads on one file. It does not execute every dormant rule head or every production physical/source route. Keep the all-route clause open and retain the separate synthetic all-catalog eligibility oracle."
+  },
+  {
+    "rows": [
+      "D1"
+    ],
+    "disposition": "keep_open_category_update_owner",
+    "replacement_evidence": "All13 registered derived kinds participate in required acquisition/admission and family controls; raw positional order has a separately scoped positive/fault family. Owners: derived/request.rs, owner/acquisition/service.rs and owner/acquisition/admission/service.rs.",
+    "remaining_responsibility": "Reconcile every real consumer and direct semantic builder against the registry/proof census; do not repeat the obsolete isolated type-check limitation."
+  },
+  {
+    "rows": [
+      "D2"
+    ],
+    "disposition": "keep_open_category_update_owner",
+    "replacement_evidence": "Actual storage/view/payload/backings are private to derived::owner; AcquiredView in owner/acquisition/admission/service.rs carries the required lease, and semantics storage lives in owner/acquisition/semantics/service.rs. All13 family and boundary controls pass. Remove obsolete derived/view.rs link.",
+    "remaining_responsibility": "Full route accounting and unresolved owner SCC/TM remain; raw storage detachment is fixed."
+  },
+  {
+    "rows": [
+      "D3"
+    ],
+    "disposition": "keep_open_category_update_owner",
+    "replacement_evidence": "Selector/fanout construction, retained postings and publication are under owner/selection/{preparation,candidates,fanout,retention}. Consumers receive leased publication; storage escapes are blocked.",
+    "remaining_responsibility": "Reconcile selected/fanout consumer paths and allocation/refusal/release proof in the same route census; replace obsolete derived/selection paths."
+  },
+  {
+    "rows": [
+      "D4"
+    ],
+    "disposition": "keep_open_category_update_owner",
+    "replacement_evidence": "Graph construction is owner/acquisition/graph; graph memo/handles are owner/graphs; GraphHandle/DomainHandle are opaque and demands validate live owner and exact parent. Axis, closure abort/order, held-read and graph negative controls pass. Remove old graph/build.rs and unrun-controls claims.",
+    "remaining_responsibility": "Full graph/traversal route inventory and owner SCC/TM remain; forged GraphAccess/handle and stale-demand bypasses are fixed."
+  },
+  {
+    "rows": [
+      "D5"
+    ],
+    "disposition": "keep_open_category",
+    "replacement_evidence": "RawKeyOrder remains the distinct thirteenth mechanism under required scoped owner acquisition; raw success and owner-fault route controls pass.",
+    "remaining_responsibility": "Map every prepared-native/raw-position consumer to that scoped family; do not infer every consumer from one family fixture."
+  }
+]

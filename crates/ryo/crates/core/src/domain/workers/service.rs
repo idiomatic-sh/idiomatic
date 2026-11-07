@@ -11,7 +11,6 @@ use ryo_execution::inbound::use_cases::execution::interface::RowsFed;
 use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
 use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::metadata::interface::{Governing, Mask};
-use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::domain::symbols::types::Symbols;
@@ -76,12 +75,13 @@ pub(crate) fn size_at(files: &[CorpusInput], place: FileOrder) -> FileSize {
 
 /// Decides which rules govern the file, once for it; a file no rule governs is neither read nor parsed.
 pub(crate) fn govern(
+    metadata: &impl MetadataUseCase,
     setting: &VisitSetting<'_>,
     tables: &mut Tables,
     path: &FilePath,
 ) -> Governing {
-    MetadataUseCaseImpl.place(setting.placed, path, &mut tables.mask, &mut tables.hits);
-    MetadataUseCaseImpl.governed(&tables.mask)
+    metadata.place(setting.placed, path, &mut tables.mask, &mut tables.hits);
+    metadata.governed(&tables.mask)
 }
 
 /// Whether the visit of the file at `place` reads the memory the process holds: the reading costs more than a file's visit when
@@ -147,8 +147,8 @@ pub(crate) fn order(met: &mut WorkersMet) -> Fresh {
 
 /// Whether the rule governs the file the worker is visiting.
 #[must_use]
-pub(crate) fn governs_rule(tables: &Tables, rule: RuleIndex) -> Governing {
-    MetadataUseCaseImpl.governs(
+pub(crate) fn governs_rule(metadata: &impl MetadataUseCase, tables: &Tables, rule: RuleIndex) -> Governing {
+    metadata.governs(
         &tables.mask,
         RuleNumber(u32::try_from(rule.0).unwrap_or(u32::MAX)),
     )

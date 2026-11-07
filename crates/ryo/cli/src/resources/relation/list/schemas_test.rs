@@ -5,7 +5,7 @@ use std::borrow::Cow;
 use ryo_core::inbound::use_cases::list_relations::types::ListRelationsReport;
 use ryo_values::domain::descriptions::types::RelationSummary;
 
-use ryo_relations::domain::relations::types::Holds;
+use ryo_relations::domain::labels::types::Holds;
 use ryo_values::domain::descriptions::types::RelationName;
 
 use super::AnswerSchema;

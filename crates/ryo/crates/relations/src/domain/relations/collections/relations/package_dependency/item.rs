@@ -3,7 +3,9 @@
 use super::super::interface::RelationsItem;
 use crate::domain::relations::types::{FileId, Flag, Optionality};
 use crate::domain::terms::service::term_symbol;
-use crate::domain::terms::types::{DependencyKind, DependencyOrigin, Symbol};
+use crate::domain::dependency_kind::types::DependencyKind;
+use crate::domain::dependency_origin::types::DependencyOrigin;
+use crate::domain::terms::types::Symbol;
 
 /// `package_dependency`, one item of the `relations` collection.
 #[derive(Clone, Copy, Debug)]

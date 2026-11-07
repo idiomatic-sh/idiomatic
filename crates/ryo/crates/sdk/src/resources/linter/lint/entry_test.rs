@@ -1,3 +1,4 @@
+// ignore: idiomatic.arch/file-length - the proof table of one function: the entry spec admits one entry_test.rs, one row of CASES per promise, so the file cannot split
 //! What `linter lint` promises its caller, one row of `CASES` for each case it has.
 
 use std::collections::BTreeMap;
@@ -5,10 +6,19 @@ use std::num::{NonZeroU64, NonZeroUsize};
 
 use super::entry::lint;
 use super::errors::LintError;
-use super::fixtures::scenarios::{
-    self, HOSTED, LITERAL_PARSE_POSITIVE, OPTIONAL_POSITIVE, Outcome, RAW_FORMAT_POSITIVE,
-    capability_cache, shared,
+use super::fixtures::capability_cache::capability_cache;
+use super::fixtures::hosted_text_identity::hosted_text_identity;
+use super::fixtures::outcome::Outcome;
+use super::fixtures::permission::{permission_bytes, permission_unavailable};
+use super::fixtures::producer_without_query::producer_without_query;
+use super::fixtures::queries::{
+    HOSTED, LITERAL_PARSE_POSITIVE, OPTIONAL_POSITIVE, RAW_FORMAT_POSITIVE,
 };
+use super::fixtures::re_exported_publication::re_exported_publication;
+use super::fixtures::refused_and_empty_producers::refused_and_empty_producers;
+use super::fixtures::shared_calls::shared;
+use super::fixtures::unbound_export::unbound_export;
+use super::fixtures::zero_finding_producer::zero_finding_producer;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::capacity::types::MemoryBudget;
 use crate::domain::cell::types::{Cell, HostNumber, HostText};
@@ -202,7 +212,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         ),
         word: Word::Succeeds,
         input: || Given {
-            linter: Linting::Scenario(scenarios::permission_bytes),
+            linter: Linting::Scenario(permission_bytes),
             ..LINTED
         },
         expect: Expect::Value((1, 1, true, 1)),
@@ -211,7 +221,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("an_unavailable_permission_is_neither_false_nor_a_proven_absence"),
         word: Word::Succeeds,
         input: || Given {
-            linter: Linting::Scenario(scenarios::permission_unavailable),
+            linter: Linting::Scenario(permission_unavailable),
             ..LINTED
         },
         expect: Expect::Value((1, 1, true, 1)),
@@ -220,7 +230,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("changed_hosted_text_invalidates_retained_cross_file_findings"),
         word: Word::Succeeds,
         input: || Given {
-            linter: Linting::Scenario(scenarios::hosted_text_identity),
+            linter: Linting::Scenario(hosted_text_identity),
             ..LINTED
         },
         expect: Expect::Value((1, 0, true, 1)),
@@ -229,7 +239,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_later_rule_publishes_a_nonempty_observation_despite_zero_findings"),
         word: Word::Succeeds,
         input: || Given {
-            linter: Linting::Scenario(scenarios::zero_finding_producer),
+            linter: Linting::Scenario(zero_finding_producer),
             ..LINTED
         },
         expect: Expect::Value((1, 0, true, 1)),
@@ -238,7 +248,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_re_exported_publication_survives_cold_warm_replay_and_a_fresh_engine"),
         word: Word::Succeeds,
         input: || Given {
-            linter: Linting::Scenario(scenarios::re_exported_publication),
+            linter: Linting::Scenario(re_exported_publication),
             ..LINTED
         },
         expect: Expect::Value((1, 0, true, 2)),
@@ -249,7 +259,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         ),
         word: Word::Succeeds,
         input: || Given {
-            linter: Linting::Scenario(scenarios::refused_and_empty_producers),
+            linter: Linting::Scenario(refused_and_empty_producers),
             ..LINTED
         },
         expect: Expect::Value((0, 0, true, 0)),
@@ -258,7 +268,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_selected_producer_with_no_query_is_never_a_complete_empty_input"),
         word: Word::Succeeds,
         input: || Given {
-            linter: Linting::Scenario(scenarios::producer_without_query),
+            linter: Linting::Scenario(producer_without_query),
             ..LINTED
         },
         expect: Expect::Value((0, 0, true, 0)),
@@ -267,7 +277,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("an_unbound_export_demands_no_reader_and_changes_no_ordinary_result"),
         word: Word::Succeeds,
         input: || Given {
-            linter: Linting::Scenario(scenarios::unbound_export),
+            linter: Linting::Scenario(unbound_export),
             ..LINTED
         },
         expect: Expect::Value((1, 0, true, 1)),

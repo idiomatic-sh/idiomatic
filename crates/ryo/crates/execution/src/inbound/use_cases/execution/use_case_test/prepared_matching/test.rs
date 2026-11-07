@@ -206,7 +206,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 program
                     .inner
                     .matchers()
-                    .regex(crate::domain::table_texts::types::TextView("a.*"), crate::domain::matching::types::PatternMatcher(\&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl))
+                    .regex(crate::domain::table_texts::types::TextView("a.*"), crate::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl))
                     .unwrap()
                     .as_ref()
                     .expect("the prepared literal matcher compiled");
@@ -238,7 +238,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 program
                     .inner
                     .matchers()
-                    .regex(crate::domain::table_texts::types::TextView("a.*"), crate::domain::matching::types::PatternMatcher(\&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl))
+                    .regex(crate::domain::table_texts::types::TextView("a.*"), crate::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl))
                     .unwrap()
                     .as_ref()
                     .expect("the prepared literal matcher compiled");

@@ -3,7 +3,8 @@
 use super::super::interface::RelationsItem;
 use crate::domain::relations::types::{FileId, Integer, NodeId, Span};
 use crate::domain::terms::service::term_symbol;
-use crate::domain::terms::types::{ParameterKind, Symbol};
+use crate::domain::parameter_kind::types::ParameterKind;
+use crate::domain::terms::types::Symbol;
 
 /// `parameter`, one item of the `relations` collection.
 #[derive(Clone, Copy, Debug)]

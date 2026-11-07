@@ -2,6 +2,8 @@
 
 pub mod contract;
 pub mod fake;
+pub mod handed;
+pub mod tables;
 
 /// Explicit provenance for store codec fixtures. Production captures always
 /// issue proofs from the prepared rule and its actual physical coverage.

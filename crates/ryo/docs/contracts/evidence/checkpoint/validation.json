@@ -4,584 +4,139 @@
   "checks": {
     "libraries": {
       "source": "da1fe3eff3391b57d11353bf7aff6465b810d422",
-      "command": [
-        "cargo",
-        "test",
-        "--manifest-path",
-        "crates/ryo/Cargo.toml",
-        "--target-dir",
-        "/workspaces/idiomatic-benchmark-guards/target",
-        "--locked",
-        "--offline",
-        "-j6",
-        "--all-features",
-        "-p",
-        "idiomatic-sh-ryo-execution",
-        "-p",
-        "idiomatic-sh-ryo-core",
-        "-p",
-        "idiomatic-sh-ryo-sdk",
-        "-p",
-        "idiomatic-sh-ryo-values",
-        "-p",
-        "idiomatic-sh-ryo-query_language",
-        "-p",
-        "idiomatic-sh-ryo-operators",
-        "-p",
-        "idiomatic-sh-ryo-matching",
-        "-p",
-        "idiomatic-sh-ryo-derived",
-        "--lib",
-        "--no-fail-fast",
-        "-p",
-        "idiomatic-sh-ryo-benchmark",
-        "--",
-        "--test-threads=6"
-      ],
+      "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-benchmark-guards/target", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-execution", "-p", "idiomatic-sh-ryo-core", "-p", "idiomatic-sh-ryo-sdk", "-p", "idiomatic-sh-ryo-values", "-p", "idiomatic-sh-ryo-query_language", "-p", "idiomatic-sh-ryo-operators", "-p", "idiomatic-sh-ryo-matching", "-p", "idiomatic-sh-ryo-derived", "--lib", "--no-fail-fast", "-p", "idiomatic-sh-ryo-benchmark", "--", "--test-threads=6"],
       "exit": 101,
       "elapsed_seconds": 66.42150211334229
     },
     "boundary": {
       "source": "da1fe3eff3391b57d11353bf7aff6465b810d422",
-      "command": [
-        "cargo",
-        "test",
-        "--manifest-path",
-        "crates/ryo/Cargo.toml",
-        "--target-dir",
-        "/workspaces/idiomatic-benchmark-guards/target",
-        "--locked",
-        "--offline",
-        "-j6",
-        "--all-features",
-        "-p",
-        "idiomatic-sh-ryo-execution",
-        "--test",
-        "boundary_contract",
-        "--",
-        "--test-threads=6"
-      ],
+      "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-benchmark-guards/target", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-execution", "--test", "boundary_contract", "--", "--test-threads=6"],
       "exit": 101,
       "elapsed_seconds": 507.37602400779724
     },
     "project_boundary": {
       "source": "da1fe3eff3391b57d11353bf7aff6465b810d422",
-      "command": [
-        "cargo",
-        "test",
-        "--manifest-path",
-        "crates/ryo/Cargo.toml",
-        "--target-dir",
-        "/workspaces/idiomatic-benchmark-guards/target",
-        "--locked",
-        "--offline",
-        "-j6",
-        "--all-features",
-        "-p",
-        "idiomatic-sh-ryo-core",
-        "--test",
-        "project_batch_boundary",
-        "--",
-        "--test-threads=6"
-      ],
+      "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-benchmark-guards/target", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-core", "--test", "project_batch_boundary", "--", "--test-threads=6"],
       "exit": 0,
       "elapsed_seconds": 36.98640584945679
     },
     "activation": {
       "source": "da1fe3eff3391b57d11353bf7aff6465b810d422",
-      "command": [
-        "cargo",
-        "test",
-        "--manifest-path",
-        "crates/ryo/Cargo.toml",
-        "--target-dir",
-        "/workspaces/idiomatic-benchmark-guards/target",
-        "--locked",
-        "--offline",
-        "-j6",
-        "--all-features",
-        "-p",
-        "idiomatic-sh-ryo-execution",
-        "--test",
-        "activation"
-      ],
+      "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-benchmark-guards/target", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-execution", "--test", "activation"],
       "exit": 0,
       "elapsed_seconds": 1.8003120422363281
     },
     "bdd": {
       "source": "da1fe3eff3391b57d11353bf7aff6465b810d422",
-      "command": [
-        "cargo",
-        "test",
-        "--manifest-path",
-        "crates/ryo/Cargo.toml",
-        "--target-dir",
-        "/workspaces/idiomatic-benchmark-guards/target",
-        "--locked",
-        "--offline",
-        "-j6",
-        "--all-features",
-        "-p",
-        "idiomatic-sh-ryo-execution",
-        "--test",
-        "bdd"
-      ],
+      "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-benchmark-guards/target", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-execution", "--test", "bdd"],
       "exit": 0,
       "elapsed_seconds": 2.651642084121704
     },
     "doctest": {
       "source": "da1fe3eff3391b57d11353bf7aff6465b810d422",
-      "command": [
-        "cargo",
-        "test",
-        "--manifest-path",
-        "crates/ryo/Cargo.toml",
-        "--target-dir",
-        "/workspaces/idiomatic-benchmark-guards/target",
-        "--locked",
-        "--offline",
-        "-j6",
-        "--all-features",
-        "-p",
-        "idiomatic-sh-ryo-execution",
-        "--doc"
-      ],
+      "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-benchmark-guards/target", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-execution", "--doc"],
       "exit": 0,
       "elapsed_seconds": 0.855400800704956
     },
     "ruff_sharing": {
       "source": "da1fe3eff3391b57d11353bf7aff6465b810d422",
-      "command": [
-        "cargo",
-        "test",
-        "--manifest-path",
-        "crates/ryo/Cargo.toml",
-        "--target-dir",
-        "/workspaces/idiomatic-benchmark-guards/target",
-        "--locked",
-        "--offline",
-        "-j6",
-        "--all-features",
-        "-p",
-        "idiomatic-sh-ryo-python",
-        "--test",
-        "ruff_sharing",
-        "--",
-        "--test-threads=6",
-        "--skip",
-        "every_strategy_unwired_answers_like_the_wired_engine"
-      ],
+      "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-benchmark-guards/target", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-python", "--test", "ruff_sharing", "--", "--test-threads=6", "--skip", "every_strategy_unwired_answers_like_the_wired_engine"],
       "exit": 0,
       "elapsed_seconds": 54.5976665019989
     },
     "ruff": {
       "source": "da1fe3eff3391b57d11353bf7aff6465b810d422",
-      "command": [
-        "cargo",
-        "test",
-        "--manifest-path",
-        "crates/ryo/Cargo.toml",
-        "--target-dir",
-        "/workspaces/idiomatic-benchmark-guards/target",
-        "--locked",
-        "--offline",
-        "-j6",
-        "--all-features",
-        "-p",
-        "idiomatic-sh-ryo-python",
-        "--test",
-        "ruff",
-        "--no-fail-fast",
-        "--",
-        "--test-threads=6"
-      ],
+      "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-benchmark-guards/target", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-python", "--test", "ruff", "--no-fail-fast", "--", "--test-threads=6"],
       "exit": 101,
       "elapsed_seconds": 21.167140245437622
     },
     "core_bdd": {
       "source": "da1fe3eff3391b57d11353bf7aff6465b810d422",
-      "command": [
-        "cargo",
-        "test",
-        "--manifest-path",
-        "crates/ryo/Cargo.toml",
-        "--target-dir",
-        "/workspaces/idiomatic-benchmark-guards/target",
-        "--locked",
-        "--offline",
-        "-j6",
-        "--all-features",
-        "-p",
-        "idiomatic-sh-ryo-core",
-        "--test",
-        "bdd"
-      ],
+      "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-benchmark-guards/target", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-core", "--test", "bdd"],
       "exit": 0,
       "elapsed_seconds": 3.4252147674560547
     },
     "core_allocation": {
       "source": "da1fe3eff3391b57d11353bf7aff6465b810d422",
-      "command": [
-        "cargo",
-        "test",
-        "--manifest-path",
-        "crates/ryo/Cargo.toml",
-        "--target-dir",
-        "/workspaces/idiomatic-benchmark-guards/target",
-        "--locked",
-        "--offline",
-        "-j6",
-        "--all-features",
-        "-p",
-        "idiomatic-sh-ryo-core",
-        "--test",
-        "allocation"
-      ],
+      "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-benchmark-guards/target", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-core", "--test", "allocation"],
       "exit": 101,
       "elapsed_seconds": 1.81718111038208
     },
     "execution_program_authority": {
       "source": "da1fe3eff3391b57d11353bf7aff6465b810d422",
-      "command": [
-        "cargo",
-        "test",
-        "--manifest-path",
-        "crates/ryo/Cargo.toml",
-        "--target-dir",
-        "/workspaces/idiomatic-benchmark-guards/target",
-        "--locked",
-        "--offline",
-        "-j6",
-        "--all-features",
-        "-p",
-        "idiomatic-sh-ryo-execution",
-        "--test",
-        "executable_program_authority",
-        "--test",
-        "owner_resource_capabilities",
-        "--test",
-        "representation_capabilities",
-        "--no-fail-fast",
-        "--",
-        "--test-threads=6"
-      ],
+      "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-benchmark-guards/target", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-execution", "--test", "executable_program_authority", "--test", "owner_resource_capabilities", "--test", "representation_capabilities", "--no-fail-fast", "--", "--test-threads=6"],
       "exit": 0,
       "elapsed_seconds": 0.9948279857635498
     },
     "doctest_values": {
       "source": "da1fe3eff3391b57d11353bf7aff6465b810d422",
-      "command": [
-        "cargo",
-        "test",
-        "--manifest-path",
-        "crates/ryo/Cargo.toml",
-        "--target-dir",
-        "/workspaces/idiomatic-benchmark-guards/target",
-        "--locked",
-        "--offline",
-        "-j6",
-        "--all-features",
-        "-p",
-        "idiomatic-sh-ryo-values",
-        "--doc"
-      ],
+      "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-benchmark-guards/target", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-values", "--doc"],
       "exit": 0,
       "elapsed_seconds": 1.9074287414550781
     },
     "doctest_core": {
       "source": "da1fe3eff3391b57d11353bf7aff6465b810d422",
-      "command": [
-        "cargo",
-        "test",
-        "--manifest-path",
-        "crates/ryo/Cargo.toml",
-        "--target-dir",
-        "/workspaces/idiomatic-benchmark-guards/target",
-        "--locked",
-        "--offline",
-        "-j6",
-        "--all-features",
-        "-p",
-        "idiomatic-sh-ryo-core",
-        "--doc"
-      ],
+      "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-benchmark-guards/target", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-core", "--doc"],
       "exit": 0,
       "elapsed_seconds": 0.3736751079559326
     },
     "doctest_sdk": {
       "source": "da1fe3eff3391b57d11353bf7aff6465b810d422",
-      "command": [
-        "cargo",
-        "test",
-        "--manifest-path",
-        "crates/ryo/Cargo.toml",
-        "--target-dir",
-        "/workspaces/idiomatic-benchmark-guards/target",
-        "--locked",
-        "--offline",
-        "-j6",
-        "--all-features",
-        "-p",
-        "idiomatic-sh-ryo-sdk",
-        "--doc"
-      ],
+      "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-benchmark-guards/target", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-sdk", "--doc"],
       "exit": 0,
       "elapsed_seconds": 20.28496026992798
     },
     "doctest_derived": {
       "source": "da1fe3eff3391b57d11353bf7aff6465b810d422",
-      "command": [
-        "cargo",
-        "test",
-        "--manifest-path",
-        "crates/ryo/Cargo.toml",
-        "--target-dir",
-        "/workspaces/idiomatic-benchmark-guards/target",
-        "--locked",
-        "--offline",
-        "-j6",
-        "--all-features",
-        "-p",
-        "idiomatic-sh-ryo-derived",
-        "--doc"
-      ],
+      "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-benchmark-guards/target", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-derived", "--doc"],
       "exit": 0,
       "elapsed_seconds": 1.8624992370605469
     },
     "tm_import_cli": {
       "source": "da1fe3eff3391b57d11353bf7aff6465b810d422",
-      "command": [
-        "cargo",
-        "test",
-        "--manifest-path",
-        "crates/tastemaker/Cargo.toml",
-        "--target-dir",
-        "/workspaces/idiomatic-benchmark-guards/target",
-        "--locked",
-        "--offline",
-        "-j6",
-        "-p",
-        "idiomatic-sh-tastemaker",
-        "--no-default-features",
-        "--features",
-        "rust,toml",
-        "--test",
-        "replay",
-        "imports::visibility_scopes_do_not_authorize_real_imports_types_or_calls",
-        "--",
-        "--exact"
-      ],
+      "command": ["cargo", "test", "--manifest-path", "crates/tastemaker/Cargo.toml", "--target-dir", "/workspaces/idiomatic-benchmark-guards/target", "--locked", "--offline", "-j6", "-p", "idiomatic-sh-tastemaker", "--no-default-features", "--features", "rust,toml", "--test", "replay", "imports::visibility_scopes_do_not_authorize_real_imports_types_or_calls", "--", "--exact"],
       "exit": 0,
       "elapsed_seconds": 0.7329699993133545
     },
     "tm_cli_source": {
       "source": "da1fe3eff3391b57d11353bf7aff6465b810d422",
-      "command": [
-        "tm",
-        "--root",
-        "crates/tastemaker",
-        "check",
-        "--fix",
-        "cli/tests/replay/imports.rs",
-        "--format",
-        "json"
-      ],
+      "command": ["tm", "--root", "crates/tastemaker", "check", "--fix", "cli/tests/replay/imports.rs", "--format", "json"],
       "exit": 0,
       "elapsed_seconds": 0.39664697647094727
     },
     "conformance": {
       "source": "da1fe3eff3391b57d11353bf7aff6465b810d422",
-      "command": [
-        "cargo",
-        "test",
-        "--manifest-path",
-        "crates/ryo/Cargo.toml",
-        "--target-dir",
-        "/workspaces/idiomatic-benchmark-guards/target",
-        "--locked",
-        "--offline",
-        "-j6",
-        "--all-features",
-        "-p",
-        "idiomatic-sh-ryo-css",
-        "-p",
-        "idiomatic-sh-ryo-go",
-        "-p",
-        "idiomatic-sh-ryo-html",
-        "-p",
-        "idiomatic-sh-ryo-javascript",
-        "-p",
-        "idiomatic-sh-ryo-json",
-        "-p",
-        "idiomatic-sh-ryo-markdown",
-        "-p",
-        "idiomatic-sh-ryo-python",
-        "-p",
-        "idiomatic-sh-ryo-rust",
-        "-p",
-        "idiomatic-sh-ryo-toml",
-        "-p",
-        "idiomatic-sh-ryo-typescript",
-        "--test",
-        "conformance",
-        "--no-fail-fast"
-      ],
+      "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-benchmark-guards/target", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-css", "-p", "idiomatic-sh-ryo-go", "-p", "idiomatic-sh-ryo-html", "-p", "idiomatic-sh-ryo-javascript", "-p", "idiomatic-sh-ryo-json", "-p", "idiomatic-sh-ryo-markdown", "-p", "idiomatic-sh-ryo-python", "-p", "idiomatic-sh-ryo-rust", "-p", "idiomatic-sh-ryo-toml", "-p", "idiomatic-sh-ryo-typescript", "--test", "conformance", "--no-fail-fast"],
       "exit": 0,
       "elapsed_seconds": 195.00667071342468
     },
     "cli_tests": {
       "source": "da1fe3eff3391b57d11353bf7aff6465b810d422",
-      "command": [
-        "cargo",
-        "test",
-        "--manifest-path",
-        "crates/ryo/Cargo.toml",
-        "--target-dir",
-        "/workspaces/idiomatic-benchmark-guards/target",
-        "--locked",
-        "--offline",
-        "-j6",
-        "--all-features",
-        "-p",
-        "idiomatic-sh-ryo",
-        "--test",
-        "replay",
-        "--test",
-        "blocks",
-        "--test",
-        "call_count",
-        "--test",
-        "command_line",
-        "--test",
-        "command_tree",
-        "--test",
-        "readme",
-        "--no-fail-fast",
-        "--",
-        "--skip",
-        "cost::"
-      ],
+      "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-benchmark-guards/target", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo", "--test", "replay", "--test", "blocks", "--test", "call_count", "--test", "command_line", "--test", "command_tree", "--test", "readme", "--no-fail-fast", "--", "--skip", "cost::"],
       "exit": 101,
       "elapsed_seconds": 1147.4013566970825
     },
     "cli_cost": {
       "source": "da1fe3eff3391b57d11353bf7aff6465b810d422",
-      "command": [
-        "cargo",
-        "test",
-        "--manifest-path",
-        "crates/ryo/Cargo.toml",
-        "--target-dir",
-        "/workspaces/idiomatic-benchmark-guards/target",
-        "--locked",
-        "--offline",
-        "-j6",
-        "--all-features",
-        "-p",
-        "idiomatic-sh-ryo",
-        "--test",
-        "replay",
-        "cost::",
-        "--",
-        "--test-threads=1",
-        "--nocapture"
-      ],
+      "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-benchmark-guards/target", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo", "--test", "replay", "cost::", "--", "--test-threads=1", "--nocapture"],
       "exit": 101,
       "elapsed_seconds": 35.08245801925659
     },
     "bench_build": {
       "source": "da1fe3eff3391b57d11353bf7aff6465b810d422",
-      "command": [
-        "cargo",
-        "bench",
-        "--no-run",
-        "--manifest-path",
-        "crates/ryo/Cargo.toml",
-        "--target-dir",
-        "/workspaces/idiomatic-benchmark-guards/target",
-        "--locked",
-        "--offline",
-        "-j6",
-        "--all-features",
-        "-p",
-        "idiomatic-sh-ryo",
-        "--bench",
-        "lint",
-        "-p",
-        "idiomatic-sh-ryo-core",
-        "--benches"
-      ],
+      "command": ["cargo", "bench", "--no-run", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-benchmark-guards/target", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo", "--bench", "lint", "-p", "idiomatic-sh-ryo-core", "--benches"],
       "exit": 0,
       "elapsed_seconds": 116.68327021598816
     },
     "no_print": {
       "source": "da1fe3eff3391b57d11353bf7aff6465b810d422",
-      "command": [
-        "cargo",
-        "clippy",
-        "--manifest-path",
-        "crates/ryo/Cargo.toml",
-        "--target-dir",
-        "/workspaces/idiomatic-benchmark-guards/target",
-        "--locked",
-        "--offline",
-        "-j6",
-        "--all-features",
-        "-p",
-        "idiomatic-sh-ryo-execution",
-        "-p",
-        "idiomatic-sh-ryo-core",
-        "--lib",
-        "--no-deps",
-        "--",
-        "-A",
-        "clippy::all",
-        "-A",
-        "clippy::pedantic",
-        "-A",
-        "clippy::nursery",
-        "-A",
-        "clippy::restriction",
-        "-A",
-        "clippy::cargo",
-        "-A",
-        "dead_code",
-        "-A",
-        "unused",
-        "-D",
-        "clippy::print_stderr",
-        "-D",
-        "clippy::print_stdout"
-      ],
+      "command": ["cargo", "clippy", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-benchmark-guards/target", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-execution", "-p", "idiomatic-sh-ryo-core", "--lib", "--no-deps", "--", "-A", "clippy::all", "-A", "clippy::pedantic", "-A", "clippy::nursery", "-A", "clippy::restriction", "-A", "clippy::cargo", "-A", "dead_code", "-A", "unused", "-D", "clippy::print_stderr", "-D", "clippy::print_stdout"],
       "exit": 0,
       "elapsed_seconds": 6.068734407424927
     },
     "tm_source": {
       "source": "da1fe3eff3391b57d11353bf7aff6465b810d422",
-      "command": [
-        "tm",
-        "--root",
-        "crates/ryo",
-        "check",
-        "crates/execution/src/application/file_dag/program",
-        "crates/execution/src/application/file_dag/invocation",
-        "crates/execution/src/application/file_dag/derived",
-        "crates/execution/src/domain/shared_walk",
-        "crates/execution/tests/shared_walk",
-        "crates/execution/src/domain/executable_program",
-        "crates/execution/src/domain/step_classes",
-        "crates/execution/src/domain/completion",
-        "crates/execution/src/domain/coverage",
-        "crates/execution/src/domain/frontiers",
-        "crates/execution/src/application/file_dag/frontiers",
-        "crates/core/src/application/file_analysis",
-        "crates/core/src/inbound/use_cases/lint",
-        "crates/core/src/domain/storing",
-        "crates/core/src/outbound/lint_store",
-        "crates/execution/src/domain/trust",
-        "--format",
-        "json"
-      ],
+      "command": ["tm", "--root", "crates/ryo", "check", "crates/execution/src/application/file_dag/program", "crates/execution/src/application/file_dag/invocation", "crates/execution/src/application/file_dag/derived", "crates/execution/src/domain/shared_walk", "crates/execution/tests/shared_walk", "crates/execution/src/domain/executable_program", "crates/execution/src/domain/step_classes", "crates/execution/src/domain/completion", "crates/execution/src/domain/coverage", "crates/execution/src/domain/frontiers", "crates/execution/src/application/file_dag/frontiers", "crates/core/src/application/file_analysis", "crates/core/src/inbound/use_cases/lint", "crates/core/src/domain/storing", "crates/core/src/outbound/lint_store", "crates/execution/src/domain/trust", "--format", "json"],
       "exit": 1,
       "elapsed_seconds": 16.613791942596436,
       "findings": {
@@ -590,131 +145,46 @@
         "production": 177,
         "test": 73,
         "by_directory": {
-          "crates/execution/src/application/file_dag/program": {
-            "production": 12,
-            "test": 27
-          },
-          "crates/execution/src/application/file_dag/invocation": {
-            "production": 0,
-            "test": 0
-          },
-          "crates/execution/src/application/file_dag/derived": {
-            "production": 23,
-            "test": 0
-          },
-          "crates/execution/src/domain/shared_walk": {
-            "production": 0,
-            "test": 6
-          },
-          "crates/execution/tests/shared_walk": {
-            "production": 0,
-            "test": 8
-          },
-          "crates/execution/src/domain/executable_program": {
-            "production": 67,
-            "test": 0
-          },
-          "crates/execution/src/domain/step_classes": {
-            "production": 0,
-            "test": 1
-          },
-          "crates/execution/src/domain/completion": {
-            "production": 5,
-            "test": 10
-          },
-          "crates/execution/src/domain/coverage": {
-            "production": 5,
-            "test": 7
-          },
-          "crates/execution/src/domain/frontiers": {
-            "production": 0,
-            "test": 0
-          },
-          "crates/execution/src/application/file_dag/frontiers": {
-            "production": 0,
-            "test": 0
-          },
-          "crates/core/src/application/file_analysis": {
-            "production": 3,
-            "test": 1
-          },
-          "crates/core/src/inbound/use_cases/lint": {
-            "production": 12,
-            "test": 2
-          },
-          "crates/core/src/domain/storing": {
-            "production": 1,
-            "test": 1
-          },
-          "crates/core/src/outbound/lint_store": {
-            "production": 47,
-            "test": 10
-          },
-          "crates/execution/src/domain/trust": {
-            "production": 2,
-            "test": 0
-          }
+          "crates/execution/src/application/file_dag/program": {"production": 12, "test": 27},
+          "crates/execution/src/application/file_dag/invocation": {"production": 0, "test": 0},
+          "crates/execution/src/application/file_dag/derived": {"production": 23, "test": 0},
+          "crates/execution/src/domain/shared_walk": {"production": 0, "test": 6},
+          "crates/execution/tests/shared_walk": {"production": 0, "test": 8},
+          "crates/execution/src/domain/executable_program": {"production": 67, "test": 0},
+          "crates/execution/src/domain/step_classes": {"production": 0, "test": 1},
+          "crates/execution/src/domain/completion": {"production": 5, "test": 10},
+          "crates/execution/src/domain/coverage": {"production": 5, "test": 7},
+          "crates/execution/src/domain/frontiers": {"production": 0, "test": 0},
+          "crates/execution/src/application/file_dag/frontiers": {"production": 0, "test": 0},
+          "crates/core/src/application/file_analysis": {"production": 3, "test": 1},
+          "crates/core/src/inbound/use_cases/lint": {"production": 12, "test": 2},
+          "crates/core/src/domain/storing": {"production": 1, "test": 1},
+          "crates/core/src/outbound/lint_store": {"production": 47, "test": 10},
+          "crates/execution/src/domain/trust": {"production": 2, "test": 0}
         }
       }
     },
     "tm_guards": {
       "source": "da1fe3eff3391b57d11353bf7aff6465b810d422",
-      "command": [
-        "tm",
-        "--root",
-        "crates/ryo",
-        "validate",
-        "rule/program-implementation-boundary",
-        "rule/shared-walk-owner",
-        "rule/collection-members",
-        "rule/runtime-authority",
-        "template/value",
-        "template/value-module",
-        "template/value-test",
-        "--format",
-        "json"
-      ],
+      "command": ["tm", "--root", "crates/ryo", "validate", "rule/program-implementation-boundary", "rule/shared-walk-owner", "rule/collection-members", "rule/runtime-authority", "template/value", "template/value-module", "template/value-test", "--format", "json"],
       "exit": 0,
       "elapsed_seconds": 0.033350229263305664
     },
     "ownership_edges": {
       "source": "da1fe3eff3391b57d11353bf7aff6465b810d422",
-      "command": [
-        "ryo",
-        "query",
-        "run",
-        "--root",
-        "crates/ryo",
-        "--text",
-        "let nodes = select id, kind, file, span from \"syntax-tree\" where text = \"\" and glob_any(file, \"crates/execution/src/**\");\nlet paths = select * from nodes where kind = \"path\";\nlet visibility = select * from nodes where kind = \"visibility\";\nlet nested = axis(from=visibility, relation=\"syntax-child\", direction=descendant, domain=paths);\nlet restricted = select r.file as source, r.span as span from nested as l join paths as r on l.related = r.id;\nlet declared = select source, target, written, span from \"source-dependency\" where glob_any(source, \"crates/execution/src/**\");\nlet dependencies = antijoin(left=declared, right=restricted, left-on=[\"source\",\"span\"], right-on=[\"source\",\"span\"]);\nemit dependencies subject source key(source,target,written,span);\n",
-        "--limit",
-        "100000",
-        "--format",
-        "json"
-      ],
+      "command": ["ryo", "query", "run", "--root", "crates/ryo", "--text", "let nodes = select id, kind, file, span from \"syntax-tree\" where text = \"\" and glob_any(file, \"crates/execution/src/**\");\nlet paths = select * from nodes where kind = \"path\";\nlet visibility = select * from nodes where kind = \"visibility\";\nlet nested = axis(from=visibility, relation=\"syntax-child\", direction=descendant, domain=paths);\nlet restricted = select r.file as source, r.span as span from nested as l join paths as r on l.related = r.id;\nlet declared = select source, target, written, span from \"source-dependency\" where glob_any(source, \"crates/execution/src/**\");\nlet dependencies = antijoin(left=declared, right=restricted, left-on=[\"source\",\"span\"], right-on=[\"source\",\"span\"]);\nemit dependencies subject source key(source,target,written,span);\n", "--limit", "100000", "--format", "json"],
       "exit": 0,
       "elapsed_seconds": 0.9452271461486816
     },
     "harness_hooks": {
       "source": "da1fe3eff3391b57d11353bf7aff6465b810d422",
-      "command": [
-        "sh",
-        "-c",
-        "cd .claude/hooks && python3 -I -m unittest -v"
-      ],
+      "command": ["sh", "-c", "cd .claude/hooks && python3 -I -m unittest -v"],
       "exit": 0,
       "elapsed_seconds": 1.1176016330718994
     },
     "tm_validate_no_heap_accounting": {
       "source": "da1fe3eff3391b57d11353bf7aff6465b810d422",
-      "command": [
-        "tm",
-        "validate",
-        "rule/no-heap-accounting@0.2.0",
-        "spec/idiomatic-rust@0.1.2",
-        "--format",
-        "json"
-      ],
+      "command": ["tm", "validate", "rule/no-heap-accounting@0.2.0", "spec/idiomatic-rust@0.1.2", "--format", "json"],
       "exit": 0,
       "elapsed_seconds": 0.03801226615905762
     }
@@ -723,55 +193,37 @@
     "execution_library": {
       "passed": 549,
       "failed": 2,
-      "note": "the two are the errored_rule rows (compiled_parity and use_case_test), bead ryo-66jv"
+      "note": "the two are the errored_rule rows (compiled_parity and use_case_test)"
     },
     "core_library": {
       "passed": 108,
       "failed": 2,
-      "note": "application::file_analysis::service_test::succeeds (staged replay of an unrequested span) and lint::use_case_test::succeeds (a_removed_file_leaves_no_unknown_or_skip_behind_in_any_store), beads ryo-66jv and ryo-xqxb"
+      "note": "application::file_analysis::service_test::succeeds (staged replay of an unrequested span) and lint::use_case_test::succeeds (a_removed_file_leaves_no_unknown_or_skip_behind_in_any_store)"
     },
     "benchmark_passed": 154,
     "sdk_passed": 29,
     "other_libraries_passed": 181,
-    "libraries_total": {
-      "passed": 1021,
-      "failed": 4
-    },
+    "libraries_total": {"passed": 1021, "failed": 4},
     "execution_boundary": {
       "passed": 98,
       "failed": 5,
-      "note": "the five project_phase::restoration::partition rows (step-key anchoring against file-key narrowing), bead ryo-66jv"
+      "note": "the five project_phase::restoration::partition rows (step-key anchoring against file-key narrowing)"
     },
-    "activation": {
-      "passed": 10,
-      "failed": 0
-    },
-    "bdd": {
-      "scenarios": 3,
-      "failed": 0
-    },
-    "core_bdd": {
-      "scenarios": 5,
-      "failed": 0
-    },
-    "core_project_boundary": {
-      "passed": 1,
-      "failed": 0
-    },
+    "activation": {"passed": 10, "failed": 0},
+    "bdd": {"scenarios": 3, "failed": 0},
+    "core_bdd": {"scenarios": 5, "failed": 0},
+    "core_project_boundary": {"passed": 1, "failed": 0},
     "ruff_sharing": {
       "passed": 1,
       "failed": 0,
-      "note": "sharing::test::succeeds; the route differential every_strategy_unwired_answers_like_the_wired_engine is left to its quiet-machine run (bead ryo-2lzn)"
+      "note": "sharing::test::succeeds; the route differential every_strategy_unwired_answers_like_the_wired_engine is left to its quiet-machine run"
     },
     "ruff": {
       "passed": 11,
       "failed": 1,
-      "note": "engine_test::succeeds: the I001 observation row (the valid file keeps its I001-derived answer, 0 against 1) fails with the same step-key anchoring as the partition rows; it was green at validation318; beads ryo-66jv and ryo-xqxb"
+      "note": "engine_test::succeeds: the I001 observation row (the valid file keeps its I001-derived answer, 0 against 1) fails with the same step-key anchoring as the partition rows; it was green at validation318;"
     },
-    "execution_program_authority": {
-      "passed": 9,
-      "failed": 0
-    },
+    "execution_program_authority": {"passed": 9, "failed": 0},
     "doctests": {
       "execution": 16,
       "core": 1,
@@ -783,36 +235,17 @@
     "tm_import_cli": "pass",
     "tm_cli_source_findings": 0,
     "tm_guards": "pass",
-    "core_allocation": {
-      "exit": 101,
-      "phase": 7,
-      "bead": "ryo-l3mj"
-    },
-    "cli_replay": {
-      "passed": 73,
-      "failed": 5
-    },
-    "cli_replay_reds": [
-      "behavior::what_ryo_could_not_decide_over_ruff_is_the_golden_or_a_recorded_difference",
-      "behavior::every_recorded_rule_gives_the_recorded_rows",
-      "behavior::ruff_rules_feed_every_catalog_feature_a_thousand_rows",
-      "cache::every_recorded_rule_gives_over_ruff_the_rows_a_warm_run_gives_again_from_a_small_store",
-      "peak::a_warm_unchanged_run_over_ruff_peaks_within_its_bound"
-    ],
+    "core_allocation": {"exit": 101, "phase": 7},
+    "cli_replay": {"passed": 73, "failed": 5},
+    "cli_replay_reds": ["behavior::what_ryo_could_not_decide_over_ruff_is_the_golden_or_a_recorded_difference", "behavior::every_recorded_rule_gives_the_recorded_rows", "behavior::ruff_rules_feed_every_catalog_feature_a_thousand_rows", "cache::every_recorded_rule_gives_over_ruff_the_rows_a_warm_run_gives_again_from_a_small_store", "peak::a_warm_unchanged_run_over_ruff_peaks_within_its_bound"],
     "cli_cost": {
       "passed": 4,
       "failed": 3,
-      "note": "the ratchet holds placeholder bests until the perf agent seeds it on a quiet lock (bead ryo-lc9m)"
+      "note": "the ratchet holds placeholder bests until the perf agent seeds it on a quiet lock"
     },
     "cli_other_targets": "blocks (dhat run, no panic), call_count 1/1, command_line 7/7, command_tree 11/11, readme 1/1",
-    "conformance": {
-      "targets": 10,
-      "exit": 0
-    },
-    "harness_hooks": {
-      "passed": 15,
-      "failed": 0
-    }
+    "conformance": {"targets": 10, "exit": 0},
+    "harness_hooks": {"passed": 15, "failed": 0}
   },
   "ownership_graph": {
     "source": "da1fe3eff3391b57d11353bf7aff6465b810d422",
@@ -820,7 +253,7 @@
     "occurrences": 7376,
     "targeted_cycles": [],
     "other_cycles": 1,
-    "note": "file-level strongly connected components of the ownership edges, computed from ownership_edges.log of validation319: 1 (gate <= 6 holds), the pair native_walk.rs and native_walk/project/service.rs introduced by the project-stage walk (bead ryo-ukm7); 0 at validation318."
+    "note": "file-level strongly connected components of the ownership edges, computed from ownership_edges.log of validation319: 1 (gate <= 6 holds), the pair native_walk.rs and native_walk/project/service.rs introduced by the project-stage walk; 0 at validation318."
   },
   "evidence_reuse": [],
   "review": "../../audits/2026-11-06-derived/ownership/checkpoint.json",
@@ -912,9 +345,7 @@
       "suppressed": 0,
       "production": 0,
       "test": 0,
-      "scoped_directories": {
-        "cli/tests/replay/imports.rs": 0
-      }
+      "scoped_directories": {"cli/tests/replay/imports.rs": 0}
     },
     "tm_source": {
       "findings": 250,

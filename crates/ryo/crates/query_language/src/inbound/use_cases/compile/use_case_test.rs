@@ -1,6 +1,10 @@
 //! What the `compile` use case promises, against the fakes of the ports it calls.
 
 use super::errors::CompileError;
+use super::fixtures::{
+    Given, catalog_without_relations, comparing_text_with_a_number, emitting_a_step_nobody_defined,
+    failing_catalog, same_text_twice, text_the_fake_refuses, text_the_fake_reads,
+};
 use super::interface::CompileUseCase;
 use ryo_values::domain::plans::types::QueryRequest;
 use super::use_case::CompileUseCaseImpl;
@@ -10,38 +14,15 @@ use crate::cases::Expect;
 use crate::cases::Word;
 use crate::cases::run;
 use crate::outbound::catalog::fixtures::fake::CatalogFake;
-use crate::outbound::syntax::fixtures::fake::SyntaxFake;
 use crate::outbound::syntax::fixtures::winnow::winnow;
 use crate::selects;
 use ryo_relations::domain::relations::types::CellKind;
-use ryo_relations::domain::relations::types::Integer;
 use ryo_relations::domain::relations::types::Relation;
-use ryo_values::domain::descriptions::types::ColumnName;
-use ryo_values::domain::hosted::types::HostedRelation;
 use ryo_values::domain::observations::types::{
     BoundObservationInput, ObservationBindingName, ObservationColumn, ObservationColumnName,
 };
 use ryo_values::domain::plan_parts::types::QueryText;
 use ryo_values::domain::plan_parts::types::StepScope;
-use ryo_values::domain::program::types::LetStep;
-use ryo_values::domain::program::types::WrittenEmit;
-use ryo_values::domain::program::types::WrittenProgram;
-use ryo_values::domain::query_syntax::types::Alias;
-use ryo_values::domain::query_syntax::types::Columns;
-use ryo_values::domain::query_syntax::types::Condition;
-use ryo_values::domain::query_syntax::types::Expression;
-use ryo_values::domain::query_syntax::types::Filter;
-use ryo_values::domain::query_syntax::types::Joining;
-use ryo_values::domain::query_syntax::types::QuerySource;
-use ryo_values::domain::query_syntax::types::Select;
-use ryo_values::domain::query_syntax::types::SourceReference;
-use ryo_values::domain::query_syntax::types::WrittenOperand;
-use ryo_values::domain::query_syntax::types::WrittenTest;
-use ryo_values::domain::query_tokens::types::ByteOffset;
-use ryo_values::domain::query_tokens::types::QuerySpan;
-use ryo_values::domain::query_tokens::types::StepName;
-use ryo_values::domain::query_tokens::types::WrittenLiteral;
-use ryo_values::domain::query_tokens::types::WrittenRelation;
 use std::sync::Arc;
 
 /// What a row gives the use case.
@@ -49,11 +30,6 @@ type Input = fn() -> Given;
 /// What a row answers.
 type Value = usize;
 type Failure = CompileError;
-
-const NOWHERE: QuerySpan = QuerySpan {
-    start: ByteOffset(0),
-    end: ByteOffset(0),
-};
 
 /// The functions of each name counted by the files they are in: only the name and the file are asked of the rows.
 const DISTINCT_COUNT: &str = "let f = select * from \"function\"; let c = group-count(from=f, keys=[\"name\"], count=\"n\", distinct=\"file\"); emit c subject name key(n);";
@@ -65,131 +41,6 @@ const SELECT_CLOSURE: &str = "select closure";
 const ORDERED_DFS: &str = "ordered-dfs";
 /// The operations of a plan that counts groups by distinct values, with the rows cut to the columns asked.
 const SELECT_GROUP_COUNT_STAR: &str = "select group-count*";
-
-/// What a row gives the use case: the ports it calls, and the text.
-struct Given {
-    syntax: SyntaxFake,
-    catalog: CatalogFake,
-    text: &'static str,
-    observations: Vec<BoundObservationInput>,
-    hosted: Vec<HostedRelation>,
-}
-
-fn read_function(filters: Vec<Filter>) -> LetStep {
-    LetStep {
-        name: StepName(
-            "functions".into(),
-            ryo_values::domain::query_tokens::types::StepIdentified::Unassigned,
-        ),
-        expression: Expression::Select(Select {
-            columns: Columns::Every,
-            from: QuerySource {
-                reference: SourceReference::Relation(WrittenRelation("function".into())),
-                alias: Alias::Unwritten,
-                span: NOWHERE,
-            },
-            join: Joining::Alone,
-            filters: filters.into_iter().map(Condition::Test).collect(),
-        }),
-        span: NOWHERE,
-    }
-}
-
-fn program_with(filters: Vec<Filter>) -> WrittenProgram {
-    WrittenProgram {
-        linked: ryo_values::domain::query_tokens::types::Linking::Unlinked,
-        imports: Vec::new(),
-        origins: Vec::new(),
-        fragment_contracts: Vec::new(),
-        step_origins: std::collections::BTreeMap::new(),
-        observations: Vec::new(),
-        emit_origin: ryo_values::domain::query_tokens::types::Attribution::Unlocated,
-        parameters: Vec::new(),
-        steps: vec![read_function(filters)],
-        emit: WrittenEmit {
-            step: StepName(
-                "functions".into(),
-                ryo_values::domain::query_tokens::types::StepIdentified::Unassigned,
-            ),
-            subject: ColumnName("file".into()),
-            key: vec![ColumnName("span".into())],
-            span: NOWHERE,
-        },
-    }
-}
-
-fn text_the_fake_reads() -> Given {
-    Given {
-        syntax: SyntaxFake {
-            program: program_with(Vec::new()),
-        },
-        catalog: CatalogFake::default(),
-        text: "emit",
-        observations: Vec::new(),
-        hosted: Vec::new(),
-    }
-}
-
-fn text_the_fake_refuses() -> Given {
-    Given {
-        syntax: SyntaxFake::default(),
-        catalog: CatalogFake::default(),
-        text: "let a = ;",
-        observations: Vec::new(),
-        hosted: Vec::new(),
-    }
-}
-
-fn catalog_without_relations() -> Given {
-    Given {
-        catalog: CatalogFake {
-            relations: Vec::new(),
-            fails: false,
-        },
-        ..text_the_fake_reads()
-    }
-}
-
-fn failing_catalog() -> Given {
-    Given {
-        catalog: CatalogFake {
-            relations: Vec::new(),
-            fails: true,
-        },
-        ..text_the_fake_reads()
-    }
-}
-
-fn comparing_text_with_a_number() -> Given {
-    let filter = Filter {
-        left: WrittenOperand::Text(WrittenLiteral("a".into())),
-        test: WrittenTest::Equal,
-        right: WrittenOperand::Number(Integer(1)),
-        span: NOWHERE,
-    };
-    Given {
-        syntax: SyntaxFake {
-            program: program_with(vec![filter]),
-        },
-        ..text_the_fake_reads()
-    }
-}
-
-fn emitting_a_step_nobody_defined() -> Given {
-    let mut program = program_with(Vec::new());
-    program.emit.step = StepName(
-        "later".into(),
-        ryo_values::domain::query_tokens::types::StepIdentified::Unassigned,
-    );
-    Given {
-        syntax: SyntaxFake { program },
-        ..text_the_fake_reads()
-    }
-}
-
-fn same_text_twice() -> Given {
-    text_the_fake_reads()
-}
 
 /// An external schema supplied at the real inbound API, without supplying any facts.
 

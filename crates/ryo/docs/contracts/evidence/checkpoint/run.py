@@ -6,6 +6,13 @@ contracts=p.parents[1]
 readme=contracts/'README.md'
 validation_json=p/'validation.json'
 TM_TARGETS=('tm_source','tm_cli_source')
+def dumps(v,pad=''):
+ """JSON with two-space indent where a list of scalars or a short dict of scalars stays on one line, so a command line is one line."""
+ if isinstance(v,list) and all(not isinstance(x,(list,dict)) for x in v): return json.dumps(v)
+ if isinstance(v,list): return '[\n'+',\n'.join(pad+'  '+dumps(x,pad+'  ') for x in v)+'\n'+pad+']'
+ if isinstance(v,dict) and len(v)<=4 and all(not isinstance(x,(list,dict)) for x in v.values()) and len(json.dumps(v))<=100: return json.dumps(v)
+ if isinstance(v,dict): return '{\n'+',\n'.join(pad+'  '+json.dumps(k)+': '+dumps(x,pad+'  ') for k,x in v.items())+'\n'+pad+'}'
+ return json.dumps(v)
 def is_test_path(path): return '/test' in path or '_test.rs' in path
 def tm_target(command,log):
  """Finding count, production/test split and findings per scoped directory of one `tm check` log."""
@@ -39,7 +46,7 @@ def fmt(x):
  if isinstance(x,list): return str(len(x))+': '+'; '.join('`'+str(y)+'`' for y in x) if x else '0'
  return str(x)
 def render(v):
- rows=[('Source','`'+v['source'][:10]+'`'),('Validation','validation'+str(v['validation'])+' (raw logs `'+v['raw_identity']+'`)')]
+ rows=[('Source','`'+v['source'][:10]+'`'),('Validation','validation'+str(v['validation'])+' (raw logs in the directory named `'+Path(v['raw_identity']).name+'`, kept outside the repository)')]
  rows+=[(k.replace('_',' '),fmt(x)) for k,x in v['results'].items()]
  for n,t in v.get('tm_targets',{}).items():
   rows.append((n+' findings',str(t['findings'])+' ('+str(t['production'])+' production, '+str(t['test'])+' test), '+str(t['suppressed'])+' suppressed, '+str(len(t['scoped_directories']))+' scoped directories'))
@@ -73,6 +80,8 @@ def finish(v):
  readme.write_text(text)
  for line in scope_delta(v): print(line)
  bad=ticked_rows_without_proof(text,v['validation'])
+ for part in sorted(contracts.glob('*.md')):
+  if part!=readme: bad+=[part.name+' '+x for x in ticked_rows_without_proof(part.read_text(),v['validation'])]
  for line in bad: print('TICKED ROW '+line)
  if text!=old: print('matrix numbers block rewritten from validation.json; stage the README')
  return 1 if bad or text!=old else 0
@@ -108,9 +117,9 @@ def finding_split(cmd,log):
   by_directory[owner[0]]['test' if is_test(finding['path']) else 'production']+=1
  return {'total':len(found['findings']),'suppressed':len(found['suppressed']),'production':sum(v['production'] for v in by_directory.values()),'test':sum(v['test'] for v in by_directory.values()),'by_directory':by_directory}
 commands=json.loads((p/'commands.json').read_text())
-(p/'identity.json').write_text(json.dumps({'source':head,'commands':commands},indent=2))
+(p/'identity.json').write_text(dumps({'source':head,'commands':commands})+'\n')
 # Raw outputs (.log/.json per command) never live in the repository: they go to the directory given as the first argument,
-# by default /tmp/ryo-contract-validation-<source head>-<date>.
+# by default a directory named for the source head and the date under the system temporary directory.
 out_dir=Path(sys.argv[1]) if len(sys.argv)>1 else Path('/tmp/ryo-contract-validation-'+head[:10]+'-'+date.today().strftime('%Y%m%d'))
 out_dir.mkdir(parents=True,exist_ok=True)
 for name,cmd in commands:
@@ -126,5 +135,5 @@ print('BATCH COMPLETE',flush=True)
 v=json.loads(validation_json.read_text())
 v.update({'source':head,'validation':v['validation']+1,'raw_identity':str(out_dir)})
 record(v,commands,out_dir)
-validation_json.write_text(json.dumps(v,indent=2)+'\n')
+validation_json.write_text(dumps(v)+'\n')
 sys.exit(finish(v))

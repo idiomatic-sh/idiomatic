@@ -4,9 +4,9 @@ use super::errors::DescribeOperatorError;
 use super::interface::DescribeOperatorUseCase;
 use super::types::{DescribeOperatorReport, DescribeOperatorRequest};
 use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
-use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
+use crate::application::metadata::service::kernel_metadata;
 
-/// `describe_operator`; the operators are the domain's own, so it calls no port.
+/// `describe_operator`; the operators are the kernel's own, asked through the `metadata` application service, so it calls no port.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct DescribeOperatorUseCaseImpl;
 
@@ -23,10 +23,10 @@ impl DescribeOperatorUseCase for DescribeOperatorUseCaseImpl {
         &self,
         request: DescribeOperatorRequest,
     ) -> Result<DescribeOperatorReport, DescribeOperatorError> {
-        MetadataUseCaseImpl
+        kernel_metadata()
             .operators()
             .into_iter()
-            .map(|operator| MetadataUseCaseImpl.describe(*operator))
+            .map(|operator| kernel_metadata().describe(*operator))
             .find(|description| description.name == request.name)
             .map(|operator| DescribeOperatorReport { operator })
             .ok_or_else(|| DescribeOperatorError::UnknownOperator {

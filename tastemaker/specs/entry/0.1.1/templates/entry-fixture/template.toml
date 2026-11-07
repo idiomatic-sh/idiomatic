@@ -1,0 +1,28 @@
+description = "One file of an entry's `fixtures/` directory: test data split from `fixtures.rs` by what it fixes, at any depth beneath `fixtures/`, of which the template asks nothing."
+why = "A function whose test data is long keeps it in one file per thing it fixes, so each file stays readable and a case names the data it runs. The file is test data only: it is compiled for tests and under the `fixtures` feature, it holds no test and no production code, and the template asks nothing of it beyond its doc comment."
+content = '''
+//! A file of `{{ resource }} {{ part }}`'s test data.
+'''
+
+[params]
+resource = { type = "identifier", from = "directory-name", description = "The resource, captured from the path of the edge's part." }
+part = { type = "identifier", from = "directory-name", description = "The edge's directory name: the function." }
+fixture = { type = "string", description = "The file's path beneath `fixtures/` with its extension, captured from its path." }
+
+[[scenarios]]
+id = 'support-file'
+scenario = 'A file of the fixtures directory needs only its doc comment.'
+given.file = 'src/entries/greeting/show/fixtures/rows.rs'
+given.params = { resource = 'greeting', part = 'show', fixture = 'rows.rs' }
+given.files.'src/entries/greeting/show/fixtures/rows.rs' = '''
+//! A file of `greeting show`'s test data.
+'''
+
+[[scenarios]]
+id = 'support-file-missing'
+scenario = 'A file of the fixtures directory is missing.'
+given.file = 'src/entries/greeting/show/fixtures/rows.rs'
+given.params = { resource = 'greeting', part = 'show', fixture = 'rows.rs' }
+then.findings = [
+  { rule = 'entry-fixture#count', path = '.' },
+]

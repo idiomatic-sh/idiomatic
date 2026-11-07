@@ -1,5 +1,6 @@
 //! The `answering` service: free functions named by verb over the answers of the cross-file steps, with no IO and no ports.
 
+use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
 use super::types::{CrossSteps, Crossed, Todo};
 use crate::domain::ordering::service::append;
 use crate::domain::render::types::Rendered;
@@ -25,14 +26,18 @@ pub(crate) fn cross_steps(plan: &Plan) -> CrossSteps {
 
 /// The rules whose cross-file steps are made, in the order of the rules.
 #[must_use]
-pub(crate) fn todo_list(metadata: &[RuleRunMetadata], ids: &[RuleId]) -> Vec<Todo> {
+pub(crate) fn todo_list(
+    decisions: &impl MetadataUseCase,
+    metadata: &[RuleRunMetadata],
+    ids: &[RuleId],
+) -> Vec<Todo> {
     metadata
         .iter()
         .enumerate()
         .filter(|(_, rule)| rule.has_cross_steps == CrossFileSteps::Present)
         .map(|(rule, _)| Todo {
             rule: RuleIndex(rule),
-            id: MetadataUseCaseImpl.rule_id(ids, RuleIndex(rule)),
+            id: decisions.rule_id(ids, RuleIndex(rule)),
         })
         .collect()
 }
@@ -65,6 +70,3 @@ pub(crate) fn settle(
 use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::plan_parts::types::StepScope;
 
-use ryo_execution::inbound::use_cases::metadata::{
-    interface::MetadataUseCase, use_case::MetadataUseCaseImpl,
-};

@@ -4,9 +4,9 @@ use super::errors::ListOperatorsError;
 use super::interface::ListOperatorsUseCase;
 use super::types::{ListOperatorsReport, OperatorSummary};
 use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
-use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
+use crate::application::metadata::service::kernel_metadata;
 
-/// `list_operators`; the operators are the domain's own, so it calls no port.
+/// `list_operators`; the operators are the kernel's own, asked through the `metadata` application service, so it calls no port.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct ListOperatorsUseCaseImpl;
 
@@ -20,10 +20,10 @@ impl ListOperatorsUseCaseImpl {
 
 impl ListOperatorsUseCase for ListOperatorsUseCaseImpl {
     fn list_operators(&self) -> Result<ListOperatorsReport, ListOperatorsError> {
-        let operators = MetadataUseCaseImpl
+        let operators = kernel_metadata()
             .operators()
             .into_iter()
-            .map(|operator| MetadataUseCaseImpl.describe(*operator))
+            .map(|operator| kernel_metadata().describe(*operator))
             .map(|description| OperatorSummary {
                 name: description.name,
                 summary: description.summary,

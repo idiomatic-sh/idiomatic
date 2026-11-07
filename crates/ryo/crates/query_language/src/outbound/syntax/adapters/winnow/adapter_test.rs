@@ -1,3 +1,4 @@
+// ignore: idiomatic.arch/file-length - the one adapter_test.rs the adapter spec places, with the grammar's cases beside the port contract rows
 // the one test file the adapter template places for the winnow grammar: its parse cases and the check that the grammar table covers every parser fn, keyword and mark; a split would be a file no adapter template places
 //! The winnow adapter of the syntax port: the port's contract rows run through it, then the cases specific to it.
 

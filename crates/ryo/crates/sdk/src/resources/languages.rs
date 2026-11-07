@@ -248,8 +248,9 @@ pub use ryo_language::domain::notes::types::Noted;
 pub use ryo_relations::domain::relations::constants::NO_FIELD;
 pub use ryo_relations::domain::relations::types::ReportText;
 pub use ryo_relations::domain::relations::types::{Bytes, Extent, Flag, Integer, Optionality};
-pub use ryo_relations::domain::relations::types::{ElementOrigin, ExpansionId, FieldId};
-pub use ryo_relations::domain::relations::types::{EmbeddedMapping, EmbeddedSource};
+pub use ryo_relations::domain::elements::types::{ElementOrigin, ExpansionId};
+pub use ryo_relations::domain::relations::types::FieldId;
+pub use ryo_relations::domain::elements::types::{EmbeddedMapping, EmbeddedSource};
 pub use ryo_relations::domain::terms::types::NameText;
 
 pub use ryo_relations::domain::relations::types::NameNote;
@@ -266,15 +267,17 @@ pub use ryo_language::domain::answers::types::ReadItem;
 pub use ryo_language::domain::elements::types::Tree;
 
 pub use ryo_relations::domain::relations::service::{diagnostic_id, provenance_of};
-pub use ryo_relations::domain::relations::types::{Folder, Holds, Provenance};
+pub use ryo_relations::domain::labels::types::{Folder, Holds};
+pub use ryo_relations::domain::relations::types::Provenance;
 
-pub use ryo_relations::domain::terms::types::DeclarationKind;
+pub use ryo_relations::domain::declaration_kind::types::DeclarationKind;
 
-pub use ryo_relations::domain::terms::types::ValueKind;
+pub use ryo_relations::domain::value_kind::types::ValueKind;
 
-pub use ryo_relations::domain::terms::types::MappingKind;
+pub use ryo_relations::domain::mapping_kind::types::MappingKind;
 
-pub use ryo_relations::domain::terms::types::{DependencyKind, DependencyOrigin};
+pub use ryo_relations::domain::dependency_kind::types::DependencyKind;
+pub use ryo_relations::domain::dependency_origin::types::DependencyOrigin;
 
 pub use ryo_relations::domain::terms::types::Term;
 
@@ -299,7 +302,7 @@ pub use ryo_language::inbound::use_cases::project::types::Resolved;
 
 pub use ryo_language::domain::files::types::FilePath;
 
-pub use ryo_relations::domain::terms::types::ParameterKind;
+pub use ryo_relations::domain::parameter_kind::types::ParameterKind;
 
 pub use ryo_relations::domain::relations::types::Rows;
 
@@ -317,7 +320,7 @@ pub use ryo_relations::domain::relations::types::Locatedness;
 
 pub use ryo_language::domain::answers::service::{native_semantic_child, native_semantic_syntax};
 
-pub use ryo_relations::domain::relations::types::OptionalCapability;
+pub use ryo_relations::domain::capabilities::types::OptionalCapability;
 
 /// Lend the file model prepared by the common completion boundary; it cannot initialize or mark readiness.
 pub use ryo_language::application::completion::service::with_file_model;

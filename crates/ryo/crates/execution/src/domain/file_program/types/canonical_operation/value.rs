@@ -17,7 +17,7 @@ fn node_input(
                 bound_offsets
                     .get(rule.0)?
                     .0
-                    .checked_add(binding_place(input))?,
+                    .checked_add(binding_place(input).0)?,
             )),
         }),
         Input::Step(step) => Some(ResolvedInput {

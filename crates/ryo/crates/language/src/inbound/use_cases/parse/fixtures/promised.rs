@@ -86,7 +86,7 @@ impl<const FORBIDDEN: bool>
 }
 /// Explicit advertised promises, independent of the reader implementations.
 pub(crate) struct Promised(
-    pub(crate) &'static [ryo_relations::domain::relations::types::OptionalCapability],
+    pub(crate) &'static [ryo_relations::domain::capabilities::types::OptionalCapability],
     pub(crate) bool,
 );
 macro_rules! forwarded_optional_method {
@@ -141,7 +141,7 @@ impl ParseUseCase for Promised {
     }
     fn capabilities(
         &self,
-    ) -> &'static [ryo_relations::domain::relations::types::OptionalCapability] {
+    ) -> &'static [ryo_relations::domain::capabilities::types::OptionalCapability] {
         self.0
     }
 

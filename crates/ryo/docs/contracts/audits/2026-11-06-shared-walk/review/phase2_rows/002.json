@@ -1,0 +1,276 @@
+[
+  {
+    "id": "B4c.8",
+    "requirement": "Compile selector ranges once; count only active selector groups per file.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "fileprep",
+      "runtime280"
+    ],
+    "disposition": "Selector ranges are request-prepared; actual1024-selector/one-active-group control passes. This anchor corrects the earlier Opus inventory miss."
+  },
+  {
+    "id": "B4c.9",
+    "requirement": "Keep graph and other activation metadata proportional to relevant rules.",
+    "implementation_state": "partially integrated",
+    "verification": "open",
+    "complete": false,
+    "evidence": [
+      "fileprep",
+      "paired"
+    ],
+    "disposition": "Concrete remaining implementation work: derived/owner/setup.rs:33 iterates prepared.graph_rules across the request and binary-searches demanded rules. First reader initialization also aggregates selected-root provenance. Relevant-rule proportional activation is not fully implemented."
+  },
+  {
+    "id": "B4c.10",
+    "requirement": "Prove opening/binding does no provider or kernel work for disabled/skipped/refused/rootless intents.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "fileprep",
+      "routes",
+      "runtime280"
+    ],
+    "disposition": "Actual disabled/skipped/refused/rootless controls prove zero provider/kernel work at opening/binding and no dormant shared scratch/results."
+  },
+  {
+    "id": "B4c.11",
+    "requirement": "Measure preparation work and falsify dense dormant processing.",
+    "implementation_state": "integrated",
+    "verification": "open",
+    "complete": false,
+    "evidence": [
+      "fileprep",
+      "readiness"
+    ],
+    "disposition": "Real sparse allocation/work controls pass, but a complete preparation-work falsifier is not established for the remaining activation family. This is contract-work proof, not authorization for benchmark/tuning."
+  },
+  {
+    "id": "B4c.12",
+    "requirement": "Preserve duplicate reader multiplicity and cancellation/release when roots are deduplicated.",
+    "implementation_state": "integrated",
+    "verification": "open",
+    "complete": false,
+    "evidence": [
+      "fileprep",
+      "lifecycle"
+    ],
+    "disposition": "Duplicate root multiplicity is compiled/tested and internal producer release controls pass separately; a joint deduplicated external-root cancellation/real-lease proof is missing. Do not substitute exact-last-use optimization from Phase4."
+  },
+  {
+    "id": "B4d.1",
+    "requirement": "Relation: owner-controlled provider admission and unavailable-source handling.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "routes",
+      "population",
+      "runtime280"
+    ],
+    "disposition": "Named source-route controls execute the common production scheduler and owner admission, including unavailable and generation/provenance refusal."
+  },
+  {
+    "id": "B4d.2",
+    "requirement": "Hosted: request-owned rows, dependencies and retries through the same scheduler.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "routes",
+      "population",
+      "runtime280"
+    ],
+    "disposition": "Named source-route controls execute the common production scheduler and owner admission, including unavailable and generation/provenance refusal."
+  },
+  {
+    "id": "B4d.3",
+    "requirement": "Region: shared producer results and duplicate dependency scheduling.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "routes",
+      "population",
+      "runtime280"
+    ],
+    "disposition": "Named source-route controls execute the common production scheduler and owner admission, including unavailable and generation/provenance refusal."
+  },
+  {
+    "id": "B4d.4",
+    "requirement": "Observation: direct aliases and union roots use actual producer publications.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "routes",
+      "population",
+      "runtime280"
+    ],
+    "disposition": "Named source-route controls execute the common production scheduler and owner admission, including unavailable and generation/provenance refusal."
+  },
+  {
+    "id": "B4d.5",
+    "requirement": "EmptyObservation: only validated declarations can publish typed emptiness.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "routes",
+      "population",
+      "runtime280"
+    ],
+    "disposition": "Named source-route controls execute the common production scheduler and owner admission, including unavailable and generation/provenance refusal."
+  },
+  {
+    "id": "B4d.6",
+    "requirement": "ObservationMember: Current/restored provenance and refusal survive scheduling.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "routes",
+      "population",
+      "runtime280"
+    ],
+    "disposition": "Named source-route controls execute the common production scheduler and owner admission, including unavailable and generation/provenance refusal."
+  },
+  {
+    "id": "B4d.7",
+    "requirement": "Direct roots without a Region use mandatory admission, not another evaluator.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "routes",
+      "runtime280"
+    ],
+    "disposition": "direct_bound_root_and_union_share_the_actual_member_before_producer_delivery executes the real direct non-Region root and union. This corrects the stale pending label."
+  },
+  {
+    "id": "B4d.8",
+    "requirement": "Ordinary evaluation and shared-class replay use the same invocation authority.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "routes",
+      "authority",
+      "runtime280"
+    ],
+    "disposition": "Ordinary/shared paths require the same runtime-issued invocation authority; actual route and constructor controls pass. Raw service enforcement is separately B5.3/P3.6."
+  },
+  {
+    "id": "B4d.9",
+    "requirement": "Native SyntaxTree/SyntaxChild positions use owner-issued source identity.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "routes",
+      "lifecycle",
+      "runtime280"
+    ],
+    "disposition": "Actual native Elements/Edges, Stored Selected/column and ordered-existence route controls pass; output-only OrderedMatch proof is not substituted."
+  },
+  {
+    "id": "B4d.10",
+    "requirement": "Selected and column strategies preserve admission, population and retirement authority.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "routes",
+      "lifecycle",
+      "runtime280"
+    ],
+    "disposition": "Actual native Elements/Edges, Stored Selected/column and ordered-existence route controls pass; output-only OrderedMatch proof is not substituted."
+  },
+  {
+    "id": "B4d.11",
+    "requirement": "Observe actual ordered-existence entry/decline; do not substitute OrderedMatch output tests.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "routes",
+      "lifecycle",
+      "runtime280"
+    ],
+    "disposition": "Actual native Elements/Edges, Stored Selected/column and ordered-existence route controls pass; output-only OrderedMatch proof is not substituted."
+  },
+  {
+    "id": "B4d.12",
+    "requirement": "Strategy decline precedes observable work; real errors cannot retry another engine.",
+    "implementation_state": "integrated",
+    "verification": "open",
+    "complete": false,
+    "evidence": [
+      "routes",
+      "phase3"
+    ],
+    "disposition": "Central shared acquisition declines representations before effects and preserves errors, but an exhaustive all-strategy decline/error matrix is not established. Opus P3-2 invalid-Project counterexample is rejected, not an outstanding production fault."
+  },
+  {
+    "id": "B4d.13",
+    "requirement": "Cover file/project, collected/callback and named/capture/restored entry combinations.",
+    "implementation_state": "integrated",
+    "verification": "open",
+    "complete": false,
+    "evidence": [
+      "routes"
+    ],
+    "disposition": "Existing public controls pass, but complete file/project × delivery × named/capture/restored route coverage has not been enumerated and falsified as a whole."
+  },
+  {
+    "id": "B4d.14",
+    "requirement": "Require explicit classification and proof for new source/physical implementations.",
+    "implementation_state": "partially integrated",
+    "verification": "open",
+    "complete": false,
+    "evidence": [
+      "paired",
+      "tm281"
+    ],
+    "disposition": "New operation barriers are exhaustive; no complete enforced registration/proof obligation exists for every new source/physical implementation."
+  },
+  {
+    "id": "B5.1",
+    "requirement": "Keep one production interpreter; kernels cannot resolve dependencies.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "readiness",
+      "paired"
+    ],
+    "disposition": "Current production has one interpreter and no kernel dependency resolver; source enumeration verifies removal of the alternate DFS. This does not close the raw walk semantic-dispatch authority gap."
+  },
+  {
+    "id": "B5.2",
+    "requirement": "Require runtime-issued authority for ordinary, ordered and column permits.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "authority",
+      "runtime280"
+    ],
+    "disposition": "All three permit constructors require runtime-owned KernelAdmission; authorized and exact missing-authority internal negatives pass."
+  },
+  {
+    "id": "B5.3",
+    "requirement": "Only actual ready gates may submit shared-walk classes.",
+    "implementation_state": "integrated",
+    "verification": "open",
+    "complete": false,
+    "evidence": [
+      "authority",
+      "tm281"
+    ],
+    "disposition": "Eight real-source probes now pass for constructor/field/factory boundaries, but P3-1 permits crate-internal raw shared_walk::service::evaluate dispatch outside the rule placement. Entire internal dispatch guarantee remains open."
+  }
+]

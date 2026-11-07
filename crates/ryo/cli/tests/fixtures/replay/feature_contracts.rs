@@ -396,7 +396,7 @@ fn measure_corpus(
         Arc::new(ryo_core::outbound::lint_store::fixtures::fake::LintStoreFake::default()),
         Vec::new(),
         false,
-        vec![ryo_core::outbound::language::types::LanguageHandles::from(
+        vec![ryo_core::outbound::language::factory::LanguageConnection::from(
             ryo_python::linked(),
         )],
     );

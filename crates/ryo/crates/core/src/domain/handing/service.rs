@@ -8,7 +8,8 @@ use ryo_execution::inbound::use_cases::metadata::interface::{
 };
 use ryo_language::domain::files::types::FilePath;
 use ryo_relations::domain::relations::service::relation_named;
-use ryo_relations::domain::relations::types::{FileId, NameRef, WorkerNumber};
+use ryo_relations::domain::relations::types::{FileId, WorkerNumber};
+use ryo_relations::domain::labels::types::NameRef;
 use ryo_values::domain::records::types::{GoverningRules, Handed, HandedNotes, RecordWords};
 use ryo_values::domain::stored_facts::types::{
     ArenaBytes, Bucket, FileNotes, PartialCause, PartialScope, StoredPartial,

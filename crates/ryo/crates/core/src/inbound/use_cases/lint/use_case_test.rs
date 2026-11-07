@@ -274,7 +274,7 @@ fn violations() -> Given {
 /// The use case and the fakes whose counts a row reads.
 struct World {
     use_case: LintUseCaseImpl,
-    collected: row_sink::types::Collector,
+    collected: row_sink::factory::CollectorConnection,
     language: Arc<LanguageFake>,
     query: Arc<QueryLanguageFake>,
     reads: Arc<std::sync::atomic::AtomicUsize>,
@@ -378,7 +378,7 @@ fn scheduled_world_with_query_resources(
     analysis_memory: Arc<dyn crate::outbound::memory::interface::MemoryPort>,
     operators: Arc<dyn ryo_execution::outbound::operators::interface::OperatorsPort>,
 ) -> World {
-    let collected = row_sink::types::Collector::default();
+    let collected = row_sink::factory::CollectorConnection::default();
     let kept: Arc<dyn RowSinkPort> = Arc::new(row_sink::factory::collect(collected.clone()));
     let ports: Arc<dyn RowSinkPort> = if given.ends == Ends::Well {
         kept
@@ -530,11 +530,7 @@ fn compare_schedulers(
         ),
         execute(
             parallel,
-            Arc::new(crate::outbound::scheduler::factory::rayon(
-                crate::outbound::scheduler::factory::pool(
-                    ryo_values::domain::runs::types::WorkersAsked(2)
-                )
-            )),
+            Arc::new(crate::outbound::scheduler::factory::rayon(WorkerCount(2))),
             WorkerCount(2)
         ),
         "worker scheduling preserves every report field, column, row and output summary"
@@ -1738,7 +1734,7 @@ fn succeeds() {
             )),
             Arc::new(SchedulerFake::default()),
             WorkerCount(1),
-            Arc::new(row_sink::factory::collect(row_sink::types::Collector::default())),
+            Arc::new(row_sink::factory::collect(row_sink::factory::CollectorConnection::default())),
             Arc::clone(&analysis_digest),
             Arc::new(LintStoreFake::default()),
         )

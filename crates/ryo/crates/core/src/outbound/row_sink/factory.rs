@@ -2,10 +2,12 @@
 //! parameter from the edge that composes: the buffer the edge made. A
 //! factory builds nothing else, chooses nothing, and is called only by an edge.
 
+pub use super::adapters::collect::connection::CollectorConnection;
+
 /// The collect rows adapter: it keeps every row in `into`, for the caller to take after the run.
 #[must_use]
 pub fn collect(
-    into: super::types::Collector,
+    into: CollectorConnection,
 ) -> impl crate::outbound::row_sink::interface::RowSinkPort {
     super::adapters::collect::adapter::RowSinkCollectAdapter::new(into)
 }

@@ -1,7 +1,7 @@
 //! The application owns the declared inventory, preparation state and sealing.
 use super::{
     errors::BatchPreparationError,
-    types::{Occurrence, PreparedProject, ProjectOccurrenceCount},
+    types::{OccurrenceNumber, PreparedProject, ProjectOccurrenceCount},
 };
 use crate::{application::cross_file::errors::CrossFileError, domain::answering::types::Todo};
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
@@ -12,7 +12,7 @@ use std::sync::Arc;
 #[derive(Clone)]
 pub(crate) struct BatchOccurrenceSlot {
     owner: Arc<()>,
-    occurrence: Occurrence,
+    occurrence: OccurrenceNumber,
 }
 enum State {
     Pending,
@@ -74,7 +74,7 @@ impl Preparation {
         (0..self.entries.len())
             .map(|at| BatchOccurrenceSlot {
                 owner: Arc::clone(&self.owner),
-                occurrence: Occurrence(at),
+                occurrence: OccurrenceNumber(at),
             })
             .collect()
     }
@@ -104,11 +104,11 @@ impl Preparation {
     /// supply resources or the actual error; they cannot filter pending slots.
     pub(crate) fn prepare_all(
         mut self,
-        mut prepare: impl FnMut(Occurrence, &Todo) -> Result<PreparedProject, CrossFileError>,
+        mut prepare: impl FnMut(OccurrenceNumber, &Todo) -> Result<PreparedProject, CrossFileError>,
     ) -> Self {
         for (at, entry) in self.entries.iter_mut().enumerate() {
             if matches!(entry.state, State::Pending) {
-                entry.state = match prepare(Occurrence(at), &entry.todo) {
+                entry.state = match prepare(OccurrenceNumber(at), &entry.todo) {
                     Ok(ready) => State::Ready(ready),
                     Err(error) => State::Failed(error),
                 };
@@ -122,7 +122,7 @@ impl Preparation {
             .iter()
             .position(|entry| matches!(entry.state, State::Pending))
         {
-            return Err(BatchPreparationError::Missing(Occurrence(at)));
+            return Err(BatchPreparationError::Missing(OccurrenceNumber(at)));
         }
         let declared = self
             .entries

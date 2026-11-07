@@ -7,19 +7,42 @@ use crate::outbound::scheduler::errors::SchedulerError;
 use crate::outbound::scheduler::interface::SchedulerPort;
 use crate::outbound::scheduler::types::{JobCount, JobNumber, WorkerCount};
 
+/// The pool of threads the adapter runs jobs on, which the adapter owns or shares with the edge that handed it over.
+struct Pool(Box<dyn AsRef<rayon::ThreadPool> + Send + Sync>);
+
+impl std::fmt::Debug for Pool {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct(std::any::type_name::<Self>())
+            .finish_non_exhaustive()
+    }
+}
+
 /// The rayon scheduler adapter: the pool of threads it runs jobs on, one worker on each.
 #[derive(Debug)]
 pub(crate) struct SchedulerRayonAdapter {
-    /// The pool its factory built or was handed, or why the system refused it.
-    pool: Result<std::sync::Arc<rayon::ThreadPool>, SchedulerError>,
+    /// The pool it built or was handed, or why the system refused it.
+    pool: Result<Pool, SchedulerError>,
 }
 
 impl SchedulerRayonAdapter {
-    /// An adapter over `pool`.
-    pub(crate) const fn new(
-        pool: Result<std::sync::Arc<rayon::ThreadPool>, SchedulerError>,
-    ) -> Self {
-        Self { pool }
+    /// An adapter over a pool of its own: `workers` threads.
+    pub(crate) fn owning(workers: WorkerCount) -> Self {
+        Self {
+            pool: built(workers).map(|pool| Pool(Box::new(pool))),
+        }
+    }
+
+    /// An adapter over a pool the edge already runs, shared with it.
+    pub(crate) fn over(pool: impl AsRef<rayon::ThreadPool> + Send + Sync + 'static) -> Self {
+        Self {
+            pool: Ok(Pool(Box::new(pool))),
+        }
+    }
+
+    /// An adapter over the pool the system refused to build.
+    #[cfg(test)]
+    pub(crate) const fn refused(error: SchedulerError) -> Self {
+        Self { pool: Err(error) }
     }
 }
 
@@ -33,6 +56,7 @@ impl SchedulerPort for SchedulerRayonAdapter {
             return Err(SchedulerError::NoWorkers);
         }
         let pool = self.pool.as_ref().map_err(Clone::clone)?;
+        let pool = AsRef::<rayon::ThreadPool>::as_ref(&*pool.0);
         let next = AtomicU32::new(0);
         pool.scope(|scope| {
             for worker in workers.iter_mut() {
@@ -50,14 +74,6 @@ impl SchedulerPort for SchedulerRayonAdapter {
         });
         Ok(())
     }
-}
-
-/// How many threads the machine can run at once.
-pub(crate) fn machine() -> ryo_values::domain::runs::types::MachineWorkers {
-    ryo_values::domain::runs::types::MachineWorkers(
-        u32::try_from(std::thread::available_parallelism().map_or(1, std::num::NonZero::get))
-            .unwrap_or(1),
-    )
 }
 
 /// The pool of `workers` threads; or why the system refused it.

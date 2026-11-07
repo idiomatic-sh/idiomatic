@@ -57,7 +57,7 @@ impl SemanticSession for FixtureSession {
 impl ParseEngine for FixtureParse {
     fn capabilities(
         &self,
-    ) -> &'static [ryo_relations::domain::relations::types::OptionalCapability] {
+    ) -> &'static [ryo_relations::domain::capabilities::types::OptionalCapability] {
         &[]
     }
     fn configuration_identity(&self) -> ParseConfigurationIdentity<'_> {

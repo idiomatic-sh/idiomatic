@@ -95,17 +95,14 @@ pub fn lint_with(linter: &Linter, mut request: LintRequest) -> Result<LintReport
     let report = super::composition::build(engine, rows.clone(), reading, &connections, settings)
         .lint(core)
         .map_err(schemas::error)?;
-    schemas::report(rows, report)
+    schemas::report(rows.take(), report)
 }
 
 /// The threads every run of the caller reads files on, built once: `workers` of them, at most as many as the machine has. A pool
 /// that cannot be started is answered by the first run over it, as `Io` of the scheduler.
 impl From<Workers> for WorkerPool {
     fn from(workers: Workers) -> Self {
-        let asked = schemas::workers(workers);
-        Self::scheduler(
-            super::composition::build_pool(asked),
-            super::composition::build_workers(asked),
-        )
+        let started = super::composition::build_workers(schemas::workers(workers));
+        Self::scheduler(super::composition::build_pool(started), started)
     }
 }

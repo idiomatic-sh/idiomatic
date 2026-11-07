@@ -5,7 +5,7 @@ use ryo_execution::application::file_dag::program::project_phase::types::PhaseSc
 use ryo_execution::application::file_dag::frontiers::types::PublicationSlot;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct Occurrence(pub usize);
+pub(crate) struct OccurrenceNumber(pub usize);
 
 pub(crate) struct PreparedProject {
     pub scope: PhaseScope,

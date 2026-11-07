@@ -1,0 +1,138 @@
+{
+  "runtime280": {
+    "receipt": "/tmp/ryo-phase3-validation280-20261106",
+    "source": "c5abcc1da4b0f1a63de7fcc97f979284f4087656",
+    "scope": "Actual all-features build of eight crates and tests; execution431/431, SDK43/43, other155/155; Core175/181 with six deferred output/persistence failures; public90/90. Reviewer did not run commands."
+  },
+  "readiness": {
+    "sources": [
+      "crates/ryo/crates/execution/src/domain/readiness/types/ready_queue/value.rs",
+      "crates/ryo/crates/execution/src/application/file_dag/program/runtime.rs"
+    ],
+    "tests": [
+      "crates/ryo/crates/execution/src/domain/readiness/types/ready_queue/value_test.rs",
+      "crates/ryo/crates/execution/tests/shared_walk/readiness/test.rs"
+    ],
+    "scope": "Actual demanded dependencies, duplicate/diamond roots, terminal failure wakeups; sparse 10M-region queue and invalid dependency control. Executed in280."
+  },
+  "classes": {
+    "sources": [
+      "crates/ryo/crates/execution/src/domain/shared_walk/types/prepared_walk/value.rs",
+      "crates/ryo/crates/execution/src/domain/shared_walk/service.rs"
+    ],
+    "tests": [
+      "crates/ryo/crates/execution/src/domain/shared_walk/types/prepared_walk/value_test.rs::sparse_cohorts_merge_only_reached_results_and_reject_overlap_atomically",
+      "crates/ryo/crates/execution/tests/shared_walk/cohort/test.rs",
+      "crates/ryo/crates/execution/tests/project_phase/declared_empty/test.rs"
+    ],
+    "scope": "Request physical lookup including synthetic observation IDs; cohort-local scratch, sparse pending/results, atomic overlap refusal, prior-result preservation. Executed in280; no claim all request activation metadata is sparse."
+  },
+  "population": {
+    "sources": [
+      "crates/ryo/crates/execution/src/application/file_dag/program/facade_runtime/project_execution.rs",
+      "crates/ryo/crates/execution/src/application/file_dag/program/runtime.rs",
+      "crates/ryo/crates/core/src/application/cross_file/service.rs"
+    ],
+    "tests": [
+      "crates/ryo/crates/core/src/application/cross_file/service_test.rs"
+    ],
+    "scope": "Fourteen actual Core project tests passed280: both-order same-global different populations, same-policy/different payload, equal-input sharing, Current bound and refused resolved identity, foreign generation/partition refusal, sparse many-population state and scoped release."
+  },
+  "budget": {
+    "sources": [
+      "crates/ryo/crates/core/src/inbound/use_cases/lint/use_case.rs",
+      "crates/ryo/crates/execution/src/application/file_dag/program/facade_runtime/project_execution.rs"
+    ],
+    "tests": [
+      "crates/ryo/crates/core/src/inbound/use_cases/lint/use_case_test/project_budget/test.rs",
+      "crates/ryo/crates/core/src/application/cross_file/service_test.rs::project_budget_refuses_a_later_population_after_actual_work_and_releases_the_phase"
+    ],
+    "scope": "Six real inbound ordinary/named × Budget/MemoryError/Allowed scenarios passed280. Memory state changes after actual ReduceCount. Typed completed prefix and guard stop a later distinct population. Does not separately falsify every cleanup-error/cancellation combination."
+  },
+  "fileprep": {
+    "sources": [
+      "crates/ryo/crates/execution/src/domain/executable_program/file_demand/service.rs",
+      "crates/ryo/crates/execution/src/application/file_dag/program/facade.rs:233",
+      "crates/ryo/crates/execution/src/application/file_dag/program/facade.rs:721",
+      "crates/ryo/crates/execution/src/application/file_dag/program/facade_runtime/file_execution.rs:621"
+    ],
+    "tests": [
+      "crates/ryo/crates/execution/src/domain/executable_program/file_demand/service_test.rs",
+      "crates/ryo/crates/execution/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/preparation/test.rs",
+      "crates/ryo/crates/execution/src/application/file_dag/program/runtime/lifecycle/mod.rs::reached_slots_initialize_reader_obligations_once",
+      "crates/ryo/crates/execution/src/application/file_dag/derived/selection/retention_test.rs::request_selector_inventory_allocates_repetition_only_for_active_groups"
+    ],
+    "scope": "Twelve compiled intent masks; 128-rule opening with dormant state absent; duplicate root reader metadata; actual 64 same-slot touches initialize once and second reached root twice total; 1024 prepared selectors/one active group. Executed280."
+  },
+  "routes": {
+    "sources": [
+      "crates/ryo/crates/execution/src/application/file_dag/program/facade_runtime/source_admission.rs",
+      "crates/ryo/crates/execution/src/application/file_dag/program/kernel_session.rs",
+      "crates/ryo/crates/execution/src/application/file_dag/program/admission.rs"
+    ],
+    "tests": [
+      "crates/ryo/crates/execution/tests/scheduler/sources/test.rs",
+      "crates/ryo/crates/execution/tests/scheduler/physical/test.rs",
+      "crates/ryo/crates/execution/tests/scheduler/delivery/test.rs",
+      "crates/ryo/crates/execution/tests/project_phase",
+      "crates/ryo/crates/execution/tests/shared_walk/compact/test.rs",
+      "crates/ryo/crates/execution/tests/shared_walk/projection/test.rs"
+    ],
+    "scope": "Actual source/physical controls executed280: Relation, Hosted, Region, observation alias/union, declared empty, Current/restored, direct non-Region root, ordinary/shared replay, native Elements/Edges, Selected/column, actual ordered-existence entry/decline. Does not assert exhaustive Cartesian combination coverage."
+  },
+  "authority": {
+    "sources": [
+      "crates/ryo/crates/execution/src/application/file_dag/program/runtime.rs:40",
+      "crates/ryo/crates/execution/src/application/file_dag/program/admission.rs",
+      "crates/ryo/crates/execution/src/application/file_dag/program/native_walk.rs"
+    ],
+    "tests": [
+      "crates/ryo/crates/execution/tests/source_boundary/test.rs::actual_runtime_authority_is_private_to_its_owner"
+    ],
+    "scope": "Eight actual-source Rust probes passed280: authorized constructor use; sibling field forge E0451; three constructors missing authority E0308; permit retarget E0451; walk ready-list retarget E0451; removed walk factory E0599. Each negative requires primary span in probe. Inner compiler uses resolved normal dependencies/default features, not a copied token model. Does not cover raw semantic service bypass P3-1."
+  },
+  "lifecycle": {
+    "sources": [
+      "crates/ryo/crates/execution/src/application/file_dag/program/runtime.rs",
+      "crates/ryo/crates/execution/src/application/file_dag/relations/number.rs"
+    ],
+    "tests": [
+      "crates/ryo/crates/execution/src/application/file_dag/program/runtime/lifecycle/mod.rs",
+      "crates/ryo/crates/execution/src/application/file_dag/relations/number.rs",
+      "crates/ryo/crates/execution/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/producer_lifetime/test.rs"
+    ],
+    "scope": "Actual Weak/working-byte release and zero-budget controls, reentry, nested failure, delivery retry, generation/provenance and scope-rebind controls passed280. Does not independently close all external-root cancellation combinations."
+  },
+  "phase3": {
+    "sources": [
+      "crates/ryo/crates/execution/src/application/file_dag/program/native_walk.rs",
+      "crates/ryo/crates/execution/src/domain/shared_walk/service.rs",
+      "crates/ryo/crates/execution/src/domain/shared_walk/types/prepared_walk/value.rs",
+      "crates/ryo/crates/execution/src/domain/step_classes/service.rs"
+    ],
+    "tests": [
+      "crates/ryo/crates/execution/src/application/file_dag/program/facade_runtime/compiled_parity/source_partition/test.rs",
+      "crates/ryo/crates/execution/tests/shared_walk/cohort/test.rs::full_rule_count_shares_source_decoding_and_ordered_predicate_prefixes",
+      "crates/ryo/crates/execution/tests/shared_walk/cohort/test.rs::shared_prefixes_preserve_distinct_parameter_bindings_and_first_errors",
+      "crates/ryo/crates/execution/tests/shared_walk/projection/test.rs::direct_pure_projections_share_source_scan_including_zero_columns_and_repeats"
+    ],
+    "scope": "Actual280 generation/stage checks, request-prepared classifier/prefix/masks, binding/error ordering, synthetic413 distinct-class counters, pure Project zero/repeated columns. Synthetic413 is not configured Ruff inventory."
+  },
+  "tm281": {
+    "receipt": "/tmp/ryo-phase3-tm281-20261106/check.json",
+    "scope": "Actual scoped28 changed Rust paths:282 findings, zero suppressed. One program-implementation-boundary, five import-direction and eight cycle findings. Not full workspace and not clean."
+  },
+  "paired": {
+    "source": "b7558e4494d63144798c436d6d443c0c370d9956",
+    "opus_raw": "/tmp/ryo-shared-walk-opus-b755-phase3.json",
+    "scope": "Retained independent Opus review plus lead frozen-source audit; completion of review does not mean PASS verdict."
+  },
+  "historical": {
+    "anchors": [
+      "crates/ryo/docs/contracts/README.md",
+      "/tmp/ryo-integrated-django256-20261105",
+      "crates/ryo/docs/contracts/evidence/phase2-scheduling/measurements.json"
+    ],
+    "scope": "Existing earlier receipts retained with their identities/limits. Full Django256 failure is not candidate evidence. No benchmark/performance work performed for this review."
+  }
+}

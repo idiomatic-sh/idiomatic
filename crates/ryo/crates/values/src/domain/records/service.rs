@@ -75,8 +75,10 @@ pub fn keep(text: &mut RenderedText, cell: Cell<CellText<'_>>) -> Cell<TextRange
 /// Whether the affected scopes of a partial frontier are nonempty, sorted, name each scope once, and name every kind list sorted
 /// and once each.
 #[must_use]
-pub fn is_well_formed(affected: &[crate::domain::records::types::FrontierAffected]) -> bool {
-    use crate::domain::records::types::{FrontierAffected, FrontierMissing};
+pub fn is_well_formed(
+    affected: &[crate::domain::records::types::FrontierAffected],
+) -> crate::domain::records::types::FrontierShape {
+    use crate::domain::records::types::{FrontierAffected, FrontierMissing, FrontierShape};
     let scope = |each: &FrontierAffected| matches!(each, FrontierAffected::Repository(_));
     let sorted_kinds = |each: &FrontierAffected| match each {
         FrontierAffected::CurrentFile(FrontierMissing::Kinds { kinds, .. })
@@ -85,9 +87,14 @@ pub fn is_well_formed(affected: &[crate::domain::records::types::FrontierAffecte
         }
         _ => true,
     };
-    !affected.is_empty()
+    let well_formed = !affected.is_empty()
         && affected.iter().all(sorted_kinds)
         && affected
             .windows(2)
-            .all(|pair| pair[0] < pair[1] && scope(&pair[0]) != scope(&pair[1]))
+            .all(|pair| pair[0] < pair[1] && scope(&pair[0]) != scope(&pair[1]));
+    if well_formed {
+        FrontierShape::WellFormed
+    } else {
+        FrontierShape::Malformed
+    }
 }

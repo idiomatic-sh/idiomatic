@@ -8,7 +8,6 @@ use crate::domain::render::types::Answering;
 use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
 use ryo_execution::inbound::use_cases::metadata::interface::Recovery;
 use ryo_execution::inbound::use_cases::metadata::interface::{Governing, Mask};
-use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 
 use crate::domain::workers::types::Tables;
 use ryo_execution::inbound::use_cases::metadata::interface::Needs;
@@ -71,6 +70,7 @@ pub(crate) fn engine_asked(wanted: &[Relation]) -> EngineAsked {
 /// legacy rule metadata keeps the conservative run-wide demand.
 #[must_use]
 pub(crate) fn read_failure_demanded(
+    metadata: &impl MetadataUseCase,
     wanted: &[Relation],
     mask: &Mask,
     needs: &[Needs],
@@ -83,7 +83,7 @@ pub(crate) fn read_failure_demanded(
         return ReadFailureDemand::Demanded;
     }
     let reads = needs.iter().enumerate().any(|(place, rule)| {
-        MetadataUseCaseImpl.governs(mask, RuleNumber(u32::try_from(place).unwrap_or(u32::MAX)))
+        metadata.governs(mask, RuleNumber(u32::try_from(place).unwrap_or(u32::MAX)))
             == Governing::Governs
             && rule
                 .reads
@@ -127,12 +127,13 @@ pub(crate) fn failure_partials(
 
 /// Notes the relations the file is read in part: those a reader said so of, and all of code if what was read is a recovery.
 pub(crate) fn start_partials(
+    metadata: &impl MetadataUseCase,
     tables: &mut Tables,
     said: &[ReadInPart],
     everything: Recovery,
     wanted: &[Relation],
 ) {
-    tables.partials = MetadataUseCaseImpl.partial_of(said, everything, wanted);
+    tables.partials = metadata.partial_of(said, everything, wanted);
 }
 
 /// Gives back what a huge file made the tables grow past, and puts the file's findings in their order: rows of the rules' own

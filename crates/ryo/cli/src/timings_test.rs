@@ -214,6 +214,7 @@ fn a_query_run_reports_rows_of_ryo_itself() {
             &crate::resources::edge_at(
                 ryo_language::inbound::use_cases::project::types::RootPath(".".into()),
                 ryo_language::inbound::use_cases::project::types::RootPath(".".into()),
+                ryo_values::domain::runs::types::MachineWorkers(1),
                 crate::output::Format::Terminal,
             ),
             ryo_core::outbound::lint_store::types::Store::default(),

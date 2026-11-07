@@ -19,16 +19,11 @@ use ryo_language::domain::symbols::{
     service::intern_derived,
     types::{ByteSlice, Symbols},
 };
-use ryo_relations::domain::{
-    relations::{
-        service::to_bits,
-        types::{CellKind, ColumnsView, FactColumn, Relation, Value},
-    },
-    terms::{
-        service::term_symbol,
-        types::{DeclarationKind, NameText, Symbol},
-    },
-};
+use ryo_relations::domain::relations::service::to_bits;
+use ryo_relations::domain::relations::types::{CellKind, ColumnsView, FactColumn, Relation, Value};
+use ryo_relations::domain::terms::service::term_symbol;
+use ryo_relations::domain::declaration_kind::types::DeclarationKind;
+use ryo_relations::domain::terms::types::{NameText, Symbol};
 use ryo_values::domain::{
     files::types::SourceView,
     plan_parts::types::{

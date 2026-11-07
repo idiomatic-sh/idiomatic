@@ -1,4 +1,5 @@
 //! Which findings can say where they are, and which partial reads bear on a rule.
+use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use crate::application::cross_file::fixtures::counting_plan;
 use crate::application::cross_file::fixtures::crossing;
 use crate::application::cross_file::fixtures::world;
@@ -67,7 +68,7 @@ pub(super) fn partials_found() -> [usize; 3] {
             partial: vec![partial(Relation::Function)],
         },
     ];
-    let found = partials_for(&crossing(&rules), RuleIndex(0)).entries;
+    let found = partials_for(&MetadataUseCaseImpl, &crossing(&rules), RuleIndex(0)).entries;
     [
         found.len(),
         file_number(found.first()),

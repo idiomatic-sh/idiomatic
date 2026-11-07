@@ -5,7 +5,7 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::scheduler::errors::SchedulerError;
 use crate::outbound::scheduler::fixtures::contract::check;
 use crate::outbound::scheduler::interface::SchedulerPort as _;
-use crate::outbound::scheduler::types::JobCount;
+use crate::outbound::scheduler::types::{JobCount, WorkerCount};
 
 /// What a row of the cases asks of the adapter.
 #[derive(Clone, Copy)]
@@ -51,43 +51,36 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 /// Calls the adapter on one input, for its own rows.
 fn subject(scenario: Input) -> Result<Value, Failure> {
-    let adapter = SchedulerRayonAdapter::new(pool(3));
+    let adapter = SchedulerRayonAdapter::owning(WorkerCount(3));
     match scenario {
-        Scenario::Started => Ok(usize::try_from(
-            crate::outbound::scheduler::factory::workers(
-                ryo_values::domain::runs::types::WorkersAsked(1),
-            )
-            .0,
-        )
-        .unwrap_or(0)),
+        Scenario::Started => {
+            let counter = std::sync::atomic::AtomicUsize::new(0);
+            let mut job = |_| {
+                let _before = counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            };
+            let mut workers: [Box<dyn FnMut(_) + Send + '_>; 1] = [Box::new(&mut job)];
+            crate::outbound::scheduler::factory::rayon(WorkerCount(1))
+                .run(&mut workers, JobCount(1))?;
+            drop(workers);
+            Ok(counter.load(std::sync::atomic::Ordering::SeqCst))
+        }
         Scenario::NoWorkers => adapter.run(&mut [], JobCount(1)).map(|()| 0),
         Scenario::NoPool => {
-            let unbuilt = Err(SchedulerError::Unavailable {
+            let unbuilt = SchedulerError::Unavailable {
                 reason: String::new(),
-            });
+            };
             let mut job = |_| {};
             let mut workers: [Box<dyn FnMut(_) + Send + '_>; 1] = [Box::new(&mut job)];
-            SchedulerRayonAdapter::new(unbuilt)
+            SchedulerRayonAdapter::refused(unbuilt)
                 .run(&mut workers, JobCount(1))
                 .map(|()| 0)
         }
     }
 }
 
-/// A pool of `threads` threads, as an edge builds it.
-fn pool(threads: usize) -> Result<std::sync::Arc<rayon::ThreadPool>, SchedulerError> {
-    rayon::ThreadPoolBuilder::new()
-        .num_threads(threads)
-        .build()
-        .map(std::sync::Arc::new)
-        .map_err(|error| SchedulerError::Unavailable {
-            reason: error.to_string(),
-        })
-}
-
 #[test]
 fn succeeds() {
-    check(&SchedulerRayonAdapter::new(pool(2)), 2);
+    check(&SchedulerRayonAdapter::owning(WorkerCount(2)), 2);
     run(CASES, Word::Succeeds, subject);
 }
 

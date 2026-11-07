@@ -231,9 +231,8 @@ fn subject(operation: Input) -> Result<Value, Failure> {
                 expansions::service::write_embedded,
                 symbols::types::{ByteSlice, Symbols},
             };
-            use ryo_relations::domain::relations::types::{
-                EmbeddedMapping, KindBits, Offset, Position,
-            };
+            use ryo_relations::domain::elements::types::EmbeddedMapping;
+            use ryo_relations::domain::relations::types::{KindBits, Offset, Position};
             let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
             let mut builder = table_builder(&mut elements, &mut symbols, ByteSlice(b"x"));
             enter_node(&mut builder, KindBits(1), Offset(0));

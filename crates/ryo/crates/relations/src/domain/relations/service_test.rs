@@ -5,7 +5,7 @@ use crate::domain::terms::types::Symbol;
 use super::service::{
     all, column_named, columns, folder_of, kind, name, provenance_of, relation_named, relation_of,
 };
-use super::types::{CellKind, NodeId, Offset, Provenance, Relation, Span, Value as Cell};
+use crate::domain::relations::types::{CellKind, NodeId, Offset, Provenance, Relation, Span, Value as Cell};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::relations::collections::relations::defines::item::DefinesColumn;
 use crate::domain::relations::collections::relations::function::item::FunctionColumn;
@@ -13,7 +13,7 @@ use crate::domain::relations::service::from_bits;
 use crate::domain::relations::service::is_key;
 use crate::domain::relations::service::to_bits;
 use crate::domain::relations::types::Column;
-use crate::domain::relations::types::NameRef;
+use crate::domain::labels::types::NameRef;
 use crate::domain::relations::types::{ColumnKeyness, Flag, Integer};
 use crate::domain::terms::types::{Vocabulary, WordBlock};
 
@@ -195,7 +195,7 @@ fn succeeds() {
 /// Every optional promise names exactly one relation; required projections stay outside this set.
 fn optional_promises_are_closed() -> usize {
     use super::service::{capability_relation, optional_capability};
-    use super::types::OptionalCapability;
+    use crate::domain::capabilities::types::OptionalCapability;
     let capabilities = [
         OptionalCapability::ModuleIdentity,
         OptionalCapability::Identifier,

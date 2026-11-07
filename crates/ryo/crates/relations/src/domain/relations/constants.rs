@@ -1,6 +1,7 @@
 //! The names of the `relations` concept: what a kind of column is called when a listing shows it.
 
-use super::types::{CellKind, FieldId, FileId, Flag, Flags, Offset, Span};
+use crate::domain::relations::types::{CellKind, FileId, Flag, Flags, Offset, Span};
+use crate::domain::relations::types::FieldId;
 use crate::domain::terms::types::Symbol;
 
 /// The text of a kind.
@@ -183,35 +184,35 @@ pub const IMPLIED: Flags = Flags(2);
 pub const UNLOCATED: &str = "unlocated";
 
 /// The closed set of optional semantic promises; every other relation is baseline.
-pub const OPTIONAL_CAPABILITIES: &[super::types::OptionalCapability] = &[
-    super::types::OptionalCapability::ModuleIdentity,
-    super::types::OptionalCapability::ProjectNamespaceMembership,
-    super::types::OptionalCapability::Identifier,
-    super::types::OptionalCapability::QualifiedName,
-    super::types::OptionalCapability::EmbeddedExpression,
-    super::types::OptionalCapability::ExpressionShape,
-    super::types::OptionalCapability::BindingEvent,
-    super::types::OptionalCapability::BindingRead,
-    super::types::OptionalCapability::BindingUse,
-    super::types::OptionalCapability::BindingShadow,
-    super::types::OptionalCapability::ImplicitSymbol,
-    super::types::OptionalCapability::LiteralProperties,
-    super::types::OptionalCapability::NumericLiteral,
-    super::types::OptionalCapability::TokenLink,
-    super::types::OptionalCapability::InterpolatedStringLiteral,
-    super::types::OptionalCapability::BytesLiteral,
-    super::types::OptionalCapability::FormatSpecification,
-    super::types::OptionalCapability::LanguageTarget,
-    super::types::OptionalCapability::StandardLibraryImport,
-    super::types::OptionalCapability::CompilerFeature,
-    super::types::OptionalCapability::ConstantKey,
-    super::types::OptionalCapability::FormatParse,
-    super::types::OptionalCapability::FormatField,
-    super::types::OptionalCapability::BraceFormatParse,
-    super::types::OptionalCapability::BraceFormatField,
-    super::types::OptionalCapability::FunctionTerminal,
-    super::types::OptionalCapability::ExpressionType,
-    super::types::OptionalCapability::RawFormatSegment,
-    super::types::OptionalCapability::RawFormatField,
-    super::types::OptionalCapability::LiteralExpressionParse,
+pub const OPTIONAL_CAPABILITIES: &[crate::domain::capabilities::types::OptionalCapability] = &[
+    crate::domain::capabilities::types::OptionalCapability::ModuleIdentity,
+    crate::domain::capabilities::types::OptionalCapability::ProjectNamespaceMembership,
+    crate::domain::capabilities::types::OptionalCapability::Identifier,
+    crate::domain::capabilities::types::OptionalCapability::QualifiedName,
+    crate::domain::capabilities::types::OptionalCapability::EmbeddedExpression,
+    crate::domain::capabilities::types::OptionalCapability::ExpressionShape,
+    crate::domain::capabilities::types::OptionalCapability::BindingEvent,
+    crate::domain::capabilities::types::OptionalCapability::BindingRead,
+    crate::domain::capabilities::types::OptionalCapability::BindingUse,
+    crate::domain::capabilities::types::OptionalCapability::BindingShadow,
+    crate::domain::capabilities::types::OptionalCapability::ImplicitSymbol,
+    crate::domain::capabilities::types::OptionalCapability::LiteralProperties,
+    crate::domain::capabilities::types::OptionalCapability::NumericLiteral,
+    crate::domain::capabilities::types::OptionalCapability::TokenLink,
+    crate::domain::capabilities::types::OptionalCapability::InterpolatedStringLiteral,
+    crate::domain::capabilities::types::OptionalCapability::BytesLiteral,
+    crate::domain::capabilities::types::OptionalCapability::FormatSpecification,
+    crate::domain::capabilities::types::OptionalCapability::LanguageTarget,
+    crate::domain::capabilities::types::OptionalCapability::StandardLibraryImport,
+    crate::domain::capabilities::types::OptionalCapability::CompilerFeature,
+    crate::domain::capabilities::types::OptionalCapability::ConstantKey,
+    crate::domain::capabilities::types::OptionalCapability::FormatParse,
+    crate::domain::capabilities::types::OptionalCapability::FormatField,
+    crate::domain::capabilities::types::OptionalCapability::BraceFormatParse,
+    crate::domain::capabilities::types::OptionalCapability::BraceFormatField,
+    crate::domain::capabilities::types::OptionalCapability::FunctionTerminal,
+    crate::domain::capabilities::types::OptionalCapability::ExpressionType,
+    crate::domain::capabilities::types::OptionalCapability::RawFormatSegment,
+    crate::domain::capabilities::types::OptionalCapability::RawFormatField,
+    crate::domain::capabilities::types::OptionalCapability::LiteralExpressionParse,
 ];

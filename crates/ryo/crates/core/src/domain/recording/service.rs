@@ -39,6 +39,7 @@ use ryo_values::domain::table_words::types::WordSlice;
 /// Whether [`cover`] names a rule that reads as `needs` at a file read in part as `partials`: a relation of the file the rule reads
 /// is read in part there, so the rule's unknown at the file is already given with the relation and why.
 pub(crate) fn names_at_file(
+    metadata: &impl MetadataUseCase,
     partials: &[Partial],
     needs: Option<&ryo_execution::inbound::use_cases::metadata::interface::Needs>,
 ) -> Bearing {
@@ -47,7 +48,7 @@ pub(crate) fn names_at_file(
             needs
                 .reads
                 .iter()
-                .any(|read| MetadataUseCaseImpl.matters(read, partial) == Bearing::Matters)
+                .any(|read| metadata.matters(read, partial) == Bearing::Matters)
         })
     });
     if named {
@@ -62,6 +63,7 @@ pub(crate) fn names_at_file(
 /// would report the same uncertainty twice; any other partition (another file, the repository) is uncertainty `cover` does not see
 /// from this file, and the rule says so here.
 pub(crate) fn partial_root(
+    metadata: &impl MetadataUseCase,
     unknowns: &mut Vec<Unknown>,
     partials: &[Partial],
     setting: &VisitSetting<'_>,
@@ -71,11 +73,11 @@ pub(crate) fn partial_root(
     affected: &[Option<FileId>],
 ) {
     let own = !affected.is_empty() && affected.iter().all(|file| *file == Some(at));
-    if own && names_at_file(partials, setting.needs.get(rule.0)) == Bearing::Matters {
+    if own && names_at_file(metadata, partials, setting.needs.get(rule.0)) == Bearing::Matters {
         return;
     }
     unknowns.push(Unknown {
-        rule: MetadataUseCaseImpl.rule_id(setting.ids, rule),
+        rule: metadata.rule_id(setting.ids, rule),
         path: path.clone(),
         message: ryo_execution::inbound::use_cases::metadata::interface::Message(
             PHYSICAL_FACTS_INCOMPLETE.into(),
@@ -284,6 +286,7 @@ pub(crate) fn interface_bytes(tables: &Tables) -> InterfaceBytes {
 /// Notes what a file read in part costs the rules: what each could not decide in the file, and the file's coverage for the
 /// cross-file steps that trust the absence of rows of what is partial.
 pub(crate) fn cover(
+    metadata: &impl MetadataUseCase,
     tables: &mut Tables,
     setting: &VisitSetting<'_>,
     at: FileId,
@@ -309,7 +312,7 @@ pub(crate) fn cover(
         if !applicable {
             continue;
         }
-        if MetadataUseCaseImpl.governs(
+        if metadata.governs(
             &tables.mask,
             RuleNumber(u32::try_from(rule).unwrap_or(u32::MAX)),
         ) == Governing::DoesNotGovern
@@ -320,17 +323,17 @@ pub(crate) fn cover(
             if needs
                 .reads
                 .iter()
-                .any(|read| MetadataUseCaseImpl.matters(read, partial) == Bearing::Matters)
+                .any(|read| metadata.matters(read, partial) == Bearing::Matters)
             {
                 tables.unknowns.push(Unknown {
-                    rule: MetadataUseCaseImpl.rule_id(setting.ids, RuleIndex(rule)),
+                    rule: metadata.rule_id(setting.ids, RuleIndex(rule)),
                     path: path.clone(),
-                    message: MetadataUseCaseImpl
+                    message: metadata
                         .unknown_message(partial, CoverageScope::File(path)),
                 });
             }
         }
-        if MetadataUseCaseImpl.blocked(&needs.cross, &tables.partials) == Blocking::Blocked {
+        if metadata.blocked(&needs.cross, &tables.partials) == Blocking::Blocked {
             rules.push(RuleIndex(rule));
         }
     }
@@ -447,4 +450,3 @@ pub(crate) fn finish_file(
 }
 
 use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
-use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;

@@ -1,7 +1,7 @@
 //! The test support of the `relations` concept: the catalog lookups the tests of other crates make.
 
 use super::service;
-use super::types::{Bits, CellKind, FileId, NodeId, Position, Relation, Value};
+use crate::domain::relations::types::{Bits, CellKind, FileId, NodeId, Position, Relation, Value};
 
 /// The cell kinds of a relation.
 #[must_use]

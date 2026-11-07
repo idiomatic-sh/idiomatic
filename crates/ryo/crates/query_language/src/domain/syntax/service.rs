@@ -2,7 +2,7 @@
 //! functions over the domain's types, with no IO and no ports.
 
 use ryo_relations::domain::relations::service::relation_named;
-use ryo_relations::domain::relations::types::NameRef;
+use ryo_relations::domain::labels::types::NameRef;
 use ryo_relations::domain::relations::types::Relation;
 
 use super::constants::operator_named;

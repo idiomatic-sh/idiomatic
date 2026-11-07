@@ -73,7 +73,7 @@ impl ParseUseCase for Ordered {
     }
     fn capabilities(
         &self,
-    ) -> &'static [ryo_relations::domain::relations::types::OptionalCapability] {
+    ) -> &'static [ryo_relations::domain::capabilities::types::OptionalCapability] {
         Small.capabilities()
     }
     fn configuration_identity(

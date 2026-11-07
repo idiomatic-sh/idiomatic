@@ -35,6 +35,10 @@ pub enum RepeatedRows {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct InputNumber(pub usize);
 
+/// An observation binding, by its place among the bindings of a request.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct BindingPlace(pub usize);
+
 /// A step of the plan, by its place in the plan.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct StepId(pub u32);

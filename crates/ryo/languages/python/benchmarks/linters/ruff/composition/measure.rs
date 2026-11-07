@@ -1,7 +1,7 @@
 //! The measure commands: certify both contestants, then compare them on the pinned corpus.
 use super::certification::{
     Certifying, MeasureCommand, MeasurePaths, Selection, StagedSuite, RuleTally, announce,
-    candidate_linter, cases_for, held_to, paths, scope_of, scratch, stage,
+    candidate_linter, cases_for, held_to, paths, scope_of, stage,
 };
 use super::commands;
 use super::constants;
@@ -93,7 +93,10 @@ pub(super) fn measure(
     let collector_settings =
         commands::collector(suite_source.as_ref(), &collector_path, &frozen_workload)?;
     let execution = commands::timed(collector_settings, observations)?;
-    let case_scratch = scratch(suite_source.as_ref(), constants::CASE_SCRATCH)?;
+    let case_scratch = suite_source.scratch(
+        ArtifactPath(std::path::Path::new(constants::DEFAULT_SCRATCH_ROOT)),
+        constants::CASE_SCRATCH,
+    )?;
     let certificate = CertifyUseCaseImpl::new(
         Arc::<_>::clone(&suite_source),
         Arc::<super::super::adapter::LinterRuffAdapter>::clone(&reference),

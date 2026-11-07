@@ -3,7 +3,8 @@
 
 use crate::domain::elements::service::engine;
 use crate::domain::elements::types::Elements;
-use ryo_relations::domain::relations::types::{Position, PropertyId};
+use ryo_relations::domain::relations::types::Position;
+use ryo_relations::domain::relations::types::PropertyId;
 use ryo_relations::domain::terms::types::NameText;
 
 /// The text the token at `at` stands for, when the language's library decoded it.

@@ -4,7 +4,7 @@ use super::adapter::LintStoreDiscardAdapter;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::lint_store::errors::LintStoreError;
 use crate::outbound::lint_store::fixtures::contract::check;
-use crate::outbound::lint_store::fixtures::fake::stored;
+use crate::outbound::lint_store::fixtures::tables::stored;
 use crate::outbound::lint_store::interface::LintStorePort as _;
 use crate::outbound::lint_store::types::StoreKeeping;
 use ryo_values::domain::stores::types::{KeptRows, Stored};

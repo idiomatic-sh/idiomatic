@@ -17,7 +17,7 @@ pub(crate) fn resolve(
     known: &[Relation],
     text: &RelationName,
 ) -> Result<Relation, RelationLookupError> {
-    relation_named(ryo_relations::domain::relations::types::NameRef(&text.0))
+    relation_named(ryo_relations::domain::labels::types::NameRef(&text.0))
         .filter(|relation| known.contains(relation))
         .ok_or_else(|| RelationLookupError::UnknownRelation {
             name: text.0.to_string(),

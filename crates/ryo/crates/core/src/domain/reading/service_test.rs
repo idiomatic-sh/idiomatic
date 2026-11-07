@@ -1,6 +1,7 @@
 //! The `reading` service's cases, on values alone: the policy of reading one file, at its actual core owner. Execution and lifetime
 //! subjects run through the compiled FileRun controls, not a second reading executor.
 
+use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use std::convert::Infallible;
 
 use super::service::{begin, engine_asked, first_buckets, settle, start_partials};
@@ -90,7 +91,7 @@ fn line_count_asks_for_the_engine_rows() -> Value {
 
 fn recovery_from_syntax_errors_is_partial_in_the_relations_of_code() -> Value {
     let mut tables = tables_for(WorkerNumber(0), &[]);
-    start_partials(
+    start_partials(&MetadataUseCaseImpl, 
         &mut tables,
         &[],
         Recovery::SyntaxErrors,

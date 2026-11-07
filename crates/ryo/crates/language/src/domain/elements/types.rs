@@ -4,10 +4,9 @@
 use super::constants::SCRATCH;
 use crate::domain::diagnostics::types::Diagnostics;
 use crate::domain::symbols::types::ByteSlice;
-use ryo_relations::domain::relations::types::Expanded;
-use ryo_relations::domain::relations::types::{
-    Bytes, Count, Extent, FieldId, FileId, Flags, KindBits, Offset, Position, PropertyId,
-};
+use ryo_relations::domain::elements::types::Expanded;
+use ryo_relations::domain::relations::types::{Bytes, Count, Extent, FileId, Flags, KindBits, Offset, Position};
+use ryo_relations::domain::relations::types::{FieldId, PropertyId};
 use ryo_relations::domain::terms::types::ChildOrdinal;
 use ryo_relations::domain::terms::types::Symbol;
 
@@ -170,7 +169,7 @@ pub(crate) struct ElementsEngine {
     /// The elements a macro expansion produced, in the order of their positions; none for a file no expansion touched.
     pub expanded: Vec<Expanded>,
     /// Separately parsed expressions, kept outside the native lossless tree.
-    pub embedded: Vec<ryo_relations::domain::relations::types::EmbeddedSource>,
+    pub embedded: Vec<ryo_relations::domain::elements::types::EmbeddedSource>,
     /// The open nodes while the table is built.
     pub open: Vec<OpenNode>,
     /// The model the worker keeps for the language between files; the engine's, which the language never sees but through `file_model`.

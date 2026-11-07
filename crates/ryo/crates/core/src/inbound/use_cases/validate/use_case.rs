@@ -2,7 +2,7 @@
 //! names against the kinds the linked languages have.
 
 use ryo_execution::inbound::use_cases::metadata::interface::{KindOrigin, MetadataUseCase};
-use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
+use crate::application::metadata::service::kernel_metadata;
 use std::sync::Arc;
 
 use super::errors::ValidateError;
@@ -62,7 +62,7 @@ impl ValidateUseCase for ValidateUseCaseImpl {
             .map_err(|error| match error {
                 QueryLanguageError::Refused { error } => ValidateError::Uncompilable { error },
             })?;
-        match MetadataUseCaseImpl.kind_refusal(
+        match kernel_metadata().kind_refusal(
             &plan,
             &vocabularies,
             &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl::new(),

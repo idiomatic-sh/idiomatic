@@ -60,14 +60,6 @@ pub(super) fn paths(
     })
 }
 
-/// Make a scratch directory under the suite boundary's default location.
-pub(super) fn scratch(suite: &dyn SuitePort, prefix: &str) -> Result<PathBuf, Error> {
-    suite.scratch(
-        ArtifactPath(std::path::Path::new(constants::DEFAULT_SCRATCH_ROOT)),
-        prefix,
-    )
-}
-
 /// The registered case inventory an accounted measurement is held to, with the scratch directory for its results.
 fn registered_cases(
     selection_or_inventory: Option<Selection<'_>>,

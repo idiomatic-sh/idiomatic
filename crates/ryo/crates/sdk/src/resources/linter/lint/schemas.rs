@@ -1,3 +1,4 @@
+// ignore: idiomatic.arch/file-length - the one validation file the entry spec admits: its wire shapes and their conversions stay in the single schemas.rs
 //! The shape of the data this entry does not control: each wire shape is a `<Name>Schema`, its checked conversion into the core's type is an `impl TryFrom<<Name>Schema>`, and each refusal of a conversion is a `<Name>SchemaError`.
 
 use ryo_core::inbound::use_cases::lint::errors::LintError as CoreError;
@@ -141,7 +142,7 @@ struct LintRequestSchema(LintRequest);
 /// What a lint answered and what its findings were kept as.
 struct LintReportSchema {
     /// Where the rows the run wrote were kept.
-    collector: ryo_core::outbound::row_sink::types::Collector,
+    collected: ryo_core::outbound::row_sink::types::Collected,
     /// The files nothing read.
     report: CoreReport,
 }
@@ -296,13 +297,7 @@ impl TryFrom<LintReportSchema> for LintReport {
     type Error = LintError;
 
     fn try_from(schema: LintReportSchema) -> Result<Self, Self::Error> {
-        let LintReportSchema { collector, report } = schema;
-        let collected = std::mem::take(
-            &mut *collector
-                .0
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner),
-        );
+        let LintReportSchema { collected, report } = schema;
         let findings = collected
             .rows
             .into_iter()
@@ -557,10 +552,10 @@ fn host_cell(kind: HostKind, cell: Cell) -> Option<RowCell> {
 ///
 /// `Io` of the output when a row the run wrote is not a finding as the run writes one: a fault of the run, never dropped.
 pub(super) fn report(
-    collector: ryo_core::outbound::row_sink::types::Collector,
+    collected: ryo_core::outbound::row_sink::types::Collected,
     report: CoreReport,
 ) -> Result<LintReport, LintError> {
-    LintReport::try_from(LintReportSchema { collector, report })
+    LintReport::try_from(LintReportSchema { collected, report })
 }
 
 /// The failure for a row the run wrote that is not a finding as the run writes one.

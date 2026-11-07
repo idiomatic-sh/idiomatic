@@ -4,7 +4,8 @@ use super::super::interface::RelationsItem as _;
 use super::item::{Defines, DefinesRow};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::relations::types::{Bits, FileId, NodeId, Offset, Span};
-use crate::domain::terms::types::{DeclarationKind, Symbol};
+use crate::domain::declaration_kind::types::DeclarationKind;
+use crate::domain::terms::types::Symbol;
 
 /// A row to write: every column holds a number of its own, so that a column moved is a column found.
 type Input = ();

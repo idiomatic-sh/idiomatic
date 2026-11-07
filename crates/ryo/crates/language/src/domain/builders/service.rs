@@ -16,9 +16,8 @@ use crate::domain::symbols::service::{clear_symbols, intern, intern_derived};
 use crate::domain::symbols::types::{ByteSlice, Symbols};
 use ryo_relations::domain::relations::constants::{IMPLIED, NO_SPAN, NO_SYMBOL, TOKEN};
 use ryo_relations::domain::relations::types::ReportText;
-use ryo_relations::domain::relations::types::{
-    Extent, Flags, KindBits, Offset, Position, PropertyId,
-};
+use ryo_relations::domain::relations::types::{Extent, Flags, KindBits, Offset, Position};
+use ryo_relations::domain::relations::types::PropertyId;
 use ryo_relations::domain::terms::types::ChildOrdinal;
 use ryo_relations::domain::terms::types::NameText;
 use ryo_relations::domain::terms::types::Symbol;

@@ -10,10 +10,13 @@ use super::constants::{
     BLOCK_SIZE, DECLARATION_OWNER, DEPENDENCY_OWNER, MAPPING_OWNER, ORIGIN_OWNER, PARAMETER_OWNER,
     TERM_BASE, UNKNOWN_OWNER, VALUE_OWNER,
 };
-use super::types::{
-    DeclarationKind, DependencyKind, DependencyOrigin, MappingKind, ParameterKind, Term,
-    UnknownReason, ValueKind, WordBlock, Wordness,
-};
+use super::types::{Term, UnknownReason, WordBlock, Wordness};
+use crate::domain::declaration_kind::types::DeclarationKind;
+use crate::domain::dependency_kind::types::DependencyKind;
+use crate::domain::dependency_origin::types::DependencyOrigin;
+use crate::domain::mapping_kind::types::MappingKind;
+use crate::domain::parameter_kind::types::ParameterKind;
+use crate::domain::value_kind::types::ValueKind;
 use crate::domain::terms::types::ChildOrdinal;
 use crate::domain::terms::types::NameText;
 use crate::domain::terms::types::Symbol;

@@ -39,7 +39,7 @@ use ryo_execution::application::rule_compilation::service::CompiledQueries;
 use ryo_execution::application::file_dag::program::project_phase::types::FrontierDemand;
 use ryo_execution::application::file_dag::program::project_phase::types::FrontierRequest;
 use ryo_execution::application::file_dag::frontiers::errors::PreparationError;
-use ryo_execution::application::rule_compilation::service::QueryCompilation;
+use crate::application::engine::service::{Compilation, Execution};
 
 use crate::domain::answering::service::{cross_steps, settle, todo_list};
 use crate::domain::answering::types::Todo;
@@ -68,7 +68,7 @@ use crate::domain::render::types::{Answering, Rendered, RowLimit};
 use crate::domain::reporting::service::{room_left, totals};
 use crate::domain::reporting::types::RowCounts;
 use crate::domain::repository::service::{by_path, configuration, paths_of};
-use crate::domain::rules::service::{ids_of, owner_of, scopes_of};
+use crate::domain::run_rules::service::{ids_of, owner_of, scopes_of};
 use crate::domain::storing::service::{
     decide as reuse_of, later_from, made_again, records_from, skipped_from, stored_of,
     unknowns_from, with_fresh, with_gone,
@@ -114,7 +114,7 @@ use ryo_relations::domain::relations::types::WorkerNumber;
 use ryo_language::domain::symbols::types::Symbols;
 
 use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
-use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
+use crate::application::metadata::service::kernel_metadata;
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::files::service::input_path;
 use ryo_values::domain::files::types::{CorpusInput, Glob};
@@ -156,7 +156,7 @@ pub struct LintUseCaseImpl {
     /// Decides which files a rule's include and exclude globs govern.
     matching: Arc<dyn MatchingPort>,
     /// Owns rule compilation, independent per-request binding and bounded session plans.
-    compilation: QueryCompilation,
+    compilation: Compilation,
     /// Says how much memory the machine has, which sizes the lint's budget.
     memory: Arc<dyn MemoryPort>,
     /// Pure primitive meanings supplied by the composition edge.
@@ -216,7 +216,7 @@ impl LintUseCaseImpl {
             facts,
             language,
             matching,
-            compilation: QueryCompilation::new(query_language),
+            compilation: Compilation::new(query_language),
             memory,
             operators,
             derived,
@@ -272,7 +272,7 @@ impl LintUseCaseImpl {
         plans: &[Plan],
         ids: &[RuleId],
     ) -> Result<Wanting, LintError> {
-        let placement = MetadataUseCaseImpl.decide(&scopes_of(rules));
+        let placement = kernel_metadata().decide(&scopes_of(rules));
         let matcher = self.matching.compile(&placement.globs).map_err(
             |error| match error {
                 MatchingError::BadGlob { glob, reason } => LintError::Rule {
@@ -751,13 +751,13 @@ impl LintUseCaseImpl {
             .plans()
             .iter()
             .zip(compiled.bindings())
-            .all(|(plan, bound)| MetadataUseCaseImpl.kinds_asked(plan, bound).is_empty())
+            .all(|(plan, bound)| kernel_metadata().kinds_asked(plan, bound).is_empty())
         {
             return Ok(compiled);
         }
         let vocabularies = self.language.kind_vocabularies();
         if let Some(unknown) =
-            MetadataUseCaseImpl.first_unknown(
+            kernel_metadata().first_unknown(
                 compiled.plans(),
                 compiled.bindings(),
                 &vocabularies,
@@ -769,7 +769,7 @@ impl LintUseCaseImpl {
                     .get(unknown.rule.0)
                     .map(|rule| rule.id.0.to_string())
                     .unwrap_or_default(),
-                reason: MetadataUseCaseImpl
+                reason: kernel_metadata()
                     .unknown_kind_message(&unknown.word, &vocabularies)
                     .message
                     .0
@@ -993,14 +993,14 @@ impl LintUseCaseImpl {
             errors::CrossFileError,
             preparation::{service::Preparation, types::PreparedProject},
         };
-        let inapplicable = crate::domain::crossing::service::inapplicable_files(&crossing.domain);
+        let inapplicable = crate::domain::crossing::service::inapplicable_files(&kernel_metadata(), &crossing.domain);
         let prepared = Preparation::ordinary(todo).prepare_all(|occurrence, each| {
             if occurrence.0 != 0 {
                 within(self.memory.resident_bytes()?, listing.budget, || {
                     vec![each.id.clone()]
                 })?;
             }
-            let _memory_rule = memory_rule(&each.id, each.rule.0);
+            let _memory_rule = memory_rule(&each.id, each.rule);
             let first = *run.first_bucket.get(each.rule.0).ok_or_else(|| {
                 CrossFileError::from(ryo_values::domain::rule_requests::service::failed(
                     &each.id,
@@ -1150,7 +1150,7 @@ impl LintUseCaseImpl {
     /// What the report says each feature of the rules was fed, when the run counts the rows.
     fn features_of(&self, run: &LintRun<'_>, fed: &[Vec<RowsFed>]) -> Vec<FeatureFed> {
         match self.counting {
-            Counting::Counts => MetadataUseCaseImpl
+            Counting::Counts => kernel_metadata()
                 .fed_over(run.metadata, fed)
                 .into_iter()
                 .map(FeatureFed::from)
@@ -1162,7 +1162,7 @@ impl LintUseCaseImpl {
     /// What the report says each step of each rule was fed, when the run counts the rows.
     fn work_of(&self, run: &LintRun<'_>, fed: &[Vec<RowsFed>]) -> Vec<RuleWork> {
         match self.counting {
-            Counting::Counts => MetadataUseCaseImpl
+            Counting::Counts => kernel_metadata()
                 .work_over(run.metadata, fed)
                 .into_iter()
                 .zip(run.rules)
@@ -1216,7 +1216,7 @@ impl LintUseCaseImpl {
             .chain(now.unlisted.iter().cloned())
             .collect();
         now.unknowns =
-            MetadataUseCaseImpl.project_unknowns(&now.partials, &named, run.needs, run.ids);
+            kernel_metadata().project_unknowns(&now.partials, &named, run.needs, run.ids);
         Ok(now)
     }
 
@@ -1259,7 +1259,7 @@ impl LintUseCaseImpl {
                 &later_from(&run.listing.stored, run.ids, &made_again).unwrap_or_default(),
             ),
         );
-        let mut todo = todo_list(run.metadata, run.ids);
+        let mut todo = todo_list(&kernel_metadata(), run.metadata, run.ids);
         todo.retain(|each| {
             rules
                 .binary_search_by_key(&each.rule.0, |rule| {
@@ -1350,7 +1350,7 @@ impl LintUseCaseImpl {
                 Projected::default()
             };
             unknowns.append(&mut now.unknowns);
-            let todo = todo_list(run.metadata, run.ids);
+            let todo = todo_list(&kernel_metadata(), run.metadata, run.ids);
             if !todo.is_empty() {
                 self.crossed(run, handed, &todo, project, &now, &mut answered)?;
             }
@@ -1436,7 +1436,7 @@ impl LintUseCase for LintUseCaseImpl {
         };
         let needs: Vec<Needs> = plans
             .iter()
-            .map(|plan| MetadataUseCaseImpl.scoped_needs(plan))
+            .map(|plan| kernel_metadata().scoped_needs(plan))
             .collect();
         let resolved = self.resolution(&manifests, &plans, &request.session)?;
         let stored_rules = self.stored_rules(
@@ -1457,7 +1457,7 @@ impl LintUseCase for LintUseCaseImpl {
         );
         let unknown = self.language.unknown_reasons();
         let execution =
-            PrepareUseCaseImpl::new(Arc::clone(&self.operators), Arc::clone(&self.derived));
+            Execution::new(Arc::clone(&self.operators), Arc::clone(&self.derived));
         #[cfg(feature = "fixtures")]
         let execution = execution.routing(self.routes);
         let rule_digests: Vec<_> = stored_rules.iter().map(|rule| rule.digest).collect();

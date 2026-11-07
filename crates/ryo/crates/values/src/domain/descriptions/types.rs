@@ -1,6 +1,6 @@
 //! The types of the `descriptions` concept: what ryo says of the relations and the operators it owns. Plain data, public fields and derives, with no constructor and no inherent impl.
 
-use ryo_relations::domain::relations::types::Holds;
+use ryo_relations::domain::labels::types::Holds;
 use ryo_relations::domain::terms::types::UnknownName;
 
 /// Why a language does not read a relation, by the reason's name; empty when it reads it.
