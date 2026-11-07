@@ -13,7 +13,7 @@ pub enum OperatorCommand {
 }
 
 /// Runs one `operator` command.
-pub fn run(command: OperatorCommand, edge: &crate::edge::Edge) -> crate::outcome::CommandOutcome {
+pub fn run(command: OperatorCommand, edge: &crate::edge::Edge) -> crate::outcome::Outcome {
     match command {
         OperatorCommand::Describe(arguments) => describe::command::run(arguments, edge),
         OperatorCommand::List(arguments) => list::command::run(arguments, edge),

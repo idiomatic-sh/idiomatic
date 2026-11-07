@@ -13,7 +13,7 @@ pub enum RelationCommand {
 }
 
 /// Runs one `relation` command.
-pub fn run(command: RelationCommand, edge: &crate::edge::Edge) -> crate::outcome::CommandOutcome {
+pub fn run(command: RelationCommand, edge: &crate::edge::Edge) -> crate::outcome::Outcome {
     match command {
         RelationCommand::Describe(arguments) => describe::command::run(arguments, edge),
         RelationCommand::List(arguments) => list::command::run(arguments, edge),

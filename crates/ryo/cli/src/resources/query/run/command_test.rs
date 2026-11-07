@@ -2,14 +2,14 @@
 
 use super::command::{RunArguments, answered};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::outcome::CommandOutcome;
+use crate::outcome::Outcome;
 
 /// What a row gives the command: the command line, one argument at a time.
 type Input = Vec<&'static str>;
 /// How many lines the command prints when it succeeds, and how many of them name `notes.txt`, the file of the fixtures no language reads.
 type Value = (usize, usize);
 /// How the command ends when it does not succeed.
-type Failure = CommandOutcome;
+type Failure = Outcome;
 
 const SAMPLE: &str = "tests/fixtures/sample";
 const EMPTY: &str = "tests/fixtures/empty";
@@ -89,7 +89,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 FUNCTIONS,
             ]
         },
-        expect: Expect::Error(CommandOutcome::Error),
+        expect: Expect::Error(Outcome::Error),
     },
     Case {
         name: CaseName("prints_the_columns_and_the_unread_file_when_no_row_matches"),
@@ -148,25 +148,25 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_where_on_a_column_the_joined_side_lacks_is_an_error"),
         word: Word::Refuses,
         input: || vec!["--root", SAMPLE, "--text", JOINED_UNKNOWN],
-        expect: Expect::Error(CommandOutcome::Error),
+        expect: Expect::Error(Outcome::Error),
     },
     Case {
         name: CaseName("a_wrong_query_is_an_error"),
         word: Word::Refuses,
         input: || vec!["--root", SAMPLE, "--text", MISSPELLED],
-        expect: Expect::Error(CommandOutcome::Error),
+        expect: Expect::Error(Outcome::Error),
     },
     Case {
         name: CaseName("unknown_flag_is_refused"),
         word: Word::Refuses,
         input: || vec!["--bogus", "--text", FUNCTIONS],
-        expect: Expect::Error(CommandOutcome::Failure),
+        expect: Expect::Error(Outcome::Failure),
     },
     Case {
         name: CaseName("a_blank_text_is_refused"),
         word: Word::Refuses,
         input: || vec!["--text", ""],
-        expect: Expect::Error(CommandOutcome::Failure),
+        expect: Expect::Error(Outcome::Failure),
     },
     Case {
         name: CaseName("fails_when_the_process_holds_more_memory_than_the_budget"),
@@ -181,7 +181,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 FUNCTIONS,
             ]
         },
-        expect: Expect::Error(CommandOutcome::Error),
+        expect: Expect::Error(Outcome::Error),
     },
     Case {
         name: CaseName("fails_when_the_root_is_a_file"),
@@ -194,13 +194,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 FUNCTIONS,
             ]
         },
-        expect: Expect::Error(CommandOutcome::Error),
+        expect: Expect::Error(Outcome::Error),
     },
     Case {
         name: CaseName("fails_when_the_root_is_not_there"),
         word: Word::Fails,
         input: || vec!["--root", "tests/fixtures/missing", "--text", FUNCTIONS],
-        expect: Expect::Error(CommandOutcome::Error),
+        expect: Expect::Error(Outcome::Error),
     },
 ];
 
@@ -217,7 +217,7 @@ fn edge_of(root: Option<&str>, format: crate::output::Format) -> crate::edge::Ed
 /// Runs `query run` on one command line and returns what it printed or the outcome it ended with.
 fn subject(line: Input) -> Result<Value, Failure> {
     let parsed = <Line as clap::Parser>::try_parse_from(std::iter::once("ryo").chain(line))
-        .map_err(|_refused| CommandOutcome::Failure)?;
+        .map_err(|_refused| Outcome::Failure)?;
     let budget = super::schemas::budget(parsed.arguments.memory_budget);
     let edge = edge_of(parsed.root.as_deref(), parsed.output.format());
     let request = super::schemas::request(
@@ -225,12 +225,12 @@ fn subject(line: Input) -> Result<Value, Failure> {
         parsed.arguments.text,
         parsed.arguments.limit,
     )
-    .map_err(|_refused| CommandOutcome::Failure)?;
+    .map_err(|_refused| Outcome::Failure)?;
     let printed = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
     let format = parsed.output.format();
     let out = Box::new(Shared(std::sync::Arc::clone(&printed)));
-    let ran = answered(request, budget, &edge, out).map_err(|_failed| CommandOutcome::Error);
-    if matches!(ran, Err(CommandOutcome::Error)) && format == crate::output::Format::Json {
+    let ran = answered(request, budget, &edge, out).map_err(|_failed| Outcome::Error);
+    if matches!(ran, Err(Outcome::Error)) && format == crate::output::Format::Json {
         // A run that stops leaves no part of a document behind.
         assert!(
             printed.lock().map_or(true, |bytes| bytes.is_empty()),

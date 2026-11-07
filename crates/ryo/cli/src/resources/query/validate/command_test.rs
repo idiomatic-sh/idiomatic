@@ -2,14 +2,14 @@
 
 use super::command::{ValidateArguments, answer};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::outcome::CommandOutcome;
+use crate::outcome::Outcome;
 
 /// What a row gives the command: the command line, one argument at a time.
 type Input = Vec<&'static str>;
 /// How many lines the command prints when it succeeds.
 type Value = usize;
 /// How the command ends when it does not succeed.
-type Failure = CommandOutcome;
+type Failure = Outcome;
 
 const VALID: &str =
     "let functions = select * from \"function\"; emit functions subject \"file\" key(\"span\");";
@@ -45,25 +45,25 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("prints_the_error_with_its_span"),
         word: Word::Refuses,
         input: || vec!["--text", MISSPELLED],
-        expect: Expect::Error(CommandOutcome::Error),
+        expect: Expect::Error(Outcome::Error),
     },
     Case {
         name: CaseName("a_kind_no_linked_language_has_is_refused"),
         word: Word::Refuses,
         input: || vec!["--text", MISTYPED_KIND],
-        expect: Expect::Error(CommandOutcome::Error),
+        expect: Expect::Error(Outcome::Error),
     },
     Case {
         name: CaseName("a_relation_only_a_host_declares_is_refused_as_the_core_refuses_it"),
         word: Word::Refuses,
         input: || vec!["--text", HOSTED],
-        expect: Expect::Error(CommandOutcome::Error),
+        expect: Expect::Error(Outcome::Error),
     },
     Case {
         name: CaseName("a_blank_text_is_refused"),
         word: Word::Refuses,
         input: || vec!["--text", " "],
-        expect: Expect::Error(CommandOutcome::Failure),
+        expect: Expect::Error(Outcome::Failure),
     },
 ];
 
@@ -76,7 +76,7 @@ fn subject(line: Input) -> Result<Value, Failure> {
         .and_then(|place| line.get(place + 1))
         .copied();
     let parsed = <Line as clap::Parser>::try_parse_from(std::iter::once("ryo").chain(line))
-        .map_err(|_refused| CommandOutcome::Error)?;
+        .map_err(|_refused| Outcome::Error)?;
     let answered = answer(parsed.arguments).map(|answer| answer.to_string().lines().count());
     // A kind is checked against the languages linked, and the SDK here is given none: that row is the command line's alone.
     if let Some(text) = text.filter(|text| !text.trim().is_empty() && *text != MISTYPED_KIND) {

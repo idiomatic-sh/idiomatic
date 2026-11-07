@@ -25,7 +25,7 @@ pub(crate) fn workload() -> crate::measure::Measured {
             );
             assert_eq!(
                 outcome,
-                ryo_cli::outcome::CommandOutcome::Success,
+                ryo_cli::outcome::Outcome::Success,
                 "`query run` did not succeed"
             );
         },
