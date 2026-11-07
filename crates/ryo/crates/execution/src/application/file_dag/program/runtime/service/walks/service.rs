@@ -79,9 +79,9 @@ impl KernelPermit<'_> {
         let region = &self.program.regions()[self.region.0];
         let declared = crate::domain::executable_program::service::selection(&region.route())
             .ok_or(OperatingError::WrongOperation)?;
-        if shape.target() != self.region
-            || shape.logical() != region.instructions()[self.instruction.0].logical()
-            || !Arc::ptr_eq(shape.selector(), declared.selector())
+        if shape.target != self.region
+            || shape.logical != region.instructions()[self.instruction.0].logical()
+            || !Arc::ptr_eq(&shape.selector, &declared.selector)
         {
             return Err(OperatingError::NotRead);
         }

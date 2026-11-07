@@ -42,7 +42,7 @@ pub(super) fn acquire(
     }
     // An empty primary has no representatives to acquire: the ordinary route
     // answers it without building any derived payload.
-    if shape.selector().distinct
+    if shape.selector.distinct
         && columns
             .columns
             .first()
@@ -63,7 +63,7 @@ pub(super) fn acquire(
         context,
         kernels,
     )? {
-        let selector = shape.selector();
+        let selector = &shape.selector;
         let kinds = selector
             .columns
             .iter()
@@ -100,7 +100,7 @@ pub(super) fn acquire(
         )
         .map(Some);
     }
-    let Some(plan) = owner.derived().selector_plan(shape.selector())? else {
+    let Some(plan) = owner.derived().selector_plan(&shape.selector)? else {
         return Ok(None);
     };
     if plan
@@ -115,7 +115,7 @@ pub(super) fn acquire(
         semantic: context.semantic,
         prepared_matchers: context.prepared_matchers,
         prepared_kinds: context.prepared_kinds,
-        bindings: prepared.bindings(shape.producer())?,
+        bindings: prepared.bindings(shape.producer)?,
         symbols: ryo_language::domain::symbols::service::query_reborrow(&mut context.symbols),
         source: context.source,
         paths: context.paths,
@@ -125,7 +125,7 @@ pub(super) fn acquire(
     };
     let before = owner.derived().selector_work()?;
     let result = owner.derived().select(
-        shape.selector(),
+        &shape.selector,
         *columns,
         owner,
         publication,

@@ -12,9 +12,9 @@ impl ProgramExecution {
     ) -> Result<(), OperatingError> {
         let mut slots = state.slots.borrow_mut();
         for (id, values) in [
-            (shape.join(), counts.join.snapshot()),
-            (shape.filter(), counts.filter.snapshot()),
-            (shape.target(), counts.project.snapshot()),
+            (shape.join, counts.join.snapshot()),
+            (shape.filter, counts.filter.snapshot()),
+            (shape.target, counts.project.snapshot()),
         ] {
             let slot = Slot::touched(state, &mut slots, &self.program, id)?;
             let fed = slot.fed.first_mut().ok_or(OperatingError::NotRun)?;

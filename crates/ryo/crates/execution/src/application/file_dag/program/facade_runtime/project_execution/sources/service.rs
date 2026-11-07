@@ -134,9 +134,9 @@ impl PublicationScope {
     > {
         let mut bindings = Vec::new();
         for binding in bound.iter().flatten() {
-            bindings.push(BoundKey::Input(InputSource::Observation(
+            bindings.push(BoundKey::Input(InputSource::Observation(crate::domain::executable_program::types::ObservationPlace(
                 crate::application::file_dag::program::facade_runtime::source_admission::observation_slot(prepared, rule, binding.input)?.0,
-            )));
+            ))));
             match &binding.members {
                 Err(error) => bindings.push(BoundKey::Refused(error.clone())),
                 Ok(members) => {

@@ -95,8 +95,8 @@ fn a_step_dependency_and_its_terminal_publication_are_counted_once_each() {
         first_region, last_region,
         "distinct projection owns a real input publication"
     );
-    assert_eq!(program.regions()[first_region.0].consumers(), 1);
-    assert_eq!(program.regions()[last_region.0].consumers(), 1);
+    assert_eq!(program.regions()[first_region.0].consumers().0, 1);
+    assert_eq!(program.regions()[last_region.0].consumers().0, 1);
 }
 
 #[test]

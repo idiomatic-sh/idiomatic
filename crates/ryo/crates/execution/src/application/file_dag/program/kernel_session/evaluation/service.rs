@@ -6,7 +6,7 @@ use crate::application::file_dag::program::runtime::types::KernelScratch;
 use crate::{
     application::file_dag::{invocation::InvocationResources, workspace::InvocationWorkspace},
     domain::{
-        executable_program::types::Instruction,
+        executable_program::types::instruction::value::Instruction,
         operating::{
             errors::OperatingError,
             types::{Emit, InputPlace, OperatorContext},
@@ -338,10 +338,11 @@ impl super::super::KernelSession<'_, '_> {
                                         paths: context.paths,
                                         arenas: context.arenas,
                                     };
-                                    if !crate::domain::executable_program::kernel::row_admissible(
+                                    if crate::domain::executable_program::kernel::row_admissible(
                                         contract, row, &texts,
                                     )
                                     .map_err(InvocationFailure::Semantic)?
+                                        == crate::domain::executable_program::types::RowGate::Withheld
                                     {
                                         continue;
                                     }

@@ -1,6 +1,6 @@
 //! Request preparation preserves native tuple geometry, never the old evaluator.
 use crate::domain::{
-    executable_program::types::{LogicalInstruction, Region, RouteOffers},
+    executable_program::types::{LogicalInstruction, RouteOffers, region::value::Region},
     file_program::types::RequestGraph,
     lowering::types::LoweredShape,
 };
@@ -21,11 +21,11 @@ pub(super) fn offer(
     candidates: &mut [RouteOffers],
 ) {
     for (region, candidate) in regions.iter().zip(candidates) {
-        let [instruction] = region.instructions.as_ref() else {
+        let [instruction] = region.instructions() else {
             continue;
         };
         if !matches!(
-            instruction.operation,
+            instruction.operation(),
             ryo_values::domain::plans::types::Operation::Select { .. }
                 | ryo_values::domain::plans::types::Operation::Project { .. }
                 | ryo_values::domain::plans::types::Operation::Join { .. }
@@ -37,11 +37,11 @@ pub(super) fn offer(
         }
         // Zero-column row multiplicity stays on the registered Project route;
         // this alternative declines before performing semantic work.
-        if matches!(&instruction.operation, ryo_values::domain::plans::types::Operation::Project { columns, .. } if columns.is_empty())
+        if matches!(instruction.operation(), ryo_values::domain::plans::types::Operation::Project { columns, .. } if columns.is_empty())
         {
             continue;
         }
-        let LogicalInstruction(logical) = instruction.logical;
+        let LogicalInstruction(logical) = instruction.logical();
         candidate.native = shapes.get(logical).and_then(Clone::clone);
     }
 }

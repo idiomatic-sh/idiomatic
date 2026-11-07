@@ -1,14 +1,16 @@
 //! Dense executable instructions and their real publication boundaries.
 use crate::domain::{
     column_kernel::types::Chain, coverage::types::RuleIndex, operating::errors::OperatingError,
-    operator::contract::types::OperatorContract, stored_selection::types::Selector,
+    stored_selection::types::Selector,
 };
 use ryo_relations::domain::relations::types::Relation;
-use ryo_values::domain::{
-    plan_parts::types::{StepId, StepScope},
-    plans::types::Operation,
-};
+use ryo_values::domain::plan_parts::types::StepId;
 use std::sync::Arc;
+
+pub(crate) mod demand_program;
+pub(crate) mod executable_program;
+pub(crate) mod instruction;
+pub(crate) mod region;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct RegionId(pub usize);
@@ -24,15 +26,21 @@ pub(crate) enum InputSource {
         relation: ryo_values::domain::plan_parts::types::HostedNumber,
     },
     Region(RegionId),
-    Observation(usize),
+    Observation(ObservationPlace),
     /// An explicitly declared, closed observation with no producers.
-    EmptyObservation(usize),
+    EmptyObservation(ObservationPlace),
     /// One exact producer of a request-qualified named input.
     ObservationMember {
-        slot: usize,
-        member: usize,
+        slot: ObservationPlace,
+        member: ProducerMember,
     },
 }
+/// The request-qualified slot of one named input.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub(crate) struct ObservationPlace(pub usize);
+/// One producer of a named input, by its place among the slot's producers.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub(crate) struct ProducerMember(pub usize);
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum PartitionRequirement {
     RequestInvariant,
@@ -45,26 +53,11 @@ pub(crate) enum PartitionRequirement {
 pub(crate) enum DemandAction {
     Admit(InputId),
 }
-/// Closed, ordered code interpreted only by the common application invocation.
-#[derive(Clone, Debug)]
-pub(crate) struct DemandProgram {
-    pub(super) actions: Box<[DemandAction]>,
-}
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum OperandSource {
     Boundary(InputId),
     /// Only the immediately preceding instruction's borrowed row; no publication exists.
     PreviousRow,
-}
-#[derive(Clone, Debug)]
-pub(crate) struct Instruction {
-    pub(super) logical: LogicalInstruction,
-    pub(super) producer: RuleIndex,
-    pub(super) operation: Operation,
-    pub(super) contract: Arc<OperatorContract>,
-    pub(super) inputs: Box<[OperandSource]>,
-    pub(super) demand: DemandProgram,
-    pub(super) partition: PartitionRequirement,
 }
 #[derive(Clone, Debug)]
 pub(crate) struct OrderedExistence {
@@ -138,21 +131,56 @@ pub(crate) struct RouteOffers {
     pub selection: Option<SelectionAlternative>,
     pub native: Option<Arc<crate::domain::lowering::types::LoweredShape>>,
 }
-#[derive(Clone, Debug)]
-pub(crate) struct Region {
-    pub(super) id: RegionId,
-    pub(super) producer: RuleIndex,
-    pub(super) needs: Result<Box<[crate::domain::trust::types::RelationRead]>, OperatingError>,
-    pub(super) phase: StepScope,
-    pub(super) instructions: Box<[Instruction]>,
-    pub(super) inputs: Box<[InputSource]>,
-    pub(super) source_partitions: Box<[SourcePartition]>,
-    pub(super) consumers: usize,
-    pub(super) dependencies: Box<[RegionId]>,
-    pub(super) route: Route,
-}
+/// Whether a root of its rule reads an original step.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct Origin {
+pub(super) enum StepUse {
+    /// A root reads it, directly or through the steps that read it.
+    Read,
+    /// No root reads it.
+    Unread,
+}
+/// The address of the compiled regular expression an operator call was prepared with.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct RegexIdentity(pub usize);
+/// Whether an invocation holds the native join lease, whose views a join call must then carry.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum JoinLease {
+    /// The native join lease is held.
+    Native,
+    /// No native join lease is held.
+    Absent,
+}
+/// Whether a row passes the first applicable row gate of an instruction.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum RowGate {
+    /// The row is invoked.
+    Admitted,
+    /// The row is skipped before invocation.
+    Withheld,
+}
+/// The column-kernel alternative of one join-filter-project chain: its target, left input, join and filter, in original
+/// nodes when the compiler finds it and in executable regions once lowered. The typed semantic shape required by the shared
+/// physical invocation.
+#[derive(Clone, Debug)]
+pub(crate) struct ColumnAlternative<Id = RegionId> {
+    pub target: Id,
+    pub left: Id,
+    pub join: Id,
+    pub filter: Id,
+    pub chain: Chain,
+}
+/// An immutable semantic alternative for one exact compiled instruction: the stored selection of a direct select or
+/// project. The selector is the request-prepared Arc also registered with the derived owner.
+#[derive(Clone, Debug)]
+pub(crate) struct SelectionAlternative {
+    pub target: RegionId,
+    pub selector: Arc<Selector>,
+    pub producer: RuleIndex,
+    pub logical: LogicalInstruction,
+}
+/// Where an original step of a rule is in the executable program.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct StepOrigin {
     pub rule: RuleIndex,
     pub step: StepId,
     pub logical: LogicalInstruction,
@@ -161,109 +189,11 @@ pub(crate) struct Origin {
 pub(crate) struct RuleProgram {
     /// External root-reader obligations, including repeated aliases.
     pub root_readers: Box<[RegionId]>,
-    pub original_steps: Box<[Result<Origin, OperatingError>]>,
+    pub original_steps: Box<[Result<StepOrigin, OperatingError>]>,
     /// Collected semantic root shared only with collected frontier/observation aliases.
     pub emit: Result<RegionId, OperatingError>,
     /// Private diagnostic delivery boundary; no ordinary dependency or persisted alias targets it.
     pub frontier: Box<[Result<InputSource, OperatingError>]>,
-}
-/// There is no retained RequestGraph, PhysicalRegion, PlanLayout or per-plan evaluator here.
-#[derive(Debug)]
-pub(crate) struct ExecutableProgram {
-    pub(super) regions: Box<[Region]>,
-    pub(super) file_readers: FileReaderGraph,
-    pub(super) rules: Box<[RuleProgram]>,
-    pub(super) logical_regions: Box<[RegionId]>,
-    pub(super) observation_regions: Box<[Result<RegionId, OperatingError>]>,
-    /// The strategies the composition wired when this program was compiled.
-    pub(super) routes: RoutePolicy,
-    /// The fusion classification of every instruction, indexed by its logical number.
-    #[cfg(test)]
-    pub fusibility: Box<[super::fusion::types::Fusibility]>,
-}
-impl ExecutableProgram {
-    /// How the compiler classified an instruction against the region of its producer.
-    #[cfg(test)]
-    pub(crate) fn fusibility(
-        &self,
-        logical: LogicalInstruction,
-    ) -> Option<super::fusion::types::Fusibility> {
-        self.fusibility.get(logical.0).copied()
-    }
-    pub(crate) fn file_readers(&self) -> &FileReaderGraph {
-        &self.file_readers
-    }
-    /// The prepared physical phase of an original frontier root. No file or
-    /// project runtime can change this declaration while admitting its input.
-    pub(crate) fn frontier_phase(&self, source: InputSource) -> Result<StepScope, OperatingError> {
-        match source {
-            InputSource::Relation(_) => match self.source_partition(source)? {
-                PartitionRequirement::CurrentFile => Ok(StepScope::PerFile),
-                PartitionRequirement::Project => Ok(StepScope::CrossFile),
-                _ => Err(OperatingError::WrongOperation),
-            },
-            InputSource::Region(id) => self
-                .regions
-                .get(id.0)
-                .map(|region| region.phase)
-                .ok_or(OperatingError::NotRun),
-            InputSource::Observation(slot) => {
-                let root = self
-                    .observation_regions
-                    .get(slot)
-                    .ok_or(OperatingError::NotRun)?
-                    .as_ref()
-                    .map_err(Clone::clone)?;
-                self.regions
-                    .get(root.0)
-                    .map(|region| region.phase)
-                    .ok_or(OperatingError::NotRun)
-            }
-            _ => Err(OperatingError::WrongOperation),
-        }
-    }
-    pub(crate) fn source_partition(
-        &self,
-        source: InputSource,
-    ) -> Result<PartitionRequirement, OperatingError> {
-        match source {
-            InputSource::Relation(_) => self.regions.iter().flat_map(|region| region.source_partitions.iter()).find(|declaration| declaration.source == source).map(|declaration| declaration.requirement).ok_or(OperatingError::NotRead),
-            InputSource::Region(id) => self.regions.get(id.0).and_then(|region| region.instructions.last()).map(|instruction| instruction.partition).ok_or(OperatingError::NotRead),
-            InputSource::Hosted { rule, relation } => {
-                self.regions.iter().flat_map(|region| region.instructions.iter())
-                    .find(|instruction| instruction.producer == rule && matches!(instruction.operation, Operation::Hosted { relation: actual } if actual == relation))
-                    .map(|instruction| instruction.partition).ok_or(OperatingError::NotRead)
-            }
-            InputSource::EmptyObservation(slot) => {
-                let root = self.observation_regions.get(slot)
-                    .ok_or(OperatingError::NotRead)?.as_ref().map_err(Clone::clone)?;
-                self.regions.get(root.0).and_then(|region| region.instructions.last())
-                    .map(|instruction| instruction.partition).ok_or(OperatingError::NotRead)
-            }
-            _ => Err(OperatingError::NotRead),
-        }
-    }
-    pub(crate) fn regions(&self) -> &[Region] {
-        &self.regions
-    }
-    pub(crate) fn rules(&self) -> &[RuleProgram] {
-        &self.rules
-    }
-    pub(crate) fn logical_regions(&self) -> &[RegionId] {
-        &self.logical_regions
-    }
-    pub(crate) fn observation_regions(&self) -> &[Result<RegionId, OperatingError>] {
-        &self.observation_regions
-    }
-    /// The strategies the composition wired for this program.
-    pub(crate) fn routes(&self) -> RoutePolicy {
-        self.routes
-    }
-}
-impl DemandProgram {
-    pub(crate) fn actions(&self) -> &[DemandAction] {
-        &self.actions
-    }
 }
 
 /// Mandatory producer declarations. No operation kind implies broadcast completeness.
@@ -287,60 +217,11 @@ pub(crate) trait ProducerPartitions {
     ) -> Result<PartitionRequirement, OperatingError>;
 }
 
-impl Instruction {
-    pub(crate) fn logical(&self) -> LogicalInstruction {
-        self.logical
-    }
-    pub(crate) fn producer(&self) -> RuleIndex {
-        self.producer
-    }
-    pub(crate) fn operation(&self) -> &Operation {
-        &self.operation
-    }
-    pub(crate) fn contract(&self) -> &Arc<OperatorContract> {
-        &self.contract
-    }
-    pub(crate) fn inputs(&self) -> &[OperandSource] {
-        &self.inputs
-    }
-    pub(crate) fn demand(&self) -> &DemandProgram {
-        &self.demand
-    }
-}
-
-impl Region {
-    pub(crate) fn producer(&self) -> RuleIndex {
-        self.producer
-    }
-    pub(crate) fn needs(
-        &self,
-    ) -> &Result<Box<[crate::domain::trust::types::RelationRead]>, OperatingError> {
-        &self.needs
-    }
-    pub(crate) fn phase(&self) -> StepScope {
-        self.phase
-    }
-    pub(crate) fn instructions(&self) -> &[Instruction] {
-        &self.instructions
-    }
-    pub(crate) fn inputs(&self) -> &[InputSource] {
-        &self.inputs
-    }
-    pub(crate) fn consumers(&self) -> usize {
-        self.consumers
-    }
-    pub(crate) fn dependencies(&self) -> &[RegionId] {
-        &self.dependencies
-    }
-    pub(crate) fn route(&self) -> &Route {
-        &self.route
-    }
-    pub(crate) fn last_operation(&self) -> Result<&Operation, OperatingError> {
-        self.instructions
-            .last()
-            .map(|instruction| &instruction.operation)
-            .ok_or(OperatingError::NotRun)
-    }
+/// The program of every rule, and the region each plan's named output reads, in the plan's own output order.
+#[derive(Debug)]
+pub(crate) struct RulePrograms {
+    pub rules: Vec<RuleProgram>,
+    pub observed_roots: Vec<Vec<Option<RegionId>>>,
 }
 
 /// The compiler's fusion classification of the whole request graph, indexed by original node.
@@ -394,63 +275,23 @@ pub(crate) struct Remaining {
     #[cfg(test)]
     pub computations: ComputationCount,
 }
-/// The typed semantic shape required by the shared physical invocation.
-#[derive(Clone, Debug)]
-pub(crate) struct ColumnAlternative {
-    pub(super) target: RegionId,
-    pub(super) left: RegionId,
-    pub(super) join: RegionId,
-    pub(super) filter: RegionId,
-    pub(super) chain: Chain,
+/// One region as the compiler drafts it, before equivalent regions merge: its instructions `I` in order.
+pub(super) struct DraftRegion<I> {
+    pub phase: StepScope,
+    pub nodes: Vec<LogicalInstruction>,
+    pub instructions: Vec<I>,
+    pub inputs: Vec<crate::domain::file_program::types::NodeInput>,
+    pub needs: Result<Vec<crate::domain::trust::types::RelationRead>, OperatingError>,
+    /// Whether every instruction's answer depends only on its operation and inputs.
+    pub sharing: super::fusion::types::RegionSharing,
 }
-
-impl ColumnAlternative {
-    pub(crate) fn target(&self) -> RegionId {
-        self.target
-    }
-
-    pub(crate) fn left(&self) -> RegionId {
-        self.left
-    }
-
-    pub(crate) fn join(&self) -> RegionId {
-        self.join
-    }
-
-    pub(crate) fn filter(&self) -> RegionId {
-        self.filter
-    }
-
-    pub(crate) fn chain(&self) -> &Chain {
-        &self.chain
-    }
-}
-/// An immutable semantic alternative for one exact compiled instruction.
-/// The selector is the request-prepared Arc also registered with the derived owner.
-#[derive(Clone, Debug)]
-pub(crate) struct SelectionAlternative {
-    pub(super) target: RegionId,
-    pub(super) selector: Arc<Selector>,
-    pub(super) producer: RuleIndex,
-    pub(super) logical: LogicalInstruction,
-}
-
-impl SelectionAlternative {
-    pub(crate) fn target(&self) -> RegionId {
-        self.target
-    }
-
-    pub(crate) fn selector(&self) -> &Arc<Selector> {
-        &self.selector
-    }
-
-    pub(crate) fn producer(&self) -> RuleIndex {
-        self.producer
-    }
-
-    pub(crate) fn logical(&self) -> LogicalInstruction {
-        self.logical
-    }
+/// Whether two drafted regions compute the same rows.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum Equivalence {
+    /// Same instructions, same inputs, same phase.
+    Same,
+    /// They differ.
+    Different,
 }
 /// The bucket equivalent regions share: a hash of what their comparison reads.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -459,9 +300,12 @@ pub(super) struct RegionBucket(pub u64);
 #[derive(Debug)]
 pub(super) struct RegionMerge {
     /// The kept regions in order.
-    pub shared: Vec<usize>,
+    pub shared: Vec<DraftIndex>,
     pub comparisons: ComparisonCount,
 }
+/// The place of a drafted region among the drafts of one compile.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub(super) struct DraftIndex(pub usize);
 /// How many full comparisons of two regions a merge made.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub(super) struct ComparisonCount(pub usize);

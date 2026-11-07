@@ -200,7 +200,7 @@ impl super::super::KernelSession<'_, '_> {
             scratch: &mut *context.scratch,
         };
         let context = &mut rebound;
-        let chain = shape.chain();
+        let chain = &shape.chain;
         let Some(index_plan) = &chain.index else {
             return Ok(
                 crate::application::file_dag::program::runtime::types::StrategyOutcome::Declined,

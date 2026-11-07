@@ -81,7 +81,10 @@ impl ProjectSources<'_> {
                 return Some(Err(refused.error.clone()));
             }
         }
-        if let InputSource::ObservationMember { slot, member } = source {
+        if let InputSource::ObservationMember {
+                slot: crate::domain::executable_program::types::ObservationPlace(slot),
+                member: crate::domain::executable_program::types::ProducerMember(member),
+            } = source {
             for bound in &mut *self.bound {
                 let Some(binding) = bound.as_mut() else {
                     continue;

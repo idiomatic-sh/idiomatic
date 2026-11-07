@@ -23,3 +23,9 @@ pub(crate) mod compiled_span_fixture;
 
 #[cfg(test)]
 pub(crate) mod observed_replay_test;
+
+#[cfg(test)]
+pub(crate) mod observation_census_test;
+
+#[cfg(test)]
+pub(crate) mod observations_test;

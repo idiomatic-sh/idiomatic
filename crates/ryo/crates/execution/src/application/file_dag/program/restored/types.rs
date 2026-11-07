@@ -2,7 +2,7 @@
 use crate::application::file_dag::program::admission::ProducerRoot;
 use crate::application::file_dag::program::admission::RequiredPartitions;
 use crate::{
-    domain::completion::types::CoverageState, domain::executable_program::types::ExecutableProgram,
+    domain::completion::types::CoverageState, domain::executable_program::types::executable_program::value::ExecutableProgram,
 };
 use ryo_relations::domain::relations::types::CellKind;
 use std::sync::Arc;

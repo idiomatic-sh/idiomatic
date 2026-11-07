@@ -2,7 +2,7 @@
 use super::super::plan;
 use super::heads::{FUNCTION, ROW_KEY, TEXT_A, equal, from, operations};
 use super::sources::Sources;
-use crate::domain::executable_program::types::ExecutableProgram;
+use crate::domain::executable_program::types::executable_program::value::ExecutableProgram;
 use ryo_values::domain::hosted::types::{
     HostColumn, HostColumnName, HostKind, HostName, HostRelation,
 };

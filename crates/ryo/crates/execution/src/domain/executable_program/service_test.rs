@@ -1,10 +1,13 @@
-//! Demand compilation preserves declared order independently of physical delivery.
+//! The service keeps the generic route when no family offers one, equivalent drafted regions merge as the linear scan
+//! would in linear cost, and demand compilation preserves declared order.
 use super::{
     fusion::types::RegionSharing,
-    service::{DraftRegion, demand, merge_equivalent},
+    merge::merge_equivalent,
+    service::{choose, column, native_positions, ordered_existence, selection},
     types::{
-        DemandAction, Instruction, LogicalInstruction, OperandSource, PartitionRequirement,
-        ReaderMultiplicity, RegionMerge,
+        DemandAction, DraftIndex, DraftRegion, LogicalInstruction, OperandSource,
+        PartitionRequirement, ReaderMultiplicity, RegionMerge, Route, RouteOffers, demand_program::value::DemandProgram,
+        instruction::value::Instruction,
     },
 };
 use crate::domain::file_program::types::{NodeId, NodeInput};
@@ -28,6 +31,7 @@ enum Check {
     Demand(DemandOrder, usize, &'static [usize]),
     MergeMatchesLinearScan,
     MergeCostIsLinear,
+    NoOfferKeepsTheGenericRoute,
 }
 type Input = Check;
 type Value = ();
@@ -81,6 +85,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Check::MergeCostIsLinear,
         expect: Expect::Value(()),
     },
+    Case {
+        name: CaseName("a_region_no_family_offers_a_route_keeps_the_generic_route"),
+        word: Word::Succeeds,
+        input: || Check::NoOfferKeepsTheGenericRoute,
+        expect: Expect::Value(()),
+    },
 ];
 fn subject(check: Input) -> Result<Value, Failure> {
     match check {
@@ -91,6 +101,15 @@ fn subject(check: Input) -> Result<Value, Failure> {
         }
         Check::MergeCostIsLinear => {
             regions_merge_cost_is_linear_in_rule_count();
+            Ok(())
+        }
+        Check::NoOfferKeepsTheGenericRoute => {
+            let route = choose(RouteOffers::default());
+            assert!(matches!(route, Route::Generic));
+            assert!(ordered_existence(&route).is_none());
+            assert!(column(&route).is_none());
+            assert!(selection(&route).is_none());
+            assert!(native_positions(&route).is_none());
             Ok(())
         }
     }
@@ -114,7 +133,7 @@ fn demand_program(order: DemandOrder, count: usize, expected: &[usize]) -> Resul
     let mut contract = prepare_for(OperationKind::Axis, &operation, &inputs, &[])?;
     assert_eq!(contract.semantics.demand, DemandOrder::LeftThenRight);
     contract.semantics.demand = order;
-    let program = demand(contract.semantics, count);
+    let program = DemandProgram::compiled(contract.semantics, ryo_values::domain::plan_parts::types::InputCount(count));
     let actual = program
         .actions()
         .iter()
@@ -172,19 +191,19 @@ struct Draft {
     sharing: RegionSharing,
     input: NodeInput,
 }
-fn region(contract: &Arc<crate::domain::operator::contract::types::OperatorContract>, node: usize, spec: &Draft) -> DraftRegion {
+fn region(contract: &Arc<crate::domain::operator::contract::types::OperatorContract>, node: usize, spec: &Draft) -> DraftRegion<Instruction> {
     DraftRegion {
         phase: spec.phase,
-        nodes: vec![node],
-        instructions: vec![Instruction {
-            logical: LogicalInstruction(node),
-            producer: crate::domain::coverage::types::RuleIndex(node),
-            operation: axis(spec.id),
-            contract: Arc::clone(contract),
-            inputs: Box::new([OperandSource::PreviousRow]),
-            demand: demand(contract.semantics, 1),
-            partition: spec.partition,
-        }],
+        nodes: vec![LogicalInstruction(node)],
+        instructions: vec![Instruction::new(
+            LogicalInstruction(node),
+            crate::domain::coverage::types::RuleIndex(node),
+            axis(spec.id),
+            Arc::clone(contract),
+            Box::new([OperandSource::PreviousRow]),
+            DemandProgram::compiled(contract.semantics, ryo_values::domain::plan_parts::types::InputCount(1)),
+            spec.partition,
+        )],
         inputs: vec![spec.input],
         needs: Ok(Vec::new()),
         sharing: spec.sharing,
@@ -216,9 +235,9 @@ fn spec(rule: usize, variant: usize, leaf: bool) -> Draft {
     }
 }
 struct State {
-    drafts: Vec<Option<DraftRegion>>,
-    mapping: Vec<usize>,
-    representative: Vec<usize>,
+    drafts: Vec<Option<DraftRegion<Instruction>>>,
+    mapping: Vec<DraftIndex>,
+    representative: Vec<LogicalInstruction>,
     readers: Vec<ReaderMultiplicity>,
 }
 fn state(rules: usize, variant: impl Fn(usize) -> usize) -> State {
@@ -232,34 +251,34 @@ fn state(rules: usize, variant: impl Fn(usize) -> usize) -> State {
     let count = drafts.len();
     State {
         drafts,
-        mapping: (0..count).collect(),
-        representative: (0..count).collect(),
+        mapping: (0..count).map(DraftIndex).collect(),
+        representative: (0..count).map(LogicalInstruction).collect(),
         readers: vec![ReaderMultiplicity(1); count],
     }
 }
 /// The linear scan the merge replaced: every earlier kept region compared in full.
-fn reference(state: &mut State) -> Vec<usize> {
-    let canonical = |draft: &DraftRegion, mapping: &[usize]| -> Vec<NodeInput> {
+fn reference(state: &mut State) -> Vec<DraftIndex> {
+    let canonical = |draft: &DraftRegion<Instruction>, mapping: &[DraftIndex]| -> Vec<NodeInput> {
         draft
             .inputs
             .iter()
             .map(|input| match input {
-                NodeInput::Node(child) => NodeInput::Node(NodeId(mapping[child.0])),
+                NodeInput::Node(child) => NodeInput::Node(NodeId(mapping[child.0].0)),
                 other => *other,
             })
             .collect()
     };
-    let equivalent = |left: &DraftRegion, right: &DraftRegion, mapping: &[usize]| {
+    let equivalent = |left: &DraftRegion<Instruction>, right: &DraftRegion<Instruction>, mapping: &[DraftIndex]| {
         left.phase == right.phase
             && left.instructions.len() == right.instructions.len()
             && left
                 .instructions
                 .iter()
                 .zip(&right.instructions)
-                .all(|(a, b)| a.operation == b.operation && a.partition == b.partition)
+                .all(|(a, b)| a.operation() == b.operation() && a.partition() == b.partition())
             && canonical(left, mapping) == canonical(right, mapping)
     };
-    let mut shared: Vec<usize> = Vec::new();
+    let mut shared: Vec<DraftIndex> = Vec::new();
     for at in 0..state.drafts.len() {
         let Some(draft) = state.drafts[at].as_ref() else {
             continue;
@@ -267,13 +286,13 @@ fn reference(state: &mut State) -> Vec<usize> {
         if draft.sharing == RegionSharing::RuleScoped {
             continue;
         }
-        let twin = shared.iter().copied().find(|earlier| {
+        let twin = shared.iter().copied().find(|DraftIndex(earlier)| {
             state.drafts[*earlier]
                 .as_ref()
                 .is_some_and(|earlier| equivalent(earlier, draft, &state.mapping))
         });
-        let Some(twin) = twin else {
-            shared.push(at);
+        let Some(DraftIndex(twin)) = twin else {
+            shared.push(DraftIndex(at));
             continue;
         };
         let Some(merged) = state.drafts[at].take() else {
@@ -281,15 +300,15 @@ fn reference(state: &mut State) -> Vec<usize> {
         };
         if let Some(kept) = state.drafts[twin].as_ref() {
             for (node, served) in merged.nodes.iter().zip(&kept.nodes) {
-                state.representative[*node] = *served;
+                state.representative[node.0] = *served;
             }
         }
         for node in &merged.nodes {
-            state.mapping[*node] = twin;
+            state.mapping[node.0] = DraftIndex(twin);
         }
         for input in &merged.inputs {
             if let NodeInput::Node(child) = input {
-                let producer = state.mapping[child.0];
+                let DraftIndex(producer) = state.mapping[child.0];
                 state.readers[producer].0 = state.readers[producer].0.saturating_sub(1);
             }
         }

@@ -1,12 +1,11 @@
 //! The `trust` service: which reads of the relations a plan trusts the absence of rows of (an antijoin, a difference, a count), and
 //! whether a relation read in part could change what such a read makes, with no IO and no ports.
 
-use super::constants::{BOUND_INDEX_FITS, BOUND_INPUT_SCHEMA, READS_OF_EARLIER_STEP};
-use ryo_relations::domain::relations::service::columns;
-use ryo_relations::domain::relations::service::kind_column;
+use super::reads::{absorb, kind_column_place, needs_with_masks, uses_of};
 use ryo_relations::domain::relations::types::Relation;
 
-use super::types::{Bearing, Blocking, Needs, Passage, ReadIndex, RelationRead, StepReads};
+use super::types::{AbsenceInputs, Bearing, Blocking, Needs, Passage, RelationRead, StepReads};
+use crate::domain::operating::errors::OperatingError;
 use crate::domain::coverage::constants::REPOSITORY;
 use crate::domain::coverage::service::unknown_message;
 use crate::domain::coverage::types::{
@@ -23,16 +22,12 @@ use ryo_values::domain::plan_parts::types::QueryLiteral;
 use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::Test;
 use ryo_values::domain::plans::service::{inputs_of, named};
-use ryo_values::domain::plans::types::{Operation, Plan};
+use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::runs::types::RuleId;
 
 /// The place of the `kind` column of a relation, when it has one.
 pub(crate) fn kind_place(relation: Relation) -> Option<ColumnIndex> {
-    let kind = kind_column(relation)?;
-    columns(relation)
-        .into_iter()
-        .position(|column| column == kind)
-        .map(|place| ColumnIndex(u32::try_from(place).unwrap_or(u32::MAX)))
+    kind_column_place(relation)
 }
 
 /// Whether a comparison lets a row of this kind through, as far as it can be told from the comparison alone.
@@ -77,179 +72,6 @@ pub(crate) fn admits(comparison: &PlanComparison, kind: &LackingKind) -> Passage
     }
 }
 
-/// Adds the reads in `more` to `uses`, each once: a read the steps before already made is the same read, and the reads of a plan whose
-/// steps meet again would otherwise double at every meeting.
-fn absorb(uses: &mut Vec<RelationRead>, more: impl IntoIterator<Item = RelationRead>) {
-    for read in more {
-        if !uses.contains(&read) {
-            uses.push(read);
-        }
-    }
-}
-
-/// What the reads of the relations are, by step: for each step, the reads of the relations that feed it, through the steps before it,
-/// and for each of its columns the read whose `kind` column it still is. A `select` on that column narrows the read: rows of a kind
-/// the comparison lets through are all that get further, so rows of another kind that are missing cannot matter.
-#[expect(
-    clippy::expect_used,
-    reason = "a plan's steps read only the steps before them; a read of a later one is a bug that must crash, not a step read as reading nothing"
-)]
-fn uses_of(plan: &Plan) -> Vec<StepReads> {
-    let mut steps: Vec<StepReads> = Vec::with_capacity(plan.steps.len());
-    for step in &plan.steps {
-        let inputs = inputs_of(&step.operation);
-        let given = named(&inputs);
-        // What each input is: its reads, and which read each of its columns is the kind of.
-        let mut parts: Vec<StepReads> = Vec::new();
-        for input in given {
-            parts.push(match input {
-                Input::Relation(relation) => relation_reads(*relation),
-                // Named inputs have their own producer-readiness admission. They are not
-                // catalog relations and cannot manufacture a physical relation completeness claim.
-                Input::BoundObservation(id) => StepReads {
-                    uses: Vec::new(),
-                    provenance: vec![
-                        None;
-                        plan.observation_inputs
-                            .get(
-                                usize::try_from(id.0)
-                                    .expect(BOUND_INDEX_FITS)
-                            )
-                            .expect(BOUND_INPUT_SCHEMA)
-                            .columns
-                            .len()
-                    ],
-                },
-                Input::Step(id) => steps
-                    .get(usize::try_from(id.0).unwrap_or(usize::MAX))
-                    .cloned()
-                    .expect(READS_OF_EARLIER_STEP),
-            });
-        }
-        // Each input's reads are its own, moved rather than copied: the first is what the step starts from.
-        let mut parts = parts.into_iter();
-        let StepReads {
-            mut uses,
-            mut provenance,
-        } = parts.next().unwrap_or_default();
-        match &step.operation {
-            Operation::Select {
-                comparisons, kept, ..
-            } => {
-                for comparison in comparisons {
-                    if let Operand::Column(column) = &comparison.left
-                        && let Some(Some(read)) =
-                            provenance.get(usize::try_from(column.0).unwrap_or(usize::MAX))
-                        && let Some(each) = uses.get_mut(read.0)
-                    {
-                        each.kinds.push(comparison.clone());
-                    }
-                }
-                if !kept.is_empty() {
-                    provenance = kept
-                        .iter()
-                        .map(|column| {
-                            provenance
-                                .get(usize::try_from(column.0).unwrap_or(usize::MAX))
-                                .copied()
-                                .flatten()
-                        })
-                        .collect();
-                }
-            }
-            Operation::Project { columns, .. } => {
-                provenance = columns
-                    .iter()
-                    .map(|column| {
-                        provenance
-                            .get(usize::try_from(column.0).unwrap_or(usize::MAX))
-                            .copied()
-                            .flatten()
-                    })
-                    .collect();
-            }
-            Operation::Extend { values, .. } => {
-                provenance.extend(values.iter().map(|_| None));
-            }
-            Operation::SpanBetween { .. } => provenance.push(None),
-            Operation::RenderSyntax { .. } => provenance.push(None),
-            Operation::FitsRendered { .. } => {}
-            Operation::SourceMatches {
-                base_line,
-                capture,
-                capture_text,
-                capture_line,
-                ..
-            } => {
-                provenance.push(None);
-                if base_line.is_some() {
-                    provenance.push(None);
-                }
-                if capture.is_some() {
-                    provenance.push(None);
-                    if *capture_text
-                        == ryo_values::domain::query_operators::types::TextOutput::Appended
-                    {
-                        provenance.push(None);
-                    }
-                    if *capture_line
-                        == ryo_values::domain::query_operators::types::LineOutput::Appended
-                    {
-                        provenance.push(None);
-                    }
-                }
-            }
-            Operation::SpanBounds { .. } => provenance.extend([None, None]),
-            Operation::Antijoin { .. } | Operation::Difference { .. } => {
-                // The left rows that remain, as they were; the right rows only decide which remain.
-                let right = parts.next().unwrap_or_default();
-                absorb(&mut uses, right.uses);
-            }
-            Operation::Join { .. }
-            | Operation::Union { .. }
-            | Operation::Intersection { .. }
-            | Operation::GroupCount { .. }
-            | Operation::Replace { .. }
-            | Operation::OrderedMatch { .. }
-            | Operation::OrderedDfs { .. }
-            | Operation::GroupDigest { .. }
-            | Operation::Capture { .. }
-            | Operation::Rank { .. }
-            | Operation::Words { .. }
-            | Operation::Axis { .. }
-            | Operation::Closure { .. }
-            | Operation::Cycles { .. }
-            | Operation::Rows { .. }
-            | Operation::Hosted { .. } => {
-                for part in parts {
-                    absorb(&mut uses, part.uses);
-                }
-                provenance = Vec::new();
-            }
-        }
-        steps.push(StepReads { uses, provenance });
-    }
-    steps
-}
-
-/// Provenance of the initial columns read directly from a declared relation.
-fn relation_reads(relation: Relation) -> StepReads {
-    let kind = kind_place(relation);
-    let width = columns(relation).len();
-    StepReads {
-        uses: vec![RelationRead {
-            relation,
-            kinds: Vec::new(),
-        }],
-        provenance: (0..width)
-            .map(|place| {
-                kind.filter(|column| usize::try_from(column.0) == Ok(place))
-                    .map(|_| ReadIndex(0))
-            })
-            .collect(),
-    }
-}
-
 /// The reads whose absence of rows each step trusts: for an antijoin or a difference, those its right input has; for a count or a
 /// digest of a group, those it groups. Empty for a step that only passes on the rows it is given.
 #[must_use]
@@ -258,28 +80,33 @@ pub(crate) fn needs_of(plan: &Plan) -> Vec<Vec<RelationRead>> {
     needs_from(plan, &uses_of(plan))
 }
 
+/// What a step input reads, from the reads of the plan's steps already worked out: a step refused for an authoring error reads
+/// nothing here because it never runs; its rule is refused on its own roots by its errored origin.
+fn input_reads(reads: &[Result<StepReads, OperatingError>], input: &Input) -> Vec<RelationRead> {
+    match input {
+        Input::BoundObservation(_) => Vec::new(),
+        Input::Relation(relation) => vec![RelationRead {
+            relation: *relation,
+            kinds: Vec::new(),
+        }],
+        Input::Step(id) => match reads.get(id.0 as usize) {
+            Some(Ok(each)) => each.uses.clone(),
+            Some(Err(_)) | None => Vec::new(),
+        },
+    }
+}
+
 /// What [`needs_of`] answers, from the reads of the plan's steps already worked out.
-fn needs_from(plan: &Plan, reads: &[StepReads]) -> Vec<Vec<RelationRead>> {
-    let of = |input: &Input| -> Vec<RelationRead> {
-        match input {
-            Input::BoundObservation(_) => Vec::new(),
-            Input::Relation(relation) => vec![RelationRead {
-                relation: *relation,
-                kinds: Vec::new(),
-            }],
-            Input::Step(id) => reads
-                .get(usize::try_from(id.0).unwrap_or(usize::MAX))
-                .map(|each| each.uses.clone())
-                .unwrap_or_default(),
-        }
-    };
+fn needs_from(plan: &Plan, reads: &[Result<StepReads, OperatingError>]) -> Vec<Vec<RelationRead>> {
     let masks = plan.steps.iter().map(|step| {
-        crate::domain::operator::contract::service::semantics(
-            ryo_values::domain::plans::service::kind_of(&step.operation),
+        AbsenceInputs(
+            crate::domain::operator::contract::service::semantics(
+                ryo_values::domain::plans::service::kind_of(&step.operation),
+            )
+            .3,
         )
-        .3
     });
-    needs_with_masks(plan, of, masks)
+    needs_with_masks(plan, |input| input_reads(reads, input), masks)
 }
 
 /// The reads of the relations the steps of a plan trust the absence of rows of, by where the steps run.
@@ -299,10 +126,14 @@ pub(crate) fn scoped_needs(plan: &Plan) -> Needs {
             }
         }
     }
-    for (place, StepReads { uses: each, .. }) in steps.iter().enumerate() {
+    for (place, reads) in steps.iter().enumerate() {
         if read_by_another.get(place).copied().unwrap_or(false) {
             continue;
         }
+        // A step refused for an authoring error never runs: its rule is refused on its roots, and it reads nothing here.
+        let Ok(StepReads { uses: each, .. }) = reads else {
+            continue;
+        };
         for read in each {
             if !scoped.reads.contains(read) {
                 scoped.reads.push(read.clone());
@@ -431,26 +262,7 @@ pub(crate) fn project_unknowns(
     unknowns
 }
 
-fn needs_with_masks(
-    plan: &Plan,
-    of: impl Fn(&Input) -> Vec<RelationRead>,
-    masks: impl IntoIterator<Item = u8>,
-) -> Vec<Vec<RelationRead>> {
-    plan.steps
-        .iter()
-        .zip(masks)
-        .map(|(step, mask)| {
-            let inputs = inputs_of(&step.operation);
-            let mut result = Vec::new();
-            for (position, input) in named(&inputs).iter().enumerate() {
-                if mask & (1 << position) != 0 {
-                    absorb(&mut result, of(input));
-                }
-            }
-            result
-        })
-        .collect()
-}
+/// What [`needs_of`] answers from the prepared operator contracts of the plan's steps.
 pub(crate) fn needs_of_contracts(
     plan: &Plan,
     contracts: &[std::sync::Arc<crate::domain::operator::contract::types::OperatorContract>],
@@ -461,23 +273,20 @@ pub(crate) fn needs_of_contracts(
     let reads = uses_of(plan);
     Ok(needs_with_masks(
         plan,
-        |input| match input {
-            Input::BoundObservation(_) => Vec::new(),
-            Input::Relation(relation) => vec![RelationRead {
-                relation: *relation,
-                kinds: Vec::new(),
-            }],
-            Input::Step(id) => reads
-                .get(id.0 as usize)
-                .map_or_else(Vec::new, |step| step.uses.clone()),
-        },
-        contracts.iter().map(|contract| contract.absence_inputs),
+        |input| input_reads(&reads, input),
+        contracts
+            .iter()
+            .map(|contract| AbsenceInputs(contract.absence_inputs)),
     ))
 }
 
-/// One topological physical-read pass for all demanded roots.
-pub(crate) fn physical_reads(plan: &Plan) -> Vec<Vec<RelationRead>> {
-    uses_of(plan).into_iter().map(|reads| reads.uses).collect()
+/// One topological physical-read pass for all demanded roots: each step's reads, or the refusal of a step that reads a step not
+/// before it.
+pub(crate) fn physical_reads(plan: &Plan) -> Vec<Result<Vec<RelationRead>, OperatingError>> {
+    uses_of(plan)
+        .into_iter()
+        .map(|reads| reads.map(|reads| reads.uses))
+        .collect()
 }
 /// All physical reads needed to certify demanded observations, including an observed
 /// intermediate whose diagnostic descendant narrows the same relation further.
@@ -489,10 +298,10 @@ pub(crate) fn observed_reads(plan: &Plan) -> Vec<RelationRead> {
     let mut reads = Vec::new();
     for output in &plan.observations {
         let each = match output.source {
-            Input::Step(step) => by_step
-                .get(step.0 as usize)
-                .map(Vec::as_slice)
-                .unwrap_or_default(),
+            Input::Step(step) => match by_step.get(step.0 as usize) {
+                Some(Ok(reads)) => reads.as_slice(),
+                Some(Err(_)) | None => &[],
+            },
             Input::Relation(_) | Input::BoundObservation(_) => &[],
         };
         absorb(&mut reads, each.iter().cloned());

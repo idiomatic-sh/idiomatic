@@ -2,7 +2,7 @@
 //! Expected shared heads, computed from the program and the catalog alone: a head of either
 //! partition that selects a catalog relation is shared within its own partition.
 use crate::domain::executable_program::types::{
-    ExecutableProgram, Instruction, LogicalInstruction,
+    executable_program::value::ExecutableProgram, instruction::value::Instruction, LogicalInstruction,
 };
 use ryo_relations::domain::relations::{
     service::{ALL, columns},

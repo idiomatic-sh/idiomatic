@@ -54,7 +54,7 @@ impl SourceInputs<'_, '_> {
                 self.program
                     .program()
                     .regions()
-                    .get(shape.join().0)
+                    .get(shape.join.0)
                     .ok_or(OperatingError::NotRun)?
             } else {
                 code

@@ -13,7 +13,7 @@ use crate::application::file_dag::program::constants::PHASE_AVAILABILITY;
 use crate::application::file_dag::program::constants::PHASE_DEPENDENCY;
 use crate::application::file_dag::program::constants::PHASE_PHYSICAL;
 use crate::application::file_dag::program::runtime::types::StageProgress;
-use crate::domain::executable_program::types::Region;
+use crate::domain::executable_program::types::region::value::Region;
 use crate::domain::executable_program::types::RegionId;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;

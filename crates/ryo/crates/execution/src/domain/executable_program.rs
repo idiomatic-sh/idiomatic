@@ -3,7 +3,10 @@ pub(crate) mod kernel;
 pub(crate) mod service;
 pub(crate) mod types;
 
+mod aliases;
+mod merge;
 mod observed;
+mod origins;
 
 pub(crate) mod physical;
 
@@ -20,5 +23,3 @@ mod service_test;
 
 pub(crate) mod file_demand;
 
-#[cfg(test)]
-pub(crate) mod observations;

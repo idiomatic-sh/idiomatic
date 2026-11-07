@@ -204,7 +204,7 @@ impl ProjectRun<'_> {
                 }
                 match &root.source {
                     Ok(InputSource::Region(id)) => roots.push(*id),
-                    Ok(InputSource::Observation(slot)) => {
+                    Ok(InputSource::Observation(crate::domain::executable_program::types::ObservationPlace(slot))) => {
                         if let Some(Ok(id)) =
                             self.program.program().observation_regions().get(*slot)
                         {
@@ -276,7 +276,10 @@ pub(crate) fn evaluate_roots<E>(
     let _retire = Retire(
         roots
             .iter()
-            .filter_map(|root| root.run.as_ref().ok().map(|run| run.publication))
+            .filter_map(|root| match &root.run {
+                Ok(run) => Some(run.publication),
+                Err(_) => None,
+            })
             .collect(),
     );
     let mut cohorts = Vec::new();

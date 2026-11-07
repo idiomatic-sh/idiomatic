@@ -81,7 +81,7 @@ pub(in crate::application) fn validate_restored_frontier(
         InputSource::Relation(relation) => {
             ryo_relations::domain::relations::service::kinds(relation).to_vec()
         }
-        InputSource::Observation(slot) => {
+        InputSource::Observation(crate::domain::executable_program::types::ObservationPlace(slot)) => {
             let region = *prepared
                 .program()
                 .observation_regions()

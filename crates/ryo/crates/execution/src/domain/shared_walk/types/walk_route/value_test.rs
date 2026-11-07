@@ -29,7 +29,7 @@ fn a_selection_barrier_follows_the_kind_of_its_input() {
         WalkBarrier::DependentInput
     ));
     assert!(matches!(
-        source_barrier(&step, &[InputSource::Observation(0)]),
+        source_barrier(&step, &[InputSource::Observation(crate::domain::executable_program::types::ObservationPlace(0))]),
         WalkBarrier::Observation
     ));
 }

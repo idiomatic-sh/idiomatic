@@ -2,7 +2,7 @@
 use super::types::*;
 use crate::domain::coverage::types::RuleIndex;
 use crate::domain::executable_program::file_demand::types::FrontierPurpose;
-use crate::domain::executable_program::types::ExecutableProgram;
+use crate::domain::executable_program::types::executable_program::value::ExecutableProgram;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::prepared_request::types::Compiled;
 use crate::domain::prepared_request::types::ObservationIdentity;
@@ -69,7 +69,7 @@ impl PreparedProgram {
     }
     pub(in crate::application::file_dag::program) fn walk_class(
         &self,
-        instruction: &crate::domain::executable_program::types::Instruction,
+        instruction: &crate::domain::executable_program::types::instruction::value::Instruction,
     ) -> Option<crate::domain::positions::types::ClassPlace> {
         self.walk.class_for(instruction)
     }

@@ -1,5 +1,5 @@
 //! The shared walk's census as trace events.
-use crate::domain::executable_program::types::ExecutableProgram;
+use crate::domain::executable_program::types::executable_program::value::ExecutableProgram;
 use crate::domain::shared_walk::types::{
     prepared_walk::value::PreparedWalk, walk_route::value::WalkRoute,
 };

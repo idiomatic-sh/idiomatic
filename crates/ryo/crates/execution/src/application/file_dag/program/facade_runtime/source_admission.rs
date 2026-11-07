@@ -92,14 +92,14 @@ impl Inputs for SourceInputs<'_, '_> {
         {
             return Ok(None);
         }
-        if let InputSource::Observation(slot) = source {
+        if let InputSource::Observation(crate::domain::executable_program::types::ObservationPlace(slot)) = source {
             if self.observations.contains_key(&ObservationKey(slot)) {
                 return Ok(None);
             }
         }
         let region = match source {
             InputSource::Region(id) => Some(id),
-            InputSource::Observation(slot) => Some(
+            InputSource::Observation(crate::domain::executable_program::types::ObservationPlace(slot)) => Some(
                 *self
                     .program
                     .program()
@@ -109,7 +109,10 @@ impl Inputs for SourceInputs<'_, '_> {
                     .as_ref()
                     .map_err(Clone::clone)?,
             ),
-            InputSource::ObservationMember { slot, member } => {
+            InputSource::ObservationMember {
+                slot: crate::domain::executable_program::types::ObservationPlace(slot),
+                member: crate::domain::executable_program::types::ProducerMember(member),
+            } => {
                 let named = self
                     .program
                     .observation_metadata()
@@ -161,7 +164,7 @@ impl Inputs for SourceInputs<'_, '_> {
                             .map_err(Clone::clone)?
                         {
                             InputSource::Region(id) => Some(*id),
-                            InputSource::Observation(slot) => Some(
+                            InputSource::Observation(crate::domain::executable_program::types::ObservationPlace(slot)) => Some(
                                 *self
                                     .program
                                     .program()

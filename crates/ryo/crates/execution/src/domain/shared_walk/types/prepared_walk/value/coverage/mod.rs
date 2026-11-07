@@ -8,6 +8,4 @@ mod heads;
 #[cfg(test)]
 mod identity;
 #[cfg(test)]
-mod observations;
-#[cfg(test)]
 mod routes;

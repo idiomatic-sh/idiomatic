@@ -6,7 +6,7 @@ use crate::domain::coverage::types::RuleIndex;
 use crate::domain::executable_program::file_demand::types::{
     FileRuleDemand, ObservationDemandSource,
 };
-use crate::domain::executable_program::types::ExecutableProgram;
+use crate::domain::executable_program::types::executable_program::value::ExecutableProgram;
 use crate::domain::operating::errors::OperatingError;
 use ryo_values::domain::records::types::ObservationIndex;
 

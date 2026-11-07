@@ -108,7 +108,7 @@ pub(crate) struct ProjectFrontiers<'a> {
 /// A named project phase and its bound inputs must use the very same owner.
 pub(crate) struct PublicationScope {
     pub(super) request: Arc<RequestIdentity>,
-    pub(super) program: Arc<crate::domain::executable_program::types::ExecutableProgram>,
+    pub(super) program: Arc<crate::domain::executable_program::types::executable_program::value::ExecutableProgram>,
     pub(super) owner: Rc<RelationOwner>,
     pub(super) execution: std::cell::OnceCell<ProgramExecution>,
     /// The scope's project-stage walk: every cohort of the scope leases from its batches.
@@ -153,7 +153,7 @@ impl PublicationScope {
     }
     pub(in crate::application::file_dag::program) fn program(
         &self,
-    ) -> &Arc<crate::domain::executable_program::types::ExecutableProgram> {
+    ) -> &Arc<crate::domain::executable_program::types::executable_program::value::ExecutableProgram> {
         &self.program
     }
     pub(in crate::application::file_dag) fn owner(&self) -> &Rc<RelationOwner> {

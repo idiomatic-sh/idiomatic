@@ -115,7 +115,7 @@ fn verify_classifier() -> Result<(), RouteRefusal> {
             },
         ]
     };
-    let observed = [InputSource::Observation(0)];
+    let observed = [InputSource::Observation(crate::domain::executable_program::types::ObservationPlace(0))];
     for operation in selecting(Source::Step(StepId(0))) {
         if barrier(source_barrier(&operation, &[])) != Route::Dependent
             || barrier(source_barrier(&operation, &observed)) != Route::Observation

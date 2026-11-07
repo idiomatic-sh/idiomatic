@@ -6,7 +6,7 @@ use crate::application::file_dag::program::admission::Partition;
 #[cfg(test)]
 use crate::application::file_dag::program::runtime::types::{CallCount, ReaderInitializations};
 use crate::application::file_dag::program::runtime::types::{Dependencies, ReaderCount};
-use crate::domain::executable_program::types::ExecutableProgram;
+use crate::domain::executable_program::types::executable_program::value::ExecutableProgram;
 use crate::domain::executable_program::types::RegionId;
 use crate::domain::operating::errors::OperatingError;
 use std::cell::RefCell;
@@ -99,7 +99,7 @@ impl RuntimeState {
             RootReaders::Declared => program
                 .regions()
                 .get(id.0)
-                .map(|region| ReaderCount(region.consumers()))
+                .map(|region| ReaderCount(region.consumers().0))
                 .ok_or(OperatingError::NotRun),
             RootReaders::Selected(selected) => {
                 Ok(ReaderCount(crate::domain::executable_program::file_demand::service::reader_count(selected, id).0))
@@ -175,7 +175,7 @@ impl ProgramExecution {
         }
         let remaining = crate::domain::executable_program::file_demand::service::remaining(
             self.program.file_readers(),
-            crate::domain::readiness::types::RegionCount(self.program.regions().len()),
+            self.program.regions(),
             &selected,
         )?;
         *self.file_state.roots.borrow_mut() = RootReaders::Selected(remaining.table);

@@ -132,8 +132,8 @@ impl PreparedWalk {
     /// an errored origin shares nothing; that rule is refused on its own roots by metadata.
     fn resolve_class(
         &self,
-        program: &crate::domain::executable_program::types::ExecutableProgram,
-        instruction: &crate::domain::executable_program::types::Instruction,
+        program: &crate::domain::executable_program::types::executable_program::value::ExecutableProgram,
+        instruction: &crate::domain::executable_program::types::instruction::value::Instruction,
     ) -> Option<ClassPlace> {
         let region = program.logical_regions().get(instruction.logical().0)?;
         let first = program
@@ -183,7 +183,7 @@ impl PreparedWalk {
     /// Exclude logical classes with no physical consumer of the shared result.
     pub(crate) fn retain_program_consumers(
         &mut self,
-        program: &crate::domain::executable_program::types::ExecutableProgram,
+        program: &crate::domain::executable_program::types::executable_program::value::ExecutableProgram,
     ) -> Result<(), OperatingError> {
         let mut retained = Vec::with_capacity(self.classes.classes.len());
         let mut dropped = Vec::new();
@@ -322,7 +322,7 @@ impl PreparedWalk {
     /// Direct lookup in the immutable physical program, prepared once per request.
     pub(crate) fn class_for(
         &self,
-        instruction: &crate::domain::executable_program::types::Instruction,
+        instruction: &crate::domain::executable_program::types::instruction::value::Instruction,
     ) -> Option<ClassPlace> {
         match self.physical.get(instruction.logical().0)?.as_ref()? {
             WalkRoute::Shared(class) => Some(*class),
@@ -333,7 +333,7 @@ impl PreparedWalk {
     /// The route bound to a physical instruction, if it was bound.
     pub(crate) fn route_of(
         &self,
-        instruction: &crate::domain::executable_program::types::Instruction,
+        instruction: &crate::domain::executable_program::types::instruction::value::Instruction,
     ) -> Option<WalkRoute> {
         *self.physical.get(instruction.logical().0)?
     }
@@ -356,7 +356,5 @@ struct PreparedPredicate {
     comparison: ryo_values::domain::plan_parts::types::PlanComparison,
 }
 
-#[cfg(test)]
-mod census;
 #[cfg(test)]
 mod coverage;

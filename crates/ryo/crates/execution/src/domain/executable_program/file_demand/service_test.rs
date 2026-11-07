@@ -3,28 +3,36 @@ use super::{service::compile, types::*};
 use crate::domain::{
     coverage::types::RuleIndex,
     executable_program::types::{
-        ExecutableProgram, InputSource, ReaderMultiplicity, Region, RegionId, RuleProgram,
+        InputSource, ObservationPlace, ReaderMultiplicity, RegionId, RuleProgram,
+        executable_program::value::ExecutableProgram, region::value::Region,
     },
     operating::errors::OperatingError,
-    readiness::types::RegionCount,
 };
 use ryo_values::{
     cases::{Case, CaseName, Expect, Word, run},
     domain::plan_parts::types::StepScope,
 };
-fn program() -> ExecutableProgram {
-    let regions = (0..2)
-        .map(|at| Region {
-            id: RegionId(at),
-            producer: RuleIndex(0),
-            needs: Ok(Box::new([])),
-            phase: StepScope::PerFile,
-            instructions: Box::new([]),
-            inputs: Box::new([]),
-            source_partitions: Box::new([]),
-            consumers: 1,
-            dependencies: Box::new([]),
-            route: super::super::types::Route::Generic,
+/// Two per-file regions, each depending on what `dependencies` names, over one rule whose roots read region 0 twice and
+/// region 1 once.
+fn build(
+    dependencies: [Box<[RegionId]>; 2],
+    observation_regions: Box<[Result<RegionId, OperatingError>]>,
+) -> ExecutableProgram {
+    let regions = dependencies
+        .into_iter()
+        .enumerate()
+        .map(|(at, dependencies)| {
+            let mut region = Region::new(
+                RegionId(at),
+                RuleIndex(0),
+                Ok(Box::new([])),
+                StepScope::PerFile,
+                Box::new([]),
+                Box::new([]),
+                ReaderMultiplicity(1),
+            );
+            region.set_dependencies(dependencies);
+            region
         })
         .collect::<Vec<_>>()
         .into_boxed_slice();
@@ -36,28 +44,31 @@ fn program() -> ExecutableProgram {
     }]
     .into_boxed_slice();
     let file_readers = super::service::readers(&regions, &rules).unwrap();
-    ExecutableProgram {
-        file_readers,
+    ExecutableProgram::new(
         regions,
+        file_readers,
         rules,
-        logical_regions: Box::new([]),
-        observation_regions: Box::new([]),
-        routes: super::super::types::RoutePolicy::default(),
-        fusibility: Box::new([]),
-    }
+        Box::new([]),
+        observation_regions,
+        super::super::types::RoutePolicy::default(),
+    )
+}
+fn program() -> ExecutableProgram {
+    build([Box::new([]), Box::new([])], Box::new([]))
 }
 fn counted(
     program: &ExecutableProgram,
     selected: &std::collections::HashMap<RegionId, ReaderMultiplicity>,
     producer: RegionId,
 ) -> Result<ReaderMultiplicity, OperatingError> {
-    super::service::remaining(program.file_readers(), RegionCount(program.regions().len()), selected)
+    super::service::remaining(program.file_readers(), program.regions(), selected)
         .map(|remaining| super::service::reader_count(&remaining.table, producer))
 }
 fn selected_reader_counts_keep_duplicate_edges_without_disabled_siblings() {
-    let mut program = program();
-    program.regions[0].dependencies = vec![RegionId(1), RegionId(1)].into_boxed_slice();
-    program.file_readers = super::service::readers(&program.regions, &program.rules).unwrap();
+    let program = build(
+        [vec![RegionId(1), RegionId(1)].into_boxed_slice(), Box::new([])],
+        Box::new([]),
+    );
     let mut selected = std::collections::HashMap::from([(RegionId(0), ReaderMultiplicity(2))]);
     assert_eq!(
         counted(&program, &selected, RegionId(0)).unwrap(),
@@ -94,7 +105,7 @@ fn remaining_is_computed_once_per_selection() {
     for _ in 0..files {
         computations = super::service::remaining(
             program.file_readers(),
-            RegionCount(program.regions().len()),
+            program.regions(),
             &selected,
         )
         .unwrap()
@@ -103,7 +114,7 @@ fn remaining_is_computed_once_per_selection() {
     assert_eq!(computations, super::super::types::ComputationCount(1), "{files} files with one selection compute once");
     let other = std::collections::HashMap::from([(RegionId(1), ReaderMultiplicity(1))]);
     let changed =
-        super::service::remaining(program.file_readers(), RegionCount(program.regions().len()), &other)
+        super::service::remaining(program.file_readers(), program.regions(), &other)
             .unwrap();
     assert_eq!(changed.computations, super::super::types::ComputationCount(2), "a different selection computes again");
 }
@@ -232,14 +243,16 @@ fn succeeds() {
 }
 
 fn deferred_sources() -> Result<(), OperatingError> {
-    let mut program = program();
-    program.observation_regions = vec![Err(OperatingError::NotRead)].into_boxed_slice();
+    let program = build(
+        [Box::new([]), Box::new([])],
+        vec![Err(OperatingError::NotRead)].into_boxed_slice(),
+    );
     let prepared = compile(
         &program,
         RuleIndex(0),
         &[
             ObservationDemandSource {
-                source: Ok(InputSource::Observation(0)),
+                source: Ok(InputSource::Observation(ObservationPlace(0))),
                 phase: StepScope::PerFile,
             },
             ObservationDemandSource {

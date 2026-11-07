@@ -9,7 +9,7 @@ use crate::domain::shared_walk::types::{
 };
 use crate::{
     cases::{Case, CaseName, Expect, Word, run},
-    domain::executable_program::types::ExecutableProgram,
+    domain::executable_program::types::executable_program::value::ExecutableProgram,
 };
 use ryo_relations::domain::relations::service::ALL;
 use ryo_values::domain::{

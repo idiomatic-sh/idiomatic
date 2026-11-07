@@ -361,14 +361,14 @@ pub(super) fn alias_member(
     }
     let mut alias = input.clone();
     alias.root = ProducerRoot::Input(InputSource::ObservationMember {
-        slot: slot.0,
-        member: member.0,
+        slot: crate::domain::executable_program::types::ObservationPlace(slot.0),
+        member: crate::domain::executable_program::types::ProducerMember(member.0),
     });
     Ok(alias)
 }
 
 pub(super) fn alias_observation(
-    program: &crate::domain::executable_program::types::ExecutableProgram,
+    program: &crate::domain::executable_program::types::executable_program::value::ExecutableProgram,
     slot: AliasSlot,
     input: &AdmittedInput,
     owner: &Rc<RelationOwner>,
@@ -384,6 +384,6 @@ pub(super) fn alias_observation(
     }
     input.publication(owner)?;
     let mut alias = input.clone();
-    alias.root = ProducerRoot::Input(InputSource::Observation(slot.0));
+    alias.root = ProducerRoot::Input(InputSource::Observation(crate::domain::executable_program::types::ObservationPlace(slot.0)));
     Ok(alias)
 }
