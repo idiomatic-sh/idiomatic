@@ -60,6 +60,10 @@ impl ActualSource {
                 "--offline",
                 "--test",
                 "activation",
+                // The real target gets `fixtures` from the crate's self dev-dependency, which the
+                // overlay manifest leaves out; the harness calls `open_file`, sealed to that feature.
+                "--features",
+                "fixtures",
                 "--jobs",
                 "2",
                 "--message-format=json",
