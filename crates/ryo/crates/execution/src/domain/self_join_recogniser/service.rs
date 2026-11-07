@@ -1,6 +1,7 @@
 //! Recognize only the reviewed Join/Select/Project right subtree, never rewrite the antijoin.
 use super::types::*;
-use crate::domain::operator::types::PlanIdentity;
+use crate::domain::executable_program::types::ReaderMultiplicity;
+use crate::domain::operator::types::{PlanIdentity, StepPlace};
 use ryo_relations::domain::relations::{service::kinds, types::CellKind};
 use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{
@@ -21,13 +22,13 @@ fn step(plan: &Plan, id: StepId) -> Result<&Operation, Decline> {
     }
     Ok(&step.operation)
 }
-fn use_counts(plan: &Plan) -> Vec<usize> {
-    let mut counts = vec![0usize; plan.steps.len()];
+fn use_counts(plan: &Plan) -> Vec<ReaderMultiplicity> {
+    let mut counts = vec![ReaderMultiplicity(0); plan.steps.len()];
     for step in &plan.steps {
         for input in named(&inputs_of(&step.operation)) {
             if let Input::Step(id) = input {
                 if let Some(count) = counts.get_mut(id.0 as usize) {
-                    *count += 1;
+                    count.0 += 1;
                 }
             }
         }
@@ -40,7 +41,7 @@ fn use_counts(plan: &Plan) -> Vec<usize> {
     {
         if let Input::Step(id) = input {
             if let Some(count) = counts.get_mut(id.0 as usize) {
-                *count += 1;
+                count.0 += 1;
             }
         }
     }
@@ -59,7 +60,7 @@ fn number_origins(
     plan: &Plan,
     input: Input,
     column: ColumnIndex,
-    before: usize,
+    before: StepPlace,
 ) -> Option<Vec<StoredNumberOrigin>> {
     match input {
         // A named publication needs an explicit admitted-number lineage proof;
@@ -70,7 +71,7 @@ fn number_origins(
         .then_some(vec![StoredNumberOrigin { relation, column }]),
         Input::Step(id) => {
             let at = id.0 as usize;
-            if at >= before {
+            if at >= before.0 {
                 return None;
             }
             let operation = &plan.steps.get(at)?.operation;
@@ -111,8 +112,8 @@ fn number_origins(
                 | Operation::Difference { left, .. }
                 | Operation::Intersection { left, .. } => (*left, column),
                 Operation::Union { left, right } => {
-                    let mut origins = number_origins(plan, *left, column, at)?;
-                    for origin in number_origins(plan, *right, column, at)? {
+                    let mut origins = number_origins(plan, *left, column, StepPlace(at))?;
+                    for origin in number_origins(plan, *right, column, StepPlace(at))? {
                         if !origins.contains(&origin) {
                             origins.push(origin);
                         }
@@ -121,7 +122,7 @@ fn number_origins(
                 }
                 _ => return None,
             };
-            number_origins(plan, from, column, at)
+            number_origins(plan, from, column, StepPlace(at))
         }
     }
 }
@@ -132,7 +133,7 @@ fn number_origins(
 fn recognize<'a>(
     plan: &Plan,
     schemas: &dyn Fn(StepId) -> Option<&'a [CellKind]>,
-    readers: &[usize],
+    readers: &[ReaderMultiplicity],
     anti: StepId,
 ) -> Result<Shape, Decline> {
     let Operation::Antijoin { right, .. } = step(plan, anti)? else {
@@ -188,7 +189,7 @@ fn recognize<'a>(
     }
     if [join, select, project]
         .iter()
-        .any(|id| readers.get(id.0 as usize).copied() != Some(1))
+        .any(|id| readers.get(id.0 as usize).copied() != Some(ReaderMultiplicity(1)))
     {
         return Err(Decline::ExtraConsumer);
     }
@@ -235,7 +236,7 @@ fn recognize<'a>(
         }
         projected_left.push(projected.column);
     }
-    let origins = number_origins(plan, Input::Step(source), a.column, join.0 as usize)
+    let origins = number_origins(plan, Input::Step(source), a.column, StepPlace(join.0 as usize))
         .ok_or(Decline::UnprovenNumberOrigin)?;
     Ok(Shape {
         plan: PlanIdentity(std::ptr::from_ref(plan).addr()),
@@ -251,7 +252,7 @@ fn recognize<'a>(
         number: NumberRequirement {
             source,
             column: a.column,
-            width: schema.len(),
+            width: SchemaWidth(schema.len()),
             origins,
         },
     })
@@ -272,12 +273,11 @@ pub(crate) fn compile<'a>(
         };
         match recognize(plan, schemas, &readers, StepId(at)) {
             Ok(shape) => program.shapes.push(shape),
-            Err(reason) => program.declines.push((StepId(at), reason)),
+            Err(reason) => program.declines.push(Declined {
+                step: StepId(at),
+                reason,
+            }),
         }
     }
     program
 }
-
-#[cfg(test)]
-#[path = "service_test.rs"]
-mod tests;

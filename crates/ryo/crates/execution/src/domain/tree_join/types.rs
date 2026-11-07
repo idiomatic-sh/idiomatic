@@ -17,6 +17,10 @@ pub(crate) enum ColumnLack {
     Column(MissingColumn),
 }
 
+/// Which of the elements the row on the left found the join reads next.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct StretchCursor(pub usize);
+
 /// What a join looking rows up in a tree keeps while it reads the rows of its left input, one at a time: the room of its comparisons
 /// and its answers, taken from the scratch and given back.
 pub(crate) struct TreeState {

@@ -16,6 +16,8 @@ pub(crate) mod operator_collections_operators_span_bounds_item_test;
 #[cfg(test)]
 pub(crate) mod operator_contract_test;
 #[cfg(test)]
+pub(crate) mod self_join_recogniser_service_test;
+#[cfg(test)]
 pub(crate) mod table_scratch_service_test;
 
 mod constants;

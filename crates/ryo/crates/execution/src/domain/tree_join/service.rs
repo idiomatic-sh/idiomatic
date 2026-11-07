@@ -4,7 +4,7 @@ use ryo_language::domain::elements::service::kind_names;
 use ryo_language::domain::names::service::name_count;
 use ryo_relations::domain::relations::types::{Flag, Value};
 
-use super::types::{ColumnLack, TreeState};
+use super::types::{ColumnLack, StretchCursor, TreeState};
 use crate::domain::kind_sets::service::{candidates_of, kind_tests};
 use crate::domain::kind_sets::types::KindScratch;
 use crate::domain::operating::errors::OperatingError;
@@ -167,7 +167,7 @@ pub(crate) fn probe(
         crate::domain::operator::contract::views::ProgressCounter::InputRows,
         1,
     );
-    let mut driver = driver::Driver {
+    let mut driver = driver::TreeDriver {
         #[cfg(feature = "diagnostic-row-progress")]
         progress: semantics.progress(),
         state,
@@ -176,7 +176,7 @@ pub(crate) fn probe(
         comparisons,
         context,
         emit,
-        at: 0,
+        at: StretchCursor(0),
         current: None,
         error: None,
     };

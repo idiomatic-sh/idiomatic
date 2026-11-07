@@ -17,11 +17,15 @@ pub(crate) struct StoredNumberOrigin {
     pub column: ColumnIndex,
 }
 
+/// How many columns the rows of the source hold.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct SchemaWidth(pub usize);
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct NumberRequirement {
     pub source: StepId,
     pub column: ColumnIndex,
-    pub width: usize,
+    pub width: SchemaWidth,
     pub origins: Vec<StoredNumberOrigin>,
 }
 
@@ -61,8 +65,15 @@ pub(crate) enum Decline {
     UnprovenNumberOrigin,
 }
 
+/// A step the recognizer declined and why.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct Declined {
+    pub step: StepId,
+    pub reason: Decline,
+}
+
 #[derive(Clone, Debug, Default)]
 pub(crate) struct Program {
     pub shapes: Vec<Shape>,
-    pub declines: Vec<(StepId, Decline)>,
+    pub declines: Vec<Declined>,
 }

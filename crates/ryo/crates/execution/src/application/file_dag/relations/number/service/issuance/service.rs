@@ -54,7 +54,7 @@ impl RelationOwner {
         // Exact computed payload width is admitted by the owner, not inferred
         // from the query layout. Raw hosted/Rows lineages were already refused.
         if shape != PhysicalShape::Complete
-            || rows.kinds().len() != required.width
+            || rows.kinds().len() != required.width.0
             || rows.kinds().get(required.column.0 as usize) != Some(&CellKind::Number)
         {
             return Ok(None);
