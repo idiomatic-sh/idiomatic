@@ -1,8 +1,9 @@
 //! What every `lint_store` adapter must pass.
 
 use super::super::errors::LintStoreError;
-use super::super::interface::{LintStorePort, ReadStore};
+use super::super::interface::LintStorePort;
 use super::super::types::StoreKeeping;
+use super::handed::materialized_handed;
 use super::fake::{
     again, failed, over_a_b_d_and_e, over_b_and_d, register_proofs, stored, words_of,
 };
@@ -10,45 +11,10 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::stored_facts::types::Bucket;
 use ryo_values::domain::stored_facts::types::PackedWords;
 use ryo_values::domain::stored_findings::types::StoredFileNumber;
+use ryo_values::domain::records::types::RecordWords;
 use ryo_values::domain::stores::types::{
-    BucketsWanted, FileAgain, KeptRows, Stored, StoredHanded, StoredWords,
+    BucketsWanted, FileAgain, KeptRows, ReadWordPayload, Stored, StoredHanded, StoredWords,
 };
-
-/// Explicitly resolve the read representation only in contract result oracles.
-/// Production handover resolves a filtered row at a time instead of materializing this table.
-pub fn materialized_handed(
-    read: &dyn ReadStore,
-    wanted: &BucketsWanted,
-) -> Result<StoredHanded, LintStoreError> {
-    let handed = read.handed(wanted)?.0;
-    let mut rows = Vec::with_capacity(handed.frontier.len());
-    for row in handed.frontier {
-        let words = match row.payload {
-            ryo_values::domain::stores::types::ReadWordPayload::Inline(words) => words,
-            ryo_values::domain::stores::types::ReadWordPayload::Old(span) => {
-                let mut loaded = PackedWords::default();
-                read.read_old(&span, &mut loaded)?;
-                loaded
-            }
-        };
-        rows.push(StoredWords {
-            file: row.file,
-            bucket: row.bucket,
-            proof: row.proof,
-            words,
-        });
-    }
-    Ok(StoredHanded(
-        ryo_values::domain::stores::types::HandedRows {
-            observations: handed.observations,
-            proofs: handed.proofs,
-            frontier: rows,
-            texts: handed.texts,
-            notes: handed.notes,
-            covered: handed.covered,
-        },
-    ))
-}
 
 /// What a row of the contract asks of a store.
 #[derive(Clone, Copy, Debug)]
@@ -71,6 +37,10 @@ pub enum Question {
     ARunKeepsAgainstTheStoreItRead,
     /// Whether a keep that must copy words from a store that holds none is refused.
     AKeepOfWordsNobodyReadIsRefused,
+    /// Whether words staged during a run read back as they were given.
+    StagedWordsReadBack,
+    /// Whether an old row read in a batch is the row read alone.
+    OldRowsReadInABatchAreTheRowsReadAlone,
 }
 
 /// What a row of the contract asks.
@@ -130,6 +100,18 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_run_keeps_against_the_store_it_read_whatever_another_run_kept_after"),
         word: Word::Succeeds,
         input: || Question::ARunKeepsAgainstTheStoreItRead,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("words_staged_during_a_run_read_back_as_they_were_given"),
+        word: Word::Succeeds,
+        input: || Question::StagedWordsReadBack,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("an_old_row_read_in_a_batch_is_the_row_read_alone"),
+        word: Word::Succeeds,
+        input: || Question::OldRowsReadInABatchAreTheRowsReadAlone,
         expect: Expect::Value(true),
     },
 ];
@@ -233,6 +215,37 @@ fn answer(
                 && gone == [read_now]
         }
         Question::ARunKeepsAgainstTheStoreItRead => keeps_against_the_store_it_read(&*store)?,
+        Question::StagedWordsReadBack => {
+            let read = store.stored()?;
+            let given = PackedWords(vec![7, 8]);
+            match read.stage_words(given.clone())? {
+                RecordWords::Inline(words) => words == given,
+                RecordWords::Staged(staged) => {
+                    let mut back = PackedWords::default();
+                    read.read_staged(&staged, &mut back)?;
+                    back == given
+                }
+            }
+        }
+        Question::OldRowsReadInABatchAreTheRowsReadAlone => {
+            kept(stored(1), &KeptRows::default())?;
+            let read = store.stored()?;
+            let handed = read.handed(&BucketsWanted::All)?.0;
+            let mut batch = read.begin_old_rows(&BucketsWanted::All)?;
+            let mut agree = true;
+            for row in handed.frontier {
+                if let ReadWordPayload::Old(span) = row.payload {
+                    let mut alone = PackedWords::default();
+                    read.read_old(&span, &mut alone)?;
+                    if let Some(batch) = batch.as_mut() {
+                        let mut together = PackedWords::default();
+                        batch.read(&span, &mut together)?;
+                        agree &= together == alone;
+                    }
+                }
+            }
+            agree
+        }
         Question::AKeepOfWordsNobodyReadIsRefused => {
             // A run that read a store with nothing in it cannot keep the words of one: it would copy from whatever is there.
             let (over, rows) = over_a_b_d_and_e();

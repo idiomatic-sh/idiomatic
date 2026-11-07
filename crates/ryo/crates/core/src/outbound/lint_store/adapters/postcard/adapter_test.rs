@@ -7,7 +7,8 @@ use super::schemas::{contents, contents_bytes};
 use super::types::{SectionLength, TableOfContents};
 use crate::cases::{Case, CaseName, Expect, Word, run, Matched, selects};
 use crate::outbound::lint_store::errors::LintStoreError;
-use crate::outbound::lint_store::fixtures::contract::{check, materialized_handed};
+use crate::outbound::lint_store::fixtures::contract::check;
+use crate::outbound::lint_store::fixtures::handed::materialized_handed;
 use crate::outbound::lint_store::fixtures::fake::{
     again, over_a_b_d_and_e, over_b_and_d, register_proofs, stored, words_of,
 };

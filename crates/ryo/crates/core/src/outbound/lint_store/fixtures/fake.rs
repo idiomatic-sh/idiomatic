@@ -45,6 +45,20 @@ pub struct LintStoreFake {
     pub keeps: Arc<AtomicUsize>,
 }
 
+/// The fake's stream of old rows: it holds none, so every row it is asked for is refused as the fake's `read_old` refuses it.
+#[derive(Debug, Default)]
+pub struct OldRowBatchFake;
+
+impl crate::outbound::lint_store::interface::OldRowBatch for OldRowBatchFake {
+    fn read(
+        &mut self,
+        _words: &ryo_values::domain::stores::types::OldWords,
+        _into: &mut ryo_values::domain::stored_facts::types::PackedWords,
+    ) -> Result<(), LintStoreError> {
+        Err(LintStoreError::NothingRead)
+    }
+}
+
 /// The fake's store as one run read it: what it held then, and the places the next keep and the counts go to.
 #[derive(Debug)]
 pub struct FakeRead {
