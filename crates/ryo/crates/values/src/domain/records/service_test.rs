@@ -173,3 +173,27 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
 }
+
+#[test]
+fn a_partial_frontier_with_lacks_is_well_formed_only_when_sorted_distinct_and_named_once_per_scope() {
+    use super::service::is_well_formed;
+    use super::types::{FrontierAffected, FrontierMissing};
+    use crate::domain::plan_parts::types::ColumnIndex;
+    let kinds = |names: &[&str]| FrontierMissing::Kinds {
+        column: ColumnIndex(2),
+        kinds: names.iter().map(|name| (*name).into()).collect(),
+    };
+    assert!(is_well_formed(&[
+        FrontierAffected::CurrentFile(kinds(&["function", "variable"])),
+        FrontierAffected::Repository(FrontierMissing::Any),
+    ]));
+    assert!(!is_well_formed(&[]));
+    assert!(!is_well_formed(&[FrontierAffected::CurrentFile(kinds(&[]))]));
+    assert!(!is_well_formed(&[FrontierAffected::CurrentFile(kinds(&[
+        "variable", "function"
+    ]))]));
+    assert!(!is_well_formed(&[
+        FrontierAffected::CurrentFile(FrontierMissing::Any),
+        FrontierAffected::CurrentFile(kinds(&["variable"])),
+    ]));
+}

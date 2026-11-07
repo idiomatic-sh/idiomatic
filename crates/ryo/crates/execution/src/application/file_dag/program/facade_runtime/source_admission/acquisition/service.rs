@@ -31,12 +31,7 @@ impl SourceInputs<'_, '_> {
                     // Shared project facts need the same physical certificate
                     // as a direct provider, before any operator can re-key them.
                     InputSource::Relation(relation) => {
-                        input.with_coverage(self.completion.coverage(&[
-                            crate::domain::trust::types::RelationRead {
-                                relation,
-                                kinds: vec![],
-                            },
-                        ]))
+                        input.with_coverage(self.completion.relation_coverage(relation))
                     }
                     _ => input,
                 });
@@ -55,11 +50,7 @@ impl SourceInputs<'_, '_> {
                     publication,
                     ProducerRoot::Input(source),
                     actual_partition,
-                    self.completion
-                        .coverage(&[crate::domain::trust::types::RelationRead {
-                            relation,
-                            kinds: vec![],
-                        }]),
+                    self.completion.relation_coverage(relation),
                     rows,
                 );
             }
@@ -111,7 +102,8 @@ impl SourceInputs<'_, '_> {
                     &input,
                     &self.owner,
                 )?;
-                self.observations.insert(ObservationKey(slot), admitted.clone());
+                self.observations
+                    .insert(ObservationKey(slot), admitted.clone());
                 Ok(admitted)
             }
             InputSource::EmptyObservation(slot) => {

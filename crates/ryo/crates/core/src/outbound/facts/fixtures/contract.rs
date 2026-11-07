@@ -130,11 +130,11 @@ fn packed_words_come_back_as_the_words_kept(facts: &dyn FactsPort) -> Result<Val
 
 /// Byte ranges retain exact per-file coverage through worker joining.
 fn frontier_proofs_follow_their_bytes(facts: &dyn FactsPort) -> Result<Value, FactsError> {
-    use ryo_values::domain::records::types::{FrontierAffected, FrontierCoverage};
+    use ryo_values::domain::records::types::{FrontierAffected, FrontierCoverage, FrontierMissing};
     let mut first = facts.worker()?;
     let mut second = facts.worker()?;
     let mut partial = FRONTIER_PROOF.clone();
-    partial.coverage = FrontierCoverage::Partial(vec![FrontierAffected::CurrentFile]);
+    partial.coverage = FrontierCoverage::Partial(vec![FrontierAffected::CurrentFile(FrontierMissing::Any)]);
     first.keep(
         Bucket(3),
         WordsToKeep {

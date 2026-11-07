@@ -314,9 +314,15 @@ pub(super) struct RestSchema<'a> {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+enum FrontierMissingSchema {
+    Any,
+    Kinds { column: u32, kinds: Vec<String> },
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 enum FrontierAffectedSchema {
-    CurrentFile,
-    Repository,
+    CurrentFile(FrontierMissingSchema),
+    Repository(FrontierMissingSchema),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -856,11 +862,41 @@ fn proof_schema(
                 affected
                     .iter()
                     .map(|cause| match cause {
-                        FrontierAffected::CurrentFile => FrontierAffectedSchema::CurrentFile,
-                        FrontierAffected::Repository => FrontierAffectedSchema::Repository,
+                        FrontierAffected::CurrentFile(missing) => {
+                            FrontierAffectedSchema::CurrentFile(missing_schema(missing))
+                        }
+                        FrontierAffected::Repository(missing) => {
+                            FrontierAffectedSchema::Repository(missing_schema(missing))
+                        }
                     })
                     .collect(),
             ),
+        },
+    }
+}
+
+fn missing_schema(
+    missing: &ryo_values::domain::records::types::FrontierMissing,
+) -> FrontierMissingSchema {
+    use ryo_values::domain::records::types::FrontierMissing;
+    match missing {
+        FrontierMissing::Any => FrontierMissingSchema::Any,
+        FrontierMissing::Kinds { column, kinds } => FrontierMissingSchema::Kinds {
+            column: column.0,
+            kinds: kinds.iter().map(|kind| kind.to_string()).collect(),
+        },
+    }
+}
+
+fn missing_row(
+    missing: &FrontierMissingSchema,
+) -> ryo_values::domain::records::types::FrontierMissing {
+    use ryo_values::domain::records::types::FrontierMissing;
+    match missing {
+        FrontierMissingSchema::Any => FrontierMissing::Any,
+        FrontierMissingSchema::Kinds { column, kinds } => FrontierMissing::Kinds {
+            column: ryo_values::domain::plan_parts::types::ColumnIndex(*column),
+            kinds: kinds.iter().map(|kind| kind.as_str().into()).collect(),
         },
     }
 }
@@ -875,11 +911,15 @@ fn proof_row(
             let values = affected
                 .iter()
                 .map(|cause| match cause {
-                    FrontierAffectedSchema::CurrentFile => FrontierAffected::CurrentFile,
-                    FrontierAffectedSchema::Repository => FrontierAffected::Repository,
+                    FrontierAffectedSchema::CurrentFile(missing) => {
+                        FrontierAffected::CurrentFile(missing_row(missing))
+                    }
+                    FrontierAffectedSchema::Repository(missing) => {
+                        FrontierAffected::Repository(missing_row(missing))
+                    }
                 })
                 .collect::<Vec<_>>();
-            if values.is_empty() || !values.windows(2).all(|pair| pair[0] < pair[1]) {
+            if !ryo_values::domain::records::service::is_well_formed(&values) {
                 return Err(postcard::Error::DeserializeBadEncoding);
             }
             FrontierCoverage::Partial(values)

@@ -1133,7 +1133,7 @@ impl FileAnalysis {
             && match &proof.coverage {
                 FrontierCoverage::Complete => true,
                 FrontierCoverage::Partial(affected) => {
-                    !affected.is_empty() && affected.windows(2).all(|pair| pair[0] < pair[1])
+                    ryo_values::domain::records::service::is_well_formed(affected)
                 }
             };
         if !valid {

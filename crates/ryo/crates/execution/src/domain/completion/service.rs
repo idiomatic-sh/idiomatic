@@ -1,6 +1,8 @@
 //! Certify physical completeness at the file-frontier boundary.
+use super::types::{FileLacks, MissingRows};
 use crate::domain::operating::errors::OperatingError;
 use ryo_relations::domain::relations::types::FileId;
+use ryo_values::domain::plan_parts::types::{ColumnIndex, Operand, PlanComparison};
 pub(crate) fn file_frontier_coverage(
     coverage: crate::domain::completion::types::CoverageState,
     file: FileId,
@@ -9,14 +11,21 @@ pub(crate) fn file_frontier_coverage(
     match affected_files(&coverage) {
         None => Ok(FrontierCoverage::Complete),
         Some(files) => {
-            let mut affected = files
+            let lacks = match &coverage {
+                super::types::CoverageState::Partial { lacks, .. } => lacks.as_slice(),
+                _ => &[],
+            };
+            let mut affected = lacks_of(&files, lacks)
                 .into_iter()
-                .map(|cause| match cause {
-                    None => Ok(FrontierAffected::Repository),
-                    Some(at) if at == file => Ok(FrontierAffected::CurrentFile),
-                    Some(_) => Err(OperatingError::ObservationIncomplete {
-                        reason: super::constants::FOREIGN_PARTITION.into(),
-                    }),
+                .map(|entry| {
+                    let missing = frontier_missing(entry.missing);
+                    match entry.file {
+                        None => Ok(FrontierAffected::Repository(missing)),
+                        Some(at) if at == file => Ok(FrontierAffected::CurrentFile(missing)),
+                        Some(_) => Err(OperatingError::ObservationIncomplete {
+                            reason: super::constants::FOREIGN_PARTITION.into(),
+                        }),
+                    }
                 })
                 .collect::<Result<Vec<_>, _>>()?;
             affected.sort_unstable();
@@ -31,6 +40,58 @@ pub(crate) fn file_frontier_coverage(
     }
 }
 
+/// What a frontier proof says is missing, from what a coverage says of its file.
+fn frontier_missing(
+    missing: MissingRows,
+) -> ryo_values::domain::records::types::FrontierMissing {
+    use ryo_values::domain::records::types::FrontierMissing;
+    match missing {
+        MissingRows::Any => FrontierMissing::Any,
+        MissingRows::Kinds { column, kinds } => FrontierMissing::Kinds {
+            column,
+            kinds: kinds.into_iter().map(|kind| kind.0).collect(),
+        },
+    }
+}
+
+/// What a frontier proof of `file` says is missing, as the lacks of a coverage.
+pub(crate) fn restored_lacks(
+    file: FileId,
+    affected: &[ryo_values::domain::records::types::FrontierAffected],
+) -> Vec<FileLacks> {
+    use ryo_values::domain::records::types::FrontierAffected;
+    affected
+        .iter()
+        .map(|scope| match scope {
+            FrontierAffected::CurrentFile(missing) => FileLacks {
+                file: Some(file),
+                missing: coverage_missing(missing),
+            },
+            FrontierAffected::Repository(missing) => FileLacks {
+                file: None,
+                missing: coverage_missing(missing),
+            },
+        })
+        .collect()
+}
+
+/// What a coverage says is missing, from what a frontier proof says of its file.
+fn coverage_missing(
+    missing: &ryo_values::domain::records::types::FrontierMissing,
+) -> MissingRows {
+    use ryo_values::domain::records::types::FrontierMissing;
+    match missing {
+        FrontierMissing::Any => MissingRows::Any,
+        FrontierMissing::Kinds { column, kinds } => MissingRows::Kinds {
+            column: *column,
+            kinds: kinds
+                .iter()
+                .map(|kind| crate::domain::coverage::types::LackingKind(kind.clone()))
+                .collect(),
+        },
+    }
+}
+
 /// The files a coverage lacks input of, an inapplicable one as the file it is; none when nothing lacks input.
 pub(crate) fn affected_files(
     coverage: &crate::domain::completion::types::CoverageState,
@@ -38,12 +99,12 @@ pub(crate) fn affected_files(
     use crate::domain::completion::types::CoverageState;
     match coverage {
         CoverageState::Complete => None,
-        CoverageState::Partial { files } => Some(files.clone()),
+        CoverageState::Partial { files, .. } => Some(files.clone()),
         CoverageState::Inapplicable { files } => Some(files.iter().copied().map(Some).collect()),
     }
 }
 
-/// Missing named populations obey the same absence semantics as physical reads.
+/// MissingRows named populations obey the same absence semantics as physical reads.
 /// Positive operators retain admitted rows; absence-sensitive operators can
 /// trust a keyed answer only outside the affected physical partitions.
 pub(crate) fn filter_contributor_rows(
@@ -58,7 +119,7 @@ pub(crate) fn filter_contributor_rows(
         }
         match &input.coverage {
             super::types::CoverageState::Complete => {}
-            super::types::CoverageState::Partial { files } => {
+            super::types::CoverageState::Partial { files, .. } => {
                 let mut affected = files.clone();
                 affected.sort_unstable();
                 affected.dedup();
@@ -118,6 +179,7 @@ pub(crate) fn output_coverage(
             Operation::GroupCount { .. } | Operation::GroupDigest { .. }
         );
         let mapped: Vec<Option<FileId>>;
+        let mut entries: Vec<FileLacks>;
         let files = match &input.coverage {
             super::types::CoverageState::Complete => continue,
             // A file out of scope matters to a count only through the file or node the count is keyed by; any other operator
@@ -130,9 +192,13 @@ pub(crate) fn output_coverage(
             }
             super::types::CoverageState::Inapplicable { files } => {
                 mapped = files.iter().copied().map(Some).collect();
+                entries = lacks_of(&mapped, &[]);
                 &mapped
             }
-            super::types::CoverageState::Partial { files } => files,
+            super::types::CoverageState::Partial { files, lacks } => {
+                entries = lacks_of(files, lacks);
+                files
+            }
         };
         if files.is_empty() {
             return Err(OperatingError::ObservationIncomplete {
@@ -140,6 +206,23 @@ pub(crate) fn output_coverage(
             });
         }
         let base = reads_relation(operation, input.ordinal);
+        // The rows an operator passes on are the rows it was given, so what is missing from them follows its columns; a select
+        // on the kind column may rule the missing kinds out altogether.
+        entries = if let Operation::Select {
+            comparisons, kept, ..
+        } = operation
+        {
+            after_select(comparisons, kept, entries)
+        } else if let Operation::Project { columns, .. } = operation {
+            remapped(entries, columns)
+        } else if matches!(operation, Operation::Extend { .. }) {
+            entries
+        } else {
+            any_of(entries)
+        };
+        if entries.is_empty() {
+            continue;
+        }
         let preserves = match operation {
             Operation::Join {
                 left_on,
@@ -252,20 +335,22 @@ pub(crate) fn output_coverage(
             | Operation::SpanBounds { .. } => true,
         };
         if preserves {
-            affected.extend_from_slice(files);
+            affected.extend(entries);
         } else {
-            affected.push(None);
+            affected.push(FileLacks {
+                file: None,
+                missing: MissingRows::Any,
+            });
         }
     }
-    affected.sort_unstable();
-    affected.dedup();
     inapplicable.sort_unstable();
     inapplicable.dedup();
     Ok(if !affected.is_empty() {
-        affected.extend(inapplicable.into_iter().map(Some));
-        affected.sort_unstable();
-        affected.dedup();
-        super::types::CoverageState::Partial { files: affected }
+        affected.extend(inapplicable.into_iter().map(|file| FileLacks {
+            file: Some(file),
+            missing: MissingRows::Any,
+        }));
+        partial_of_lacks(affected)
     } else if inapplicable.is_empty() {
         super::types::CoverageState::Complete
     } else {
@@ -298,6 +383,190 @@ pub(crate) fn ordered_output_coverage(
     } else if matches!(source.coverage, super::types::CoverageState::Complete) {
         super::types::CoverageState::Complete
     } else {
-        super::types::CoverageState::Partial { files: vec![None] }
+        partial_any(vec![None])
+    }
+}
+
+/// A coverage partial in these files, any row of which could be missing.
+pub(crate) fn partial_any(files: Vec<Option<FileId>>) -> super::types::CoverageState {
+    partial_of_lacks(
+        files
+            .into_iter()
+            .map(|file| FileLacks {
+                file,
+                missing: MissingRows::Any,
+            })
+            .collect(),
+    )
+}
+
+/// What is missing from each of `files`: what `lacks` says of a file, any row of one it does not name.
+pub(crate) fn lacks_of(files: &[Option<FileId>], lacks: &[FileLacks]) -> Vec<FileLacks> {
+    files
+        .iter()
+        .map(|file| FileLacks {
+            file: *file,
+            missing: lacks
+                .iter()
+                .find(|each| each.file == *file)
+                .map_or(MissingRows::Any, |each| each.missing.clone()),
+        })
+        .collect()
+}
+
+/// What is missing when either of two things is: rows of kinds of one column stay named only while both name that column.
+fn union_missing(first: MissingRows, second: MissingRows) -> MissingRows {
+    match (first, second) {
+        (
+            MissingRows::Kinds { column, mut kinds },
+            MissingRows::Kinds {
+                column: other,
+                kinds: more,
+            },
+        ) if column == other => {
+            kinds.extend(more);
+            kinds.sort_unstable();
+            kinds.dedup();
+            MissingRows::Kinds { column, kinds }
+        }
+        _ => MissingRows::Any,
+    }
+}
+
+/// The partial coverage of what is missing from files, sorted, once each; what is missing is the union of what was said of a file.
+/// A file that lacks any row is not named, as `lacks` leaves it out.
+pub(crate) fn partial_of_lacks(mut all: Vec<FileLacks>) -> super::types::CoverageState {
+    all.sort();
+    let mut files: Vec<Option<FileId>> = Vec::with_capacity(all.len());
+    let mut lacks: Vec<FileLacks> = Vec::new();
+    for each in all {
+        match files.last() {
+            Some(last) if *last == each.file => {
+                if let Some(at) = lacks.iter().position(|existing| existing.file == each.file) {
+                    let existing = lacks.swap_remove(at);
+                    let missing = union_missing(existing.missing, each.missing);
+                    if missing != MissingRows::Any {
+                        lacks.push(FileLacks {
+                            file: each.file,
+                            missing,
+                        });
+                    }
+                }
+                // A file already lacking any row stays so.
+            }
+            _ => {
+                files.push(each.file);
+                if each.missing != MissingRows::Any {
+                    lacks.push(each);
+                }
+            }
+        }
+    }
+    lacks.sort();
+    super::types::CoverageState::Partial { files, lacks }
+}
+
+/// What a select leaves missing: rows of kinds that its comparisons on the kind column stop never reach it, so a file whose every
+/// missing kind is stopped is no longer partial.
+fn after_select(
+    comparisons: &[PlanComparison],
+    kept: &[ColumnIndex],
+    entries: Vec<FileLacks>,
+) -> Vec<FileLacks> {
+    use crate::domain::trust::types::Passage;
+    entries
+        .into_iter()
+        .filter_map(|entry| match entry.missing {
+            MissingRows::Any => Some(entry),
+            MissingRows::Kinds { column, kinds } => {
+                let stopped = kinds.iter().all(|kind| {
+                    comparisons.iter().any(|comparison| {
+                        comparison.left == Operand::Column(column)
+                            && crate::domain::trust::service::admits(comparison, kind)
+                                == Passage::Blocks
+                    })
+                });
+                if stopped {
+                    return None;
+                }
+                let place = if kept.is_empty() {
+                    Some(column)
+                } else {
+                    moved(column, kept)
+                };
+                Some(FileLacks {
+                    file: entry.file,
+                    missing: place.map_or(MissingRows::Any, |column| MissingRows::Kinds {
+                        column,
+                        kinds,
+                    }),
+                })
+            }
+        })
+        .collect()
+}
+
+/// What a projection leaves missing: the kind column where the projection puts it, any row when it drops it.
+fn remapped(entries: Vec<FileLacks>, columns: &[ColumnIndex]) -> Vec<FileLacks> {
+    entries
+        .into_iter()
+        .map(|entry| FileLacks {
+            file: entry.file,
+            missing: match entry.missing {
+                MissingRows::Kinds { column, kinds } => {
+                    moved(column, columns).map_or(MissingRows::Any, |column| MissingRows::Kinds {
+                        column,
+                        kinds,
+                    })
+                }
+                MissingRows::Any => MissingRows::Any,
+            },
+        })
+        .collect()
+}
+
+/// What an operator that does not carry columns through leaves missing: any row of each file.
+fn any_of(entries: Vec<FileLacks>) -> Vec<FileLacks> {
+    entries
+        .into_iter()
+        .map(|entry| FileLacks {
+            file: entry.file,
+            missing: MissingRows::Any,
+        })
+        .collect()
+}
+
+/// What the partly read relation `partial` leaves missing from the relation's own columns: the rows of its kind when the reader
+/// names one and the relation has a kind column, any row otherwise.
+fn missing_of_partial(partial: &crate::domain::coverage::types::Partial) -> MissingRows {
+    use crate::domain::coverage::types::Lacking;
+    match &partial.lacking {
+        Lacking::Any => MissingRows::Any,
+        Lacking::Kind(kind) => crate::domain::trust::service::kind_place(partial.relation).map_or(
+            MissingRows::Any,
+            |column| MissingRows::Kinds {
+                column,
+                kinds: vec![kind.clone()],
+            },
+        ),
+    }
+}
+
+/// What the partly read `partials` of a relation leave missing together: their union, any row when none is named.
+pub(crate) fn missing_of_partials<'a>(
+    partials: impl Iterator<Item = &'a crate::domain::coverage::types::Partial>,
+) -> MissingRows {
+    partials
+        .map(missing_of_partial)
+        .reduce(union_missing)
+        .unwrap_or(MissingRows::Any)
+}
+
+/// Where `column` of the input is among the columns an operator keeps, in order, when it is kept.
+fn moved(column: ColumnIndex, kept: &[ColumnIndex]) -> Option<ColumnIndex> {
+    let at = kept.iter().position(|each| *each == column)?;
+    match u32::try_from(at) {
+        Ok(at) => Some(ColumnIndex(at)),
+        Err(_) => None,
     }
 }

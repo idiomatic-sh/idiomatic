@@ -24,6 +24,7 @@ use ryo_values::domain::stores::types::{
 
 use super::service::{
     later_from, made_again, records_from, skipped_from, stored_of, unknowns_from, with_fresh,
+    with_gone,
 };
 use super::types::{Decision, ToKeep};
 use crate::cases::{Case, CaseName, Expect, Word, run};
@@ -56,6 +57,9 @@ enum Scenario {
     UnknownsFrom,
     /// Explicit skip outcomes are retained only for files not read again.
     SkippedFrom,
+    /// A file the store kept and the run no longer lists leaves no unknown and no skip of its own behind; a file still listed is
+    /// never gone.
+    GoneFile,
 }
 
 /// What a row of the cases does.
@@ -385,6 +389,27 @@ fn subject(scenario: Input) -> Value {
             let refreshed = skipped_from(&kept, &[FilePath("a.rs".into())]);
             usize::from(reused == kept.skipped) * 10 + refreshed.len()
         }
+        Scenario::GoneFile => {
+            let mut kept = stored();
+            kept.unknowns.push(StoredUnknown {
+                path: FilePath("b.rs".into()),
+                ..kept.unknowns[0].clone()
+            });
+            kept.skipped.push(Skipped {
+                rule: RuleId("syntax-only".into()),
+                path: FilePath("a.rs".into()),
+                reason: SkipReason::SyntaxRejected,
+            });
+            let (a, b) = (FilePath("a.rs".into()), FilePath("b.rs".into()));
+            let none_gone = with_gone(Vec::new(), &kept, &[&a, &b]).is_empty();
+            // a.rs is no longer listed: its unknown and its skip go, b.rs keeps its unknown.
+            let read_again = with_gone(Vec::new(), &kept, &[&b]);
+            let left = unknowns_from(&kept, &read_again);
+            usize::from(none_gone) * 1000
+                + left.len() * 100
+                + usize::from(left.first().is_some_and(|each| each.path == b)) * 10
+                + skipped_from(&kept, &read_again).len()
+        }
     }
 }
 
@@ -458,6 +483,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Scenario::SkippedFrom,
         expect: Expect::Value(10),
+    },
+    Case {
+        name: CaseName("a_file_no_longer_listed_leaves_no_unknown_or_skip_behind"),
+        word: Word::Succeeds,
+        input: || Scenario::GoneFile,
+        expect: Expect::Value(1110),
     },
 ];
 

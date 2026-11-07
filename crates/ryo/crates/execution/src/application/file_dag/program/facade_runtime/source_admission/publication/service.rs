@@ -42,8 +42,12 @@ impl SourceInputs<'_, '_> {
                 .regions()
                 .get(region.0)
                 .ok_or(OperatingError::NotRun)?;
-            let column = crate::domain::executable_program::service::column(&code.route).filter(|_| inputs.len() == 2);
-            let ordered = crate::domain::executable_program::service::ordered_existence(&code.route).filter(|shape| {
+            let column = crate::domain::executable_program::service::column(&code.route)
+                .filter(|_| inputs.len() == 2);
+            let ordered = crate::domain::executable_program::service::ordered_existence(
+                &code.route,
+            )
+            .filter(|shape| {
                 inputs.len() == 1
                     && inputs[0].has_root(ProducerRoot::Region(shape.source))
                         == crate::application::file_dag::program::admission::Agreement::Same
@@ -116,16 +120,17 @@ impl SourceInputs<'_, '_> {
                 }
                 // An intentionally undemanded row fault must stay deferred.
                 // No precise lineage can be certified from a refused schema.
-                Err(_) => {
-                    crate::domain::completion::types::CoverageState::Partial { files: vec![None] }
-                }
+                Err(_) => crate::domain::completion::service::partial_any(vec![None]),
             };
             readiness = match coverage {
                 crate::domain::completion::types::CoverageState::Complete => {
                     crate::application::file_dag::program::admission::Readiness::Complete
                 }
-                crate::domain::completion::types::CoverageState::Partial { files } => {
-                    crate::application::file_dag::program::admission::Readiness::Partial { files }
+                crate::domain::completion::types::CoverageState::Partial { files, lacks } => {
+                    crate::application::file_dag::program::admission::Readiness::Partial {
+                        files,
+                        lacks,
+                    }
                 }
                 crate::domain::completion::types::CoverageState::Inapplicable { files } => {
                     crate::application::file_dag::program::admission::Readiness::Inapplicable {

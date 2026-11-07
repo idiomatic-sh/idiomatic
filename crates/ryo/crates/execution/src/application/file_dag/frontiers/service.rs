@@ -256,7 +256,8 @@ pub(crate) fn validate_bucket(
     required: &crate::application::file_dag::program::admission::RequiredPartitions,
     payload: &crate::outbound::facts::types::KeptBucket,
 ) -> Result<crate::domain::completion::types::CoverageState, OperatingError> {
-    use ryo_values::domain::records::types::{FrontierAffected, FrontierCoverage};
+    use crate::domain::completion::types::{FileLacks, MissingRows};
+    use ryo_values::domain::records::types::FrontierCoverage;
     let refuse = || OperatingError::ObservationIncomplete {
         reason: "frontier source proof does not match the prepared program".into(),
     };
@@ -295,13 +296,13 @@ pub(crate) fn validate_bucket(
         match &source.proof.coverage {
             FrontierCoverage::Complete => {}
             FrontierCoverage::Partial(scopes) => {
-                if scopes.is_empty() || !scopes.windows(2).all(|pair| pair[0] < pair[1]) {
+                if !ryo_values::domain::records::service::is_well_formed(scopes) {
                     return Err(refuse());
                 }
-                affected.extend(scopes.iter().map(|scope| match scope {
-                    FrontierAffected::CurrentFile => Some(source.file),
-                    FrontierAffected::Repository => None,
-                }));
+                affected.extend(crate::domain::completion::service::restored_lacks(
+                    source.file,
+                    scopes,
+                ));
             }
         }
     }
@@ -319,14 +320,13 @@ pub(crate) fn validate_bucket(
     if at != payload.words.0.0.len() || !exact_required_files(required.files(), &seen_files) {
         return Err(refuse());
     }
-    affected.sort_unstable();
-    affected.dedup();
     // A skipped file stays unavailable: it lacks input without making an answer not keyed by it partial.
     Ok(if !affected.is_empty() {
-        affected.extend(skipped.iter().copied().map(Some));
-        affected.sort_unstable();
-        affected.dedup();
-        crate::domain::completion::types::CoverageState::Partial { files: affected }
+        affected.extend(skipped.iter().copied().map(|file| FileLacks {
+            file: Some(file),
+            missing: MissingRows::Any,
+        }));
+        crate::domain::completion::service::partial_of_lacks(affected)
     } else if skipped.is_empty() {
         crate::domain::completion::types::CoverageState::Complete
     } else {

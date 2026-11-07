@@ -62,10 +62,12 @@ impl CompletionPolicy {
     }
     pub(crate) fn blocked_coverage(&self) -> CoverageState {
         match self.scope {
-            ScopeIdentity::File { file, .. } => CoverageState::Partial {
-                files: vec![Some(file)],
-            },
-            ScopeIdentity::Project { .. } => CoverageState::Partial { files: vec![None] },
+            ScopeIdentity::File { file, .. } => {
+                crate::domain::completion::service::partial_any(vec![Some(file)])
+            }
+            ScopeIdentity::Project { .. } => {
+                crate::domain::completion::service::partial_any(vec![None])
+            }
         }
     }
     pub(crate) fn coverage(&self, reads: &[RelationRead]) -> CoverageState {
@@ -87,8 +89,49 @@ impl CompletionPolicy {
         if files.is_empty() {
             CoverageState::Complete
         } else {
-            CoverageState::Partial { files }
+            CoverageState::Partial {
+                files,
+                lacks: Vec::new(),
+            }
         }
+    }
+    /// The coverage of a relation as it is read, its rows in the relation's own columns: what the partial relations leave
+    /// missing is kept by file, so a consumer that rules the missing kinds out is not made partial.
+    pub(crate) fn relation_coverage(
+        &self,
+        relation: ryo_relations::domain::relations::types::Relation,
+    ) -> CoverageState {
+        use crate::domain::completion::service::{missing_of_partials, partial_of_lacks};
+        use crate::domain::completion::types::FileLacks;
+        let read = [RelationRead {
+            relation,
+            kinds: vec![],
+        }];
+        let coverage = self.coverage(&read);
+        let CoverageState::Partial { files, .. } = coverage else {
+            return coverage;
+        };
+        let missing = |file: Option<FileId>| match &self.publication {
+            CompletionBehavior::BlockBeforeRun(partials) => {
+                missing_of_partials(partials.iter().filter(|each| each.relation == relation))
+            }
+            CompletionBehavior::DropAfterCollect(partials) => missing_of_partials(
+                partials
+                    .entries
+                    .iter()
+                    .filter(|each| each.file == file && each.partial.relation == relation)
+                    .map(|each| &each.partial),
+            ),
+        };
+        partial_of_lacks(
+            files
+                .into_iter()
+                .map(|file| FileLacks {
+                    file,
+                    missing: missing(file),
+                })
+                .collect(),
+        )
     }
     pub(crate) fn observation_admission(&self, reads: &[RelationRead]) -> ObservationAdmission {
         let ready = match &self.publication {

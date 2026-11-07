@@ -546,7 +546,7 @@ fn warm_partial_frontier_keeps_exact_proof_through_facts_handover() {
     use ryo_execution::inbound::use_cases::execution::types::facts::{FactsPort as _, WordsToKeep};
     use ryo_relations::domain::relations::types::FileId;
     use ryo_values::domain::{
-        records::types::{FrontierAffected, FrontierCoverage},
+        records::types::{FrontierAffected, FrontierCoverage, FrontierMissing},
         stored_facts::types::PackedWords,
         stores::types::ReadWordPayload,
     };
@@ -555,7 +555,7 @@ fn warm_partial_frontier_keeps_exact_proof_through_facts_handover() {
     let store = store_in(root.path(), "partial-frontier");
     let mut original = stored(3);
     let proof = &mut original.handed.frontier[0].proof;
-    proof.coverage = FrontierCoverage::Partial(vec![FrontierAffected::CurrentFile]);
+    proof.coverage = FrontierCoverage::Partial(vec![FrontierAffected::CurrentFile(FrontierMissing::Any)]);
     original.handed.proofs[0].proof = proof.clone();
     store
         .stored()
@@ -601,7 +601,7 @@ fn warm_partial_frontier_keeps_exact_proof_through_facts_handover() {
     assert_eq!(joined.sources[0].proof, original.handed.frontier[0].proof);
     assert_eq!(
         joined.sources[0].proof.coverage,
-        FrontierCoverage::Partial(vec![FrontierAffected::CurrentFile])
+        FrontierCoverage::Partial(vec![FrontierAffected::CurrentFile(FrontierMissing::Any)])
     );
 }
 

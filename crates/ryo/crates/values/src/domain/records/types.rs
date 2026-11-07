@@ -178,13 +178,27 @@ pub struct HandedWords {
     pub words: RecordWords,
 }
 
-/// The physical absence scope retained with a per-file frontier.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+/// Which rows a frontier's incomplete scope could be missing, as the reader names them.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum FrontierMissing {
+    /// Any row could be.
+    Any,
+    /// Only rows whose `column` holds one of these kinds, sorted, once each.
+    Kinds {
+        /// The column that holds the kind.
+        column: crate::domain::plan_parts::types::ColumnIndex,
+        /// The kinds that could be missing.
+        kinds: Vec<Box<str>>,
+    },
+}
+
+/// The physical absence scope retained with a per-file frontier, and which of its rows are missing.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum FrontierAffected {
     /// This frontier's containing file is incomplete.
-    CurrentFile,
+    CurrentFile(FrontierMissing),
     /// The source reported a repository-wide incomplete relation.
-    Repository,
+    Repository(FrontierMissing),
 }
 
 /// A complete frontier or the precise physical scopes still uncertain.

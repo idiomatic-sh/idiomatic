@@ -304,6 +304,27 @@ pub(crate) fn unknowns_from(stored: &Stored, read_again: &[FilePath]) -> Vec<Unk
         .collect()
 }
 
+/// The files read again, and with them the files the store kept that the run no longer lists: they are gone, so what the store kept
+/// of them answers nothing about this run. Sorted, once each, as `unknowns_from` and `skipped_from` search them.
+#[must_use]
+pub(crate) fn with_gone(
+    mut read_again: Vec<FilePath>,
+    stored: &Stored,
+    listed: &[&FilePath],
+) -> Vec<FilePath> {
+    let listed: std::collections::BTreeSet<&FilePath> = listed.iter().copied().collect();
+    read_again.extend(
+        stored
+            .files
+            .iter()
+            .filter(|kept| !listed.contains(&kept.path))
+            .map(|kept| kept.path.clone()),
+    );
+    read_again.sort();
+    read_again.dedup();
+    read_again
+}
+
 /// What the rules explicitly skipped, as the store kept it, but not for files read again.
 #[must_use]
 pub(crate) fn skipped_from(stored: &Stored, read_again: &[FilePath]) -> Vec<Skipped> {
