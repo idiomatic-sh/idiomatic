@@ -2,7 +2,7 @@
 use super::{constants, schemas, settings::LinterRuffSettings};
 use ryo::linter::{RuleId, SourceText};
 use ryo_benchmark::outbound::linter::interface::LinterPort;
-use ryo_benchmark::outbound::linter::types::{CanonicalText, RuleContextInput, SettingsInput};
+use ryo_benchmark::outbound::linter::types::CanonicalText;
 use ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath;
 use ryo_benchmark_contracts::domain::measurements::types::Invocation;
 use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
@@ -109,17 +109,13 @@ impl LinterPort for LinterRuffAdapter {
         case: &ryo_benchmark_contracts::domain::workloads::types::PreparedCase,
         profile: &ryo_benchmark_contracts::domain::workloads::types::Tool,
     ) -> Result<CanonicalText, Error> {
-        CanonicalText::try_from(SettingsInput {
-            normalized,
-            case,
-            profile,
-        })
+        CanonicalText::try_from((normalized, case, profile))
     }
     fn rule_context_text(
         &self,
         prepared: &ryo_benchmark_contracts::domain::context::types::PreparedRuleContext,
     ) -> CanonicalText {
-        CanonicalText::from(RuleContextInput(prepared))
+        CanonicalText::from(prepared)
     }
 }
 

@@ -2,6 +2,7 @@
 use super::types::{OrderedExistence, RegexIdentity};
 use crate::domain::operating::errors::OperatingError;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
+use ryo_operators::domain::evaluation::types::Lent;
 use ryo_operators::domain::ordered_existence::types::PartitionExtremum;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_operators::types::OperationKind;
@@ -20,24 +21,34 @@ pub(crate) struct PhysicalAuthorization {
     _sealed: std::marker::PhantomData<()>,
 }
 
-/// Whether the resources an evaluation lends are the ones its instruction was prepared with: the acquired
-/// matcher, the bound text-set layers and the source length. An absent resource is the operators' refusal.
+/// Refuses resources an evaluation lends that are not the ones its instruction was prepared with: the
+/// acquired matcher, the bound text-set layers and the source length. An absent resource is the operators'
+/// refusal.
 fn bound_views(
     operation: &Operation,
     binding: &PhysicalBinding<'_>,
     views: &ryo_operators::domain::evaluation::types::EvaluationViews<'_>,
-) -> bool {
-    match operation {
+) -> Result<(), OperatingError> {
+    let bound = match operation {
         Operation::Replace { .. } | Operation::SourceMatches { .. } => {
-            views.regex.is_none_or(|regex| {
-                binding.regex_identity == Some(RegexIdentity(regex as *const _ as usize))
-            })
+            match views.regex {
+                Lent::Unbound => true,
+                Lent::Bound(regex) => {
+                    binding.regex_identity == Some(RegexIdentity(regex as *const _ as usize))
+                }
+            }
         }
-        Operation::Rank { sets, .. } => views.layers.is_none_or(|layers| {
-            matches!(binding.bindings.get(sets.0 as usize), Some(ryo_values::domain::query_bindings::types::ParameterBinding::TextSets(expected)) if layers == expected.as_slice())
-        }),
+        Operation::Rank { sets, .. } => match views.layers {
+            Lent::Unbound => true,
+            Lent::Bound(layers) => matches!(binding.bindings.get(sets.0 as usize), Some(ryo_values::domain::query_bindings::types::ParameterBinding::TextSets(expected)) if layers == expected.as_slice()),
+        },
         Operation::SpanBetween { .. } => views.source.0.len() == binding.source_len.0,
         _ => true,
+    };
+    if bound {
+        Ok(())
+    } else {
+        Err(OperatingError::WrongOperation)
     }
 }
 
@@ -56,9 +67,8 @@ pub(crate) fn authorize(
             views,
             ..
         } => {
-            matches!(route, PhysicalRoute::Registered)
-                && std::ptr::eq(*called, operation)
-                && bound_views(operation, binding, views)
+            bound_views(operation, binding, views)?;
+            matches!(route, PhysicalRoute::Registered) && std::ptr::eq(*called, operation)
         }
         OperatorCall::OrderedExistence {
             partition,

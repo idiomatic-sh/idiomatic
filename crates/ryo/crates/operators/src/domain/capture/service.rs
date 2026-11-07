@@ -88,29 +88,29 @@ pub(crate) fn evaluate(
         slots,
         ..
     } = scratch;
-    text.clear();
+    text.0.clear();
     if driver.text(value, text) == crate::domain::contract::types::TextFound::NotText {
         return Ok(());
     }
-    let text: &str = text;
+    let text: &str = text.0.as_str();
     captured.clear();
-    slots.clear();
+    slots.0.clear();
     let width = pattern.0.bytes().filter(|byte| *byte == b'{').count();
     let mut minting = crate::domain::capture::types::SlotMinting {
         driver: &mut *driver,
-        text,
+        text: SlotSubject(text),
         captured: &mut *captured,
-        ways: 0,
+        ways: ryo_relations::domain::relations::types::Count(0),
     };
     matches(
         pattern,
         SlotSubject(text),
         SlotSubject(text),
-        CaptureSlots(slots),
+        CaptureSlots(&mut slots.0),
         &mut minting,
     );
     let ways = minting.ways;
-    for way in 0..ways {
+    for way in 0..ways.0 {
         joined.clear();
         joined.extend_from_slice(row);
         joined.extend_from_slice(

@@ -54,14 +54,14 @@ pub(crate) fn evaluate(
         word,
         ..
     } = scratch;
-    text.clear();
+    text.0.clear();
     if driver.text(value, text) == crate::domain::contract::types::TextFound::NotText {
         return Ok(());
     }
     captured.clear();
     split(
-        CellText(text.as_str()),
-        WordScratch(word),
+        CellText(text.0.as_str()),
+        WordScratch(&mut word.0),
         &mut crate::domain::words::types::WordMinting {
             driver: &mut *driver,
             captured: &mut *captured,

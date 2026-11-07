@@ -339,9 +339,10 @@ pub fn exercise(
                 ]);
                 let publication =
                     crate::inbound::use_cases::publish::use_case::PublishUseCaseImpl::new(
-                        std::sync::Arc::new(crate::outbound::evidence::factory::bmf(Box::new(
-                            Vec::<u8>::new(),
-                        ))),
+                        std::sync::Arc::new(crate::outbound::evidence::factory::bmf(
+                            Box::new(Vec::<u8>::new()),
+                            Box::new(Vec::<u8>::new()),
+                        )),
                     )
                     .publish(&samples);
                 if full {

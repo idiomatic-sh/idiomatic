@@ -117,7 +117,7 @@ impl<'f> LeaseDriver<'_, 'f> {
 
 impl ClosureDriver for LeaseDriver<'_, '_> {
     fn partitions(&mut self) -> Result<Count, Fault> {
-        if self.interrupted() {
+        if self.interrupted() == super::failure::LatchState::Failed {
             return Err(Fault::Interrupted);
         }
         let closure = self.resources.closure();
@@ -148,17 +148,16 @@ impl ClosureDriver for LeaseDriver<'_, '_> {
                 .map_or(0, |partition| partition.sources.len()),
         )
     }
-    fn source(&self, partition: PartitionPlace, at: VertexPlace) -> Option<Value> {
-        self.graph
+    fn source(&mut self, partition: PartitionPlace, at: VertexPlace) -> Result<Option<Value>, Fault> {
+        let found = self
+            .graph
             .closure
             .get(super::views::PartitionIndex(partition.0))
-            .ok()?
-            .sources
-            .get(at.0)
-            .copied()
+            .map(|partition| partition.sources.get(at.0).copied());
+        self.hold(found)
     }
     fn reach(&mut self, partition: PartitionPlace, source: Value) -> Result<Count, Fault> {
-        if self.interrupted() {
+        if self.interrupted() == super::failure::LatchState::Failed {
             return Err(Fault::Interrupted);
         }
         let reached = self.reach_partition(partition, source);
@@ -177,7 +176,7 @@ impl ClosureDriver for LeaseDriver<'_, '_> {
 
 impl DfsDriver for LeaseDriver<'_, '_> {
     fn roots(&mut self) -> Result<RowCount, Fault> {
-        if self.interrupted() {
+        if self.interrupted() == super::failure::LatchState::Failed {
             return Err(Fault::Interrupted);
         }
         let graph = self
@@ -222,7 +221,7 @@ impl DfsDriver for LeaseDriver<'_, '_> {
         }
     }
     fn begin(&mut self, partition: &[Value], root: Value) -> Result<(), Fault> {
-        if self.interrupted() {
+        if self.interrupted() == super::failure::LatchState::Failed {
             return Err(Fault::Interrupted);
         }
         let begun = self
@@ -249,7 +248,7 @@ impl DfsDriver for LeaseDriver<'_, '_> {
         self.hold(begun)
     }
     fn next(&mut self, partition: &[Value]) -> Result<Option<OrderedEdge>, Fault> {
-        if self.interrupted() {
+        if self.interrupted() == super::failure::LatchState::Failed {
             return Err(Fault::Interrupted);
         }
         let visit = self.next_visit(partition);
@@ -352,7 +351,7 @@ impl OrderedMatchDriver for LeaseDriver<'_, '_> {
         right: RowIndex,
         project: &mut dyn FnMut(&[Value], &[Value]) -> Result<(), Fault>,
     ) -> Result<(), Fault> {
-        if self.interrupted() {
+        if self.interrupted() == super::failure::LatchState::Failed {
             return Err(Fault::Interrupted);
         }
         let (Some(ordered), PreparedInputs::Views(inputs)) = (self.graph.ordered, self.inputs)

@@ -116,8 +116,10 @@ pub(crate) trait Occurrences {
     fn matches(
         &self,
         regex: &ryo_matching::inbound::use_cases::matching::compiled::CompiledRegex,
-        text: &str,
-        each: &mut dyn FnMut(std::ops::Range<usize>) -> std::ops::ControlFlow<()>,
+        text: ryo_matching::inbound::use_cases::matching::types::SearchText<'_>,
+        each: &mut dyn FnMut(
+            ryo_matching::inbound::use_cases::matching::types::TextSpan,
+        ) -> std::ops::ControlFlow<()>,
     ) -> std::ops::ControlFlow<()>;
     /// Visits each match of `regex` in `text` with the span of its named group, stopping when `each` breaks.
     ///
@@ -127,14 +129,24 @@ pub(crate) trait Occurrences {
     fn captures(
         &self,
         regex: &ryo_matching::inbound::use_cases::matching::compiled::CompiledRegex,
-        text: &str,
-        group: &str,
+        text: ryo_matching::inbound::use_cases::matching::types::SearchText<'_>,
+        group: ryo_matching::inbound::use_cases::matching::types::GroupName<'_>,
         each: &mut dyn FnMut(
-            std::ops::Range<usize>,
-            std::ops::Range<usize>,
+            ryo_matching::inbound::use_cases::matching::types::TextSpan,
+            ryo_matching::inbound::use_cases::matching::types::TextSpan,
         ) -> std::ops::ControlFlow<()>,
     ) -> Result<std::ops::ControlFlow<()>, PortableOperatorFault>;
 }
+
+/// A text buffer the engine keeps between invocations so it keeps its capacity: a resolved, split, replaced
+/// or rendered text.
+#[derive(Debug, Default)]
+pub struct TextScratch(pub String);
+
+/// Byte ranges into a scratch text, kept between invocations so they keep their capacity: the slots of a path
+/// capture, or where each rendering of a batch is.
+#[derive(Debug, Default)]
+pub struct RangeScratch(pub Vec<std::ops::Range<usize>>);
 
 /// The row buffers one evaluation fills, kept by the engine between invocations so they keep their capacity.
 #[derive(Debug, Default)]
@@ -150,13 +162,13 @@ pub struct RowScratch {
     /// A partition's key.
     pub partition: Vec<ryo_relations::domain::relations::types::Value>,
     /// A resolved or built text.
-    pub text: String,
+    pub text: TextScratch,
     /// The word being split.
-    pub word: String,
+    pub word: TextScratch,
     /// The text a replacement builds.
-    pub replaced: String,
-    /// The slot ranges of a path capture.
-    pub slots: Vec<std::ops::Range<usize>>,
+    pub replaced: TextScratch,
+    /// The slot ranges of a path capture, or the places of a batch's renderings in `text`.
+    pub slots: RangeScratch,
     /// Columns of a prepared structure.
     pub columns: Vec<ryo_values::domain::plan_parts::types::ColumnIndex>,
     /// The node of each render request.
@@ -205,7 +217,7 @@ pub trait RowDriver {
     fn text(
         &mut self,
         value: ryo_relations::domain::relations::types::Value,
-        target: &mut String,
+        target: &mut TextScratch,
     ) -> TextFound;
     /// Interns a text as a derived symbol of the file being read.
     fn mint(
@@ -251,7 +263,7 @@ pub trait RowDriver {
     fn rendered(
         &self,
         at: ryo_values::domain::rows::types::RowIndex,
-        text: &mut String,
+        text: &mut TextScratch,
     ) -> RenderKind;
     /// Whether the join's right side answers logical or physical columns.
     fn right_columns(&self) -> RightColumns;

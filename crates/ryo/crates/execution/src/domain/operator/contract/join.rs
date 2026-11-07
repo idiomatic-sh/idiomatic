@@ -110,7 +110,7 @@ impl LeaseDriver<'_, '_> {
 
 impl JoinDriver for LeaseDriver<'_, '_> {
     fn next(&mut self, key: &[Value]) -> Result<Advance, EqualityJoinError> {
-        if self.interrupted() {
+        if self.interrupted() == super::failure::LatchState::Failed {
             return Err(EqualityJoinError::Interrupted);
         }
         let advanced = self.advance(key);
@@ -118,7 +118,7 @@ impl JoinDriver for LeaseDriver<'_, '_> {
             .map_err(|_| EqualityJoinError::Interrupted)
     }
     fn right_cell(&self, column: ColumnIndex) -> Option<Value> {
-        if self.interrupted() {
+        if self.interrupted() == super::failure::LatchState::Failed {
             return None;
         }
         if let (Some(native), Some(position)) = (self.join.native, self.join.position) {
@@ -148,7 +148,7 @@ impl SetRowsEvaluation for LeaseDriver<'_, '_> {
 
 impl SetRowDriver for LeaseDriver<'_, '_> {
     fn right_empty(&mut self) -> Result<RightPopulation, SetRowsError> {
-        if self.interrupted() {
+        if self.interrupted() == super::failure::LatchState::Failed {
             return Err(SetRowsError::Interrupted);
         }
         let empty = self
@@ -159,7 +159,7 @@ impl SetRowDriver for LeaseDriver<'_, '_> {
         self.hold(empty).map_err(|_| SetRowsError::Interrupted)
     }
     fn contains_right(&mut self, key: &[Value]) -> Result<RightMembership, SetRowsError> {
-        if self.interrupted() {
+        if self.interrupted() == super::failure::LatchState::Failed {
             return Err(SetRowsError::Interrupted);
         }
         let contained = self

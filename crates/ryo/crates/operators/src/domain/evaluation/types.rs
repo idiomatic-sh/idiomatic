@@ -24,6 +24,36 @@ pub enum EvaluationInput<'a> {
     Populations,
 }
 
+/// A resource the engine lends one evaluation: bound to it, or not bound, which an operation that reads it
+/// refuses as a wrong binding.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Lent<T> {
+    /// The engine acquired the resource for this evaluation.
+    Bound(T),
+    /// No such resource is bound to this evaluation.
+    Unbound,
+}
+
+impl<T> From<Option<T>> for Lent<T> {
+    /// A present resource is `Bound`, an absent one `Unbound`.
+    fn from(resource: Option<T>) -> Self {
+        match resource {
+            Some(bound) => Self::Bound(bound),
+            None => Self::Unbound,
+        }
+    }
+}
+
+impl<T> From<Lent<T>> for Option<T> {
+    /// A `Bound` resource is present, an `Unbound` one absent.
+    fn from(resource: Lent<T>) -> Self {
+        match resource {
+            Lent::Bound(bound) => Some(bound),
+            Lent::Unbound => None,
+        }
+    }
+}
+
 /// Plain data of one invocation, copied out of the engine's views before the driver borrows the engine.
 #[derive(Clone, Copy, Debug)]
 pub struct EvaluationViews<'a> {
@@ -32,17 +62,17 @@ pub struct EvaluationViews<'a> {
     /// The request's parameter bindings.
     pub bindings: &'a [ParameterBinding],
     /// The matcher the engine acquired for this operation.
-    pub regex: Option<&'a ryo_matching::inbound::use_cases::matching::compiled::CompiledRegex>,
+    pub regex: Lent<&'a ryo_matching::inbound::use_cases::matching::compiled::CompiledRegex>,
     /// The span text an occurrence search was validated against.
-    pub checked: Option<crate::domain::source_matches::types::CheckedSource<'a>>,
+    pub checked: Lent<crate::domain::source_matches::types::CheckedSource<'a>>,
     /// The resolved suffix an extension appends.
-    pub appended: Option<&'a [Value]>,
+    pub appended: Lent<&'a [Value]>,
     /// The resolved text-set layers of a rank.
-    pub layers: Option<&'a [Vec<LiteralText>]>,
+    pub layers: Lent<&'a [Vec<LiteralText>]>,
     /// The complete reachability answer of a logical closure join.
-    pub cached_reach: Option<crate::domain::equality_join::types::CachedReach<'a>>,
+    pub cached_reach: Lent<crate::domain::equality_join::types::CachedReach<'a>>,
     /// The complete answer of one axis request, after domain membership and nearest filtering.
-    pub cached_axis: Option<&'a [Value]>,
+    pub cached_axis: Lent<&'a [Value]>,
 }
 
 /// The engine's whole side of one evaluation: every part of the port a kind's concept declares.

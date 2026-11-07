@@ -232,12 +232,19 @@ pub(crate) fn evaluate(
         joined,
         &|each| match capture {
             CaptureRequest::Group(name) => {
-                matching.captures(regex, text, name.0, &mut |found, group| {
-                    each(found, Some(group))
-                })
+                matching.captures(
+                    regex,
+                    ryo_matching::inbound::use_cases::matching::types::SearchText(text),
+                    ryo_matching::inbound::use_cases::matching::types::GroupName(name.0),
+                    &mut |found, group| each(found.0, Some(group.0)),
+                )
             }
             CaptureRequest::Whole => {
-                Ok(matching.matches(regex, text, &mut |found| each(found, None)))
+                Ok(matching.matches(
+                    regex,
+                    ryo_matching::inbound::use_cases::matching::types::SearchText(text),
+                    &mut |found| each(found.0, None),
+                ))
             }
         },
     )

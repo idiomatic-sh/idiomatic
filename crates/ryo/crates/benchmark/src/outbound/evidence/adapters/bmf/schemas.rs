@@ -154,24 +154,47 @@ const fn comparison_name(value: Comparison) -> &'static str {
     }
 }
 
+/// Both comparison dimensions as the comparison evidence spells them.
+#[derive(Serialize)]
+struct DimensionsSchema {
+    diagnostics: &'static str,
+    execution_metadata: &'static str,
+}
+impl From<ReportComparison> for DimensionsSchema {
+    fn from(comparison: ReportComparison) -> Self {
+        Self {
+            diagnostics: comparison_name(comparison.diagnostics),
+            execution_metadata: comparison_name(comparison.execution_metadata),
+        }
+    }
+}
+
 /// The comparison evidence line: the declared contract, both dimensions and both producers' capabilities.
+#[derive(Serialize)]
+struct ComparisonSchema<'a> {
+    schema: &'static str,
+    contract: &'static str,
+    comparison: DimensionsSchema,
+    reference_execution_metadata: ExecutionMetadataSchema<'a>,
+    candidate_execution_metadata: ExecutionMetadataSchema<'a>,
+}
+
+/// The comparison evidence line as one JSON text.
 pub(super) fn comparison(
     reference: &RunReport,
     candidate: &RunReport,
     comparison: ReportComparison,
     contract: ComparisonContract,
-) -> serde_json::Value {
-    serde_json::json!({
-        constants::SCHEMA: constants::BENCHMARK_COMPARISON_V1,
-        constants::CONTRACT: match contract {
+) -> Result<String, Error> {
+    serde_json::to_string(&ComparisonSchema {
+        schema: constants::BENCHMARK_COMPARISON_V1,
+        contract: match contract {
             ComparisonContract::Diagnostics => constants::DIAGNOSTICS,
             ComparisonContract::CompleteReport => constants::COMPLETE_REPORT,
         },
-        constants::COMPARISON: {
-            constants::DIAGNOSTICS: comparison_name(comparison.diagnostics),
-            constants::EXECUTION_METADATA: comparison_name(comparison.execution_metadata),
-        },
-        constants::REFERENCE_EXECUTION_METADATA: ExecutionMetadataSchema::from(&reference.execution_metadata),
-        constants::CANDIDATE_EXECUTION_METADATA: ExecutionMetadataSchema::from(&candidate.execution_metadata),
+        comparison: DimensionsSchema::from(comparison),
+        reference_execution_metadata: ExecutionMetadataSchema::from(&reference.execution_metadata),
+        candidate_execution_metadata: ExecutionMetadataSchema::from(&candidate.execution_metadata),
     })
+    .map_err(|error| Error::Json(Box::new(error)))
 }

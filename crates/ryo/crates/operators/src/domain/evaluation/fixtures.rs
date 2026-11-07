@@ -2,7 +2,7 @@
 //! closure, ordered depth-first and population resources and keeps every row it is given.
 use crate::domain::axis::types::{AxisAdmission, AxisCandidates, AxisDriver, AxisEvaluation};
 use crate::domain::closure::types::{ClosureDriver, ClosureEvaluation};
-use crate::domain::contract::types::{FirstOccurrence, GroupSummary, Occurrences, PortableOperatorFault, PredicateOutcome, RenderKind, RightColumns, RowDriver, RowRead, TextFound, VertexPlace};
+use crate::domain::contract::types::{FirstOccurrence, GroupSummary, Occurrences, PortableOperatorFault, PredicateOutcome, RenderKind, RightColumns, RowDriver, RowRead, TextFound, TextScratch, VertexPlace};
 use crate::domain::closure::types::PartitionPlace;
 use crate::domain::cycles::types::{CycleDriver, CyclesEvaluation};
 use crate::domain::equality_join::types::{JoinDriver, JoinEvaluation};
@@ -83,7 +83,7 @@ impl RowDriver for FakeDriver {
         Ok(FirstOccurrence::First)
     }
     fn found(&mut self, _input: InputNumber, _rows: Count) {}
-    fn text(&mut self, _value: Value, _target: &mut String) -> TextFound {
+    fn text(&mut self, _value: Value, _target: &mut TextScratch) -> TextFound {
         TextFound::NotText
     }
     fn mint(&mut self, text: CellText<'_>) -> Value {
@@ -109,7 +109,7 @@ impl RowDriver for FakeDriver {
     fn render(&mut self, _nodes: &[NodeId]) -> Result<(), PortableOperatorFault> {
         Err(PortableOperatorFault::NotRun)
     }
-    fn rendered(&self, _at: RowIndex, _text: &mut String) -> RenderKind {
+    fn rendered(&self, _at: RowIndex, _text: &mut TextScratch) -> RenderKind {
         RenderKind::NotApplicable
     }
     fn right_columns(&self) -> RightColumns {
@@ -219,8 +219,15 @@ impl ClosureDriver for FakeDriver {
                 .map_or(0, |(_, sources)| sources.len()),
         )
     }
-    fn source(&self, partition: PartitionPlace, at: VertexPlace) -> Option<Value> {
-        self.partitions.get(partition.0)?.1.get(at.0).copied()
+    fn source(
+        &mut self,
+        partition: PartitionPlace,
+        at: VertexPlace,
+    ) -> Result<Option<Value>, PortableOperatorFault> {
+        Ok(self
+            .partitions
+            .get(partition.0)
+            .and_then(|(_, sources)| sources.get(at.0).copied()))
     }
     fn reach(
         &mut self,
@@ -268,17 +275,20 @@ impl Occurrences for FakeDriver {
     fn matches(
         &self,
         _regex: &ryo_matching::inbound::use_cases::matching::compiled::CompiledRegex,
-        _text: &str,
-        _each: &mut dyn FnMut(std::ops::Range<usize>) -> ControlFlow<()>,
+        _text: ryo_matching::inbound::use_cases::matching::types::SearchText<'_>,
+        _each: &mut dyn FnMut(ryo_matching::inbound::use_cases::matching::types::TextSpan) -> ControlFlow<()>,
     ) -> ControlFlow<()> {
         ControlFlow::Continue(())
     }
     fn captures(
         &self,
         _regex: &ryo_matching::inbound::use_cases::matching::compiled::CompiledRegex,
-        _text: &str,
-        _group: &str,
-        _each: &mut dyn FnMut(std::ops::Range<usize>, std::ops::Range<usize>) -> ControlFlow<()>,
+        _text: ryo_matching::inbound::use_cases::matching::types::SearchText<'_>,
+        _group: ryo_matching::inbound::use_cases::matching::types::GroupName<'_>,
+        _each: &mut dyn FnMut(
+            ryo_matching::inbound::use_cases::matching::types::TextSpan,
+            ryo_matching::inbound::use_cases::matching::types::TextSpan,
+        ) -> ControlFlow<()>,
     ) -> Result<ControlFlow<()>, PortableOperatorFault> {
         Ok(ControlFlow::Continue(()))
     }

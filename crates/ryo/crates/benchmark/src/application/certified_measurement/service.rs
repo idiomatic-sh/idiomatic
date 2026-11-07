@@ -87,7 +87,7 @@ pub fn pair(
         &candidate.report,
         comparison,
         ComparisonContract::Diagnostics,
-    );
+    )?;
     Ok(Pair {
         eligibility: MeasurementEligibility::Diagnostic,
         reference,

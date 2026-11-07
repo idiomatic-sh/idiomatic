@@ -33,7 +33,8 @@ impl EvidencePort for EvidenceFake {
         _candidate: &RunReport,
         _comparison: ReportComparison,
         _contract: ComparisonContract,
-    ) {
+    ) -> Result<(), Error> {
+        Ok(())
     }
 }
 #[cfg(test)]

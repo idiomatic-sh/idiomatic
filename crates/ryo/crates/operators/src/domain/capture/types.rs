@@ -24,11 +24,11 @@ pub(crate) struct SlotMinting<'a> {
     /// The engine's driver, which interns each matched slot.
     pub driver: &'a mut dyn crate::domain::contract::types::RowDriver,
     /// The text the pattern was matched against.
-    pub text: &'a str,
+    pub text: SlotSubject<'a>,
     /// The interned slots of every complete match, in order.
     pub captured: &'a mut Vec<ryo_relations::domain::relations::types::Value>,
     /// How many complete matches there were.
-    pub ways: usize,
+    pub ways: ryo_relations::domain::relations::types::Count,
 }
 
 impl crate::domain::capture::types::CaptureOutput for SlotMinting<'_> {
@@ -37,10 +37,10 @@ impl crate::domain::capture::types::CaptureOutput for SlotMinting<'_> {
             let made = self
                 .driver
                 .mint(ryo_values::domain::row_texts::types::CellText(
-                    self.text.get(place.clone()).unwrap_or_default(),
+                    self.text.0.get(place.clone()).unwrap_or_default(),
                 ));
             self.captured.push(made);
         }
-        self.ways += 1;
+        self.ways.0 += 1;
     }
 }

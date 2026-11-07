@@ -5,6 +5,8 @@ use std::{io::Write, sync::Mutex};
 pub(crate) struct EvidenceBmfConnection {
     /// Serialized access to the externally supplied evidence destination.
     pub output: Mutex<Box<dyn Write + Send>>,
+    /// Serialized access to the externally supplied comparison evidence destination.
+    pub comparison: Mutex<Box<dyn Write + Send>>,
 }
 impl std::fmt::Debug for EvidenceBmfConnection {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

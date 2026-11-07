@@ -163,7 +163,11 @@ impl TryFrom<ToolSchema> for types::Tool {
             project_context_mode: wire.project_context_mode.into(),
             tool: wire.tool.into(),
             version: wire.version.into(),
-            sha256: wire.sha256.into_iter().map(Into::into).collect(),
+            sha256: wire
+                .sha256
+                .into_iter()
+                .map(types::tool_digest::value::ToolDigest)
+                .collect(),
             defaults,
             supporting_rules,
             rule_context: match wire.rule_context {

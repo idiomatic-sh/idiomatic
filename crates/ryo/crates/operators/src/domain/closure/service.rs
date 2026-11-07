@@ -23,7 +23,7 @@ pub(crate) fn evaluate(
         for at in (0..sources.0).map(VertexPlace) {
             let start = driver
                 .closure()
-                .source(place, at)
+                .source(place, at)?
                 .ok_or(PortableOperatorFault::ShapeMismatch)?;
             let reached = driver.closure().reach(place, start)?;
             for index in (0..reached.0).map(VertexPlace) {

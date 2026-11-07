@@ -258,7 +258,7 @@ pub(super) fn verify_reference_cases(
 pub(super) fn reference(executable: PathBuf, tool: Tool) -> Result<LinterRuffAdapter, Error> {
     if tool.file_observation
         != ryo_benchmark_contracts::domain::workloads::types::FileObservation::Undeclared
-        && permission_checks_supported()
+        && crate::host::permission_checks_supported()
             == super::super::host_policy::Permissions::Unsupported
     {
         return Err(Error::Invalid(PINNED_REFERENCE_DOES_NOT_EVALUATE.into()));
@@ -349,43 +349,4 @@ pub(super) fn audit(
         tool.defaults.len()
     )?;
     AccountDefaultsUseCaseImpl::new().account_defaults(&result, &tool)
-}
-
-/// Whether this host honours the file permissions the pinned reference observes.
-#[cfg(unix)]
-fn permission_checks_supported() -> super::super::host_policy::Permissions {
-    if std::env::consts::OS != constants::LINUX {
-        return super::super::host_policy::Permissions::Supported;
-    }
-    let kernel = std::fs::read_to_string(constants::PROC_SYS_KERNEL_OSRELEASE)
-        .or_else(|_| std::fs::read_to_string(constants::PROC_VERSION));
-    let kernel = if kernel.is_ok_and(|value| value.to_ascii_lowercase().contains(constants::MICROSOFT)) {
-        super::super::host_policy::Kernel::Microsoft
-    } else {
-        super::super::host_policy::Kernel::Native
-    };
-    let marked = std::fs::metadata(constants::DOCKERENV).is_ok()
-        || std::fs::metadata(constants::RUN_CONTAINERENV).is_ok()
-        || std::fs::read_to_string(constants::PROC_SELF_CGROUP).is_ok_and(|value| {
-            let value = value.to_ascii_lowercase();
-            [
-                constants::DOCKER,
-                constants::CONTAINER,
-                constants::LXC,
-                constants::KUBEPODS,
-            ]
-            .iter()
-            .any(|marker| value.contains(marker))
-        });
-    let isolation = if marked {
-        super::super::host_policy::Isolation::Container
-    } else {
-        super::super::host_policy::Isolation::Bare
-    };
-    super::super::host_policy::supported(kernel, isolation)
-}
-/// Whether this host honours the file permissions the pinned reference observes.
-#[cfg(not(unix))]
-fn permission_checks_supported() -> super::super::host_policy::Permissions {
-    super::super::host_policy::Permissions::Unsupported
 }

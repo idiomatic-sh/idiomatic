@@ -1,6 +1,8 @@
 //! The worker request document the parent process writes for its child.
 use crate::outbound::linter::adapters::ryo::types::RequestJson;
-use crate::outbound::linter::types::{ObservationsInput, RuleContextInput};
+use crate::outbound::linter::adapters::ryo::identity::schemas::{
+    observation_declarations_value, prepared_value,
+};
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
 use ryo_benchmark_contracts::domain::context::types::ContextManifest;
 use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
@@ -48,13 +50,13 @@ impl From<WorkerRequest> for RequestSchema {
             rule_context: match &request.rule_context {
                 RuleContextPreparation::Unconfigured => None,
                 RuleContextPreparation::Prepared(context) => {
-                    Some(serde_json::Value::from(RuleContextInput(context)))
+                    Some(prepared_value(context))
                 }
             },
             rule_observations: match &request.rule_observations {
                 InputDeclaration::Undeclared => None,
                 InputDeclaration::Declared(declarations) => {
-                    Some(serde_json::Value::from(ObservationsInput(declarations)))
+                    Some(observation_declarations_value(declarations))
                 }
             },
             project_context_mode: request.project_context_mode.into(),

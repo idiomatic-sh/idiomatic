@@ -39,10 +39,16 @@ impl EvidencePort for EvidenceBmfAdapter {
         candidate: &RunReport,
         comparison: ReportComparison,
         contract: ComparisonContract,
-    ) {
-        eprintln!(
-            "{}",
-            schemas::comparison(reference, candidate, comparison, contract)
-        );
+    ) -> Result<(), Error> {
+        let line = schemas::comparison(reference, candidate, comparison, contract)?;
+        let mut output = self
+            .connection
+            .comparison
+            .lock()
+            .map_err(|_poisoned| Error::Invalid(constants::POISONED.into()))?;
+        output.write_all(line.as_bytes())?;
+        output.write_all(constants::NEWLINE)?;
+        output.flush()?;
+        Ok(())
     }
 }

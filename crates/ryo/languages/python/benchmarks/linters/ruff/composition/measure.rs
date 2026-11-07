@@ -218,7 +218,10 @@ fn compare(
         return Err(Error::Invalid(constants::PROJECT_COUNT_ERROR.into()));
     }
     let evidence: Arc<dyn EvidencePort> = Arc::new(
-        ryo_benchmark::outbound::evidence::factory::bmf(Box::new(std::io::stdout())),
+        ryo_benchmark::outbound::evidence::factory::bmf(
+            Box::new(std::io::stdout()),
+            Box::new(std::io::stderr()),
+        ),
     );
     let profile = if matches!(
         command.0,

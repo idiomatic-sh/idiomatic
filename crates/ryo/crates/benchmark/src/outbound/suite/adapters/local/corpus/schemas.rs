@@ -52,7 +52,7 @@ pub(in super::super) fn suite(text: &str) -> Result<types::Suite, Error> {
 impl From<SuiteSchema> for types::Suite {
     fn from(wire: SuiteSchema) -> Self {
         Self {
-            language: wire.language.into(),
+            language: types::suite_language::value::SuiteLanguage(wire.language),
             projects: wire.projects.into_iter().map(Into::into).collect(),
         }
     }
@@ -60,9 +60,9 @@ impl From<SuiteSchema> for types::Suite {
 impl From<ProjectSchema> for types::Project {
     fn from(project: ProjectSchema) -> Self {
         Self {
-            name: project.name.into(),
-            repository: project.repository.into(),
-            revision: project.revision.into(),
+            name: types::project_name::value::ProjectName(project.name),
+            repository: types::repository_url::value::RepositoryUrl(project.repository),
+            revision: types::project_revision::value::ProjectRevision(project.revision),
             patch: project.patch.into(),
         }
     }

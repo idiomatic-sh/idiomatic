@@ -2,11 +2,8 @@
 use super::constants;
 use super::errors::InvocationIdentityError;
 use super::types::{Boundaries, InvocationText};
-use crate::domain::observations::service::project_profile;
-use ryo_benchmark_contracts::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations;
 use ryo_benchmark_contracts::domain::measurements::types::Invocation;
-use ryo_benchmark_contracts::domain::requests::types::{CohortSelection, InputDeclaration};
-use ryo_benchmark_contracts::domain::workloads::types::{PreparedCase, Tool};
+use ryo_benchmark_contracts::domain::workloads::types::PreparedCase;
 use std::ffi::OsStr;
 use std::path::PathBuf;
 
@@ -56,26 +53,4 @@ pub(crate) fn normalize(
             .collect::<Result<_, InvocationIdentityError>>()?,
         directory: PathBuf::from(spell(invocation.directory.as_os_str())?.0),
     })
-}
-
-/// The rule observations an invocation is bound to: the case's own, else the profile's projection.
-pub(crate) fn effective_observations(
-    case: &PreparedCase,
-    profile: &Tool,
-) -> Option<RuleObservationDeclarations> {
-    if let InputDeclaration::Declared(declarations) = &case.request.rule_observations {
-        return Some(declarations.clone());
-    }
-    if profile.rule_observations.is_empty() {
-        return None;
-    }
-    let declarations = project_profile(
-        &profile.rule_observations,
-        match &case.request.selected_rules {
-            CohortSelection::Explicit(selected) => selected,
-            CohortSelection::Frozen => &profile.defaults,
-        },
-        profile.rule_observation_selection,
-    );
-    (!declarations.is_empty()).then_some(declarations)
 }

@@ -11,7 +11,6 @@ use ryo_benchmark_contracts::domain::requests::types::{
     RuleLabel, WorkerRequest,
 };
 use super::types::{ReportBytes, RequestJson};
-use crate::outbound::linter::types::{RuleContextInput, SettingsInput};
 use crate::outbound::linter::types::CanonicalText;
 use ryo_benchmark_contracts::domain::context::types::PreparedRuleContext;
 use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
@@ -148,13 +147,9 @@ impl LinterPort for LinterRyoAdapter {
         case: &PreparedCase,
         profile: &Tool,
     ) -> Result<CanonicalText, Error> {
-        CanonicalText::try_from(SettingsInput {
-            normalized,
-            case,
-            profile,
-        })
+        CanonicalText::try_from((normalized, case, profile))
     }
     fn rule_context_text(&self, prepared: &PreparedRuleContext) -> CanonicalText {
-        CanonicalText::from(RuleContextInput(prepared))
+        CanonicalText::from(prepared)
     }
 }

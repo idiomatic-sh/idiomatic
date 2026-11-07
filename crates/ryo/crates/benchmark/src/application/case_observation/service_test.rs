@@ -79,7 +79,11 @@ fn rows(receipt: &std::path::Path) -> Vec<(ContestantSide, YesNo)> {
         .filter(|records| {
             crate::outbound::inventory::factory::local()
                 .raw_artifacts(receipt, records)
-                .is_ok()
+                .ok()
+                == Some(crate::outbound::inventory::types::RawArtifacts {
+                    bytes: std::collections::BTreeMap::new(),
+                    invocations: std::collections::BTreeMap::new(),
+                })
         })
         .map(|records| {
             records

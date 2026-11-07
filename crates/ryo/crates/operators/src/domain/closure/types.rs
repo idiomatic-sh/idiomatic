@@ -32,12 +32,19 @@ pub trait ClosureDriver {
         &self,
         partition: PartitionPlace,
     ) -> ryo_relations::domain::relations::types::Count;
-    /// One source of a partition.
+    /// One source of a partition; none when the partition has no source at that place.
+    ///
+    /// # Errors
+    ///
+    /// The engine retained an error reading the partition.
     fn source(
-        &self,
+        &mut self,
         partition: PartitionPlace,
         at: crate::domain::contract::types::VertexPlace,
-    ) -> Option<ryo_relations::domain::relations::types::Value>;
+    ) -> Result<
+        Option<ryo_relations::domain::relations::types::Value>,
+        crate::domain::contract::types::PortableOperatorFault,
+    >;
     /// Walks every vertex reachable from a source of a partition, in the walk's order.
     ///
     /// # Errors

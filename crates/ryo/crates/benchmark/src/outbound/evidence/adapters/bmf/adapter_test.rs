@@ -15,9 +15,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
     reason = "the shared case runner requires a Result-returning subject for every outcome word"
 )]
 fn subject(_: Input) -> Result<Value, Failure> {
-    check(&crate::outbound::evidence::factory::bmf(Box::new(
-        std::io::sink(),
-    )));
+    check(&crate::outbound::evidence::factory::bmf(
+        Box::new(std::io::sink()),
+        Box::new(std::io::sink()),
+    ));
     Ok(())
 }
 #[test]

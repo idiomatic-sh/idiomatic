@@ -73,7 +73,7 @@ pub(crate) fn evaluate(
     shape: super::types::RenderedShape<'_>,
     source: crate::domain::source_matches::types::LineBytes<'_>,
     driver: &mut dyn crate::domain::contract::types::RowDriver,
-    rendered: &mut String,
+    rendered: &mut crate::domain::contract::types::TextScratch,
 ) -> Result<(), PortableOperatorFault> {
     let ryo_relations::domain::relations::types::Value::Span(span) =
         ryo_values::domain::rows::service::column_in(row, shape.span)
@@ -103,9 +103,9 @@ pub(crate) fn evaluate(
     if shape.literals.len() != shape.texts.len() + 1 {
         return Err(PortableOperatorFault::ShapeMismatch);
     }
-    rendered.clear();
+    rendered.0.clear();
     for (literal, column) in shape.literals.iter().zip(shape.texts) {
-        rendered.push_str(&literal.0);
+        rendered.0.push_str(&literal.0);
         if driver.text(
             ryo_values::domain::rows::service::column_in(row, *column)
                 .copied()
@@ -121,7 +121,7 @@ pub(crate) fn evaluate(
         }
     }
     if let Some(last) = shape.literals.last() {
-        rendered.push_str(&last.0);
+        rendered.0.push_str(&last.0);
     }
     let maximum =
         usize::try_from(shape.max_line.0).map_err(|_| PortableOperatorFault::WrongBinding)?;
@@ -131,7 +131,7 @@ pub(crate) fn evaluate(
         return Err(PortableOperatorFault::WrongBinding);
     }
     match fits(
-        CandidateText(rendered.as_str()),
+        CandidateText(rendered.0.as_str()),
         LinePrefix(prefix),
         LineWidth(maximum),
         TabStop(tab_width),

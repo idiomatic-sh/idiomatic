@@ -25,11 +25,11 @@ pub(crate) fn evaluate(
         .ok_or(
             crate::domain::contract::types::PortableOperatorFault::NoSuchColumn { index: column },
         )?;
-    scratch.text.clear();
+    scratch.text.0.clear();
     if driver.text(value, &mut scratch.text) == crate::domain::contract::types::TextFound::NotText {
         return Ok(());
     }
-    let Some(found) = rank(CellText(&scratch.text), layers) else {
+    let Some(found) = rank(CellText(&scratch.text.0), layers) else {
         return Ok(());
     };
     scratch.row.clear();

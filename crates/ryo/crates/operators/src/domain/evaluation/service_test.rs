@@ -1,7 +1,7 @@
 //! Every operation kind is evaluated through its own meaning, in the mode it is scheduled in.
 use super::fixtures::{FakeDriver, number, written};
 use super::service::evaluate;
-use super::types::{EvaluationInput, EvaluationScratch, EvaluationViews};
+use super::types::{EvaluationInput, EvaluationScratch, EvaluationViews, Lent};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::source_matches::types::LineBytes;
@@ -73,12 +73,12 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     let views = EvaluationViews {
         source: LineBytes(b""),
         bindings: &[],
-        regex: None,
-        checked: None,
-        appended: None,
-        layers: None,
-        cached_reach: None,
-        cached_axis: None,
+        regex: Lent::Unbound,
+        checked: Lent::Unbound,
+        appended: Lent::Unbound,
+        layers: Lent::Unbound,
+        cached_reach: Lent::Unbound,
+        cached_axis: Lent::Unbound,
     };
     evaluate(
         operation,

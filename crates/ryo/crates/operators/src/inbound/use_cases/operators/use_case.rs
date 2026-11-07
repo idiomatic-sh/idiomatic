@@ -6,7 +6,7 @@ use crate::domain::source_matches::types::CaptureRequest;
 use crate::inbound::use_cases::operators::types::OperatorAnswer;
 use crate::inbound::use_cases::operators::types::OperatorCall;
 use crate::outbound::matching::interface::MatchingPort;
-use ryo_matching::inbound::use_cases::matching::types::{GroupName, SearchText};
+use ryo_matching::inbound::use_cases::matching::types::{GroupName, SearchText, TextSpan};
 use ryo_values::domain::row_texts::types::CellText;
 use std::sync::Arc;
 
@@ -305,29 +305,20 @@ impl crate::domain::contract::types::Occurrences for OperatorsUseCaseImpl {
     fn matches(
         &self,
         regex: &ryo_matching::inbound::use_cases::matching::compiled::CompiledRegex,
-        text: &str,
-        each: &mut dyn FnMut(std::ops::Range<usize>) -> std::ops::ControlFlow<()>,
+        text: SearchText<'_>,
+        each: &mut dyn FnMut(TextSpan) -> std::ops::ControlFlow<()>,
     ) -> std::ops::ControlFlow<()> {
-        self.matching
-            .visit_regex_matches(regex, SearchText(text), &mut |found| each(found.0))
+        self.matching.visit_regex_matches(regex, text, each)
     }
     fn captures(
         &self,
         regex: &ryo_matching::inbound::use_cases::matching::compiled::CompiledRegex,
-        text: &str,
-        group: &str,
-        each: &mut dyn FnMut(
-            std::ops::Range<usize>,
-            std::ops::Range<usize>,
-        ) -> std::ops::ControlFlow<()>,
+        text: SearchText<'_>,
+        group: GroupName<'_>,
+        each: &mut dyn FnMut(TextSpan, TextSpan) -> std::ops::ControlFlow<()>,
     ) -> Result<std::ops::ControlFlow<()>, PortableOperatorFault> {
         self.matching
-            .visit_regex_captures(
-                regex,
-                SearchText(text),
-                GroupName(group),
-                &mut |found, inner| each(found.0, inner.0),
-            )
+            .visit_regex_captures(regex, text, group, each)
             .map_err(|_| PortableOperatorFault::MissingCapture)
     }
 }

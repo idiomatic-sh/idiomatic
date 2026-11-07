@@ -53,7 +53,10 @@ impl crate::outbound::operators::interface::OperatorsPort for Meanings {
             use ryo_values::domain::plans::types::Operation;
             match operation {
                 Operation::Extend { .. }
-                    if views.appended == Some(&[Value::Number(Integer(99))][..]) =>
+                    if views.appended
+                        == ryo_operators::domain::evaluation::types::Lent::Bound(
+                            &[Value::Number(Integer(99))][..],
+                        ) =>
                 {
                     self.failed.fetch_add(1, Ordering::Relaxed);
                     return Err(PortableOperatorFault::WrongOperation);

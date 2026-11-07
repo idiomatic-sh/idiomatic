@@ -61,21 +61,21 @@ pub(crate) fn evaluate(
         return Ok(());
     }
     driver.render(nodes)?;
-    text.clear();
-    slots.clear();
+    text.0.clear();
+    slots.0.clear();
     rendered.clear();
     for at in 0..nodes.len() {
-        let start = text.len();
+        let start = text.0.len();
         rendered.push(driver.rendered(RowIndex(at), text));
-        slots.push(start..text.len());
+        slots.0.push(start..text.0.len());
     }
     let answers: Vec<RenderAnswer<'_>> = rendered
         .iter()
-        .zip(slots.iter())
+        .zip(slots.0.iter())
         .map(|(kind, place)| match kind {
             crate::domain::contract::types::RenderKind::Known => {
                 RenderAnswer::Known(ryo_values::domain::row_texts::types::CellText(
-                    text.get(place.clone()).unwrap_or_default(),
+                    text.0.get(place.clone()).unwrap_or_default(),
                 ))
             }
             crate::domain::contract::types::RenderKind::NotApplicable => {

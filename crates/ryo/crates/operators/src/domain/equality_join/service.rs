@@ -105,12 +105,21 @@ fn joined(
     Ok(())
 }
 
-/// Whether a right row's key columns hold the left row's key.
-fn keyed(right_on: &[ColumnIndex], key: &[Value], right: &[Value]) -> bool {
-    right_on
+/// Whether a right row's key columns hold the left row's key: the row is kept when they do.
+fn keyed(
+    right_on: &[ColumnIndex],
+    key: &[Value],
+    right: &[Value],
+) -> crate::domain::contract::types::PredicateOutcome {
+    if right_on
         .iter()
         .zip(key)
         .all(|(column, value)| right.get(column.0 as usize) == Some(value))
+    {
+        crate::domain::contract::types::PredicateOutcome::Holds
+    } else {
+        crate::domain::contract::types::PredicateOutcome::Fails
+    }
 }
 
 /// One logical column of a closure row: a column of the partition's key, the source or the vertex it reaches.
@@ -180,7 +189,7 @@ fn reach_join(
                     return Err(PortableOperatorFault::ShapeMismatch);
                 });
             }
-            if !keyed(shape.right_on, key, right) {
+            if keyed(shape.right_on, key, right) == crate::domain::contract::types::PredicateOutcome::Fails {
                 continue;
             }
             if driver.first_time(right)? != FirstOccurrence::First {
@@ -198,7 +207,7 @@ fn reach_join(
         for at in (0..sources.0).map(VertexPlace) {
             let source = driver
                 .closure()
-                .source(place, at)
+                .source(place, at)?
                 .ok_or(PortableOperatorFault::ShapeMismatch)?;
             // Bind partition and source before the walk whenever the logical key names them.
             if !shape
@@ -231,7 +240,7 @@ fn reach_join(
                 for column in &reach.columns {
                     right.push(closure_cell(partition_key, *column, source, vertex)?);
                 }
-                if !keyed(shape.right_on, key, right) {
+                if keyed(shape.right_on, key, right) == crate::domain::contract::types::PredicateOutcome::Fails {
                     continue;
                 }
                 if driver.first_time(right)? != FirstOccurrence::First {

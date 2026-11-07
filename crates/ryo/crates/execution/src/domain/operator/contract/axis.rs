@@ -159,14 +159,14 @@ impl AxisDriver for LeaseDriver<'_, '_> {
         row: &[Value],
         id: ColumnIndex,
     ) -> Result<AxisCandidates, Fault> {
-        if self.interrupted() {
+        if self.interrupted() == super::failure::LatchState::Failed {
             return Err(Fault::Interrupted);
         }
         let walked = self.walk_axis(direction, row, id);
         self.hold(walked)
     }
     fn admits(&mut self, at: VertexPlace) -> Result<AxisAdmission, Fault> {
-        if self.interrupted() {
+        if self.interrupted() == super::failure::LatchState::Failed {
             return Err(Fault::Interrupted);
         }
         let admitted = self.admit(at);

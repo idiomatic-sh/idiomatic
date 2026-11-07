@@ -217,8 +217,13 @@ impl ContextPort for ContextFake {
         }
         Ok(())
     }
-    fn receipt_text(&self, receipt: &ProjectContextReceipt) -> Result<String, Error> {
-        Ok(serde_json::Value::String(format!("{receipt:?}")).to_string())
+    fn receipt_text(
+        &self,
+        receipt: &ProjectContextReceipt,
+    ) -> Result<ryo_benchmark_contracts::domain::documents::types::text::value::CanonicalJson, Error> {
+        Ok(ryo_benchmark_contracts::domain::documents::types::text::value::CanonicalJson(
+            serde_json::Value::String(format!("{receipt:?}")).to_string(),
+        ))
     }
 }
 

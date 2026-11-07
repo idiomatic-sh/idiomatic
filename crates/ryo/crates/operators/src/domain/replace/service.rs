@@ -54,19 +54,25 @@ pub(crate) fn evaluate(
         .ok_or(
             crate::domain::contract::types::PortableOperatorFault::NoSuchColumn { index: column },
         )?;
-    scratch.text.clear();
+    scratch.text.0.clear();
     if driver.text(value, &mut scratch.text) == crate::domain::contract::types::TextFound::NotText {
         return Err(PortableOperatorFault::ShapeMismatch);
     }
     let regex = regex.ok_or(PortableOperatorFault::WrongBinding)?;
-    let text = scratch.text.as_str();
+    let text = scratch.text.0.as_str();
     replace_compiled(
-        &|each| occurrences.matches(regex, text, each),
+        &|each| {
+            occurrences.matches(
+                regex,
+                ryo_matching::inbound::use_cases::matching::types::SearchText(text),
+                &mut |found| each(found.0),
+            )
+        },
         CellText(text),
         replacement,
-        ReplacedText(&mut scratch.replaced),
+        ReplacedText(&mut scratch.replaced.0),
     )?;
-    let appended = driver.mint(CellText(&scratch.replaced));
+    let appended = driver.mint(CellText(&scratch.replaced.0));
     crate::domain::append::service::append(row, std::slice::from_ref(&appended), &mut scratch.row);
     driver.emit(&scratch.row)
 }

@@ -122,4 +122,25 @@ pub fn check(adapter: &impl EvidencePort) {
     };
     run(CASES, Word::Succeeds, subject);
     run(CASES, Word::Refuses, subject);
+    let report = (CASES[1].input)()
+        .into_iter()
+        .map(|sample| sample.measurement.report)
+        .next()
+        .expect("the complete observation row holds one sample");
+    assert_eq!(
+        adapter
+            .comparison(
+                &report,
+                &report,
+                ryo_benchmark_contracts::domain::reports::types::ReportComparison {
+                    diagnostics: ryo_benchmark_contracts::domain::reports::types::Comparison::Exact,
+                    execution_metadata:
+                        ryo_benchmark_contracts::domain::reports::types::Comparison::Exact,
+                },
+                ryo_benchmark_contracts::domain::reports::types::ComparisonContract::Diagnostics,
+            )
+            .map_err(|_invalid_boundary_value| ()),
+        Ok(()),
+        "an exact comparison of two complete reports is written"
+    );
 }

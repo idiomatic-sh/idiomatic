@@ -351,7 +351,10 @@ impl ContextPort for ContextLocalAdapter {
     ) -> Result<(), Error> {
         verify_receipt(manifest, actual_root, observed)
     }
-    fn receipt_text(&self, receipt: &ProjectContextReceipt) -> Result<String, Error> {
+    fn receipt_text(
+        &self,
+        receipt: &ProjectContextReceipt,
+    ) -> Result<ryo_benchmark_contracts::domain::documents::types::text::value::CanonicalJson, Error> {
         super::schemas::receipt_text(receipt)
     }
 }

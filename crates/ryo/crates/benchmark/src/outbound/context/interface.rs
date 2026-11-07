@@ -6,6 +6,7 @@ use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDi
 use ryo_benchmark_contracts::domain::context::types::CaseContext;
 use ryo_benchmark_contracts::domain::context::types::ContextManifest;
 use ryo_benchmark_contracts::domain::context::types::ProjectContextReceipt;
+use ryo_benchmark_contracts::domain::documents::types::text::value::CanonicalJson;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -64,5 +65,5 @@ pub trait ContextPort {
     ///
     /// # Errors
     /// Refuses a receipt the document encoding cannot spell.
-    fn receipt_text(&self, receipt: &ProjectContextReceipt) -> Result<String, Error>;
+    fn receipt_text(&self, receipt: &ProjectContextReceipt) -> Result<CanonicalJson, Error>;
 }

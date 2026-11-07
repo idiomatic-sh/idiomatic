@@ -274,32 +274,18 @@ pub(crate) fn write(
         project_context: match report.map(|report| &report.project_context) {
             Some(ProjectContext::Observed(receipt)) => context
                 .receipt_text(receipt)
-                .map_or(ProjectContextRecord::NotCarried, |text| {
-                    ProjectContextRecord::Carried(CanonicalJson(text))
-                }),
+                .map_or(ProjectContextRecord::NotCarried, ProjectContextRecord::Carried),
             _ => ProjectContextRecord::NotCarried,
         },
         rule_context: match &case.request.rule_context {
             RuleContextPreparation::Prepared(prepared) => RuleContextRecord::Declared(
-                CanonicalJson(
-                    crate::outbound::linter::types::CanonicalText::from(
-                        crate::outbound::linter::types::RuleContextInput(prepared),
-                    )
-                    .0,
-                ),
+                CanonicalJson(crate::outbound::linter::types::CanonicalText::from(prepared).0),
             ),
             RuleContextPreparation::Unconfigured => RuleContextRecord::Undeclared,
         },
         rule_observations: match &case.request.rule_observations {
             InputDeclaration::Declared(declarations) => RuleObservationsRecord::Declared(
-                CanonicalJson(
-                    serde_json::Value::from(
-                        crate::outbound::linter::types::ObservationsInput(
-                            declarations,
-                        ),
-                    )
-                    .to_string(),
-                ),
+                CanonicalJson(crate::outbound::linter::types::CanonicalText::from(declarations).0),
             ),
             InputDeclaration::Undeclared => RuleObservationsRecord::Undeclared,
         },

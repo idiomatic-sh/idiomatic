@@ -1,11 +1,11 @@
 //! The canonical identity texts a reference process is bound to, spelled exactly as receipts compare them.
-use crate::outbound::linter::types::{ObservationsInput, RuleContextInput, SettingsInput};
 use crate::outbound::linter::types::CanonicalText;
 use ryo::linter::{ObservationKind, ObservationProducer};
 use ryo_benchmark_contracts::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations;
 use ryo_benchmark_contracts::domain::context::types::{
     PreparedRuleContext, RuleConfiguration, RuleContextDeclaration,
 };
+use ryo_benchmark_contracts::domain::measurements::types::Invocation;
 use ryo_benchmark_contracts::domain::workloads::types::{PreparedCase, Tool};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::requests::types::{
@@ -124,7 +124,7 @@ impl From<ryo::linter::GivenProjectInventory> for ProjectInventorySchema {
 }
 
 /// JSON records the authored data, with no inferred producers or exported diagnostics.
-fn observation_declarations_value(
+pub(in crate::outbound::linter::adapters::ryo) fn observation_declarations_value(
     declarations: &ryo_benchmark_contracts::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations,
 ) -> serde_json::Value {
     let entries = declarations
@@ -200,40 +200,57 @@ fn declaration_value(declaration: &RuleContextDeclaration) -> serde_json::Value 
 }
 
 /// Transport a materialized declaration with the same canonical data encoding used by receipts.
-fn prepared_value(prepared: &PreparedRuleContext) -> serde_json::Value {
+pub(in crate::outbound::linter::adapters::ryo) fn prepared_value(
+    prepared: &PreparedRuleContext,
+) -> serde_json::Value {
     serde_json::json!({
         "tables": {"selected": prepared.tables.selected.0, "disabled": prepared.tables.disabled.0, "external": prepared.tables.external.0},
         "configuration": configuration_value(&prepared.configuration),
     })
 }
 
-impl From<RuleContextInput<'_>> for CanonicalText {
-    fn from(input: RuleContextInput<'_>) -> Self {
-        Self(prepared_value(input.0).to_string())
+/// The canonical text of a materialized rule configuration, as receipts compare it.
+impl From<&PreparedRuleContext> for CanonicalText {
+    fn from(prepared: &PreparedRuleContext) -> Self {
+        Self(prepared_value(prepared).to_string())
     }
 }
-impl From<RuleContextInput<'_>> for serde_json::Value {
-    fn from(input: RuleContextInput<'_>) -> Self {
-        prepared_value(input.0)
-    }
-}
-impl From<ObservationsInput<'_>> for serde_json::Value {
-    fn from(input: ObservationsInput<'_>) -> Self {
-        observation_declarations_value(input.0)
+/// The canonical text of authored observation declarations, as receipts carry them.
+impl From<&RuleObservationDeclarations> for CanonicalText {
+    fn from(declarations: &RuleObservationDeclarations) -> Self {
+        Self(observation_declarations_value(declarations).to_string())
     }
 }
 
-/// The canonical text of the normalized settings a reference process is bound to.
-impl TryFrom<SettingsInput<'_>> for CanonicalText {
+/// The rule observations an invocation is bound to: the case's own, else the profile's projection.
+fn effective_observations(
+    case: &PreparedCase,
+    profile: &Tool,
+) -> Option<RuleObservationDeclarations> {
+    if let InputDeclaration::Declared(declarations) = &case.request.rule_observations {
+        return Some(declarations.clone());
+    }
+    if profile.rule_observations.is_empty() {
+        return None;
+    }
+    let declarations = profile.rule_observations.project_profile(
+        match &case.request.selected_rules {
+            CohortSelection::Explicit(selected) => selected,
+            CohortSelection::Frozen => &profile.defaults,
+        },
+        profile.rule_observation_selection,
+    );
+    (!declarations.is_empty()).then_some(declarations)
+}
+
+/// The canonical text of the normalized settings a reference process is bound to: the invocation
+/// after normalization, the prepared case it runs and the profile the case belongs to.
+impl TryFrom<(&Invocation, &PreparedCase, &Tool)> for CanonicalText {
     type Error = Error;
-    fn try_from(input: SettingsInput<'_>) -> Result<Self, Self::Error> {
-        let SettingsInput {
-            normalized,
-            case,
-            profile,
-        } = input;
-        let observations =
-            crate::domain::invocation_identity::service::effective_observations(case, profile);
+    fn try_from(
+        (normalized, case, profile): (&Invocation, &PreparedCase, &Tool),
+    ) -> Result<Self, Self::Error> {
+        let observations = effective_observations(case, profile);
         let spell = |value: &std::ffi::OsStr| value.to_string_lossy().into_owned();
         let environment: std::collections::BTreeMap<String, String> = normalized
             .environment

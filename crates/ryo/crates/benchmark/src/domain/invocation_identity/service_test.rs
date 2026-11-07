@@ -1,9 +1,9 @@
 //! Behavioral proof of `invocation_identity`: state, root and separators are normalized, and nothing else.
 use super::errors::InvocationIdentityError;
-use super::service::{boundaries, effective_observations, normalize, normalize_text};
+use super::service::{boundaries, normalize, normalize_text};
 use super::types::InvocationText;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::discrepancy::fixtures::{case, profile};
+use crate::domain::discrepancy::fixtures::case;
 use ryo_benchmark_contracts::domain::measurements::types::Invocation;
 use std::borrow::Cow;
 use std::ffi::OsString;
@@ -13,7 +13,6 @@ use std::ffi::OsString;
 enum Operation {
     Spelling,
     Invocation,
-    Observations,
 }
 
 /// An invocation spelled against the case's state and root.
@@ -67,12 +66,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         },
         expect: Expect::Value(Cow::Borrowed("--flag $STATE|$STATE")),
     },
-    Case {
-        name: CaseName("a profile without declarations binds no observations"),
-        word: Word::Succeeds,
-        input: || asking(Operation::Observations, Vec::new(), "."),
-        expect: Expect::Value(Cow::Borrowed("none")),
-    },
     #[cfg(unix)]
     Case {
         name: CaseName("a non UTF8 argument is refused"),
@@ -111,13 +104,6 @@ fn subject(input: Input) -> Result<Value, Failure> {
                 normalized.directory.display()
             )))
         }
-        Operation::Observations => Ok(Cow::Borrowed(
-            if effective_observations(&case, &profile()).is_none() {
-                "none"
-            } else {
-                "some"
-            },
-        )),
     }
 }
 

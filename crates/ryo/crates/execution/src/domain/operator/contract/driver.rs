@@ -13,7 +13,7 @@ use ryo_operators::domain::contract::errors::ContractError;
 use ryo_operators::domain::contract::types::PortableOperatorFault as Fault;
 use ryo_operators::domain::contract::types::{
     FirstOccurrence, GroupSummary, PredicateOutcome, RenderKind, RightColumns, RowDriver, RowRead,
-    TextFound, VertexPlace,
+    TextFound, TextScratch, VertexPlace,
 };
 use ryo_operators::domain::evaluation::types::{EvaluationInput, EvaluationViews};
 use ryo_operators::domain::source_matches::types::{TextRowDriver, TextRowsEvaluation};
@@ -49,9 +49,9 @@ impl<'a, 'f> LeaseDriver<'a, 'f> {
         })
     }
 
-    /// Whether an earlier engine error interrupted the evaluation.
-    pub(super) fn interrupted(&self) -> bool {
-        self.failure.failed() == LatchState::Failed
+    /// Whether an earlier engine error interrupted the evaluation: the latch is `Failed` once one was kept.
+    pub(super) fn interrupted(&self) -> LatchState {
+        self.failure.failed()
     }
 
     /// The scheduled left row of a row-mode evaluation.
@@ -88,23 +88,27 @@ pub(crate) fn evaluate(
     let views = EvaluationViews {
         source: ryo_operators::domain::source_matches::types::LineBytes(lease.views.source.0),
         bindings: lease.views.bindings,
-        regex: lease.views.regex,
-        checked: lease.views.validated_source.map(|checked| {
-            ryo_operators::domain::source_matches::types::CheckedSource {
+        regex: lease.views.regex.into(),
+        checked: lease
+            .views
+            .validated_source
+            .map(|checked| ryo_operators::domain::source_matches::types::CheckedSource {
                 base: checked.base,
                 text: checked.text,
                 line: checked.line,
-            }
-        }),
-        appended: resources.appended(),
-        layers: resources.rank_layers(),
-        cached_reach: lease.views.cached_reach.map(|reach| {
-            ryo_operators::domain::equality_join::types::CachedReach {
+            })
+            .into(),
+        appended: resources.appended().into(),
+        layers: resources.rank_layers().into(),
+        cached_reach: lease
+            .views
+            .cached_reach
+            .map(|reach| ryo_operators::domain::equality_join::types::CachedReach {
                 request: reach.request,
                 destinations: reach.destinations,
-            }
-        }),
-        cached_axis: lease.views.cached_axis.map(|axis| axis.destinations),
+            })
+            .into(),
+        cached_axis: lease.views.cached_axis.map(|axis| axis.destinations).into(),
     };
     let input = match inputs {
         PreparedInputs::Row { row, .. } => EvaluationInput::Row(row),
@@ -184,14 +188,14 @@ fn unsupported_render(
 
 impl RowDriver for LeaseDriver<'_, '_> {
     fn emit(&mut self, row: &[Value]) -> Result<(), Fault> {
-        if self.interrupted() {
+        if self.interrupted() == super::failure::LatchState::Failed {
             return Err(Fault::Interrupted);
         }
         let result = self.sink.row(self.lease, row);
         self.hold(result)
     }
     fn holds(&mut self, row: &[Value]) -> Result<PredicateOutcome, Fault> {
-        if self.interrupted() {
+        if self.interrupted() == super::failure::LatchState::Failed {
             return Err(Fault::Interrupted);
         }
         let verdict = self.lease.holds(row);
@@ -204,7 +208,7 @@ impl RowDriver for LeaseDriver<'_, '_> {
         })
     }
     fn first_time(&mut self, row: &[Value]) -> Result<FirstOccurrence, Fault> {
-        if self.interrupted() {
+        if self.interrupted() == super::failure::LatchState::Failed {
             return Err(Fault::Interrupted);
         }
         let added = self.lease.distinct().map(|state| {
@@ -217,7 +221,7 @@ impl RowDriver for LeaseDriver<'_, '_> {
         self.lease
             .found(input, FoundRows(u64::try_from(rows.0).unwrap_or(u64::MAX)));
     }
-    fn text(&mut self, value: Value, target: &mut String) -> TextFound {
+    fn text(&mut self, value: Value, target: &mut TextScratch) -> TextFound {
         let texts = Texts {
             symbols: self.lease.derived.as_ref(),
             source: self.lease.views.source,
@@ -226,7 +230,7 @@ impl RowDriver for LeaseDriver<'_, '_> {
         };
         match datum(value, &texts) {
             Datum::Text(text) => {
-                target.push_str(text.0);
+                target.0.push_str(text.0);
                 TextFound::Text
             }
             _ => TextFound::NotText,
@@ -318,11 +322,11 @@ impl RowDriver for LeaseDriver<'_, '_> {
         self.rendered = self.hold(answers)?;
         Ok(())
     }
-    fn rendered(&self, at: RowIndex, text: &mut String) -> RenderKind {
+    fn rendered(&self, at: RowIndex, text: &mut TextScratch) -> RenderKind {
         use ryo_language::domain::semantics::types::RenderOutcome;
         match self.rendered.get(at.0) {
             Some(RenderOutcome::Known(known)) => {
-                text.push_str(&known.0);
+                text.0.push_str(&known.0);
                 RenderKind::Known
             }
             Some(RenderOutcome::NotApplicable) | None => RenderKind::NotApplicable,

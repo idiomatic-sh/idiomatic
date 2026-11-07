@@ -70,8 +70,13 @@ fn succeeds() {
 
 use ryo_values::domain::rows::types::RowIndex;
 
-// The prepared derived payloads the crate's tests build their subjects from, through the real port.
-use crate::outbound::derived::interface::DerivedPort as _;
+// The prepared derived payloads the crate's tests build their subjects from, through the derived crate's own use cases.
+use ryo_derived::inbound::use_cases::build::interface::BuildUseCase as _;
+use ryo_derived::inbound::use_cases::build::use_case::BuildUseCaseImpl;
+use ryo_derived::inbound::use_cases::prepare_derived::interface::PrepareDerivedUseCase as _;
+use ryo_derived::inbound::use_cases::prepare_derived::use_case::PrepareDerivedUseCaseImpl;
+use ryo_derived::inbound::use_cases::view::interface::ViewUseCase as _;
+use ryo_derived::inbound::use_cases::view::use_case::ViewUseCaseImpl;
 use ryo_derived::domain::equality::types::KeyIndex;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -112,13 +117,12 @@ pub(crate) fn prepared_payload(
     use ryo_derived::domain::contract::types::BuildOutcome;
     use ryo_derived::domain::contract::types::BuildWorkspace;
     use ryo_derived::domain::fault::types::DerivedFault;
-    let port = std::sync::Arc::new(crate::outbound::derived::factory::semantics());
-    let prepared = port.prepare(
+    let prepared = PrepareDerivedUseCaseImpl::new().prepare_derived(
         request,
         vec![crate::domain::table_model::service::kinds_of(rows).to_vec()],
     );
     let input = SemanticRows(rows.clone());
-    match port.build(
+    match BuildUseCaseImpl::new().build(
         &prepared,
         BuildInputs::Rows(&input),
         &mut BuildWorkspace::default(),
@@ -159,12 +163,12 @@ pub(crate) fn prepared_order(
         keys: columns.to_vec(),
     };
     let payload = prepared_payload(request.clone(), rows)?;
-    let port = std::sync::Arc::new(crate::outbound::derived::factory::semantics());
-    let plan = port.prepare(
+    let plan = PrepareDerivedUseCaseImpl::new().prepare_derived(
         request,
         vec![crate::domain::table_model::service::kinds_of(rows).to_vec()],
     );
-    let DerivedView::PartitionOrder(order) = port.view(&plan, &payload).expect("prepared order")
+    let DerivedView::PartitionOrder(order) =
+        ViewUseCaseImpl::new().view(&plan, &payload).expect("prepared order")
     else {
         panic!("partition order")
     };

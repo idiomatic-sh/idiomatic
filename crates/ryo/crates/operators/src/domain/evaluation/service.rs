@@ -1,6 +1,6 @@
 //! The one evaluation of every operation kind: each arm calls the kind's own meaning, once, over the
 //! engine's driver port. No kind is evaluated anywhere else.
-use super::types::{EvaluationInput, EvaluationScratch, EvaluationViews, InvocationDriver};
+use super::types::{EvaluationInput, EvaluationScratch, EvaluationViews, InvocationDriver, Lent};
 use crate::domain::contract::types::{Occurrences, PortableOperatorFault, RowDriver, RowRead};
 use crate::domain::set_rows::types::SetKind;
 use ryo_relations::domain::relations::types::Value;
@@ -71,7 +71,7 @@ pub(crate) fn evaluate(
         ),
         Operation::Extend { .. } => crate::domain::append::service::evaluate(
             row_of(input)?,
-            views.appended,
+            views.appended.into(),
             driver,
             &mut scratch.rows.row,
         ),
@@ -91,7 +91,7 @@ pub(crate) fn evaluate(
                 view,
                 reach: reach.as_ref(),
             },
-            views.cached_reach,
+            views.cached_reach.into(),
             driver,
             &mut scratch.rows,
         ),
@@ -151,7 +151,7 @@ pub(crate) fn evaluate(
         Operation::Rank { column, .. } => crate::domain::rank::service::evaluate(
             row_of(input)?,
             *column,
-            views.layers,
+            views.layers.into(),
             driver,
             &mut scratch.rows,
         ),
@@ -161,7 +161,7 @@ pub(crate) fn evaluate(
             row_of(input)?,
             *text,
             crate::domain::replace::types::ReplacementText(&replacement.0),
-            views.regex,
+            views.regex.into(),
             driver,
             &mut scratch.rows,
             occurrences,
@@ -190,7 +190,7 @@ pub(crate) fn evaluate(
             *id,
             *direction,
             output,
-            views.cached_axis,
+            views.cached_axis.into(),
             driver,
             &mut scratch.rows.row,
         ),
@@ -277,8 +277,14 @@ pub(crate) fn evaluate(
             },
             crate::domain::source_matches::types::SearchViews {
                 source: views.source,
-                checked: views.checked.ok_or(PortableOperatorFault::WrongBinding)?,
-                regex: views.regex.ok_or(PortableOperatorFault::WrongBinding)?,
+                checked: match views.checked {
+                    Lent::Bound(checked) => checked,
+                    Lent::Unbound => return Err(PortableOperatorFault::WrongBinding),
+                },
+                regex: match views.regex {
+                    Lent::Bound(regex) => regex,
+                    Lent::Unbound => return Err(PortableOperatorFault::WrongBinding),
+                },
             },
             driver,
             &mut scratch.rows.row,

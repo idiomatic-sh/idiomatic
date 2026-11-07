@@ -14,11 +14,14 @@ pub trait EvidencePort {
     fn publish(&self, publication: &MeasuredPublication<'_>) -> Result<(), Error>;
     /// Report the declared contract, both comparison dimensions and both producers' execution
     /// metadata beside the timing output, never as a benchmark metric.
+    ///
+    /// # Errors
+    /// Returns stream-write or flush failures.
     fn comparison(
         &self,
         reference: &RunReport,
         candidate: &RunReport,
         comparison: ReportComparison,
         contract: ComparisonContract,
-    );
+    ) -> Result<(), Error>;
 }

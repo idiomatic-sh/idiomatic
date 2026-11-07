@@ -12,6 +12,8 @@ pub enum Operation {
     MaterializedValidates,
     /// A receipt of declared dependencies verifies against its manifest.
     ReceiptVerifies,
+    /// The receipt text is stable for one receipt and separates receipts with different observations.
+    ReceiptTextSeparatesReceipts,
     /// The seal binds the declared absences.
     FingerprintBindsAbsences,
     /// The seal never depends on the physical boundary.
@@ -52,6 +54,12 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a receipt of declared dependencies verifies"),
         word: Word::Succeeds,
         input: || Operation::ReceiptVerifies,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("the receipt text is stable and separates different observations"),
+        word: Word::Succeeds,
+        input: || Operation::ReceiptTextSeparatesReceipts,
         expect: Expect::Value(()),
     },
     Case {
@@ -122,6 +130,24 @@ fn observe(adapter: &impl ContextPort, operation: Operation) -> Result<(), Error
                 vec![present("__init__.py"), missing("../__init__.py")],
             )?;
             adapter.verify_receipt(&manifest, &root, &observed)
+        }
+        Operation::ReceiptTextSeparatesReceipts => {
+            let manifest = materialized("pkg/__init__.py")?;
+            let root = manifest.boundary.join("pkg");
+            let both = adapter.receipt(
+                &manifest,
+                &root,
+                vec![present("__init__.py"), missing("../__init__.py")],
+            )?;
+            let present_only = adapter.receipt(&manifest, &root, vec![present("__init__.py")])?;
+            let text = adapter.receipt_text(&both)?;
+            if text != adapter.receipt_text(&both)? {
+                Err(Error::Invalid("the receipt text of one receipt changes".into()))
+            } else if text == adapter.receipt_text(&present_only)? {
+                Err(Error::Invalid("the receipt text ignores an observation".into()))
+            } else {
+                Ok(())
+            }
         }
         Operation::FingerprintBindsAbsences => {
             let manifest = materialized("pkg/__init__.py")?;
