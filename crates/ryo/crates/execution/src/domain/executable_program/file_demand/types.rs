@@ -80,3 +80,26 @@ impl FileRuleDemand {
         &self.modes[diagnostic + observations + capture]
     }
 }
+
+/// How many reader-count tables a request has computed.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) struct ComputationCount(pub usize);
+/// The retained initial reader counts and how many times they were computed.
+#[derive(Debug, Default)]
+pub(crate) struct RemainingMemo {
+    pub table: Option<std::sync::Arc<RemainingTable>>,
+    pub computations: ComputationCount,
+}
+/// Initial reader count of every region for one selection of external roots.
+#[derive(Debug)]
+pub(crate) struct RemainingTable {
+    pub selected: std::collections::HashMap<RegionId, super::super::types::ReaderMultiplicity>,
+    pub counts: Box<[super::super::types::ReaderMultiplicity]>,
+}
+/// A shared table and the cumulative number of tables the request has computed.
+#[derive(Debug)]
+pub(crate) struct Remaining {
+    pub table: std::sync::Arc<RemainingTable>,
+    #[cfg(test)]
+    pub computations: ComputationCount,
+}

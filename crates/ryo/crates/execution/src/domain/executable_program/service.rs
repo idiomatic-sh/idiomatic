@@ -88,7 +88,7 @@ pub(super) fn merge_equivalent(
 ) -> RegionMerge {
     let mut merge = RegionMerge {
         shared: Vec::new(),
-        comparisons: 0,
+        comparisons: ComparisonCount(0),
     };
     // Canonical inputs of each kept region, built when it is kept; its children are
     // final by then because every child region precedes it.
@@ -106,7 +106,7 @@ pub(super) fn merge_equivalent(
         let key = bucket(draft, &inputs);
         let twin = buckets.get(&key).and_then(|candidates| {
             candidates.iter().copied().find(|earlier| {
-                merge.comparisons += 1;
+                merge.comparisons = ComparisonCount(merge.comparisons.0 + 1);
                 drafts[*earlier]
                     .as_ref()
                     .is_some_and(|kept| equivalent(kept, &kept_inputs[*earlier], draft, &inputs))

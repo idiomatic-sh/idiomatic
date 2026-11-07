@@ -102,7 +102,7 @@ impl RuntimeState {
                 .map(|region| ReaderCount(region.consumers()))
                 .ok_or(OperatingError::NotRun),
             RootReaders::Selected(selected) => {
-                Ok(ReaderCount(selected.of(id).0))
+                Ok(ReaderCount(crate::domain::executable_program::file_demand::service::reader_count(selected, id).0))
             }
         }
     }

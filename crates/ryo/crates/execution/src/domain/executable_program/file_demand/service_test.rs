@@ -52,7 +52,7 @@ fn counted(
     producer: RegionId,
 ) -> Result<ReaderMultiplicity, OperatingError> {
     super::service::remaining(program.file_readers(), RegionCount(program.regions().len()), selected)
-        .map(|remaining| remaining.table.of(producer))
+        .map(|remaining| super::service::reader_count(&remaining.table, producer))
 }
 fn selected_reader_counts_keep_duplicate_edges_without_disabled_siblings() {
     let mut program = program();
@@ -90,7 +90,7 @@ fn remaining_is_computed_once_per_selection() {
     let program = program();
     let selected = std::collections::HashMap::from([(RegionId(0), ReaderMultiplicity(1))]);
     let files = 8;
-    let mut computations = 0;
+    let mut computations = super::types::ComputationCount::default();
     for _ in 0..files {
         computations = super::service::remaining(
             program.file_readers(),
@@ -100,12 +100,12 @@ fn remaining_is_computed_once_per_selection() {
         .unwrap()
         .computations;
     }
-    assert_eq!(computations, 1, "{files} files with one selection compute once");
+    assert_eq!(computations, super::types::ComputationCount(1), "{files} files with one selection compute once");
     let other = std::collections::HashMap::from([(RegionId(1), ReaderMultiplicity(1))]);
     let changed =
         super::service::remaining(program.file_readers(), RegionCount(program.regions().len()), &other)
             .unwrap();
-    assert_eq!(changed.computations, 2, "a different selection computes again");
+    assert_eq!(changed.computations, super::types::ComputationCount(2), "a different selection computes again");
 }
 enum Scenario {
     Mode(bool, bool, usize, usize, usize),

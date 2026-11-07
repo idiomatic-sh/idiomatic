@@ -369,34 +369,7 @@ pub(crate) struct FileReaderGraph {
         std::collections::HashMap<RegionId, Box<[ConsumerObligation]>>,
     >,
     /// The last initial reader counts, shared by every file that selects the same roots.
-    pub remaining: std::sync::Mutex<RemainingMemo>,
-}
-/// The retained initial reader counts and how many times they were computed.
-#[derive(Debug, Default)]
-pub(crate) struct RemainingMemo {
-    pub table: Option<std::sync::Arc<RemainingTable>>,
-    pub computations: usize,
-}
-/// Initial reader count of every region for one selection of external roots.
-#[derive(Debug)]
-pub(crate) struct RemainingTable {
-    pub selected: std::collections::HashMap<RegionId, ReaderMultiplicity>,
-    pub counts: Box<[ReaderMultiplicity]>,
-}
-impl RemainingTable {
-    pub(crate) fn of(&self, producer: RegionId) -> ReaderMultiplicity {
-        self.counts
-            .get(producer.0)
-            .copied()
-            .unwrap_or_else(|| self.selected.get(&producer).copied().unwrap_or_default())
-    }
-}
-/// A shared table and the cumulative number of tables the request has computed.
-#[derive(Debug)]
-pub(crate) struct Remaining {
-    pub table: std::sync::Arc<RemainingTable>,
-    #[cfg(test)]
-    pub computations: usize,
+    pub remaining: std::sync::Mutex<super::file_demand::types::RemainingMemo>,
 }
 /// The typed semantic shape required by the shared physical invocation.
 #[derive(Clone, Debug)]
@@ -464,5 +437,8 @@ pub(super) struct RegionBucket(pub u64);
 pub(super) struct RegionMerge {
     /// The kept regions in order.
     pub shared: Vec<usize>,
-    pub comparisons: usize,
+    pub comparisons: ComparisonCount,
 }
+/// How many full comparisons of two regions a merge made.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
+pub(super) struct ComparisonCount(pub usize);

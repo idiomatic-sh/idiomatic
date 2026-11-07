@@ -1,7 +1,7 @@
 //! Compile immutable file-intent root obligations once for the whole request.
 use super::super::types::{
     ConsumerObligation, ExecutableProgram, FileReaderGraph, InputSource, ReaderMultiplicity,
-    RegionId, Remaining, RemainingTable, RuleProgram,
+    RegionId, RuleProgram,
 };
 use super::types::*;
 use crate::domain::{
@@ -233,7 +233,7 @@ pub(crate) fn remaining(
         });
     }
     let table = std::sync::Arc::new(table(graph, regions, selected)?);
-    memo.computations += 1;
+    memo.computations = ComputationCount(memo.computations.0 + 1);
     memo.table = Some(std::sync::Arc::clone(&table));
     Ok(Remaining {
         table,
@@ -285,4 +285,13 @@ fn table(
         selected: selected.clone(),
         counts,
     })
+}
+
+/// The initial reader count of `producer` in a table: its dense count, or the selected root's own.
+pub(crate) fn reader_count(table: &RemainingTable, producer: RegionId) -> ReaderMultiplicity {
+    table
+        .counts
+        .get(producer.0)
+        .copied()
+        .unwrap_or_else(|| table.selected.get(&producer).copied().unwrap_or_default())
 }

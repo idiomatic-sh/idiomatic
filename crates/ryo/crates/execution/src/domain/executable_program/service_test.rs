@@ -324,7 +324,7 @@ fn merge_matches_the_linear_scan() {
 fn comparisons(rules: usize) -> usize {
     // Even rules repeat rule 0; odd rules are distinct from every other rule.
     let mut state = state(rules, |rule| if rule % 2 == 0 { 0 } else { 2 });
-    merged(&mut state).comparisons
+    merged(&mut state).comparisons.0
 }
 fn regions_merge_cost_is_linear_in_rule_count() {
     let counts: Vec<usize> = [50, 100, 200, 400].into_iter().map(comparisons).collect();
