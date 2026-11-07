@@ -214,7 +214,9 @@ fn incremental_normalization_preserves_every_truncated_complete_prefix() {
                     ryo_values::domain::records::types::FrontierCoverage::Complete
                 } else {
                     ryo_values::domain::records::types::FrontierCoverage::Partial(vec![
-                        ryo_values::domain::records::types::FrontierAffected::CurrentFile,
+                        ryo_values::domain::records::types::FrontierAffected::CurrentFile(
+                            ryo_values::domain::records::types::FrontierMissing::Any,
+                        ),
                     ])
                 },
             },

@@ -203,7 +203,7 @@ fn named_frontier_readiness_roundtrips_independently_of_row_bytes() {
 #[test]
 fn frontier_proof_roundtrip_preserves_partial_and_rejects_old_layout() {
     use ryo_values::domain::{
-        records::types::{FrontierAffected, FrontierCoverage},
+        records::types::{FrontierAffected, FrontierCoverage, FrontierMissing},
         stored_facts::types::{Bucket, Digest},
         stored_findings::types::StoredFileNumber,
         stores::types::StoredFrontierProof,
@@ -214,8 +214,11 @@ fn frontier_proof_roundtrip_preserves_partial_and_rejects_old_layout() {
     partial.input = ryo_values::domain::records::types::FrontierOrdinal(2);
     partial.rule_digest = Digest([9; 16]);
     partial.coverage = FrontierCoverage::Partial(vec![
-        FrontierAffected::CurrentFile,
-        FrontierAffected::Repository,
+        FrontierAffected::CurrentFile(FrontierMissing::Kinds {
+            column: ryo_values::domain::plan_parts::types::ColumnIndex(2),
+            kinds: vec!["function".into(), "variable".into()],
+        }),
+        FrontierAffected::Repository(FrontierMissing::Any),
     ]);
     handed.proofs.push(StoredFrontierProof {
         file: StoredFileNumber(3),

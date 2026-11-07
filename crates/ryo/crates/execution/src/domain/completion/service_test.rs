@@ -8,7 +8,7 @@ use ryo_relations::domain::relations::types::FileId;
 use ryo_values::selects;
 use ryo_values::{
     cases::{Case, CaseName, Expect, Word, run},
-    domain::records::types::{FrontierAffected, FrontierCoverage},
+    domain::records::types::{FrontierAffected, FrontierCoverage, FrontierMissing},
 };
 struct FrontierCase {
     coverage: CoverageState,
@@ -35,7 +35,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 files: vec![Some(FileId(0))],
                 lacks: vec![],
             },
-            expected: FrontierCoverage::Partial(vec![FrontierAffected::CurrentFile]),
+            expected: FrontierCoverage::Partial(vec![FrontierAffected::CurrentFile(
+                FrontierMissing::Any,
+            )]),
         },
         expect: Expect::Value(()),
     },
@@ -44,7 +46,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || FrontierCase {
             coverage: partial_any(vec![None]),
-            expected: FrontierCoverage::Partial(vec![FrontierAffected::Repository]),
+            expected: FrontierCoverage::Partial(vec![FrontierAffected::Repository(
+                FrontierMissing::Any,
+            )]),
         },
         expect: Expect::Value(()),
     },
@@ -52,7 +56,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("duplicate_causes"),
         word: Word::Succeeds,
         input: || {
-            let mut causes = vec![FrontierAffected::CurrentFile, FrontierAffected::Repository];
+            let mut causes = vec![
+                FrontierAffected::CurrentFile(FrontierMissing::Any),
+                FrontierAffected::Repository(FrontierMissing::Any),
+            ];
             causes.sort_unstable();
             FrontierCase {
                 coverage: CoverageState::Partial {
@@ -711,4 +718,73 @@ fn every_relation_with_a_node_column_names_the_file_its_nodes_lie_in() {
             );
         }
     }
+}
+
+/// A partial read of one file for rows of one kind, kept as a frontier proof and restored: the restored coverage clears for a select
+/// that stops the kind and stays for one that keeps it, for the proof's own file only.
+#[test]
+fn a_restored_frontier_proof_clears_for_an_untouched_kind_and_stays_for_a_touched_one_in_its_own_file() {
+    use super::service::{output_coverage, partial_of_lacks, restored_lacks};
+    use super::types::{FileLacks, InputCoverage, MissingRows};
+    use crate::domain::coverage::types::LackingKind;
+    use ryo_relations::domain::relations::types::{CellKind, Relation};
+    use ryo_values::domain::{
+        plan_parts::types::{
+            ColumnIndex, ComparisonOrigin, Input, LiteralText, Operand, PlanComparison,
+            QueryLiteral, StepId, Test,
+        },
+        plans::types::Operation,
+    };
+    let kind = crate::domain::trust::service::kind_place(Relation::Defines).unwrap();
+    let kinds = [CellKind::Node, CellKind::Symbol, CellKind::Symbol];
+    let lacks = |file: u32| FileLacks {
+        file: Some(FileId(file)),
+        missing: MissingRows::Kinds {
+            column: kind,
+            kinds: vec![LackingKind("variable".into())],
+        },
+    };
+    let stored = file_frontier_coverage(partial_of_lacks(vec![lacks(3)]), FileId(3)).unwrap();
+    assert_eq!(
+        stored,
+        FrontierCoverage::Partial(vec![FrontierAffected::CurrentFile(FrontierMissing::Kinds {
+            column: kind,
+            kinds: vec!["variable".into()],
+        })]),
+        "the proof carries the kinds"
+    );
+    let FrontierCoverage::Partial(affected) = stored else {
+        panic!("a partial proof");
+    };
+    let restored = partial_of_lacks(restored_lacks(FileId(3), &affected));
+    assert_eq!(restored, partial_of_lacks(vec![lacks(3)]));
+    let select = |text: &str| Operation::Select {
+        from: Input::Step(StepId(0)),
+        comparisons: vec![PlanComparison {
+            test: Test::Equal,
+            left: Operand::Column(ColumnIndex(kind.0)),
+            right: Operand::Literal(QueryLiteral::Text(LiteralText(text.into()))),
+            origin: ComparisonOrigin::Unrecorded,
+        }],
+        kept: Vec::new(),
+    };
+    let through = |text: &str| {
+        output_coverage(
+            &select(text),
+            &kinds,
+            &[InputCoverage {
+                ordinal: 0,
+                kinds: &kinds,
+                coverage: restored.clone(),
+            }],
+        )
+        .unwrap()
+    };
+    assert_eq!(through("enum"), CoverageState::Complete);
+    assert_eq!(through("variable"), restored);
+    // A proof of another file names that file only.
+    assert_eq!(
+        partial_of_lacks(restored_lacks(FileId(4), &affected)),
+        partial_of_lacks(vec![lacks(4)])
+    );
 }
