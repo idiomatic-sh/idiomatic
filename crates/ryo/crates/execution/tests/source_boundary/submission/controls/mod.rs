@@ -256,6 +256,111 @@ const TRAITS: [(&str, &str); 7] = [
     ("ObservationExecution", "Observed"),
     ("ObservationPublication", "Publication"),
 ];
+/// The public traits of `interface.rs` that are no entry: each states why none of its methods admits or mutates a root.
+const NON_ENTRY: [(&str, &str); 4] = [
+    (
+        "PreparedExecution",
+        "read-only metadata of a prepared program: a rule outside it answers an error and nothing is held, admitted or changed",
+    ),
+    (
+        "ExecutionCompilation",
+        "compiles the rules a request declares into plans and identities before any root exists",
+    ),
+    (
+        "PreparedQueries",
+        "reads the plans and bindings a program was prepared from; it takes no rule, scope or intent",
+    ),
+    (
+        "PreparedReporting",
+        "reads the run metadata and the replay closure of a finished preparation; it takes no root",
+    ),
+];
+#[test]
+pub(super) fn every_public_trait_is_an_entry_with_variants_or_is_named_with_its_reason() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let interface =
+        std::fs::read_to_string(root.join("src/inbound/use_cases/execution/interface.rs")).unwrap();
+    let declared: Vec<&str> = interface
+        .lines()
+        .filter_map(|line| line.strip_prefix("pub trait "))
+        .map(|rest| {
+            rest.split(|c: char| !(c.is_alphanumeric() || c == '_'))
+                .next()
+                .unwrap_or_default()
+        })
+        .collect();
+    assert!(!declared.is_empty(), "interface.rs declares public traits");
+    for name in &declared {
+        let entry = TRAITS.iter().any(|(each, _)| each == name);
+        let reason = NON_ENTRY
+            .iter()
+            .find(|(each, _)| each == name)
+            .map(|(_, reason)| *reason);
+        assert!(
+            entry != reason.is_some(),
+            "{name} is in exactly one of TRAITS and NON_ENTRY: a new public trait is classified here before it passes"
+        );
+        if let Some(reason) = reason {
+            assert!(!reason.is_empty(), "{name} states why it is no entry");
+        }
+    }
+    for (name, _) in TRAITS.iter().chain(NON_ENTRY.iter()) {
+        assert!(
+            declared.contains(name),
+            "{name} is listed but interface.rs declares no such public trait"
+        );
+    }
+}
+/// Every `.rs` file under `dir`, as paths relative to `base`.
+fn sources_under(base: &Path, dir: &Path, found: &mut Vec<String>) {
+    for entry in std::fs::read_dir(dir).unwrap() {
+        let path = entry.unwrap().path();
+        if path.is_dir() {
+            sources_under(base, &path, found);
+        } else if path.extension().is_some_and(|extension| extension == "rs") {
+            found.push(
+                path.strip_prefix(base)
+                    .unwrap()
+                    .to_string_lossy()
+                    .replace('\\', "/"),
+            );
+        }
+    }
+}
+/// A `PreparedFrontiers` value is made only by the `frontiers` module, where `FrontierCache::prepared` is the one route to it: a
+/// literal in any other production file would make a handover that never read its sources once.
+#[test]
+pub(super) fn prepared_frontiers_are_built_only_by_the_frontiers_module() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let mut files = Vec::new();
+    sources_under(root, &root.join("src"), &mut files);
+    let mut builders = Vec::new();
+    for file in files {
+        let test_tree = file.split('/').any(|part| {
+            part == "test" || part == "tests" || part == "fixtures" || part.ends_with("_test.rs") || part == "test.rs"
+        });
+        if test_tree {
+            continue;
+        }
+        let text = std::fs::read_to_string(root.join(&file)).unwrap();
+        let literals = text
+            .lines()
+            .map(str::trim_start)
+            .filter(|line| line.contains("PreparedFrontiers {"))
+            .filter(|line| !line.starts_with("pub struct ") && !line.starts_with("impl "))
+            .count();
+        if literals > 0 {
+            builders.push((file, literals));
+        }
+    }
+    assert!(!builders.is_empty(), "the frontiers module builds them");
+    for (file, literals) in builders {
+        assert!(
+            file.starts_with("src/application/file_dag/frontiers/"),
+            "{file} builds {literals} PreparedFrontiers outside the frontiers module"
+        );
+    }
+}
 #[test]
 pub(super) fn every_trait_method_has_its_own_variant() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
