@@ -23,7 +23,14 @@ fn run(defaults: &[&str]) -> (Result<bool, String>, serde_json::Value, usize) {
     )
     .expect("registration fixture");
     let execution = Arc::new(ExecutionFake::default());
-    let operation = VerifyInventoryUseCaseImpl::new(execution.clone(), Arc::new(local()));
+    let operation = VerifyInventoryUseCaseImpl::new(
+        Arc::new(ryo_benchmark::outbound::suite::factory::local()),
+        Arc::new(ryo_benchmark::outbound::receipts::factory::local(
+            ryo_benchmark::outbound::receipts::types::CaseReceipts::Unrecorded,
+        )),
+        execution.clone(),
+        Arc::new(local()),
+    );
     let result = operation
         .verify_inventory(&registration, &output)
         .map(|verdict| verdict == InventoryVerdict::Passed)

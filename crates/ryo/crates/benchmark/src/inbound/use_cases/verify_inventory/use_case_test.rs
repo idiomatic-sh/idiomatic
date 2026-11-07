@@ -41,7 +41,14 @@ fn subject(defaults: Input) -> Result<Value, Failure> {
     )
     .expect("registration fixture");
     let execution = Arc::new(ExecutionFake::default());
-    let operation = VerifyInventoryUseCaseImpl::new(execution.clone(), Arc::new(local()));
+    let operation = VerifyInventoryUseCaseImpl::new(
+        Arc::new(crate::outbound::suite::factory::local()),
+        Arc::new(crate::outbound::receipts::factory::local(
+            crate::outbound::receipts::types::CaseReceipts::Unrecorded,
+        )),
+        execution.clone(),
+        Arc::new(local()),
+    );
     let result = operation.verify_inventory(&registration, &output);
     let calls = execution.history.lock().expect("history").len();
     result.map(|verdict| (verdict, calls)).map_err(|_error| calls)

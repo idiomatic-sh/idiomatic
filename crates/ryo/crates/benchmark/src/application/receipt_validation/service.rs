@@ -1,8 +1,7 @@
 //! The offline path reuses actual artifact loading and native receipt comparison.
 use super::constants;
 use crate::domain::suite::types::inventory::value::Inventory;
-use ryo_benchmark_contracts::domain::requests::types::RuleLabel;
-use crate::outbound::inventory::types::{CapturedObservation, Registration};
+use crate::outbound::inventory::types::{RawArtifacts, Registration};
 use ryo_benchmark_contracts::domain::documents::types::case_document::value::CaseDocument;
 use ryo_benchmark_contracts::domain::documents::types::observation_document::value::ObservationDocument;
 use ryo_benchmark_contracts::domain::documents::types::text::value::ContestantSide;
@@ -23,14 +22,14 @@ use std::collections::{BTreeMap, BTreeSet};
 /// Refuses malformed inventories or observations outside their declared identities.
 pub fn validate(
     registration: &Registration,
-    captured: &CapturedObservation,
+    records: &[ObservationDocument],
+    raw: &RawArtifacts,
 ) -> Result<ReceiptAudit, Error> {
     let _inventory = Inventory::new(
         &registration
             .defaults
             .iter()
-            .cloned()
-            .map(RuleLabel)
+            .map(|rule| RuleLabel(rule.0.clone()))
             .collect::<Vec<_>>(),
     )?;
     let mut registered_rules = BTreeSet::new();
@@ -46,9 +45,9 @@ pub fn validate(
             let name = Some(&case.name)
                 .filter(|name| !name.0.is_empty())
                 .ok_or_else(|| Error::Invalid(constants::REGISTERED_CASE_NAME_IS_MISSING.into()))?;
-            if case.rule.0 != rule.rule_id
+            if case.rule != rule.rule_id
                 || cases
-                    .insert((rule.rule_id.clone(), name.0.clone()), case)
+                    .insert((rule.rule_id.0.clone(), name.0.clone()), case)
                     .is_some()
             {
                 return Err(Error::Invalid(
@@ -63,7 +62,7 @@ pub fn validate(
         ));
     }
     let mut grouped = BTreeMap::<(String, String), Vec<ObservationDocument>>::new();
-    for row in &captured.records {
+    for row in records {
         let key = (row.rule.0.clone(), row.name.0.clone());
         if !cases.contains_key(&key) || !matches!(row.side, ContestantSide::Reference | ContestantSide::Candidate) {
             return Err(Error::Invalid(
@@ -81,8 +80,8 @@ pub fn validate(
         match crate::domain::inventory_receipts::service::validate_with_artifacts(
             std::slice::from_ref(case),
             &rows,
-            &captured.artifacts,
-            &captured.invocations,
+            &raw.bytes,
+            &raw.invocations,
         ) {
             Ok(counts) => {
                 let recomputed = crate::domain::registered_inputs::service::metadata_digest(

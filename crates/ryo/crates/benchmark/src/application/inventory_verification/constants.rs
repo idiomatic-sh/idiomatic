@@ -1,16 +1,4 @@
 //! The vocabulary of one complete inventory verification.
-/// Text of the pass in this part.
-pub(super) const PASS: &str = "PASS";
-/// Text of the fail in this part.
-pub(super) const FAIL: &str = "FAIL";
-/// Text of the benchmark inventory v1 in this part.
-pub(super) const BENCHMARK_INVENTORY_V1: &str = "benchmark-inventory/v1";
-/// Text of the running in this part.
-pub(super) const RUNNING: &str = "running";
-/// Text of the complete in this part.
-pub(super) const COMPLETE: &str = "complete";
-/// Text of the failed in this part.
-pub(super) const FAILED: &str = "failed";
 /// Text of the unknown or duplicate registered rule in this part.
 pub(super) const UNKNOWN_OR_DUPLICATE_REGISTERED_RULE: &str =
     "unknown or duplicate registered rule";
@@ -34,10 +22,6 @@ pub(super) const CASE_IDENTITY_BELONGS_TO_ANOTHER_REGISTERED: &str =
 /// Text of the case verification requires execution authori in this part.
 pub(super) const CASE_VERIFICATION_REQUIRES_EXECUTION_AUTHORI: &str =
     "case verification requires execution authority";
-/// Text of the cases jsonl in this part.
-pub(super) const CASES_JSONL: &str = "cases.jsonl";
-/// Text of the verify cases in this part.
-pub(super) const VERIFY_CASES: &str = "verify-cases";
 /// Text of the native receipt digest is missing in this part.
 pub(super) const NATIVE_RECEIPT_DIGEST_IS_MISSING: &str = "native receipt digest is missing";
 /// Text of the receipt only inventory cannot authorize exec in this part.
@@ -53,3 +37,8 @@ pub(super) const REGISTERED_MODULE_INVENTORY_DIFFERS_FROM_PIN: &str =
     "registered module inventory differs from pinned context profile";
 /// Every module the context declares needs a pin.
 pub(super) const MISSING_DECLARED_MODULE_PIN: &str = "missing declared module pin";
+/// A registered case context lists no artifact at all.
+pub(super) const REGISTERED_CASE_CONTEXT_IS_EMPTY: &str = "registered case context is empty";
+/// The files of the registered context must be exactly the pinned artifacts.
+pub(super) const REGISTERED_CONTEXT_NAMESPACE_DIFFERS_FROM_PI: &str =
+    "registered context namespace differs from pinned artifacts";

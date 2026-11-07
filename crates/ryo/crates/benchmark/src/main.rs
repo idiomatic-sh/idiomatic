@@ -51,7 +51,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             return Err(validate_constants::USAGE.into());
         }
         let store = inventory::factory::local();
-        let validate = ValidateCaseReceiptsUseCaseImpl::new(Arc::new(inventory::factory::local()));
+        let validate = ValidateCaseReceiptsUseCaseImpl::new(
+            Arc::new(ryo_benchmark::outbound::receipts::factory::local(
+                ryo_benchmark::outbound::receipts::types::CaseReceipts::Unrecorded,
+            )),
+            Arc::new(inventory::factory::local()),
+        );
         let audit = validate.validate_case_receipts(
             std::path::Path::new(&arguments[1]),
             std::path::Path::new(&arguments[2]),
@@ -78,6 +83,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             return Err(inventory_constants::TIMEOUT_INVALID.into());
         }
         let verify = VerifyInventoryUseCaseImpl::new(
+            Arc::new(ryo_benchmark::outbound::suite::factory::local()),
+            Arc::new(ryo_benchmark::outbound::receipts::factory::local(
+                ryo_benchmark::outbound::receipts::types::CaseReceipts::Unrecorded,
+            )),
             Arc::new(execution::factory::bounded(
                 std::time::Duration::try_from_secs_f64(seconds)?,
             )),
