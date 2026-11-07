@@ -59,6 +59,25 @@ The wave-2 branches of checkpoint 319 are merged into one tree, each as a merge 
 - **Core, open at 320:** `file_analysis/service.rs` and its test, `lint/use_case.rs`, its test and its contract, `recording/service.rs` (447), `storing/service.rs` and its test, the lint use case naming the execution use case implementations, `semantic.rs` unplaced and the use-case `hex-cohesion` finding: each is a restructuring into services that name no sibling service, which a build without a compiler cannot check. The cli composition names `std::thread::available_parallelism` for the scheduler's worker count and is a `threads-at-adapter` finding of the cli batch.
 - **Entry fixtures:** the `entry` spec 0.1.1 places an optional `fixtures/` directory of test-data files beside `fixtures.rs`; the sdk lint fixtures are split into it by what they fix. `list-matches-source` 0.1.1 leaves a `pub use` under the `fixtures` feature out of the reexports list.
 
+### Core pipeline into the engine
+
+Branch `claude/w3-core-pipeline` from checkpoint 320 `61cb444739`. The measured map of core's orchestration before the move: counts are from the source at `61cb444739` (`wc -l`, `fn` items, and the lines naming each `ryo_execution` path). The after column is filled when the move lands.
+
+| File | Before: lines | Before: fns | Before: execution use case protocol | Before: metadata | Before: prepare | Before: `application::` handles | Before: `outbound::` ports | Engine protocol it drives | After |
+|---|---|---|---|---|---|---|---|---|---|
+| `application/file_analysis/service.rs` | 1,569 | 22 | 17 | 11 | 0 | 12 (`file_session` 8, `preparation`, `prepared_execution`, `request_execution`, `rule_outcome`) | 5 (digest, facts) | `open_file`, the rule loop (`rule`, `emit`, `capture_frontiers`, `commit_frontier`, `counts`, `finish`), `demanded_rules` ×3, `rule_order`, `rule_digest`, `frontiers`, `observation_layout`, `semantic_needed` ×2, `MetadataUseCaseImpl` ×15 | |
+| `application/file_analysis/service_test.rs` | 2,348 | 57 | 5 | 7 | 4 | 2 (`prepared_execution`, `request_execution`) | 35 | the loop above, through `FileAnalysis` | |
+| `inbound/use_cases/lint/use_case.rs` | 1,565 | 28 | 6 | 3 | 5 | 14 (`rule_compilation` 4, `project_phase` 3, `frontiers` 2, `prepared_execution` 2, `preparation`, `request_execution`, `rule_outcome`) | 9 (operators, derived, digest, facts, matching, query language) | `compile`, `identify`, kind check, `prepare`, `begin`, `replay_closure`, `metadata`, `project_phase`, `project_scope`, `prepare_frontiers`, `evaluate_batch`, `observation_batches`, stage `finish` | |
+| `inbound/use_cases/lint/use_case_test.rs` | 2,266 | 44 | 0 | 0 | 0 | 1 (`rule_compilation`) | 19 | the whole run, through `LintUseCaseImpl` | |
+| `inbound/use_cases/lint/fixtures/contract.rs` | 1,056 | 33 | 0 | 2 | 0 | 0 | 8 | the fixtures of the run above | |
+| `domain/recording/service.rs` | 452 | 12 | 1 | 9 | 0 | 0 | 0 | none: recording of a file's outcome over core's worker tables | |
+| `domain/storing/service.rs` | 468 | 12 | 0 | 1 | 0 | 0 | 0 | none: the store's replay decision and what it keeps | |
+| `domain/storing/service_test.rs` | 583 | 21 | 0 | 0 | 0 | 0 | 0 | none | |
+| `application/file_analysis/semantic.rs` (unplaced) | 106 | 5 | 2 | 0 | 0 | 0 | 0 | the per-file semantic lookup the file session reads | |
+| **Eight over-length files** | **10,307** | **229** | **29** | **33** | **9** | **29** | **76** | | |
+
+Core as a whole names `ryo_execution::application::` on 128 lines in 24 files: besides the files above, `application/cross_file/` (service, types, completion, preparation, rendering, fixtures and six tests: the project phase and its rule outcomes), `application/engine/service.rs` (compilation and the prepare and execution use case wrappers), `inbound/use_cases/lint/{types,errors}.rs` and `outbound/publication/adapters/execution/adapter.rs`. The use cases core names today: `execution` (`ExecutionUseCaseImpl::execution`, once per run, through `application/engine`), `prepare` (once per run, through `application/engine`) and `metadata` (`MetadataUseCaseImpl` constructed in place 15 times in `file_analysis/service.rs`). Core's own ports called between the engine's calls in the per-file loop: corpus (read), language (parse, semantics, project), digest (replay decision), memory (budget), lint store (staged and old words), scheduler and row sink (in the use case).
+
 ### Review repairs V
 
 Branch `claude/w2-review-v` from checkpoint 319 `f2d8aaf1db` (the Phase 1 re-ownership is recorded on the lineage row). Authored, not compiled: the integrator compiles once at checkpoint 320.
