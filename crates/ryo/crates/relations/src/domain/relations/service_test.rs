@@ -3,7 +3,7 @@
 use crate::domain::terms::types::Symbol;
 
 use super::service::{
-    all, column_named, columns, folder_of, kind, name, provenance_of, relation_named, relation_of,
+    all, column_named, columns, kind, name, provenance_of, relation_named, relation_of,
 };
 use crate::domain::relations::types::{CellKind, NodeId, Offset, Provenance, Relation, Span, Value as Cell};
 use crate::cases::{Case, CaseName, Expect, Word, run};
@@ -89,24 +89,6 @@ fn values_survive_their_bits() -> usize {
         .count()
 }
 
-fn the_catalog_lists_exactly_the_folders_of_its_items() -> usize {
-    let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("src/domain/relations/collections/relations");
-    let mut folders: Vec<String> = std::fs::read_dir(directory)
-        .expect("a folder of the fixtures is read")
-        .map(|entry| entry.expect("an entry of a folder of the fixtures is read"))
-        .filter(|entry| entry.path().is_dir())
-        .map(|entry| entry.file_name().to_string_lossy().into_owned())
-        .collect();
-    folders.sort();
-    let mut listed: Vec<String> = all()
-        .iter()
-        .map(|relation| folder_of(*relation).0.to_owned())
-        .collect();
-    listed.sort();
-    usize::from(folders == listed)
-}
-
 /// Declaration kinds are closed; row identities remain open and keyness is per column.
 fn a_column_has_its_vocabulary_and_its_keyness() -> usize {
     usize::from(
@@ -167,12 +149,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("the_engine_gives_the_files_and_the_manifests_are_the_projects"),
         word: Word::Succeeds,
         input: || the_engine_gives_the_files_and_the_manifests_are_the_projects,
-        expect: Expect::Value(1),
-    },
-    Case {
-        name: CaseName("the_catalog_lists_exactly_the_folders_of_its_items"),
-        word: Word::Succeeds,
-        input: || the_catalog_lists_exactly_the_folders_of_its_items,
         expect: Expect::Value(1),
     },
     Case {

@@ -1,0 +1,154 @@
+description = "Every parser function of a grammar's adapter has a row of the grammar table that names it, and every row names such a function: the parsers are the functions of `parsers` with a parameter annotated as one of `input`, a row is a struct literal in `grammar` whose `field` names the function, as a string or as a constant holding one."
+why = "The grammar table is what `--help` and `explain` print, the living documentation of the language. A parser written without its row is syntax the documentation never shows; a row whose parser was renamed or removed documents a form nothing reads. Read syntactically: a parser is any function of the `parsers` files with a parameter whose written type matches `input`; a row's name is the string literal of its `field`, or, when the field is a path, the string literal of a constant of that name among the files the entry includes. The include must therefore reach the files that declare those constants."
+
+query = '''
+param parsers: set<string>;
+param grammar: set<string>;
+param input: set<string>;
+param field: set<string>;
+let parser-params = select id, owner from "parameter" where glob_any(file, $parsers);
+let typed = select l.owner as function from parser-params as l join "annotates" as r on l.id = r.owner where glob_any(r.annotation, $input);
+let parsers = select r.name as name, r.file as file, r.span as span from typed as l join "function" as r on l.function = r.id;
+let tokens = select id, kind, file, span, text from "syntax-tree" where text != "";
+let fields = select id, file, span from "syntax-tree" where text = "" and kind = "record-expr-field" and glob_any(file, $grammar);
+let labels = select l.id as id, r.child as label from fields as l join "syntax-child" as r on l.id = r.parent where r.field = "name-ref";
+let label-tokens = select l.id as id, r.child as token from labels as l join "syntax-child" as r on l.label = r.parent;
+let label-words = select l.id as id, r.text as text from label-tokens as l join tokens as r on l.token = r.id;
+let named = select id from label-words where glob_any(text, $field);
+let literals = select occurrence as id, value from "string-literal";
+let field-literals = axis(from=fields, relation="syntax-child", direction=descendant, domain=literals);
+let literal-values = select l.id as field, r.value as name from field-literals as l join literals as r on l.related = r.id;
+let constants = select id, name from "defines" where kind = "constant";
+let constant-literals = axis(from=constants, relation="syntax-child", direction=descendant, domain=literals);
+let constant-values = select l.name as constant, r.value as name from constant-literals as l join literals as r on l.related = r.id;
+let field-tokens = axis(from=fields, relation="syntax-child", direction=descendant, domain=tokens);
+let field-words = select l.id as field, r.text as text from field-tokens as l join tokens as r on l.related = r.id where r.kind = "ident";
+let path-values = select l.field as field, r.name as name from field-words as l join constant-values as r on l.text = r.constant;
+let values = union(left=literal-values, right=path-values);
+let named-values = select r.field as field, r.name as name from named as l join values as r on l.id = r.field;
+let rows = select l.name as name, r.file as file, r.span as span from named-values as l join fields as r on l.field = r.id;
+let unlisted-parsers = antijoin(left=parsers, right=rows, left-on=["name"], right-on=["name"]);
+let unlisted = extend(from=unlisted-parsers, values={"problem": "is a parser function with no row in the grammar table"});
+let unparsed-rows = antijoin(left=rows, right=parsers, left-on=["name"], right-on=["name"]);
+let unparsed = extend(from=unparsed-rows, values={"problem": "is a row of the grammar table that no parser function reads"});
+let found = union(left=unlisted, right=unparsed);
+emit found subject "file" key("span");
+'''
+
+[params.parsers]
+type = "set<string>"
+description = "The files that hold the parser functions, as path globs: the grammar's adapter."
+
+[params.grammar]
+type = "set<string>"
+description = "The files that hold the grammar table, as path globs: one struct literal for each row."
+
+[params.input]
+type = "set<string>"
+description = "The written types of a parser's input parameter, as globs: `&mut Input*`."
+
+[params.field]
+type = "set<string>"
+description = "The field of a row that names its parser function: `name`."
+
+[diagnostic]
+primary = "span"
+message = "`{name}` {problem}"
+help = "Give each parser function one row of the grammar table, named as the function and saying how the production is written, and remove a row whose function is gone. The table is the documentation `--help` and `explain` print: never leave a parser out of it."
+
+[given]
+include = ["src/**"]
+params = { parsers = ["src/adapter.rs"], grammar = ["src/constants.rs"], input = ["&mut Input*"], field = ["name"] }
+files.'Cargo.toml' = '''
+[package]
+name = "grammar_fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+files.'src/lib.rs' = '''
+//! A grammar's adapter and its table.
+
+mod adapter;
+mod constants;
+mod words;
+'''
+files.'src/words.rs' = '''
+//! Words another module names.
+
+pub const SELECT: &str = "select";
+'''
+files.'src/adapter.rs' = '''
+//! The parser functions.
+
+pub struct Input<'a>(pub &'a str);
+
+pub fn program(input: &mut Input<'_>) -> usize {
+    input.0.len()
+}
+
+pub fn select(input: &mut Input<'_>) -> usize {
+    input.0.len()
+}
+
+pub fn helper(text: &str) -> usize {
+    text.len()
+}
+'''
+files.'src/constants.rs' = '''
+//! The grammar table.
+
+pub struct GrammarLine {
+    pub name: &'static str,
+    pub form: &'static str,
+}
+
+pub const GRAMMAR: &[GrammarLine] = &[
+    GrammarLine { name: "program", form: "select" },
+    GrammarLine { name: crate::words::SELECT, form: "\"select\" word" },
+];
+'''
+
+[[scenarios]]
+id = "every-parser-has-its-row"
+scenario = "Each parser function has a row, one named by a string and one by a constant of another module; a function without the input parameter needs none."
+
+[[scenarios]]
+id = "a-parser-without-a-row"
+scenario = "A parser function the table does not list is reported at the function."
+given.files.'src/adapter.rs' = '''
+//! The parser functions.
+
+pub struct Input<'a>(pub &'a str);
+
+pub fn program(input: &mut Input<'_>) -> usize {
+    input.0.len()
+}
+
+pub fn select(input: &mut Input<'_>) -> usize {
+    input.0.len()
+}
+
+pub fn window(input: &mut Input<'_>) -> usize {
+    input.0.len()
+}
+'''
+then.findings = [{ path = "src/adapter.rs", line = 13 }]
+
+[[scenarios]]
+id = "a-row-without-a-parser"
+scenario = "A row naming a function the adapter does not have is reported at the row."
+given.files.'src/constants.rs' = '''
+//! The grammar table.
+
+pub struct GrammarLine {
+    pub name: &'static str,
+    pub form: &'static str,
+}
+
+pub const GRAMMAR: &[GrammarLine] = &[
+    GrammarLine { name: "program", form: "select" },
+    GrammarLine { name: crate::words::SELECT, form: "\"select\" word" },
+    GrammarLine { name: "pivot", form: "\"pivot\"" },
+];
+'''
+then.findings = [{ path = "src/constants.rs", line = 11 }]

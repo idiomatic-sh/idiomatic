@@ -1,7 +1,9 @@
 description = "Semantic construction belongs to the admitted derived owner; consumers borrow acquired views."
-why = "The execution owner alone binds live source proofs to semantic construction, shared keys and required leases for every derived kind. Resolved dependencies to the actual semantic bridge plus precise imported build spans reject renamed, qualified and newly added-module bypasses. Resolved injected-port users may prepare immutable descriptors but may not call build outside that bridge. Portable semantic API proofs are legitimate callers of the public semantic use case; production engine consumers are not. Rust private fields and required permit/source capabilities separately prohibit forged acquisition or raw invocation authority. The method guard associates resolved semantic-port references and build calls in the same file; it does not infer receiver types across macros or follow arbitrary re-export chains, so runtime and Rust controls remain required."
+why = "The execution owner alone binds live source proofs to semantic construction, shared keys and required leases for every derived kind. Resolved dependencies to the actual semantic bridge plus precise imported build spans reject renamed, qualified and newly added-module bypasses. Resolved injected-port users may prepare immutable descriptors but may not call build outside that bridge. Portable semantic API proofs are legitimate callers of the public semantic use case; production engine consumers are not. Rust private fields and required permit/source capabilities separately prohibit forged acquisition or raw invocation authority. The method guard associates resolved semantic-port references and build calls in the same file; it does not infer receiver types across macros or follow arbitrary re-export chains, so runtime and Rust controls remain required. Who reaches the owner is confined too: an identifier of `confined` (the owner's acquiring entries, and the leased views and handles it issues) written in a production file outside the owner tree is a finding unless `allowed` lists that file with that name. The list is the exact set of callers and holders, so a new caller of `admit_view` or a new holder of an `AcquiredView` is reviewed where the list is. The builder port itself (`DerivedPort`) can be confined the same way, so it is named only by its own hex and the compositions that hand it to the owner. Test code (the files placed as proofs, test-named files and fixtures) is not production and is left out."
 
 query = '''
+param confined: set<string>;
+param allowed: list<table>;
 let directory-sources = capture(from="source-dependency", path="source", pattern="{*source-root}/domain/{concept}/{*source-rest}", captures=["source-root", "concept", "source-rest"]);
 let module-sources = capture(from="source-dependency", path="source", pattern="{*source-root}/domain/{concept}.rs", captures=["source-root", "concept"]);
 let source-files = select source, target, span, source-root, concept from directory-sources;
@@ -35,17 +37,35 @@ let port-hex = select file from port-users where glob_any(source-tail, "outbound
 let consumer-builds = antijoin(left=port-builds, right=port-hex, left-on=["file"], right-on=["file"]);
 let production-port-builds = antijoin(left=consumer-builds, right=semantic-proofs, left-on=["file"], right-on=["file"]);
 let ordinary = union(left=local, right=all-raw-builds);
-let violations = union(left=ordinary, right=production-port-builds);
+let build-violations = union(left=ordinary, right=production-port-builds);
+let confined-names = select file, span, text as name from "syntax-tree" where kind = "ident" and glob_any(text, $confined) and glob_any(file, "{src,**/src}/**") and not glob_any(file, "{src,**/src}/application/file_dag/derived/owner/**") and not glob_any(file, "{**/*_test.rs,**/test.rs,**/fixtures.rs,**/fixtures/**,**/*_test/**}");
+let permitted = rows(from=$allowed, columns=["file", "name"]);
+let keyed-names = extend(from=confined-names, values={"pair": 1});
+let keyed-permitted = extend(from=permitted, values={"pair": 1});
+let permitted-names = select l.file as file, l.span as span from keyed-names as l join keyed-permitted as r on l.pair = r.pair where l.name = r.name and glob_any(l.file, r.file);
+let production-names = antijoin(left=confined-names, right=semantic-proofs, left-on=["file"], right-on=["file"]);
+let named = select file, span from production-names;
+let held = antijoin(left=named, right=permitted-names, left-on=["file", "span"], right-on=["file", "span"]);
+let violations = union(left=build-violations, right=held);
 emit violations subject file key(span);
 '''
+
+[params.confined]
+type = "set<string>"
+description = "The identifiers only the owner and its listed callers and holders write: the acquiring entries (`admit_view`) and the views and handles the owner issues (`AcquiredView`)."
+
+[params.allowed]
+type = "list<table>"
+description = "Each production file outside the owner that may write a confined identifier, `{ file, name }`: its path from the workspace root, as a glob, and the identifier it calls or holds."
 
 [diagnostic]
 primary = "span"
 message = "a consumer reaches derived semantic construction outside admitted acquisition"
-help = "Declare the derived view in the operator contract and let the application owner acquire and release it. Metadata preparation may borrow the injected port; semantic build calls belong only to the admitted acquisition bridge. Never publish a semantic-port getter or a direct-build helper for engine consumers."
+help = "Declare the derived view in the operator contract and let the application owner acquire and release it. Metadata preparation may borrow the injected port; semantic build calls belong only to the admitted acquisition bridge. Never publish a semantic-port getter or a direct-build helper for engine consumers. A new caller of an acquiring entry or holder of a leased view is a change of who reaches the owner: add its `{ file, name }` to the entry's `allowed` and say why in its description."
 
 [given]
 include = ["src/**"]
+params = { confined = ["admit_view", "AcquiredView"], allowed = [{ file = "src/application/file_dag/consumer.rs", name = "AcquiredView" }] }
 files.'Cargo.toml' = '''
 [package]
 name = "view_ownership_fixture"
@@ -204,3 +224,28 @@ scenario = "Another outbound hex is a consumer of the derived port and cannot bu
 given.files.'src/outbound.rs' = 'pub mod derived; pub mod other;'
 given.files.'src/outbound/other.rs' = 'use crate::outbound::derived::interface::DerivedPort; pub fn forward(port: &dyn DerivedPort) { port.build(); }'
 then.findings = [{ path = "src/outbound/other.rs", line = 1 }]
+
+[[scenarios]]
+id = "listed-holder-and-owner-may-name-the-view"
+scenario = "The owner calls its acquiring entry and the listed consumer holds the view it returns; a test file outside the list may name both."
+given.files.'src/application/file_dag/derived/owner/acquisition/service.rs' = 'pub struct AcquiredView; pub fn admit_view() -> AcquiredView { AcquiredView }'
+given.files.'src/application/file_dag/consumer.rs' = 'pub fn consume(_: &crate::application::file_dag::derived::owner::acquisition::service::AcquiredView) {}'
+given.files.'src/application/file_dag/consumer_test.rs' = 'fn admit() { let _ = crate::application::file_dag::derived::owner::acquisition::service::admit_view(); }'
+
+[[scenarios]]
+id = "unlisted-caller-of-an-acquiring-entry"
+scenario = "A production file outside the owner that calls an acquiring entry the list does not give it is rejected."
+given.files.'src/application/file_dag/derived/owner/acquisition/service.rs' = 'pub struct AcquiredView; pub fn admit_view() -> AcquiredView { AcquiredView }'
+given.files.'src/application/file_dag/consumer.rs' = '''
+pub fn consume(_: &crate::application::file_dag::derived::owner::acquisition::service::AcquiredView) {}
+pub fn admit() { let _ = crate::application::file_dag::derived::owner::acquisition::service::admit_view(); }
+'''
+then.findings = [{ path = "src/application/file_dag/consumer.rs", line = 2 }]
+
+[[scenarios]]
+id = "unlisted-holder-of-a-leased-view"
+scenario = "A new production file that holds a leased view is rejected until the list names it."
+given.files.'src/application/file_dag.rs' = 'pub mod derived; pub mod consumer; pub mod holder;'
+given.files.'src/application/file_dag/derived/owner/acquisition/service.rs' = 'pub struct AcquiredView; pub fn admit_view() -> AcquiredView { AcquiredView }'
+given.files.'src/application/file_dag/holder.rs' = 'use crate::application::file_dag::derived::owner::acquisition::service::AcquiredView as Lease; pub struct Holder(Lease);'
+then.findings = [{ path = "src/application/file_dag/holder.rs", line = 1 }]
