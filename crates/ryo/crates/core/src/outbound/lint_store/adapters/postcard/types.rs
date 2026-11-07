@@ -3,7 +3,7 @@
 
 use ryo_values::domain::records::types::HeaderOffset;
 use ryo_values::domain::records::types::StagedWords;
-use ryo_values::domain::stored_facts::types::Bucket;
+use ryo_values::domain::stored_facts::types::{Bucket, PackedWords};
 use ryo_values::domain::stored_findings::types::StoredFileNumber;
 
 /// A place in the store file, in bytes from its start.
@@ -78,7 +78,7 @@ pub(super) struct WriterNumber(pub u64);
 #[derive(Clone, Copy, Debug)]
 pub(super) enum Payload<'a> {
     /// Only adapters explicitly retaining inline data use this arm.
-    Inline(&'a [u8]),
+    Inline(&'a PackedWords),
     /// A fresh payload belonging to this exact run's temporary spool.
     Staged(StagedWords),
     /// A selected row in the immutable old cache snapshot.

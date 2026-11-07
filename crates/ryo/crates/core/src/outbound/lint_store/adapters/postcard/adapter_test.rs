@@ -1,3 +1,4 @@
+// ignore: idiomatic.arch/file-length - the one adapter_test.rs the adapter spec places for this adapter: the port contract rows and the cases of its writer and its connection run through it
 //! The postcard adapter of the store port: the core's contract rows run through it, then the cases specific to it.
 
 use std::sync::atomic::AtomicUsize;
@@ -38,7 +39,7 @@ use crate::outbound::lint_store::adapters::postcard::writer::old_rows;
 use crate::outbound::lint_store::adapters::postcard::writer::write_bucket;
 use crate::outbound::lint_store::adapters::postcard::schemas::bucket_bytes;
 use crate::outbound::lint_store::adapters::postcard::schemas::rebuilt_bucket_bytes;
-use crate::outbound::lint_store::adapters::postcard::connection::StagingSpool;
+use crate::outbound::lint_store::adapters::postcard::connection::StagingConnection;
 use crate::outbound::lint_store::adapters::postcard::types::FileOffset;
 use crate::outbound::lint_store::adapters::postcard::types::SectionSpan;
 use ryo_values::domain::records::types::PayloadLength;
@@ -141,32 +142,6 @@ enum Question {
     /// old payloads and headers share one exact read without neighbor prefetch.
     OldPayloadsAndHeadersShareOneExactReadWithoutNeighborPrefetch,
     #[cfg(unix)]
-    /// positional old payload read preserves cursor and refuses late truncation.
-    PositionalOldPayloadReadPreservesCursorAndRefusesLateTruncation,
-    /// spool lifetime and foreign overflow truncation checks are not empty fallbacks.
-    SpoolLifetimeAndForeignOverflowTruncationChecksAreNotEmptyFallbacks,
-    /// failed creation write flush and read do not commit a descriptor.
-    FailedCreationWriteFlushAndReadDoNotCommitADescriptor,
-    /// contiguous tiny payloads use chunk io instead of row io.
-    ContiguousTinyPayloadsUseChunkIoInsteadOfRowIo,
-    /// known true false and unavailable observations roundtrip through the store.
-    KnownTrueFalseAndUnavailableObservationsRoundtripThroughTheStore,
-    /// missing or changed format tag is a cache miss without mutating old bytes.
-    MissingOrChangedFormatTagIsACacheMissWithoutMutatingOldBytes,
-    /// inline and staged mixed rows match legacy bytes at varint boundaries.
-    InlineAndStagedMixedRowsMatchLegacyBytesAtVarintBoundaries,
-    /// old spans and fresh rows preserve selected file remapping and tie order.
-    OldSpansAndFreshRowsPreserveSelectedFileRemappingAndTieOrder,
-    /// corrupt headers order and truncated payloads are refused.
-    CorruptHeadersOrderAndTruncatedPayloadsAreRefused,
-    /// streamed payload copies have bounded write chunks and propagate write failure.
-    StreamedPayloadCopiesHaveBoundedWriteChunksAndPropagateWriteFailure,
-    /// scanning tiny old rows reads and seeks by chunks.
-    ScanningTinyOldRowsReadsAndSeeksByChunks,
-    /// old descriptor enumeration skips huge payloads and resolution reads one.
-    OldDescriptorEnumerationSkipsHugePayloadsAndResolutionReadsOne,
-    /// old payloads and headers share one exact read without neighbor prefetch.
-    OldPayloadsAndHeadersShareOneExactReadWithoutNeighborPrefetch,
     /// positional old payload read preserves cursor and refuses late truncation.
     PositionalOldPayloadReadPreservesCursorAndRefusesLateTruncation,
     /// spool lifetime and foreign overflow truncation checks are not empty fallbacks.
@@ -623,7 +598,7 @@ fn inline_and_staged_mixed_rows_match_legacy_bytes_at_varint_boundaries() -> Res
     for length in [0, 1, 127, 128, 16383, 16384, 100_000] {
         let rows = [row(128, length), row(0, 0), row(128, 9)];
         let expected = bucket_bytes(&rows.iter().collect::<Vec<_>>()).expect("legacy bytes");
-        let mut spool = StagingSpool::new(StagingSession(1)).expect("spool");
+        let mut spool = StagingConnection::new(StagingSession(1)).expect("spool");
         let span = spool.append(rows[1].words.clone()).expect("stage");
         let staged = [StagedRow {
             file: rows[1].file,
@@ -709,7 +684,7 @@ fn corrupt_headers_order_and_truncated_payloads_are_refused() -> Result<Value, F
                 }
             ).expect_err("a refusal");
     }
-    let mut spool = StagingSpool::new(StagingSession(2)).expect("spool");
+    let mut spool = StagingConnection::new(StagingSession(2)).expect("spool");
     let words = spool.append(PackedWords(vec![1])).expect("stage");
     let row = StagedRow {
         file: StoredFileNumber(0),
@@ -748,7 +723,7 @@ fn corrupt_headers_order_and_truncated_payloads_are_refused() -> Result<Value, F
 }
 
 fn streamed_payload_copies_have_bounded_write_chunks_and_propagate_write_failure() -> Result<Value, Failure> {
-    let mut spool = StagingSpool::new(StagingSession(4)).expect("spool");
+    let mut spool = StagingConnection::new(StagingSession(4)).expect("spool");
     let span = spool
         .append(PackedWords(vec![5; 1024 * 1024]))
         .expect("large frontier");
@@ -995,18 +970,15 @@ fn old_payloads_and_headers_share_one_exact_read_without_neighbor_prefetch() -> 
             assert_eq!(file.reads, 0, "oversized headers are refused before IO");
             let header = usize::try_from(descriptor.header.0).expect("header offset");
             file.bytes.get_mut()[header] ^= 1;
-            assert!(
-                read_old_in(
-                    &mut file,
-                    SectionLength(held),
-                    StoreSnapshot(81),
-                    bucket,
-                    &descriptor,
-                    &mut loaded
-                )
-                .is_err(),
-                "changed framing is refused after snapshot enumeration"
-            );
+            let _refusal = read_old_in(
+                &mut file,
+                SectionLength(held),
+                StoreSnapshot(81),
+                bucket,
+                &descriptor,
+                &mut loaded,
+            )
+            .expect_err("changed framing is refused after snapshot enumeration");
             assert!(loaded.0.is_empty(), "rejected payload is not returned");
         }
     }
@@ -1211,7 +1183,7 @@ impl Seek for FaultFile {
 }
 
 fn spool_lifetime_and_foreign_overflow_truncation_checks_are_not_empty_fallbacks() -> Result<Value, Failure> {
-    let mut spool = StagingSpool::new(StagingSession(1)).expect("temporary spool");
+    let mut spool = StagingConnection::new(StagingSession(1)).expect("temporary spool");
     let path = spool.file.path().to_owned();
     assert!(path.exists());
     let first = spool.append(PackedWords(vec![1, 2, 3])).expect("append");
@@ -1271,7 +1243,7 @@ fn spool_lifetime_and_foreign_overflow_truncation_checks_are_not_empty_fallbacks
 }
 
 fn failed_creation_write_flush_and_read_do_not_commit_a_descriptor() -> Result<Value, Failure> {
-    let _refusal = StagingSpool::create(StagingSession(1), || Err(std::io::Error::other(
+    let _refusal = StagingConnection::create(StagingSession(1), || Err(std::io::Error::other(
             "create failure"
         ))).expect_err("a refusal");
     for (write_fails, flush_fails) in [(true, false), (false, true)] {

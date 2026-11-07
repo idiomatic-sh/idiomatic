@@ -1,3 +1,4 @@
+// ignore: idiomatic.arch/file-length - one single-port adapter: the adapter spec places one adapter.rs, and the store file reading and keeping is one sequence over one open snapshot that no placed role splits
 //! The store port, implemented with one file in the cache directory: sections one after the other and a table of contents last, so
 //! a run reads only the sections it needs; written whole through a temporary file renamed into place, so a reader sees the old store
 //! or the new, never part of one. A bucket whose words are as they were is copied from the old file as it is.
@@ -96,7 +97,7 @@ struct PostcardRead {
     /// One snapshot identity, even before it creates a temporary file.
     session: ryo_values::domain::records::types::StagingSession,
     /// Fresh normalized data is staged lazily, outside domain record ownership.
-    spool: Mutex<Option<super::connection::StagingSpool>>,
+    spool: Mutex<Option<super::connection::StagingConnection>>,
 }
 
 #[cfg(unix)]
@@ -446,7 +447,7 @@ fn put_made(
     mut old: Option<&mut OpenedStore>,
     old_contents: Option<&[BucketSpan]>,
     kept: &KeptRows,
-    mut spool: Option<&mut super::connection::StagingSpool>,
+    mut spool: Option<&mut super::connection::StagingConnection>,
 ) -> std::io::Result<Vec<BucketSpan>> {
     let mut made: BTreeMap<Bucket, Option<SectionSpan>> =
         by_bucket.keys().map(|bucket| (*bucket, None)).collect();
@@ -679,7 +680,7 @@ impl ReadStore for PostcardRead {
         let mut spool = self.spool.lock().unwrap_or_else(PoisonError::into_inner);
         if spool.is_none() {
             *spool =
-                Some(super::connection::StagingSpool::new(self.session).map_err(failed)?);
+                Some(super::connection::StagingConnection::new(self.session).map_err(failed)?);
         }
         let Some(spool) = spool.as_mut() else {
             return Err(LintStoreError::NothingRead);
@@ -906,7 +907,7 @@ pub(super) fn fresh<'a>(
                 .ok_or_else(|| invalid(MISSING_INLINE_FRESH_ROW))?;
             buckets.entry(row.bucket).or_default().push(Frame {
                 file: row.file,
-                payload: Payload::Inline(&row.words.0),
+                payload: Payload::Inline(&row.words),
             });
         }
     }

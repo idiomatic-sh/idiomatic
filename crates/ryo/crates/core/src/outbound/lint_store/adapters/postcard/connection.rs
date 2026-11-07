@@ -29,7 +29,7 @@ use std::io::Write;
 
 /// One RAII temporary file, shared only through its ReadStore's mutex.
 #[derive(Debug)]
-pub(super) struct StagingSpool {
+pub(super) struct StagingConnection {
     /// NamedTempFile closes its handle before removing the temporary path on every platform.
     pub file: tempfile::NamedTempFile,
     /// Unique within the process; descriptors never survive this snapshot.
@@ -41,7 +41,7 @@ pub(super) struct StagingSpool {
     read_at: PayloadOffset,
 }
 
-impl StagingSpool {
+impl StagingConnection {
     /// Creation is deferred until the first fresh normalized bucket.
     pub(super) fn new(
         session: StagingSession,
@@ -184,7 +184,7 @@ impl StagingSpool {
 }
 
 // Close cloned IO handles before NamedTempFile removes its path, including on Windows.
-impl Drop for StagingSpool {
+impl Drop for StagingConnection {
     fn drop(&mut self) {
         self.writer = None;
         self.reader = None;

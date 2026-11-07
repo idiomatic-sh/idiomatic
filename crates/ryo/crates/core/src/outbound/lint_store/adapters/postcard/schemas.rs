@@ -1,3 +1,4 @@
+// ignore: idiomatic.arch/file-length - the wire shapes of one store file: a schema in a document module is visible only to that module, so the conversions the adapter calls cannot be split across documents
 // the one schemas.rs the adapter spec places holds the one wire shape of the store: its flat tables, one row per thing, its table of strings, its table of contents, and their conversion from and into the core's tables; a second schemas file is a role no spec places.
 //! The shape of the data this adapter does not control: the store as flat tables of numbers, each text once in a table of strings,
 //! a row naming it, a file or a finding by its place. The file is sections one after the other: the small tables, what the files
@@ -294,6 +295,7 @@ pub(super) struct ObservationSchema {
 
 /// What the files handed the steps that read across files and the project but their words.
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+// ignore: idiomatic.arch/no-deep-stored-types - the nesting is the byte layout of the store file already written: flattening it would change the postcard bytes of every kept frontier proof
 pub(super) struct RestSchema<'a> {
     observations: Vec<ObservationSchema>,
     /// Source identity and coverage for each payload row, in the rest section
@@ -333,6 +335,7 @@ enum FrontierCoverageSchema {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+// ignore: idiomatic.arch/no-deep-stored-types - the nesting is the byte layout of the store file already written: flattening it would change the postcard bytes of every kept frontier proof
 struct FrontierProofSchema {
     file: u32,
     bucket: u32,

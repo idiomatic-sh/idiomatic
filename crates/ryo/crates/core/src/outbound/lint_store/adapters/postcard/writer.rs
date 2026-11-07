@@ -30,7 +30,7 @@ use crate::outbound::lint_store::adapters::postcard::connection::BucketReader;
 use crate::outbound::lint_store::adapters::postcard::connection::PositionalReader;
 use crate::outbound::lint_store::adapters::postcard::connection::copy_buffered;
 use crate::outbound::lint_store::adapters::postcard::connection::seek_buffered;
-use crate::outbound::lint_store::adapters::postcard::connection::StagingSpool;
+use crate::outbound::lint_store::adapters::postcard::connection::StagingConnection;
 use crate::outbound::lint_store::adapters::postcard::connection::invalid;
 use crate::outbound::lint_store::adapters::postcard::types::FileOffset;
 use crate::outbound::lint_store::adapters::postcard::types::Frame;
@@ -327,7 +327,7 @@ pub(super) fn write_bucket(
     at: &mut FileOffset,
     rows: &[Frame<'_>],
     mut old: Option<&mut std::fs::File>,
-    mut staged: Option<&mut StagingSpool>,
+    mut staged: Option<&mut StagingConnection>,
 ) -> std::io::Result<SectionSpan> {
     // Snapshot size and position are validated once per bucket, not once per tiny row.
     let old_length = old
@@ -347,8 +347,8 @@ pub(super) fn write_bucket(
     let mut length = header(into, &rows.len())?.0;
     for row in rows {
         let size = match row.payload {
-            Payload::Inline(bytes) => {
-                u64::try_from(bytes.len()).map_err(|_| invalid(INLINE_SIZE_OVERFLOWS))?
+            Payload::Inline(words) => {
+                u64::try_from(words.0.len()).map_err(|_| invalid(INLINE_SIZE_OVERFLOWS))?
             }
             Payload::Staged(span) => span.length.0,
             Payload::Old(span) => span.length.0,
@@ -362,7 +362,7 @@ pub(super) fn write_bucket(
             .and_then(|length| length.checked_add(size_header))
             .ok_or_else(|| invalid(BUCKET_SIZE_OVERFLOWS))?;
         match row.payload {
-            Payload::Inline(bytes) => into.write_all(bytes)?,
+            Payload::Inline(words) => into.write_all(&words.0)?,
             Payload::Staged(span) => staged
                 .as_deref_mut()
                 .ok_or_else(|| invalid(NO_STAGING_SESSION_WAS_READ))?
