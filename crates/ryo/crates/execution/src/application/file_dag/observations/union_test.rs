@@ -170,7 +170,7 @@ fn exercise(given: &[&[i64]], expected: Option<&[i64]>, registered_calls: usize)
         &vec![Digest([0; 16]); rules.len()],
         &hosted,
         Arc::clone(&derived),
-        ObservationIdentity::Named(ObservationReadinessLayout(Digest([7; 16]))), crate::domain::executable_program::types::RoutePolicy::default(),
+        ObservationIdentity::Named(ObservationReadinessLayout(Digest([7; 16]))),
     )
     .expect("prepared named request");
     let services = Arc::new(ProgramServices::new(

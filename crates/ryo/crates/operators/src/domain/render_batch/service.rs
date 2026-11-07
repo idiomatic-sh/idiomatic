@@ -19,3 +19,77 @@ pub(crate) fn deliver(
     }
     Ok(())
 }
+
+/// Renders the node of every candidate row in one batch and emits each candidate whose node has a known
+/// rendering, with the rendering appended; a batch holding an unsupported answer emits nothing.
+pub(crate) fn evaluate(
+    node: ryo_values::domain::plan_parts::types::ColumnIndex,
+    driver: &mut dyn crate::domain::contract::types::RowDriver,
+    scratch: &mut crate::domain::contract::types::RowScratch,
+) -> Result<(), PortableOperatorFault> {
+    use crate::domain::contract::types::RowRead;
+    use ryo_values::domain::plan_parts::types::InputNumber;
+    let crate::domain::contract::types::RowScratch {
+        row,
+        other,
+        text,
+        slots,
+        nodes,
+        rendered,
+        ..
+    } = scratch;
+    let candidates = driver.population(InputNumber(0))?;
+    nodes.clear();
+    for at in 0..candidates.0 {
+        if driver.population_row(InputNumber(0), RowIndex(at), row) != RowRead::Read {
+            return Err(PortableOperatorFault::NotRun);
+        }
+        let ryo_relations::domain::relations::types::Value::Node(found) =
+            ryo_values::domain::rows::service::column_in(row, node)
+                .copied()
+                .ok_or(
+                    crate::domain::contract::types::PortableOperatorFault::NoSuchColumn {
+                        index: node,
+                    },
+                )?
+        else {
+            return Err(PortableOperatorFault::ShapeMismatch);
+        };
+        nodes.push(found);
+    }
+    if nodes.is_empty() {
+        return Ok(());
+    }
+    driver.render(nodes)?;
+    text.clear();
+    slots.clear();
+    rendered.clear();
+    for at in 0..nodes.len() {
+        let start = text.len();
+        rendered.push(driver.rendered(RowIndex(at), text));
+        slots.push(start..text.len());
+    }
+    let answers: Vec<RenderAnswer<'_>> = rendered
+        .iter()
+        .zip(slots.iter())
+        .map(|(kind, place)| match kind {
+            crate::domain::contract::types::RenderKind::Known => {
+                RenderAnswer::Known(ryo_values::domain::row_texts::types::CellText(
+                    text.get(place.clone()).unwrap_or_default(),
+                ))
+            }
+            crate::domain::contract::types::RenderKind::NotApplicable => {
+                RenderAnswer::NotApplicable
+            }
+            crate::domain::contract::types::RenderKind::Unsupported => RenderAnswer::Unsupported,
+        })
+        .collect();
+    let mut minting = crate::domain::render_batch::types::RenderMinting {
+        driver,
+        row,
+        joined: other,
+        outcome: Ok(()),
+    };
+    let delivered = deliver(&answers, &mut minting);
+    minting.outcome.and(delivered)
+}

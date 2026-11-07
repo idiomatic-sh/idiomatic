@@ -7,28 +7,7 @@ impl PartialEq for StaticRequest<'_> {
     fn eq(&self, other: &Self) -> bool {
         let (left, right) = (self.0, other.0);
         match (left, right) {
-            (
-                ViewRequest::RawKeyOrder { stride: left },
-                ViewRequest::RawKeyOrder { stride: right },
-            ) => left == right,
-            (ViewRequest::Equality { columns: a }, ViewRequest::Equality { columns: b })
-            | (
-                ViewRequest::DistinctRepresentatives { columns: a },
-                ViewRequest::DistinctRepresentatives { columns: b },
-            ) => a == b,
-            (ViewRequest::PredicateMatches(a), ViewRequest::PredicateMatches(b)) => {
-                a.relation == b.relation && a.identity == b.identity
-            }
-            (
-                ViewRequest::CandidatePostings {
-                    column: a,
-                    literals: x,
-                },
-                ViewRequest::CandidatePostings {
-                    column: b,
-                    literals: y,
-                },
-            ) => a == b && x == y,
+            (ViewRequest::Equality { columns: a }, ViewRequest::Equality { columns: b }) => a == b,
             (
                 ViewRequest::Adjacency {
                     endpoints: a,

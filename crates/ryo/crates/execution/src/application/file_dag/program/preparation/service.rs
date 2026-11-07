@@ -21,7 +21,6 @@ use std::sync::Arc;
 mod census;
 mod demands;
 mod metadata;
-mod orders;
 mod replay;
 mod schedule;
 
@@ -46,17 +45,6 @@ impl PreparedProgram {
             .map(AsRef::as_ref)
             .ok_or(OperatingError::NotRun)
     }
-    pub(in crate::application::file_dag::program) fn native_order(
-        &self,
-        region: crate::domain::executable_program::types::RegionId,
-    ) -> Result<Option<Arc<crate::domain::derived_views::types::contract::value::DerivedContract>>, OperatingError>
-    {
-        self.native_orders
-            .get(region.0)
-            .cloned()
-            .ok_or(OperatingError::NotRun)
-    }
-
     pub(in crate::application::file_dag::program) fn walk(
         &self,
     ) -> &crate::domain::shared_walk::types::prepared_walk::value::PreparedWalk {
@@ -70,7 +58,7 @@ impl PreparedProgram {
     pub(in crate::application::file_dag::program) fn walk_class(
         &self,
         instruction: &crate::domain::executable_program::types::instruction::value::Instruction,
-    ) -> Option<crate::domain::positions::types::ClassPlace> {
+    ) -> Option<crate::domain::step_classes::types::ClassPlace> {
         self.walk.class_for(instruction)
     }
     pub(in crate::application::file_dag::program) fn rule_id(
@@ -209,7 +197,6 @@ pub(crate) fn prepare(
     hosted: &[HostRelation],
     derived: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
     identity: ObservationIdentity,
-    routes: crate::domain::executable_program::types::RoutePolicy,
 ) -> Result<Arc<PreparedProgram>, OperatingError> {
     let derived: crate::application::file_dag::derived::owner::types::DerivedAccess = derived.into();
     if rule_digests.len() != rules.len() {
@@ -285,14 +272,10 @@ pub(crate) fn prepare(
         graph,
         &partitions,
         &operators,
-        routes,
     )?);
     walk.retain_program_consumers(&program)?;
     census::service::trace(rules, &walk, &program);
-    let native_orders = orders::service::prepare(&program, &derived)?;
-    let derived = crate::application::file_dag::derived::prepared::RequestDerived::compile(
-        &program, &operators,
-    )?;
+    let derived = crate::application::file_dag::derived::prepared::RequestDerived::compile(&program)?;
     let metadata =
         metadata::service::rules(&program, named.as_ref(), &plans, &observation_frontiers)?;
     let matchers = Arc::new(
@@ -317,7 +300,6 @@ pub(crate) fn prepare(
     };
     Ok(Arc::new(PreparedProgram {
         program,
-        native_orders,
         rule_ids: rules.iter().map(|rule| rule.id.clone()).collect(),
         applicability: rules.iter().map(|rule| rule.applicability).collect(),
         rule_digests: rule_digests.to_vec().into_boxed_slice(),

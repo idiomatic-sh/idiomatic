@@ -6,7 +6,6 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::contract::types::{BuildInputs, BuildOutcome, BuildWorkspace, DerivedView};
 use crate::domain::fault::types::DerivedFault;
 use crate::domain::preparation::service::prepare;
-use crate::domain::raw_words::types::{KeyStride, RawWords};
 use crate::domain::request::types::DerivedRequest;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -48,7 +47,10 @@ fn subject(input: Input) -> Result<Value, Failure> {
         DerivedRequest::Equality { columns: vec![ColumnIndex(0)] },
         vec![vec![CellKind::Number]],
     );
-    let raw = prepare(DerivedRequest::RawKeyOrder { stride: KeyStride(1) }, Vec::new());
+    let raw = prepare(
+        DerivedRequest::PartitionOrder { keys: vec![ColumnIndex(0)] },
+        vec![vec![CellKind::Number]],
+    );
     let mut room = BuildWorkspace::default();
     let built = match input {
         Scenario::EqualityIsViewedAsItsIndex => crate::domain::dispatch::service::build(
@@ -59,7 +61,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
         )?,
         Scenario::PayloadOfAnotherKind => crate::domain::dispatch::service::build(
             &raw,
-            BuildInputs::RawWords(RawWords(&[1])),
+            BuildInputs::Rows(&rows),
             &mut room,
             None,
         )?,

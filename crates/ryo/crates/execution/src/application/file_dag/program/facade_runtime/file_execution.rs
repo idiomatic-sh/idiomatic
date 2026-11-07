@@ -106,12 +106,16 @@ pub(crate) fn open_file<'a>(
     let routes = crate::application::file_dag::route_counts::types::FileScope::begin(file.0 as usize);
     #[cfg(feature = "diagnostic-row-progress")]
     if let Some(path) = services.request.path(file) {
-        crate::application::file_dag::route_counts::progress::service::file_name(path);
+        crate::application::file_dag::route_counts::progress::service::file_name(
+            routes.profile(),
+            path,
+        );
     }
     let owner = open_program_owner(
         program.program(),
         services.derived().clone(),
         reuse_eligible,
+        routes.profile().clone(),
     );
     let ScopePartials::File { publication, .. } = partials else {
         return Err(OperatingError::WrongOperation);

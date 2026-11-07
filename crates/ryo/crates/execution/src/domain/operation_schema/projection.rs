@@ -68,7 +68,7 @@ pub(crate) fn joined(
                 Side::Right => (
                     right,
                     view.map_or(column.column, |view| {
-                        crate::domain::tree_join::service::source_column(view, column.column)
+                        crate::domain::table_cells::service::source_column(view, column.column)
                     }),
                 ),
             };

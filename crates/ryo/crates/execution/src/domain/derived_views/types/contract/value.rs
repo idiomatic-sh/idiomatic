@@ -1,10 +1,9 @@
 //! The sealed derived contract: only `issue` makes one, so its identity hash and kind cannot be forged.
 
 use crate::domain::derived_views::types::{
-    IdentityHash, InputsUsed, SelectorAddress, ViewGroup, ViewGroupCount, ViewRequest,
+    IdentityHash, InputsUsed, ViewRequest,
 };
-use crate::domain::stored_selection::types::Selector;
-use ryo_values::domain::plan_parts::types::{ColumnIndex, InputNumber};
+use ryo_values::domain::plan_parts::types::InputNumber;
 use ryo_derived::domain::contract::types::prepared_derived::value::PreparedDerived;
 use ryo_derived::domain::request::types::DerivedKind;
 use ryo_relations::domain::relations::types::CellKind;
@@ -13,11 +12,7 @@ use std::sync::Arc;
 /// The kind a request asks for.
 pub(crate) fn kind_of(request: &ViewRequest) -> DerivedKind {
     match request {
-        ViewRequest::RawKeyOrder { .. } => DerivedKind::RawKeyOrder,
         ViewRequest::Equality { .. } => DerivedKind::Equality,
-        ViewRequest::PredicateMatches(_) => DerivedKind::PredicateMatches,
-        ViewRequest::CandidatePostings { .. } => DerivedKind::CandidatePostings,
-        ViewRequest::DistinctRepresentatives { .. } => DerivedKind::DistinctRepresentatives,
         ViewRequest::Adjacency { .. } => DerivedKind::Adjacency,
         ViewRequest::Membership { .. } => DerivedKind::Membership,
         ViewRequest::PartitionOrder { .. } => DerivedKind::PartitionOrder,
@@ -89,21 +84,3 @@ pub(crate) struct DerivedSlots {
     pub slots: [Option<Arc<PreparedViewGroup>>; DerivedKind::ALL.len()],
 }
 
-/// Prepared construction contracts indexed by exact request-owned selector identity.
-#[derive(Debug, Default)]
-pub(crate) struct PreparedSelectionViews {
-    /// Pins every selector address for the complete request lifetime.
-    pub selectors: Vec<Arc<Selector>>,
-    /// O(1) capability lookup; no metadata construction occurs while selecting.
-    pub by_selector: std::collections::HashMap<SelectorAddress, Arc<PreparedSelectorViews>>,
-    pub groups: ViewGroupCount,
-}
-#[derive(Debug)]
-pub(crate) struct PreparedSelectorViews {
-    pub group: ViewGroup,
-    pub predicate: Arc<DerivedContract>,
-    pub postings: Arc<DerivedContract>,
-    pub distinct: Arc<DerivedContract>,
-    /// Every statically possible equality discriminator, chosen without runtime preparation.
-    pub equalities: std::collections::HashMap<ColumnIndex, Arc<DerivedContract>>,
-}

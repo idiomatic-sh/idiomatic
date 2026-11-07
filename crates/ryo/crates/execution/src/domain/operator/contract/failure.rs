@@ -34,7 +34,7 @@ impl FailureLatch {
             }
         }
     }
-    fn record(&mut self, error: OperatingError) {
+    pub(crate) fn record(&mut self, error: OperatingError) {
         if self.0.is_none() {
             self.0 = Some(error);
         }

@@ -2,7 +2,6 @@
 //! `execute` finishes the owner and asserts the shared ledger, working and owned bytes are zero.
 use super::super::capability::fixtures::Witness;
 use super::super::cases::test::{node, table_of, tree_rows, wide_tree};
-use super::super::column_chain::fixtures::{expected, plan, sources};
 use super::super::*;
 use super::fixtures::{OrderedPort, ordered_sources, refused};
 use std::sync::atomic::Ordering;
@@ -12,76 +11,6 @@ fn cancelled() -> Faults {
         sink_after: Some(0),
         ..Faults::default()
     }
-}
-
-#[test]
-fn column_strategy_delivery_refusal_releases_and_the_completed_chain_delivers_in_full() {
-    let mut symbols = Symbols::default();
-    let port = Arc::new(Witness::default());
-    let actual = execute(
-        plan(),
-        sources(&mut symbols, 64, true),
-        &mut symbols,
-        b"",
-        true,
-        port.clone(),
-        cancelled(),
-    )
-    .unwrap();
-    assert!(
-        actual.column_prepared,
-        "the real compiler installs the column chain"
-    );
-    assert!(
-        port.columns.load(Ordering::Relaxed) > 0,
-        "the actual column semantic call ran before the sink refused"
-    );
-    assert!(matches!(actual.result, Err(OperatingError::NotRun)));
-    assert!(actual.prefix.is_empty());
-    let port = Arc::new(Witness::default());
-    let complete = execute(
-        plan(),
-        sources(&mut symbols, 64, true),
-        &mut symbols,
-        b"",
-        true,
-        port,
-        Faults::default(),
-    )
-    .unwrap();
-    assert_eq!(complete.result.unwrap().count, RowCount(64));
-    assert_eq!(
-        complete
-            .prefix
-            .iter()
-            .flatten()
-            .copied()
-            .collect::<Vec<_>>(),
-        expected(64)
-    );
-}
-
-#[test]
-fn column_strategy_semantic_refusal_is_primary_over_the_sink_refusal() {
-    let mut symbols = Symbols::default();
-    let port = Arc::new(Witness {
-        refuse: true,
-        only_columns: true,
-        ..Witness::default()
-    });
-    let actual = execute(
-        plan(),
-        sources(&mut symbols, 64, true),
-        &mut symbols,
-        b"",
-        true,
-        port.clone(),
-        cancelled(),
-    )
-    .unwrap();
-    assert_eq!(port.columns.load(Ordering::Relaxed), 1);
-    assert_eq!(actual.result.unwrap_err(), refused());
-    assert!(actual.prefix.is_empty(), "the sink is never reached");
 }
 
 fn tree_join(

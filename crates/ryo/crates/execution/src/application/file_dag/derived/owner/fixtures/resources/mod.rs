@@ -90,7 +90,7 @@ impl ResourceFixture {
             ViewContext::default(),
             DerivedInputs::Rows(&[proof.rows()]),
             &mut DerivedScratch::default(),
-            Some(crate::application::file_dag::derived::owner::acquisition::selection::types::StoredColumns {
+            Some(crate::application::file_dag::derived::owner::acquisition::population::types::StoredColumns {
                 relation,
             }),
         )
@@ -119,18 +119,8 @@ pub(crate) fn weak_storage(
 #[derive(Debug, Default)]
 pub(in crate::application::file_dag) struct RecordedDerived {
     builds: std::sync::Mutex<Vec<ryo_derived::domain::request::types::DerivedRequest>>,
-    raw_failure: Option<ryo_derived::domain::fault::types::DerivedFault>,
 }
 impl RecordedDerived {
-    pub(in crate::application::file_dag) fn refusing_raw(
-        fault: ryo_derived::domain::fault::types::DerivedFault,
-    ) -> Self {
-        Self {
-            raw_failure: Some(fault),
-            ..Self::default()
-        }
-    }
-
     pub(in crate::application::file_dag) fn builds(
         &self,
     ) -> Vec<ryo_derived::domain::request::types::DerivedRequest> {
@@ -159,13 +149,6 @@ impl DerivedPort for RecordedDerived {
             .lock()
             .expect("recorded semantic calls")
             .push(prepared.request().clone());
-        if matches!(
-            prepared.request(),
-            ryo_derived::domain::request::types::DerivedRequest::RawKeyOrder { .. }
-        ) && let Some(fault) = &self.raw_failure
-        {
-            return Err(fault.clone());
-        }
         crate::application::file_dag::fixtures::derived().build(prepared, inputs, room, recycled)
     }
     fn view<'a>(

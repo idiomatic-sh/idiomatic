@@ -12,7 +12,6 @@ use crate::outbound::facts::types::ResidentStability;
 use crate::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use crate::application::file_dag::derived::owner::types::DerivedAccess;
 use crate::application::file_dag::program::prepared_execution::service::prepare;
-use crate::domain::executable_program::types::RoutePolicy;
 use crate::outbound::derived::interface::DerivedPort;
 use crate::outbound::operators::interface::OperatorsPort;
 use crate::application::file_dag::program::file_session::types::{FileInput, SourceLanguage, SourceRows};
@@ -141,7 +140,6 @@ impl Preparation {
             request.observations,
             Arc::clone(&self.operators),
             &self.derived,
-            RoutePolicy::default(),
         )
     }
 }

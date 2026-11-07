@@ -1,9 +1,9 @@
 //! FIFO pairing over already prepared, ordered populations.
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::ordered_match::types::{KeyOrder, OrderedMatchDriver};
-use ryo_values::domain::rows::types::RowIndex;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::{JoinColumn, Side};
+use ryo_values::domain::rows::types::RowIndex;
 pub(crate) fn pairs(
     output: &[JoinColumn],
     driver: &mut dyn OrderedMatchDriver,
@@ -53,4 +53,13 @@ pub(crate) fn pairs(
         next_right += 1;
     }
     Ok(())
+}
+
+/// Pairs the engine's prepared ordered keys of both inputs in FIFO order.
+pub(crate) fn evaluate(
+    output: &[JoinColumn],
+    driver: &mut dyn crate::domain::ordered_match::types::OrderedMatchEvaluation,
+    target: &mut Vec<Value>,
+) -> Result<(), PortableOperatorFault> {
+    pairs(output, driver.ordered_match()?, target)
 }

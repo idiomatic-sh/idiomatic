@@ -1,7 +1,7 @@
 //! One provider answer per request and the engine-owned delivery of the known ones.
 use crate::domain::contract::errors::ContractError;
-use ryo_values::domain::rows::types::RowIndex;
 use ryo_values::domain::row_texts::types::CellText;
+use ryo_values::domain::rows::types::RowIndex;
 
 /// What a language provider answered for one render request.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -22,4 +22,41 @@ pub trait RenderedOutput {
     ///
     /// The engine retained an error that stops the delivery.
     fn text(&mut self, position: RowIndex, text: CellText<'_>) -> Result<(), ContractError>;
+}
+
+/// Interns each known rendering as derived text and emits its candidate row with it appended.
+pub(crate) struct RenderMinting<'a> {
+    /// The engine's driver, which reads each candidate, interns each rendering and takes each row.
+    pub driver: &'a mut dyn crate::domain::contract::types::RowDriver,
+    /// The candidate row being read.
+    pub row: &'a mut Vec<ryo_relations::domain::relations::types::Value>,
+    /// The candidate row with its rendering appended.
+    pub joined: &'a mut Vec<ryo_relations::domain::relations::types::Value>,
+    /// The driver's refusal, which outranks what the delivery answers.
+    pub outcome: Result<(), crate::domain::contract::types::PortableOperatorFault>,
+}
+
+impl crate::domain::render_batch::types::RenderedOutput for RenderMinting<'_> {
+    fn text(
+        &mut self,
+        position: ryo_values::domain::rows::types::RowIndex,
+        text: ryo_values::domain::row_texts::types::CellText<'_>,
+    ) -> Result<(), crate::domain::contract::errors::ContractError> {
+        use ryo_values::domain::plan_parts::types::InputNumber;
+        if self
+            .driver
+            .population_row(InputNumber(0), position, self.row)
+            != crate::domain::contract::types::RowRead::Read
+        {
+            self.outcome = Err(crate::domain::contract::types::PortableOperatorFault::NotRun);
+            return Err(crate::domain::contract::errors::ContractError::Interrupted);
+        }
+        let made = self.driver.mint(text);
+        self.joined.clear();
+        self.joined.extend_from_slice(self.row);
+        self.joined.push(made);
+        self.driver
+            .emit(self.joined)
+            .map_err(|_| crate::domain::contract::errors::ContractError::Interrupted)
+    }
 }

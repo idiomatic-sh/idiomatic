@@ -1,7 +1,7 @@
 //! Refused calls are not deliveries; capture is owed; release is keyed by relation.
 use super::super::super::*;
 use super::super::fixtures::plans::Authored;
-use super::super::fixtures::semantics::{BuildPolicy, Derived, Meanings};
+use super::super::fixtures::semantics::{Derived, Meanings};
 use super::super::fixtures::{Population, Program, Residency, demand, observed_demand};
 use crate::application::file_dag::program::native_walk::RetainedBatches;
 use crate::domain::frontier_capture::types::CaptureScope;
@@ -13,7 +13,7 @@ fn captured_program() -> Program {
         Population::Three,
         Residency::Stable,
         Arc::new(Meanings::default()),
-        Arc::new(Derived::new(BuildPolicy::Normal)),
+        Arc::new(Derived::new()),
     )
     .unwrap()
 }
@@ -23,7 +23,7 @@ fn relations_program() -> Program {
         Population::Three,
         Residency::Stable,
         Arc::new(Meanings::default()),
-        Arc::new(Derived::new(BuildPolicy::Normal)),
+        Arc::new(Derived::new()),
     )
     .unwrap()
 }
@@ -70,7 +70,7 @@ fn program(residency: Residency) -> Program {
         Population::Three,
         residency,
         Arc::new(Meanings::default()),
-        Arc::new(Derived::new(BuildPolicy::Normal)),
+        Arc::new(Derived::new()),
     )
     .unwrap()
 }

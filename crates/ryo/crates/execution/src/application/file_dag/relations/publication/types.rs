@@ -5,7 +5,7 @@ use crate::domain::executable_program::types::RegionId;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_model::{
     collections::representations::types::{PhysicalShape, RepresentationKind},
-    types::{PublishedRelation, StoredSelection},
+    types::PublishedRelation,
 };
 use ryo_relations::domain::relations::types::{CellKind, Relation};
 use std::sync::{Arc, OnceLock};
@@ -23,16 +23,6 @@ pub(in crate::application::file_dag::relations) struct SourceDescriptor {
 #[derive(Debug)]
 pub(in crate::application::file_dag::relations) enum RelationBody {
     Source(SourceDescriptor),
-    Selected {
-        source: Arc<RelationResult>,
-        selection: Arc<StoredSelection>,
-    },
-    Positioned {
-        source: Arc<RelationResult>,
-        positions: Arc<crate::domain::positions::types::Positions>,
-        shape: Arc<crate::domain::lowering::types::LoweredShape>,
-        kinds: Arc<[CellKind]>,
-    },
     Computed(Arc<Table>),
     Compact(Arc<ryo_values::domain::table_words::types::CompactTable>),
 }

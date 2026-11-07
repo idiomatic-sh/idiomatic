@@ -2,8 +2,7 @@
 //! There is no retained RequestGraph, PhysicalRegion, PlanLayout or per-plan evaluator here.
 use super::super::region::value::Region;
 use super::super::{
-    FileReaderGraph, InputSource, LogicalInstruction, PartitionRequirement, RegionId, RoutePolicy,
-    RuleProgram,
+    FileReaderGraph, InputSource, LogicalInstruction, PartitionRequirement, RegionId, RuleProgram,
 };
 use crate::domain::operating::errors::OperatingError;
 use ryo_values::domain::{plan_parts::types::StepScope, plans::types::Operation};
@@ -16,8 +15,6 @@ pub(crate) struct ExecutableProgram {
     rules: Box<[RuleProgram]>,
     logical_regions: Box<[RegionId]>,
     observation_regions: Box<[Result<RegionId, OperatingError>]>,
-    /// The strategies the composition wired when this program was compiled.
-    routes: RoutePolicy,
     /// The fusion classification of every instruction, indexed by its logical number.
     #[cfg(test)]
     fusibility: Box<[crate::domain::executable_program::fusion::types::Fusibility]>,
@@ -31,7 +28,6 @@ impl ExecutableProgram {
         rules: Box<[RuleProgram]>,
         logical_regions: Box<[RegionId]>,
         observation_regions: Box<[Result<RegionId, OperatingError>]>,
-        routes: RoutePolicy,
     ) -> Self {
         Self {
             regions,
@@ -39,7 +35,6 @@ impl ExecutableProgram {
             rules,
             logical_regions,
             observation_regions,
-            routes,
             #[cfg(test)]
             fusibility: Box::new([]),
         }
@@ -152,10 +147,6 @@ impl ExecutableProgram {
     }
     pub(crate) fn observation_regions(&self) -> &[Result<RegionId, OperatingError>] {
         &self.observation_regions
-    }
-    /// The strategies the composition wired for this program.
-    pub(crate) fn routes(&self) -> RoutePolicy {
-        self.routes
     }
     /// Where the rows of one input of a region come from: a relation's from one file each, a region's or a named
     /// observation's as the compiler found, anything else from no one file.

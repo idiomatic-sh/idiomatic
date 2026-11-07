@@ -32,3 +32,15 @@ pub trait OrderedMatchDriver {
 
 use crate::domain::contract::types::{PortableOperatorFault};
 use crate::domain::contract::errors::ContractError;
+
+/// An engine driver that lends the ordered keys of both inputs.
+pub trait OrderedMatchEvaluation: crate::domain::contract::types::RowDriver {
+    /// The engine's prepared ordered keys of both inputs.
+    ///
+    /// # Errors
+    ///
+    /// The engine retained an error: an input or the ordered keys are absent.
+    fn ordered_match(
+        &mut self,
+    ) -> Result<&mut dyn OrderedMatchDriver, crate::domain::contract::types::PortableOperatorFault>;
+}

@@ -30,8 +30,6 @@ use ryo_values::domain::rows::service::{positions, push_row, reset, row_in};
 pub(crate) fn kinds_of<'a>(rows: &'a Rows<'_>) -> &'a [CellKind] {
     match rows {
         Rows::Stored(view) => view.kinds,
-        Rows::Selected(view) => &view.selection.kinds,
-        Rows::Positioned(view) => view.kinds,
         Rows::Tree(TreeRows {
             form: TreeForm::Edges,
             ..
@@ -49,15 +47,6 @@ pub(crate) fn kinds_of<'a>(rows: &'a Rows<'_>) -> &'a [CellKind] {
 #[must_use]
 pub(crate) fn count_of(rows: &Rows<'_>) -> RowCount {
     match rows {
-        Rows::Selected(view) => RowCount(view.selection.rows.len()),
-        Rows::Positioned(view) => RowCount(
-            view.positions
-                .slots
-                .0
-                .len()
-                .checked_div(view.positions.width.0)
-                .unwrap_or(0),
-        ),
         Rows::Stored(view) => RowCount(view.columns.first().map_or(0, |column| column.0.len())),
         Rows::Computed(table) => table.count,
         Rows::Compact(table) => ryo_values::domain::compact_table::service::compact_rows(table),
@@ -95,45 +84,15 @@ pub(crate) fn read_row<'s>(
     index: RowIndex,
     scratch: &'s mut Vec<Value>,
 ) -> Option<&'s [Value]> {
-    let found = borrowed(rows)
-        .read(index, scratch);
-    #[cfg(test)]
-    if let Some(row) = found {
-        super::fixtures::note_read_row(row.len());
-    }
-    found
+    borrowed(rows).read(index, scratch)
 }
 
 /// Copies the rows into `into`, keeping the room `into` has.
 pub(crate) fn materialize(rows: &Rows<'_>, into: &mut Table, scratch: &mut Vec<Value>) {
     reset(into, kinds_of(rows));
-    if let Rows::Selected(view) = rows {
-        // The selection already names physical positions and projected columns.
-        // Decode only those cells into the destination; a malformed source row
-        // remains skipped as it was by read_row, without retaining a partial row.
-        for row in positions(count_of(rows)) {
-            let start = into.cells.len();
-            let complete = view.selection.columns.iter().enumerate().all(|(at, _)| {
-                let Ok(at) = u32::try_from(at) else {
-                    return false;
-                };
-                let Some(value) = selected_cell(view, row, ColumnIndex(at)) else {
-                    return false;
-                };
-                into.cells.push(value);
-                true
-            });
-            if complete {
-                into.count.0 += 1;
-            } else {
-                into.cells.truncate(start);
-            }
-        }
-    } else {
-        for index in positions(count_of(rows)) {
-            if let Some(row) = read_row(rows, index, scratch) {
-                push_row(into, row);
-            }
+    for index in positions(count_of(rows)) {
+        if let Some(row) = read_row(rows, index, scratch) {
+            push_row(into, row);
         }
     }
     tracing::trace!(target: "ryo::diagnostic::selection", event = MATERIALIZED,
@@ -193,38 +152,6 @@ fn stored_cell(view: ColumnsView<'_>, row: RowIndex, column: ColumnIndex) -> Opt
     let kind = column_in(view.kinds, column)?;
     let bits = column_in(view.columns, column)?.0.get(row.0)?;
     Some(from_bits(*kind, Bits(*bits)))
-}
-
-/// Decode one logical compact-view cell directly from its physical provider column.
-fn selected_cell(
-    view: &super::types::SelectedRows<'_>,
-    row: RowIndex,
-    column: ColumnIndex,
-) -> Option<Value> {
-    selected_view_cell(
-        super::types::SelectedView {
-            source: view.source,
-            positions: super::types::PhysicalRows(&view.selection.rows),
-            columns: &view.selection.columns,
-        },
-        row,
-        column,
-    )
-}
-
-fn selected_view_cell(
-    view: super::types::SelectedView<'_>,
-    row: RowIndex,
-    column: ColumnIndex,
-) -> Option<Value> {
-    let Ok(physical) = usize::try_from(*view.positions.0.get(row.0)?) else {
-        return None;
-    };
-    stored_cell(
-        view.source,
-        RowIndex(physical),
-        *column_in(view.columns, column)?,
-    )
 }
 
 /// Read one typed cell without decoding unused stored payload or allocating a row buffer.

@@ -8,7 +8,7 @@ use std::sync::Arc;
 use self::constants::EXPECT_DEMANDED_INPUT;
 use ryo_values::domain::plan_parts::types::InputNumber;
 
-use crate::domain::operator::contract::{axis::AxisWorkspace, graph::DfsWorkspace};
+use crate::domain::operator::contract::types::{AxisWorkspace, DfsWorkspace};
 
 use crate::domain::table_model::types::Rows;
 use crate::domain::table_reach::types::Walk;
@@ -52,7 +52,7 @@ impl InvocationWorkspace {
         Self {
             work: Default::default(),
             #[cfg(feature = "diagnostic-row-progress")]
-            progress_origin: super::route_counts::capture(),
+            progress_origin: super::route_counts::capture(owner.routes()),
             derived_scratch: Default::default(),
             relation_owner: owner,
             publications: Default::default(),
@@ -82,8 +82,8 @@ impl InvocationWorkspace {
             .0
             .get()
             .map_or(0, |state| state.compiled_globs.len());
-        observed.row_capacity = self.primitive.row.capacity();
-        observed.other_capacity = self.primitive.other.capacity();
+        observed.row_capacity = self.primitive.evaluation.rows.row.capacity();
+        observed.other_capacity = self.primitive.evaluation.rows.other.capacity();
         observed.closure_visited = self
             .primitive
             .closure_walk

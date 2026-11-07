@@ -12,7 +12,8 @@ use crate::domain::{
         types::KindScratch,
     },
     operating::types::{KindNaming, Memo, NameCount, OperatorContext},
-    positions::types::{ClassPlace, Slots},
+    step_classes::types::ClassPlace,
+    shared_walk::types::Slots,
     step_classes::types::StepClass,
     table_cells::{
         service::read_tree_cells,

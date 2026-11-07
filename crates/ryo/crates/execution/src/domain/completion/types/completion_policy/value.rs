@@ -13,9 +13,7 @@ use crate::domain::{
 use ryo_relations::domain::relations::types::FileId;
 use ryo_values::domain::{plans::types::Operation, rows::types::Table};
 
-use super::super::{
-    CoverageState, ObservationAdmission, RegionAdmission, RowRetention, ScopeIdentity,
-};
+use super::super::{CoverageState, ObservationAdmission, RegionAdmission, ScopeIdentity};
 #[derive(Clone, PartialEq, Eq)]
 enum CompletionBehavior {
     BlockBeforeRun(std::sync::Arc<[Partial]>),
@@ -151,12 +149,6 @@ impl CompletionPolicy {
             ObservationAdmission::Ready
         } else {
             ObservationAdmission::Incomplete
-        }
-    }
-    pub(crate) fn row_retention(&self) -> RowRetention {
-        match self.behavior {
-            CompletionBehavior::DropAfterCollect(_) => RowRetention::Required,
-            CompletionBehavior::BlockBeforeRun(_) => RowRetention::Unnecessary,
         }
     }
     pub(crate) fn filter_rows(

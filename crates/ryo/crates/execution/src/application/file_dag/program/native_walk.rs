@@ -8,7 +8,7 @@ use crate::{
     application::file_dag::derived::population::types::PopulationId,
     domain::{
         operating::{errors::OperatingError, types::OperatorContext},
-        positions::types::ClassPlace,
+        step_classes::types::ClassPlace,
         shared_walk::types::{WalkWork, native_batch::value::NativeBatch},
         table_model::types::Rows,
     },

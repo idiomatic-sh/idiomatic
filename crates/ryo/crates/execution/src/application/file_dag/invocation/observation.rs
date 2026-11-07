@@ -3,6 +3,13 @@ use super::*;
 impl InvocationResources<'_> {
     #[cfg(test)]
     pub(crate) fn observe(&self, workspace: &mut super::super::workspace::InvocationWorkspace) {
+        #[cfg(feature = "diagnostic-row-progress")]
+        let view = self
+            .inputs
+            .index
+            .as_ref()
+            .map(|index| index.view(&self.inputs.progress));
+        #[cfg(not(feature = "diagnostic-row-progress"))]
         let view = self.inputs.index.as_ref().map(IndexResource::view);
         let observed = &mut workspace.observation;
         observed.owners_initialized = usize::from(self.inputs.index.is_some())
@@ -66,8 +73,8 @@ impl InvocationResources<'_> {
             capacity = crate::application::file_dag::closure_partitions::partitions_test::working_capacity(parts);
         }
         if !self.inputs.closure.is_empty() || self.inputs.partitioned_closure.is_some() {
-            capacity += workspace.primitive.row.capacity()
-                + workspace.primitive.other.capacity()
+            capacity += workspace.primitive.evaluation.rows.row.capacity()
+                + workspace.primitive.evaluation.rows.other.capacity()
                 + workspace
                     .primitive
                     .closure_walk

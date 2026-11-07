@@ -23,10 +23,7 @@ pub(crate) struct Observation {
     pub(crate) derived_builds: Vec<ryo_derived::domain::request::types::DerivedRequest>,
     pub(crate) fed: Vec<crate::domain::operator::types::RowsFed>,
     pub(crate) instructions: usize,
-    pub(crate) native_prepared: bool,
-    pub(crate) column_prepared: bool,
     pub(crate) frontiers: Vec<Table>,
-    pub(crate) frontier_errors: Vec<OperatingError>,
     pub(crate) affected: Vec<Option<FileId>>,
 }
 /// Fixture behavior belongs to real external source/sink dependencies only.
@@ -103,7 +100,7 @@ pub(crate) fn execute(
         &[Digest([0; 16])],
         &[],
         Arc::clone(&derived),
-        ObservationIdentity::Independent, crate::domain::executable_program::types::RoutePolicy::default(),
+        ObservationIdentity::Independent,
     )?;
     let program = prepared.program();
     let logical = program.rules()[0].original_steps[target.0 as usize]
@@ -112,13 +109,6 @@ pub(crate) fn execute(
         .logical;
     let region = program.logical_regions()[logical.0];
     let instructions = program.regions()[region.0].instructions().len();
-    let native_prepared = crate::domain::executable_program::service::native_positions(
-        &program.regions()[region.0].route(),
-    )
-    .is_some();
-    let column_prepared =
-        crate::domain::executable_program::service::column(&program.regions()[region.0].route())
-            .is_some();
     let services = Arc::new(ProgramServices::new(
         Arc::new(CommonOperatorEngine::new(port)),
         derived,
@@ -218,7 +208,6 @@ pub(crate) fn execute(
         }
     };
     let work = file.route_observation(RuleIndex(0), target)?;
-    let mut frontier_errors = vec![];
     let frontiers = if has_frontier {
         let mut arena = vec![];
         let mut places = vec![];
@@ -241,13 +230,8 @@ pub(crate) fn execute(
         )?
         .into_iter()
         .filter_map(|capture| {
-            let capture = match capture.outcome {
-                Ok(capture) => capture,
-                Err(error) => {
-                    frontier_errors.push(error);
-                    return None;
-                }
-            };
+            // A refused frontier capture contributes no frontier table.
+            let capture = capture.outcome.ok()?;
             let ryo_values::domain::table_words::types::Admitted { table: compact, .. } =
                 admit_compact(
                     ryo_values::domain::table_words::types::CompactBacking(Arc::new(KeptWords(
@@ -294,10 +278,7 @@ pub(crate) fn execute(
         derived_builds: faults.derived.builds(),
         fed,
         instructions,
-        native_prepared,
-        column_prepared,
         frontiers,
-        frontier_errors,
         affected,
     })
 }

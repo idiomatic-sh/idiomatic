@@ -66,3 +66,59 @@ pub(crate) fn matches(
         slots.truncate(mark);
     }
 }
+
+/// Matches the text of a scheduled row's path against the pattern and emits the row once for each complete
+/// match, with what the slots matched appended; a path that is not text has no row.
+pub(crate) fn evaluate(
+    row: &[ryo_relations::domain::relations::types::Value],
+    path: ryo_values::domain::plan_parts::types::ColumnIndex,
+    pattern: SlotPattern<'_>,
+    driver: &mut dyn crate::domain::contract::types::RowDriver,
+    scratch: &mut crate::domain::contract::types::RowScratch,
+) -> Result<(), crate::domain::contract::types::PortableOperatorFault> {
+    let value = ryo_values::domain::rows::service::column_in(row, path)
+        .copied()
+        .ok_or(
+            crate::domain::contract::types::PortableOperatorFault::NoSuchColumn { index: path },
+        )?;
+    let crate::domain::contract::types::RowScratch {
+        row: joined,
+        captured,
+        text,
+        slots,
+        ..
+    } = scratch;
+    text.clear();
+    if driver.text(value, text) == crate::domain::contract::types::TextFound::NotText {
+        return Ok(());
+    }
+    let text: &str = text;
+    captured.clear();
+    slots.clear();
+    let width = pattern.0.bytes().filter(|byte| *byte == b'{').count();
+    let mut minting = crate::domain::capture::types::SlotMinting {
+        driver: &mut *driver,
+        text,
+        captured: &mut *captured,
+        ways: 0,
+    };
+    matches(
+        pattern,
+        SlotSubject(text),
+        SlotSubject(text),
+        CaptureSlots(slots),
+        &mut minting,
+    );
+    let ways = minting.ways;
+    for way in 0..ways {
+        joined.clear();
+        joined.extend_from_slice(row);
+        joined.extend_from_slice(
+            captured
+                .get(way * width..(way + 1) * width)
+                .unwrap_or_default(),
+        );
+        driver.emit(joined)?;
+    }
+    Ok(())
+}

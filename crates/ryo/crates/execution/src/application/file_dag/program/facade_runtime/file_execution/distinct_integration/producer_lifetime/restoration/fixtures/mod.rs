@@ -178,7 +178,7 @@ impl CapturedProject {
             &vec![Digest([0; 16]); rules.len()],
             &hosted,
             Arc::clone(&derived),
-            ObservationIdentity::Named(ObservationReadinessLayout(Digest([91; 16]))), crate::domain::executable_program::types::RoutePolicy::default(),
+            ObservationIdentity::Named(ObservationReadinessLayout(Digest([91; 16]))),
         )?;
         let corpus = [CorpusInput::Available(CorpusEntry {
             executable: ExecutablePermission::Unknown,

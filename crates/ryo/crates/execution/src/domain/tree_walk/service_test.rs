@@ -7,7 +7,6 @@ use super::service::walk_kinds;
 use crate::domain::operating::errors::OperatingError;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 
-use crate::domain::table_scratch::types::ElementPlaces;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn, Side};
 
 /// What a row of the cases asks: the column the output names, if any.
@@ -63,9 +62,8 @@ const SLOT_OF_ELEMENT: &str = "a slot for each element of the tree the walk read
     clippy::expect_used,
     reason = "the remembered answers hold one slot per element; a missing slot must crash"
 )]
-fn nearest_at(nearest: &ElementPlaces, element: Position) -> Position {
+fn nearest_at(nearest: &[u32], element: Position) -> Position {
     nearest
-        .0
         .get(usize::try_from(element.0).unwrap_or(usize::MAX))
         .map(|known| Position(*known))
         .expect(SLOT_OF_ELEMENT)
@@ -90,7 +88,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     let from = [CellKind::Node, CellKind::Number];
     let reached = [CellKind::Node];
     if matches!(scenario, Scenario::NearestPastTheTree) {
-        let nearest = ElementPlaces(vec![0, 0]);
+        let nearest = vec![0, 0];
         return Ok(crashed_on_missing_slot(|| {
             let _found = nearest_at(&nearest, Position(5));
         }));

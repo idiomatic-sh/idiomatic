@@ -66,13 +66,14 @@ impl super::super::KernelSession<'_, '_> {
         let contract = instruction.contract().as_ref();
         let setup_failure = std::sync::OnceLock::new();
         let setup_semantics = crate::application::file_dag::execution::PrimitiveSemanticsBridge {
+            #[cfg(feature = "diagnostic-row-progress")]
+            progress: self.owner.routes(),
             port: self.kernels,
             permit: permit.semantics(),
             failure: &setup_failure,
             binding: crate::domain::executable_program::physical::PhysicalBinding {
                 bindings: context.bindings,
                 regex_identity: None,
-                native_join: crate::domain::executable_program::types::JoinLease::Absent,
                 source_len: ryo_operators::domain::contract::types::SourceByteLength(context.source.0.len()),
             },
         };
@@ -186,74 +187,6 @@ impl super::super::KernelSession<'_, '_> {
                             .output_kinds
                             .as_ref()
                             .map_err(|error| InvocationFailure::Semantic(error.clone()))?;
-                    }
-                    if matches!(
-                        permit.native_join_eligibility(),
-                        crate::application::file_dag::program::runtime::types::NativeJoinEligibility::Native
-                    ) && originals.first().is_some_and(|left| count_of(left).0 != 0)
-                        && matches!(originals.get(1), Some(Rows::Tree(_)))
-                    {
-                        if resources.is_none() {
-                            resources = Some(
-                                crate::application::file_dag::invocation::service::prepare(
-                                    contract,
-                                    &views,
-                                    context,
-                                    &originals,
-                                    workspace,
-                                    &setup_semantics,
-                                )
-                                .map_err(InvocationFailure::Semantic)?,
-                            );
-                        }
-                        if let Some(native) = resources
-                            .as_ref()
-                            .ok_or(InvocationFailure::Semantic(OperatingError::NotRun))?
-                            .native_join_lease()
-                            .map_err(InvocationFailure::Semantic)?
-                        {
-                            let delivery = std::sync::OnceLock::new();
-                            let request =
-                                crate::application::file_dag::program::native_join::lease::service::PermittedNativeJoin::new(
-                                    permit,
-                                    native,
-                                    &originals[0],
-                                    &self.owner,
-                                    context,
-                                    &workspace.work,
-                                    output,
-                                    &delivery,
-                                )
-                                .map_err(InvocationFailure::Semantic)?;
-                            let result = self.kernels.execute(
-                                crate::application::file_dag::executor::KernelCall::NativeJoin {
-                                    request,
-                                },
-                            );
-                            if let Some(error) = delivery.get() {
-                                return Err(InvocationFailure::Delivery(error.clone()));
-                            }
-                            return match result {
-                                Ok(
-                                    crate::application::file_dag::executor::KernelAnswer::Complete,
-                                ) => Ok(()),
-                                Ok(_) => {
-                                    Err(InvocationFailure::Semantic(OperatingError::WrongOperation))
-                                }
-                                Err(
-                                    crate::application::file_dag::executor::KernelFault::Refused(
-                                        error,
-                                    ),
-                                ) => Err(InvocationFailure::Semantic(error)),
-                                Err(
-                                    crate::application::file_dag::executor::KernelFault::Portable(
-                                        error,
-                                    ),
-                                ) => Err(InvocationFailure::Semantic(
-                                    crate::domain::operator::contract::types::portable_fault(error),
-                                )),
-                            };
-                        }
                     }
                     let meaning = &contract.semantics;
                     match meaning.shape {

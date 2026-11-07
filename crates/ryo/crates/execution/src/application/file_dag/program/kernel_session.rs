@@ -19,7 +19,6 @@ use ryo_relations::domain::relations::types::Relation;
 use std::rc::Rc;
 
 mod evaluation;
-mod positions;
 mod strategies;
 
 pub(super) struct KernelSession<'a, 'facts> {
@@ -80,54 +79,8 @@ impl KernelInvocation for KernelSession<'_, '_> {
         context: &mut OperatorContext<'_>,
         scratch: &mut KernelScratch,
         output: &mut dyn Emit,
-    ) -> Result<
-        crate::application::file_dag::program::runtime::types::StrategyOutcome,
-        InvocationFailure,
-    > {
+    ) -> Result<(), InvocationFailure> {
         self.ordered_session(shape, permit, input, context, scratch, output)
-    }
-    fn positions(
-        &self,
-        permit: &KernelPermit<'_>,
-        context: &mut OperatorContext<'_>,
-        scratch: &mut KernelScratch,
-    ) -> Result<
-        crate::application::file_dag::program::runtime::types::Attempt<
-            crate::application::file_dag::relations::handle::service::PublishedInput,
-        >,
-        InvocationFailure,
-    > {
-        self.positions_session(permit, context, scratch)
-    }
-    fn selected(
-        &self,
-        shape: &crate::domain::executable_program::types::SelectionAlternative,
-        permit: &KernelPermit<'_>,
-        context: &mut OperatorContext<'_>,
-        scratch: &mut KernelScratch,
-    ) -> Result<
-        crate::application::file_dag::program::runtime::types::Attempt<
-            crate::application::file_dag::relations::handle::service::PublishedInput,
-        >,
-        InvocationFailure,
-    > {
-        self.selected_session(shape, permit, context, scratch)
-    }
-    fn column(
-        &self,
-        shape: &crate::domain::executable_program::types::ColumnAlternative,
-        permit: &KernelPermit<'_>,
-        left: &super::admission::AdmittedInput,
-        right: &super::admission::AdmittedInput,
-        context: &mut OperatorContext<'_>,
-        _scratch: &mut KernelScratch,
-        counts: &crate::application::file_dag::program::runtime::types::ColumnCounters,
-        rows: &mut ryo_values::domain::rows::types::Table,
-    ) -> Result<
-        crate::application::file_dag::program::runtime::types::StrategyOutcome,
-        InvocationFailure,
-    > {
-        self.column_session(shape, permit, left, right, context, _scratch, counts, rows)
     }
     fn evaluate(
         &self,

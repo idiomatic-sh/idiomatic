@@ -32,7 +32,10 @@ pub enum CaptureRequest<'a> {
 
 /// Engine-owned symbol storage and row delivery. No acquisition or publication API is exposed.
 pub trait TextRowDriver {
-    fn intern(&mut self, text: ryo_values::domain::row_texts::types::CellText<'_>) -> ryo_relations::domain::relations::types::Value;
+    fn intern(
+        &mut self,
+        text: ryo_values::domain::row_texts::types::CellText<'_>,
+    ) -> ryo_relations::domain::relations::types::Value;
     fn emit(
         &mut self,
         row: &[ryo_relations::domain::relations::types::Value],
@@ -73,4 +76,44 @@ pub(crate) enum CarriageReturn {
     Pending,
     /// No carriage return awaits a line feed.
     Clear,
+}
+
+/// What an occurrence search reads from its operation: the capture it narrows to and what it emits.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct SearchShape<'a> {
+    /// The named group the occurrences are narrowed to.
+    pub capture: CaptureRequest<'a>,
+    /// Whether the occurrence's text is emitted.
+    pub capture_text: ryo_values::domain::query_operators::types::TextOutput,
+    /// Whether the occurrence's line is emitted.
+    pub capture_line: ryo_values::domain::query_operators::types::LineOutput,
+}
+
+/// What the engine lent an occurrence search: the physical source, the span text it validated before it
+/// acquired the matcher, and the matcher.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct SearchViews<'a> {
+    /// The physical source of the file being read.
+    pub source: LineBytes<'a>,
+    /// The span text the search was validated against.
+    pub checked: CheckedSource<'a>,
+    /// The matcher the engine acquired.
+    pub regex: &'a ryo_matching::inbound::use_cases::matching::compiled::CompiledRegex,
+}
+
+/// The source text an occurrence search was validated against, before any matcher was acquired.
+#[derive(Clone, Copy, Debug)]
+pub struct CheckedSource<'a> {
+    /// Where the checked text starts inside the physical source.
+    pub base: SourceBase,
+    /// The checked text.
+    pub text: ryo_values::domain::row_texts::types::CellText<'a>,
+    /// The line the text starts on.
+    pub line: BaseLine,
+}
+
+/// An engine driver that lends its symbol and delivery boundary of an occurrence search.
+pub trait TextRowsEvaluation: crate::domain::contract::types::RowDriver {
+    /// The engine's symbol and delivery boundary of an occurrence search.
+    fn text_rows(&mut self) -> &mut dyn TextRowDriver;
 }

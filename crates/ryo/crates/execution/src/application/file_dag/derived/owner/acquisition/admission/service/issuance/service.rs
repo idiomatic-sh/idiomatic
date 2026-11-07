@@ -29,7 +29,6 @@ impl AdmittedViewInputs<'_> {
 
 use crate::domain::table_model::types::RepresentationInput;
         let admitted_rows = match (&self.sources, inputs) {
-            (AcquisitionSources::Raw, DerivedInputs::RawWords(_)) => return Ok(()),
             (
                 AcquisitionSources::Rows(_),
                 DerivedInputs::Membership {
@@ -51,10 +50,7 @@ use crate::domain::table_model::types::RepresentationInput;
         };
         let rows = match inputs {
             DerivedInputs::Rows(rows) | DerivedInputs::Text { rows, .. } => rows.to_vec(),
-            DerivedInputs::Predicate { rows, .. }
-            | DerivedInputs::Distinct { rows, .. }
-            | DerivedInputs::Postings { rows, .. }
-            | DerivedInputs::Partition { rows, .. }
+            DerivedInputs::Partition { rows, .. }
             | DerivedInputs::Adjacency { rows, .. } => vec![*rows],
             DerivedInputs::Membership {
                 rows,
@@ -62,7 +58,6 @@ use crate::domain::table_model::types::RepresentationInput;
             } => vec![*rows, RepresentationInput::Tree(*tree)],
             DerivedInputs::Membership { rows, .. } => vec![*rows],
             DerivedInputs::Dfs { roots, edges, .. } => vec![*roots, *edges],
-            DerivedInputs::RawWords(_) => return Err(OperatingError::NotRead),
         };
         if rows.len() != admitted_rows.len()
             || !rows
@@ -125,30 +120,6 @@ impl DerivedOwner {
         }
         admitted.origin.lifetime = AcquisitionLifetime::Invocation;
         Ok(admitted)
-    }
-}
-
-impl DerivedOwner {
-    pub(in crate::application::file_dag::derived::owner) fn admit_raw(
-        &self,
-        plan: &Arc<DerivedContract>,
-        owner: &crate::application::file_dag::relations::RelationOwner,
-        permit: &crate::application::file_dag::program::runtime::service::KernelPermit<'_>,
-    ) -> Result<AdmittedViewInputs<'static>, OperatingError> {
-        permit.validate_derived_owner(owner)?;
-        if !std::ptr::eq(self, owner.derived()) || plan.kind != DerivedKind::RawKeyOrder {
-            return Err(OperatingError::WrongOperation);
-        }
-        Ok(AdmittedViewInputs {
-            origin: AcquisitionOrigin {
-                owner: Arc::clone(&self.identity),
-                live: owner.generation_liveness(),
-                plan: Arc::clone(plan),
-                populations: Vec::new(),
-                lifetime: AcquisitionLifetime::Invocation,
-            },
-            sources: AcquisitionSources::Raw,
-        })
     }
 }
 

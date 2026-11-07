@@ -1,4 +1,4 @@
-//! Typed partition order; clustered order is deliberately distinct from RawKeyOrder.
+//! Typed partition order: the rows of each key together, in key order.
 pub(crate) mod service;
 
 #[cfg(test)]

@@ -71,7 +71,6 @@ impl DerivedOwner {
         state.spare_dependencies = recycled;
         state.required_bytes = ByteCount(0);
         state.retained_bytes = ByteCount(0);
-        state.retained_predicates = PredicateCount(0);
         state.overlap_bytes = ByteCount(0);
         state.required_views = ViewCount(0);
         state.required_backend_bytes = ByteCount(0);

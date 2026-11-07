@@ -3,7 +3,7 @@
 use crate::domain::{
     coverage::types::RuleIndex,
     operating::errors::OperatingError,
-    positions::types::ClassPlace,
+    step_classes::types::ClassPlace,
     shared_walk::types::{
         PredicateNumber, PredicatePlace,
         walk_route::value::{WalkBarrier, WalkRoute, source_barrier},

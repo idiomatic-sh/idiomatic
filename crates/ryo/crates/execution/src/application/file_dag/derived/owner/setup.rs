@@ -39,7 +39,6 @@ impl DerivedOwner {
             ),
         );
         if let Some(cache) = backend.as_mut() {
-            cache.bind_request_views(prepared.views());
             // Request-wide graph eligibility is indexed once. File activation
             // examines only its demanded roots, never the full graph-rule inventory.
             for rule in demanded {
@@ -48,9 +47,6 @@ impl DerivedOwner {
                     break;
                 }
             }
-            crate::application::file_dag::derived::owner::selection::preparation::service::activate_program(
-                cache, prepared, demanded,
-            )?;
         }
         *self.backend.borrow_mut() = backend;
         self.file_prepared.set(FilePreparation::Prepared);

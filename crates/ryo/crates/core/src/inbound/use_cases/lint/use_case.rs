@@ -41,8 +41,6 @@ use ryo_execution::inbound::use_cases::prepare::interface::{
 use ryo_execution::inbound::use_cases::execution::interface::Counting;
 use ryo_execution::inbound::use_cases::metadata::interface::{MetadataUseCase as _, Needs};
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase as _;
-#[cfg(feature = "fixtures")]
-use ryo_execution::inbound::use_cases::prepare::interface::RoutePolicy;
 use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
 use ryo_execution::outbound::derived::interface::DerivedPort;
 use ryo_execution::outbound::digest::interface::DigestPort;
@@ -94,9 +92,6 @@ pub struct LintUseCaseImpl {
     store: Arc<dyn LintStorePort>,
     /// Whether the rows each step is fed are counted, for the report's `features`: a count that costs a call for every row.
     counting: Counting,
-    /// Which execution strategies the programs this use case prepares may use.
-    #[cfg(feature = "fixtures")]
-    routes: RoutePolicy,
 }
 
 impl std::fmt::Debug for LintUseCaseImpl {
@@ -160,8 +155,6 @@ impl LintUseCaseImpl {
             digest,
             store,
             counting: Counting::DoesNotCount,
-            #[cfg(feature = "fixtures")]
-            routes: RoutePolicy::default(),
         }
     }
 
@@ -169,14 +162,6 @@ impl LintUseCaseImpl {
     #[must_use]
     pub fn compiling_into(mut self, plans: CompiledPlans) -> Self {
         self.compilation = self.compilation.compiling_into(plans);
-        self
-    }
-
-    /// The same, preparing its programs with only the strategies `routes` wires, for a differential run.
-    #[cfg(feature = "fixtures")]
-    #[must_use]
-    pub const fn routing(mut self, routes: RoutePolicy) -> Self {
-        self.routes = routes;
         self
     }
 
@@ -267,8 +252,6 @@ impl LintUseCase for LintUseCaseImpl {
         );
         let unknown = self.language.unknown_reasons();
         let execution = Execution::new(Arc::clone(&self.operators), Arc::clone(&self.derived));
-        #[cfg(feature = "fixtures")]
-        let execution = execution.routing(self.routes);
         let digests: Vec<_> = stored_rules.iter().map(|rule| rule.digest).collect();
         let request_failed = |error: &dyn std::fmt::Display| {
             ryo_values::domain::rule_requests::service::failed(

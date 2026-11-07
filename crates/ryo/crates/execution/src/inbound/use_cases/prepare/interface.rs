@@ -12,10 +12,6 @@ pub use crate::application::rule_compilation::service::PreparedQueries;
 pub use crate::application::rule_compilation::service::QueryCompilation;
 pub use crate::application::rule_compilation::types::PreparedRuleIdentities;
 // Canonical inbound signature vocabulary from private pure concepts.
-#[cfg(any(test, feature = "fixtures"))]
-pub use crate::domain::executable_program::types::RoutePolicy;
-#[cfg(any(test, feature = "fixtures"))]
-pub use crate::domain::executable_program::types::RouteWiring;
 pub use crate::domain::prepared_request::types::ObservationIdentity;
 
 /// What `prepare` offers its callers.

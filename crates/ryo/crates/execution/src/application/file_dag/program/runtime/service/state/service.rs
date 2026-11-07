@@ -37,7 +37,6 @@ impl Slot {
             #[cfg(test)]
             observed: Default::default(),
             #[cfg(test)]
-            native_positions: CallCount(0),
             #[cfg(test)]
             registered_calls: CallCount(0),
             state: if cancelled {

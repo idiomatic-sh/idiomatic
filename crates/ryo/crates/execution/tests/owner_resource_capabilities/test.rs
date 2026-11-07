@@ -46,20 +46,9 @@ extern crate self as ryo_language;
 extern crate self as ryo_relations;
 extern crate self as ryo_values;
 pub mod domain {
- pub mod table_model {pub mod types {#[derive(Debug)]pub struct KeyIndex;}}
  pub mod relations {pub mod types {
   #[derive(Debug)]pub struct CellKind;
   #[derive(Debug)]pub struct Relation;
- }}
- pub mod plan_parts {pub mod types {#[derive(Debug)]pub struct ColumnIndex;#[derive(Debug)]pub struct LiteralText;}}
- pub mod derived_views {pub mod types {pub mod contract {pub mod value {#[derive(Debug)]pub struct PreparedSelectionViews;}}}}
- pub mod stored_selection {pub mod types {
-  #[derive(Debug)]pub struct Selector;
-  #[derive(Debug)]pub struct Matches;
-  #[derive(Debug)]pub struct LiteralFanout;
-  #[derive(Debug)]pub struct CandidateColumn;
-  #[derive(Debug)]pub struct SelectionCounts;
-  #[derive(Debug)]pub struct SelectorHistogram;
  }}
  pub mod stored_graph {pub mod types {
   #[derive(Debug)]pub struct GraphEntry;

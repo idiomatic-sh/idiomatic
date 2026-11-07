@@ -100,19 +100,6 @@ impl DerivedStorage {
                 ),
                 retention_units: UnitCount(0),
             });
-            if let Some(crate::domain::stored_selection::types::SelectedPositions(rows)) =
-                &identity.population.positions
-            {
-                output.push(Backing {
-                    key: BackingKey {
-                        tag: BackingTag(1),
-                        address: BackingAddress(Arc::as_ptr(rows) as usize),
-                    },
-                    bytes: crate::application::file_dag::derived::ledger::capacity::shared_vector_checked(rows)
-                        .ok_or(OperatingError::ShapeMismatch)?,
-                    retention_units: UnitCount(rows.capacity()),
-                });
-            }
         }
         Ok(output.into())
     }

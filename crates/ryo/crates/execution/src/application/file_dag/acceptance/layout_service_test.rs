@@ -25,7 +25,7 @@ mod fixtures;
 use fixtures::{plan, step, select, native_plan, prepared};
 
 #[test]
-fn only_the_emitted_native_step_is_a_retention_root_when_each_is_read_once() {
+fn each_native_step_answers_its_output_kinds() {
     let plans = [native_plan(false)];
     let operators = crate::application::file_dag::service::prepare(
         &plans,
@@ -34,10 +34,6 @@ fn only_the_emitted_native_step_is_a_retention_root_when_each_is_read_once() {
         crate::application::file_dag::fixtures::program_derived_port(),
     )
     .unwrap();
-    assert_eq!(
-        crate::domain::file_program::service::materialized_steps(&plans[0]).0,
-        [false, true]
-    );
     assert_eq!(
         operators.rules[0]
             .iter()
@@ -57,7 +53,7 @@ fn only_the_emitted_native_step_is_a_retention_root_when_each_is_read_once() {
 }
 
 #[test]
-fn the_step_handed_to_cross_file_steps_is_a_retention_root() {
+fn the_step_handed_to_cross_file_steps_is_its_frontier() {
     let plans = [native_plan(true)];
     let operators = crate::application::file_dag::service::prepare(
         &plans,
@@ -66,10 +62,6 @@ fn the_step_handed_to_cross_file_steps_is_a_retention_root() {
         crate::application::file_dag::fixtures::program_derived_port(),
     )
     .unwrap();
-    assert_eq!(
-        crate::domain::file_program::service::materialized_steps(&plans[0]).0,
-        [true, true]
-    );
     assert_eq!(
         operators.rules[0][1].schema,
         Ok(vec![CellKind::Symbol, CellKind::Number])

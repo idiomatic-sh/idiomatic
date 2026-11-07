@@ -4,15 +4,11 @@ use ryo_relations::domain::relations::types::{CellKind, FactColumn, Integer, Val
 use ryo_values::selects;
 
 use crate::domain::table_model::collections::representations::types::{
-    CellRead, PhysicalShape, RepresentationKind, RowRead,
-};
+    CellRead, PhysicalShape, RepresentationKind, RowRead};
 use crate::domain::table_model::service::{borrowed, kind, registered};
-use crate::domain::table_model::types::StoredSelection;
-use ryo_relations::domain::relations::{service::to_bits, types::Relation};
+use ryo_relations::domain::relations::service::to_bits;
 use std::sync::Arc;
 
-#[cfg(test)]
-mod materialization_test;
 #[cfg(test)]
 mod physical_test;
 #[cfg(test)]
@@ -23,15 +19,14 @@ mod rows_test;
 mod stored_keys_test;
 
 use super::types::Rows;
-use crate::domain::positions::service_test::prepared_index;
+use crate::domain::table_cells::service_test::prepared_index;
 use ryo_derived::domain::key::types::On;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::errors::RowsError;
 use {
     super::service::matching, ryo_values::domain::rows::service::cell,
-    ryo_values::domain::rows::service::push_row,
-};
+    ryo_values::domain::rows::service::push_row};
 
 /// A scenario: what a row asks of the part.
 type Input = fn() -> Result<Value, RowsError>;
@@ -167,8 +162,7 @@ pub(crate) fn compact(table: &Table) -> ryo_values::domain::table_words::types::
     use ryo_values::domain::stored_facts::types::KeptWords;
     use ryo_values::domain::table_words::{
         service,
-        types::{DecodeMode, WordSlice},
-    };
+        types::{DecodeMode, WordSlice}};
     let mut words = Words::default();
     service::encode_table(table, &[], &mut words);
     let ryo_values::domain::table_words::types::Admitted {
@@ -200,19 +194,6 @@ pub(crate) fn column(values: &[i64]) -> FactColumn {
             .map(|value| to_bits(number(*value)).0)
             .collect(),
     )
-}
-pub(crate) fn selection(
-    rows: Vec<u32>,
-    columns: Vec<ColumnIndex>,
-    kinds: Vec<CellKind>,
-) -> Arc<StoredSelection> {
-    Arc::new(StoredSelection {
-        relation: Relation::Function,
-        rows: crate::domain::stored_selection::types::SelectedPositions(Arc::new(rows)),
-        columns,
-        kinds,
-        identity: Arc::new(Default::default()),
-    })
 }
 pub(crate) fn values(read: RowRead<'_>) -> &[Cell] {
     match read {

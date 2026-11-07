@@ -162,7 +162,6 @@ fn prepare(
         &[],
         Arc::clone(&derived),
         ObservationIdentity::Independent,
-        crate::domain::executable_program::types::RoutePolicy::default(),
     )
     .unwrap();
     let services = Arc::new(ProgramServices::new(

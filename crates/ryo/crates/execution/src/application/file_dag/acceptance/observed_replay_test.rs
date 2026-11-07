@@ -137,7 +137,7 @@ fn fixture(
         &[Digest([0; 16]); 4],
         &hosted,
         crate::application::file_dag::fixtures::program_derived_port(),
-        ObservationIdentity::Named(ObservationReadinessLayout(Digest([9; 16]))), crate::domain::executable_program::types::RoutePolicy::default(),
+        ObservationIdentity::Named(ObservationReadinessLayout(Digest([9; 16]))),
     )
     .unwrap()
 }

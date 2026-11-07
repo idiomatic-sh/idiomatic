@@ -26,3 +26,34 @@ pub(crate) fn rows(
     }
     Ok(())
 }
+
+/// Emits one row of interned texts for each table of a table-list parameter; an empty list of any kind is
+/// no tables.
+pub(crate) fn evaluate(
+    parameter: ryo_values::domain::plan_parts::types::ParameterId,
+    keys: &[TableKey],
+    bindings: &[ryo_values::domain::query_bindings::types::ParameterBinding],
+    driver: &mut dyn crate::domain::contract::types::RowDriver,
+    row: &mut Vec<ryo_relations::domain::relations::types::Value>,
+) -> Result<(), PortableOperatorFault> {
+    use ryo_values::domain::query_bindings::types::ParameterBinding;
+    let tables = match ryo_values::domain::plan_parts::service::parameter_in(bindings, parameter)
+        .ok_or(PortableOperatorFault::Unbound)?
+    {
+        ParameterBinding::Tables(tables) => tables.as_slice(),
+        ParameterBinding::Texts(items) if items.is_empty() => &[],
+        ParameterBinding::Numbers(items) if items.is_empty() => &[],
+        ParameterBinding::TextSets(items) if items.is_empty() => &[],
+        ParameterBinding::Number(_)
+        | ParameterBinding::Flag(_)
+        | ParameterBinding::Text(_)
+        | ParameterBinding::Numbers(_)
+        | ParameterBinding::Texts(_)
+        | ParameterBinding::TextSets(_) => return Err(PortableOperatorFault::WrongBinding),
+    };
+    rows(
+        tables,
+        keys,
+        &mut crate::domain::table_rows::types::RowMinting { driver, row },
+    )
+}

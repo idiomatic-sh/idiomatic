@@ -80,29 +80,9 @@ pub(super) fn describe(relation: Relation, input: RepresentationInput<'_>) -> So
             vec![],
             view.kinds.to_vec(),
         ),
-        RepresentationInput::Selected {
-            source,
-            positions,
-            columns,
-            ..
-        } => {
-            let mut addresses = vec![span(positions.0.as_ptr(), SpanLength(positions.0.len()))];
-            addresses.extend(source.columns.iter().map(column_span));
-            (addresses, columns.to_vec(), source.kinds.to_vec())
-        }
-        RepresentationInput::Compact(table) => (compact_spans(table), vec![], vec![]),
-        RepresentationInput::Computed(table) => (computed_spans(table), vec![], vec![]),
-        RepresentationInput::Positioned(view) => {
-            let tree = describe(relation, RepresentationInput::Tree(view.tree));
-            let mut storage = tree.storage;
-            storage.push(span(
-                view.positions.slots.0.as_ptr(),
-                SpanLength(view.positions.slots.0.len()),
-            ));
-            storage.push(span(view.shape, SpanLength(view.positions.width.0)));
-            (storage, vec![], vec![])
-        }
-        RepresentationInput::Tree(tree) => (tree_spans(&tree), vec![], vec![]),
+        BorrowedRows::Compact(table) => (compact_spans(table), vec![], vec![]),
+        BorrowedRows::Computed(table) => (computed_spans(table), vec![], vec![]),
+        BorrowedRows::Tree(tree) => (tree_spans(&tree), vec![], vec![]),
     };
     SourceDescriptor {
         relation,
@@ -129,25 +109,9 @@ pub(super) fn matches(source: &SourceDescriptor, input: RepresentationInput<'_>)
                 Sameness::Different
             }
         }
-        RepresentationInput::Selected {
-            source: view,
-            positions,
-            columns,
-            ..
-        } => sameness!({
-            source.source_kinds == view.kinds
-                && source.projection == columns
-                && source.storage.first()
-                    == Some(&span(positions.0.as_ptr(), SpanLength(positions.0.len())))
-                && same_columns(view.columns, &source.storage[1..]) == Sameness::Same
-        }),
-        RepresentationInput::Compact(table) => sameness!(source.storage == compact_spans(table)),
-        RepresentationInput::Computed(table) => sameness!(source.storage == computed_spans(table)),
-        RepresentationInput::Positioned(view) => {
-            let actual = describe(source.relation, RepresentationInput::Positioned(view));
-            sameness!(source.storage == actual.storage)
-        }
-        RepresentationInput::Tree(tree) => sameness!(source.storage == tree_spans(&tree)),
+        BorrowedRows::Compact(table) => sameness!(source.storage == compact_spans(table)),
+        BorrowedRows::Computed(table) => sameness!(source.storage == computed_spans(table)),
+        BorrowedRows::Tree(tree) => sameness!(source.storage == tree_spans(&tree)),
     }
 }
 
@@ -177,34 +141,6 @@ pub(super) fn same(left: RepresentationInput<'_>, right: RepresentationInput<'_>
             left.file == right.file
                 && left.form == right.form
                 && std::ptr::eq(left.elements, right.elements)
-        }),
-        (
-            RepresentationInput::Selected {
-                source: left,
-                positions: lp,
-                columns: lc,
-                kinds: lk,
-            },
-            RepresentationInput::Selected {
-                source: right,
-                positions: rp,
-                columns: rc,
-                kinds: rk,
-            },
-        ) => sameness!({
-            columns(left, right) == Sameness::Same
-                && std::ptr::eq(lp.0, rp.0)
-                && lc == rc
-                && lk == rk
-        }),
-        (RepresentationInput::Positioned(left), RepresentationInput::Positioned(right)) => sameness!({
-            std::ptr::eq(left.positions, right.positions)
-                && std::ptr::eq(left.shape, right.shape)
-                && left.kinds == right.kinds
-                && same(
-                    RepresentationInput::Tree(left.tree),
-                    RepresentationInput::Tree(right.tree),
-                ) == Sameness::Same
         }),
         _ => Sameness::Different,
     }

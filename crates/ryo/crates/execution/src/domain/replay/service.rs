@@ -21,7 +21,7 @@ pub(crate) fn scan(
 ) -> Result<(), OperatingError> {
     if matches!(
         rows,
-        Rows::Computed(_) | Rows::Compact(_) | Rows::Positioned(_)
+        Rows::Computed(_) | Rows::Compact(_)
     ) {
         crate::domain::table_model::service::borrowed(rows)
             .validate()?;
@@ -31,7 +31,7 @@ pub(crate) fn scan(
             emit.row(context, row)?;
         } else if matches!(
             rows,
-            Rows::Computed(_) | Rows::Compact(_) | Rows::Positioned(_)
+            Rows::Computed(_) | Rows::Compact(_)
         ) {
             return Err(OperatingError::ShapeMismatch);
         }

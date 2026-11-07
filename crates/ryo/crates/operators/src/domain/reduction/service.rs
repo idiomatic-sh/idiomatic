@@ -5,7 +5,7 @@ use crate::domain::reduction::types::{
     GroupColumns, GroupCoordinate, GroupCounts, GroupDigest, GroupMembership, GroupOutput, HashScratch, StreamingReduction,
     ValueHash,
 };
-use crate::domain::set_rows::types::FirstOccurrence;
+use crate::domain::contract::types::FirstOccurrence;
 use ryo_relations::domain::relations::types::{CellKind, Value};
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, FlagState},

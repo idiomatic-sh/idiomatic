@@ -8,10 +8,7 @@ use crate::domain::equality::types::KeyIndex;
 use crate::domain::membership::types::DerivedMembership;
 use crate::domain::native::types::NativeFinding;
 use crate::domain::ordered::types::OrderedMatching;
-use crate::domain::predicate::types::LiteralPostings;
-use crate::domain::raw_order::types::raw_order::value::RawOrder;
-use crate::domain::sharing::types::{SharedGraph, SharedKeyIndex, SharedMarks, SharedPositions};
-use ryo_values::domain::row_texts::types::CellText;
+use crate::domain::sharing::types::{SharedGraph, SharedKeyIndex, SharedMarks};
 use ryo_values::domain::rows::types::RowIndex;
 use std::sync::Arc;
 
@@ -39,9 +36,6 @@ pub struct DerivedPayload {
 #[derive(Debug)]
 pub(crate) enum PayloadData {
     Equality(Arc<KeyIndex>),
-    PredicateMatches(SharedPositions),
-    CandidatePostings(Vec<LiteralPostings>),
-    DistinctRepresentatives(SharedPositions),
     Adjacency(Arc<CompactGraph>),
     Membership(DerivedMembership),
     PartitionOrder(Vec<RowIndex>),
@@ -50,7 +44,6 @@ pub(crate) enum PayloadData {
     OrderedKeys(Arc<OrderedMatching>),
     OrderedDfs(Arc<PreparedDfs>),
     NativeLookup(NativeFinding),
-    RawKeyOrder(Arc<RawOrder>),
 }
 
 impl DerivedPayload {
@@ -61,27 +54,6 @@ impl DerivedPayload {
             PayloadData::PartitionOrder(rows) => Some(ElementCapacity(rows.capacity())),
             _ => None,
         }
-    }
-    /// The shared positions of a predicate or distinct payload.
-    #[must_use]
-    pub fn share_positions(&self) -> Option<SharedPositions> {
-        match &self.data {
-            PayloadData::PredicateMatches(rows) | PayloadData::DistinctRepresentatives(rows) => {
-                Some(rows.clone())
-            }
-            _ => None,
-        }
-    }
-    /// The shared positions of one literal of a postings payload.
-    #[must_use]
-    pub fn share_posting_positions(&self, text: CellText<'_>) -> Option<SharedPositions> {
-        let PayloadData::CandidatePostings(values) = &self.data else {
-            return None;
-        };
-        let Ok(at) = values.binary_search_by(|entry| (*entry.text.0).cmp(text.0)) else {
-            return None;
-        };
-        values.get(at).map(|entry| entry.rows.clone())
     }
     /// The shared marks of a dense membership payload.
     #[must_use]

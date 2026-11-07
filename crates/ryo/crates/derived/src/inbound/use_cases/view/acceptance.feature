@@ -10,6 +10,6 @@ Feature: view
 
     @refuses
     Scenario: a payload of another kind is the wrong operation
-      Given the view input "raw order payload"
+      Given the view input "partition order payload"
       When view runs
       Then view answers "wrong operation"

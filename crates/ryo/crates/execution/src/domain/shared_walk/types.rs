@@ -2,7 +2,7 @@
 
 use crate::domain::{
     operating::{errors::OperatingError, types::Memo},
-    positions::types::ClassPlace,
+    step_classes::types::ClassPlace,
     table_cells::types::ColumnPlaces,
     table_model::types::Verdict,
 };
@@ -114,7 +114,7 @@ pub struct WalkCounts {
 /// Accepted rows precede the first terminal predicate error in source order.
 #[derive(Debug)]
 pub(crate) struct ClassResult {
-    pub positions: crate::domain::positions::types::Slots,
+    pub positions: Slots,
     pub completion: Result<(), crate::domain::operating::errors::OperatingError>,
 }
 
@@ -140,3 +140,7 @@ pub(crate) struct WalkCensus {
 pub(crate) enum WalkRefusal {
     Representation,
 }
+
+/// The positions of the elements a walk step admits, row after row.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct Slots(pub Vec<u32>);

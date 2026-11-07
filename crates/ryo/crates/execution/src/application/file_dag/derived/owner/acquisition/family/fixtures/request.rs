@@ -3,34 +3,15 @@ use super::super::super::admission::service::AcquiredView;
 use crate::domain::{
     derived_views::types::ViewRequest, operating::errors::OperatingError,
     operator::contract::resources::DfsResources,
-    stored_selection::types::{SelectionIdentity, Selector},
 };
 use ryo_derived::domain::request::types::DerivedKind;
 use ryo_derived::domain::contract::types::DerivedView;
-use ryo_relations::domain::relations::types::Relation;
-use ryo_values::domain::plan_parts::types::{ColumnIndex, LiteralText};
-use std::sync::Arc;
+use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 pub(super) fn request(kind: DerivedKind) -> ViewRequest {
     let zero = ColumnIndex(0);
     match kind {
         DerivedKind::Equality => ViewRequest::Equality {
-            columns: vec![zero],
-        },
-        DerivedKind::PredicateMatches => ViewRequest::PredicateMatches(Arc::new(Selector {
-            relation: Relation::Function,
-            identity: Arc::new(SelectionIdentity {
-                comparisons: vec![],
-                bindings: vec![],
-            }),
-            columns: vec![zero],
-            distinct: ryo_values::domain::plan_parts::types::RepeatedRows::Kept,
-        })),
-        DerivedKind::CandidatePostings => ViewRequest::CandidatePostings {
-            column: zero,
-            literals: vec![LiteralText("alpha".into()), LiteralText("beta".into())],
-        },
-        DerivedKind::DistinctRepresentatives => ViewRequest::DistinctRepresentatives {
             columns: vec![zero],
         },
         DerivedKind::Adjacency => ViewRequest::Adjacency {
@@ -69,20 +50,11 @@ pub(super) fn request(kind: DerivedKind) -> ViewRequest {
             right_on: vec![zero],
             view: vec![zero],
         },
-        DerivedKind::RawKeyOrder => ViewRequest::RawKeyOrder {
-            stride: crate::domain::positions::types::Stride(1),
-        },
     }
 }
 pub(super) fn observed(view: &AcquiredView) -> Result<DerivedKind, OperatingError> {
     Ok(match view.view()? {
         DerivedView::Equality(_) => DerivedKind::Equality,
-        DerivedView::RowIds(_) => match view.contract().kind {
-            DerivedKind::PredicateMatches => DerivedKind::PredicateMatches,
-            DerivedKind::DistinctRepresentatives => DerivedKind::DistinctRepresentatives,
-            _ => return Err(OperatingError::WrongOperation),
-        },
-        DerivedView::Postings(_) => DerivedKind::CandidatePostings,
         DerivedView::Adjacency(_) => DerivedKind::Adjacency,
         DerivedView::Membership(_) => DerivedKind::Membership,
         DerivedView::PartitionOrder(_) => DerivedKind::PartitionOrder,
@@ -91,6 +63,5 @@ pub(super) fn observed(view: &AcquiredView) -> Result<DerivedKind, OperatingErro
         DerivedView::OrderedKeys(_) => DerivedKind::OrderedKeys,
         DerivedView::OrderedDfs(_) => DerivedKind::OrderedDfs,
         DerivedView::NativeLookup(_) => DerivedKind::NativeLookup,
-        DerivedView::RawKeyOrder(_) => DerivedKind::RawKeyOrder,
     })
 }

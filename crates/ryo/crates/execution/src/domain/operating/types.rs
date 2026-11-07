@@ -12,9 +12,6 @@ use ryo_language::domain::symbols::types::QuerySymbols;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::files::types::SourceView;
-use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::plan_parts::types::PlanComparison;
-use ryo_values::domain::plan_parts::types::JoinColumn;
 use ryo_values::domain::stored_facts::types::ArenaBytes;
 
 /// An application-owned, file-scoped semantic demand port. Operators borrow it;
@@ -121,17 +118,6 @@ pub(crate) struct ComparisonNumber(pub usize);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct InputPlace(pub usize);
 
-/// What a join of rows with a tree is filtered by and what it answers.
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct TreeShape<'a> {
-    /// The comparisons the elements must satisfy.
-    pub comparisons: &'a [PlanComparison],
-    /// The columns of the elements the comparisons read, as the join names them.
-    pub view: &'a [ColumnIndex],
-    /// The columns the rows answered are made of.
-    pub output: &'a [JoinColumn],
-}
-
 /// Whether a comparison asks of the kind of an element something fixed, which the sets of kinds decide.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum KindNaming {
@@ -139,15 +125,6 @@ pub(crate) enum KindNaming {
     Names,
     /// It does not.
     Silent,
-}
-
-/// Whether the kinds of a filter leave few enough elements to look at only those.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum KindNarrowing {
-    /// The elements to look at are listed.
-    Narrowed,
-    /// The whole tree is looked at.
-    Whole,
 }
 
 /// A column the rows of a tree lack, by its place among the columns the comparisons read.

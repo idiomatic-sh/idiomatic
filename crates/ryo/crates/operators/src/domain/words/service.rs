@@ -33,3 +33,45 @@ pub(crate) fn split(
         word.clear();
     }
 }
+
+/// Splits the text of a scheduled row's column into words and emits the row once for each word, with the
+/// word appended; a cell that is not text has no row.
+pub(crate) fn evaluate(
+    row: &[ryo_relations::domain::relations::types::Value],
+    column: ryo_values::domain::plan_parts::types::ColumnIndex,
+    driver: &mut dyn crate::domain::contract::types::RowDriver,
+    scratch: &mut crate::domain::contract::types::RowScratch,
+) -> Result<(), crate::domain::contract::types::PortableOperatorFault> {
+    let value = ryo_values::domain::rows::service::column_in(row, column)
+        .copied()
+        .ok_or(
+            crate::domain::contract::types::PortableOperatorFault::NoSuchColumn { index: column },
+        )?;
+    let crate::domain::contract::types::RowScratch {
+        row: joined,
+        captured,
+        text,
+        word,
+        ..
+    } = scratch;
+    text.clear();
+    if driver.text(value, text) == crate::domain::contract::types::TextFound::NotText {
+        return Ok(());
+    }
+    captured.clear();
+    split(
+        CellText(text.as_str()),
+        WordScratch(word),
+        &mut crate::domain::words::types::WordMinting {
+            driver: &mut *driver,
+            captured: &mut *captured,
+        },
+    );
+    for each in captured.iter() {
+        joined.clear();
+        joined.extend_from_slice(row);
+        joined.push(*each);
+        driver.emit(joined)?;
+    }
+    Ok(())
+}

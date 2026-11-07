@@ -57,15 +57,32 @@ struct ObservedSemantics {
 impl crate::outbound::operators::interface::OperatorsPort for ObservedSemantics {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
         let refuse = match &call {
-            OperatorCall::SetRow { .. } => {
+            OperatorCall::Evaluate {
+                operation:
+                    ryo_values::domain::plans::types::Operation::Union { .. }
+                    | ryo_values::domain::plans::types::Operation::Intersection { .. }
+                    | ryo_values::domain::plans::types::Operation::Difference { .. }
+                    | ryo_values::domain::plans::types::Operation::Antijoin { .. },
+                ..
+            } => {
                 self.unions.fetch_add(1, Ordering::Relaxed);
                 matches!(self.refusal, Refusal::Union)
             }
-            OperatorCall::Project { .. } => {
+            OperatorCall::Evaluate {
+                operation: ryo_values::domain::plans::types::Operation::Project { .. },
+                ..
+            } => {
                 self.projects.fetch_add(1, Ordering::Relaxed);
                 matches!(self.refusal, Refusal::Project)
             }
-            OperatorCall::Append { .. } => {
+            OperatorCall::Evaluate {
+                operation:
+                    ryo_values::domain::plans::types::Operation::Extend { .. }
+                    | ryo_values::domain::plans::types::Operation::SpanBounds { .. }
+                    | ryo_values::domain::plans::types::Operation::SpanBetween { .. }
+                    | ryo_values::domain::plans::types::Operation::Replace { .. },
+                ..
+            } => {
                 self.appends.fetch_add(1, Ordering::Relaxed);
                 matches!(self.refusal, Refusal::Append)
             }

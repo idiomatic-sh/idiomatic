@@ -1,5 +1,6 @@
 //! Exhaustive semantic declarations; strategy, cache admission and lifetimes are not kinds.
 use super::types::*;
+use crate::domain::operating::errors::OperatingError;
 use crate::domain::contributor_rows::types::AbsenceMask;
 use ryo_values::domain::query_operators::types::OperationKind;
 
@@ -280,4 +281,35 @@ pub(crate) fn prepare_for(
         },
         identity: operation.clone(),
     })
+}
+
+/// An engine error takes precedence even if an injected kernel returns a dishonest answer.
+pub(crate) fn join_result(
+    answer: Result<
+        ryo_operators::inbound::use_cases::operators::types::OperatorAnswer,
+        ryo_operators::domain::contract::types::PortableOperatorFault,
+    >,
+    error: Option<OperatingError>,
+) -> Result<(), OperatingError> {
+    written_result(answer, error)
+}
+
+/// Preserve the engine's original downstream error ahead of a portable interruption marker.
+pub(crate) fn written_result(
+    answer: Result<
+        ryo_operators::inbound::use_cases::operators::types::OperatorAnswer,
+        ryo_operators::domain::contract::types::PortableOperatorFault,
+    >,
+    error: Option<OperatingError>,
+) -> Result<(), OperatingError> {
+    if let Some(error) = error {
+        return Err(error);
+    }
+    match answer {
+        Ok(ryo_operators::inbound::use_cases::operators::types::OperatorAnswer::Written) => {
+            Ok(())
+        }
+        Ok(_) => Err(OperatingError::WrongOperation),
+        Err(error) => Err(portable_fault(error)),
+    }
 }

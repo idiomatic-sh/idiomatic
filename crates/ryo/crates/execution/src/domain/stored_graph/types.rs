@@ -1,12 +1,10 @@
 //! Plain compact graph, population, traversal and bounded memo data.
 use ryo_derived::domain::vertices::types::VertexId;
 
-use crate::domain::stored_selection::types::{SelectedPositions, SelectionIdentity};
 use ryo_relations::domain::relations::types::{CellKind, FileId, Relation, Value};
 use ryo_derived::domain::sharing::types::SharedMarks;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::types::RowCount;
-use std::sync::Arc;
 
 pub(crate) mod traversal;
 
@@ -17,14 +15,10 @@ pub(crate) struct RelationPopulation {
     pub relation: Relation,
     /// Physical provider column types.
     pub kinds: &'static [CellKind],
-    /// Physical provider population before selection.
+    /// Physical provider population.
     pub rows: RowCount,
     /// Native population identity, distinct from any stored semantic population.
     pub native_file: Option<FileId>,
-    /// Exact ordered predicates/bindings, absent for the complete raw relation.
-    pub selected: Option<Arc<SelectionIdentity>>,
-    /// Original positions, including order/multiplicity, for a selected population.
-    pub positions: Option<SelectedPositions>,
 }
 
 /// The physical columns and population defining one adjacency, independent of lookup orientation.
@@ -155,10 +149,6 @@ pub(crate) struct Nearest {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct ReclaimedIndexes(pub u64);
 
-/// Dormant successful selection payloads reclaimed without dropping live row handles.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) struct ReclaimedSelections(pub u64);
-
 /// Actual payload bytes released, excluding retained metadata capacity.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct ReclaimedBytes(pub u64);
@@ -208,8 +198,6 @@ pub(crate) struct ForestHits(pub u64);
 pub(crate) struct GraphCounts {
     /// Dormant ordinary indexes reclaimed only to admit a complete new adjacency.
     pub reclaimed_indexes: ReclaimedIndexes,
-    /// Dormant successful selection payloads reclaimed without dropping live row handles.
-    pub reclaimed_selections: ReclaimedSelections,
     /// Actual payload bytes released, excluding retained metadata capacity.
     pub reclaimed_bytes: ReclaimedBytes,
     /// Admissions blocked while ordinary payload is pinned by another consumer.

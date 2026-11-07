@@ -40,7 +40,8 @@ impl ProgramExecution {
         if inputs.population_scope() != state.scope {
             return Err(OperatingError::NotRead);
         }
-        let _node_origin = crate::application::file_dag::route_counts::node(id.0);
+        let _node_origin =
+            crate::application::file_dag::route_counts::node(self.owner.routes(), id.0);
         self.cleanup_status()?;
         let region = self
             .program
@@ -119,9 +120,6 @@ impl ProgramExecution {
                 return Ok(outcome);
             }
             if let Some(outcome) = self.ordered(&mut call)? {
-                return Ok(outcome);
-            }
-            if let Some(outcome) = self.column(&mut call)? {
                 return Ok(outcome);
             }
             if let Some(outcome) = self.admit_demand(&mut call, &mut admitted)? {
@@ -237,8 +235,6 @@ impl Drop for Invocation<'_> {
                     #[cfg(test)]
                     {
                         slot.observed = workspace.measured();
-                        slot.native_positions.0 +=
-                            std::mem::take(&mut workspace.observation.native_positions);
                         slot.registered_calls.0 +=
                             std::mem::take(&mut workspace.observation.registered_calls);
                     }

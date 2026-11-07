@@ -49,6 +49,7 @@ pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn adja
     }
     let expected_identity = source.identity.clone();
     let storage = crate::application::file_dag::route_counts::observe(
+        &owner.routes,
         crate::application::file_dag::route_counts::types::BuildRoute::GraphAdjacency.label(),
         crate::application::file_dag::route_counts::derived(plan.kind),
         || {
@@ -119,6 +120,7 @@ pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn doma
         });
     }
     let storage = crate::application::file_dag::route_counts::observe(
+        &owner.routes,
         crate::application::file_dag::route_counts::types::BuildRoute::GraphDomain.label(),
         crate::application::file_dag::route_counts::derived(plan.kind),
         || {
@@ -153,23 +155,6 @@ pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn doma
     let mut dependencies = backings.to_vec();
     for backing in access.backings().iter().copied() {
         append_backing(&mut dependencies, backing)?;
-    }
-    if let Some(rows) = domain
-        .identity
-        .as_ref()
-        .and_then(|id| id.population.positions.as_ref().map(|positions| &positions.0))
-    {
-        append_backing(
-            &mut dependencies,
-            crate::application::file_dag::derived::ledger::types::Backing {
-                key: BackingKey {
-                    tag: BackingTag(1),
-                    address: BackingAddress(Arc::as_ptr(rows) as usize),
-                },
-                bytes: crate::application::file_dag::derived::ledger::capacity::shared_vector(rows),
-                retention_units: UnitCount(rows.capacity()),
-            },
-        )?;
     }
     dependencies.push(
         crate::application::file_dag::derived::ledger::types::Backing {

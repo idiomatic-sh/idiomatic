@@ -4,8 +4,6 @@ use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
 use ryo_operators::domain::contract::types::PortableOperatorFault;
-use ryo_operators::domain::set_rows::types::SetInput;
-use ryo_operators::domain::set_rows::types::SetKind;
 use ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl;
 
 #[derive(Debug, Default)]
@@ -17,16 +15,9 @@ impl ryo_execution::outbound::operators::interface::OperatorsPort for UnionSeman
     ) -> Result<OperatorAnswer, PortableOperatorFault> {
         if matches!(
             &call,
-            OperatorCall::SetRow {
-                input: SetInput::Values {
-                    kind: SetKind::Union,
-                    ..
-                }
-            } | OperatorCall::SetRow {
-                input: SetInput::Positions {
-                    kind: SetKind::Union,
-                    ..
-                }
+            OperatorCall::Evaluate {
+                operation: ryo_values::domain::plans::types::Operation::Union { .. },
+                ..
             }
         ) {
             let _previous = self.0.fetch_add(1, Ordering::SeqCst);

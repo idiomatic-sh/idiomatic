@@ -2,7 +2,7 @@
 use super::super::super::*;
 use super::super::fixtures::plans::Authored;
 use super::super::fixtures::routes::{Combine, Feed, Fusion};
-use super::super::fixtures::semantics::{BuildPolicy, Derived, MeaningSnapshot, Meanings};
+use super::super::fixtures::semantics::{Derived, MeaningSnapshot, Meanings};
 use super::super::fixtures::{Population, Program, Residency, demand};
 use crate::domain::executable_program::fusion::types::{Barrier, Fusibility, Ineligible};
 
@@ -13,7 +13,7 @@ fn a_named_capture_root_is_not_fused_into() {
         Population::Three,
         Residency::Stable,
         Arc::new(Meanings::default()),
-        Arc::new(Derived::new(BuildPolicy::Normal)),
+        Arc::new(Derived::new()),
     )
     .expect("named producers with a projection of their captured head");
     let compiled = program.prepared.program();
@@ -57,7 +57,7 @@ fn decide(
         Population::Three,
         Residency::Stable,
         meanings.clone(),
-        Arc::new(Derived::new(BuildPolicy::Normal)),
+        Arc::new(Derived::new()),
     )?;
     // The projection after each head is the only thing the second reader keeps apart.
     let compiled = program.prepared.program();

@@ -3,7 +3,6 @@ use super::super::{BoundInputs, KernelAdmission, KernelPermit, ProgramExecution,
 use crate::application::file_dag::program::admission::AdmittedInput;
 use crate::application::file_dag::program::admission::ProducerRoot;
 use crate::application::file_dag::program::runtime::types::InstructionIndex;
-use crate::application::file_dag::relations::RelationOwner;
 use crate::domain::executable_program::types::InputId;
 use crate::domain::executable_program::types::InputSource;
 use crate::domain::executable_program::types::RegionId;
@@ -90,40 +89,6 @@ impl<'scope> KernelPermit<'scope> {
             strategy: RouteKind::OrderedExistence,
         })
     }
-    pub(in crate::application::file_dag::program) fn column(
-        authority: KernelAdmission<'scope>,
-        left: &'scope AdmittedInput,
-        right: &'scope AdmittedInput,
-    ) -> Result<Self, OperatingError> {
-        let execution = authority.execution();
-        let region = authority.region();
-        let code = Self::code(execution, region)?;
-        let shape = crate::domain::executable_program::service::column(&code.route())
-            .ok_or(OperatingError::WrongOperation)?;
-        left.validate_for(
-            &execution.owner,
-            &execution.generation,
-            execution.partition(),
-            ProducerRoot::Region(shape.left),
-        )?;
-        right.validate_for(
-            &execution.owner,
-            &execution.generation,
-            execution.partition(),
-            ProducerRoot::Input(InputSource::Relation(shape.chain.right)),
-        )?;
-        Ok(Self {
-            program: &execution.program,
-            region,
-            instruction: InstructionIndex(0),
-            generation: &execution.generation,
-            owner: execution.owner.as_ref(),
-            partition: execution.partition(),
-            live: &execution.generation_live,
-            bindings: BoundInputs::Column { left, right },
-            strategy: RouteKind::Column,
-        })
-    }
     /// A continuation borrows the already admitted invocation; no refcount,
     /// population walk, room or ledger operation occurs here.
     pub(in crate::application::file_dag::program) fn instruction(
@@ -145,14 +110,6 @@ impl<'scope> KernelPermit<'scope> {
             bindings: self.bindings,
             strategy: self.strategy,
         })
-    }
-    pub(in crate::application::file_dag::program) fn native_shape(
-        &self,
-    ) -> Result<&Arc<crate::domain::lowering::types::LoweredShape>, OperatingError> {
-        crate::domain::executable_program::service::native_positions(
-            &self.program.regions()[self.region.0].route(),
-        )
-        .ok_or(OperatingError::WrongOperation)
     }
     pub(in crate::application::file_dag::program) fn region(&self) -> RegionId {
         self.region
@@ -177,33 +134,6 @@ impl<'scope> KernelPermit<'scope> {
     ) -> &crate::domain::executable_program::types::instruction::value::Instruction {
         &self.program.regions()[self.region.0].instructions()[self.instruction.0]
     }
-    pub(in crate::application::file_dag::program) fn position_semantics(
-        &self,
-        shape: &Arc<crate::domain::lowering::types::LoweredShape>,
-    ) -> Result<SemanticPermit<'_>, OperatingError> {
-        self.validate_registered(self.operation())?;
-        let actual = crate::domain::executable_program::service::native_positions(
-            &self.program.regions()[self.region.0].route(),
-        )
-        .ok_or(OperatingError::WrongOperation)?;
-        if !Arc::ptr_eq(actual, shape) {
-            return Err(OperatingError::WrongOperation);
-        }
-        let mut permit = self.semantics();
-        permit.strategy = RouteKind::NativePositions;
-        Ok(permit)
-    }
-    /// Derived acquisition must borrow the owner of this actual live invocation.
-    pub(in crate::application::file_dag) fn validate_derived_owner(
-        &self,
-        owner: &RelationOwner,
-    ) -> Result<(), OperatingError> {
-        self.validate_live()?;
-        if !std::ptr::eq(self.owner, owner) || owner.matches_generation(self.generation) == crate::application::file_dag::relations::types::Sameness::Different {
-            return Err(OperatingError::NotRead);
-        }
-        Ok(())
-    }
     pub(in crate::application::file_dag) fn semantics(&self) -> SemanticPermit<'_> {
         SemanticPermit {
             program: self.program,
@@ -220,11 +150,6 @@ impl<'scope> KernelPermit<'scope> {
         match self.bindings {
             BoundInputs::Ordinary(inputs) => inputs.get(at.0),
             BoundInputs::Ordered(input) => (at.0 == 0).then_some(input),
-            BoundInputs::Column { left, right } => match at.0 {
-                0 => Some(left),
-                1 => Some(right),
-                _ => None,
-            },
         }
         .ok_or(OperatingError::MissingInput { position: at.0 + 1 })
     }

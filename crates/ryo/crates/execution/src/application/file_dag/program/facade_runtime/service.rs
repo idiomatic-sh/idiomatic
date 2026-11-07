@@ -16,7 +16,13 @@ pub(crate) fn publication_owner(
     Ok(PublicationScope {
         request: Arc::clone(&services.request),
         program: Arc::clone(program.program()),
-        owner: open_program_owner(program.program(), services.derived().clone(), ReuseEligibility::Eligible),
+        // The project phase opens no route scope: its owner records into an empty profile.
+        owner: open_program_owner(
+            program.program(),
+            services.derived().clone(),
+            ReuseEligibility::Eligible,
+            crate::application::file_dag::route_counts::types::RouteProfile::default(),
+        ),
         execution: std::cell::OnceCell::new(),
         walk:
             crate::application::file_dag::program::native_walk::project::service::ProjectWalk::new(),

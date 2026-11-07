@@ -10,7 +10,6 @@ use ryo_values::domain::{
     files::types::SourceView,
     plan_parts::types::{ColumnIndex, Input as PlanInput, StepId},
     plans::types::Operation,
-    query_operators::types::QueryOperator,
 };
 fn span(start: u32, end: u32) -> Span {
     Span {
@@ -118,11 +117,5 @@ fn equal_offsets_from_distinct_files_keep_both_file_identities() {
             Value::Number(Integer(2)),
             Value::Number(Integer(4))
         ]
-    );
-}
-#[test]
-fn contract() {
-    crate::domain::operator::collections::operators::fixtures::contract::check(
-        QueryOperator::SpanBounds,
     );
 }

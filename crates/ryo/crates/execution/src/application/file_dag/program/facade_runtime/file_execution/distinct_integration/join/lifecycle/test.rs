@@ -125,7 +125,7 @@ fn exercise_nested(single_result: bool) -> Result<(), OperatingError> {
         &[Digest([0; 16]), Digest([1; 16])],
         &[],
         Arc::clone(&derived),
-        ObservationIdentity::Independent, crate::domain::executable_program::types::RoutePolicy::default(),
+        ObservationIdentity::Independent,
     )?;
     let services = Arc::new(ProgramServices::new(
         Arc::new(CommonOperatorEngine::new(real_port())),

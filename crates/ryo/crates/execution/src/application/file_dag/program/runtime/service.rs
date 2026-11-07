@@ -1,7 +1,7 @@
 //! The sole admitted-program interpreter, authority issuance and physical dispatch.
 use super::types::{
-    ActionCursor, ColumnCounters, Dependencies, InstructionIndex, InvocationFailure, KernelInput,
-    KernelScratch, PollMode, ReaderCount, StageProgress, StrategyOutcome,
+    ActionCursor, Dependencies, InstructionIndex, InvocationFailure, KernelInput,
+    KernelScratch, PollMode, ReaderCount, StageProgress,
 };
 #[cfg(test)]
 use super::types::{CallCount, ProducerLeaseEvent, ReaderInitializations};
@@ -49,41 +49,7 @@ pub(in crate::application::file_dag::program) trait KernelInvocation {
         context: &mut OperatorContext<'_>,
         scratch: &mut KernelScratch,
         output: &mut dyn Emit,
-    ) -> Result<StrategyOutcome, InvocationFailure>;
-    fn positions(
-        &self,
-        permit: &KernelPermit<'_>,
-        context: &mut OperatorContext<'_>,
-        scratch: &mut KernelScratch,
-    ) -> Result<
-        crate::application::file_dag::program::runtime::types::Attempt<
-            crate::application::file_dag::relations::handle::service::PublishedInput,
-        >,
-        InvocationFailure,
-    >;
-    fn selected(
-        &self,
-        shape: &crate::domain::executable_program::types::SelectionAlternative,
-        permit: &KernelPermit<'_>,
-        context: &mut OperatorContext<'_>,
-        scratch: &mut KernelScratch,
-    ) -> Result<
-        crate::application::file_dag::program::runtime::types::Attempt<
-            crate::application::file_dag::relations::handle::service::PublishedInput,
-        >,
-        InvocationFailure,
-    >;
-    fn column(
-        &self,
-        shape: &crate::domain::executable_program::types::ColumnAlternative,
-        permit: &KernelPermit<'_>,
-        left: &AdmittedInput,
-        right: &AdmittedInput,
-        context: &mut OperatorContext<'_>,
-        scratch: &mut KernelScratch,
-        counts: &ColumnCounters,
-        rows: &mut ryo_values::domain::rows::types::Table,
-    ) -> Result<StrategyOutcome, InvocationFailure>;
+    ) -> Result<(), InvocationFailure>;
     fn evaluate(
         &self,
         instruction: &Instruction,
@@ -100,7 +66,6 @@ struct AdmissionProgress {
     availability_action: ActionCursor,
     schema_done: StageProgress,
     ordered_done: StageProgress,
-    column_done: StageProgress,
     ready: StageProgress,
     preflight_done: StageProgress,
     inputs: Vec<AdmittedInput>,
@@ -140,8 +105,6 @@ struct ProducerLeaseProbe {
 struct Slot {
     #[cfg(test)]
     observed: crate::domain::operating::fixtures::ExecutionObservation,
-    #[cfg(test)]
-    native_positions: CallCount,
     #[cfg(test)]
     registered_calls: CallCount,
     state: State,
@@ -231,10 +194,6 @@ struct Invocation<'a> {
 enum BoundInputs<'a> {
     Ordinary(&'a [AdmittedInput]),
     Ordered(&'a AdmittedInput),
-    Column {
-        left: &'a AdmittedInput,
-        right: &'a AdmittedInput,
-    },
 }
 pub(crate) struct KernelPermit<'scope> {
     program: &'scope crate::domain::executable_program::types::executable_program::value::ExecutableProgram,

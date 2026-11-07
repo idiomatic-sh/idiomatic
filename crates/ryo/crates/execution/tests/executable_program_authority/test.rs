@@ -67,7 +67,6 @@ mod domain {
       pub struct Region;
       pub struct RuleProgram;
       pub struct FileReaderGraph;
-      pub struct RoutePolicy;
       pub struct RegionId(pub usize);
       pub struct OperatingError;
       pub mod executable_program {
@@ -78,9 +77,8 @@ mod domain {
             pub(in crate::domain::executable_program) fn new(
               regions: Box<[Region]>, file_readers: FileReaderGraph, rules: Box<[RuleProgram]>,
               logical_regions: Box<[RegionId]>, observation_regions: Box<[Result<RegionId, OperatingError>]>,
-              routes: RoutePolicy,
             ) -> Self {
-              Self { regions, file_readers, rules, logical_regions, observation_regions, routes }
+              Self { regions, file_readers, rules, logical_regions, observation_regions }
             }
             pub fn regions(&self) -> &[Region] { &self.regions }
           }
@@ -92,7 +90,7 @@ mod domain {
       use super::types::*;
       pub fn compile() -> ExecutableProgram {
         ExecutableProgram::new(
-          Box::new([]), FileReaderGraph, Box::new([]), Box::new([]), Box::new([]), RoutePolicy,
+          Box::new([]), FileReaderGraph, Box::new([]), Box::new([]), Box::new([]),
         )
       }
     }
@@ -130,7 +128,6 @@ fn compiled_program_state_is_constructed_only_by_its_domain_owner() {
               file_readers: crate::domain::executable_program::types::FileReaderGraph,
               rules: Box::new([]),
               logical_regions: Box::new([]), observation_regions: Box::new([]),
-              routes: crate::domain::executable_program::types::RoutePolicy,
             } }",
         ),
         "private field",

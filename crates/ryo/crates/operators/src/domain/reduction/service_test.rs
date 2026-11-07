@@ -7,7 +7,7 @@ use crate::domain::reduction::types::{
     GroupColumns, GroupCoordinate, GroupCounts, GroupDigest, GroupOutput, HashScratch,
     StreamingReduction, ValueHash,
 };
-use crate::domain::set_rows::types::FirstOccurrence;
+use crate::domain::contract::types::FirstOccurrence;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::{

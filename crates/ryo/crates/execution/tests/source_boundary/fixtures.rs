@@ -136,13 +136,12 @@ pub(super) const RUNTIME: &str = "src/application/file_dag/program/runtime/servi
 pub(super) const AUTHORIZED: &str = r#"
 mod boundary_probe {
     use super::*;
-    fn authorized<'a>(execution: &'a ProgramExecution, region: RegionId, inputs: &'a [AdmittedInput], left: &'a AdmittedInput, right: &'a AdmittedInput) {
+    fn authorized<'a>(execution: &'a ProgramExecution, region: RegionId, inputs: &'a [AdmittedInput], left: &'a AdmittedInput) {
         let authority = || KernelAdmission { execution, region };
         let _ = crate::application::file_dag::program::runtime::service::KernelPermit::admitted(authority(), inputs);
         let _ = crate::application::file_dag::program::runtime::service::KernelPermit::ordered(authority(), left);
-        let _ = crate::application::file_dag::program::runtime::service::KernelPermit::column(authority(), left, right);
     }
-    const _: for<'a> fn(&'a ProgramExecution, RegionId, &'a [AdmittedInput], &'a AdmittedInput, &'a AdmittedInput) = authorized;
+    const _: for<'a> fn(&'a ProgramExecution, RegionId, &'a [AdmittedInput], &'a AdmittedInput) = authorized;
     fn assert_owned_result<T: Send + Sync + 'static>() {}
     fn owned_walk_result() { assert_owned_result::<crate::application::file_dag::program::native_walk::WalkResult>(); }
     const _: fn() = owned_walk_result;

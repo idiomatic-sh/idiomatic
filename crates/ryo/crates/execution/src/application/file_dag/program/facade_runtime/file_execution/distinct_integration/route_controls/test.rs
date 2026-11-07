@@ -25,10 +25,20 @@ impl crate::outbound::operators::interface::OperatorsPort for MeaningCalls {
             OperatorCall::OrderedExistence { .. } => {
                 self.ordered.fetch_add(1, Ordering::Relaxed);
             }
-            OperatorCall::SetRow { .. } => {
+            OperatorCall::Evaluate {
+                operation:
+                    ryo_values::domain::plans::types::Operation::Union { .. }
+                    | ryo_values::domain::plans::types::Operation::Intersection { .. }
+                    | ryo_values::domain::plans::types::Operation::Difference { .. }
+                    | ryo_values::domain::plans::types::Operation::Antijoin { .. },
+                ..
+            } => {
                 self.sets.fetch_add(1, Ordering::Relaxed);
             }
-            OperatorCall::EqualityJoin { .. } => {
+            OperatorCall::Evaluate {
+                operation: ryo_values::domain::plans::types::Operation::Join { .. },
+                ..
+            } => {
                 self.joins.fetch_add(1, Ordering::Relaxed);
             }
             _ => {}
@@ -54,7 +64,7 @@ fn run(
         &[Digest([0; 16])],
         &[],
         Arc::clone(&derived),
-        ObservationIdentity::Independent, crate::domain::executable_program::types::RoutePolicy::default(),
+        ObservationIdentity::Independent,
     )
     .unwrap();
     let services = Arc::new(ProgramServices::new(

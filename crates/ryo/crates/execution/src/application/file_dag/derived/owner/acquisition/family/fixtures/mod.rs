@@ -6,29 +6,23 @@ pub(in crate::application::file_dag) mod route;
 use self::demand::demand;
 use self::request::{observed, request};
 use crate::application::file_dag::{
-    relations::RelationOwner, fixtures::program_derived_port,
-};
+    relations::RelationOwner, fixtures::program_derived_port};
 use crate::domain::{
     derived_views::types::{DerivedInputs, DerivedScratch, ViewRequest},
     operating::errors::OperatingError,
     operation_schema::types::InputShape,
-    positions::service_test::{SMALL_SOURCE, SmallTree, small_tree},
+    table_cells::service_test::{ SmallTree, small_tree},
     table_cells::types::{TreeForm, TreeRows},
-    table_model::types::Rows,
-};
+    table_model::types::Rows};
 use crate::domain::table_model::types::RepresentationInput;
 use crate::application::file_dag::relations::publication::types::ProducerScope;
 use crate::domain::executable_program::types::RegionId;
 use ryo_derived::domain::request::types::DerivedKind;
-use ryo_language::domain::symbols::{service::intern_derived, types::ByteSlice};
 use ryo_relations::domain::{
-    relations::types::{CellKind, FileId, Integer, NodeId, Relation, Value},
-    terms::types::NameText,
-};
+    relations::types::{CellKind, FileId, Integer, NodeId, Relation, Value}};
 use ryo_values::domain::{
     plan_parts::types::ColumnIndex,
-    rows::types::{RowCount, Table},
-};
+    rows::types::{RowCount, Table}};
 use std::{rc::Rc, sync::Arc};
 
 /// How the last consumer of one family leaves: each scenario ends with the owner generation
@@ -130,19 +124,6 @@ fn acquire(
         mut symbols,
     } = small_tree();
     let mut table = numbers();
-    if kind == DerivedKind::CandidatePostings {
-        table.kinds[0] = CellKind::Symbol;
-        table.cells[0] = Value::Symbol(intern_derived(
-            &mut symbols,
-            ByteSlice(SMALL_SOURCE),
-            NameText("alpha"),
-        ));
-        table.cells[4] = Value::Symbol(intern_derived(
-            &mut symbols,
-            ByteSlice(SMALL_SOURCE),
-            NameText("beta"),
-        ));
-    }
     if kind == DerivedKind::NativeLookup {
         table.kinds[0] = CellKind::Node;
         table.cells[0] = Value::Node(NodeId(0));
@@ -297,9 +278,8 @@ fn acquire(
     let baseline = owner.derived().publication_ownership_bytes().0;
     owner.pin_derived(publication.as_ref());
     owner.pin_derived(other.as_ref());
-    // A real lease exists before every exit that is not a success. `RawKeyOrder` is refused
-    // on this ordinary route (its admission needs the kernel permit), so it holds none.
-    let held = if kind != DerivedKind::RawKeyOrder && matches!(
+    // A real lease exists before every exit that is not a success.
+    let held = if matches!(
         scenario,
         Scenario::Cancelled
             | Scenario::Stale

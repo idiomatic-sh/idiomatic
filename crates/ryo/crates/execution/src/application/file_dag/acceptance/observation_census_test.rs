@@ -27,7 +27,7 @@ fn the_census_includes_every_synthetic_observation_union() -> Result<(), Operati
         operators,
     } = declared(FrontierSlots::Declared);
     let slots = graph.observations.as_ref().unwrap().slots.clone();
-    let program = compile(&plans, graph, &DeclaredFileProducers, &operators, crate::domain::executable_program::types::RoutePolicy::default()).unwrap();
+    let program = compile(&plans, graph, &DeclaredFileProducers, &operators).unwrap();
     use ryo_values::domain::{
         plan_parts::types::{Input as PlanInput, StepId},
         plans::types::Operation,
@@ -129,7 +129,7 @@ fn shared_walk_census_includes_every_synthetic_observation_union() -> Result<(),
         },
     );
     let slots = graph.observations.as_ref().unwrap().slots.clone();
-    let program = compile(&plans, graph, &DeclaredFileProducers, &operators, crate::domain::executable_program::types::RoutePolicy::default()).unwrap();
+    let program = compile(&plans, graph, &DeclaredFileProducers, &operators).unwrap();
     use ryo_values::domain::{
         plan_parts::types::{Input as PlanInput, StepId},
         plans::types::Operation,

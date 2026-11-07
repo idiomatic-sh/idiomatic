@@ -3,8 +3,6 @@
 /// Test-only observations captured from real engine-owned resources before release.
 #[derive(Clone, Copy, Debug, Default)]
 pub(crate) struct ExecutionObservation {
-    /// Successful real native-position evaluations.
-    pub native_positions: usize,
     /// Calls to the real registered operator dispatch.
     pub registered_calls: usize,
     pub regexes: usize,

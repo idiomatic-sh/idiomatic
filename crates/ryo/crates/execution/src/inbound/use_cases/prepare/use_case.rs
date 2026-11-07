@@ -4,7 +4,6 @@ use super::types::{PlanSource, PrepareRequest};
 use crate::application::file_dag::derived::owner::types::DerivedAccess;
 use crate::application::file_dag::program::prepared_execution::service::prepare;
 use crate::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
-use crate::domain::executable_program::types::RoutePolicy;
 use crate::domain::operating::errors::OperatingError;
 use crate::outbound::derived::interface::DerivedPort;
 use crate::outbound::operators::interface::OperatorsPort;
@@ -14,7 +13,6 @@ use std::sync::Arc;
 pub struct PrepareUseCaseImpl {
     operators: Arc<dyn OperatorsPort>,
     derived: DerivedAccess,
-    routes: RoutePolicy,
 }
 
 impl PrepareUseCaseImpl {
@@ -23,15 +21,7 @@ impl PrepareUseCaseImpl {
         Self {
             operators,
             derived: derived.into(),
-            routes: RoutePolicy::default(),
         }
-    }
-    /// The same engine wiring only the strategies `routes` names, for a differential run.
-    #[cfg(any(test, feature = "fixtures"))]
-    #[must_use]
-    pub const fn routing(mut self, routes: RoutePolicy) -> Self {
-        self.routes = routes;
-        self
     }
 }
 
@@ -51,7 +41,6 @@ impl PrepareUseCase for PrepareUseCaseImpl {
             request.observations,
             Arc::clone(&self.operators),
             &self.derived,
-            self.routes,
         )
     }
 }

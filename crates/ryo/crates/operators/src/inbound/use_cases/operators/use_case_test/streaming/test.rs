@@ -1,6 +1,6 @@
 //! Public streaming and metadata calls borrow engine-owned reduction state and keep fault order.
 use crate::domain::contract::errors::ContractError;
-use crate::domain::set_rows::types::FirstOccurrence;
+use crate::domain::contract::types::FirstOccurrence;
 use crate::inbound::use_cases::operators::{fixtures, interface::OperatorsUseCase};
 use crate::domain::capture::types::*;
 use crate::domain::contract::types::*;

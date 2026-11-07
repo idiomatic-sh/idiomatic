@@ -7,14 +7,8 @@ use crate::domain::equality::types::KeyIndex;
 use crate::domain::membership::types::{MarkSpace, MembershipView};
 use crate::domain::native::types::{NativeFinding, NativeForm};
 use crate::domain::ordered::types::OrderedMatching;
-use crate::domain::positions::types::RowSlots;
-use crate::domain::predicate::types::LiteralPostings;
-use crate::domain::raw_order::types::raw_order::value::RawOrder;
-use crate::domain::raw_words::types::RawWords;
-use crate::domain::row_cells::types::{CanonicalTexts, PredicateRows, RowCells, ValueTexts};
-use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
+use crate::domain::row_cells::types::{CanonicalTexts, RowCells, ValueTexts};
 use ryo_relations::domain::relations::types::Value;
-use ryo_values::domain::plan_parts::types::LiteralText;
 use ryo_values::domain::rows::types::RowIndex;
 
 /// Unsupported readable native/oversized layouts decline distinctly from faults.
@@ -30,10 +24,6 @@ pub enum BuildOutcome {
 pub enum DerivedView<'a> {
     /// The key index.
     Equality(&'a KeyIndex),
-    /// Row positions.
-    RowIds(RowSlots<'a>),
-    /// Literal postings.
-    Postings(&'a [LiteralPostings]),
     /// The compact graph.
     Adjacency(&'a CompactGraph),
     /// Membership.
@@ -50,39 +40,12 @@ pub enum DerivedView<'a> {
     OrderedDfs(&'a PreparedDfs),
     /// The native finding.
     NativeLookup(&'a NativeFinding),
-    /// The raw key ordering.
-    RawKeyOrder(&'a RawOrder),
 }
 
 /// The finite inputs of one build, by kind.
 pub enum BuildInputs<'a> {
     /// Rows.
     Rows(&'a dyn RowCells),
-    /// A predicate over rows, with optional candidate positions.
-    Predicate {
-        /// The predicate rows.
-        rows: &'a mut dyn PredicateRows,
-        /// The candidate positions.
-        candidates: Option<RowSlots<'a>>,
-    },
-    /// Rows, symbols and the literals asked for.
-    Postings {
-        /// The rows.
-        rows: &'a dyn RowCells,
-        /// The symbols of the file.
-        symbols: &'a Symbols,
-        /// The file's bytes.
-        source: ByteSlice<'a>,
-        /// The literals asked for.
-        active: &'a [LiteralText],
-    },
-    /// Rows and the positions to deduplicate.
-    Distinct {
-        /// The rows.
-        rows: &'a dyn RowCells,
-        /// The positions to deduplicate.
-        positions: RowSlots<'a>,
-    },
     /// Rows and the space to mark members in.
     Membership {
         /// The rows.
@@ -119,8 +82,6 @@ pub enum BuildInputs<'a> {
     },
     /// The native table to look in.
     Native(NativeForm),
-    /// Lowered key words.
-    RawWords(RawWords<'a>),
 }
 
 /// Scratch the caller lends one build.

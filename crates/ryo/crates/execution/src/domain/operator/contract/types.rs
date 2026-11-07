@@ -195,8 +195,8 @@ pub(crate) trait PrimitiveResources {
     fn index(&self) -> Option<IndexedRows<'_>>;
     fn appended(&self) -> Option<&[Value]>;
     fn rank_layers(&self) -> Option<&[Vec<ryo_values::domain::plan_parts::types::LiteralText>]>;
-    fn axis(&self) -> Result<Option<super::axis::PreparedAxis<'_>>, OperatingError>;
-    fn native_join(&self) -> Option<super::join::NativeJoin<'_>>;
+    fn axis(&self) -> Result<Option<super::views::PreparedAxis<'_>>, OperatingError>;
+    fn native_join(&self) -> Option<super::views::NativeJoin<'_>>;
     fn dfs(
         &self,
     ) -> Result<Option<&ryo_derived::domain::dfs::types::PreparedDfs>, OperatingError>;
@@ -226,23 +226,14 @@ pub(crate) struct PrimitiveViews<'a> {
     pub cached_axis: Option<super::graph_view::AxisResult<'a>>,
 }
 
-/// The text an operator builds in place, handed back with its capacity kept.
-#[derive(Debug, Default)]
-pub(crate) struct ScratchText(pub String);
-
 /// Allocation slots owned once by the application invocation. A primitive only
 /// receives a reborrow; no cache, owner or generation identity is reachable.
 pub(crate) struct PrimitiveWorkspace {
-    pub row: Vec<Value>,
-    pub other: Vec<Value>,
-    pub text: ScratchText,
-    pub word: crate::domain::table_scratch::types::ScratchWord,
-    pub stretches: crate::domain::table_scratch::types::Stretches,
-    pub captured: Vec<Value>,
-    pub axis: Option<super::axis::AxisWorkspace>,
+    /// The buffers the operators fill while they evaluate a kind.
+    pub evaluation: ryo_operators::domain::evaluation::types::EvaluationScratch,
+    pub axis: Option<AxisWorkspace>,
     pub positions: Vec<ryo_relations::domain::relations::types::Position>,
-    pub dfs: Option<super::graph::DfsWorkspace>,
-    pub cycles: Option<ryo_operators::domain::cycles::types::CycleScratch>,
+    pub dfs: Option<DfsWorkspace>,
     pub closure_walk: Option<crate::domain::table_reach::types::Walk>,
     pub distinct: Option<DistinctWorkspace>,
 }
@@ -298,6 +289,9 @@ pub(crate) fn portable_fault(
         PortableOperatorFault::InvalidSpan => OperatingError::InvalidSpan,
         PortableOperatorFault::InvalidSourceMatchSpan => OperatingError::InvalidSourceMatchSpan,
         PortableOperatorFault::UnboundKey => OperatingError::WrongBinding,
+        PortableOperatorFault::WrongBinding => OperatingError::WrongBinding,
+        PortableOperatorFault::Unbound => OperatingError::Unbound,
+        PortableOperatorFault::NotRun => OperatingError::NotRun,
         PortableOperatorFault::MissingCapture
         | PortableOperatorFault::WrongOperation
         | PortableOperatorFault::UnsupportedRender => OperatingError::WrongOperation,
@@ -323,18 +317,12 @@ pub(crate) struct PreparationCount(pub usize);
 /// Prepared metadata belongs to the request; workers only borrow this immutable value.
 #[derive(Debug)]
 pub(crate) struct RequestOperators {
-    /// Original-plan shape metadata owned by this exact immutable request, never file state.
-    pub ordered_existence: std::sync::Arc<Vec<crate::domain::self_join_recogniser::types::Program>>,
-    pub selection_plans: std::sync::Arc<Vec<crate::domain::stored_selection::types::PreparedPlan>>,
-    pub selection_views:
-        std::sync::Arc<crate::domain::derived_views::types::contract::value::PreparedSelectionViews>,
+    /// Original-plan shape metadata owned by this exact immutable request, never file state:
+    /// one slot per rule, compiled when the request graph first resolves that rule's regions.
+    pub ordered_existence:
+        Vec<std::sync::OnceLock<crate::domain::self_join_recogniser::types::Program>>,
     pub rules: Vec<Vec<std::sync::Arc<OperatorContract>>>,
     pub preparations: PreparationCount,
-    pub physical: Vec<
-        Vec<
-            crate::domain::table_model::types::PreparedPhysical,
-        >,
-    >,
 }
 
 /// Exact semantic program bound once; a primitive cannot substitute comparisons.
@@ -363,33 +351,25 @@ pub(crate) struct EmptyResult {
     pub kinds: Result<Vec<CellKind>, OperatingError>,
 }
 
-/// An engine error takes precedence even if an injected kernel returns a dishonest answer.
-pub(crate) fn join_result(
-    answer: Result<
-        ryo_operators::inbound::use_cases::operators::types::OperatorAnswer,
-        ryo_operators::domain::contract::types::PortableOperatorFault,
-    >,
-    error: Option<OperatingError>,
-) -> Result<(), OperatingError> {
-    written_result(answer, error)
+/// The work of one invocation of an axis walk.
+#[derive(Debug, Default)]
+pub(crate) struct AxisWorkspace {
+    pub(crate) walk: crate::domain::table_reach::types::Walk,
+    pub(crate) found: Vec<ryo_relations::domain::relations::types::Position>,
 }
 
-/// Preserve the engine's original downstream error ahead of a portable interruption marker.
-pub(crate) fn written_result(
-    answer: Result<
-        ryo_operators::inbound::use_cases::operators::types::OperatorAnswer,
-        ryo_operators::domain::contract::types::PortableOperatorFault,
-    >,
-    error: Option<OperatingError>,
-) -> Result<(), OperatingError> {
-    if let Some(error) = error {
-        return Err(error);
-    }
-    match answer {
-        Ok(ryo_operators::inbound::use_cases::operators::types::OperatorAnswer::Written) => {
-            Ok(())
-        }
-        Ok(_) => Err(OperatingError::WrongOperation),
-        Err(error) => Err(portable_fault(error)),
-    }
+/// The vertices one invocation of the ordered depth-first search has expanded.
+#[derive(Clone, Copy, Debug, Default)]
+pub(crate) struct ExpandedCount(pub(crate) usize);
+
+/// The edges one invocation of the ordered depth-first search has examined.
+#[derive(Clone, Copy, Debug, Default)]
+pub(crate) struct ExaminedCount(pub(crate) usize);
+
+/// The work of one invocation of the ordered depth-first search, with what its walks expanded and examined.
+#[derive(Debug, Default)]
+pub(crate) struct DfsWorkspace {
+    pub(crate) walk: crate::domain::table_reach::types::OrderedWalk,
+    pub(crate) expanded: ExpandedCount,
+    pub(crate) examined: ExaminedCount,
 }

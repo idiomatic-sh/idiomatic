@@ -43,18 +43,15 @@ impl crate::outbound::operators::interface::OperatorsPort
         use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
         use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
         use ryo_operators::domain::set_rows::errors::SetRowsError;
-        use ryo_operators::domain::set_rows::types::SetInput;
-        use ryo_operators::domain::set_rows::types::SetKind;
+        use ryo_operators::domain::evaluation::types::EvaluationInput;
         match call {
-            OperatorCall::SetRow {
-                input:
-                    SetInput::Values {
-                        kind: SetKind::Union,
-                        row,
-                        driver,
-                        ..
-                    },
+            OperatorCall::Evaluate {
+                operation: ryo_values::domain::plans::types::Operation::Union { .. },
+                input: EvaluationInput::Row(row),
+                driver,
+                ..
             } => {
+                let driver = driver.set_rows();
                 let first = driver.emit(row);
                 // Union is granted distinct-state access, not a RHS membership index.
                 let refusal = driver.contains_right(row);

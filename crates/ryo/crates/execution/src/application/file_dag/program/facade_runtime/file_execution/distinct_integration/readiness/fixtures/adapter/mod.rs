@@ -5,7 +5,7 @@ use crate::application::file_dag::program::runtime::service::{
     KernelInvocation, KernelPermit, ReadySelection,
 };
 use crate::application::file_dag::program::runtime::types::{
-    ColumnCounters, InvocationFailure, KernelInput, KernelScratch, StrategyOutcome,
+    InvocationFailure, KernelInput, KernelScratch,
 };
 use crate::domain::executable_program::types::{instruction::value::Instruction, LogicalInstruction};
 use crate::domain::operating::types::Emit as RowSink;
@@ -50,50 +50,9 @@ impl KernelInvocation for ReadyAdapter<'_> {
         context: &mut OperatorContext<'_>,
         scratch: &mut KernelScratch,
         output: &mut dyn RowSink,
-    ) -> Result<StrategyOutcome, InvocationFailure> {
+    ) -> Result<(), InvocationFailure> {
         self.actual
             .ordered(shape, permit, input, context, scratch, output)
-    }
-    fn positions(
-        &self,
-        permit: &KernelPermit<'_>,
-        context: &mut OperatorContext<'_>,
-        scratch: &mut KernelScratch,
-    ) -> Result<
-        crate::application::file_dag::program::runtime::types::Attempt<
-            crate::application::file_dag::relations::handle::service::PublishedInput,
-        >,
-        InvocationFailure,
-    > {
-        self.actual.positions(permit, context, scratch)
-    }
-    fn selected(
-        &self,
-        shape: &crate::domain::executable_program::types::SelectionAlternative,
-        permit: &KernelPermit<'_>,
-        context: &mut OperatorContext<'_>,
-        scratch: &mut KernelScratch,
-    ) -> Result<
-        crate::application::file_dag::program::runtime::types::Attempt<
-            crate::application::file_dag::relations::handle::service::PublishedInput,
-        >,
-        InvocationFailure,
-    > {
-        self.actual.selected(shape, permit, context, scratch)
-    }
-    fn column(
-        &self,
-        shape: &crate::domain::executable_program::types::ColumnAlternative,
-        permit: &KernelPermit<'_>,
-        left: &AdmittedInput,
-        right: &AdmittedInput,
-        context: &mut OperatorContext<'_>,
-        scratch: &mut KernelScratch,
-        counts: &ColumnCounters,
-        rows: &mut Table,
-    ) -> Result<StrategyOutcome, InvocationFailure> {
-        self.actual
-            .column(shape, permit, left, right, context, scratch, counts, rows)
     }
     fn evaluate(
         &self,

@@ -1,13 +1,13 @@
 //! A walk publishes nothing for an empty next file, declines invalid generic rows, and does no semantic work for unready classes.
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
-use crate::domain::positions::service_test::{SMALL_SOURCE, SmallTree, small_tree};
-use crate::domain::positions::types::ClassPlace;
 use crate::domain::shared_walk::service_test::{
     add_pattern, evaluate_plans, evaluate_rows, plan, plans, relation_plan, with_context,
 };
 use crate::domain::shared_walk::types::WalkWork;
 use crate::domain::shared_walk::types::prepared_walk::value::PreparedWalk;
+use crate::domain::step_classes::types::ClassPlace;
+use crate::domain::table_cells::service_test::{SMALL_SOURCE, SmallTree, small_tree};
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
 use crate::domain::table_model::types::Rows;
 use crate::domain::table_scratch::types::OperatorScratch;

@@ -1,11 +1,8 @@
 //! Dense executable instructions and their real publication boundaries.
-use crate::domain::{
-    column_kernel::types::Chain, coverage::types::RuleIndex, operating::errors::OperatingError,
-    stored_selection::types::Selector,
-};
+use crate::domain::{coverage::types::RuleIndex, operating::errors::OperatingError};
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{StepId, StepScope};
-use std::sync::Arc;
+
 
 pub(crate) mod demand_program;
 pub(crate) mod executable_program;
@@ -73,63 +70,21 @@ pub(crate) struct SourcePartition {
     pub source: InputSource,
     pub requirement: PartitionRequirement,
 }
-/// How a region is evaluated. Exactly one per region, kept by `service::choose`.
+/// How a region is evaluated. Exactly one per region, decided when the program is compiled.
 #[derive(Clone, Debug, Default)]
 pub(crate) enum Route {
-    /// The registered operator of each instruction, in order: the definition of the operation.
+    /// The registered operator of each instruction, in order: the operators' one meaning of its kind.
     #[default]
     Generic,
-    /// The reviewed ordered-existence replacement of a self-join anti-join select.
+    /// The ordered-existence replacement of a self-join anti-join select the recogniser resolved: the one
+    /// implementation of that region, through the operators' ordered-existence driver port.
     OrderedExistence(OrderedExistence),
-    /// The column kernel over a stored equality index, replacing a join-filter-project chain.
-    Column(ColumnAlternative),
-    /// The stored selection of a direct select or project over one relation.
-    Selection(SelectionAlternative),
-    /// The native positions of a step that reads only the tree.
-    NativePositions(Arc<crate::domain::lowering::types::LoweredShape>),
-}
-/// Whether the composition wires one strategy: an unwired strategy offers no route, so the generic
-/// evaluation of the operators serves what it would have served.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum RouteWiring {
-    /// The strategy is offered to the one selection rule.
-    #[default]
-    Wired,
-    /// The strategy is never offered.
-    #[cfg(any(test, feature = "fixtures"))]
-    Unwired,
-}
-/// Which strategies the composition wires, every one by default. Each strategy implements a driver
-/// port of `ryo_operators`; the policy only chooses which implementations a program may use, so a
-/// differential run can compare an engine with a strategy and the same engine without it.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct RoutePolicy {
-    /// The ordered-existence replacement of a self-join anti-join select.
-    pub ordered_existence: RouteWiring,
-    /// The column kernel over a stored equality index.
-    pub column_kernel: RouteWiring,
-    /// The stored (compact) selection of a direct select or project.
-    pub stored_selection: RouteWiring,
-    /// The lowered native positions of a step that reads only the tree.
-    pub native_positions: RouteWiring,
-    /// The tree join cursor that serves a native join without the generic join item.
-    pub tree_join: RouteWiring,
 }
 /// A route without its payload: what a permit is issued for.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum RouteKind {
     Generic,
     OrderedExistence,
-    Column,
-    NativePositions,
-}
-/// What the family analysers found eligible for one region, before the one rule keeps a route.
-#[derive(Clone, Debug, Default)]
-pub(crate) struct RouteOffers {
-    pub ordered: Option<OrderedExistence>,
-    pub column: Option<ColumnAlternative>,
-    pub selection: Option<SelectionAlternative>,
-    pub native: Option<Arc<crate::domain::lowering::types::LoweredShape>>,
 }
 /// Whether a root of its rule reads an original step.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -142,14 +97,6 @@ pub(super) enum StepUse {
 /// The address of the compiled regular expression an operator call was prepared with.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct RegexIdentity(pub usize);
-/// Whether an invocation holds the native join lease, whose views a join call must then carry.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum JoinLease {
-    /// The native join lease is held.
-    Native,
-    /// No native join lease is held.
-    Absent,
-}
 /// Whether a row passes the first applicable row gate of an instruction.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum RowGate {
@@ -157,26 +104,6 @@ pub(crate) enum RowGate {
     Admitted,
     /// The row is skipped before invocation.
     Withheld,
-}
-/// The column-kernel alternative of one join-filter-project chain: its target, left input, join and filter, in original
-/// nodes when the compiler finds it and in executable regions once lowered. The typed semantic shape required by the shared
-/// physical invocation.
-#[derive(Clone, Debug)]
-pub(crate) struct ColumnAlternative<Id = RegionId> {
-    pub target: Id,
-    pub left: Id,
-    pub join: Id,
-    pub filter: Id,
-    pub chain: Chain,
-}
-/// An immutable semantic alternative for one exact compiled instruction: the stored selection of a direct select or
-/// project. The selector is the request-prepared Arc also registered with the derived owner.
-#[derive(Clone, Debug)]
-pub(crate) struct SelectionAlternative {
-    pub target: RegionId,
-    pub selector: Arc<Selector>,
-    pub producer: RuleIndex,
-    pub logical: LogicalInstruction,
 }
 /// Where an original step of a rule is in the executable program.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -217,11 +144,10 @@ pub(crate) trait ProducerPartitions {
     ) -> Result<PartitionRequirement, OperatingError>;
 }
 
-/// The program of every rule, and the region each plan's named output reads, in the plan's own output order.
+/// The program of every rule.
 #[derive(Debug)]
 pub(crate) struct RulePrograms {
     pub rules: Vec<RuleProgram>,
-    pub observed_roots: Vec<Vec<Option<RegionId>>>,
 }
 
 /// The compiler's fusion classification of the whole request graph, indexed by original node.

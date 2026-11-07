@@ -3,8 +3,8 @@
 use super::service::allows;
 use super::types::{Admit, Marked};
 use crate::domain::operating::errors::OperatingError;
-use crate::domain::positions::service_test::{SmallTree, rows_over, small_tree};
 use crate::domain::shared_walk::service_test::with_context;
+use crate::domain::table_cells::service_test::{SmallTree, rows_over, small_tree};
 use crate::domain::table_model::types::Verdict;
 use ryo_relations::domain::relations::types::Position;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};

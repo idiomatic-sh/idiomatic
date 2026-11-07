@@ -48,7 +48,7 @@ use std::sync::{
 pub(super) struct SemanticCalls(AtomicUsize);
 impl ryo_execution::outbound::operators::interface::OperatorsPort for SemanticCalls {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
-        if matches!(&call, OperatorCall::Select { .. }) {
+        if matches!(&call, OperatorCall::Evaluate { operation: ryo_values::domain::plans::types::Operation::Select { .. }, .. }) {
             let _previous = self.0.fetch_add(1, Ordering::Relaxed);
         }
         OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())).operators(call)

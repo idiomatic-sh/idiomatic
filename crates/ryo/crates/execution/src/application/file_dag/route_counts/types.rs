@@ -77,7 +77,7 @@ pub(crate) enum RouteOwnership {
     Unowned,
     Owned,
 }
-/// Whether a file scope records into the thread profile.
+/// Whether a file scope records into its profile.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum RouteActivity {
     Active,
@@ -95,11 +95,6 @@ pub(crate) enum RouteOutcome {
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum BuildRoute {
     OwnerAcquire,
-    SelectorCandidate,
-    Column,
-    SelectorPredicate,
-    SelectorPostings,
-    SelectorDistinct,
     ClosurePartition,
     GraphAdjacency,
     GraphDomain,
@@ -140,16 +135,26 @@ pub(crate) struct RouteState {
     pub progress: RouteProgressState,
 }
 
+/// The profile of one file, opened by its scope and handed down to every part that records
+/// into it; it holds no state when the scope does not record.
+#[derive(Clone, Debug, Default)]
+pub(crate) struct RouteProfile(pub Option<std::sync::Arc<std::sync::Mutex<RouteState>>>);
+
 pub(crate) struct FileScope {
-    pub active: RouteActivity,
+    pub profile: RouteProfile,
 }
 pub(crate) struct OriginScope {
+    pub profile: RouteProfile,
     pub previous: Option<RouteOrigin>,
 }
 
+/// The origin a profile had when an invocation began, with the profile it belongs to.
 #[cfg(feature = "diagnostic-row-progress")]
-#[derive(Clone, Copy)]
-pub(crate) struct CapturedOrigin(pub Option<RouteOrigin>);
+#[derive(Clone)]
+pub(crate) struct CapturedOrigin {
+    pub profile: RouteProfile,
+    pub origin: Option<RouteOrigin>,
+}
 /// Display path of the file under profile.
 #[cfg(feature = "diagnostic-row-progress")]
 #[derive(Clone, Debug, Default, PartialEq, Eq)]

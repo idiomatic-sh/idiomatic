@@ -72,7 +72,6 @@ pub(super) fn row(entry: Entry) -> Row {
             "release",
             "population release; the lifecycle controls drive it",
         ),
-        Entry::SelectorWork => exempt(owner!("observations.rs"), "selector_work", accounting),
         Entry::Wanted => exempt(
             setup,
             "wanted",

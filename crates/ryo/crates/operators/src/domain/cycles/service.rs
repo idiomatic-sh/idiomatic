@@ -1,6 +1,6 @@
 //! Tarjan cycle semantics: the nodes of a component of more than one, or with an edge to themselves.
 use super::types::{
-    CycleDriver, CycleScratch, EdgePlace, CycleMark, NodeNumber, MeetOrder, WalkStep,
+    CycleDriver, CycleMark, CycleScratch, EdgePlace, MeetOrder, NodeNumber, WalkStep,
 };
 
 const UNMET: MeetOrder = MeetOrder(usize::MAX);
@@ -114,4 +114,17 @@ pub(crate) fn cycles(graph: &dyn CycleDriver, scratch: &mut CycleScratch) {
             .filter_map(|(node, _)| graph.value(NodeNumber(node))),
     );
     scratch.ordered.sort_unstable();
+}
+
+/// Marks the nodes on a cycle of the engine's prepared adjacency and emits each, ascending, as both the
+/// source and the destination of its row.
+pub(crate) fn evaluate(
+    driver: &mut dyn crate::domain::cycles::types::CyclesEvaluation,
+    scratch: &mut CycleScratch,
+) -> Result<(), crate::domain::contract::types::PortableOperatorFault> {
+    cycles(driver.cycles()?, scratch);
+    for value in &scratch.ordered {
+        driver.emit(&[*value, *value])?;
+    }
+    Ok(())
 }

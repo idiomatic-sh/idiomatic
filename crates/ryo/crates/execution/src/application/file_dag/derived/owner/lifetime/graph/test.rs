@@ -1,6 +1,5 @@
 //! Real owner handles remain valid/accounted across clear and cannot poison refill.
 use crate::application::file_dag::derived::owner::graphs::types::handles::types::GraphSharing;
-use crate::application::file_dag::derived::owner::types::PopulationCount;
 use crate::application::file_dag::derived::owner::*;
 use crate::domain::{
     stored_graph::types::{GraphWalk, Orientation},
@@ -104,7 +103,10 @@ fn old_completed_answer_owns_exact_context_through_clear_and_changed_facts() {
     let mut walk = GraphWalk::default();
     let root = graph
         .graph()
-        .vertex(ryo_derived::domain::vertices::types::PartitionId(0), number(Integer(1)))
+        .vertex(
+            ryo_derived::domain::vertices::types::PartitionId(0),
+            number(Integer(1)),
+        )
         .expect("prepared vertex")
         .0;
     let nearest = fixture
@@ -213,57 +215,6 @@ fn old_completed_answer_owns_exact_context_through_clear_and_changed_facts() {
 }
 
 #[test]
-fn weak_position_expiry_never_changes_map_key_hash_or_equality() {
-    let positions = Arc::new(vec![0, 2]);
-    let weak = Arc::downgrade(&positions);
-    let descriptor = Arc::new(crate::domain::stored_selection::types::SelectionIdentity::default());
-    let requirement = GraphRequirement {
-        endpoints: ENDPOINTS,
-        keys: Arc::from([]),
-        selection: Some(GraphSelection::new(
-            &crate::application::file_dag::derived::owner::graph_key::SelectionRows(Arc::clone(
-                &positions,
-            )),
-            &descriptor,
-        )),
-    };
-    let key = Key {
-        plan: RequirementIdentity::Graph(Arc::new(GraphViewIdentity::Adjacency(requirement))),
-        populations: [PopulationId(7), PopulationId(usize::MAX)],
-        len: PopulationCount(1),
-        context: ViewContext::default(),
-    };
-    let mut map = hashbrown::HashMap::new();
-    map.insert(key.clone(), 42);
-    let hash = map.hasher().hash_one(&key);
-    drop(positions);
-    assert!(
-        weak.upgrade().is_none(),
-        "key metadata does not retain physical row positions"
-    );
-    assert_eq!(key, key.clone());
-    assert_eq!(map.hasher().hash_one(&key), hash);
-    assert_eq!(map.get(&key), Some(&42));
-    let replacement = Arc::new(vec![0, 2]);
-    let next =
-        RequirementIdentity::Graph(Arc::new(GraphViewIdentity::Adjacency(GraphRequirement {
-            endpoints: ENDPOINTS,
-            keys: Arc::from([]),
-            selection: Some(GraphSelection::new(
-                &crate::application::file_dag::derived::owner::graph_key::SelectionRows(Arc::clone(
-                    &replacement,
-                )),
-                &descriptor,
-            )),
-        })));
-    assert_ne!(key.plan, next);
-    assert!(
-        key.plan.compatible(&next) == IdentityCompatibility::Incompatible,
-        "expired metadata cannot authorize reuse for a new allocation"
-    );
-}
-
-#[test]
 fn unavailable_canonical_source_declines_without_retaining_duplicate_graphs() {
     let columns = [FactColumn(vec![1, 2]), FactColumn(vec![2, 3])];
     let input = rows(&columns);
@@ -289,72 +240,6 @@ fn unavailable_canonical_source_declines_without_retaining_duplicate_graphs() {
         assert_eq!(observed.counts.builds, 0);
         assert_eq!(observed.optional_bytes, 0);
     }
-}
-
-#[test]
-fn impossible_selected_position_admission_does_not_evict_dormant_index() {
-    use crate::domain::stored_selection::types::SelectionIdentity;
-    use crate::domain::table_model::types::{SelectedRows, StoredSelection};
-    let columns = [FactColumn(vec![1, 2]), FactColumn(vec![2, 3])];
-    let input = rows(&columns);
-    let mut fixture = GraphFixture::new(
-        &[Relation::Function, Relation::Identifier],
-        &[],
-        crate::application::file_dag::derived::owner::index::service::LIMIT,
-    );
-    drop(
-        fixture
-            .index(Relation::Identifier, &input, &[ColumnIndex(0)])
-            .unwrap(),
-    );
-    let before = fixture.snapshot();
-    let mut positions = Vec::with_capacity(
-        crate::application::file_dag::derived::owner::selection::types::MAX_RETAINED_POSITION_CAPACITY + 1,
-    );
-    positions.extend([0, 1]);
-    let Rows::Stored(source) = input else {
-        unreachable!()
-    };
-    let selected = Rows::Selected(SelectedRows {
-        source,
-        selection: Arc::new(StoredSelection {
-            relation: Relation::Function,
-            identity: Arc::new(SelectionIdentity::default()),
-            rows: crate::domain::stored_selection::types::SelectedPositions(Arc::new(positions)),
-            columns: ENDPOINTS.to_vec(),
-            kinds: vec![CellKind::Number; 2],
-        }),
-    });
-    let first = fixture
-        .acquire(SOURCE, &selected, ENDPOINTS, &[])
-        .unwrap()
-        .unwrap();
-    assert_eq!(first.sharing(), GraphSharing::Local);
-    assert_eq!(
-        first.graph().vertices(),
-        vec![1, 2, 3]
-            .into_iter()
-            .map(|n| number(Integer(n)))
-            .collect::<Vec<_>>()
-    );
-    let cost = fixture.graph_cost(&first);
-    fixture.set_limit(before.bytes + cost - before.retained_view_bytes / 2);
-    let second = fixture
-        .acquire(SOURCE, &selected, ENDPOINTS, &[])
-        .unwrap()
-        .unwrap();
-    assert!(
-        second.sharing() == GraphSharing::Local,
-        "a repeated refusal cannot destructively reclaim unrelated cache entries"
-    );
-    assert!(Arc::ptr_eq(first.raw_graph(), second.raw_graph()));
-    let after = fixture.snapshot();
-    assert_eq!(
-        (after.bytes, after.optional_bytes, after.indexes),
-        (before.bytes, before.optional_bytes, before.indexes)
-    );
-    assert_eq!(after.counts.reclaimed_bytes, 0);
-    assert_eq!(after.counts.builds, 1);
 }
 
 mod exhausted;

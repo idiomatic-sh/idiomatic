@@ -7,31 +7,25 @@ use ryo_relations::domain::relations::types::Value;
 use crate::domain::operator::contract::views::{ProgressAmount, ProgressCounter};
 
 use super::super::constants::{self, MAX_KEYS};
-use super::super::profile::service::{with_borrow, with_borrow_mut};
+use super::super::profile::service::with_state;
 use super::super::schemas::document;
 use super::super::types::{
     RouteCardinality, RouteCounters, RouteFileIndex, RouteFileName, RouteHotRow, RouteInputKey,
-    RouteInputSlot, RouteKey, RouteLabel, RouteRowFile, RouteRuleName, RouteSnapshot, RouteTally,
+    RouteInputSlot, RouteKey, RouteLabel, RouteProfile, RouteRowFile, RouteRuleName, RouteSnapshot,
+    RouteTally,
 };
 
-pub(crate) fn file_name(name: &FilePath) {
+pub(crate) fn file_name(profile: &RouteProfile, name: &FilePath) {
     let name = RouteFileName(name.0.to_string());
-    with_borrow_mut(|state| {
-        if let Some(state) = state {
-            state.progress.name = name;
-        }
-    });
-    flush(RouteLabel(constants::STAGE_SCOPE_START));
+    let _named = with_state(profile, |state| state.progress.name = name);
+    flush(profile, RouteLabel(constants::STAGE_SCOPE_START));
 }
-pub(crate) fn row_file(row: &[Value], paths: &[FilePath]) {
+pub(crate) fn row_file(profile: &RouteProfile, row: &[Value], paths: &[FilePath]) {
     let file = row.iter().find_map(|value| match value {
         Value::File(file) => Some(file),
         _ => None,
     });
-    with_borrow_mut(|state| {
-        let Some(state) = state else {
-            return;
-        };
+    let _attributed = with_state(profile, |state| {
         match file {
             Some(file)
                 if state.progress.row_file.as_ref().map(|known| known.file.0) != Some(file.0) =>
@@ -57,12 +51,9 @@ fn counter_label(counter: ProgressCounter) -> RouteLabel {
         ProgressCounter::KernelOutputRows => constants::COUNTER_KERNEL_OUTPUT_ROWS,
     })
 }
-pub(crate) fn progress(counter: ProgressCounter, amount: ProgressAmount) {
+pub(crate) fn progress(profile: &RouteProfile, counter: ProgressCounter, amount: ProgressAmount) {
     let label = counter_label(counter);
-    let flush_now = with_borrow_mut(|state| {
-        let Some(state) = state else {
-            return false;
-        };
+    let flush_now = with_state(profile, |state| {
         let key = RouteKey {
             origin: state.origin,
             route: RouteLabel(constants::ROW_PROGRESS),
@@ -84,8 +75,8 @@ pub(crate) fn progress(counter: ProgressCounter, amount: ProgressAmount) {
             false
         }
     });
-    if flush_now {
-        flush(RouteLabel(constants::STAGE_PROGRESS));
+    if flush_now == Some(true) {
+        flush(profile, RouteLabel(constants::STAGE_PROGRESS));
     }
 }
 fn add_counter(counters: &mut RouteCounters, family: RouteLabel, calls: RouteTally) {
@@ -103,9 +94,8 @@ fn add_counter(counters: &mut RouteCounters, family: RouteLabel, calls: RouteTal
     };
     slot.0 += calls.0;
 }
-fn snapshot() -> Option<RouteSnapshot> {
-    with_borrow(|state| {
-        let state = state.as_ref()?;
+fn snapshot(profile: &RouteProfile) -> Option<RouteSnapshot> {
+    with_state(profile, |state| {
         let mut rows = state
             .counts
             .iter()
@@ -186,7 +176,7 @@ fn snapshot() -> Option<RouteSnapshot> {
                 node_namespace: key.origin.namespace,
             })
             .collect::<Vec<_>>();
-        Some(RouteSnapshot {
+        RouteSnapshot {
             file: state.file,
             path: state.progress.name.clone(),
             origin: state.origin,
@@ -204,11 +194,11 @@ fn snapshot() -> Option<RouteSnapshot> {
             operation,
             input_cardinalities,
             row_file: state.progress.row_file.clone(),
-        })
+        }
     })
 }
-pub(crate) fn flush(stage: RouteLabel) {
-    let Some(snapshot) = snapshot() else {
+pub(crate) fn flush(profile: &RouteProfile, stage: RouteLabel) {
+    let Some(snapshot) = snapshot(profile) else {
         return;
     };
     let project = snapshot.file == RouteFileIndex(usize::MAX);
@@ -231,11 +221,9 @@ pub(crate) fn flush(stage: RouteLabel) {
     tracing::trace!(target: constants::ROW_PROGRESS_TARGET, event = constants::ROW_PROGRESS, stage, phase, file = ?file, path, row_file = ?row_file, rule, node_namespace = origin.namespace.0, rule_index = ?origin.rule.map(|rule| rule.0), node = ?origin.node.map(|node| node.0), consumer = ?origin.consumer.map(|consumer| consumer.0), elapsed_ms, ticks, overflow, hottest = %hottest, counters = %counters, operation = operation, input_cardinalities = ?input_cardinalities);
 }
 
-/// The route accounting as the observer a primitive reports its progress to.
-pub(crate) struct RouteProgress;
-
-impl crate::domain::operator::contract::views::ProgressObserver for RouteProgress {
+/// The file's profile as the observer a primitive reports its progress to.
+impl crate::domain::operator::contract::views::ProgressObserver for RouteProfile {
     fn observe(&self, counter: ProgressCounter, amount: ProgressAmount) {
-        progress(counter, amount);
+        progress(self, counter, amount);
     }
 }

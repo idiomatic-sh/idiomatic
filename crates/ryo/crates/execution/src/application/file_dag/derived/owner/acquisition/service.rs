@@ -4,7 +4,7 @@ use super::admission::service::{AcquiredView, AcquisitionLifetime, AdmittedViewI
 use super::population::types::{
     Acquisition, BackendRetention, Construction, OptionalRetention, StoredObservation,
 };
-use super::selection::types::StoredColumns;
+use super::population::types::StoredColumns;
 use crate::application::file_dag::route_counts::{self, types::BuildRoute};
 
 impl DerivedOwner {
@@ -119,7 +119,7 @@ impl DerivedOwner {
                     _ => true,
                 };
                 let storage =
-                    route_counts::observe(route.label(), route_counts::derived(plan.kind), || {
+                    route_counts::observe(&self.routes, route.label(), route_counts::derived(plan.kind), || {
                         self.build_admitted(plan, admitted, inputs, scratch, None)
                     })?;
                 // Optional retention is decided below by this owner, never by the kernel.

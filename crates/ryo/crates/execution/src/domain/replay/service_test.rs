@@ -5,7 +5,7 @@ use crate::domain::{
         errors::OperatingError,
         types::{Emit, OperatorContext},
     },
-    positions::types::ClassPlace,
+    step_classes::types::ClassPlace,
     replay::{service::selected, types::SelectionColumns},
     shared_walk::{
         service_test::{evaluate_rows, relation_plan, with_context},

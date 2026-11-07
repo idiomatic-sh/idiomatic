@@ -1,14 +1,14 @@
 //! Inbound implementation delegates projection to the pure domain algorithm.
 use super::interface::OperatorsUseCase;
-use std::sync::Arc;
-use crate::outbound::matching::interface::MatchingPort;
-use ryo_matching::inbound::use_cases::matching::types::{GroupName, SearchText};
+use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::project::service;
 use crate::domain::source_matches::types::CaptureRequest;
 use crate::inbound::use_cases::operators::types::OperatorAnswer;
 use crate::inbound::use_cases::operators::types::OperatorCall;
-use crate::domain::contract::types::PortableOperatorFault;
+use crate::outbound::matching::interface::MatchingPort;
+use ryo_matching::inbound::use_cases::matching::types::{GroupName, SearchText};
 use ryo_values::domain::row_texts::types::CellText;
+use std::sync::Arc;
 
 /// Capability implementation over the matching port; the edge composes it once.
 #[derive(Clone)]
@@ -36,6 +36,18 @@ impl OperatorsUseCaseImpl {
 impl OperatorsUseCase for OperatorsUseCaseImpl {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
         match call {
+            OperatorCall::Evaluate {
+                operation,
+                input,
+                views,
+                driver,
+                scratch,
+            } => {
+                crate::domain::evaluation::service::evaluate(
+                    operation, input, views, driver, scratch, self,
+                )?;
+                Ok(OperatorAnswer::Written)
+            }
             OperatorCall::ReduceCount {
                 table,
                 keys,
@@ -59,13 +71,7 @@ impl OperatorsUseCase for OperatorsUseCaseImpl {
                 target,
             } => {
                 crate::domain::reduction::service::digest_groups(
-                    table,
-                    keys,
-                    over,
-                    order,
-                    hashes,
-                    hasher,
-                    target,
+                    table, keys, over, order, hashes, hasher, target,
                 )?;
                 Ok(OperatorAnswer::Written)
             }
@@ -105,13 +111,8 @@ impl OperatorsUseCase for OperatorsUseCaseImpl {
                 kept,
                 holds,
                 target,
-            } => crate::domain::select::service::select(
-                row,
-                kept,
-                holds,
-                target,
-            )
-            .map(OperatorAnswer::Selected),
+            } => crate::domain::select::service::select(row, kept, holds, target)
+                .map(OperatorAnswer::Selected),
             OperatorCall::Words { text, word, each } => {
                 crate::domain::words::service::split(text, word, each);
                 Ok(OperatorAnswer::Written)
@@ -122,9 +123,7 @@ impl OperatorsUseCase for OperatorsUseCaseImpl {
                 slots,
                 each,
             } => {
-                crate::domain::capture::service::matches(
-                    pattern, text, text, slots, each,
-                );
+                crate::domain::capture::service::matches(pattern, text, text, slots, each);
                 Ok(OperatorAnswer::Written)
             }
             OperatorCall::Rank { text, layers } => Ok(OperatorAnswer::Rank(
@@ -139,7 +138,9 @@ impl OperatorsUseCase for OperatorsUseCaseImpl {
                 crate::domain::replace::service::replace_compiled(
                     &|each| {
                         self.matching
-                            .visit_regex_matches(regex, SearchText(text.0), &mut |found| each(found.0))
+                            .visit_regex_matches(regex, SearchText(text.0), &mut |found| {
+                                each(found.0)
+                            })
                     },
                     text,
                     replacement,
@@ -154,13 +155,7 @@ impl OperatorsUseCase for OperatorsUseCaseImpl {
                 digest,
                 target,
             } => {
-                crate::domain::aggregate::service::aggregate(
-                    row,
-                    keys,
-                    count,
-                    digest,
-                    target,
-                )?;
+                crate::domain::aggregate::service::aggregate(row, keys, count, digest, target)?;
                 Ok(OperatorAnswer::Written)
             }
             OperatorCall::OrderedMatch {
@@ -221,10 +216,9 @@ impl OperatorsUseCase for OperatorsUseCaseImpl {
                         driver,
                         key,
                     } => crate::domain::set_rows::service::values(kind, row, left_on, driver, key)?,
-                    crate::domain::set_rows::types::SetInput::Positions {
-                        kind,
-                        driver,
-                    } => crate::domain::set_rows::service::positions(kind, driver)?,
+                    crate::domain::set_rows::types::SetInput::Positions { kind, driver } => {
+                        crate::domain::set_rows::service::positions(kind, driver)?
+                    }
                 }
                 Ok(OperatorAnswer::Written)
             }
@@ -245,11 +239,7 @@ impl OperatorsUseCase for OperatorsUseCaseImpl {
                         left,
                         driver,
                         target,
-                    } => crate::domain::equality_join::service::positions(
-    left,
-                        driver,
-                        target,
-                    )?,
+                    } => crate::domain::equality_join::service::positions(left, driver, target)?,
                 }
                 Ok(OperatorAnswer::Written)
             }
@@ -308,6 +298,37 @@ impl OperatorsUseCase for OperatorsUseCaseImpl {
             } => crate::domain::span_between::service::between(row, start, end, source_len)
                 .map(OperatorAnswer::SpanBetween),
         }
+    }
+}
+
+impl crate::domain::contract::types::Occurrences for OperatorsUseCaseImpl {
+    fn matches(
+        &self,
+        regex: &ryo_matching::inbound::use_cases::matching::compiled::CompiledRegex,
+        text: &str,
+        each: &mut dyn FnMut(std::ops::Range<usize>) -> std::ops::ControlFlow<()>,
+    ) -> std::ops::ControlFlow<()> {
+        self.matching
+            .visit_regex_matches(regex, SearchText(text), &mut |found| each(found.0))
+    }
+    fn captures(
+        &self,
+        regex: &ryo_matching::inbound::use_cases::matching::compiled::CompiledRegex,
+        text: &str,
+        group: &str,
+        each: &mut dyn FnMut(
+            std::ops::Range<usize>,
+            std::ops::Range<usize>,
+        ) -> std::ops::ControlFlow<()>,
+    ) -> Result<std::ops::ControlFlow<()>, PortableOperatorFault> {
+        self.matching
+            .visit_regex_captures(
+                regex,
+                SearchText(text),
+                GroupName(group),
+                &mut |found, inner| each(found.0, inner.0),
+            )
+            .map_err(|_| PortableOperatorFault::MissingCapture)
     }
 }
 

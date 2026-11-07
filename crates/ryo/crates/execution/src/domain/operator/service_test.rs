@@ -18,25 +18,35 @@ enum Scenario {
     Foreign,
     Missing,
     InvalidValue,
-    /// Every registered kind has exactly one item directory, and every item directory is a registered kind.
-    KindsAndItemsAgree,
-    /// No free function an operators service defines is defined again by an operator item of execution.
-    NoSemanticIsDefinedTwice,
-    /// A driver port of operators is implemented by the strategies of the route policy and the generic items only.
+    /// Every registered kind has exactly one evaluation arm, in the operators' one evaluation.
+    OneSemanticPerKind,
+    /// The engine reaches a kind's row meaning only through the one evaluation call: no execution source
+    /// names a per-kind meaning of the operators.
+    NoSecondImplementation,
+    /// A driver port of operators is implemented by the engine's strategies only.
     DriversAreImplementedByStrategiesOnly,
+    /// Every operator the documentation lists describes itself with a name, a summary and an example.
+    EveryOperatorDescribesItself,
+    /// Every kind's registered preparation refuses an operation of another kind.
+    EveryKindRefusesAForeignOperation,
 }
 type Input = Scenario;
 type Value = ();
 type Failure = OperatingError;
-/// The path prefixes, below the execution `src`, that hold an implementation of a driver port: one for each strategy of
-/// `RoutePolicy`, and the generic evaluation of the operators.
+/// The path prefixes, below the execution `src`, that hold an implementation of a driver port: the engine's
+/// strategies behind the operators' ports (its join candidates, walks, graphs and delivery) and the
+/// ordered-existence driver.
 const STRATEGIES: &[&str] = &[
     "application/file_dag/ordered_existence.rs",
-    "domain/column_kernel/",
-    "domain/native_positions/",
-    "domain/tree_join/",
-    "domain/operator/collections/operators/",
-    "domain/operator/contract/set_rows.rs",
+    "domain/operator/contract/",
+];
+/// The calls of the operators the engine may name: the one evaluation of every kind, the ordered-existence
+/// driver of its operation, and the reductions that prepare a grouping resource.
+const ENGINE_CALLS: &[&str] = &[
+    "Evaluate",
+    "OrderedExistence",
+    "ReduceCount",
+    "ReduceDigest",
 ];
 
 fn crates() -> PathBuf {
@@ -61,7 +71,10 @@ fn text(path: &Path) -> String {
 
 fn is_test(path: &Path) -> bool {
     let name = path.file_name().and_then(|name| name.to_str()).unwrap_or("");
-    name.ends_with("_test.rs") || name == "test.rs" || name == "tests.rs"
+    name.ends_with("_test.rs")
+        || name == "test.rs"
+        || name == "tests.rs"
+        || path.components().any(|part| part.as_os_str() == "fixtures" || part.as_os_str() == "acceptance")
 }
 
 /// The names after `marker` in `source`, each followed by a character that ends an identifier.
@@ -78,70 +91,62 @@ fn named_after(source: &str, marker: &str) -> Vec<String> {
         .collect()
 }
 
-/// The names of the functions declared at the left margin: methods of an impl are indented and never counted.
-fn free_functions(source: &str) -> Vec<String> {
-    source
-        .lines()
-        .filter_map(|line| {
-            let rest = line
-                .strip_prefix("pub(crate) ")
-                .or_else(|| line.strip_prefix("pub(super) "))
-                .or_else(|| line.strip_prefix("pub "))
-                .unwrap_or(line);
-            rest.strip_prefix("fn ")
-        })
-        .map(|rest| {
-            rest.chars()
-                .take_while(|each| each.is_alphanumeric() || *each == '_')
-                .collect()
-        })
-        .collect()
-}
-
-/// The census scenarios read the registry (`OperationKind::ALL`) and the sources of the two crates, never a list kept by hand.
+/// The census scenarios read the registry (`OperationKind::ALL`) and the sources of the two crates, never a
+/// list kept by hand.
 fn census(scenario: Scenario) {
     let execution = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
-    let items = execution.join("domain/operator/collections/operators");
     match scenario {
-        Scenario::KindsAndItemsAgree => {
-            let mut kinds: Vec<String> = OperationKind::ALL
+        Scenario::OneSemanticPerKind => {
+            let dispatcher = text(&crates().join("operators/src/domain/evaluation/service.rs"));
+            let arms = named_after(&dispatcher, "Operation::");
+            assert!(!OperationKind::ALL.is_empty());
+            let wrong: Vec<String> = OperationKind::ALL
+                .iter()
+                .map(|kind| format!("{kind:?}"))
+                .filter(|kind| arms.iter().filter(|arm| *arm == kind).count() != 1)
+                .collect();
+            assert!(wrong.is_empty(), "kinds without exactly one evaluation in operators: {wrong:?}");
+            let unknown: Vec<&String> = arms
+                .iter()
+                .filter(|arm| !OperationKind::ALL.iter().any(|kind| format!("{kind:?}") == **arm))
+                .collect();
+            assert!(unknown.is_empty(), "evaluations of no registered kind: {unknown:?}");
+        }
+        Scenario::NoSecondImplementation => {
+            let mut files = Vec::new();
+            sources(&execution, &mut files);
+            let kinds: Vec<String> = OperationKind::ALL
                 .iter()
                 .map(|kind| format!("{kind:?}").to_snake_case())
                 .collect();
-            let mut directories: Vec<String> = std::fs::read_dir(&items)
-                .expect("the items directory is readable")
-                .flatten()
-                .filter(|entry| entry.path().join("item.rs").exists())
-                .filter_map(|entry| entry.file_name().into_string().ok())
-                .collect();
-            kinds.sort();
-            directories.sort();
-            assert!(!kinds.is_empty());
-            assert_eq!(kinds, directories, "kinds differ from item directories");
-        }
-        Scenario::NoSemanticIsDefinedTwice => {
-            let mut services = Vec::new();
-            sources(&crates().join("operators/src/domain"), &mut services);
-            let defined: std::collections::BTreeSet<String> = services
+            let strays: Vec<String> = files
                 .iter()
-                .filter(|path| path.file_name().is_some_and(|name| name == "service.rs"))
-                .flat_map(|path| named_after(&text(path), "fn "))
-                .collect();
-            assert!(!defined.is_empty(), "operators defines no service function");
-            let mut files = Vec::new();
-            sources(&items, &mut files);
-            let twice: Vec<String> = files
-                .iter()
-                .filter(|path| !is_test(path) && !path.to_string_lossy().contains("/fixtures"))
+                .filter(|path| !is_test(path))
                 .flat_map(|path| {
-                    free_functions(&text(path))
+                    let source = text(path);
+                    let mut found: Vec<String> = named_after(&source, "OperatorCall::")
                         .into_iter()
-                        .filter(|name| defined.contains(name))
-                        .map(|name| format!("{name} in {}", path.display()))
-                        .collect::<Vec<_>>()
+                        .filter(|call| !ENGINE_CALLS.contains(&call.as_str()))
+                        .map(|call| format!("OperatorCall::{call} in {}", path.display()))
+                        .collect();
+                    let relative = path.strip_prefix(&execution).unwrap_or(path);
+                    if relative.starts_with("domain/operator") {
+                        found.extend(
+                            relative
+                                .components()
+                                .filter_map(|part| part.as_os_str().to_str())
+                                .map(|part| part.trim_end_matches(".rs"))
+                                .filter(|part| kinds.iter().any(|kind| kind == part))
+                                .map(|part| format!("module `{part}` in {}", path.display())),
+                        );
+                    }
+                    found
                 })
                 .collect();
-            assert!(twice.is_empty(), "defined in operators and again in execution: {twice:?}");
+            assert!(
+                strays.is_empty(),
+                "a kind's meaning is implemented again in execution: {strays:?}"
+            );
         }
         Scenario::DriversAreImplementedByStrategiesOnly => {
             let mut declared = Vec::new();
@@ -171,15 +176,47 @@ fn census(scenario: Scenario) {
                 .collect();
             assert!(strays.is_empty(), "driver ports implemented outside the strategies: {strays:?}");
         }
+        Scenario::EveryOperatorDescribesItself => {
+            for operator in super::constants::OPERATORS {
+                let description = super::constants::describe(operator);
+                assert!(
+                    !description.name.0.is_empty()
+                        && !description.summary.0.is_empty()
+                        && description.example.0.contains("example"),
+                    "{operator:?} does not describe itself"
+                );
+            }
+        }
+        Scenario::EveryKindRefusesAForeignOperation => {
+            let union = Operation::Union {
+                left: Source::Relation(Relation::Function),
+                right: Source::Relation(Relation::Function),
+            };
+            let project = Operation::Project {
+                from: Source::Relation(Relation::Function),
+                columns: vec![ColumnIndex(0)],
+                distinct: RepeatedRows::Dropped,
+            };
+            for kind in OperationKind::ALL {
+                let foreign = if *kind == OperationKind::Union { &project } else { &union };
+                assert_eq!(
+                    prepare_operator(*kind, foreign, &[], &[]).map(|_| ()),
+                    Err(OperatingError::WrongOperation),
+                    "{kind:?} prepared an operation of another kind"
+                );
+            }
+        }
         Scenario::Valid | Scenario::Foreign | Scenario::Missing | Scenario::InvalidValue => {}
     }
 }
 fn subject(scenario: Input) -> Result<Value, Failure> {
     if matches!(
         scenario,
-        Scenario::KindsAndItemsAgree
-            | Scenario::NoSemanticIsDefinedTwice
+        Scenario::OneSemanticPerKind
+            | Scenario::NoSecondImplementation
             | Scenario::DriversAreImplementedByStrategiesOnly
+            | Scenario::EveryOperatorDescribesItself
+            | Scenario::EveryKindRefusesAForeignOperation
     ) {
         census(scenario);
         return Ok(());
@@ -210,9 +247,11 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             &[],
         ),
         Scenario::Missing => prepare_operator(OperationKind::Project, &project, &[], &[]),
-        Scenario::KindsAndItemsAgree
-        | Scenario::NoSemanticIsDefinedTwice
-        | Scenario::DriversAreImplementedByStrategiesOnly => return Ok(()),
+        Scenario::OneSemanticPerKind
+        | Scenario::NoSecondImplementation
+        | Scenario::DriversAreImplementedByStrategiesOnly
+        | Scenario::EveryOperatorDescribesItself
+        | Scenario::EveryKindRefusesAForeignOperation => return Ok(()),
         Scenario::InvalidValue => prepare_operator(
             OperationKind::Extend,
             &Operation::Extend {
@@ -236,15 +275,27 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
 }
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName("every_operation_kind_has_exactly_one_item"),
+        name: CaseName("one_semantic_implementation_per_operation_kind"),
         word: Word::Succeeds,
-        input: || Scenario::KindsAndItemsAgree,
+        input: || Scenario::OneSemanticPerKind,
         expect: Expect::Value(()),
     },
     Case {
-        name: CaseName("no_operators_function_is_defined_again_in_execution"),
+        name: CaseName("no_operation_kind_is_implemented_again_in_execution"),
         word: Word::Succeeds,
-        input: || Scenario::NoSemanticIsDefinedTwice,
+        input: || Scenario::NoSecondImplementation,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("every_operator_describes_itself"),
+        word: Word::Succeeds,
+        input: || Scenario::EveryOperatorDescribesItself,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("every_kind_refuses_an_operation_of_another_kind"),
+        word: Word::Succeeds,
+        input: || Scenario::EveryKindRefusesAForeignOperation,
         expect: Expect::Value(()),
     },
     Case {

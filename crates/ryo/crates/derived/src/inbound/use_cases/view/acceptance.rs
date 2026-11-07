@@ -3,7 +3,6 @@ use crate::Behavior;
 use cucumber::{given, then, when};
 use ryo_derived::domain::contract::types::{BuildInputs, BuildOutcome, BuildWorkspace, DerivedView};
 use ryo_derived::domain::fault::types::DerivedFault;
-use ryo_derived::domain::raw_words::types::{KeyStride, RawWords};
 use ryo_derived::domain::request::types::DerivedRequest;
 use ryo_derived::inbound::use_cases::build::interface::BuildUseCase as _;
 use ryo_derived::inbound::use_cases::build::use_case::BuildUseCaseImpl;
@@ -34,12 +33,14 @@ fn runs(world: &mut Behavior) {
         vec![vec![CellKind::Number]],
     );
     let raw = PrepareDerivedUseCaseImpl::new().prepare_derived(
-        DerivedRequest::RawKeyOrder { stride: KeyStride(1) },
-        Vec::new(),
+        DerivedRequest::PartitionOrder {
+            keys: vec![ColumnIndex(0)],
+        },
+        vec![vec![CellKind::Number]],
     );
     let mut room = BuildWorkspace::default();
-    let built = if world.input == "raw order payload" {
-        BuildUseCaseImpl::new().build(&raw, BuildInputs::RawWords(RawWords(&[1])), &mut room, None)
+    let built = if world.input == "partition order payload" {
+        BuildUseCaseImpl::new().build(&raw, BuildInputs::Rows(&rows), &mut room, None)
     } else {
         BuildUseCaseImpl::new().build(&equality, BuildInputs::Rows(&rows), &mut room, None)
     };

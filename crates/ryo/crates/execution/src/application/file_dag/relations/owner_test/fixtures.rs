@@ -1,18 +1,13 @@
 //! Schema-derived typed populations and ordinary access, shared by admission fixtures.
 use crate::domain::table_model::{
     service::{count_of, read_row},
-    types::{Rows, SelectedRows, StoredSelection},
+    types::Rows,
 };
 use ryo_relations::domain::relations::{
     service::{node_id, to_bits},
-    types::{
-        CellKind, ColumnsView, FactColumn, FileId, Flag, Integer, Offset, Position, Relation, Span,
-        Value,
-    },
+    types::{CellKind, FactColumn, FileId, Flag, Integer, Offset, Position, Relation, Span, Value},
 };
 use ryo_relations::domain::terms::types::Symbol;
-use ryo_values::domain::plan_parts::types::ColumnIndex;
-use std::sync::Arc;
 
 macro_rules! catalog_groups {
     (syntax { $( $syntax:ident $sm:ident $sr:ident $sc:ident ; )* }
@@ -64,21 +59,4 @@ pub(super) fn read(rows: &Rows<'_>) -> Vec<Vec<Value>> {
             .to_vec()
         })
         .collect()
-}
-pub(super) fn selected<'a>(
-    source: ColumnsView<'a>,
-    positions: Vec<u32>,
-    columns: Vec<ColumnIndex>,
-    kinds: Vec<CellKind>,
-) -> SelectedRows<'a> {
-    SelectedRows {
-        source,
-        selection: Arc::new(StoredSelection {
-            relation: Relation::SourceLocation,
-            rows: crate::domain::stored_selection::types::SelectedPositions(Arc::new(positions)),
-            columns,
-            kinds,
-            identity: Arc::new(Default::default()),
-        }),
-    }
 }

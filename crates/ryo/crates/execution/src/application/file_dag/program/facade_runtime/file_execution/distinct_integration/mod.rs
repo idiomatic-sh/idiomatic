@@ -7,7 +7,7 @@ use crate::application::file_dag::{execution::CommonOperatorEngine, scope::Scope
 use crate::domain::{
     file_program::types::RuleSchedule,
     operating::types::Emit as RowSink,
-    positions::service_test::{SMALL_SOURCE, SmallTree, small_tree},
+    table_cells::service_test::{SMALL_SOURCE, SmallTree, small_tree},
     prepared_request::types::{Compiled, ObservationIdentity},
     table_cells::types::{TreeForm, TreeRows},
 };
@@ -229,7 +229,7 @@ fn exercise(
         &[Digest([0; 16])],
         &[],
         Arc::clone(&derived),
-        ObservationIdentity::Independent, crate::domain::executable_program::types::RoutePolicy::default(),
+        ObservationIdentity::Independent,
     )?;
     let engine = Arc::new(CommonOperatorEngine::new(operators));
     let services = Arc::new(ProgramServices::new(
@@ -341,7 +341,6 @@ fn exercise(
 }
 use ryo_values::domain::rule_requests::types::{RuleParameters, RuleSpec};
 
-mod selected_join;
 
 #[cfg(test)]
 mod test;

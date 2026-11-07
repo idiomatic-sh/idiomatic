@@ -2,8 +2,6 @@
 use super::derived::owner::acquisition::admission::service::AcquiredView;
 mod binding;
 mod constants;
-pub(in crate::application::file_dag) mod native;
-use native::service::NativeJoinLease;
 mod groups;
 pub(in crate::application::file_dag) mod index;
 mod prepared_use;
@@ -15,7 +13,7 @@ use prepared_use::service::prepared;
 mod observation;
 use crate::domain::operating::{errors::OperatingError, types::OperatorContext};
 use crate::domain::operator::contract::{
-    join::NativeJoin,
+    views::NativeJoin,
     resources::ResourceProgram,
     types::OperatorContract,
     views::{IndexedRows},
@@ -65,6 +63,9 @@ pub(crate) struct InvocationInputs<'f> {
     pub(crate) dfs: Option<AcquiredView>,
     pub(crate) axis: Option<super::axis_resources::view::AxisResource<'f>>,
     pub(crate) groups: Option<Vec<Group>>,
+    /// The file's profile, the observer the lent indexes report their probes to.
+    #[cfg(feature = "diagnostic-row-progress")]
+    pub(crate) progress: super::route_counts::types::RouteProfile,
 }
 impl<'f> InvocationResources<'f> {
     /// Validate required Join resource metadata without constructing a payload.
@@ -153,17 +154,3 @@ impl crate::domain::operator::contract::views::ClosureParts
     }
 }
 
-impl InvocationResources<'_> {
-    pub(in crate::application::file_dag) fn native_join_lease(
-        &self,
-    ) -> Result<Option<NativeJoinLease<'_>>, OperatingError> {
-        match (
-            self.inputs.native_join.as_ref(),
-            self.inputs.native_storage.as_ref(),
-        ) {
-            (None, None) => Ok(None),
-            (Some(native), Some(acquired)) => Ok(Some(NativeJoinLease::new(*native, acquired))),
-            _ => Err(OperatingError::WrongOperation),
-        }
-    }
-}

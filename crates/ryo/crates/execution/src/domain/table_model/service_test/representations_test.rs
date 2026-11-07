@@ -1,13 +1,11 @@
 //! The registry of physical representations, through its production routes and every item.
-use crate::domain::lowering::types::{ElementPart, LoweredColumn, LoweredShape, RowPosition, RowWidth};
 use crate::domain::operating::errors::OperatingError;
-use crate::domain::positions::types::{Positions, Slots};
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
 use crate::domain::table_model::service::{borrowed, kind, registered};
 use crate::domain::table_model::collections::representations::types::*;
-use crate::domain::table_model::service_test::{compact, number, column, selection, check_rows};
+use crate::domain::table_model::service_test::{compact, number, column, check_rows};
 use crate::domain::table_model::types::RepresentationInput;
-use crate::domain::table_model::types::{PositionedRows, Rows, SelectedRows, StoredSelection};
+use crate::domain::table_model::types::Rows;
 use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
@@ -31,14 +29,6 @@ fn all_registered_representations_preserve_bulk_cells_rows_and_bags() -> Result<
         kinds: &[CellKind::Number],
         columns: &columns,
     };
-    let selected = SelectedRows {
-        source,
-        selection: selection(
-            vec![1, 0, 1],
-            vec![ColumnIndex(0); 2],
-            vec![CellKind::Number; 2],
-        ),
-    };
     let table = Table {
         kinds: vec![CellKind::Number],
         cells: vec![number(8), number(7)],
@@ -55,42 +45,12 @@ fn all_registered_representations_preserve_bulk_cells_rows_and_bags() -> Result<
         file: FileId(3),
         form: TreeForm::Edges,
     };
-    let positions = Positions {
-        width: RowWidth(1),
-        slots: Slots(vec![1, 0, 1]),
-    };
-    let shape = LoweredShape {
-        width: RowWidth(1),
-        columns: vec![
-            LoweredColumn {
-                slot: RowPosition(0),
-                field: ElementPart::File,
-            },
-            LoweredColumn {
-                slot: RowPosition(0),
-                field: ElementPart::Node,
-            },
-        ],
-    };
-    let positioned = PositionedRows {
-        tree: TreeRows {
-            form: TreeForm::Elements,
-            ..tree
-        },
-        positions: &positions,
-        shape: &shape,
-        kinds: &[CellKind::File, CellKind::Node],
-    };
     for variant in RepresentationKind::ALL {
         // No wildcard: adding a representation requires a real independent fixture.
         let (input, expected) = match variant {
             RepresentationKind::Stored => {
                 (Rows::Stored(source), vec![vec![number(2)], vec![number(1)]])
             }
-            RepresentationKind::Selected => (
-                Rows::Selected(selected.clone()),
-                vec![vec![number(1); 2], vec![number(2); 2], vec![number(1); 2]],
-            ),
             RepresentationKind::Computed => (
                 Rows::Computed(&table),
                 vec![vec![number(8)], vec![number(7)]],
@@ -98,23 +58,6 @@ fn all_registered_representations_preserve_bulk_cells_rows_and_bags() -> Result<
             RepresentationKind::Compact => (
                 Rows::Compact(&compact),
                 vec![vec![number(8)], vec![number(7)]],
-            ),
-            RepresentationKind::Positioned => (
-                Rows::Positioned(positioned),
-                vec![
-                    vec![
-                        Cell::File(FileId(3)),
-                        Cell::Node(node_id(FileId(3), Position(1))),
-                    ],
-                    vec![
-                        Cell::File(FileId(3)),
-                        Cell::Node(node_id(FileId(3), Position(0))),
-                    ],
-                    vec![
-                        Cell::File(FileId(3)),
-                        Cell::Node(node_id(FileId(3), Position(1))),
-                    ],
-                ],
             ),
             RepresentationKind::Tree => (
                 Rows::Tree(tree),
@@ -169,24 +112,9 @@ fn all_registered_representations_preserve_bulk_cells_rows_and_bags() -> Result<
         let bulk = registered(*variant).bulk(borrowed(&input)).unwrap();
         match bulk {
             RepresentationInput::Stored(view) => assert!(std::ptr::eq(view.columns, source.columns)),
-            RepresentationInput::Selected {
-                source: view,
-                positions,
-                columns,
-                ..
-            } => {
-                assert!(std::ptr::eq(view.columns, source.columns));
-                assert!(std::ptr::eq(positions.0, selected.selection.rows.as_slice()));
-                assert!(std::ptr::eq(columns, selected.selection.columns.as_slice()));
-            }
             RepresentationInput::Tree(view) => assert!(std::ptr::eq(view.elements, &elements)),
             RepresentationInput::Computed(view) => assert!(std::ptr::eq(view, &table)),
             RepresentationInput::Compact(view) => assert!(std::ptr::eq(view, &compact)),
-            RepresentationInput::Positioned(view) => {
-                assert!(std::ptr::eq(view.positions, &positions));
-                assert!(std::ptr::eq(view.shape, &shape));
-                assert!(std::ptr::eq(view.tree.elements, &elements));
-            }
         }
     }
     Ok(1)
@@ -245,7 +173,6 @@ fn wrong_representation_never_falls_back_to_another_item() -> Result<Value, Fail
     let computed = RepresentationInput::Computed(&table);
     for kind in [
         RepresentationKind::Stored,
-        RepresentationKind::Selected,
         RepresentationKind::Tree,
     ] {
         assert!(matches!(

@@ -3,9 +3,15 @@
 
 use crate::domain::describing::constants::{DESTINATION, RELATION, described, field};
 use ryo_relations::domain::relations::constants::SOURCE;
-use ryo_values::domain::descriptions::constants::{COLUMN, COLUMNS, DIGEST};
-use ryo_values::domain::descriptions::types::{FieldRequirement, OperatorDescription};
+use ryo_values::domain::descriptions::constants::{
+    COLUMN, COLUMNS, DIGEST, OUTPUT, PROJECT, SELECT,
+};
+use ryo_values::domain::descriptions::types::FieldRequirement::{Optional, Required};
+use ryo_values::domain::descriptions::types::OperatorDescription;
 use ryo_values::domain::query_operators::types::QueryOperator;
+
+/// What a render demand says when the file admitted no semantic session.
+pub(crate) const NO_SEMANTIC_SESSION: &str = "no file semantic session was admitted";
 
 /// Every operator, in the order the documentation lists them.
 pub(crate) const OPERATORS: [QueryOperator; 25] = [
@@ -44,39 +50,61 @@ pub(crate) const OPERATORS: [QueryOperator; 25] = [
 )]
 pub(crate) fn describe(operator: QueryOperator) -> OperatorDescription {
     match operator {
-        QueryOperator::SpanBetween => {
-            super::collections::operators::span_between::constants::description()
-        }
-        QueryOperator::SpanBounds => {
-            super::collections::operators::span_bounds::constants::description()
-        }
-        QueryOperator::SourceMatches => {
-            super::collections::operators::source_matches::constants::description()
-        }
-        QueryOperator::RenderSyntax => {
-            super::collections::operators::render_syntax::constants::description()
-        }
-        QueryOperator::FitsRendered => {
-            super::collections::operators::fits_rendered::constants::description()
-        }
-        QueryOperator::Replace => super::collections::operators::replace::constants::description(),
-        QueryOperator::OrderedDfs => {
-            super::collections::operators::ordered_dfs::constants::description()
-        }
-        QueryOperator::OrderedMatch => {
-            super::collections::operators::ordered_match::constants::description()
-        }
-        QueryOperator::Select => super::collections::operators::select::constants::description(),
-        QueryOperator::Project => super::collections::operators::project::constants::description(),
+        QueryOperator::SpanBetween => crate::domain::describing::constants::span_between(),
+        QueryOperator::SpanBounds => crate::domain::describing::constants::span_bounds(),
+        QueryOperator::SourceMatches => crate::domain::describing::constants::source_matches(),
+        QueryOperator::RenderSyntax => crate::domain::describing::constants::render_syntax(),
+        QueryOperator::FitsRendered => crate::domain::describing::constants::fits_rendered(),
+        QueryOperator::Replace => crate::domain::describing::constants::replace(),
+        QueryOperator::OrderedDfs => crate::domain::describing::constants::ordered_dfs(),
+        QueryOperator::OrderedMatch => crate::domain::describing::constants::ordered_match(),
+        QueryOperator::Select => described(
+            SELECT,
+            "Keep rows for which every comparison is true.",
+            vec![
+                field("from", "Input to filter.", Required),
+                field(
+                    "where",
+                    "Typed comparisons of columns, literals, parameters or functions of them.",
+                    Required,
+                ),
+            ],
+            &[
+                "comparison family: equality",
+                "comparison family: ordering",
+                "comparison family: float-text",
+                "comparison family: numeric, numeric_gte(value, 86400) compares canonical integer/binary64 text or integer cells without rounding integers; NaN and malformed text are false",
+                "integer_successor(left, right): true only when right is exactly left plus one; canonical integer text or integer cells, no float coercion",
+                "comparison family: membership",
+                "comparison family: glob",
+                "comparison family: affix, starts_with(path, \"src/\") or ends_with(name, \"Service\"), each side text",
+                "function: concat(a, b, ...) joins two or more texts, concat(pascal(p.pkg), \"Service\") is TodoListsService for todo_lists",
+                "function: pascal(text) writes todo_lists as TodoLists",
+                "function: camel(text) writes todo_lists as todoLists",
+                "function: snake(text) writes TodoLists as todo_lists",
+                "function: kebab(text) writes TodoLists as todo-lists",
+            ],
+            r#"let example = select * from "function" where name = "example"; emit example subject file key(span);"#,
+        ),
+        QueryOperator::Project => described(
+            PROJECT,
+            "Keep named columns and deduplicate equal rows.",
+            vec![
+                field("from", "Input to project.", Required),
+                field(COLUMNS, "Columns retained in output.", Required),
+            ],
+            &[],
+            r#"let example = select file, name from "function"; emit example subject file key(name);"#,
+        ),
         QueryOperator::Extend => described(
             "extend",
             "Append numeric or flag columns.",
             vec![
-                field("from", "Input to extend.", FieldRequirement::Required),
+                field("from", "Input to extend.", Required),
                 field(
                     "values",
                     "New columns from numbers or parameters.",
-                    FieldRequirement::Required,
+                    Required,
                 ),
             ],
             &[],
@@ -86,22 +114,22 @@ pub(crate) fn describe(operator: QueryOperator) -> OperatorDescription {
             "join",
             "Combine rows with equal typed keys.",
             vec![
-                field("left", "Left input.", FieldRequirement::Required),
-                field("right", "Right input.", FieldRequirement::Required),
+                field("left", "Left input.", Required),
+                field("right", "Right input.", Required),
                 field(
                     ryo_values::domain::descriptions::constants::LEFT_ON,
                     "Left equality keys; empty for Cartesian product.",
-                    FieldRequirement::Required,
+                    Required,
                 ),
                 field(
                     ryo_values::domain::descriptions::constants::RIGHT_ON,
                     "Right equality keys.",
-                    FieldRequirement::Required,
+                    Required,
                 ),
                 field(
                     ryo_values::domain::descriptions::constants::OUTPUT,
                     "Output names and their explicit input sources.",
-                    FieldRequirement::Required,
+                    Required,
                 ),
             ],
             &[],
@@ -111,8 +139,8 @@ pub(crate) fn describe(operator: QueryOperator) -> OperatorDescription {
             "union",
             "Rows present in either same-schema input.",
             vec![
-                field("left", "Left input.", FieldRequirement::Required),
-                field("right", "Right input.", FieldRequirement::Required),
+                field("left", "Left input.", Required),
+                field("right", "Right input.", Required),
             ],
             &[],
             r#"let example = union(left="function", right="function"); emit example subject file key(span);"#,
@@ -121,8 +149,8 @@ pub(crate) fn describe(operator: QueryOperator) -> OperatorDescription {
             "intersection",
             "Rows present in both same-schema inputs.",
             vec![
-                field("left", "Left input.", FieldRequirement::Required),
-                field("right", "Right input.", FieldRequirement::Required),
+                field("left", "Left input.", Required),
+                field("right", "Right input.", Required),
             ],
             &[],
             r#"let example = intersection(left="function", right="function"); emit example subject file key(span);"#,
@@ -131,8 +159,8 @@ pub(crate) fn describe(operator: QueryOperator) -> OperatorDescription {
             "difference",
             "Left rows absent from a complete same-schema right input.",
             vec![
-                field("left", "Rows to retain.", FieldRequirement::Required),
-                field("right", "Rows to subtract.", FieldRequirement::Required),
+                field("left", "Rows to retain.", Required),
+                field("right", "Rows to subtract.", Required),
             ],
             &[],
             r#"let example = difference(left="function", right="function"); emit example subject file key(span);"#,
@@ -141,25 +169,17 @@ pub(crate) fn describe(operator: QueryOperator) -> OperatorDescription {
             "antijoin",
             "Left rows without a complete matching right key.",
             vec![
-                field(
-                    "left",
-                    "Rows to retain when unmatched.",
-                    FieldRequirement::Required,
-                ),
-                field(
-                    "right",
-                    "Rows consulted for matches.",
-                    FieldRequirement::Required,
-                ),
+                field("left", "Rows to retain when unmatched.", Required),
+                field("right", "Rows consulted for matches.", Required),
                 field(
                     ryo_values::domain::descriptions::constants::LEFT_ON,
                     "Nonempty left match keys.",
-                    FieldRequirement::Required,
+                    Required,
                 ),
                 field(
                     ryo_values::domain::descriptions::constants::RIGHT_ON,
                     "Nonempty right match keys.",
-                    FieldRequirement::Required,
+                    Required,
                 ),
             ],
             &[],
@@ -169,18 +189,14 @@ pub(crate) fn describe(operator: QueryOperator) -> OperatorDescription {
             "group-count",
             "Group rows and append a count.",
             vec![
-                field("from", "Rows to aggregate.", FieldRequirement::Required),
-                field(
-                    "keys",
-                    "Columns identifying one group.",
-                    FieldRequirement::Required,
-                ),
+                field("from", "Rows to aggregate.", Required),
+                field("keys", "Columns identifying one group.", Required),
                 field(
                     "distinct",
                     "Count distinct values of this column.",
-                    FieldRequirement::Optional,
+                    Optional,
                 ),
-                field("count", "Output count column.", FieldRequirement::Required),
+                field("count", "Output count column.", Required),
             ],
             &[],
             r#"let example = group-count(from="function", keys=[file], distinct=name, count=functions); emit example subject file key(functions);"#,
@@ -189,26 +205,22 @@ pub(crate) fn describe(operator: QueryOperator) -> OperatorDescription {
             "group-digest",
             "Group rows and append a digest of the set of distinct values of a column, and how many there are.",
             vec![
-                field("from", "Rows to aggregate.", FieldRequirement::Required),
-                field(
-                    "keys",
-                    "Columns identifying one group.",
-                    FieldRequirement::Required,
-                ),
+                field("from", "Rows to aggregate.", Required),
+                field("keys", "Columns identifying one group.", Required),
                 field(
                     "distinct",
                     "The column whose distinct values are digested.",
-                    FieldRequirement::Required,
+                    Required,
                 ),
                 field(
                     DIGEST,
                     "Output digest column: equal sets give equal digests, whatever the order or repeats.",
-                    FieldRequirement::Required,
+                    Required,
                 ),
                 field(
                     "count",
                     "Output column holding how many distinct values the group has.",
-                    FieldRequirement::Required,
+                    Required,
                 ),
             ],
             &[],
@@ -218,21 +230,17 @@ pub(crate) fn describe(operator: QueryOperator) -> OperatorDescription {
             "capture",
             "Match paths and append named nonempty captures.",
             vec![
-                field(
-                    "from",
-                    "Rows containing a path.",
-                    FieldRequirement::Required,
-                ),
-                field("path", "Path column to match.", FieldRequirement::Required),
+                field("from", "Rows containing a path.", Required),
+                field("path", "Path column to match.", Required),
                 field(
                     ryo_values::domain::descriptions::constants::PATTERN,
                     "Anchored path pattern with named slots.",
-                    FieldRequirement::Required,
+                    Required,
                 ),
                 field(
                     "captures",
                     "Output capture columns in pattern order.",
-                    FieldRequirement::Required,
+                    Required,
                 ),
             ],
             &[],
@@ -242,17 +250,9 @@ pub(crate) fn describe(operator: QueryOperator) -> OperatorDescription {
             "words",
             "Split a text column into lower case words, one row for each, where letters and digits end and begin.",
             vec![
-                field(
-                    "from",
-                    "Rows containing a text.",
-                    FieldRequirement::Required,
-                ),
-                field("text", "Text column to split.", FieldRequirement::Required),
-                field(
-                    "word",
-                    "Output column holding each word.",
-                    FieldRequirement::Required,
-                ),
+                field("from", "Rows containing a text.", Required),
+                field("text", "Text column to split.", Required),
+                field("word", "Output column holding each word.", Required),
             ],
             &[],
             r#"let example = words(from="comment", text=text, word=each); emit example subject file key(each);"#,
@@ -261,21 +261,17 @@ pub(crate) fn describe(operator: QueryOperator) -> OperatorDescription {
             "rank",
             "Append the place of the first of an ordered list of sets of text that holds the text of a column, the first set being 0. A row whose text no set holds is dropped.",
             vec![
-                field(
-                    "from",
-                    "Rows containing a text.",
-                    FieldRequirement::Required,
-                ),
-                field(COLUMN, "Text column to rank.", FieldRequirement::Required),
+                field("from", "Rows containing a text.", Required),
+                field(COLUMN, "Text column to rank.", Required),
                 field(
                     "sets",
                     "Parameter of type list<set<string>>: the sets, in order.",
-                    FieldRequirement::Required,
+                    Required,
                 ),
                 field(
                     ryo_values::domain::descriptions::constants::OUTPUT,
                     "Output rank column.",
-                    FieldRequirement::Required,
+                    Required,
                 ),
             ],
             &[],
@@ -285,25 +281,17 @@ pub(crate) fn describe(operator: QueryOperator) -> OperatorDescription {
             "axis",
             "Navigate a typed hierarchy and append the related entity.",
             vec![
-                field(
-                    "from",
-                    "Rows containing starting entities in id.",
-                    FieldRequirement::Required,
-                ),
+                field("from", "Rows containing starting entities in id.", Required),
                 field(
                     RELATION,
                     "Typed parent-child edges, in parent and child.",
-                    FieldRequirement::Required,
+                    Required,
                 ),
-                field(
-                    "direction",
-                    "Hierarchy direction.",
-                    FieldRequirement::Required,
-                ),
+                field("direction", "Hierarchy direction.", Required),
                 field(
                     "domain",
                     "Rows proving valid output entities in id.",
-                    FieldRequirement::Required,
+                    Required,
                 ),
             ],
             &[
@@ -321,13 +309,13 @@ pub(crate) fn describe(operator: QueryOperator) -> OperatorDescription {
             "closure",
             "Transitively reachable pairs within optional exact key partitions.",
             vec![
-                field("edges", "Directed edge rows.", FieldRequirement::Required),
-                field(SOURCE, "Edge source.", FieldRequirement::Required),
-                field(DESTINATION, "Edge destination.", FieldRequirement::Required),
+                field("edges", "Directed edge rows.", Required),
+                field(SOURCE, "Edge source.", Required),
+                field(DESTINATION, "Edge destination.", Required),
                 field(
                     "keys",
                     "Optional columns defining independent exact graph partitions, in output order.",
-                    FieldRequirement::Optional,
+                    Optional,
                 ),
             ],
             &[],
@@ -340,12 +328,12 @@ pub(crate) fn describe(operator: QueryOperator) -> OperatorDescription {
                 field(
                     "from",
                     "Parameter of type list<table>: the tables, each a row.",
-                    FieldRequirement::Required,
+                    Required,
                 ),
                 field(
                     COLUMNS,
                     "The keys whose values fill the columns, in order; every table has each.",
-                    FieldRequirement::Required,
+                    Required,
                 ),
             ],
             &[],
@@ -355,9 +343,9 @@ pub(crate) fn describe(operator: QueryOperator) -> OperatorDescription {
             "cycles",
             "Directed graph cycles: one row for each entity that can reach itself, with the entity in both columns; two files that import each other give two rows.",
             vec![
-                field("edges", "Directed edge rows.", FieldRequirement::Required),
-                field(SOURCE, "Edge source.", FieldRequirement::Required),
-                field(DESTINATION, "Edge destination.", FieldRequirement::Required),
+                field("edges", "Directed edge rows.", Required),
+                field(SOURCE, "Edge source.", Required),
+                field(DESTINATION, "Edge destination.", Required),
             ],
             &[],
             r#"let example = cycles(edges="source-dependency", source=source, destination=target); emit example subject source key(target);"#,

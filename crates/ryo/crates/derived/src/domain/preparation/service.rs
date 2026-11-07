@@ -10,9 +10,6 @@ use ryo_values::domain::plan_parts::types::ColumnIndex;
 pub fn kind(request: &DerivedRequest) -> DerivedKind {
     match request {
         DerivedRequest::Equality { .. } => DerivedKind::Equality,
-        DerivedRequest::PredicateMatches { .. } => DerivedKind::PredicateMatches,
-        DerivedRequest::CandidatePostings { .. } => DerivedKind::CandidatePostings,
-        DerivedRequest::DistinctRepresentatives { .. } => DerivedKind::DistinctRepresentatives,
         DerivedRequest::Adjacency { .. } => DerivedKind::Adjacency,
         DerivedRequest::Membership { .. } => DerivedKind::Membership,
         DerivedRequest::PartitionOrder { .. } => DerivedKind::PartitionOrder,
@@ -21,7 +18,6 @@ pub fn kind(request: &DerivedRequest) -> DerivedKind {
         DerivedRequest::OrderedKeys { .. } => DerivedKind::OrderedKeys,
         DerivedRequest::OrderedDfs { .. } => DerivedKind::OrderedDfs,
         DerivedRequest::NativeLookup { .. } => DerivedKind::NativeLookup,
-        DerivedRequest::RawKeyOrder { .. } => DerivedKind::RawKeyOrder,
     }
 }
 fn check(
@@ -44,24 +40,7 @@ fn check(
 #[must_use]
 pub fn prepare(mut request: DerivedRequest, schemas: Vec<Vec<CellKind>>) -> PreparedDerived {
     let metadata = (|| match &mut request {
-        DerivedRequest::Equality { columns } | DerivedRequest::DistinctRepresentatives { columns } => {
-            check(&schemas, InputSlot(0), columns)
-        }
-        DerivedRequest::PredicateMatches { .. } => check(&schemas, InputSlot(0), &[]),
-        DerivedRequest::CandidatePostings { column, literals } => {
-            check(&schemas, InputSlot(0), &[*column])?;
-            literals.sort_by(|left, right| left.0.cmp(&right.0));
-            literals.dedup_by(|left, right| left.0 == right.0);
-            if schemas
-                .first()
-                .and_then(|schema| schema.get(column.0 as usize))
-                != Some(&CellKind::Symbol)
-                || literals.iter().any(|text| text.0.is_empty())
-            {
-                return Err(DerivedFault::ShapeMismatch);
-            }
-            Ok(())
-        }
+        DerivedRequest::Equality { columns } => check(&schemas, InputSlot(0), columns),
         DerivedRequest::Membership { column } => check(&schemas, InputSlot(0), &[*column]),
         DerivedRequest::Adjacency { endpoints, keys } => {
             check(&schemas, InputSlot(0), endpoints)?;
@@ -110,7 +89,6 @@ pub fn prepare(mut request: DerivedRequest, schemas: Vec<Vec<CellKind>>) -> Prep
             check(&schemas, InputSlot(1), right_on)?;
             check(&schemas, InputSlot(1), view)
         }
-        DerivedRequest::RawKeyOrder { .. } => Ok(()),
     })();
     PreparedDerived {
         request,

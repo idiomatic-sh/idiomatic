@@ -1,6 +1,7 @@
 //! PredicateOutcome refusal does not inspect invalid kept columns.
 use super::service::select;
-use super::types::{PredicateOutcome, RowSelection};
+use crate::domain::contract::types::PredicateOutcome;
+use super::types::RowSelection;
 use crate::domain::contract::types::PortableOperatorFault;
 use ryo_relations::domain::relations::types::{Integer, Value as Cell};
 use crate::cases::{Case, CaseName, Expect, Word, run};

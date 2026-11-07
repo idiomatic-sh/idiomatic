@@ -8,7 +8,7 @@ use super::service::reach_all;
 use super::types::{Edges, Walk};
 use crate::domain::operator::contract::views::{IndexedRows};
 use crate::domain::table_model::types::RepresentationInput;
-use crate::domain::positions::service_test::prepared_index;
+use crate::domain::table_cells::service_test::prepared_index;
 use crate::domain::table_model::types::Rows;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::rows::errors::RowsError;

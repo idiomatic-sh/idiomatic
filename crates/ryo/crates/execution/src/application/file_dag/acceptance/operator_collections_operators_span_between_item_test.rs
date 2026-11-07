@@ -11,7 +11,6 @@ use ryo_values::domain::{
     files::types::SourceView,
     plan_parts::types::{ColumnIndex, Input as PlanInput, JoinColumn, Side, StepId},
     plans::types::Operation,
-    query_operators::types::QueryOperator,
 };
 type Input = (Span, Span, &'static [u8]);
 type Failure = OperatingError;
@@ -187,10 +186,4 @@ fn succeeds() {
 #[test]
 fn refuses() {
     run(CASES, Word::Refuses, subject);
-}
-#[test]
-fn contract() {
-    crate::domain::operator::collections::operators::fixtures::contract::check(
-        QueryOperator::SpanBetween,
-    );
 }

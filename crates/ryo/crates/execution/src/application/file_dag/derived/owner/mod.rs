@@ -15,9 +15,9 @@ use std::{
     sync::{Arc, Weak},
 };
 use types::{
-    AdmissionOrder, BuildCount, BuildCounts, EntryLimit, EqualityLiveness, FilePreparation,
+    AdmissionOrder, BuildCount, BuildCounts, EntryLimit, FilePreparation,
     HitCount, IdentityCompatibility, MembershipOrder, MemoBudget, PinCount, PinState,
-    PopulationCount, PredicateCount, ReclaimOutlook, RefusalCount, ReleasedEntries, Room, ScopeId,
+    PopulationCount, ReclaimOutlook, RefusalCount, ReleasedEntries, Room, ScopeId,
     ViewCount,
 };
 
@@ -31,7 +31,6 @@ mod graph_policy;
 mod graph_retention;
 mod leases;
 mod lifetime;
-mod observations;
 mod setup;
 pub(crate) mod types;
 
@@ -51,7 +50,7 @@ impl ViewContext {
     }
 }
 mod graph_key;
-use graph_key::{GraphRequirement, GraphSelection, GraphViewIdentity, RequirementIdentity};
+use graph_key::{GraphRequirement, GraphViewIdentity, RequirementIdentity};
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct Key {
     plan: RequirementIdentity,
@@ -89,7 +88,6 @@ struct State {
     required_bytes: ByteCount,
     peak_required_bytes: ByteCount,
     retained_bytes: ByteCount,
-    retained_predicates: PredicateCount,
     overlap_bytes: ByteCount,
     required_views: ViewCount,
     peak_required_views: ViewCount,
@@ -106,6 +104,8 @@ pub(crate) struct DerivedOwner {
     file_prepared: std::cell::Cell<FilePreparation>,
     state: RefCell<State>,
     max_entries: EntryLimit,
+    /// The route profile its relation owner hands down.
+    routes: crate::application::file_dag::route_counts::types::RouteProfile,
 }
 impl DerivedOwner {
     #[cfg(test)]
@@ -120,6 +120,7 @@ impl DerivedOwner {
     pub(in crate::application::file_dag) fn new(
         max_entries: EntryLimit,
         semantic: impl Into<types::DerivedAccess>,
+        routes: crate::application::file_dag::route_counts::types::RouteProfile,
     ) -> Self {
         Self {
             identity: Arc::new(()),
@@ -132,6 +133,7 @@ impl DerivedOwner {
             backend: RefCell::new(None),
             file_prepared: std::cell::Cell::new(FilePreparation::Unprepared),
             max_entries,
+            routes,
         }
     }
     pub(in crate::application::file_dag) fn counts(&self) -> BuildCounts {
@@ -226,14 +228,12 @@ fn link(state: &mut State, key: Key, populations: &[PopulationId]) {
 #[cfg(test)]
 mod test;
 
-pub(in crate::application::file_dag) mod raw_scope;
 
 use ryo_derived::domain::request::types::DerivedKind;
 
 pub(in crate::application::file_dag) mod cache;
 pub(in crate::application::file_dag) mod graphs;
 pub(in crate::application::file_dag) mod index;
-pub(in crate::application::file_dag) mod selection;
 
 #[cfg(test)]
 pub(in crate::application::file_dag) mod witness;

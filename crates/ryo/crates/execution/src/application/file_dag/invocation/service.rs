@@ -7,7 +7,7 @@ use crate::application::file_dag::axis_resources::prepare_axis;
 use crate::application::file_dag::resources::appended_values;
 use crate::domain::operating::{errors::OperatingError, types::OperatorContext};
 use crate::domain::operator::contract::{
-    join::NativeJoin,
+    views::NativeJoin,
     resources::{IndexColumns, JoinResources, ResourceProgram},
     types::OperatorContract,
     
@@ -42,6 +42,9 @@ pub(in crate::application::file_dag) fn continuation<'f>(
             dfs: None,
             axis: None,
             groups: None,
+            // A continuation lends no index or axis, so nothing reports progress through it.
+            #[cfg(feature = "diagnostic-row-progress")]
+            progress: Default::default(),
         },
     })
 }
@@ -71,6 +74,8 @@ pub(in crate::application::file_dag) fn prepare<'f>(
             dfs: None,
             axis: None,
             groups: None,
+            #[cfg(feature = "diagnostic-row-progress")]
+            progress: admission.progress_origin.profile.clone(),
         },
     };
     let program = &contract.resources;
@@ -131,7 +136,6 @@ pub(in crate::application::file_dag) fn prepare<'f>(
             };
             resources.inputs.index = Some(IndexResource::acquired(
                 contract,
-                originals.get(place.0),
                 &admitted,
                 context,
                 empty,
@@ -181,7 +185,6 @@ pub(in crate::application::file_dag) fn prepare<'f>(
                     }
                     resources.inputs.index = Some(IndexResource::acquired(
                         contract,
-                        originals.get(1),
                         &admitted,
                         context,
                         EmptyInput::Keep,

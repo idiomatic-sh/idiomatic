@@ -12,7 +12,6 @@ use ryo_benchmark_contracts::domain::{
     requests::types::{DiagnosticOptions, PerformanceOptions, RunRequest},
     workloads::types::StagePurpose,
 };
-use ryo::linter::{RouteWiring, RoutePolicy};
 use std::{
     collections::BTreeSet,
     fs,
@@ -368,56 +367,9 @@ pub(super) const DJANGO_REQUEST: &str = "/tmp/ryo-event-ready-django213-20261105
 /// The one rule of the Django canary (112 diagnostics at the runbook baseline).
 pub(super) const DJANGO_RULE: &str = "N999";
 
-/// One engine configuration: a name and the strategies it wires.
-#[derive(Clone, Copy, Debug)]
-pub(super) struct Configuration {
-    pub name: &'static str,
-    pub policy: RoutePolicy,
-}
-
-/// The baseline, each strategy unwired alone, and every strategy unwired: the generic evaluation of the operators.
-pub(super) fn configurations() -> Vec<Configuration> {
-    let all = RoutePolicy::default();
-    let off = RouteWiring::Unwired;
-    vec![
-        Configuration { name: "all-wired", policy: all },
-        Configuration {
-            name: "without-ordered-existence",
-            policy: RoutePolicy { ordered_existence: off, ..all },
-        },
-        Configuration {
-            name: "without-column-kernel",
-            policy: RoutePolicy { column_kernel: off, ..all },
-        },
-        Configuration {
-            name: "without-stored-selection",
-            policy: RoutePolicy { stored_selection: off, ..all },
-        },
-        Configuration {
-            name: "without-native-positions",
-            policy: RoutePolicy { native_positions: off, ..all },
-        },
-        Configuration {
-            name: "without-tree-join",
-            policy: RoutePolicy { tree_join: off, ..all },
-        },
-        Configuration {
-            name: "generic-only",
-            policy: RoutePolicy {
-                ordered_existence: off,
-                column_kernel: off,
-                stored_selection: off,
-                native_positions: off,
-                tree_join: off,
-            },
-        },
-    ]
-}
-
-/// What one configuration did with one workload.
+/// What the one path did with one workload.
 #[derive(Clone, Debug)]
 pub(super) struct Measured {
-    pub configuration: &'static str,
     pub workload: &'static str,
     /// The worker's report text, or the error text: compared byte for byte with the baseline's.
     pub output: Result<String, String>,
@@ -461,27 +413,26 @@ fn reset_peak() {
     let _ignored: std::io::Result<()> = std::fs::write("/proc/self/clear_refs", "5");
 }
 
-/// Runs the worker payload through the engine of `configuration`, measuring the run.
+/// Runs the worker payload through the engine, measuring the run.
 fn measured(
-    configuration: Configuration,
     workload: &'static str,
     payload: String,
 ) -> Result<Measured, Box<dyn std::error::Error>> {
     let captured = Capture::default();
     let worker = workers::json(payload.into(), Box::new(captured.clone()));
-    let engine = factory::local_with_routes(
+    let engine = factory::local_with_frontend_diagnostic(
         ryo::linter::Languages(vec![ryo_python::linked_with_settings(
             ryo_python::settings::PythonParserSettings::new(
                 ryo_python::settings::PythonTargetVersion::Py310,
             ),
         )]),
+        None,
         factory::FrontendDiagnosticProjection {
             rule: ryo::linter::RuleId::try_from("invalid-syntax")?,
             query: ryo::query::RyoQlQuery::try_from(
                 crate::frontend_projection::constants::FRONTEND_DIAGNOSTIC_QUERY,
             )?,
         },
-        configuration.policy,
     );
     reset_peak();
     let cpu = process_cpu_seconds();
@@ -491,7 +442,6 @@ fn measured(
     let cpu_seconds = process_cpu_seconds().zip(cpu).map(|(after, before)| after - before);
     let text = String::from_utf8(captured.0.lock().map_err(|_| "capture poisoned")?.clone())?;
     Ok(Measured {
-        configuration: configuration.name,
         workload,
         output: run.map(|()| text).map_err(|error| error.to_string()),
         wall_seconds,
@@ -501,127 +451,18 @@ fn measured(
 }
 
 /// The Django canary: the runbook's cold request narrowed to its one rule, with a fresh cache.
-pub(super) fn django(
-    configuration: Configuration,
-) -> Result<Measured, Box<dyn std::error::Error>> {
+pub(super) fn django() -> Result<Measured, Box<dyn std::error::Error>> {
     let mut request: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(DJANGO_REQUEST)?)?;
     let cache = tempfile::tempdir()?;
     request["selected_rules"] = serde_json::json!([DJANGO_RULE]);
     request["cache"] = serde_json::json!(cache.path().join("cache"));
-    // The request predates the retired strategy selector: its one removed key is dropped, nothing else is changed.
+    // The request predates the retired strategy selectors: their two removed keys are dropped, nothing else is changed.
     if let Some(performance) = request["performance"].as_object_mut() {
-        let _removed = performance.remove("column_kernel");
+        let _column = performance.remove("column_kernel");
+        let _reuse = performance.remove("node_result_reuse");
     }
-    measured(configuration, "django-n999", serde_json::to_string(&request)?)
-}
-
-/// The staged 413-rule profile and the pinned real-code corpus, prepared once for every configuration.
-pub(super) struct Inventory {
-    temporary: tempfile::TempDir,
-    staged: PathBuf,
-    profile: ryo_benchmark_contracts::domain::workloads::types::Tool,
-    files: Vec<(String, Vec<u8>)>,
-}
-
-/// The `.py` files of the pinned corpus the python provider tests read, by name.
-fn corpus_files() -> Result<Vec<(String, Vec<u8>)>, Box<dyn std::error::Error>> {
-    let directory = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/corpus");
-    let mut files = Vec::new();
-    for entry in fs::read_dir(directory)? {
-        let path = entry?.path();
-        if path.extension().is_some_and(|extension| extension == "py") {
-            let name = path.file_name().and_then(|name| name.to_str()).ok_or("a corpus file has no name")?;
-            files.push((name.to_owned(), fs::read(&path)?));
-        }
-    }
-    files.sort();
-    Ok(files)
-}
-
-impl Inventory {
-    pub(super) fn stage() -> Result<Self, Box<dyn std::error::Error>> {
-        let canonical = Path::new(env!("CARGO_MANIFEST_DIR")).join("benchmarks/linters/ruff");
-        let suite = suites::local();
-        let profile = suite.profile(ArtifactPath(&canonical))?;
-        assert_eq!(profile.defaults.len(), 413, "the frozen Ruff default inventory");
-        let temporary = tempfile::tempdir()?;
-        let staged = temporary.path().join("suite");
-        let definitions = profile
-            .defaults
-            .iter()
-            .chain(&profile.supporting_rules)
-            .cloned()
-            .collect();
-        suite.stage(
-            ArtifactPath(&canonical),
-            ArtifactPath(&staged),
-            &profile.defaults,
-            &definitions,
-            StagePurpose::Execution,
-        )?;
-        Ok(Self { temporary, staged, profile, files: corpus_files()? })
-    }
-
-    /// The worker payload: all 413 rules over the corpus, with a fresh state directory.
-    fn payload(&self) -> Result<String, Box<dyn std::error::Error>> {
-        let suite = suites::local();
-        let root = self.temporary.path().join("input");
-        fs::create_dir_all(&root)?;
-        let mut files = Vec::new();
-        let mut tracked = Vec::new();
-        for (name, bytes) in &self.files {
-            fs::write(root.join(name), bytes)?;
-            files.push(ryo::linter::RelativePath(name.as_str().into()));
-            tracked.push(PathBuf::from(name));
-        }
-        let context = suite.seal_context(ArtifactPath(&root), &files, &tracked)?;
-        let request = RunRequest {
-            performance: PerformanceOptions { diagnostics: DiagnosticOptions::default() },
-            selected_rules: Some(self.profile.defaults.clone()),
-            rule_observations: None,
-            rule_context: ryo_benchmark::domain::suite::rule_context::resolve(
-                self.profile.rule_context.as_ref(),
-                None,
-            )?,
-            project_search_roots: self.profile.project_search_roots.clone(),
-            given_project_inventory: Default::default(),
-            staged_sources: Some(files.clone()),
-            file_metadata: None,
-            context_manifest: Some(context),
-            root,
-            files,
-            state: self.temporary.path().join("state"),
-        };
-        let candidate = linters::ryo_context(
-            std::env::current_exe()?,
-            self.staged.join("rules"),
-            self.profile.query_modules.clone(),
-            self.profile.rule_applicability.clone(),
-            self.profile.parser_configuration.clone(),
-            self.profile.source_language.clone(),
-            self.profile.project_context_mode,
-            self.profile.defaults.clone(),
-            self.profile.rule_observation_selection.clone(),
-            self.profile.rule_observations.clone(),
-        );
-        let invocation = candidate.prepare(&request)?;
-        Ok(fs::read_to_string(Path::new(&invocation.arguments[2]))?)
-    }
-
-    /// The corpus under `configuration`, with its state directory cleared first so every configuration starts cold.
-    pub(super) fn run(
-        &self,
-        configuration: Configuration,
-    ) -> Result<Measured, Box<dyn std::error::Error>> {
-        let _cleared = fs::remove_dir_all(self.temporary.path().join("state"));
-        measured(configuration, "corpus-413", self.payload()?)
-    }
-}
-
-/// Whether a configuration unwires nothing, which is the baseline every other is compared with.
-pub(super) fn is_baseline(configuration: &Configuration) -> bool {
-    configuration.policy == RoutePolicy::default()
+    measured("django-n999", serde_json::to_string(&request)?)
 }
 
 fn digest(output: &Result<String, String>) -> String {
@@ -638,28 +479,44 @@ fn digest(output: &Result<String, String>) -> String {
     })
 }
 
-/// Writes one row for each run into the results directory beside its README.
-pub(super) fn record(
-    runs: &[Measured],
-    baselines: &std::collections::BTreeMap<&'static str, Result<String, String>>,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let rows: Vec<serde_json::Value> = runs
-        .iter()
-        .map(|run| {
-            serde_json::json!({
-                "configuration": run.configuration,
-                "workload": run.workload,
-                "identical_to_all_wired": baselines.get(run.workload) == Some(&run.output),
-                "failed": run.output.is_err(),
-                "output_sha256": digest(&run.output),
-                "wall_seconds": run.wall_seconds,
-                "cpu_seconds": run.cpu_seconds,
-                "peak_rss_bytes": run.peak_rss_bytes,
-            })
-        })
-        .collect();
+/// The diagnostics the directional checkpoint recorded for the Django canary, read from its measurement.
+pub(super) fn recorded_django_diagnostics() -> Result<u64, Box<dyn std::error::Error>> {
+    let measured: serde_json::Value = serde_json::from_str(&fs::read_to_string(
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../docs/contracts/evidence/checkpoint/measurements.json"),
+    )?)?;
+    measured["diagnostics"]
+        .as_u64()
+        .ok_or_else(|| "the checkpoint measurement records no diagnostics".into())
+}
+
+/// How many diagnostics of `rule` a worker report holds, wherever the report nests them.
+pub(super) fn diagnostics_of(report: &str, rule: &str) -> Result<u64, Box<dyn std::error::Error>> {
+    fn count(value: &serde_json::Value, rule: &str) -> u64 {
+        match value {
+            serde_json::Value::Object(fields) => {
+                u64::from(fields.get("rule").and_then(serde_json::Value::as_str) == Some(rule))
+                    + fields.values().map(|each| count(each, rule)).sum::<u64>()
+            }
+            serde_json::Value::Array(items) => items.iter().map(|each| count(each, rule)).sum(),
+            _ => 0,
+        }
+    }
+    Ok(count(&serde_json::from_str(report)?, rule))
+}
+
+/// Writes the one path's row into the results directory beside its README.
+pub(super) fn record(run: &Measured) -> Result<(), Box<dyn std::error::Error>> {
+    let row = serde_json::json!({
+        "workload": run.workload,
+        "failed": run.output.is_err(),
+        "output_sha256": digest(&run.output),
+        "wall_seconds": run.wall_seconds,
+        "cpu_seconds": run.cpu_seconds,
+        "peak_rss_bytes": run.peak_rss_bytes,
+    });
     let target = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("benchmarks/linters/ruff/results/route-differential-2026-11-07/results.json");
-    fs::write(target, serde_json::to_string_pretty(&rows)?)?;
+    fs::write(target, serde_json::to_string_pretty(&[row])?)?;
     Ok(())
 }

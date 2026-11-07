@@ -2,7 +2,6 @@
 
 use crate::domain::coverage::types::RuleIndex;
 use crate::domain::operator::types::StepPlace;
-use crate::domain::positions::types::ClassPlace;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, PlanComparison};
 
 /// A per-file selection's rule and place among that rule's steps.
@@ -55,3 +54,7 @@ pub(crate) enum BindingsAgreement {
     Equal,
     Differ,
 }
+
+/// A class of the steps that select from the elements of a tree, by its place among the classes of the call's rules.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) struct ClassPlace(pub usize);

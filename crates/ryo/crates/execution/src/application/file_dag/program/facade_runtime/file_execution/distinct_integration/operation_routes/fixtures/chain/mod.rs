@@ -187,7 +187,7 @@ pub(crate) fn run_chain(
         &[Digest([0; 16])],
         &sources.hosts,
         Arc::clone(&derived),
-        ObservationIdentity::Independent, crate::domain::executable_program::types::RoutePolicy::default(),
+        ObservationIdentity::Independent,
     )?;
     let program = prepared.program();
     for step in &inserted {

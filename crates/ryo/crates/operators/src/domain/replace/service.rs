@@ -19,15 +19,15 @@ pub(crate) fn replace_compiled(
     let mut end = 0;
     let mut failure = None;
     let _flow = visit(&mut |found| {
-            let Some(prefix) = text.get(end..found.start) else {
-                failure = Some(PortableOperatorFault::ShapeMismatch);
-                return ControlFlow::Break(());
-            };
-            output.push_str(prefix);
-            output.push_str(replacement);
-            end = found.end;
-            ControlFlow::Continue(())
-        });
+        let Some(prefix) = text.get(end..found.start) else {
+            failure = Some(PortableOperatorFault::ShapeMismatch);
+            return ControlFlow::Break(());
+        };
+        output.push_str(prefix);
+        output.push_str(replacement);
+        end = found.end;
+        ControlFlow::Continue(())
+    });
     if let Some(error) = failure {
         return Err(error);
     }
@@ -36,4 +36,37 @@ pub(crate) fn replace_compiled(
             .ok_or(PortableOperatorFault::ShapeMismatch)?,
     );
     Ok(())
+}
+
+/// Appends the text of a scheduled row's column with every match of the acquired matcher replaced by the
+/// authored text, interned as derived text; a cell that is not text is refused.
+pub(crate) fn evaluate(
+    row: &[ryo_relations::domain::relations::types::Value],
+    column: ryo_values::domain::plan_parts::types::ColumnIndex,
+    replacement: ReplacementText<'_>,
+    regex: Option<&ryo_matching::inbound::use_cases::matching::compiled::CompiledRegex>,
+    driver: &mut dyn crate::domain::contract::types::RowDriver,
+    scratch: &mut crate::domain::contract::types::RowScratch,
+    occurrences: &dyn crate::domain::contract::types::Occurrences,
+) -> Result<(), PortableOperatorFault> {
+    let value = ryo_values::domain::rows::service::column_in(row, column)
+        .copied()
+        .ok_or(
+            crate::domain::contract::types::PortableOperatorFault::NoSuchColumn { index: column },
+        )?;
+    scratch.text.clear();
+    if driver.text(value, &mut scratch.text) == crate::domain::contract::types::TextFound::NotText {
+        return Err(PortableOperatorFault::ShapeMismatch);
+    }
+    let regex = regex.ok_or(PortableOperatorFault::WrongBinding)?;
+    let text = scratch.text.as_str();
+    replace_compiled(
+        &|each| occurrences.matches(regex, text, each),
+        CellText(text),
+        replacement,
+        ReplacedText(&mut scratch.replaced),
+    )?;
+    let appended = driver.mint(CellText(&scratch.replaced));
+    crate::domain::append::service::append(row, std::slice::from_ref(&appended), &mut scratch.row);
+    driver.emit(&scratch.row)
 }

@@ -1,12 +1,12 @@
 //! A source class is not a continuation result, and its consumers own immutable answers.
 use super::super::super::*;
 use super::super::fixtures::plans::Authored;
-use super::super::fixtures::semantics::{BuildPolicy, Calls, Derived, Meanings};
+use super::super::fixtures::semantics::{Calls, Derived, Meanings};
 use super::super::fixtures::{Population, Program, Residency, cells, demand};
 
 fn exercise(residency: Residency) -> Result<(), OperatingError> {
     let meanings = Arc::new(Meanings::default());
-    let derived = Arc::new(Derived::new(BuildPolicy::Normal));
+    let derived = Arc::new(Derived::new());
     let program = Program::new(
         Authored::continuations(),
         Population::Three,
@@ -48,14 +48,6 @@ fn exercise(residency: Residency) -> Result<(), OperatingError> {
         rules[0].emit.as_ref().unwrap(),
         rules[1].emit.as_ref().unwrap(),
         "an Extend of another literal is a different region"
-    );
-    let plain = program.prepared.program().rules()[3].emit.as_ref().unwrap();
-    assert!(
-        crate::domain::executable_program::service::selection(
-            &program.prepared.program().regions()[plain.0].route()
-        )
-        .is_some(),
-        "the singleton consumer must reach the real stored-selection alternative"
     );
     let mut symbols = Symbols::default();
     let mut file = program.open(&mut symbols)?;

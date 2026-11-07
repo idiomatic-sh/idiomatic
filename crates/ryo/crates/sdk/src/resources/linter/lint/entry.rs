@@ -50,18 +50,6 @@ impl Linter {
             cache,
         ))
     }
-
-    /// The same linter whose runs use only the execution strategies `routes` wires, every one by default: a differential
-    /// run compares the engine with a strategy to the same engine without it.
-    #[cfg(feature = "fixtures")]
-    #[must_use]
-    pub fn routing(
-        mut self,
-        routes: ryo_execution::inbound::use_cases::prepare::interface::RoutePolicy,
-    ) -> Self {
-        self.engine_mut().routes = routes;
-        self
-    }
 }
 
 /// `linter lint` over `linter`: checks rules over a repository, as `lint` does, with no setup of its own.

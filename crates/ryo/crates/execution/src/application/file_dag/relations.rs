@@ -7,7 +7,7 @@ use crate::domain::table_model::collections::representations::types::{
 };
 use crate::domain::table_model::{
     service::{kind, materialize, registered},
-    types::{PublishedRelation, Rows, SelectedRows, StoredSelection},
+    types::{PublishedRelation, Rows},
 };
 use crate::domain::{executable_program::types::RegionId, operating::errors::OperatingError};
 use ryo_relations::domain::relations::types::{CellKind, Relation};
@@ -37,9 +37,6 @@ pub(in crate::application::file_dag) mod admission;
 mod external;
 pub(in crate::application::file_dag) mod handle;
 mod identity;
-pub(super) mod positioned;
-mod selected_access;
-pub(super) mod selection;
 
 pub(in crate::application::file_dag) mod number;
 pub(in crate::application::file_dag) mod packed;
@@ -64,10 +61,18 @@ pub(crate) struct RelationOwner {
     views: Cell<PinnedViewCount>,
     pub(in crate::application::file_dag) checks: Cell<CheckCount>,
     pub(in crate::application::file_dag) reuses: Cell<CheckCount>,
+    /// The route profile of the scope that opened this owner.
+    routes: super::route_counts::types::RouteProfile,
 }
 impl RelationOwner {
     pub(in crate::application::file_dag) fn derived(&self) -> &super::derived::owner::DerivedOwner {
         &self.derived
+    }
+    /// The route profile the opening scope handed down, for this owner's work to record into.
+    pub(in crate::application::file_dag) fn routes(
+        &self,
+    ) -> &super::route_counts::types::RouteProfile {
+        &self.routes
     }
     #[cfg(test)]
     pub(in crate::application::file_dag) fn derived_mut(
@@ -96,15 +101,25 @@ impl RelationOwner {
         permit: super::scope::types::ScopePermit,
         views: PinnedViewCount,
         semantic: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
+        routes: super::route_counts::types::RouteProfile,
     ) -> Self {
-        Self::with_limits(ReuseEligibility::from(permit), views, semantic)
+        Self::with_limits(ReuseEligibility::from(permit), views, semantic, routes)
     }
     #[cfg(test)]
     pub(in crate::application) fn new(
         stable: ReuseEligibility,
         semantic: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
     ) -> Self {
-        Self::with_limits(stable, PinnedViewCount(1024), semantic)
+        Self::with_limits(stable, PinnedViewCount(1024), semantic, Default::default())
+    }
+    /// An owner whose work records into `routes`.
+    #[cfg(test)]
+    pub(in crate::application) fn recording(
+        stable: ReuseEligibility,
+        semantic: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
+        routes: super::route_counts::types::RouteProfile,
+    ) -> Self {
+        Self::with_limits(stable, PinnedViewCount(1024), semantic, routes)
     }
     #[cfg(test)]
     pub(in crate::application) fn for_request(
@@ -112,12 +127,13 @@ impl RelationOwner {
         views: PinnedViewCount,
         semantic: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
     ) -> Self {
-        Self::with_limits(stable, views, semantic)
+        Self::with_limits(stable, views, semantic, Default::default())
     }
     fn with_limits(
         stable: ReuseEligibility,
         max_views: PinnedViewCount,
         semantic: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
+        routes: super::route_counts::types::RouteProfile,
     ) -> Self {
         let max_derived = super::derived::owner::types::EntryLimit(
             max_views
@@ -127,7 +143,7 @@ impl RelationOwner {
         Self {
             #[cfg(test)]
             identity_checks: Cell::new(CheckCount(0)),
-            derived: super::derived::owner::DerivedOwner::new(max_derived, semantic),
+            derived: super::derived::owner::DerivedOwner::new(max_derived, semantic, routes.clone()),
             next_population: Cell::new(PopulationId(0)),
             producer_populations: RefCell::new(HashMap::new()),
             generation: RefCell::new(Arc::new(())),
@@ -138,6 +154,7 @@ impl RelationOwner {
             views: Cell::new(PinnedViewCount(0)),
             checks: Cell::new(CheckCount(0)),
             reuses: Cell::new(CheckCount(0)),
+            routes,
         }
     }
     pub(super) fn stable(&self) -> ReuseEligibility {

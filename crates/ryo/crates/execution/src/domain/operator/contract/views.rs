@@ -150,14 +150,14 @@ pub(crate) enum ClosureViews<'a> {
     Many(&'a dyn ClosureParts),
 }
 impl<'a> ClosureViews<'a> {
-    fn len(self) -> PartitionCount {
+    pub(crate) fn len(self) -> PartitionCount {
         match self {
             Self::Empty => PartitionCount(0),
             Self::One(_) => PartitionCount(1),
             Self::Many(parts) => parts.len(),
         }
     }
-    fn get(
+    pub(crate) fn get(
         self,
         at: PartitionIndex,
     ) -> Result<
@@ -219,4 +219,137 @@ pub(crate) struct ValidatedSource<'a> {
     pub base: SourceBase,
     pub text: CellText<'a>,
     pub line: BaseLine,
+}
+
+/// The checked physical text of a span and where it starts in the source.
+struct SourceSlice<'a> {
+    base: SourceBase,
+    text: CellText<'a>,
+}
+
+/// Returns the physical text only after validating the whole input span. An absent span carries no
+/// occurrences; malformed boundaries fail before the row emits.
+fn source_slice<'a>(
+    row: &[Value],
+    span: ColumnIndex,
+    source: ryo_values::domain::files::types::SourceView<'a>,
+) -> Result<Option<SourceSlice<'a>>, OperatingError> {
+    let Value::Span(span) = ryo_values::domain::rows::service::cell(row, span)? else {
+        return Err(OperatingError::ShapeMismatch);
+    };
+    if span == ryo_relations::domain::relations::constants::NO_SPAN {
+        return Ok(None);
+    }
+    let start =
+        usize::try_from(span.start.0).map_err(|_| OperatingError::InvalidSourceMatchSpan)?;
+    let end = usize::try_from(span.end.0).map_err(|_| OperatingError::InvalidSourceMatchSpan)?;
+    if start > end {
+        return Err(OperatingError::InvalidSourceMatchSpan);
+    }
+    let bytes = source
+        .0
+        .get(start..end)
+        .ok_or(OperatingError::InvalidSourceMatchSpan)?;
+    let text =
+        std::str::from_utf8(bytes).map_err(|_error| OperatingError::InvalidSourceMatchSpan)?;
+    Ok(Some(SourceSlice {
+        base: SourceBase(start),
+        text: CellText(text),
+    }))
+}
+
+/// The source gate of an occurrence search: validates the span, and its base line, before any matcher is
+/// acquired. An absent span suppresses the row's later checks.
+pub(crate) fn validate<'a>(
+    row: &[Value],
+    span: ColumnIndex,
+    base_line: Option<ColumnIndex>,
+    source: ryo_values::domain::files::types::SourceView<'a>,
+) -> Result<Option<ValidatedSource<'a>>, OperatingError> {
+    let Some(SourceSlice { base, text }) = source_slice(row, span, source)? else {
+        return Ok(None);
+    };
+    let line = if let Some(column) = base_line {
+        let Value::Number(ryo_relations::domain::relations::types::Integer(number)) =
+            ryo_values::domain::rows::service::cell(row, column)?
+        else {
+            return Err(OperatingError::ShapeMismatch);
+        };
+        if number <= 0 {
+            return Err(OperatingError::InvalidSourceMatchSpan);
+        }
+        BaseLine::Starts(ryo_relations::domain::relations::types::Integer(number))
+    } else {
+        BaseLine::Unnumbered
+    };
+    Ok(Some(ValidatedSource { base, text, line }))
+}
+
+/// A native lookup bound to a join: the tree it finds candidates in, and how it finds them.
+#[derive(Clone, Copy)]
+pub(crate) struct NativeJoin<'a> {
+    pub tree: crate::domain::table_cells::types::TreeRows<'a>,
+    pub finding: ryo_derived::domain::native::types::NativeFinding,
+}
+
+/// Whether the native candidates of the left row have been found.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum Started {
+    Yes,
+    No,
+}
+
+/// Where the walk over the native candidates has reached.
+#[derive(Clone, Copy, Debug, Default)]
+pub(super) struct NativeCursor(pub(super) usize);
+
+/// The join candidates of one left row: the native tree candidates when a native lookup is bound, else the
+/// index probe; a filtered native join admits only the elements its bound predicate holds for.
+pub(crate) struct JoinCursor<'f> {
+    pub(super) native: Option<NativeJoin<'f>>,
+    pub(super) index: Option<IndexedRows<'f>>,
+    pub(super) probe: Option<KeyProbe>,
+    pub(super) current: Option<ryo_values::domain::rows::types::RowIndex>,
+    pub(super) positions: Vec<ryo_relations::domain::relations::types::Position>,
+    pub(super) at: NativeCursor,
+    pub(super) started: Started,
+    pub(super) position: Option<ryo_relations::domain::relations::types::Position>,
+    pub(super) filtered: super::resources::Filtering,
+}
+
+/// The axis resources one walk runs over: none, a tree of elements, or an index of edges with its domain.
+#[derive(Clone, Copy)]
+pub(crate) enum PreparedAxis<'a> {
+    Empty,
+    Native {
+        tree: crate::domain::table_cells::types::TreeRows<'a>,
+        among: Option<crate::domain::table_cells::types::TreeRows<'a>>,
+        marks: ryo_derived::domain::positions::types::DenseMarks<'a>,
+    },
+    Indexed {
+        edges: IndexedRows<'a>,
+        to: ryo_values::domain::plan_parts::types::ColumnIndex,
+        domain: ryo_derived::domain::membership::types::MembershipView<'a>,
+    },
+}
+
+/// The axis resources the last walk ran over.
+#[derive(Default)]
+pub(crate) struct AxisCursor<'f> {
+    pub(super) prepared: Option<PreparedAxis<'f>>,
+}
+
+/// The prepared adjacency of the derived resource, read through the operators' port.
+pub(super) struct PreparedAdjacency<'a>(
+    pub(super) &'a ryo_derived::domain::cycle_adjacency::types::CycleGraph,
+);
+
+/// The graph resources an evaluation acquired: its ordered keys, adjacency, closure partitions and depth-first
+/// graph.
+#[derive(Default)]
+pub(crate) struct GraphCursor<'f> {
+    pub(super) ordered: Option<&'f ryo_derived::domain::ordered::types::OrderedMatching>,
+    pub(super) cycles: Option<PreparedAdjacency<'f>>,
+    pub(super) closure: ClosureViews<'f>,
+    pub(super) dfs: Option<&'f ryo_derived::domain::dfs::types::PreparedDfs>,
 }

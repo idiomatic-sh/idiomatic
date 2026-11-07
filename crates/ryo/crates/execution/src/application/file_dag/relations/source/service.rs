@@ -14,7 +14,6 @@ impl RelationOwner {
         raw: BorrowedRows<'_>,
     ) -> Result<PublishedInput, OperatingError> {
         let population = match raw {
-            BorrowedRows::Selected { source, .. } => BorrowedRows::Stored(source),
             other => other,
         };
         if let Some(found) = self.sources.borrow().get(&relation) {
@@ -100,18 +99,5 @@ impl RelationOwner {
             inspected: OnceLock::from(Ok(PhysicalShape::Complete)),
             normalized: OnceLock::new(),
         }))
-    }
-    pub(in crate::application::file_dag::relations) fn position_source(
-        &self,
-        publication: &PublishedInput,
-    ) -> Result<Arc<RelationResult>, OperatingError> {
-        self.generation(publication)?;
-        match &publication.body {
-            RelationBody::Positioned { source, .. } => Ok(Arc::clone(source)),
-            RelationBody::Source(source) if source.kind == RepresentationKind::Tree => {
-                Ok(Arc::clone(publication.record()))
-            }
-            _ => Err(OperatingError::WrongOperation),
-        }
     }
 }

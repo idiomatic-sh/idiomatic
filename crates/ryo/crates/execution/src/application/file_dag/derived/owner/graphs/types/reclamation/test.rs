@@ -1,19 +1,12 @@
 //! Graph admission reclaims only dormant resources owned by the real file owner.
 
 use super::constants;
-use crate::application::file_dag::derived::owner::selection::fixtures::SelectionFixture;
 use crate::application::file_dag::derived::owner::{
-    fixtures::graph::GraphFixture, index::service::LIMIT,
-};
-use crate::domain::operating::types::OperatorContext;
-use crate::domain::stored_selection::fixtures::program;
+    fixtures::graph::GraphFixture, index::service::LIMIT};
 use crate::domain::table_model::types::Rows;
-use crate::domain::table_scratch::types::OperatorScratch;
-use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, ColumnsView, FactColumn, Relation};
-use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use std::{rc::Rc, sync::Arc};
+use std::sync::Arc;
 
 fn rows<'a>(columns: &'a [FactColumn; 2]) -> Rows<'a> {
     Rows::Stored(ColumnsView {
@@ -150,67 +143,6 @@ fn owner_reclaims_the_oldest_complete_index_before_newer_indexes() {
         after.retained_view_bytes,
         before.retained_view_bytes - first_view_bytes
     );
-}
-
-#[test]
-fn selected_row_ids_pinned_by_a_graph_or_view_cannot_be_reclaimed() {
-    let columns = [
-        FactColumn(vec![1, 2, 2, 3]),
-        FactColumn(vec![10, 20, 21, 30]),
-    ];
-    let source = ColumnsView {
-        kinds: &[CellKind::Number; 2],
-        columns: &columns,
-    };
-    let selector = program(2);
-    let selection = SelectionFixture::with_graph(
-        &[Relation::Function],
-        &[],
-        vec![selector.clone(), selector.clone()],
-        [selector.clone()],
-        source.kinds,
-    )
-    .expect(constants::REAL_SELECTION_OWNER);
-    let (mut symbols, mut memo, mut scratch) =
-        (Symbols::default(), Vec::new(), OperatorScratch::default());
-    let mut context = OperatorContext {
-        phase: crate::domain::operating::types::AfterTheFiles::Before,
-        semantic: None,
-        prepared_kinds: None,
-        prepared_matchers: None,
-        matcher: crate::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl),
-        bindings: &[],
-        symbols: (&mut symbols).into(),
-        source: SourceView(constants::NO_SOURCE),
-        paths: &[],
-        arenas: &[],
-        memo: &mut memo,
-        scratch: &mut scratch,
-    };
-    let selected = selection
-        .select(&selector, source, &mut context)
-        .expect(constants::ACTUAL_SELECTOR_EXECUTION)
-        .expect(constants::RETAINED_SELECTION);
-    assert_eq!(selected.selection.rows.as_slice(), &[1, 2]);
-    let mut fixture = GraphFixture::attach(Rc::clone(selection.owner()), &[Relation::Function]);
-    let before = fixture.snapshot();
-    assert_eq!(before.selections, 1);
-    assert!(before.retained_positions >= selected.selection.rows.capacity());
-    assert!(before.retained_view_bytes > 0);
-    fixture.set_limit(before.bytes);
-    let cost = before.retained_view_bytes;
-    assert!(!fixture.reclaim(cost));
-    let pinned = fixture.snapshot();
-    assert_eq!(pinned.bytes, before.bytes);
-    assert_eq!(pinned.selections, 1);
-    assert_eq!(pinned.retained_positions, before.retained_positions);
-    drop(selected);
-    assert!(fixture.reclaim(cost));
-    let after = fixture.snapshot();
-    assert_eq!(after.selections, 0);
-    assert_eq!(after.retained_positions, 0);
-    assert_eq!(after.counts.reclaimed_selections, 1);
-    assert!(after.bytes < before.bytes);
 }
 
 #[test]

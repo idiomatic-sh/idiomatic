@@ -83,7 +83,7 @@ pub trait StreamingReduction {
 }
 
 use crate::domain::contract::errors::ContractError;
-use crate::domain::set_rows::types::FirstOccurrence;
+use crate::domain::contract::types::FirstOccurrence;
 
 /// Whether two rows belong to the same group.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

@@ -19,49 +19,6 @@ impl RelationOwner {
                         * size_of::<ryo_values::domain::plan_parts::types::ColumnIndex>()
                     + source.source_kinds.capacity() * size_of::<CellKind>();
             }
-            RelationBody::Positioned {
-                source,
-                positions,
-                shape,
-                kinds,
-            } => {
-                Self::record_backings(source, output);
-                output.push(Backing {
-                    key: BackingKey {
-                        tag: BackingTag(25),
-                        address: BackingAddress(Arc::as_ptr(positions) as usize),
-                    },
-                    retention_units: UnitCount(positions.slots.0.capacity()),
-                    bytes: ByteCount(
-                        size_of::<crate::domain::positions::types::Positions>()
-                            + 2 * size_of::<usize>()
-                            + positions.slots.0.capacity() * size_of::<u32>(),
-                    ),
-                });
-                output.push(Backing {
-                    key: BackingKey {
-                        tag: BackingTag(26),
-                        address: BackingAddress(Arc::as_ptr(shape) as usize),
-                    },
-                    retention_units: UnitCount(0),
-                    bytes: ByteCount(
-                        size_of::<crate::domain::lowering::types::LoweredShape>()
-                            + 2 * size_of::<usize>()
-                            + shape.columns.capacity()
-                                * size_of::<crate::domain::lowering::types::LoweredColumn>(),
-                    ),
-                });
-                output.push(Backing {
-                    key: BackingKey {
-                        tag: BackingTag(27),
-                        address: BackingAddress(kinds.as_ptr() as usize),
-                    },
-                    retention_units: UnitCount(0),
-                    bytes: ByteCount(
-                        std::mem::size_of_val(kinds.as_ref()) + 2 * size_of::<usize>(),
-                    ),
-                });
-            }
             RelationBody::Computed(table) => output.push(Self::table_backing(table)),
             RelationBody::Compact(table) => {
                 let words = ryo_values::domain::compact_table::service::compact_backing(table);
@@ -88,24 +45,6 @@ impl RelationOwner {
                     ),
                 });
             }
-            RelationBody::Selected { source, selection } => {
-                Self::record_backings(source, output);
-                output.push(Backing {
-                    key: BackingKey {
-                        tag: BackingTag(6),
-                        address: BackingAddress(Arc::as_ptr(selection) as usize),
-                    },
-                    retention_units: UnitCount(0),
-                    bytes: ByteCount(
-                        size_of::<StoredSelection>()
-                            + 2 * size_of::<usize>()
-                            + selection.columns.capacity()
-                                * size_of::<ryo_values::domain::plan_parts::types::ColumnIndex>()
-                            + selection.kinds.capacity() * size_of::<CellKind>(),
-                    ),
-                });
-                output.push(Self::rows_backing(selection));
-            }
         }
         output.push(Backing {
             key: BackingKey {
@@ -117,18 +56,6 @@ impl RelationOwner {
         });
         if let Some(table) = record.normalized.get() {
             output.push(Self::table_backing(table));
-        }
-    }
-    pub(super) fn rows_backing(selection: &StoredSelection) -> Backing {
-        Backing {
-            key: BackingKey {
-                tag: BackingTag(1),
-                address: BackingAddress(Arc::as_ptr(&selection.rows.0) as usize),
-            },
-            retention_units: UnitCount(selection.rows.0.capacity()),
-            bytes: crate::application::file_dag::derived::ledger::capacity::shared_vector(
-                &selection.rows.0,
-            ),
         }
     }
     pub(super) fn table_backing(table: &Arc<Table>) -> Backing {
@@ -167,20 +94,6 @@ impl RelationOwner {
         record: Arc<RelationResult>,
     ) -> Result<PublishedInput, OperatingError> {
         self.leased_publication(record, None)
-    }
-    pub(super) fn publication_with_resources(
-        &self,
-        record: Arc<RelationResult>,
-        resources: [Option<super::super::derived::owner::acquisition::admission::service::AcquiredView>;
-            2],
-    ) -> Result<PublishedInput, OperatingError> {
-        let dependencies = resources
-            .iter()
-            .flatten()
-            .map(|view| view.dependency())
-            .collect::<Vec<_>>();
-        let dependencies = (!dependencies.is_empty()).then(|| Arc::from(dependencies));
-        self.leased_publication(record, dependencies)
     }
     fn leased_publication(
         &self,

@@ -26,14 +26,6 @@ pub(crate) fn build(
         Some(BulkRows::Stored(view)) => fill(count, columns, &mut out, |row, column| {
             stored_cell(view, row, column)
         }),
-        Some(BulkRows::Selected {
-            source,
-            positions,
-            columns: projection,
-        }) => fill(count, columns, &mut out, |row, column| {
-            let physical = RowIndex(*positions.0.get(row.0)? as usize);
-            stored_cell(source, physical, *projection.get(column.0 as usize)?)
-        }),
         Some(BulkRows::Computed(table)) => fill(count, columns, &mut out, |row, column| {
             let width = table.kinds.len();
             let cells = table

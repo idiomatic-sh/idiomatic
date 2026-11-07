@@ -18,7 +18,7 @@ impl DerivedOwner {
             .0
             .checked_add(extra_units.0)
             .ok_or(OperatingError::ShapeMismatch)?
-            .saturating_sub(crate::application::file_dag::derived::owner::selection::types::MAX_RETAINED_POSITION_CAPACITY);
+            .saturating_sub(crate::application::file_dag::derived::owner::cache::types::MAX_RETAINED_POSITION_CAPACITY);
         drop(ledger);
         if room(cache, cost).is_some() && required_units == 0 {
             return Ok(Room::Fits);
@@ -122,7 +122,6 @@ impl DerivedOwner {
         drop(ledger);
         candidates.sort_unstable_by_key(|candidate| candidate.0);
         let mut released = ByteCount(0);
-        let mut released_predicates = 0;
         let mut released_indexes = 0;
         for (_, key) in candidates {
             if cache
@@ -137,7 +136,7 @@ impl DerivedOwner {
                     .optional_units
                     .0
                     .checked_add(extra_units.0)
-                    .is_some_and(|units| units <= crate::application::file_dag::derived::owner::selection::types::MAX_RETAINED_POSITION_CAPACITY)
+                    .is_some_and(|units| units <= crate::application::file_dag::derived::owner::cache::types::MAX_RETAINED_POSITION_CAPACITY)
             {
                 break;
             }
@@ -147,7 +146,6 @@ impl DerivedOwner {
             };
             let removed = entry.retained.take();
             released += entry.bytes;
-            released_predicates += usize::from(entry._plan.kind == DerivedKind::PredicateMatches);
             released_indexes += u64::from(entry._plan.kind == DerivedKind::Equality);
             // Drop the optional lease before observing the physical union. A
             // graph or publication alias may still own some of these backings.
@@ -158,13 +156,6 @@ impl DerivedOwner {
             cache.graph_counts.reclaimed_bytes.0 += physical as u64;
         }
         state.retained_bytes = ByteCount(state.retained_bytes.0.saturating_sub(released.0));
-        state.retained_predicates = PredicateCount(
-            state
-                .retained_predicates
-                .0
-                .saturating_sub(released_predicates),
-        );
-        cache.graph_counts.reclaimed_selections.0 += released_predicates as u64;
         cache.graph_counts.reclaimed_indexes.0 += released_indexes;
     }
 }

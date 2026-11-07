@@ -179,9 +179,6 @@ pub(crate) struct LinterLintEngine {
     pub memory: MemoryBudget,
     /// Where the runs keep what they leave for the next.
     pub cache: Cache,
-    /// The execution strategies every run over the engine may use.
-    #[cfg(feature = "fixtures")]
-    pub routes: ryo_execution::inbound::use_cases::prepare::interface::RoutePolicy,
 }
 
 impl Linter {
@@ -193,12 +190,6 @@ impl Linter {
     /// The engine it runs over, for its sibling entry.
     pub(super) const fn engine(&self) -> &LinterLintEngine {
         &self.0
-    }
-
-    /// The engine it runs over, changed by its sibling entry before any run.
-    #[cfg(feature = "fixtures")]
-    pub(super) const fn engine_mut(&mut self) -> &mut LinterLintEngine {
-        &mut self.0
     }
 }
 

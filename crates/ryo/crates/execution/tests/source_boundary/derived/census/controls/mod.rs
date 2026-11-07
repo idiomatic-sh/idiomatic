@@ -34,5 +34,4 @@ pub(super) fn read(path: &str, owner_type: &str, method: &str) -> String {
 
 pub(super) mod admission;
 pub(super) mod graph;
-pub(super) mod selection;
 pub(super) mod authority;

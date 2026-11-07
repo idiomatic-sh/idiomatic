@@ -95,7 +95,7 @@ fn two_local_zero_inputs_keep_their_distinct_request_producers() -> Result<(), O
             output: ObservationIndex(0)
         }
     );
-    let program = compile(&plans, graph, &DeclaredFileProducers, &operators, crate::domain::executable_program::types::RoutePolicy::default()).unwrap();
+    let program = compile(&plans, graph, &DeclaredFileProducers, &operators).unwrap();
     assert_eq!(
         program.rules()[2].frontier[0],
         Ok(InputSource::Observation(ObservationPlace(0)))
@@ -113,7 +113,7 @@ fn undeclared_frontier_ordinal_is_a_typed_refusal() -> Result<(), OperatingError
         graph,
         operators,
     } = fixture(FrontierSlots::UndeclaredFirst);
-    let program = compile(&plans, graph, &DeclaredFileProducers, &operators, crate::domain::executable_program::types::RoutePolicy::default()).unwrap();
+    let program = compile(&plans, graph, &DeclaredFileProducers, &operators).unwrap();
     assert!(matches!(
         &program.rules()[2].frontier[0],
         Err(OperatingError::ObservationIncomplete { .. })
@@ -133,7 +133,7 @@ fn declared_local_input_without_its_qualified_slot_is_a_typed_refusal() -> Resul
         operators,
     } = fixture(FrontierSlots::Declared);
     graph.observations.as_mut().unwrap().slots[0].rule = RuleIndex(99);
-    let program = compile(&plans, graph, &DeclaredFileProducers, &operators, crate::domain::executable_program::types::RoutePolicy::default()).unwrap();
+    let program = compile(&plans, graph, &DeclaredFileProducers, &operators).unwrap();
     assert!(matches!(
         &program.rules()[2].frontier[0],
         Err(OperatingError::ObservationIncomplete { .. })

@@ -1,29 +1,8 @@
 //! Counters the execution reports: fed rows, populations, logical counts and readiness.
-use super::super::{ProgramExecution, RuntimeState, Slot, State};
-use crate::application::file_dag::program::runtime::types::ColumnCounters;
+use super::super::{ProgramExecution, RuntimeState, State};
 use crate::domain::operating::errors::OperatingError;
 
 impl ProgramExecution {
-    pub(in crate::application::file_dag::program::runtime::service) fn record_column(
-        &self,
-        state: &RuntimeState,
-        shape: &crate::domain::executable_program::types::ColumnAlternative,
-        counts: &ColumnCounters,
-    ) -> Result<(), OperatingError> {
-        let mut slots = state.slots.borrow_mut();
-        for (id, values) in [
-            (shape.join, counts.join.snapshot()),
-            (shape.filter, counts.filter.snapshot()),
-            (shape.target, counts.project.snapshot()),
-        ] {
-            let slot = Slot::touched(state, &mut slots, &self.program, id)?;
-            let fed = slot.fed.first_mut().ok_or(OperatingError::NotRun)?;
-            for (total, found) in fed.0.iter_mut().zip(values.0) {
-                *total = total.saturating_add(found.0);
-            }
-        }
-        Ok(())
-    }
     /// Consume the generation once no invocation can remain active. Dropping
     /// its slots releases only engine-held storage; transferred leases own theirs.
     pub(in crate::application::file_dag::program) fn state_counts(

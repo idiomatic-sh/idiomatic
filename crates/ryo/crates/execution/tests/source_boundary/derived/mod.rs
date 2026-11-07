@@ -2,7 +2,6 @@
 use super::fixtures::{Compilation, Expectation, Probe};
 mod kernel;
 pub(super) const KERNEL: &str = kernel::KERNEL;
-pub(super) const RAW_SCOPE: &str = kernel::RAW_SCOPE;
 pub(super) const INBOUND: &str = "src/inbound/use_cases/prepare/use_case.rs";
 pub(super) const CACHE: &str = sealing::CACHE;
 pub(super) const TYPES: &str = sealing::TYPES;
@@ -18,21 +17,15 @@ pub(super) const ISSUER: &str =
 const AUTHORIZED: &str = r#"
 mod derived_authorized {
     use crate::application::file_dag::relations::{RelationOwner, admission::service::BorrowedInput};
-    use crate::application::file_dag::program::runtime::service::KernelPermit;
     use crate::domain::derived_views::types::{contract::value::DerivedContract, DerivedInputs, DerivedScratch};
     use crate::domain::operating::errors::OperatingError;
-    use std::{rc::Rc, sync::Arc};
+    use std::sync::Arc;
     fn acquire<'a>(owner: &'a RelationOwner, plan: &'a Arc<DerivedContract>, proof: &'a BorrowedInput<'a>, scratch: &'a mut DerivedScratch) -> Result<(), OperatingError> {
         let admitted = owner.derived().admit_view(plan, owner, &[proof])?;
         let _ = owner.derived().acquire_stored(plan, &admitted, Default::default(), DerivedInputs::Rows(&[proof.rows()]), scratch, None)?;
         Ok(())
     }
     const _: for<'a> fn(&'a RelationOwner, &'a Arc<DerivedContract>, &'a BorrowedInput<'a>, &'a mut DerivedScratch) -> Result<(), OperatingError> = acquire;
-    fn raw<'a>(owner: Rc<RelationOwner>, plan: Arc<DerivedContract>, permit: &'a KernelPermit<'a>) -> Result<(), OperatingError> {
-        let _ = owner.derived().finite_raw(Rc::clone(&owner), Some(plan), permit)?;
-        Ok(())
-    }
-    const _: for<'a> fn(Rc<RelationOwner>, Arc<DerivedContract>, &'a KernelPermit<'a>) -> Result<(), OperatingError> = raw;
 }
 "#;
 const PRIVATE_OWNER: &str = r#"
@@ -76,15 +69,6 @@ mod storage_constructor {
     use std::sync::Arc;
     fn forge(port: Arc<dyn DerivedPort>, plan: Arc<PreparedDerived>, payload: DerivedPayload) { let _ = Authority::new(port, plan, payload, None); }
     const _: fn(Arc<dyn DerivedPort>, Arc<PreparedDerived>, DerivedPayload) = forge;
-}
-"#;
-const UNPERMITTED_RAW: &str = r#"
-mod unpermitted_raw {
-    use crate::application::file_dag::relations::RelationOwner;
-    use crate::domain::derived_views::types::contract::value::DerivedContract;
-    use std::{rc::Rc, sync::Arc};
-    fn forge(owner: Rc<RelationOwner>, plan: Arc<DerivedContract>) { let _ = owner.derived().finite_raw(Rc::clone(&owner), Some(plan)); }
-    const _: fn(Rc<RelationOwner>, Arc<DerivedContract>) = forge;
 }
 "#;
 const REMOVED_PORT_GETTER: &str = r#"
@@ -350,16 +334,6 @@ pub(super) fn controls() -> Vec<Probe> {
         Probe {
             compilation: Compilation::Library,
             owner: MODULE,
-            source: UNPERMITTED_RAW.into(),
-            expected: Expectation::Refuse {
-                code: "E0061",
-                first: "KernelPermit",
-                second: "argument",
-            },
-        },
-        Probe {
-            compilation: Compilation::Library,
-            owner: MODULE,
             source: REMOVED_PORT_GETTER.into(),
             expected: Expectation::Refuse {
                 code: "E0599",
@@ -369,7 +343,7 @@ pub(super) fn controls() -> Vec<Probe> {
         },
     ];
     probes.extend(kernel::controls());
-    probes.extend(sealing::controls(ROOT, MODULE));
+    probes.extend(sealing::controls(ROOT));
     probes.extend(witness::controls(ROOT));
     probes.extend(census::controls(ROOT));
     probes

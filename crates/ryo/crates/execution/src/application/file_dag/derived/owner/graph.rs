@@ -218,7 +218,7 @@ impl DerivedOwner {
                 .optional_units
                 .0
                 .checked_add(units)
-                .is_some_and(|n| n <= crate::application::file_dag::derived::owner::selection::types::MAX_RETAINED_POSITION_CAPACITY);
+                .is_some_and(|n| n <= crate::application::file_dag::derived::owner::cache::types::MAX_RETAINED_POSITION_CAPACITY);
         drop(ledger);
         if fits {
             self.optional_lease(backings).map(Some)

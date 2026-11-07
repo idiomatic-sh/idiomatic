@@ -136,55 +136,10 @@ pub(crate) fn prepare_with_schemas<'s>(
         }
         rules.push(contracts);
     }
-    let selection_plans = Arc::new(
-        plans
-            .iter()
-            .enumerate()
-            .map(|(rule, plan)| {
-                crate::domain::stored_selection::types::program::value::SelectionProgram::new(
-                    plan,
-                    bindings.get(rule).map_or(&[], Vec::as_slice),
-                )
-                .prepare()
-            })
-            .collect::<Vec<_>>(),
-    );
-    let selection_views =
-        crate::application::file_dag::derived::owner::selection::preparation::service::prepare_views_with_schemas(
-            selection_plans
-                .iter()
-                .flat_map(|plan| plan.steps.iter().flatten())
-                .cloned(),
-            relation_kinds,
-            semantic,
-        )?;
-    let physical=plans.iter().enumerate().map(|(rule,plan)| {
-        let selectors = &selection_plans[rule];
-        plan.steps.iter().enumerate().map(|(at,_step)| {
-            crate::domain::table_model::types::PreparedPhysical{selector:selectors.steps.get(at).cloned().flatten()}
-        }).collect()
-    }).collect();
-    let ordered_existence = Arc::new(
-        plans
-            .iter()
-            .enumerate()
-            .map(|(rule, plan)| {
-                crate::domain::self_join_recogniser::service::compile(plan, &|id| {
-                    match &rules.get(rule)?.get(id.0 as usize)?.schema {
-                        Ok(kinds) => Some(kinds.as_slice()),
-                        Err(_) => None,
-                    }
-                })
-            })
-            .collect(),
-    );
     let request = RequestOperators {
-        ordered_existence,
-        selection_plans,
-        selection_views,
+        ordered_existence: plans.iter().map(|_| std::sync::OnceLock::new()).collect(),
         rules,
         preparations: crate::domain::operator::contract::types::PreparationCount(preparations),
-        physical,
     };
     debug_assert_eq!(
         request.preparations.0,

@@ -3,11 +3,9 @@ use super::inputs::fixtures::{TestInputs, value};
 use crate::application::file_dag::program::admission::AdmittedInput;
 use crate::application::file_dag::program::runtime::service::KernelInvocation;
 use crate::application::file_dag::program::runtime::service::ProgramExecution;
-use crate::application::file_dag::program::runtime::types::ColumnCounters;
 use crate::application::file_dag::program::runtime::types::InvocationFailure;
 use crate::application::file_dag::program::runtime::types::KernelInput;
 use crate::application::file_dag::program::runtime::types::KernelScratch;
-use crate::application::file_dag::program::runtime::types::StrategyOutcome;
 use crate::domain::completion::types::completion_policy::value::CompletionPolicy;
 use crate::domain::executable_program::types::instruction::value::Instruction;
 use crate::domain::executable_program::types::RegionId;
@@ -16,16 +14,13 @@ use crate::domain::operating::types::Emit;
 use crate::domain::operating::types::OperatorContext;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{FileId, Integer, Value};
-use ryo_values::domain::rows::types::Table;
 use std::{
     cell::{Cell, RefCell},
-    rc::Rc,
-};
+    rc::Rc};
 use {
     crate::domain::coverage::types::RuleIndex,
     crate::domain::table_scratch::types::OperatorScratch,
-    ryo_values::domain::files::types::SourceView,
-};
+    ryo_values::domain::files::types::SourceView};
 
 #[derive(Clone, Copy)]
 pub(super) enum RuntimeProbeMode {
@@ -77,47 +72,7 @@ impl KernelInvocation for RuntimeProbe {
         _: &mut OperatorContext<'_>,
         _: &mut KernelScratch,
         _: &mut dyn Emit,
-    ) -> Result<StrategyOutcome, InvocationFailure> {
-        Err(InvocationFailure::Semantic(OperatingError::WrongOperation))
-    }
-    fn positions(
-        &self,
-        _: &crate::application::file_dag::program::runtime::service::KernelPermit<'_>,
-        _: &mut OperatorContext<'_>,
-        _: &mut KernelScratch,
-    ) -> Result<
-        crate::application::file_dag::program::runtime::types::Attempt<
-            crate::application::file_dag::relations::handle::service::PublishedInput,
-        >,
-        InvocationFailure,
-    > {
-        Err(InvocationFailure::Semantic(OperatingError::WrongOperation))
-    }
-    fn selected(
-        &self,
-        _: &crate::domain::executable_program::types::SelectionAlternative,
-        _: &crate::application::file_dag::program::runtime::service::KernelPermit<'_>,
-        _: &mut OperatorContext<'_>,
-        _: &mut KernelScratch,
-    ) -> Result<
-        crate::application::file_dag::program::runtime::types::Attempt<
-            crate::application::file_dag::relations::handle::service::PublishedInput,
-        >,
-        InvocationFailure,
-    > {
-        Err(InvocationFailure::Semantic(OperatingError::WrongOperation))
-    }
-    fn column(
-        &self,
-        _: &crate::domain::executable_program::types::ColumnAlternative,
-        _: &crate::application::file_dag::program::runtime::service::KernelPermit<'_>,
-        _: &AdmittedInput,
-        _: &AdmittedInput,
-        _: &mut OperatorContext<'_>,
-        _: &mut KernelScratch,
-        _: &ColumnCounters,
-        _: &mut Table,
-    ) -> Result<StrategyOutcome, InvocationFailure> {
+    ) -> Result<(), InvocationFailure> {
         Err(InvocationFailure::Semantic(OperatingError::WrongOperation))
     }
     fn evaluate(

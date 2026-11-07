@@ -12,14 +12,12 @@ pub(super) fn controls() -> Vec<Probe> {
 mod targeted_activation {
     use crate::application::file_dag::derived::prepared::RequestDerived;
     use crate::domain::{coverage::types::RuleIndex, operating::errors::OperatingError};
-    fn read(value: &RequestDerived, rule: RuleIndex, cache: &mut crate::application::file_dag::derived::owner::cache::types::CacheBackend) -> Result<(), OperatingError> {
+    fn read(value: &RequestDerived, rule: RuleIndex) -> Result<(), OperatingError> {
         let _ = value.relations_for(rule)?;
-        let _ = value.selectors_for(rule)?;
         let _ = value.graph_for(rule)?;
-        cache.bind_request_views(value.views());
         Ok(())
     }
-    const _: fn(&RequestDerived, RuleIndex, &mut crate::application::file_dag::derived::owner::cache::types::CacheBackend) -> Result<(), OperatingError> = read;
+    const _: fn(&RequestDerived, RuleIndex) -> Result<(), OperatingError> = read;
 }
 "#.into(),
         expected: Expectation::Accept,
@@ -29,13 +27,7 @@ mod targeted_activation {
         source: "for (index, relations) in self.relations.iter().enumerate() { if !demanded.contains(&RuleIndex(index)) { continue; } std::hint::black_box(relations); }".into(),
         expected: Expectation::Refuse { code: "E0616", first: "relations", second: "private" },
     }];
-    for field in [
-        "relations",
-        "selectors",
-        "selector_ranges",
-        "graph_rules",
-        "views",
-    ] {
+    for field in ["relations", "graph_rules"] {
         controls.push(Probe {
             compilation: Compilation::Library,
             owner: SETUP,
@@ -43,11 +35,5 @@ mod targeted_activation {
             expected: Expectation::Refuse { code: "E0616", first: field, second: "private" },
         });
     }
-    controls.push(Probe {
-        compilation: Compilation::Library,
-        owner: "src/application/file_dag/relations.rs",
-        source: "mod raw_views_getter { use crate::application::file_dag::derived::prepared::RequestDerived; fn read(value: &RequestDerived) { let _ = value.views(); } const _: fn(&RequestDerived) = read; }".into(),
-        expected: Expectation::Refuse { code: "E0624", first: "views", second: "private" },
-    });
     controls
 }

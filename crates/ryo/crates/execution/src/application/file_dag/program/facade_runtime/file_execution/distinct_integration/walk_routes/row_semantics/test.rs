@@ -2,7 +2,7 @@
 use super::super::super::*;
 use super::super::fixtures::plans::Authored;
 use super::super::fixtures::routes::RowRoute;
-use super::super::fixtures::semantics::{BuildPolicy, Derived, Meanings};
+use super::super::fixtures::semantics::{Derived, Meanings};
 use super::super::fixtures::{Population, Program, Residency, cells, demand};
 use crate::domain::executable_program::fusion::types::{Fusibility, Ineligible};
 use ryo_values::domain::plans::service::kind_of;
@@ -20,7 +20,7 @@ fn view(root: RootOutcome) -> String {
 
 fn exercise(route: RowRoute) -> Result<(), OperatingError> {
     let meanings = Arc::new(Meanings::default());
-    let derived = Arc::new(Derived::new(BuildPolicy::Normal));
+    let derived = Arc::new(Derived::new());
     let program = Program::new(
         Authored::row_route(route),
         Population::Three,

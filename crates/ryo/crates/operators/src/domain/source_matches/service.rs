@@ -1,12 +1,12 @@
 //! Physical occurrence span, capture and line semantics over one borrowed checked interval.
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::source_matches::types::{
-    BaseLine, CaptureRequest, CarriageReturn, LineBytes, LineCursor, SourceBase,
-    SourceMatchesInput, OccurrenceByte, TextRowDriver, OccurrenceSpan,
+    BaseLine, CaptureRequest, CarriageReturn, LineBytes, LineCursor, OccurrenceByte,
+    OccurrenceSpan, SourceBase, SourceMatchesInput, TextRowDriver,
 };
+use ryo_relations::domain::relations::types::{Integer, Offset, Span, Value};
 use ryo_values::domain::query_operators::types::{LineOutput, TextOutput};
 use ryo_values::domain::row_texts::types::CellText;
-use ryo_relations::domain::relations::types::{Integer, Offset, Span, Value};
 use std::ops::ControlFlow;
 fn advance_line(
     bytes: LineBytes<'_>,
@@ -53,9 +53,10 @@ fn advance_line(
 }
 
 /// Visits the occurrences of the input's pattern: each whole span with the span of the captured group, when one was asked for.
-pub(crate) type VisitOccurrences<'visit> = &'visit dyn Fn(
-    &mut dyn FnMut(std::ops::Range<usize>, Option<std::ops::Range<usize>>) -> ControlFlow<()>,
-) -> Result<ControlFlow<()>, PortableOperatorFault>;
+pub(crate) type VisitOccurrences<'visit> =
+    &'visit dyn Fn(
+        &mut dyn FnMut(std::ops::Range<usize>, Option<std::ops::Range<usize>>) -> ControlFlow<()>,
+    ) -> Result<ControlFlow<()>, PortableOperatorFault>;
 
 pub(crate) fn occurrences(
     input: SourceMatchesInput<'_>,
@@ -89,7 +90,8 @@ pub(crate) fn occurrences(
     }
     let mut cursor = LineCursor(0);
     let mut pending_cr = CarriageReturn::Clear;
-    let mut emit_one = |whole: OccurrenceSpan, captured: Option<OccurrenceSpan>|
+    let mut emit_one = |whole: OccurrenceSpan,
+                        captured: Option<OccurrenceSpan>|
      -> Result<(), PortableOperatorFault> {
         let (start_at, end_at) = (whole.start.0, whole.end.0);
         let mut whole_line = None;
@@ -195,4 +197,48 @@ pub(crate) fn occurrences(
         return Err(error);
     }
     Ok(())
+}
+
+/// Emits the occurrences of the acquired matcher inside the span text the engine validated before it
+/// acquired the matcher.
+pub(crate) fn evaluate(
+    row: &[Value],
+    shape: super::types::SearchShape<'_>,
+    views: super::types::SearchViews<'_>,
+    driver: &mut dyn crate::domain::source_matches::types::TextRowsEvaluation,
+    joined: &mut Vec<Value>,
+    matching: &dyn crate::domain::contract::types::Occurrences,
+) -> Result<(), PortableOperatorFault> {
+    let super::types::SearchViews {
+        source,
+        checked,
+        regex,
+    } = views;
+    let text = checked.text.0;
+    let capture = shape.capture;
+    occurrences(
+        SourceMatchesInput {
+            row,
+            source,
+            base: checked.base,
+            text: checked.text,
+            line: checked.line,
+            regex,
+            capture,
+            capture_text: shape.capture_text,
+            capture_line: shape.capture_line,
+        },
+        driver.text_rows(),
+        joined,
+        &|each| match capture {
+            CaptureRequest::Group(name) => {
+                matching.captures(regex, text, name.0, &mut |found, group| {
+                    each(found, Some(group))
+                })
+            }
+            CaptureRequest::Whole => {
+                Ok(matching.matches(regex, text, &mut |found| each(found, None)))
+            }
+        },
+    )
 }
