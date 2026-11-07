@@ -72,6 +72,10 @@ Checks query kind names against the linked language vocabulary.
 
 Prepares named kind comparisons as sets of admitted kinds.
 
+### lineage
+
+Records which file the rows of a step come from and which of its columns lie in that file.
+
 ### matching
 
 Evaluates compiled text patterns over borrowed query values.

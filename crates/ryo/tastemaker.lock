@@ -223,7 +223,7 @@ benchmark-collector = "0.1.0"
 benchmark-linter = "0.2.1"
 collector-execution = "0.1.0"
 contract = "0.3.0"
-executable-program-owner = "0.1.0"
+executable-program-owner = "0.1.1"
 language = "0.4.2"
 provider-imports = "0.1.0"
 

@@ -49,10 +49,6 @@ templates = [
   { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/project_population/types.rs", description = "Neutral structural source and invocation records; no facade or session dependency." },
   { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/request_identity.rs", description = "One request's source and generation identity." },
   { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/restored.rs", description = "Validated deferred restoration." },
-  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/selection.rs", description = "Admitted compact selection construction and publication proof." },
-  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/native_join.rs", description = "Permit-bound native traversal kernel delivery." },
-  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "relations/positioned.rs", description = "Relation-owner native tuple validation and immutable population issuance." },
-  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "relations/selection.rs", description = "Relation-owner selected population validation and resource ownership." },
   { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/runtime/mod.rs", description = "Private registration of the sole invocation runtime owner." },
   { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/runtime/types.rs", description = "Independent scratch, inputs, counters and observed runtime DTOs; no authority definition or issuance dependency." },
   { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/runtime/service.rs", description = "Sole Rust-private interpreter state and capability issuer, admission scheduling, semantic dispatch and release." },
@@ -108,10 +104,6 @@ given.files."src/application/file_dag/program/kernel_session.rs" = "pub fn invok
 given.files."src/application/file_dag/program/native_walk.rs" = "pub fn native() {}"
 given.files."src/application/file_dag/program/request_identity.rs" = "pub fn identify() {}"
 given.files."src/application/file_dag/program/restored.rs" = "pub fn restore() {}"
-given.files."src/application/file_dag/program/selection.rs" = "pub fn select() {}"
-given.files."src/application/file_dag/program/native_join.rs" = "pub fn native_join() {}"
-given.files."src/application/file_dag/relations/positioned.rs" = "pub fn publish() {}"
-given.files."src/application/file_dag/relations/selection.rs" = "pub fn publish() {}"
 given.files."src/application/file_dag/program/runtime/mod.rs" = "pub(super) mod service; pub(super) mod types;"
 given.files."src/application/file_dag/program/runtime/types.rs" = "pub struct WorkCount;"
 given.files."src/application/file_dag/program/runtime/service.rs" = "pub struct KernelAdmission { execution: (), region: usize } pub fn execute() {}"
@@ -175,10 +167,6 @@ given.files."src/application/file_dag/program/kernel_session.rs" = "pub fn invok
 given.files."src/application/file_dag/program/native_walk.rs" = "pub fn native() {}"
 given.files."src/application/file_dag/program/request_identity.rs" = "pub fn identify() {}"
 given.files."src/application/file_dag/program/restored.rs" = "pub fn restore() {}"
-given.files."src/application/file_dag/program/selection.rs" = "pub fn select() {}"
-given.files."src/application/file_dag/program/native_join.rs" = "pub fn native_join() {}"
-given.files."src/application/file_dag/relations/positioned.rs" = "pub fn publish() {}"
-given.files."src/application/file_dag/relations/selection.rs" = "pub fn publish() {}"
 given.files."src/application/file_dag/program/runtime/mod.rs" = "pub(super) mod service; pub(super) mod types;"
 given.files."src/application/file_dag/program/runtime/types.rs" = "pub struct WorkCount;"
 given.files."src/application/file_dag/program/runtime/service.rs" = "pub struct KernelAdmission { execution: (), region: usize } pub fn execute() {}"
@@ -237,10 +225,6 @@ given.files."src/application/file_dag/program/kernel_session.rs" = "pub fn invok
 given.files."src/application/file_dag/program/native_walk.rs" = "pub fn native() {}"
 given.files."src/application/file_dag/program/request_identity.rs" = "pub fn identify() {}"
 given.files."src/application/file_dag/program/restored.rs" = "pub fn restore() {}"
-given.files."src/application/file_dag/program/selection.rs" = "pub fn select() {}"
-given.files."src/application/file_dag/program/native_join.rs" = "pub fn native_join() {}"
-given.files."src/application/file_dag/relations/positioned.rs" = "pub fn publish() {}"
-given.files."src/application/file_dag/relations/selection.rs" = "pub fn publish() {}"
 given.files."src/application/file_dag/program/runtime/mod.rs" = "pub(super) mod service; pub(super) mod types;"
 given.files."src/application/file_dag/program/runtime/types.rs" = "pub struct WorkCount;"
 given.files."src/application/file_dag/program/runtime/service.rs" = "pub struct KernelAdmission { execution: (), region: usize } pub fn execute() {}"

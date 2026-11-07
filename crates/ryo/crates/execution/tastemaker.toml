@@ -43,7 +43,6 @@ templates = [
   { template = "idiomatic.ryo/program-runtime-proof", file = "tests/source_boundary/derived/census/controls/mod.rs", description = "A generic role of the compiled-owner proof concept, reached through normal Rust registration." },
   { template = "idiomatic.ryo/program-runtime-proof", file = "tests/source_boundary/derived/census/controls/admission/mod.rs", description = "Actual compiled-program lifecycle controls in generic directory roles." },
   { template = "idiomatic.ryo/program-runtime-proof", file = "tests/source_boundary/derived/census/controls/graph/mod.rs", description = "Actual compiled-program lifecycle controls in generic directory roles." },
-  { template = "idiomatic.ryo/program-runtime-proof", file = "tests/source_boundary/derived/census/controls/selection/mod.rs", description = "Actual compiled-program lifecycle controls in generic directory roles." },
   { template = "idiomatic.ryo/program-runtime-proof", file = "tests/source_boundary/derived/census/controls/authority/mod.rs", description = "Actual compiled-program lifecycle controls in generic directory roles." },
   { template = "idiomatic.ryo/program-runtime-proof", file = "tests/source_boundary/derived/census/entry/mod.rs", description = "A generic role of the compiled-owner proof concept, reached through normal Rust registration." },
   { template = "idiomatic.ryo/program-runtime-proof", file = "tests/source_boundary/derived/census/entry/rows/mod.rs", description = "Actual compiled-program lifecycle controls in generic directory roles." },
