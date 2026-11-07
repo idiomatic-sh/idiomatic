@@ -51,7 +51,7 @@ fn reached_from_one(breadth: bool) -> Result<Vec<Cell>, RowsError> {
     if breadth {
         let indexed = IndexedRows {
             #[cfg(feature = "diagnostic-row-progress")]
-            progress: |_, _| {},
+            progress: &crate::domain::operator::contract::views::IgnoredProgress,
             rows: BorrowedRows::Computed(&table),
             columns: &from,
             index: &order,

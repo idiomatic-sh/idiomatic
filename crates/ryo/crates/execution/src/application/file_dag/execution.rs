@@ -46,8 +46,8 @@ pub(super) struct PrimitiveSemanticsBridge<'a> {
 }
 impl PrimitiveSemantics for PrimitiveSemanticsBridge<'_> {
     #[cfg(feature = "diagnostic-row-progress")]
-    fn progress(&self) -> crate::domain::operator::contract::views::ProgressObserver {
-        super::route_counts::progress::service::progress
+    fn progress(&self) -> &dyn crate::domain::operator::contract::views::ProgressObserver {
+        &super::route_counts::progress::service::RouteProgress
     }
     fn operators(
         &self,

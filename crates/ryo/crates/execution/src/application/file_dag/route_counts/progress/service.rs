@@ -7,7 +7,7 @@ use ryo_relations::domain::relations::types::Value;
 use crate::domain::operator::contract::views::{ProgressAmount, ProgressCounter};
 
 use super::super::constants::{self, MAX_KEYS};
-use super::super::profile::service::STATE;
+use super::super::profile::service::{with_borrow, with_borrow_mut};
 use super::super::schemas::document;
 use super::super::types::{
     RouteCardinality, RouteCounters, RouteFileIndex, RouteFileName, RouteHotRow, RouteInputKey,
@@ -16,7 +16,7 @@ use super::super::types::{
 
 pub(crate) fn file_name(name: &FilePath) {
     let name = RouteFileName(name.0.to_string());
-    STATE.with_borrow_mut(|state| {
+    with_borrow_mut(|state| {
         if let Some(state) = state {
             state.progress.name = name;
         }
@@ -28,7 +28,7 @@ pub(crate) fn row_file(row: &[Value], paths: &[FilePath]) {
         Value::File(file) => Some(file),
         _ => None,
     });
-    STATE.with_borrow_mut(|state| {
+    with_borrow_mut(|state| {
         let Some(state) = state else {
             return;
         };
@@ -59,7 +59,7 @@ fn counter_label(counter: ProgressCounter) -> RouteLabel {
 }
 pub(crate) fn progress(counter: ProgressCounter, amount: ProgressAmount) {
     let label = counter_label(counter);
-    let flush_now = STATE.with_borrow_mut(|state| {
+    let flush_now = with_borrow_mut(|state| {
         let Some(state) = state else {
             return false;
         };
@@ -104,7 +104,7 @@ fn add_counter(counters: &mut RouteCounters, family: RouteLabel, calls: RouteTal
     slot.0 += calls.0;
 }
 fn snapshot() -> Option<RouteSnapshot> {
-    STATE.with_borrow(|state| {
+    with_borrow(|state| {
         let state = state.as_ref()?;
         let mut rows = state
             .counts
@@ -229,4 +229,13 @@ pub(crate) fn flush(stage: RouteLabel) {
         .input_cardinalities
         .map(|size| size.map(|size| size.0));
     tracing::trace!(target: constants::ROW_PROGRESS_TARGET, event = constants::ROW_PROGRESS, stage, phase, file = ?file, path, row_file = ?row_file, rule, node_namespace = origin.namespace.0, rule_index = ?origin.rule.map(|rule| rule.0), node = ?origin.node.map(|node| node.0), consumer = ?origin.consumer.map(|consumer| consumer.0), elapsed_ms, ticks, overflow, hottest = %hottest, counters = %counters, operation = operation, input_cardinalities = ?input_cardinalities);
+}
+
+/// The route accounting as the observer a primitive reports its progress to.
+pub(crate) struct RouteProgress;
+
+impl crate::domain::operator::contract::views::ProgressObserver for RouteProgress {
+    fn observe(&self, counter: ProgressCounter, amount: ProgressAmount) {
+        progress(counter, amount);
+    }
 }

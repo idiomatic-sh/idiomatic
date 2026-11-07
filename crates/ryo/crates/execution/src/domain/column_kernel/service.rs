@@ -203,9 +203,9 @@ pub(crate) fn execute_with_index(
         for position in 0..left_count {
             covered.set(covered.get().saturating_add(1));
             #[cfg(feature = "diagnostic-row-progress")]
-            (semantics.progress())(
+            semantics.progress().observe(
                 crate::domain::operator::contract::views::ProgressCounter::InputRows,
-                1,
+                crate::domain::operator::contract::views::ProgressAmount(1),
             );
             let left_row = RowIndex(position);
             let reader = driver::Left {

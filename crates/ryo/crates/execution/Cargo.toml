@@ -36,6 +36,7 @@ ryo_query_language = { package = "idiomatic-sh-ryo-query_language", path = "../q
 dhat = { workspace = true, optional = true }
 postcard.workspace = true
 tempfile.workspace = true
+thread_local.workspace = true
 
 [dev-dependencies]
 dhat.workspace = true

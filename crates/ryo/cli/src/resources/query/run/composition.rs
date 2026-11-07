@@ -61,6 +61,7 @@ pub(crate) fn build(
         },
     ));
     let language: Arc<dyn LanguagePort> = Arc::new(crate::languages::linked());
+    ryo_execution::application::file_dag::route_counts::profile::service::install(Arc::new(ryo_execution::outbound::profile::factory::thread::<ryo_execution::application::file_dag::route_counts::profile::service::RouteProfile>()));
     let digests: Arc<dyn DigestPort> = Arc::new(digest::factory::blake3());
     let memory: Arc<dyn MemoryPort> = Arc::new(memory::factory::sysinfo(budget));
     let store: Arc<dyn LintStorePort> = Arc::new(lint_store::factory::postcard(kept_in));

@@ -60,7 +60,7 @@ impl Driver<'_, '_> {
                 #[cfg(feature = "diagnostic-row-progress")]
                 self.lease.progress(
                     crate::domain::operator::contract::views::ProgressCounter::JoinCandidatePairs,
-                    1,
+                    crate::domain::operator::contract::views::ProgressAmount(1),
                 );
                 if self.filtered {
                     let row = std::array::from_fn::<_, 5, _>(|at| {
@@ -90,7 +90,7 @@ impl Driver<'_, '_> {
         if self.current.is_some() {
             self.lease.progress(
                 crate::domain::operator::contract::views::ProgressCounter::JoinCandidatePairs,
-                1,
+                crate::domain::operator::contract::views::ProgressAmount(1),
             );
         }
         Ok(self.current.is_some())

@@ -29,7 +29,7 @@ pub(crate) mod acceptance;
 
 pub(crate) mod derived;
 
-pub(crate) mod route_counts;
+pub mod route_counts;
 
 pub(crate) mod observations;
 mod ordered_existence;

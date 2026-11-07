@@ -1,6 +1,6 @@
 //! Opt-in diagnostic accounting; never participates in execution or admission decisions.
 mod constants;
-mod profile;
+pub mod profile;
 #[cfg(feature = "diagnostic-row-progress")]
 pub(crate) mod progress;
 mod schemas;
@@ -13,7 +13,9 @@ use std::collections::HashMap;
 use ryo_values::domain::runs::types::RuleId;
 
 use constants::MAX_KEYS;
-use profile::service::STATE;
+#[cfg(feature = "diagnostic-row-progress")]
+use profile::service::with_borrow;
+use profile::service::with_borrow_mut;
 use schemas::document;
 use types::{
     BuildRoute, FileScope, OriginScope, RouteActivity, RouteCount, RouteCountRow, RouteFileIndex,
@@ -74,14 +76,14 @@ impl FileScope {
             RouteActivity::Inactive
         };
         let active = if enabled == RouteActivity::Active {
-            STATE.with_borrow_mut(|state| {
+            with_borrow_mut(|state| {
                 if let Some(parent) = state {
                     // A nested file cannot be attributed by this bounded synchronous profile.
                     // Mark the aggregate incomplete rather than changing execution behavior.
                     parent.overflow.0 += 1;
                     return RouteActivity::Inactive;
                 }
-                *state = Some(RouteState {
+                *state = Some(Box::new(RouteState {
                     file,
                     origin: RouteOrigin::default(),
                     counts: HashMap::new(),
@@ -89,7 +91,7 @@ impl FileScope {
                     rules: HashMap::new(),
                     #[cfg(feature = "diagnostic-row-progress")]
                     progress: new_progress(),
-                });
+                }));
                 RouteActivity::Active
             })
         } else {
@@ -105,7 +107,7 @@ impl Drop for FileScope {
         }
         #[cfg(feature = "diagnostic-row-progress")]
         progress::service::flush(RouteLabel(constants::STAGE_FILE_END));
-        if let Some(state) = STATE.with_borrow_mut(Option::take) {
+        if let Some(state) = with_borrow_mut(Option::take) {
             if resource_routes_activity() == RouteActivity::Inactive {
                 return;
             }
@@ -148,7 +150,7 @@ impl Drop for FileScope {
 
 #[cfg(feature = "diagnostic-row-progress")]
 pub(crate) fn capture() -> CapturedOrigin {
-    CapturedOrigin(STATE.with_borrow(|state| state.as_ref().map(|state| state.origin)))
+    CapturedOrigin(with_borrow(|state| state.as_ref().map(|state| state.origin)))
 }
 #[cfg(feature = "diagnostic-row-progress")]
 pub(crate) fn resume(origin: CapturedOrigin) -> OriginScope {
@@ -159,7 +161,7 @@ pub(crate) fn resume(origin: CapturedOrigin) -> OriginScope {
     })
 }
 pub(super) fn scope(change: impl FnOnce(&mut RouteOrigin)) -> OriginScope {
-    let previous = STATE.with_borrow_mut(|state| {
+    let previous = with_borrow_mut(|state| {
         state.as_mut().map(|state| {
             let old = state.origin;
             change(&mut state.origin);
@@ -170,7 +172,7 @@ pub(super) fn scope(change: impl FnOnce(&mut RouteOrigin)) -> OriginScope {
 }
 pub(crate) fn rule(rule: impl Into<RouteRuleIndex>, name: &RuleId) -> OriginScope {
     let rule = rule.into();
-    STATE.with_borrow_mut(|state| {
+    with_borrow_mut(|state| {
         if let Some(state) = state {
             if !state.rules.contains_key(&rule) {
                 if state.rules.len() < MAX_KEYS {
@@ -221,7 +223,7 @@ pub(crate) fn owner(owner_id: impl Into<RouteOwnerId>) -> OriginScope {
 impl Drop for OriginScope {
     fn drop(&mut self) {
         if let Some(old) = self.previous {
-            STATE.with_borrow_mut(|state| {
+            with_borrow_mut(|state| {
                 if let Some(state) = state {
                     state.origin = old;
                 }
@@ -230,7 +232,7 @@ impl Drop for OriginScope {
     }
 }
 fn update(route: RouteLabel, family: RouteLabel, outcome: RouteOutcome) {
-    STATE.with_borrow_mut(|state| {
+    with_borrow_mut(|state| {
         let Some(state) = state else {
             return;
         };

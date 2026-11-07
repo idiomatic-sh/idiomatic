@@ -286,8 +286,8 @@ pub(crate) struct PrimitiveLease<'a> {
 /// No outbound adapter, cache owner or scheduler is reachable from a primitive.
 pub(crate) trait PrimitiveSemantics: Sync {
     #[cfg(feature = "diagnostic-row-progress")]
-    fn progress(&self) -> super::views::ProgressObserver {
-        |_, _| {}
+    fn progress(&self) -> &dyn super::views::ProgressObserver {
+        &super::views::IgnoredProgress
     }
 
     fn operators(
@@ -365,7 +365,7 @@ impl<'a> PrimitiveLease<'a> {
         counter: crate::domain::operator::contract::views::ProgressCounter,
         amount: u64,
     ) {
-        (self.semantics.progress())(counter, amount);
+        self.semantics.progress().observe(counter, amount);
     }
 
     /// Copy the request-lived semantic port before borrowing this lease for row delivery.

@@ -74,6 +74,7 @@ pub(crate) fn build(
                 skipped,
             ));
             let port: Arc<dyn language::interface::LanguagePort> = Arc::new(linked);
+            ryo_execution::application::file_dag::route_counts::profile::service::install(Arc::new(ryo_execution::outbound::profile::factory::thread::<ryo_execution::application::file_dag::route_counts::profile::service::RouteProfile>()));
             let digests: Arc<
                 dyn ryo_execution::outbound::digest::interface::DigestPort,
             > = Arc::new(digest::factory::blake3());
