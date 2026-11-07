@@ -1,6 +1,6 @@
 //! The ordinary project phase: the shared stage opened once, each declared rule's scope and frontiers prepared within the budget,
 //! the sealed batch evaluated and completed, and the stage released.
-use ryo_execution::application::file_dag::program::project_phase::interface::ProjectStage as _;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectStage as _;
 use super::super::constants::{CROSS_RULE_MEMORY, MISSING_FRONTIER_BUCKET};
 use ryo_values::domain::table_words::constants::LIFECYCLE_TARGET;
 use super::super::errors::CrossFileError;
@@ -11,13 +11,13 @@ use super::super::types::{OrdinaryOutcome, OrdinaryRun};
 use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use crate::domain::budget::service::within;
 use crate::outbound::memory::interface::MemoryPort;
-use ryo_execution::application::file_dag::frontiers::errors::PreparationError;
-use ryo_execution::application::file_dag::frontiers::types::PublicationSlot;
-use ryo_execution::application::file_dag::program::project_phase::types::{
+use ryo_execution::inbound::use_cases::execution::interface::PreparationError;
+use ryo_execution::inbound::use_cases::execution::interface::PublicationSlot;
+use ryo_execution::inbound::use_cases::execution::interface::{
     FrontierDemand, FrontierRequest,
 };
-use ryo_execution::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
-use ryo_execution::application::file_dag::program::rule_outcome::types::ProjectBatch;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest as _;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectBatch;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::rule_requests::service::failed;

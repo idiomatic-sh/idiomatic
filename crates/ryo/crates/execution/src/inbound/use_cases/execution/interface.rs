@@ -1,8 +1,51 @@
 //! What the `execution` use case promises its callers, in the core's own vocabulary.
-use crate::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
-use crate::application::file_dag::program::request_execution::types::RequestExecution;
 use ryo_values::domain::files::types::CorpusInput;
 
+// The application handles and protocol traits the contract is made of.
+pub use crate::application::file_dag::frontiers::errors::PreparationError;
+pub use crate::application::file_dag::frontiers::types::BoundInput;
+pub use crate::application::file_dag::frontiers::types::InputReadiness;
+pub use crate::application::file_dag::frontiers::types::PreparedFrontiers;
+pub use crate::application::file_dag::frontiers::types::PublicationSlot;
+pub use crate::application::file_dag::observations::types::AdmittedOutput;
+pub use crate::application::file_dag::observations::types::RuleSelection;
+pub use crate::application::file_dag::program::file_session::types::CaptureContext;
+pub use crate::application::file_dag::program::file_session::types::EmittedRoot;
+pub use crate::application::file_dag::program::file_session::types::FileEnd;
+pub use crate::application::file_dag::program::file_session::types::FileRunInput;
+pub use crate::application::file_dag::program::file_session::types::FileStop;
+pub use crate::application::file_dag::program::file_session::types::FinishedReadiness;
+pub use crate::application::file_dag::program::file_session::types::KindSupport;
+pub use crate::application::file_dag::program::file_session::types::RanRule;
+pub use crate::application::file_dag::program::file_session::types::RuleAfter;
+pub use crate::application::file_dag::program::file_session::types::SemanticSupport;
+pub use crate::application::file_dag::program::file_session::types::SourceLanguage;
+pub use crate::application::file_dag::program::observation_stage::interface::ObservationExecution;
+pub use crate::application::file_dag::program::observation_stage::interface::ObservationPublication;
+pub use crate::application::file_dag::program::observed_publication::types::ObservedPublication;
+pub use crate::application::file_dag::program::preparation::types::Demand;
+pub use crate::application::file_dag::program::preparation::types::NamedLayout;
+pub use crate::application::file_dag::program::preparation::types::ObservationContract;
+pub use crate::application::file_dag::program::preparation::types::ReplayClosure;
+pub use crate::application::file_dag::program::preparation::types::SemanticNeed;
+pub use crate::application::file_dag::program::prepared_execution::interface::PreparedExecution;
+pub use crate::application::file_dag::program::prepared_execution::interface::PreparedReporting;
+pub use crate::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
+pub use crate::application::file_dag::program::project_phase::interface::ProjectRootExecution;
+pub use crate::application::file_dag::program::project_phase::interface::ProjectStage;
+pub use crate::application::file_dag::program::project_phase::types::FrontierDemand;
+pub use crate::application::file_dag::program::project_phase::types::FrontierRequest;
+pub use crate::application::file_dag::program::project_phase::types::PhaseScope;
+pub use crate::application::file_dag::program::project_phase::types::ProjectInput;
+pub use crate::application::file_dag::program::project_phase::types::ProjectPhase;
+pub use crate::application::file_dag::program::project_phase::types::ProjectTask;
+pub use crate::application::file_dag::program::request_execution::interface::ExecutionRequest;
+pub use crate::application::file_dag::program::request_execution::types::RequestExecution;
+pub use crate::application::file_dag::program::rule_outcome::types::ProjectBatch;
+pub use crate::application::file_dag::program::rule_outcome::types::ProjectObservation;
+pub use crate::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome;
+pub use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
+pub use crate::application::file_dag::program::rule_outcome::types::RuleOutcome;
 // Canonical inbound signature vocabulary from private pure concepts.
 pub use crate::domain::coverage::types::Covered;
 pub use crate::domain::coverage::types::FileObservationReadiness;

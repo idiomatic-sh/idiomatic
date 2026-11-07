@@ -313,7 +313,7 @@ pub(super) fn answer(
 
 /// Settles the outcomes of the ordinary project phase into the answers, keeping an earlier rule or budget failure over a refusal of
 /// the stage's release.
-fn settled(ordinary: OrdinaryOutcome, answered: &mut Answered) -> Result<(), LintError> {
+pub(super) fn settled(ordinary: OrdinaryOutcome, answered: &mut Answered) -> Result<(), LintError> {
     let OrdinaryOutcome {
         outcomes,
         refused,

@@ -1,5 +1,5 @@
 //! The read of a file the run has not kept: the language parses it, what it wrote is admitted, and the engine's own rows are written.
-use ryo_execution::application::file_dag::program::prepared_execution::interface::PreparedExecution as _;
+use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution as _;
 use crate::application::file_analysis::constants::EXECUTION_DIAGNOSTIC;
 use crate::application::file_analysis::constants::INPUT_EDGE_DID_NOT_SUPPLY_EXECUTABLE;
 use crate::application::file_analysis::constants::PROVIDER_PARSE;
@@ -25,7 +25,7 @@ use crate::domain::workers::types::Gating;
 use crate::outbound::language::types::FileReading;
 use crate::outbound::language::types::FileToRead;
 use crate::outbound::language::types::SourceSelection;
-use ryo_execution::application::file_dag::program::preparation::types::SemanticNeed;
+use ryo_execution::inbound::use_cases::execution::interface::SemanticNeed;
 use ryo_execution::inbound::use_cases::metadata::interface::Recovery;
 use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use ryo_language::domain::diagnostics::types::SyntaxCompleteness;

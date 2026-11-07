@@ -12,10 +12,10 @@ use crate::application::cross_file::fixtures::world_with;
 use crate::application::cross_file::fixtures::world_with_applicability;
 use crate::domain::answering::types::Todo;
 use crate::domain::crossing::service::partials_for;
-use ryo_execution::application::file_dag::program::request_execution::interface::ExecutionRequest;
-use ryo_execution::application::file_dag::program::prepared_execution::interface::PreparedExecution;
-use ryo_execution::application::file_dag::program::project_phase::interface::ProjectStage;
-use ryo_execution::application::file_dag::program::rule_outcome::types::ProjectBatch;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
+use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectBatch;
 use ryo_execution::inbound::use_cases::metadata::interface::Covered;
 use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
 use ryo_language::domain::symbols::types::Symbols;
@@ -141,13 +141,13 @@ pub(super) fn equal_policies_do_not_alias_distinct_admitted_frontier_payloads()
                 &mut symbols,
             )
             .unwrap();
-            use ryo_execution::application::file_dag::program::project_phase::interface::ProjectRootExecution;
+            use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution;
             use ryo_execution::inbound::use_cases::execution::interface::EmitDemand;
             use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
             use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
-            use ryo_execution::application::file_dag::program::project_phase::types::ProjectInput;
-            use ryo_execution::application::file_dag::program::project_phase::types::ProjectTask;
-            use ryo_execution::application::file_dag::program::rule_outcome::types::RootOutcome;
+            use ryo_execution::inbound::use_cases::execution::interface::ProjectInput;
+            use ryo_execution::inbound::use_cases::execution::interface::ProjectTask;
+            use ryo_execution::inbound::use_cases::execution::interface::RootOutcome;
             use ryo_execution::inbound::use_cases::execution::interface::RuleDemand;
             let evaluation = partials_for(&MetadataUseCaseImpl, &crossing(&rules).domain, RuleIndex(rule));
             let reads = rules.program.observation_reads(RuleIndex(rule)).unwrap();

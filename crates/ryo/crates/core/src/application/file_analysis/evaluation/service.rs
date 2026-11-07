@@ -1,7 +1,7 @@
 //! The rules of one file run in the engine's one call; the worker renders the emitted roots, notes the frontiers it could not
 //! capture, keeps the captured ones it records and adds the counts.
-use ryo_execution::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
-use ryo_execution::application::file_dag::program::prepared_execution::interface::PreparedExecution as _;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest as _;
+use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution as _;
 use super::super::errors::FileAnalysisError;
 use super::super::semantic::service::SemanticState;
 use super::super::service::FileAnalysis;
@@ -10,12 +10,12 @@ use crate::domain::render::types::Answering;
 use crate::domain::visit::types::Keeping;
 use crate::domain::workers::service::governs_rule;
 use crate::domain::workers::types::Tables;
-use ryo_execution::application::file_dag::program::file_session::types::{
+use ryo_execution::inbound::use_cases::execution::interface::{
     CaptureContext, EmittedRoot, FileEnd, FileRunInput, FileStop, FinishedReadiness, KindSupport,
     RanRule, RuleAfter, SemanticSupport, SourceLanguage,
 };
-use ryo_execution::application::file_dag::program::preparation::types::Demand;
-use ryo_execution::application::file_dag::program::rule_outcome::types::RootOutcome;
+use ryo_execution::inbound::use_cases::execution::interface::Demand;
+use ryo_execution::inbound::use_cases::execution::interface::RootOutcome;
 use ryo_execution::inbound::use_cases::execution::interface::{
     ApplicabilityReason, ApplicabilityRefusal, Arena, CaptureIntent, DiagnosticDelivery,
     FileRuleIntent, ObservationDemand, OperatingError,

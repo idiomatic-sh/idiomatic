@@ -12,7 +12,7 @@ use crate::domain::keeping::service::rendered_of;
 use crate::domain::project::types::Projected;
 use crate::domain::reporting::service::{later_from, unknowns_from};
 use crate::domain::workers::types::{CrossReading, ProjectHandle};
-use ryo_execution::application::file_dag::program::prepared_execution::interface::PreparedExecution as _;
+use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution as _;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use ryo_execution::outbound::facts::interface::FactsWorker;

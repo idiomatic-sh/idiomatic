@@ -2,8 +2,8 @@
 use super::errors::FileAnalysisError;
 use crate::domain::workers::types::Tables;
 use ryo_execution::outbound::facts::interface::FactsWorker;
-use ryo_execution::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
-use ryo_execution::application::file_dag::program::request_execution::types::RequestExecution;
+use ryo_execution::inbound::use_cases::execution::interface::PreparedExecutionProgram;
+use ryo_execution::inbound::use_cases::execution::interface::RequestExecution;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 /// Whether the rule results of one file generation are all there.

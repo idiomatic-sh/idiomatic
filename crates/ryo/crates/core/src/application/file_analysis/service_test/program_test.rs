@@ -46,8 +46,8 @@ pub(super) fn prepared_test_program(
     ids: &[RuleId],
     corpus: &[ryo_values::domain::files::types::CorpusInput],
 ) -> (
-    Arc<ryo_execution::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram>,
-    ryo_execution::application::file_dag::program::request_execution::types::RequestExecution,
+    Arc<ryo_execution::inbound::use_cases::execution::interface::PreparedExecutionProgram>,
+    ryo_execution::inbound::use_cases::execution::interface::RequestExecution,
 ) {
     use ryo_values::domain::{
         query_tokens::types::{QueryBundle, QueryDocumentSource, QuerySourceId},

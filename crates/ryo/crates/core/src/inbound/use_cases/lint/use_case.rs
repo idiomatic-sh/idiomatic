@@ -33,9 +33,9 @@ use crate::outbound::memory::interface::MemoryPort;
 use crate::outbound::row_sink::interface::RowSinkPort;
 use crate::outbound::scheduler::interface::SchedulerPort;
 use crate::outbound::scheduler::types::WorkerCount;
-use ryo_execution::application::file_dag::program::preparation::types::ReplayClosure;
-use ryo_execution::application::file_dag::program::prepared_execution::interface::PreparedReporting as _;
-use ryo_execution::application::rule_compilation::service::{
+use ryo_execution::inbound::use_cases::execution::interface::ReplayClosure;
+use ryo_execution::inbound::use_cases::execution::interface::PreparedReporting as _;
+use ryo_execution::inbound::use_cases::prepare::interface::{
     CompiledPlans, ExecutionCompilation as _, PreparedQueries as _,
 };
 use ryo_execution::inbound::use_cases::execution::interface::Counting;

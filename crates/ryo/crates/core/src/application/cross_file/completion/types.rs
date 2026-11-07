@@ -1,8 +1,8 @@
 //! The types of the `completion` part: what a project phase delivers and what it publishes.
 use crate::domain::answering::types::Crossed;
 use crate::domain::crossing::types::PhaseRoots;
-use ryo_execution::application::file_dag::program::observed_publication::types::ObservedPublication;
-use ryo_execution::application::file_dag::frontiers::types::PublicationSlot;
+use ryo_execution::inbound::use_cases::execution::interface::ObservedPublication;
+use ryo_execution::inbound::use_cases::execution::interface::PublicationSlot;
 use ryo_execution::inbound::use_cases::execution::interface::RowsFed;
 use ryo_values::domain::records::types::ObservationIndex;
 

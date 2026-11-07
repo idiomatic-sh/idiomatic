@@ -2,7 +2,7 @@
 
 use super::service::Compilation;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_execution::application::rule_compilation::service::{ExecutionCompilation as _, PreparedQueries as _};
+use ryo_execution::inbound::use_cases::prepare::interface::{ExecutionCompilation as _, PreparedQueries as _};
 use ryo_execution::outbound::query_language::fixtures::fake::QueryLanguageFake;
 
 /// What a row of the cases asks of the service.

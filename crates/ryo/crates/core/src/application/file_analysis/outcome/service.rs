@@ -1,5 +1,5 @@
 //! What a file read came to, as the store keeps it.
-use ryo_execution::application::file_dag::program::prepared_execution::interface::PreparedExecution as _;
+use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution as _;
 use crate::domain::keeping::service::rows_of;
 use crate::domain::recording::service::frontier_flat;
 use crate::domain::recording::service::interface_bytes;
@@ -8,7 +8,7 @@ use crate::domain::recording::service::moved_words;
 use crate::domain::recording::types::Flat;
 use crate::domain::render::types::Answering;
 use crate::domain::visit::types::Keeping;
-use ryo_execution::application::file_dag::program::preparation::types::NamedLayout;
+use ryo_execution::inbound::use_cases::execution::interface::NamedLayout;
 use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
 use ryo_execution::outbound::digest::types::DigestBytes;
 use ryo_execution::outbound::digest::types::DigestWords;

@@ -1,5 +1,5 @@
 description = "Imports, external-crate bindings and type aliases of a path have inherited visibility outside the product’s placed SDK surface."
-why = "Consumers use the defining module. Public use, extern crate and type declarations forward another module’s item under a second path. A canonical inbound use-case interface may expose private domain */types and */errors signature vocabulary (the error a use case's signature carries is vocabulary as much as its data), and the application types its contract is made of: a type or trait declared in the crate's application tree that the signature of one of the interface's methods names, or that a type so named names in its fields, variants or methods, or that such a type implements or is implemented by, transitively (the handles a use case returns and the protocol traits they implement are its contract). An application item no such signature reaches, and every service function, stays forbidden. A port factory may expose its adapter connection module's named `Connection` handle for edge construction and injection; mixed exports or adapter implementations are not exempt. Only such a factory may also carry a local `clippy::pub_use` allowance that Clippy requires; `clippy::restriction` remains forbidden. This exception checks the factory location and imported path, not runtime ownership. The product excludes only the src tree of its actual SDK spec placement; CLI and ordinary crate roots receive no exception. The former derive-facade switch is removed. Syntax checking includes inactive cfg code and macro_rules bodies, but not procedural-macro expansion; the compiler construction boundary independently resolves aliases when checking composition."
+why = "Consumers use the defining module. Public use, extern crate and type declarations forward another module’s item under a second path. A canonical inbound use-case interface may expose private domain */types and */errors signature vocabulary (the error a use case's signature carries is vocabulary as much as its data), and the application and domain types its contract is made of, wherever beneath `application/` or `domain/` they are declared: a type or trait of the crate that the signature of one of the interface's methods names, or that a type so named names in its fields, variants or methods, or that such a type implements or is implemented by, transitively (the handles a use case returns and the protocol traits they implement are its contract). An application item no such signature reaches, and every service function, stays forbidden. A port factory may expose its adapter connection module's named `Connection` handle for edge construction and injection; mixed exports or adapter implementations are not exempt. Only such a factory may also carry a local `clippy::pub_use` allowance that Clippy requires; `clippy::restriction` remains forbidden. This exception checks the factory location and imported path, not runtime ownership. The product excludes only the src tree of its actual SDK spec placement; CLI and ordinary crate roots receive no exception. The former derive-facade switch is removed. Syntax checking includes inactive cfg code and macro_rules bodies, but not procedural-macro expansion; the compiler construction boundary independently resolves aliases when checking composition."
 
 query = '''
 let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
@@ -70,12 +70,12 @@ let contract-items = select l."id" as "id", l."path" as "path", r."text" as "tex
 let path-ancestry = closure(edges=resource-path-parents, source="path", destination="prefix");
 let contract-prefixes = select l."id" as "id", r."prefix" as "prefix" from contract-paths as l join path-ancestry as r on l."path" = r."path";
 let contract-prefix-names = select l."id" as "id", l."prefix" as "prefix", r."text" as "text" from contract-prefixes as l join resource-path-names as r on l."prefix" = r."path";
-let contract-application = select * from contract-prefix-names where text = "application";
+let contract-application = select * from contract-prefix-names where glob_any(text, "{application,domain}");
 let contract-application-inner = select l."id" as "id", r."prefix" as "inner" from contract-application as l join resource-path-parents as r on l."prefix" = r."path";
 let contract-inner-roots = antijoin(left=contract-application-inner, right=resource-path-parents, left-on=["inner"], right-on=["path"]);
 let contract-inner-names = select l."id" as "id", r."text" as "text" from contract-inner-roots as l join resource-path-names as r on l."inner" = r."path";
 let contract-crate-rooted = select * from contract-inner-names where text = "crate";
-let vocabulary-files = select * from tree-nodes where glob_any(file, "{**/src/application/**/*.rs,**/src/inbound/use_cases/*/interface.rs,**/src/inbound/use_cases/*/types.rs}");
+let vocabulary-files = select * from tree-nodes where glob_any(file, "{**/src/application/**/*.rs,**/src/domain/**/*.rs,**/src/inbound/use_cases/*/interface.rs,**/src/inbound/use_cases/*/types.rs}");
 let vocabulary-items = select * from vocabulary-files where glob_any(kind, "{struct,enum,trait,type-alias,union}");
 let vocabulary-item-children = select l."id" as "item", r."child" as "child" from vocabulary-items as l join "syntax-child" as r on l."id" = r."parent";
 let declared-name-nodes = select l."item" as "item", r."id" as "name" from vocabulary-item-children as l join tree-nodes as r on l."child" = r."id" where r."kind" = "name";
@@ -1740,3 +1740,18 @@ pub trait RunUseCase { fn run(&self) -> Handle; }
 then.findings = [
   { path = 'src/application/other/service.rs', line = 1 },
 ]
+
+[[scenarios]]
+id = 'inbound-contract-nested-domain-value'
+scenario = 'A sealed domain value a contract handle is made of may be forwarded from where its value file declares it.'
+given.files.'src/domain/vocabulary/types/prepared/value.rs' = '''
+pub struct Prepared { ordinal: u8 }
+'''
+given.files.'src/application/run/types.rs' = '''
+pub enum Support { Prepared(Prepared), Absent }
+'''
+given.files.'src/inbound/use_cases/run/interface.rs' = '''
+pub use crate::domain::vocabulary::types::prepared::value::Prepared;
+pub use crate::application::run::types::Support;
+pub trait RunUseCase { fn run(&self, support: Support); }
+'''

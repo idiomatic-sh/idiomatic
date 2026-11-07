@@ -25,6 +25,7 @@ use super::use_case::LintUseCaseImpl;
 mod inapplicable_identity;
 mod lifecycle;
 mod project_budget;
+mod refusals;
 mod rules;
 mod runs;
 
@@ -131,7 +132,7 @@ fn succeeds() {
                 Arc::clone(&analysis_digest),
                 Arc::clone(&analysis_memory),
             ),
-            crate::application::cross_file::service::CrossFile::new(Arc::clone(&analysis_corpus), std::sync::Arc::new(crate::outbound::publication::factory::execution())),
+            crate::application::cross_file::service::CrossFile::new(Arc::clone(&analysis_corpus), std::sync::Arc::new(ryo_execution::outbound::publication::factory::execution())),
             Arc::clone(&analysis_corpus),
             Arc::new(FactsFake::default()),
             Arc::clone(&analysis_language),

@@ -8,13 +8,13 @@ use ryo_execution::inbound::use_cases::metadata::interface::{MetadataUseCase as 
 use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use std::sync::Arc;
 
-use ryo_execution::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
-use ryo_execution::application::file_dag::program::request_execution::types::RequestExecution;
-use ryo_execution::application::rule_compilation::errors::RuleCompilationError;
-use ryo_execution::application::rule_compilation::service::{
+use ryo_execution::inbound::use_cases::execution::interface::PreparedExecutionProgram;
+use ryo_execution::inbound::use_cases::execution::interface::RequestExecution;
+use ryo_execution::inbound::use_cases::prepare::interface::RuleCompilationError;
+use ryo_execution::inbound::use_cases::prepare::interface::{
     CompiledPlans, CompiledQueries, ExecutionCompilation, PreparedQueries as _, QueryCompilation,
 };
-use ryo_execution::application::rule_compilation::types::PreparedRuleIdentities;
+use ryo_execution::inbound::use_cases::prepare::interface::PreparedRuleIdentities;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::prepare::types::PrepareRequest;

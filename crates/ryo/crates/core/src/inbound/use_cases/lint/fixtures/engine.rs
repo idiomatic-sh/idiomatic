@@ -2,14 +2,14 @@
 
 use std::sync::Arc;
 
-use crate::outbound::publication::interface::PublicationPort;
+use ryo_execution::outbound::publication::interface::PublicationPort;
 use ryo_execution::outbound::derived::interface::DerivedPort;
 use ryo_execution::outbound::operators::interface::OperatorsPort;
 
 /// The publication port over the engine's publication use case.
 #[must_use]
 pub fn publication() -> Arc<dyn PublicationPort> {
-    Arc::new(crate::outbound::publication::factory::execution())
+    Arc::new(ryo_execution::outbound::publication::factory::execution())
 }
 
 /// The operators port over the engine's operators use case.

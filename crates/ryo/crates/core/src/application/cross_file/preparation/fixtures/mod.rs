@@ -13,12 +13,12 @@ use crate::application::cross_file::{
     },
 };
 use crate::domain::answering::types::Todo;
-use ryo_execution::application::file_dag::program::request_execution::interface::ExecutionRequest;
-use ryo_execution::application::file_dag::program::project_phase::interface::ProjectRootExecution;
-use ryo_execution::application::file_dag::program::project_phase::interface::ProjectStage;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
 use ryo_execution::inbound::use_cases::execution::interface::ReadinessCounts;
-use ryo_execution::application::file_dag::program::rule_outcome::types::ProjectBatch;
-use ryo_execution::application::file_dag::frontiers::types::PublicationSlot;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectBatch;
+use ryo_execution::inbound::use_cases::execution::interface::PublicationSlot;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_language::domain::symbols::types::Symbols;
 use std::sync::Arc;
@@ -30,12 +30,12 @@ struct CountedProject<'a, T> {
 impl<T: ProjectRootExecution> ProjectRootExecution for CountedProject<'_, T> {
     fn evaluate<E>(
         &self,
-        tasks: Vec<ryo_execution::application::file_dag::program::project_phase::types::ProjectTask<'_>>,
+        tasks: Vec<ryo_execution::inbound::use_cases::execution::interface::ProjectTask<'_>>,
         symbols: &mut Symbols,
         guard: impl FnMut(RuleIndex) -> Result<(), E>,
     ) -> ProjectBatch<
         Result<
-            ryo_execution::application::file_dag::program::rule_outcome::types::RuleOutcome<ryo_execution::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome>,
+            ryo_execution::inbound::use_cases::execution::interface::RuleOutcome<ryo_execution::inbound::use_cases::execution::interface::ProjectOutputOutcome>,
             ryo_execution::inbound::use_cases::execution::interface::OperatingError,
         >,
         E,

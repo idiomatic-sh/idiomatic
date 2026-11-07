@@ -1,11 +1,11 @@
 //! Which rules a file's applicability lets run, and the relations those rules read.
-use ryo_execution::application::file_dag::program::prepared_execution::interface::PreparedExecution as _;
+use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution as _;
 use crate::application::file_analysis::constants::RULE_SKIPPED_APPLICABILITY_METADATA_UNAVAILABLE;
 use crate::application::file_analysis::constants::RULE_SKIPPED_SYNTAX_ACCEPTANCE_UNDETERMINED;
 use crate::domain::workers::service::governs_rule;
 use crate::domain::workers::types::Gating;
 use crate::domain::workers::types::Tables;
-use ryo_execution::application::file_dag::program::preparation::types::Demand;
+use ryo_execution::inbound::use_cases::execution::interface::Demand;
 use ryo_execution::inbound::use_cases::metadata::interface::Governing;
 use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase as _;
 use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
