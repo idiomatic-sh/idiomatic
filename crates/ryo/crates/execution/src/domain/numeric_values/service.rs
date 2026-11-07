@@ -1,35 +1,42 @@
 //! Read normalized numeric text and compare without rounding integers through binary64.
 
-use super::types::{Decimal, Numeric};
+use super::constants::{INFINITY, NEGATIVE_INFINITY, NOT_A_NUMBER};
+use super::types::{
+    FloatValue, Decimal, DecimalDigits, FloatForm, Magnitude, Negative, Numeric, Shift, SmallInteger,
+    NumberText, Succession,
+};
 use num_bigint::{BigInt, BigUint};
+use ryo_values::domain::plan_parts::types::WholeNumber;
 use std::cmp::Ordering;
 
 /// Read canonical signed decimal integer text. Spellings of any source language and whitespace are not accepted.
-fn decimal(text: &str) -> Option<Decimal<'_>> {
+fn decimal(text: NumberText<'_>) -> Option<Decimal<'_>> {
     let (negative, digits) = text
+        .0
         .strip_prefix('-')
-        .map_or((false, text), |digits| (true, digits));
+        .map_or((false, text.0), |digits| (true, digits));
     if digits.is_empty()
         || !digits.bytes().all(|byte| byte.is_ascii_digit())
         || (digits.len() > 1 && digits.starts_with('0'))
     {
         return None;
     }
+    let nonzero = digits.bytes().any(|byte| byte != b'0');
     Some(Decimal {
-        negative: negative && digits != "0",
-        digits,
+        negative: Negative(negative && nonzero),
+        digits: DecimalDigits(digits),
     })
 }
 
 /// Whether text has a decimal binary64 spelling with a dot or exponent marker.
-fn float_spelling(text: &str) -> bool {
-    let bytes = text.strip_prefix('-').unwrap_or(text).as_bytes();
+fn float_spelling(text: NumberText<'_>) -> FloatForm {
+    let bytes = text.0.strip_prefix('-').unwrap_or(text.0).as_bytes();
     let mut at = 0;
     while bytes.get(at).is_some_and(u8::is_ascii_digit) {
         at += 1;
     }
     if at == 0 || (at > 1 && bytes.first() == Some(&b'0')) {
-        return false;
+        return FloatForm::Malformed;
     }
     let mut marked = false;
     if bytes.get(at) == Some(&b'.') {
@@ -40,7 +47,7 @@ fn float_spelling(text: &str) -> bool {
             at += 1;
         }
         if at == begin {
-            return false;
+            return FloatForm::Malformed;
         }
     }
     if bytes
@@ -60,25 +67,29 @@ fn float_spelling(text: &str) -> bool {
             at += 1;
         }
         if at == begin {
-            return false;
+            return FloatForm::Malformed;
         }
     }
-    marked && at == bytes.len()
+    if marked && at == bytes.len() {
+        FloatForm::Spelled
+    } else {
+        FloatForm::Malformed
+    }
 }
 
 /// Read decimal integers, marked decimal floats, `inf`, `-inf`, and `NaN`.
 /// No source-language radix, underscore, coercion, or whitespace normalization occurs here.
-pub(crate) fn read(text: &str) -> Option<Numeric<'_>> {
-    match text {
-        "inf" => Some(Numeric::Float(f64::INFINITY)),
-        "-inf" => Some(Numeric::Float(f64::NEG_INFINITY)),
-        "NaN" => Some(Numeric::Float(f64::NAN)),
-        _ if text.contains(['.', 'e', 'E']) => {
-            if !float_spelling(text) {
+pub(crate) fn read(text: NumberText<'_>) -> Option<Numeric<'_>> {
+    match text.0 {
+        INFINITY => Some(Numeric::Float(FloatValue(f64::INFINITY))),
+        NEGATIVE_INFINITY => Some(Numeric::Float(FloatValue(f64::NEG_INFINITY))),
+        NOT_A_NUMBER => Some(Numeric::Float(FloatValue(f64::NAN))),
+        _ if text.0.contains(['.', 'e', 'E']) => {
+            if float_spelling(text) == FloatForm::Malformed {
                 return None;
             }
-            match text.parse::<f64>() {
-                Ok(number) => Some(Numeric::Float(number)),
+            match text.0.parse::<f64>() {
+                Ok(number) => Some(Numeric::Float(FloatValue(number))),
                 Err(_) => None,
             }
         }
@@ -87,15 +98,19 @@ pub(crate) fn read(text: &str) -> Option<Numeric<'_>> {
 }
 
 /// Compare normalized decimal magnitudes without allocation.
-fn decimal_magnitude(left: &str, right: &str) -> Ordering {
-    left.len().cmp(&right.len()).then_with(|| left.cmp(right))
+fn decimal_magnitude(left: DecimalDigits<'_>, right: DecimalDigits<'_>) -> Ordering {
+    left.0
+        .len()
+        .cmp(&right.0.len())
+        .then_with(|| left.0.cmp(right.0))
 }
 
 /// Compare an arbitrary decimal integer to an existing signed number.
-fn decimal_whole(left: Decimal<'_>, right: i64) -> Ordering {
-    let right_negative = right < 0;
+fn decimal_whole(left: Decimal<'_>, right: WholeNumber) -> Ordering {
+    let right = right.0;
+    let right_negative = Negative(right < 0);
     if left.negative != right_negative {
-        return if left.negative {
+        return if left.negative.0 {
             Ordering::Less
         } else {
             Ordering::Greater
@@ -103,9 +118,10 @@ fn decimal_whole(left: Decimal<'_>, right: i64) -> Ordering {
     }
     let order = left
         .digits
+        .0
         .parse::<u64>()
         .map_or(Ordering::Greater, |left| left.cmp(&right.unsigned_abs()));
-    if left.negative {
+    if left.negative.0 {
         order.reverse()
     } else {
         order
@@ -113,17 +129,24 @@ fn decimal_whole(left: Decimal<'_>, right: i64) -> Ordering {
 }
 
 /// Scale a small magnitude only when the complete exact product fits.
-fn scaled(value: u128, shift: u32) -> Option<u128> {
-    if value == 0 {
-        return Some(0);
+fn scaled(value: Magnitude, shift: Shift) -> Option<Magnitude> {
+    if value.0 == 0 {
+        return Some(Magnitude(0));
     }
-    value.checked_mul(1_u128.checked_shl(shift)?)
+    value
+        .0
+        .checked_mul(1_u128.checked_shl(shift.0)?)
+        .map(Magnitude)
 }
 
 /// Compare one nonnegative integer magnitude with one finite nonnegative float.
-/// Binary64 is an integer significand times a power of two; no integer-to-float cast is used.
-fn magnitude_float(small: Option<u128>, digits: Option<&str>, float: f64) -> Option<Ordering> {
-    let bits = float.to_bits();
+/// FloatValue is an integer significand times a power of two; no integer-to-float cast is used.
+fn magnitude_float(
+    small: Option<Magnitude>,
+    digits: Option<DecimalDigits<'_>>,
+    float: FloatValue,
+) -> Option<Ordering> {
+    let bits = float.0.to_bits();
     let exponent_bits = u16::try_from((bits >> 52) & 0x7ff).unwrap_or(0);
     let fraction = bits & ((1_u64 << 52) - 1);
     let (significand, exponent) = if exponent_bits == 0 {
@@ -133,11 +156,11 @@ fn magnitude_float(small: Option<u128>, digits: Option<&str>, float: f64) -> Opt
     };
     if let Some(integer) = small {
         return Some(if exponent >= 0 {
-            scaled(u128::from(significand), exponent.unsigned_abs())
-                .map_or(Ordering::Less, |right| integer.cmp(&right))
+            scaled(Magnitude(u128::from(significand)), Shift(exponent.unsigned_abs()))
+                .map_or(Ordering::Less, |right| integer.0.cmp(&right.0))
         } else {
-            scaled(integer, exponent.unsigned_abs())
-                .map_or(Ordering::Greater, |left| left.cmp(&u128::from(significand)))
+            scaled(integer, Shift(exponent.unsigned_abs()))
+                .map_or(Ordering::Greater, |left| left.0.cmp(&u128::from(significand)))
         });
     }
     // A decimal magnitude wider than u128 exceeds every float with a nonpositive scale.
@@ -145,13 +168,14 @@ fn magnitude_float(small: Option<u128>, digits: Option<&str>, float: f64) -> Opt
         return Some(Ordering::Greater);
     }
     // Only the genuinely wide mixed case allocates; use the already pinned big-integer crate.
-    let integer = BigUint::parse_bytes(digits?.as_bytes(), 10)?;
+    let integer = BigUint::parse_bytes(digits?.0.as_bytes(), 10)?;
     let right = BigUint::from(significand) << exponent.unsigned_abs();
     Some(integer.cmp(&right))
 }
 
 /// Compare an integer operand to a binary64 operand, retaining signed-zero and NaN semantics.
-fn integer_float(integer: Numeric<'_>, float: f64) -> Option<Ordering> {
+fn integer_float(integer: Numeric<'_>, float: FloatValue) -> Option<Ordering> {
+    let float = float.0;
     if float.is_nan() {
         return None;
     }
@@ -163,14 +187,18 @@ fn integer_float(integer: Numeric<'_>, float: f64) -> Option<Ordering> {
     }
     let (negative, small, digits) = match integer {
         Numeric::Decimal(integer) => (
-            integer.negative,
-            match integer.digits.parse::<u128>() {
-                Ok(magnitude) => Some(magnitude),
+            integer.negative.0,
+            match integer.digits.0.parse::<u128>() {
+                Ok(magnitude) => Some(Magnitude(magnitude)),
                 Err(_) => None,
             },
             Some(integer.digits),
         ),
-        Numeric::Whole(integer) => (integer < 0, Some(u128::from(integer.unsigned_abs())), None),
+        Numeric::Whole(integer) => (
+            integer.0 < 0,
+            Some(Magnitude(u128::from(integer.0.unsigned_abs()))),
+            None,
+        ),
         Numeric::Float(_) => return None,
     };
     let float_negative = float < 0.0;
@@ -181,7 +209,7 @@ fn integer_float(integer: Numeric<'_>, float: f64) -> Option<Ordering> {
             Ordering::Greater
         });
     }
-    let order = magnitude_float(small, digits, float.abs())?;
+    let order = magnitude_float(small, digits, FloatValue(float.abs()))?;
     Some(if negative { order.reverse() } else { order })
 }
 
@@ -191,7 +219,7 @@ pub(crate) fn compare(left: Numeric<'_>, right: Numeric<'_>) -> Option<Ordering>
         (Numeric::Decimal(left), Numeric::Decimal(right)) => {
             Some(left.negative.cmp(&right.negative).reverse().then_with(|| {
                 let order = decimal_magnitude(left.digits, right.digits);
-                if left.negative {
+                if left.negative.0 {
                     order.reverse()
                 } else {
                     order
@@ -203,7 +231,7 @@ pub(crate) fn compare(left: Numeric<'_>, right: Numeric<'_>) -> Option<Ordering>
         (Numeric::Whole(left), Numeric::Decimal(right)) => {
             Some(decimal_whole(right, left).reverse())
         }
-        (Numeric::Float(left), Numeric::Float(right)) => left.partial_cmp(&right),
+        (Numeric::Float(left), Numeric::Float(right)) => left.0.partial_cmp(&right.0),
         (integer @ (Numeric::Decimal(_) | Numeric::Whole(_)), Numeric::Float(float)) => {
             integer_float(integer, float)
         }
@@ -214,17 +242,17 @@ pub(crate) fn compare(left: Numeric<'_>, right: Numeric<'_>) -> Option<Ordering>
 }
 
 /// Read a narrow exact integer without allocating; floats have no integer coercion here.
-fn small_integer(value: Numeric<'_>) -> Option<i128> {
+fn small_integer(value: Numeric<'_>) -> Option<SmallInteger> {
     match value {
-        Numeric::Whole(value) => Some(i128::from(value)),
+        Numeric::Whole(value) => Some(SmallInteger(i128::from(value.0))),
         Numeric::Decimal(value) => {
-            let Ok(magnitude) = value.digits.parse::<i128>() else {
+            let Ok(magnitude) = value.digits.0.parse::<i128>() else {
                 return None;
             };
-            if value.negative {
-                magnitude.checked_neg()
+            if value.negative.0 {
+                magnitude.checked_neg().map(SmallInteger)
             } else {
-                Some(magnitude)
+                Some(SmallInteger(magnitude))
             }
         }
         Numeric::Float(_) => None,
@@ -234,10 +262,10 @@ fn small_integer(value: Numeric<'_>) -> Option<i128> {
 /// Read only integer variants through the pinned arbitrary precision implementation.
 fn wide_integer(value: Numeric<'_>) -> Option<BigInt> {
     match value {
-        Numeric::Whole(value) => Some(BigInt::from(value)),
+        Numeric::Whole(value) => Some(BigInt::from(value.0)),
         Numeric::Decimal(value) => {
-            let magnitude = BigInt::parse_bytes(value.digits.as_bytes(), 10)?;
-            Some(if value.negative {
+            let magnitude = BigInt::parse_bytes(value.digits.0.as_bytes(), 10)?;
+            Some(if value.negative.0 {
                 -magnitude
             } else {
                 magnitude
@@ -248,15 +276,21 @@ fn wide_integer(value: Numeric<'_>) -> Option<BigInt> {
 }
 
 /// Whether `right` is exactly `left + 1`, accepting integers without any float coercion.
-pub(crate) fn integer_successor(left: Numeric<'_>, right: Numeric<'_>) -> bool {
+pub(crate) fn integer_successor(left: Numeric<'_>, right: Numeric<'_>) -> Succession {
     if matches!(left, Numeric::Float(_)) || matches!(right, Numeric::Float(_)) {
-        return false;
+        return Succession::NotSuccessor;
     }
-    if let (Some(left), Some(right)) = (small_integer(left), small_integer(right)) {
-        return left.checked_add(1) == Some(right);
-    }
-    match (wide_integer(left), wide_integer(right)) {
-        (Some(left), Some(right)) => left + BigInt::from(1_u8) == right,
-        _ => false,
+    let successor = if let (Some(left), Some(right)) = (small_integer(left), small_integer(right)) {
+        left.0.checked_add(1) == Some(right.0)
+    } else {
+        match (wide_integer(left), wide_integer(right)) {
+            (Some(left), Some(right)) => left + BigInt::from(1_u8) == right,
+            _ => false,
+        }
+    };
+    if successor {
+        Succession::Successor
+    } else {
+        Succession::NotSuccessor
     }
 }
