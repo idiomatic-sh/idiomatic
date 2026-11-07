@@ -20,6 +20,7 @@ enum SchemaInput {
     Offset(&'static str, usize, usize),
     UnavailableSource,
     RuleConfiguration,
+    PinnedPhases,
 }
 type Input = SchemaInput;
 type Value = usize;
@@ -106,6 +107,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || SchemaInput::RuleConfiguration,
         expect: Expect::Value(4),
     },
+    Case {
+        name: CaseName("the_pinned_registry_decodes_the_phase_of_every_rule"),
+        word: Word::Succeeds,
+        input: || SchemaInput::PinnedPhases,
+        expect: Expect::Value(2),
+    },
 ];
 
 fn subject(input: Input) -> Result<Value, Failure> {
@@ -119,6 +126,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
         SchemaInput::RuleConfiguration => {
             Ok(rule_configuration_arguments_round_trip_as_toml_including_control_characters())
         }
+        SchemaInput::PinnedPhases => Ok(the_pinned_registry_decodes_the_phase_of_every_rule()),
     }
 }
 
@@ -238,4 +246,15 @@ fn rule_configuration_arguments_round_trip_as_toml_including_control_characters(
         Some("F401")
     );
     args.len()
+}
+
+fn the_pinned_registry_decodes_the_phase_of_every_rule() -> usize {
+    use ryo_benchmark_contracts::domain::requests::types::{ApplicabilityPolicy, RuleLabel};
+    let phases = super::schemas::pinned_rule_phases().unwrap();
+    [("UP045", "accepted-syntax"), ("EXE004", "always")]
+        .into_iter()
+        .filter(|(rule, policy)| {
+            phases.get(&RuleLabel((*rule).into())) == Some(&ApplicabilityPolicy((*policy).into()))
+        })
+        .count()
 }

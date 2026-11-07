@@ -61,15 +61,17 @@ pub(super) fn shared_suppression_fragment_matches_the_historical_inline_queries(
     }
     write_suppress_module(&imported_profile)?;
 
-    let suite = ryo_benchmark::outbound::suite::factory::local(ryo_benchmark::outbound::suite::types::CaseReceipts::Unrecorded);
+    let suite = ryo_benchmark::outbound::suite::factory::local();
     let inline_cases =
         ryo_benchmark::inbound::use_cases::prepare_cases::use_case::PrepareCasesUseCaseImpl::new(
             &suite,
+            &ryo_benchmark::outbound::context::factory::local(),
         )
         .prepare_cases(&inline_rules, &temporary.path().join("inline-cases"))?;
     let imported_cases =
         ryo_benchmark::inbound::use_cases::prepare_cases::use_case::PrepareCasesUseCaseImpl::new(
             &suite,
+            &ryo_benchmark::outbound::context::factory::local(),
         )
         .prepare_cases(&imported_rules, &temporary.path().join("imported-cases"))?;
     let imported_by_name = case_identities(imported_cases);
@@ -152,7 +154,7 @@ pub(super) fn assert_single_rule_fragment_equivalence(
         std::fs::write(directory.join("query.ryoql"), query)?;
         std::fs::write(directory.join("cases.toml"), cases)?;
     }
-    let suite = ryo_benchmark::outbound::suite::factory::local(ryo_benchmark::outbound::suite::types::CaseReceipts::Unrecorded);
+    let suite = ryo_benchmark::outbound::suite::factory::local();
     let inline_parent = inline_rules
         .parent()
         .ok_or_else(|| Error::Invalid("inline rule directory has no parent".to_owned()))?;
@@ -162,6 +164,7 @@ pub(super) fn assert_single_rule_fragment_equivalence(
     let inline_cases =
         ryo_benchmark::inbound::use_cases::prepare_cases::use_case::PrepareCasesUseCaseImpl::new(
             &suite,
+            &ryo_benchmark::outbound::context::factory::local(),
         )
         .prepare_cases(
             inline_parent,
@@ -170,6 +173,7 @@ pub(super) fn assert_single_rule_fragment_equivalence(
     let imported_cases =
         ryo_benchmark::inbound::use_cases::prepare_cases::use_case::PrepareCasesUseCaseImpl::new(
             &suite,
+            &ryo_benchmark::outbound::context::factory::local(),
         )
         .prepare_cases(
             imported_parent,

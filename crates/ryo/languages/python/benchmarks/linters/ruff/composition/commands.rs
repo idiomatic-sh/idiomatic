@@ -1,27 +1,35 @@
 //! Independent worker and fixture commands at the Cargo executable boundary.
 use super::super::{adapter::LinterRuffAdapter, settings::LinterRuffSettings};
-use super::certification::scratch;
 use super::constants;
 use super::constants::{
-    CASE_RECEIPT_DESTINATION_MUST_BE_N, CASE_SELECTION, CASE_SELECTION_MUST_BE_NONEMPTY_AN,
-    DUPLICATE_CASE_SELECTION_ARGUMENT, DUPLICATE_CASE_SHARD_ARGUMENT, EXPECTED_SHARD_INDEX_COUNT,
-    INVALID_CASE_SHARD_COUNT, INVALID_CASE_SHARD_INDEX, PINNED_REFERENCE_DOES_NOT_EVALUATE,
-    PYTHON_TARGET, SHARD, UNEXPECTED_TRAILING_WORKER_ARGUMEN, UNEXPECTED_VERIFY_CASES_ARGUMENT,
+    PINNED_REFERENCE_DOES_NOT_EVALUATE, PYTHON_TARGET, UNEXPECTED_TRAILING_WORKER_ARGUMEN,
     UNEXPECTED_WORKER_CONFIGURATION,
 };
+use super::locations::{default_scratch, directory};
 use super::diagnostic_protocol::WorkerTracing;
-use super::request_input::{BenchmarkArgument, worker_input};
+use super::request_input::{BenchmarkArgument, WorkerInput, worker_expectation, worker_input};
 use super::targets::{ReferenceSpelling, TargetConfiguration};
 use ryo_benchmark::inbound::use_cases::audit::interface::AuditUseCase as _;
+use ryo_benchmark::inbound::use_cases::check_worker_request::{
+    interface::CheckWorkerRequestUseCase as _, use_case::CheckWorkerRequestUseCaseImpl,
+};
 use ryo_benchmark::inbound::use_cases::run_ryo::{
     interface::RunRyoUseCase as _, use_case::RunRyoUseCaseImpl,
 };
 use ryo_benchmark::inbound::use_cases::{
+    select_cases::{
+        interface::SelectCasesUseCase as _,
+        types::{CaseArgument, SelectedIds},
+    },
     stage_suite::interface::StageSuiteUseCase as _,
     verify_cases::interface::VerifyCasesUseCase as _,
     verify_reference_cases::interface::VerifyReferenceCasesUseCase as _,
 };
-use ryo_benchmark::outbound::suite::{interface::SuitePort, types::ArtifactPath};
+use ryo_benchmark::outbound::suite::{
+    interface::SuitePort,
+    types::{ArtifactPath, ArtifactText},
+};
+use ryo_benchmark::outbound::worker::interface::WorkerPort;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::workloads::types::Tool;
 use ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
@@ -57,10 +65,18 @@ pub(super) fn worker(
     if args.next().is_some() {
         return Err(Error::Invalid(UNEXPECTED_TRAILING_WORKER_ARGUMEN.into()));
     }
-    super::request_input::checked_worker_identity(
-        &input,
-        parser_configuration.as_deref().map(TargetConfiguration),
-    )?;
+    let expectation = worker_expectation(parser_configuration.as_deref().map(TargetConfiguration))?;
+    let transport: Arc<dyn WorkerPort> = match input {
+        WorkerInput::File(path) => Arc::new(ryo_benchmark::outbound::worker::factory::json_file(
+            path,
+            Box::new(std::io::stdout()),
+        )),
+        WorkerInput::Inline(payload) => Arc::new(ryo_benchmark::outbound::worker::factory::json(
+            payload.0.into(),
+            Box::new(std::io::stdout()),
+        )),
+    };
+    CheckWorkerRequestUseCaseImpl::new(Arc::clone(&transport)).check_worker_request(&expectation)?;
     let target_version = parser_target(parser_configuration.as_deref().map(TargetConfiguration))?;
     let languages = ryo::linter::Languages(vec![ryo_python::linked_with_settings(
         ryo_python::settings::PythonParserSettings::new(target_version),
@@ -99,11 +115,9 @@ pub(super) fn worker(
             ),
             _ => return Err(Error::Invalid(constants::MISSING_TRACE.into())),
         };
-    let transport =
-        ryo_benchmark::outbound::worker::factory::json(input.0.into(), Box::new(std::io::stdout()));
     RunRyoUseCaseImpl::new(
         engine,
-        Arc::new(transport),
+        transport,
         Arc::new(ryo_benchmark::outbound::context::factory::local()),
     )
     .run_ryo()
@@ -123,47 +137,15 @@ pub(super) fn verify_cases(
     let source = args
         .next()
         .map_or_else(directory, |argument| PathBuf::from(argument.0));
-    let mut case_receipts = None;
-    let mut shard = ryo_benchmark_contracts::domain::requests::types::ShardPartition::All;
-    let mut case_selection = None;
-    for argument in args {
-        if let Some(path) = argument
-            .0
-            .strip_prefix(ryo_benchmark::outbound::inventory::types::CASE_RECEIPTS_ARGUMENT)
-        {
-            if path.is_empty() || case_receipts.replace(PathBuf::from(path)).is_some() {
-                return Err(Error::Invalid(CASE_RECEIPT_DESTINATION_MUST_BE_N.into()));
-            }
-        } else if argument.0.starts_with(SHARD) {
-            if !matches!(shard, ryo_benchmark_contracts::domain::requests::types::ShardPartition::All) {
-                return Err(Error::Invalid(DUPLICATE_CASE_SHARD_ARGUMENT.into()));
-            }
-            shard = ryo_benchmark_contracts::domain::requests::types::ShardPartition::Shard(parse_shard(ShardCoordinates(&argument.0))?);
-        } else if let Some(path) = argument.0.strip_prefix(CASE_SELECTION) {
-            if case_selection.is_some() {
-                return Err(Error::Invalid(DUPLICATE_CASE_SELECTION_ARGUMENT.into()));
-            }
-            let selected = ryo_benchmark::outbound::suite::factory::local(ryo_benchmark::outbound::suite::types::CaseReceipts::Unrecorded)
-                .selection(ArtifactPath(std::path::Path::new(path)))?;
-            let selected_count = selected.len();
-            let selected = selected
-                .into_iter()
-                .map(|name| ryo_benchmark_contracts::domain::requests::types::CaseId(name.0))
-                .collect::<std::collections::BTreeSet<_>>();
-            if selected.is_empty() || selected.len() != selected_count {
-                return Err(Error::Invalid(CASE_SELECTION_MUST_BE_NONEMPTY_AN.into()));
-            }
-            case_selection = Some(selected);
-        } else {
-            return Err(Error::Invalid(UNEXPECTED_VERIFY_CASES_ARGUMENT.into()));
-        }
-    }
-    let suite_source: Arc<dyn SuitePort> = Arc::new(ryo_benchmark::outbound::suite::factory::local(
-        case_receipts.map_or(
-            ryo_benchmark::outbound::suite::types::CaseReceipts::Unrecorded,
-            ryo_benchmark::outbound::suite::types::CaseReceipts::Recorded,
-        ),
-    ));
+    let flags = args
+        .map(|argument| CaseArgument(argument.0))
+        .collect::<Vec<_>>();
+    let run = ryo_benchmark::inbound::use_cases::select_cases::use_case::SelectCasesUseCaseImpl::new(
+        Arc::new(ryo_benchmark::outbound::suite::factory::local()),
+    )
+    .select_cases(&flags)?;
+    let suite_source: Arc<dyn SuitePort> =
+        Arc::new(ryo_benchmark::outbound::suite::factory::local());
     let mut tool = suite_source.profile(ArtifactPath(&source))?;
     let query_modules = tool.query_modules.clone();
     let rule_applicability = tool.rule_applicability.clone();
@@ -181,8 +163,11 @@ pub(super) fn verify_cases(
     let candidate_observations = tool.rule_observations.clone();
     let candidate_observation_selection = tool.rule_observation_selection;
     let reference = Arc::new(reference(executable, tool)?);
-    let scratch = scratch(suite_source.as_ref(), constants::VERIFY_CASES_SCRATCH)?;
-    let root = suite_source.ensure_directory(ArtifactPath(&scratch))?;
+    let scratch = default_scratch(
+        suite_source.as_ref(),
+        ArtifactText(constants::VERIFY_CASES_SCRATCH),
+    )?;
+    let root = suite_source.ensure_directory(ArtifactPath(scratch.path()))?;
     let profile = root.join(constants::PROFILE_DIRECTORY);
     ryo_benchmark::inbound::use_cases::stage_suite::use_case::StageSuiteUseCaseImpl::new(
         suite_source.as_ref(),
@@ -208,6 +193,7 @@ pub(super) fn verify_cases(
     let count =
         ryo_benchmark::inbound::use_cases::verify_cases::use_case::VerifyCasesUseCaseImpl::new(
             suite_source.as_ref(),
+            &ryo_benchmark::outbound::receipts::factory::local(run.receipts),
             &ryo_benchmark::outbound::context::factory::local(),
             reference.as_ref(),
             candidate.as_ref(),
@@ -218,48 +204,27 @@ pub(super) fn verify_cases(
             &profile.join(crate::constants::RULES_DIRECTORY),
             &root.join(constants::CASES_DIRECTORY),
             ryo_benchmark_contracts::domain::requests::types::CaseSelection {
-                shard,
-                ids: case_selection
-                    .as_ref()
-                    .map_or(ryo_benchmark_contracts::domain::requests::types::IdSelection::WholeShard, ryo_benchmark_contracts::domain::requests::types::IdSelection::Subset),
+                shard: run.shard,
+                ids: match &run.ids {
+                    SelectedIds::WholeShard => {
+                        ryo_benchmark_contracts::domain::requests::types::IdSelection::WholeShard
+                    }
+                    SelectedIds::Subset(ids) => {
+                        ryo_benchmark_contracts::domain::requests::types::IdSelection::Subset(ids)
+                    }
+                },
             },
             ryo_benchmark_contracts::domain::requests::types::BenchmarkCoverage::Accounted,
         );
-    suite_source.discard(ArtifactPath(&scratch))?;
+    drop(scratch);
     count
-}
-
-/// The text of one `--shard=index/count` argument.
-struct ShardCoordinates<'a>(&'a str);
-
-/// Parse explicit zero-based shard coordinates using the validated application type.
-fn parse_shard(
-    value: ShardCoordinates<'_>,
-) -> Result<ryo_benchmark_contracts::domain::requests::types::case_shard::value::CaseShard, Error> {
-    let coordinates = value
-        .0
-        .strip_prefix(SHARD)
-        .ok_or_else(|| Error::Invalid(EXPECTED_SHARD_INDEX_COUNT.into()))?;
-    let (index, count) = coordinates
-        .split_once('/')
-        .ok_or_else(|| Error::Invalid(EXPECTED_SHARD_INDEX_COUNT.into()))?;
-    let index = index
-        .parse::<usize>()
-        .map_err(|_invalid_index| Error::Invalid(INVALID_CASE_SHARD_INDEX.into()))?;
-    let count = count
-        .parse::<usize>()
-        .map_err(|_invalid_count| Error::Invalid(INVALID_CASE_SHARD_COUNT.into()))?;
-    ryo_benchmark_contracts::domain::requests::types::case_shard::value::CaseShard::new(
-        ryo_benchmark_contracts::domain::requests::types::case_shard::value::ShardIndex(index),
-        ryo_benchmark_contracts::domain::requests::types::case_shard::value::ShardCount(count),
-    )
 }
 
 /// Validate authored fixture expectations against Ruff without loading a Ryo candidate.
 pub(super) fn verify_reference_cases(
     mut args: impl Iterator<Item = BenchmarkArgument>,
 ) -> Result<ryo_benchmark_contracts::domain::workloads::types::reference_case_count::value::ReferenceCaseCount, Error>{
-    let suite_source = ryo_benchmark::outbound::suite::factory::local(ryo_benchmark::outbound::suite::types::CaseReceipts::Unrecorded);
+    let suite_source = ryo_benchmark::outbound::suite::factory::local();
     let execution = ryo_benchmark::outbound::execution::factory::process();
     let executable = PathBuf::from(
         args.next()
@@ -273,20 +238,23 @@ pub(super) fn verify_reference_cases(
     let tool = suite_source.profile(ArtifactPath(&source))?;
     suite_source.verify_tool(ArtifactPath(&executable), &tool)?;
     let reference = reference(executable, tool)?;
-    let scratch = scratch(&suite_source, constants::VERIFY_REFERENCE_SCRATCH)?;
-    let root = suite_source.ensure_directory(ArtifactPath(&scratch))?;
-    let count = ryo_benchmark::inbound::use_cases::verify_reference_cases::use_case::VerifyReferenceCasesUseCaseImpl::new(&suite_source, &ryo_benchmark::outbound::context::factory::local(), &reference, &execution, &ryo_benchmark::outbound::inventory::factory::local()).verify_reference_cases(
+    let scratch = default_scratch(
+        &suite_source,
+        ArtifactText(constants::VERIFY_REFERENCE_SCRATCH),
+    )?;
+    let root = suite_source.ensure_directory(ArtifactPath(scratch.path()))?;
+    let count = ryo_benchmark::inbound::use_cases::verify_reference_cases::use_case::VerifyReferenceCasesUseCaseImpl::new(&suite_source, &ryo_benchmark::outbound::receipts::factory::local(ryo_benchmark::outbound::receipts::types::CaseReceipts::Unrecorded), &ryo_benchmark::outbound::context::factory::local(), &reference, &execution, &ryo_benchmark::outbound::inventory::factory::local()).verify_reference_cases(
         &source.join(crate::constants::RULES_DIRECTORY),
         &root,
     );
-    suite_source.discard(ArtifactPath(&scratch))?;
+    drop(scratch);
     count
 }
 
 /// Compose the selected reference rule subset with its verified executable.
 pub(super) fn reference(executable: PathBuf, tool: Tool) -> Result<LinterRuffAdapter, Error> {
     if tool.file_observation != ryo_benchmark_contracts::domain::workloads::types::FileObservation::Undeclared
-        && super::super::host::permission_checks_supported()
+        && super::super::adapter::permission_checks_supported()
             == super::super::host_policy::Permissions::Unsupported
     {
         return Err(Error::Invalid(PINNED_REFERENCE_DOES_NOT_EVALUATE.into()));
@@ -316,11 +284,6 @@ fn parser_target(
     configuration: Option<TargetConfiguration<'_>>,
 ) -> Result<ryo_python::settings::PythonTargetVersion, Error> {
     Ok(super::targets::resolve(configuration)?.parser)
-}
-
-/// Locate this language-owned linter profile from the Cargo manifest.
-pub(super) fn directory() -> PathBuf {
-    std::path::Path::new(constants::MANIFEST_DIRECTORY).join(constants::RUFF_DIRECTORY)
 }
 
 /// Copy exact collector bytes into the frozen workload and record their digest.
@@ -382,27 +345,4 @@ pub(super) fn audit(
         tool.defaults.len()
     )?;
     ryo_benchmark::domain::suite::service::require_accounted(&result, &tool)
-}
-
-/// Select the declared generic corpus mode and delegate all observation to the shared suite boundary.
-pub(super) fn seal_context(
-    suite: &dyn ryo_benchmark::outbound::suite::interface::SuitePort,
-    mode: ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode,
-    root: &std::path::Path,
-    files: &[ryo::linter::RelativePath],
-    tracked: &[std::path::PathBuf],
-) -> Result<
-    ryo_benchmark_contracts::domain::requests::types::ContextSeal,
-    ryo_benchmark_contracts::domain::reports::errors::ReportsError,
-> {
-    match mode {
-        ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::Isolated => Ok(ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed),
-        ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::ListedDisk => suite
-            .seal_context(
-                ryo_benchmark::outbound::suite::types::ArtifactPath(root),
-                files,
-                ryo_benchmark::outbound::suite::types::ArtifactSet(tracked),
-            )
-            .map(ryo_benchmark_contracts::domain::requests::types::ContextSeal::Sealed),
-    }
 }

@@ -6,8 +6,8 @@ use std::{path::PathBuf, sync::Arc};
 mod certification;
 mod commands;
 pub(crate) mod constants;
-mod corpus;
 mod diagnostic_protocol;
+mod locations;
 mod measure;
 mod output;
 mod request_input;
@@ -21,7 +21,7 @@ pub(crate) fn run(
         .skip(1)
         .filter(|argument| argument != self::constants::CARGO_BENCH_ARGUMENT);
     let suite_source: Arc<dyn ryo_benchmark::outbound::suite::interface::SuitePort> =
-        Arc::new(ryo_benchmark::outbound::suite::factory::local(ryo_benchmark::outbound::suite::types::CaseReceipts::Unrecorded));
+        Arc::new(ryo_benchmark::outbound::suite::factory::local());
     let command = args.next();
     match command.as_deref() {
         Some(
@@ -70,7 +70,7 @@ pub(crate) fn run(
             );
             suite_source.verify_tool(
                 ArtifactPath(&executable),
-                &suite_source.profile(ArtifactPath(&self::commands::directory()))?,
+                &suite_source.profile(ArtifactPath(&self::locations::directory()))?,
             )
         }
         _ => Err(Error::Invalid(self::constants::USAGE.into())),

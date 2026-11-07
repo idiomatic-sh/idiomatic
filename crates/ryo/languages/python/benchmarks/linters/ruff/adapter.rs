@@ -1,6 +1,10 @@
 //! Ruff owns its invocation and requested-source IO; schemas normalize its process response.
+use super::host_policy::Permissions;
+#[cfg(unix)]
+use super::host_policy::{Isolation, Kernel, supported};
 use super::{constants, schemas, settings::LinterRuffSettings};
 use ryo::linter::{RelativePath, RuleId, SourceText};
+use ryo_benchmark::outbound::discovery::interface::DiscoveryPort;
 use ryo_benchmark::outbound::linter::interface::LinterPort;
 use ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath;
 use ryo_benchmark_contracts::domain::measurements::types::Invocation;
@@ -110,9 +114,11 @@ impl LinterRuffAdapter {
     pub(crate) fn new(settings: LinterRuffSettings) -> Self {
         Self { settings }
     }
+}
 
+impl DiscoveryPort for LinterRuffAdapter {
     /// Ask the pinned tool for its default file selection before either timer starts.
-    pub(crate) fn files(&self, root: &Path) -> Result<Vec<RelativePath>, Error> {
+    fn files(&self, root: &Path) -> Result<Vec<RelativePath>, Error> {
         let output = std::process::Command::new(&self.settings.executable)
             .args([
                 constants::CHECK,
@@ -147,4 +153,43 @@ impl LinterRuffAdapter {
         }
         Ok(files)
     }
+}
+
+/// Whether this host honours the file permissions the pinned reference observes.
+#[cfg(unix)]
+pub(crate) fn permission_checks_supported() -> Permissions {
+    if std::env::consts::OS != constants::LINUX {
+        return Permissions::Supported;
+    }
+    let kernel = std::fs::read_to_string(constants::PROC_SYS_KERNEL_OSRELEASE)
+        .or_else(|_| std::fs::read_to_string(constants::PROC_VERSION));
+    let kernel = if kernel.is_ok_and(|value| value.to_ascii_lowercase().contains(constants::MICROSOFT)) {
+        Kernel::Microsoft
+    } else {
+        Kernel::Native
+    };
+    let marked = std::fs::metadata(constants::DOCKERENV).is_ok()
+        || std::fs::metadata(constants::RUN_CONTAINERENV).is_ok()
+        || std::fs::read_to_string(constants::PROC_SELF_CGROUP).is_ok_and(|value| {
+            let value = value.to_ascii_lowercase();
+            [
+                constants::DOCKER,
+                constants::CONTAINER,
+                constants::LXC,
+                constants::KUBEPODS,
+            ]
+            .iter()
+            .any(|marker| value.contains(marker))
+        });
+    let isolation = if marked {
+        Isolation::Container
+    } else {
+        Isolation::Bare
+    };
+    supported(kernel, isolation)
+}
+/// Whether this host honours the file permissions the pinned reference observes.
+#[cfg(not(unix))]
+pub(crate) fn permission_checks_supported() -> Permissions {
+    Permissions::Unsupported
 }

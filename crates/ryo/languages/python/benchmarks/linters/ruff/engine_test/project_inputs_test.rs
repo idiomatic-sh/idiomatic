@@ -40,7 +40,8 @@ pub(super) fn listed_project_inputs_and_invalid_sources_keep_distinct_readers() 
     std::fs::write(&cases_path, cases_text)?;
     let cases =
         ryo_benchmark::inbound::use_cases::prepare_cases::use_case::PrepareCasesUseCaseImpl::new(
-            &suite::local(ryo_benchmark::outbound::suite::types::CaseReceipts::Unrecorded),
+            &suite::local(),
+            &ryo_benchmark::outbound::context::factory::local(),
         )
         .prepare_cases(&rules, &scratch.path().join(CASES))?;
     let selected = [

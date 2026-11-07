@@ -127,11 +127,14 @@ pub(super) fn observe() -> Result<Observation, Box<dyn std::error::Error>> {
         std::path::PathBuf::from("case.py"),
         std::path::PathBuf::from("second.py"),
     ];
-    let context = suite.seal_context(
-        ArtifactPath(&root),
-        &files,
-        ryo_benchmark::outbound::suite::types::ArtifactSet(&tracked),
-    )?;
+    let context = {
+        use ryo_benchmark::outbound::context::interface::ContextPort as _;
+        ryo_benchmark::outbound::context::factory::local().seal_existing(
+            &root,
+            &files,
+            ryo_benchmark::outbound::context::types::CorpusFiles(&tracked),
+        )?
+    };
     let request = RunRequest {
         performance: PerformanceOptions {
             diagnostics: DiagnosticOptions {
@@ -589,11 +592,14 @@ impl Inventory {
             files.push(ryo::linter::RelativePath(name.as_str().into()));
             tracked.push(PathBuf::from(name));
         }
-        let context = suite.seal_context(
-        ArtifactPath(&root),
-        &files,
-        ryo_benchmark::outbound::suite::types::ArtifactSet(&tracked),
-    )?;
+        let context = {
+        use ryo_benchmark::outbound::context::interface::ContextPort as _;
+        ryo_benchmark::outbound::context::factory::local().seal_existing(
+            &root,
+            &files,
+            ryo_benchmark::outbound::context::types::CorpusFiles(&tracked),
+        )?
+    };
         let request = RunRequest {
             performance: PerformanceOptions { diagnostics: DiagnosticOptions::default() },
             selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(self.profile.defaults.clone()),

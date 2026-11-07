@@ -180,7 +180,7 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
         state: root.path().join("cache"),
     };
     if matches!(scenario, AdapterScenario::MissingExecutable) {
-        return ruff.files(root.path()).map(|_| false);
+        return ryo_benchmark::outbound::discovery::interface::DiscoveryPort::files(&ruff, root.path()).map(|_| false);
     }
     if matches!(scenario, AdapterScenario::EmptyInput) {
         request.files.clear();

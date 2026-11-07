@@ -52,7 +52,8 @@ fn staged(root: &Path) -> Result<(PathBuf, Vec<PreparedCase>), Error> {
     }
     let cases =
         ryo_benchmark::inbound::use_cases::prepare_cases::use_case::PrepareCasesUseCaseImpl::new(
-            &ryo_benchmark::outbound::suite::factory::local(ryo_benchmark::outbound::suite::types::CaseReceipts::Unrecorded),
+            &ryo_benchmark::outbound::suite::factory::local(),
+            &ryo_benchmark::outbound::context::factory::local(),
         )
         .prepare_cases(&profile.join("rules"), &root.join("cases"))?;
     Ok((profile, cases))

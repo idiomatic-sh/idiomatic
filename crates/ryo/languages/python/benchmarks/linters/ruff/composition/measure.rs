@@ -1,34 +1,40 @@
 //! The measure commands: certify both contestants, then compare them on the pinned corpus.
 use super::certification::{
-    Certifying, MeasureCommand, MeasurePaths, Selection, StagedSuite, RuleTally, announce,
-    candidate_linter, cases_for, held_to, paths, scope_of, scratch, stage,
+    Certifying, MeasureCommand, MeasurePaths, RuleTally, Selection, StagedSuite, announce,
+    candidate_linter, cases_for, paths, scope_of, stage,
 };
 use super::commands;
 use super::constants;
 use super::constants::UNEXPECTED_MEASUREMENT_ARGUMENT;
-use super::corpus::{Corpus, SourceProfile};
+use super::locations::{default_scratch, directory};
 use super::output;
 use super::request_input::BenchmarkArgument;
 use ryo_benchmark::domain::suite::types::certificate::value::Certificate;
+use ryo_benchmark::inbound::use_cases::admit_measurement::{
+    interface::AdmitMeasurementUseCase as _, types::MeasurementAdmission,
+    use_case::AdmitMeasurementUseCaseImpl,
+};
 use ryo_benchmark::inbound::use_cases::audit::interface::AuditUseCase as _;
 use ryo_benchmark::inbound::use_cases::certify::{
     interface::CertifyUseCase as _, use_case::CertifyUseCaseImpl,
 };
-use ryo_benchmark::inbound::use_cases::compare::use_case::CompareUseCaseImpl;
-use ryo_benchmark::inbound::use_cases::measure::use_case::MeasureUseCaseImpl;
-use ryo_benchmark::inbound::use_cases::publish::{
-    interface::PublishUseCase as _, use_case::PublishUseCaseImpl,
+use ryo_benchmark::inbound::use_cases::measure_corpus::{
+    interface::MeasureCorpusUseCase as _,
+    types::{CorpusMeasurement, SourceLanguage, SourceProfile},
+    use_case::MeasureCorpusUseCaseImpl,
 };
 use ryo_benchmark::outbound::evidence::interface::EvidencePort;
 use ryo_benchmark::outbound::execution::interface::ExecutionPort;
 use ryo_benchmark::outbound::linter::interface::LinterPort;
-use ryo_benchmark::outbound::suite::interface::SuitePort;
-use ryo_benchmark::outbound::suite::types::ArtifactPath;
+use ryo_benchmark::outbound::suite::{
+    interface::SuitePort,
+    types::{ArtifactPath, ArtifactText},
+};
 use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
 use ryo_benchmark_contracts::domain::measurements::types::MeasurementMode;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::requests::types::BenchmarkCoverage;
-use ryo_benchmark_contracts::domain::workloads::types::{Project, Suite};
+use ryo_benchmark_contracts::domain::workloads::types::Suite;
 use std::{path::PathBuf, sync::Arc};
 
 /// Certify both contestants, then measure every project of the corpus and publish or report the samples.
@@ -46,13 +52,13 @@ pub(super) fn measure(
         cache,
         collector_path,
     } = paths(args, suite_source)?;
-    let mut tool = suite_source.profile(ArtifactPath(&commands::directory()))?;
+    let mut tool = suite_source.profile(ArtifactPath(&directory()))?;
     suite_source.verify_tool(ArtifactPath(&executable), &tool)?;
     let declared_inventory = tool.defaults.clone();
     let audit = ryo_benchmark::inbound::use_cases::audit::use_case::AuditUseCaseImpl::new(
         Arc::clone(&suite_source),
     )
-    .audit(&commands::directory(), &tool)?;
+    .audit(&directory(), &tool)?;
     let authored_total = audit.authored_count();
     let selection_or_inventory = args.next().map(|argument| argument.0);
     let scope = scope_of(command);
@@ -69,7 +75,14 @@ pub(super) fn measure(
     if args.next().is_some() {
         return Err(Error::Invalid(UNEXPECTED_MEASUREMENT_ARGUMENT.into()));
     }
-    let measurement_mode = held_to(scope, &audit, &tool, declared_inventory)?;
+    let measurement_mode = AdmitMeasurementUseCaseImpl::new().admit_measurement(
+        &MeasurementAdmission {
+            scope,
+            audit: &audit,
+            tool: &tool,
+            declared_inventory,
+        },
+    )?;
     let tally = RuleTally::of(&tool, authored_total);
     let project_context_mode = tool.project_context_mode;
     let project_search_roots = tool.project_search_roots.clone();
@@ -92,9 +105,15 @@ pub(super) fn measure(
     let collector_settings =
         commands::collector(suite_source.as_ref(), &collector_path, &frozen_workload)?;
     let execution = commands::timed(collector_settings, observations)?;
-    let case_scratch = scratch(suite_source.as_ref(), constants::CASE_SCRATCH)?;
+    let case_scratch = default_scratch(
+        suite_source.as_ref(),
+        ArtifactText(constants::CASE_SCRATCH),
+    )?;
     let certificate = CertifyUseCaseImpl::new(
         Arc::<_>::clone(&suite_source),
+        Arc::new(ryo_benchmark::outbound::receipts::factory::local(
+            ryo_benchmark::outbound::receipts::types::CaseReceipts::Unrecorded,
+        )),
         Arc::new(ryo_benchmark::outbound::context::factory::local()),
         Arc::<super::super::adapter::LinterRuffAdapter>::clone(&reference),
         Arc::<_>::clone(&candidate),
@@ -107,11 +126,11 @@ pub(super) fn measure(
         &executable,
         &candidate_executable,
         &selected_rules,
-        &case_scratch,
+        case_scratch.path(),
         scope,
         &case_source,
     )?;
-    suite_source.discard(ArtifactPath(&case_scratch))?;
+    drop(case_scratch);
     announce(
         observations,
         scope,
@@ -140,47 +159,6 @@ pub(super) fn measure(
         suite_source,
         observations,
     )
-}
-
-/// Measure every project of the corpus, then publish the samples of an accounted run or say that a diagnostic one is not a metric.
-fn finish(
-    corpus: &Corpus<'_>,
-    projects: Vec<Project>,
-    scope: BenchmarkCoverage,
-    evidence: &Arc<dyn EvidencePort>,
-    observations: &mut dyn std::io::Write,
-) -> Result<(), Error> {
-    let mut samples = Vec::new();
-    let mut failures = Vec::new();
-    for project in projects {
-        match corpus.measure_project(&project, observations) {
-            Ok(observed) => samples.extend(observed),
-            Err(error) => {
-                writeln!(
-                    observations,
-                    "{}: corpus comparison failed: {error}",
-                    project.name
-                )?;
-                failures.push(project.name);
-            }
-        }
-    }
-    // The evidence boundary refuses an empty observation set; never bypass that guard.
-    if scope == BenchmarkCoverage::Accounted {
-        PublishUseCaseImpl::new(Arc::clone(evidence)).publish(&samples)?;
-    } else {
-        writeln!(
-            observations,
-            "diagnostic-only: scoped samples are not benchmark metrics"
-        )?;
-    }
-    if failures.is_empty() {
-        Ok(())
-    } else {
-        Err(Error::Invalid(format!(
-            "corpus comparisons failed: {failures:?}"
-        )))
-    }
 }
 
 /// What certification leaves for the comparison: both contestants, the certificate they hold and where the corpus is measured.
@@ -227,16 +205,6 @@ fn compare(
     let evidence: Arc<dyn EvidencePort> = Arc::new(
         ryo_benchmark::outbound::evidence::factory::bmf(Box::new(std::io::stdout())),
     );
-    let measurements = MeasureUseCaseImpl::new(
-        Arc::<super::super::adapter::LinterRuffAdapter>::clone(&reference),
-        Arc::<_>::clone(&candidate),
-        Arc::<_>::clone(&execution),
-        Arc::<_>::clone(&suite_source),
-        Arc::new(ryo_benchmark::outbound::context::factory::local()),
-        Arc::clone(&evidence),
-        mode,
-    );
-    let comparison = CompareUseCaseImpl::new();
     let profile = if matches!(
         command.0,
         constants::MEASURE_VALID | constants::MEASURE_ACCOUNTED_VALID
@@ -245,21 +213,41 @@ fn compare(
     } else {
         SourceProfile::Full
     };
-    let corpus = Corpus {
-        profile,
-        cache: &cache,
-        frozen_workload: &workload,
-        suite_source: suite_source.as_ref(),
-        reference: reference.as_ref(),
-        candidate: candidate.as_ref(),
-        execution: execution.as_ref(),
-        certificate: &certificate,
-        measurements: &measurements,
-        comparison: &comparison,
-        configured_cohort: &cohort,
-        declared_rule_context: &rule_context,
-        project_search_roots: &search_roots,
-        project_context_mode: context_mode,
-    };
-    finish(&corpus, suite.projects, scope, &evidence, observations)
+    MeasureCorpusUseCaseImpl::new(
+        Arc::<super::super::adapter::LinterRuffAdapter>::clone(&reference),
+        Arc::<_>::clone(&candidate),
+        reference,
+        execution,
+        Arc::<_>::clone(suite_source),
+        Arc::new(ryo_benchmark::outbound::context::factory::local()),
+        evidence,
+        Arc::new(ryo_benchmark::outbound::workspace::factory::git(
+            cache.join(constants::PROJECTS_DIRECTORY),
+        )),
+    )
+    .measure_corpus(
+        &CorpusMeasurement {
+            projects: suite.projects,
+            scope,
+            profile,
+            cache: &cache,
+            frozen_workload: &workload,
+            certificate: &certificate,
+            mode: &mode,
+            cohort: &cohort,
+            rule_context: &rule_context,
+            search_roots: &search_roots,
+            context_mode,
+            language: SourceLanguage {
+                display: constants::LANGUAGE_DISPLAY,
+                reference_display: constants::REFERENCE_DISPLAY,
+                reference_name: constants::REFERENCE_NAME,
+                suffixes: &constants::SOURCE_SUFFIXES,
+                invalid_syntax: constants::INVALID_SYNTAX,
+                valid_profile: constants::VALID_SOURCE_PROFILE,
+                full_profile: constants::FULL_SOURCE_PROFILE,
+            },
+        },
+        observations,
+    )
 }

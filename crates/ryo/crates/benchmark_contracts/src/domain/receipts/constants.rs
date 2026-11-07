@@ -15,6 +15,8 @@ pub const SOURCE_SHA256: &str = "source_sha256";
 pub const COMPLETE: &str = "complete";
 /// The row field holding what a native side reported.
 pub const DIAGNOSTICS: &str = "diagnostics";
+/// The row value naming the tool the candidate is measured against.
+pub const REFERENCE: &str = "reference";
 /// The row value naming the tool under measurement.
 pub const CANDIDATE: &str = "candidate";
 /// The command that verifies registered cases.
