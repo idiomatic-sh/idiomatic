@@ -1,13 +1,9 @@
 //! The projected tuple contract retains collision and invalid-cell controls through the capability.
-use crate::outbound::derived::interface::DerivedPort as _;
 use ryo_derived::domain::contract::types::BuildOutcome;
 use ryo_derived::domain::contract::types::BuildWorkspace;
 use ryo_derived::domain::fault::types::DerivedFault;
 use ryo_derived::domain::contract::types::BuildInputs;
 use ryo_derived::domain::request::types::DerivedRequest;
-use ryo_derived::inbound::use_cases::build::interface::BuildUseCase;
-use ryo_derived::inbound::use_cases::prepare_derived::interface::PrepareDerivedUseCase;
-use ryo_derived::inbound::use_cases::view::interface::ViewUseCase;
 use ryo_relations::domain::relations::types::{CellKind, ColumnsView, FactColumn};
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -18,9 +14,7 @@ fn representatives(
     columns: &[ColumnIndex],
     positions: &[u32],
 ) -> Result<Vec<u32>, DerivedFault> {
-    let port = std::sync::Arc::new(
-        crate::outbound::derived::factory::semantics(),
-    );
+    let port = crate::domain::derived_views::fixtures::semantics();
     let plan = port.prepare(
         DerivedRequest::DistinctRepresentatives {
             columns: columns.to_vec(),

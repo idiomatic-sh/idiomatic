@@ -7,7 +7,6 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_cells::types::ColumnPlaces;
 use ryo_derived::domain::request::types::DerivedKind;
 use ryo_derived::domain::request::types::DerivedRequest as SemanticRequest;
-use crate::outbound::derived::interface::DerivedPort;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -20,7 +19,7 @@ type Failure = OperatingError;
 /// An equality contract over one number column.
 fn equality() -> DerivedContract {
     let schemas = vec![vec![CellKind::Number]];
-    let prepared = crate::outbound::derived::factory::semantics().prepare(
+    let prepared = crate::domain::derived_views::fixtures::semantics().prepare(
         SemanticRequest::Equality {
             columns: vec![ColumnIndex(0)],
         },

@@ -1,5 +1,4 @@
 //! Boundary values for the actual borrowed graph preparation and traversal APIs.
-use crate::outbound::derived::interface::DerivedPort;
 use super::{
     service::{begin_ordered, next_ordered},
     types::{Edges, OrderedVisit, OrderedWalk},
@@ -102,7 +101,7 @@ fn with_graph<T>(
     texts: &mut Texts,
     check: impl FnOnce(&PreparedDfs) -> T,
 ) -> Result<T, DerivedFault> {
-    let use_case = crate::outbound::derived::factory::semantics();
+    let use_case = crate::domain::derived_views::fixtures::semantics();
     let prepared = use_case.prepare(
         request(keys),
         vec![roots.kinds.clone(), edges.kinds.clone()],

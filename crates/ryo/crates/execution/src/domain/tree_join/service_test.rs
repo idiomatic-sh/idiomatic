@@ -1,5 +1,4 @@
 //! Native cell reading and lookup strategy decisions use their actual pure owners.
-use crate::outbound::derived::interface::DerivedPort;
 use crate::domain::{
     table_cells::types::{TreeForm, TreeRows},
     tree_join::service::{driver::tree_value, source_column},
@@ -77,7 +76,7 @@ fn found(
     right_on: &[ColumnIndex],
     view: &[ColumnIndex],
 ) -> Option<NativeFinding> {
-    let semantics = crate::outbound::derived::factory::semantics();
+    let semantics = crate::domain::derived_views::fixtures::semantics();
     let native = ryo_relations::domain::relations::service::kinds(match form {
         TreeForm::Elements => ryo_relations::domain::relations::types::Relation::SyntaxTree,
         TreeForm::Edges => ryo_relations::domain::relations::types::Relation::SyntaxChild,

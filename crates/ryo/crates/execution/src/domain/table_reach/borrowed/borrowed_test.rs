@@ -1,5 +1,4 @@
 //! Differential traversal behavior over an actual prepared equality index.
-use crate::outbound::derived::interface::DerivedPort as _;
 use super::*;
 use ryo_relations::domain::relations::types::Value as Cell;
 
@@ -13,9 +12,6 @@ use ryo_derived::domain::contract::types::DerivedView;
 use ryo_derived::domain::equality::types::KeyIndex;
 use ryo_derived::domain::row_cells::types::RowCells;
 use ryo_derived::domain::request::types::DerivedRequest;
-use ryo_derived::inbound::use_cases::build::interface::BuildUseCase;
-use ryo_derived::inbound::use_cases::prepare_derived::interface::PrepareDerivedUseCase;
-use ryo_derived::inbound::use_cases::view::interface::ViewUseCase;
 use ryo_relations::domain::relations::types::{CellKind, Integer};
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::rows::types::{RowCount, Table};
@@ -64,9 +60,7 @@ fn with_edges(rows: &[[i64; 2]], run: impl FnOnce(&Table, &KeyIndex)) {
             .flat_map(|row| row.iter().copied().map(number))
             .collect(),
     };
-    let port = std::sync::Arc::new(
-        crate::outbound::derived::factory::semantics(),
-    );
+    let port = crate::domain::derived_views::fixtures::semantics();
     let prepared = port.prepare(
         DerivedRequest::Equality {
             columns: vec![ColumnIndex(0)],

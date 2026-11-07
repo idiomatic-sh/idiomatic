@@ -1,5 +1,4 @@
 //! Ordered nearest and forest compression are different from sorted closure order.
-use crate::outbound::derived::interface::DerivedPort as _;
 use ryo_derived::domain::vertices::types::VertexId;
 
 use super::value::{ABSENT, GraphTraversal, UNKNOWN};
@@ -13,9 +12,6 @@ use ryo_derived::domain::contract::types::BuildInputs;
 use ryo_derived::domain::row_cells::types::RowCells;
 use ryo_derived::domain::request::types::DerivedRequest;
 use ryo_derived::domain::sharing::types::SharedMarks;
-use ryo_derived::inbound::use_cases::build::interface::BuildUseCase;
-use ryo_derived::inbound::use_cases::prepare_derived::interface::PrepareDerivedUseCase;
-use ryo_derived::inbound::use_cases::view::interface::ViewUseCase;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::service::push_row;
@@ -63,7 +59,7 @@ fn graph(edges: &[[i64; 2]]) -> Arc<ryo_derived::domain::adjacency::types::compa
     for edge in edges {
         push_row(&mut table, &edge.map(|value| Value::Number(Integer(value))));
     }
-    let semantics = crate::outbound::derived::factory::semantics();
+    let semantics = crate::domain::derived_views::fixtures::semantics();
     let prepared = semantics.prepare(
         DerivedRequest::Adjacency {
             endpoints: [ColumnIndex(0), ColumnIndex(1)],
