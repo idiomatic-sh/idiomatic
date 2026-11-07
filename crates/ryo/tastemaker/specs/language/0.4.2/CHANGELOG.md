@@ -1,3 +1,7 @@
+# language 0.4.2
+
+Places `benchmark` 0.2.1 (and through it `benchmark-linter` 0.2.1). Nothing else changes.
+
 # language 0.4.1
 
 Places `constants-once@0.2.0` (sibling adapters of one port each keep their own markup constants) and `public-fields@0.2.0` (a struct whose doc proves its privacy with a `compile_fail` example) where 0.4.0 placed the earlier versions. Nothing else changes.

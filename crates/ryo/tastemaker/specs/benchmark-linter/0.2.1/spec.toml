@@ -5,6 +5,7 @@ templates = [
   { alias = "sharing-target", template = "source", file = "mod.rs", count = { min = 0, max = 1 }, description = "A normal isolated Cargo test target for configured inventory proofs." },
   { alias = "sharing-module", template = "source", file = "sharing/mod.rs", count = { min = 0, max = 1 }, description = "Configured inventory proof registration, shared by linter benchmarks." },
   { alias = "sharing-fixtures", template = "source", file = "sharing/fixtures/mod.rs", count = { min = 0, max = 1 }, description = "Production suite and SDK inputs and typed observations for the inventory proof." },
+  { alias = "sharing-fixtures-part", template = "source", file = "sharing/fixtures/{part}.rs", count = { min = 0 }, description = "One concept of the inventory proof's fixtures, named for it and used explicitly by the fixtures module; the module stays the only namespace." },
   { alias = "sharing-test", template = "idiomatic.arch/unit-test@0.1.0", file = "sharing/test.rs", count = { min = 0, max = 1 }, params = { kind = "use-case", part = "sharing" }, description = "Configured inventory and shared engine work assertions through public APIs." },
   { alias = "frontend-projection-module", template = "source", file = "frontend_projection/mod.rs", count = { min = 0, max = 1 }, description = "Normal namespace of the canonical provider diagnostic projection." },
   { alias = "frontend-projection-constants", template = "source", file = "frontend_projection/constants.rs", count = { min = 0, max = 1 }, description = "One shared canonical query used by the production worker and independent normal tests." },
@@ -1121,6 +1122,21 @@ scenario = "Standard sharing roles do not authorize a neighboring alternate exec
 given.files.'sharing/executor.rs' = 'pub fn run() {}'
 then.only = ['idiomatic.ryo/benchmark-linter#closed']
 then.findings = [{ rule = 'idiomatic.ryo/benchmark-linter#closed', path = 'sharing/executor.rs' }]
+
+[[scenarios]]
+id = "sharing-fixtures-part-is-placed"
+scenario = "A fixtures file named for one concept of the inventory proof is placed beside the fixtures module."
+given.files.'sharing/fixtures/mod.rs' = 'mod observation;'
+given.files.'sharing/fixtures/observation.rs' = 'pub fn observe() {}'
+then.only = ['idiomatic.ryo/benchmark-linter#closed']
+
+[[scenarios]]
+id = "sharing-fixtures-part-does-not-authorize-neighbours"
+scenario = "A fixtures part does not place a nested directory or a file outside the fixtures directory."
+given.files.'sharing/fixtures/nested/part.rs' = 'pub fn run() {}'
+given.files.'sharing/helper.rs' = 'pub fn run() {}'
+then.only = ['idiomatic.ryo/benchmark-linter#closed']
+then.findings = [{ rule = 'idiomatic.ryo/benchmark-linter#closed', path = 'sharing/fixtures/nested/part.rs' }, { rule = 'idiomatic.ryo/benchmark-linter#closed', path = 'sharing/helper.rs' }]
 
 [[scenarios]]
 id = "composition-may-import-the-contracts-crate"
