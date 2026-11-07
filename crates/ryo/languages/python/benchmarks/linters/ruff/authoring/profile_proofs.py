@@ -212,10 +212,12 @@ def verify_active_combined_cohort(manifest: dict[str, object]) -> None:
         raise ValueError(f'active combined cohort {name} is not a complete full-report profile')
 
 def check_base_rule_applicability(profile: dict[str, object], registry: dict[str, object]) -> None:
-    """Keep all shipped defaults and their exact tagged phases in the native profile."""
+    """Keep all shipped defaults and their exact tagged phases in the native profile; each supporting rule is declared at its pinned phase."""
     defaults = profile.get('defaults')
     expected_ids = registry['shipped_default_rules']
-    if not isinstance(defaults, list) or len(defaults) != 413 or len(defaults) != len(set(defaults)) or (set(defaults) != set(expected_ids)) or (profile.get('rule-applicability') != {rule: registry['rules'][rule]['applicability'] for rule in expected_ids}):
+    expected = {rule: registry['rules'][rule]['applicability'] for rule in expected_ids}
+    expected.update({rule: profile_sources.rule_phase(registry, rule)['applicability'] for rule in profile.get('supporting-rules', [])})
+    if not isinstance(defaults, list) or len(defaults) != 413 or len(defaults) != len(set(defaults)) or (set(defaults) != set(expected_ids)) or (profile.get('rule-applicability') != expected):
         raise ValueError('base profile changed shipped defaults or their tagged phases')
 
 def selected_rule_applicability(manifest: dict[str, object], selected_rules: list[str]) -> dict[str, str]:

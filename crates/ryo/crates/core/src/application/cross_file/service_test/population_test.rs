@@ -98,7 +98,12 @@ pub(super) fn ordinary_phase_keeps_valid_rule_populations_and_partiality_separat
                 if rule == 0 { &[2] } else { &[2, 1] },
                 if rule == 0 { &[0] } else { &[1, 0] },
             );
-            assert_eq!(done.unknowns.len(), usize::from(rule == 0));
+            // Rule A skipped the second file (its syntax rejected): that file is skipped, never undecided, and rule B reads it.
+            assert!(
+                done.unknowns.is_empty(),
+                "a skipped file is skipped, not unknown: {:?}",
+                done.unknowns
+            );
             if let Some(previous) = &results[rule] {
                 assert_eq!(&rendered, previous);
             } else {

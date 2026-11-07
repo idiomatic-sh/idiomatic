@@ -352,7 +352,12 @@ pub(super) fn a_rejected_file_leaves_i001_plw0406_and_ruf100_answering_the_valid
         assert_eq!(
             at_case(rule),
             1,
-            "{rule:?} answers the valid file as Ruff does"
+            "{rule:?} answers the valid file as Ruff does; what it could not decide: {:?}",
+            report
+                .unknowns
+                .iter()
+                .filter(|unknown| &unknown.rule == rule)
+                .collect::<Vec<_>>()
         );
     }
     assert!(

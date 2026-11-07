@@ -182,7 +182,12 @@ pub(super) fn project_root_set_preserves_distinct_actual_population_policy_in_bo
         assert_eq!(results.len(), order.len());
         for (rule, result) in order.into_iter().zip(results) {
             let result = result.unwrap().crossed;
-            assert_eq!(result.unknowns.len(), usize::from(rule == 0));
+            // Rule A skipped the second file (its syntax rejected): that file is skipped, never undecided, and rule B reads it.
+            assert!(
+                result.unknowns.is_empty(),
+                "a skipped file is skipped, not unknown: {:?}",
+                result.unknowns
+            );
             let rendered = result.rendered.unwrap();
             assert_count_findings(
                 &rendered,

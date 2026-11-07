@@ -76,6 +76,61 @@ fn proven_by_lineage(
     }
 }
 
+/// Whether every file or node column of the answer lies in the file the rows missing from `missing` come from, by that operand's
+/// lineage alone: a column of the missing operand lies there when its lineage says so, and a column of the other operand when it
+/// is a key paired with a key of the missing operand that lies in its row's file and holds the same kind, as the two hold the same
+/// file or node. The other operand's own lineage is not needed: the key equality carries the missing file into its columns. The
+/// right keys and the answer's right columns are read through the view.
+fn transported(
+    missing: &InputCoverage<'_>,
+    left_on: &[ColumnIndex],
+    right_on: &[ColumnIndex],
+    output: &[JoinColumn],
+    view: &[ColumnIndex],
+    output_kinds: &[ryo_relations::domain::relations::types::CellKind],
+) -> Proof {
+    use ryo_relations::domain::relations::types::CellKind;
+    use ryo_values::domain::plan_parts::types::Side;
+    let own_side = if missing.ordinal.0 == 0 {
+        Side::Left
+    } else {
+        Side::Right
+    };
+    // The missing operand's own column a join names: through the view on the right.
+    let own = |column: ColumnIndex| {
+        if own_side == Side::Right && !view.is_empty() {
+            view.get(column.0 as usize).copied()
+        } else {
+            Some(column)
+        }
+    };
+    let in_file = |column: ColumnIndex| anchor_at(&missing.lineage, column) == ColumnAnchor::InFile;
+    let (missing_on, other_on) = if own_side == Side::Left {
+        (left_on, right_on)
+    } else {
+        (right_on, left_on)
+    };
+    let anchored = output.iter().zip(output_kinds).all(|(column, kind)| {
+        if !matches!(kind, CellKind::File | CellKind::Node) {
+            return true;
+        }
+        if column.side == own_side {
+            return own(column.column).is_some_and(in_file);
+        }
+        other_on.iter().zip(missing_on).any(|(other, key)| {
+            *other == column.column
+                && own(*key).is_some_and(|key| {
+                    in_file(key) && missing.kinds.get(key.0 as usize) == Some(kind)
+                })
+        })
+    });
+    if anchored && output.len() == output_kinds.len() {
+        Proof::Proven
+    } else {
+        Proof::Unproven
+    }
+}
+
 /// Transport physical uncertainty through an operator's output file identity.
 /// A missing row may affect a different file after a non-file join. Keep exact
 /// scopes only when every emitted file identity is anchored to the uncertain
@@ -185,7 +240,11 @@ pub(crate) fn output_coverage(
                         Side::Right => 1,
                     } != input.ordinal.0;
                 }
-                (base && file_keyed) || !other_identity || proven == Proof::Proven
+                (base && file_keyed)
+                    || !other_identity
+                    || proven == Proof::Proven
+                    || transported(input, left_on, right_on, output, view, output_kinds)
+                        == Proof::Proven
             }
             Operation::Antijoin {
                 left_on, right_on, ..
@@ -206,7 +265,16 @@ pub(crate) fn output_coverage(
                                     })
                             })
                     });
+                // The answer is the left rows: its file or node columns are carried from the missing right rows by the keys.
+                let left_columns: Vec<JoinColumn> = (0..output_kinds.len())
+                    .map(|at| JoinColumn {
+                        side: Side::Left,
+                        column: ColumnIndex(u32::try_from(at).unwrap_or(u32::MAX)),
+                    })
+                    .collect();
                 proven
+                    || transported(input, left_on, right_on, &left_columns, &[], output_kinds)
+                        == Proof::Proven
                     || (base
                         && (right_on.iter().any(|right| {
                             input
