@@ -1,9 +1,16 @@
 //! Two unrelated providers exercise the same inventory behavior and native receipt contract.
-use super::*;
-use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::outbound::inventory::types::{
-    Command, ExecutablePin, FilePin, RegisteredRule, RegistrationAuthority,
+use super::constants;
+use super::service::verify;
+use crate::domain::discrepancy::types::Contestant;
+use crate::outbound::{
+    execution::interface::ExecutionPort,
+    inventory::types::{Registration, CASE_RECEIPTS_ARGUMENT},
 };
+use ryo_benchmark_contracts::domain::measurements::types::{Invocation, TerminationSignal};
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use std::collections::BTreeMap;
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::outbound::inventory::types::{Command, ExecutablePin, FilePin, RegisteredRule, RegistrationAuthority};
 use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
 use ryo_benchmark_contracts::domain::measurements::types::ExecutionProfile;
 use ryo_benchmark_contracts::domain::measurements::types::ProcessExitCode;
@@ -40,7 +47,7 @@ impl ExecutionPort for ToyExecution {
     }
     fn run(&self, invocation: Invocation) -> Result<ProcessOutput, Error> {
         assert_eq!(invocation.executable, self.worker);
-        assert_eq!(invocation.arguments[0], "verify-cases");
+        assert_eq!(invocation.arguments[0], constants::VERIFY_CASES);
         assert_eq!(invocation.arguments[1], self.reference.as_os_str());
         assert_eq!(invocation.directory.as_os_str(), invocation.arguments[2]);
         assert!(invocation.environment.is_empty());
@@ -56,14 +63,14 @@ impl ExecutionPort for ToyExecution {
             let path = invocation
                 .arguments
                 .iter()
-                .find_map(|argument| argument.to_str()?.strip_prefix("--case-receipts="))
+                .find_map(|argument| argument.to_str()?.strip_prefix(CASE_RECEIPTS_ARGUMENT))
                 .map(std::path::PathBuf::from)
                 .expect("explicit receipt argument");
-            let records = ["reference", "candidate"].map(|side| json!({
-                "rule": rule, "name": "independent-case", "side": side, "complete": true, "error": null, "documented_reference_discrepancy": false,
+            let records = [Contestant::Reference, Contestant::Candidate].map(|side| json!({
+                "rule": rule, "name": "independent-case", "side": side.to_string(), "complete": true, "error": null, "documented_reference_discrepancy": false,
                 "case_passed": true, "source_sha256": "source-pin", "files": ["input.txt"], "expected": [], "reference_expected": [],
                 "diagnostics": [], "skipped": [], "context_manifest": null, "project_context": null,
-                "observation_schema": "benchmark-case/v2", "expectation_contract": "diagnostics",
+                "observation_schema": crate::domain::suite::constants::BENCHMARK_CASE_V2, "expectation_contract": "diagnostics",
                 "execution_metadata": {"availability": "complete"},
                 "coverage": {"selected_rule_file_pairs": 1, "evaluated_rule_file_pairs": 1, "skipped_rule_file_pairs": 0, "unknown_or_unread_rule_file_pairs": 0}
             }));
@@ -73,7 +80,7 @@ impl ExecutionPort for ToyExecution {
             )?;
         }
         Ok(ProcessOutput {
-            signal: None,
+            signal: TerminationSignal::Exited,
             status: ProcessExitCode(if name == "bad" { 1 } else { 0 }),
             stdout: CapturedBytes(Vec::new()),
             stderr: CapturedBytes(Vec::new()),
@@ -98,7 +105,7 @@ fn provider(name: &str, middle: &str) -> (Registration, tempfile::TempDir) {
     let defaults = ["missing", middle, "good"]
         .map(|rule| format!("{name}-{rule}"))
         .to_vec();
-    let profile = context.path().join("benchmark.toml");
+    let profile = context.path().join(crate::domain::suite::constants::BENCHMARK_TOML);
     std::fs::write(&profile, format!("tool = \"fixture\"\nversion = \"1\"\nsha256 = [{reference_sha:?}]\ndefaults = {defaults:?}\n")).unwrap();
     let rules = [(middle, defaults[1].clone()), ("good", defaults[2].clone())]
         .into_iter()
@@ -109,7 +116,7 @@ fn provider(name: &str, middle: &str) -> (Registration, tempfile::TempDir) {
             std::fs::write(&definition, format!("definition for {rule}")).unwrap();
             let evidence = directory.join("evidence/oracle.json");
             std::fs::write(&evidence, format!("independent evidence for {rule}")).unwrap();
-            let context_profile = directory.join("benchmark.toml");
+            let context_profile = directory.join(crate::domain::suite::constants::BENCHMARK_TOML);
             std::fs::write(
                 &context_profile,
                 format!(
@@ -135,7 +142,7 @@ fn provider(name: &str, middle: &str) -> (Registration, tempfile::TempDir) {
                     context: directory.clone(),
                 }),
                 cases: vec![
-                    crate::application::inventory_receipts::fixtures::registered_case(
+                    crate::domain::inventory_receipts::fixtures::registered_case(
                         &rule,
                         "independent-case",
                     ),
@@ -261,7 +268,7 @@ fn undeclared_modules() -> Result<bool, Error> {
         let Command::CaseVerification { context } = entry.command.as_ref().unwrap();
         let helper = context.join("helper.ryoql");
         std::fs::write(&helper, "declared helper").unwrap();
-        let profile = context.join("benchmark.toml");
+        let profile = context.join(crate::domain::suite::constants::BENCHMARK_TOML);
         let content = std::fs::read_to_string(&profile).unwrap()
             + "query-modules={'test/helper'='helper.ryoql'}\n";
         std::fs::write(&profile, content).unwrap();
@@ -287,7 +294,7 @@ fn undeclared_modules() -> Result<bool, Error> {
             row["reason"]
                 .as_str()
                 .unwrap()
-                .contains("registered module inventory differs from pinned context profile")
+                .contains(constants::REGISTERED_MODULE_INVENTORY_DIFFERS_FROM_PIN)
         );
     }
     answer

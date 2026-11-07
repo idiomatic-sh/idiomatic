@@ -6,18 +6,16 @@ use crate::domain::discrepancy::types::{
     Contestant, OptionalDigest, ReferenceKind, ReferenceProof,
 };
 use crate::outbound::context::interface::ContextPort;
-use crate::outbound::inventory::types::{InvocationDocument, Pin};
+use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::InvocationDocument;
+use ryo_benchmark_contracts::domain::documents::types::text::value::Pin;
+use crate::outbound::receipts::interface::ReceiptsPort;
+use crate::outbound::receipts::types::{CapturedProcess, CaseReceipts, ReceiptPath};
 use crate::outbound::suite::interface::SuitePort;
 use crate::outbound::suite::types::{ArtifactPath, ArtifactSet};
-use ryo_benchmark_contracts::domain::documents::types::{finding::{Finding, FindingOffset, SkippedPair}, observation_document::{
-        ContextManifest, ContextMode, ContextRun, ExitStatus, FileMetadataDigest, IntentMatch,
-        ObservationDocument, ProcessObservation, ProjectContextRecord, ProjectInputsDigest,
-        ReferenceExpectation, RuleCohort, RuleContextRecord, RuleObservationsRecord,
-        SourceIdentity, ToolContractRecord,
-    }, reference_discrepancy::{DiscrepancyValidation, ExpectationKind}, text::{
-        CanonicalJson, CaseName, ContestantSide, PathText, ReasonText, RuleName, SchemaName,
-        Sha256Text, YesNo,
-    }};
+use ryo_benchmark_contracts::domain::documents::types::finding::value::{ExpectedFindings, Finding, FindingOffset, SkippedPair};
+use ryo_benchmark_contracts::domain::documents::types::observation_document::value::{ContextMode, ContextRun, IntentMatch, ListedContext, ObservationDocument, ProcessArtifactsRecord, ProcessRecord, ProjectContextRecord, RecordedMetadata, RecordedReason, ReferenceProcess, ReportedFindings, ReportedSkips, RequestRoot, ValidationRecord, RuleCohort, RuleContextRecord, RuleObservationsRecord, SourceIdentity, ToolContractRecord};
+use ryo_benchmark_contracts::domain::documents::types::text::value::{CanonicalJson, CaseName, ContestantSide, ExitStatus, FileMetadataDigest, PathText, ProjectInputsDigest, ReasonText, RuleName, SchemaName, Sha256Text, YesNo};
+use ryo_benchmark_contracts::domain::documents::types::reference_discrepancy::value::{DiscrepancyValidation, ExpectationKind};
 use ryo_benchmark_contracts::domain::requests::types::{
     ContextSeal, CohortSelection, InputDeclaration, RuleContextPreparation, SearchRoots,
 };
@@ -39,10 +37,18 @@ fn findings(rows: &[BenchmarkFinding]) -> Vec<Finding> {
         .collect()
 }
 
-fn pinned(digest: &OptionalDigest) -> Option<Sha256Text> {
+fn pinned(digest: &OptionalDigest) -> Pin {
     match digest {
-        OptionalDigest::Absent => None,
-        OptionalDigest::Pinned(digest) => Some(Sha256Text(digest.0.clone())),
+        OptionalDigest::Absent => Pin::Absent,
+        OptionalDigest::Pinned(digest) => Pin::Sha256(Sha256Text(digest.0.clone())),
+    }
+}
+
+/// The file metadata identity a proof pins, as a document declares it.
+fn declared_metadata(digest: &OptionalDigest) -> FileMetadataDigest {
+    match digest {
+        OptionalDigest::Absent => FileMetadataDigest::Undeclared,
+        OptionalDigest::Pinned(digest) => FileMetadataDigest::Declared(Sha256Text(digest.0.clone())),
     }
 }
 
@@ -61,48 +67,50 @@ fn validation_document(proof: &ReferenceProof) -> DiscrepancyValidation {
         source_sha256: Sha256Text(proof.source.0.clone()),
         reference_output_sha256: Sha256Text(proof.reference_output.0.clone()),
         intended_output_sha256: Sha256Text(proof.intended_output.0.clone()),
-        file_metadata_sha256: pinned(&proof.file_metadata),
+        file_metadata_sha256: declared_metadata(&proof.file_metadata),
     }
 }
 
 /// The reference process a captured invocation records.
-fn process_observation(case: &PreparedCase, invocation: &InvocationDocument) -> ProcessObservation {
+fn process_observation(case: &PreparedCase, invocation: &InvocationDocument) -> ProcessRecord {
     let (exit, signal, root, observer, executable, settings, metadata_error) = match invocation {
         InvocationDocument::Complete(complete) => (
             complete.exit,
             complete.signal,
             &complete.actual_request_root,
             complete.observer_no_deadline,
-            Some(complete.executable_sha256.clone()),
-            Some(complete.settings_sha256.clone()),
-            None,
+            Pin::Sha256(complete.executable_sha256.clone()),
+            Pin::Sha256(complete.settings_sha256.clone()),
+            RecordedReason::Absent,
         ),
         InvocationDocument::Failed(failed) => (
             failed.exit,
             failed.signal,
             &failed.actual_request_root,
             failed.observer_no_deadline,
-            None,
-            None,
-            Some(failed.metadata_error.clone()),
+            Pin::Absent,
+            Pin::Absent,
+            RecordedReason::Stated(failed.metadata_error.clone()),
         ),
     };
-    ProcessObservation {
+    ProcessRecord {
         kind: ExpectationKind::ProcessFailure,
         exit,
-        signal: match signal {
-            crate::outbound::inventory::types::Signal::Absent => None,
-            crate::outbound::inventory::types::Signal::Number(number) => Some(number),
-        },
+        signal,
         actual_request_root: root.clone(),
         observer_no_deadline: observer,
         executable_sha256: executable,
         settings_sha256: settings,
         metadata_error,
-        template_sha256: crate::domain::process_failure::service::expected(case).map(|process| {
-            Sha256Text(crate::domain::process_failure::service::output_digest(process).0)
-        }),
-        artifacts: None,
+        template_sha256: crate::domain::process_failure::service::expected(case).map_or(
+            Pin::Absent,
+            |process| {
+                Pin::Sha256(Sha256Text(
+                    crate::domain::process_failure::service::output_digest(process).0,
+                ))
+            },
+        ),
+        artifacts: ProcessArtifactsRecord::Unattached,
     }
 }
 
@@ -131,6 +139,7 @@ fn bound(
 /// Append one complete side record while preserving the unprojected report and source identity.
 pub(crate) fn write(
     suite: &dyn SuitePort,
+    receipts: &dyn ReceiptsPort,
     context: &dyn ContextPort,
     case: &PreparedCase,
     contestant: Contestant,
@@ -140,7 +149,7 @@ pub(crate) fn write(
     validation: Option<&ReferenceProof>,
     process: ProcessEvidence<'_>,
 ) -> Result<(), Error> {
-    let Some(path) = suite.case_receipt_file() else {
+    let CaseReceipts::Recorded(path) = receipts.case_receipts() else {
         return Ok(());
     };
     let side = match contestant {
@@ -162,15 +171,17 @@ pub(crate) fn write(
                 .map(|file| PathText(file.0.as_ref().to_owned()))
                 .collect()
         });
-    let skipped = report.map(|report| {
-        report
-            .skipped
-            .iter()
-            .map(|skip| SkippedPair {
-                rule: RuleName(skip.rule.as_ref().to_owned()),
-                path: PathText(skip.path.0.as_ref().to_owned()),
-            })
-            .collect::<Vec<_>>()
+    let skipped = report.map_or(ReportedSkips::Unreported, |report| {
+        ReportedSkips::Reported(
+            report
+                .skipped
+                .iter()
+                .map(|skip| SkippedPair {
+                    rule: RuleName(skip.rule.as_ref().to_owned()),
+                    path: PathText(skip.path.0.as_ref().to_owned()),
+                })
+                .collect::<Vec<_>>(),
+        )
     });
     let source_identity = suite.case_source_digest(
         ArtifactPath(&case.request.root),
@@ -209,7 +220,7 @@ pub(crate) fn write(
         (None, None) => None,
     };
     let context_manifest = match &case.request.context_manifest {
-        ContextSeal::Sealed(manifest) => Some(ContextManifest {
+        ContextSeal::Sealed(manifest) => Some(ListedContext {
             mode: ContextMode::ListedDisk,
             logical_root: PathText(manifest.logical_root.to_string_lossy().into_owned()),
             actual_root: PathText(case.request.root.to_string_lossy().into_owned()),
@@ -232,7 +243,9 @@ pub(crate) fn write(
         name: CaseName(case.name.to_string()),
         side,
         complete: YesNo::Yes,
-        error: recorded_error.map(ReasonText),
+        error: recorded_error.map_or(RecordedReason::Absent, |reason| {
+            RecordedReason::Stated(ReasonText(reason))
+        }),
         case_passed: YesNo::from(passed == YesNo::Yes && source_error.is_none()),
         files,
         source_sha256: source_sha256.map_or(SourceIdentity::Unavailable, |digest| {
@@ -242,18 +255,19 @@ pub(crate) fn write(
         project_inputs_sha256: ProjectInputsDigest::from(project_inputs_sha256.map(Sha256Text)),
         expected: findings(&case.expected.diagnostics),
         reference_expected: crate::domain::discrepancy::service::reference_expected(case)
-            .map_or(ReferenceExpectation::Underivable, |report| {
-                ReferenceExpectation::Derived(findings(&report.diagnostics))
+            .map_or(ExpectedFindings::Underivable, |report| {
+                ExpectedFindings::Derived(findings(&report.diagnostics))
             }),
-        diagnostics: report.map(|report| findings(&report.diagnostics)),
+        diagnostics: report.map_or(ReportedFindings::Unreported, |report| {
+            ReportedFindings::Reported(findings(&report.diagnostics))
+        }),
         skipped,
         observation_schema: SchemaName(crate::domain::suite::constants::BENCHMARK_CASE_V2.to_owned()),
         expectation_contract: ComparisonContract::Diagnostics,
-        execution_metadata: report.map(|report| report.execution_metadata.clone()),
-        coverage: report.and_then(|report| match report.coverage {
-            CoverageAccounting::Accounted(coverage) => Some(coverage),
-            CoverageAccounting::Unaccounted => None,
+        execution_metadata: report.map_or(RecordedMetadata::Unrecorded, |report| {
+            RecordedMetadata::Recorded(report.execution_metadata.clone())
         }),
+        coverage: report.map_or(CoverageAccounting::Unaccounted, |report| report.coverage),
         context_manifest: context_manifest.map_or(ContextRun::Isolated, ContextRun::Listed),
         project_context: match report.map(|report| &report.project_context) {
             Some(ProjectContext::Observed(receipt)) => context
@@ -283,18 +297,23 @@ pub(crate) fn write(
             ),
             CohortSelection::Frozen => RuleCohort::Undeclared,
         },
-        actual_request_root: Some(PathText(case.request.root.to_string_lossy().into_owned())),
+        actual_request_root: RequestRoot::Written(PathText(
+            case.request.root.to_string_lossy().into_owned(),
+        )),
         documented_reference_discrepancy: YesNo::from(
             basis == Some(DiscrepancyBasis::LanguageDefect),
         ),
         documented_tool_contract_difference: ToolContractRecord::Recorded(YesNo::from(
             basis == Some(DiscrepancyBasis::ToolContract),
         )),
-        discrepancy_validation: validation.map(validation_document),
-        raw_parity_matches_intended: intended_matches,
+        discrepancy_validation: validation.map_or(ValidationRecord::Unattested, |proof| {
+            ValidationRecord::Attested(validation_document(proof))
+        }),
+        raw_parity_matches_intended: intended_matches
+            .map_or(IntentMatch::Unreported, IntentMatch::Matched),
         diagnostics_match_intended: intended_matches
             .map_or(IntentMatch::Unreported, IntentMatch::Matched),
-        process_observation: None,
+        process_observation: ReferenceProcess::NotObserved,
     };
     let kept = match process {
         ProcessEvidence::Absent => None,
@@ -308,8 +327,9 @@ pub(crate) fn write(
         )),
     };
     if let Some((invocation, _)) = &kept {
-        record.process_observation = Some(process_observation(case, invocation));
-        record.raw_parity_matches_intended = Some(YesNo::No);
+        record.process_observation =
+            ReferenceProcess::Observed(process_observation(case, invocation));
+        record.raw_parity_matches_intended = IntentMatch::Matched(YesNo::No);
     }
     let key = crate::domain::process_output::service::observation_key(
         &ReceiptKeyParts {
@@ -319,15 +339,15 @@ pub(crate) fn write(
         },
     );
     let process = kept.as_ref().map(|(invocation, output)| {
-        crate::outbound::suite::types::CapturedProcess {
-            key: &key.0,
+        CapturedProcess {
+            key: &key,
             invocation,
-            stdout: &output.stdout.0,
-            stderr: &output.stderr.0,
+            stdout: &output.stdout,
+            stderr: &output.stderr,
         }
     });
-    suite
-        .record_case(ArtifactPath(Path::new(&path)), record, process)
+    receipts
+        .record_case(ReceiptPath(Path::new(&path)), record, process)
         .map_err(|error| Error::Invalid(error.to_string()))?;
     if let Some(error) = source_error {
         return Err(Error::Invalid(format!(

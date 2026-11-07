@@ -1,5 +1,5 @@
 //! Small real-file fixtures; only child execution is substituted, not artifact or comparison policy.
-use ryo_benchmark_contracts::domain::documents::types::{text::{Sha256Text, YesNo}};
+use ryo_benchmark_contracts::domain::documents::types::text::value::{Sha256Text, YesNo};
 use crate::application::case_execution::service::run as run_case;
 use crate::application::case_observation::service::write as record;
 use crate::domain::discrepancy::types::{
@@ -43,6 +43,7 @@ pub(crate) struct Fixture {
     pub document: CaseDocument,
     pub proof: ReferenceProof,
     receipt: PathBuf,
+    pub receipts: crate::outbound::receipts::fixtures::fake::ReceiptsFake,
 }
 fn pin(bytes: &[u8]) -> String {
     format!("{:x}", sha2::Sha256::digest(bytes))
@@ -123,7 +124,6 @@ impl Fixture {
             reference_discrepancy: ryo_benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior::Agrees,
         };
         let mut suite = SuiteFake {
-            case_receipt: Some(receipt.clone()),
             profile: Some(profile.clone()),
             discrepancy_artifacts_valid: true,
             ..Default::default()
@@ -195,7 +195,7 @@ impl Fixture {
             observations.push(row);
         }
         let wire = json!({"kind":"process-failure","exit":2,"stdout":stdout_parts,"stderr":stderr_parts,"observations":observations});
-        let process = crate::outbound::suite::fixtures::process::failure(&(wire).to_string());
+        let process = crate::inbound::use_cases::verify_reference_cases::use_case_test::process_identity::fixtures::process_failure(&wire);
         let identity = ReferenceDiscrepancyIdentity {
             file_metadata_sha256: ryo_benchmark_contracts::domain::workloads::types::MetadataDigestDeclaration::Undeclared,
             tool: profile.tool.clone(),
@@ -265,8 +265,12 @@ impl Fixture {
         )
         .unwrap();
         let context = crate::outbound::context::factory::local();
+        let receipts = crate::outbound::receipts::fixtures::fake::ReceiptsFake {
+            case_receipts: crate::outbound::receipts::types::CaseReceipts::Recorded(receipt.clone()),
+        };
         record(
             &suite,
+            &receipts,
             &context,
             &prepared,
             Contestant::Reference,
@@ -287,6 +291,7 @@ impl Fixture {
         assert!(candidate.capture.is_none());
         record(
             &suite,
+            &receipts,
             &context,
             &prepared,
             Contestant::Candidate,
@@ -314,6 +319,7 @@ impl Fixture {
             document,
             proof: typed_proof,
             receipt,
+            receipts,
         }
     }
     pub fn load(&self) -> CapturedObservation {

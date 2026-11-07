@@ -1,5 +1,5 @@
 //! A complete disposition inventory is distinct from verified subset coverage.
-use ryo_benchmark_contracts::domain::documents::types::{text::{ReasonText, YesNo}};
+use ryo_benchmark_contracts::domain::documents::types::text::value::{ReasonText, YesNo};
 use crate::domain::suite::service::require_accounted;
 use crate::domain::suite::types::audit::value::Audit;
 use crate::domain::suite::types::certificate::value::Certificate;
@@ -23,15 +23,16 @@ use crate::application::case_observation::{
     types::{ObservedProcess, ProcessEvidence},
 };
 use crate::application::case_selection::{service::select, types::ShardSelection};
-use crate::domain::diagnostics::service::compare_diagnostics as compare;
+use crate::domain::discrepancy::service::judge;
 use crate::domain::discrepancy::types::{Contestant, ReferenceProof};
 use crate::domain::suite::constants;
+use crate::outbound::receipts::interface::ReceiptsPort;
 use crate::outbound::{
     context::interface::ContextPort,
     execution::types::ExitObservationMode,
 };
 use ryo_benchmark_contracts::domain::requests::types::CaseSelection;
-use ryo_benchmark_contracts::domain::workloads::types::{CaseComparison, PreparedCase};
+use ryo_benchmark_contracts::domain::workloads::types::{PreparedCase};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::workloads::types::Tool;
 use ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
@@ -44,6 +45,7 @@ use std::path::{Path, PathBuf};
 )]
 pub(super) fn certify(
     suite: &dyn SuitePort,
+    receipts: &dyn ReceiptsPort,
     context: &dyn ContextPort,
     reference: &dyn LinterPort,
     candidate: &dyn LinterPort,
@@ -140,9 +142,10 @@ pub(super) fn certify(
         PreparedCases::Profile => {
             let rules = directory.join(super::constants::RULE_DIRECTORY);
             let prepared =
-                crate::application::case_preparation::service::cases(suite, &rules, scratch)?;
+                crate::application::case_preparation::service::cases(suite, context, &rules, scratch)?;
             verify_prepared_shard(
                 suite,
+                receipts,
                 context,
                 reference,
                 candidate,
@@ -352,6 +355,7 @@ fn process_matches(
 )]
 fn verify_prepared_shard(
     suite: &dyn SuitePort,
+    receipts: &dyn ReceiptsPort,
     context: &dyn ContextPort,
     reference: &dyn LinterPort,
     candidate: &dyn LinterPort,
@@ -421,7 +425,7 @@ fn verify_prepared_shard(
                 Err(_failed) => None,
             };
             match result {
-                Ok(mut result) => {
+                Ok(result) => {
                     if contestant == Contestant::Reference
                         && crate::domain::process_failure::service::expected(&case).is_some()
                     {
@@ -430,6 +434,7 @@ fn verify_prepared_shard(
                         );
                         record(
                             suite,
+                            receipts,
                             context,
                             &case,
                             contestant,
@@ -445,31 +450,10 @@ fn verify_prepared_shard(
                         ));
                         continue;
                     }
-                    if contestant == Contestant::Candidate {
-                        ryo_benchmark_contracts::domain::reports::service::require_complete_execution(
-                            &result.report,
-                        )?;
-                    }
-                    if case.comparison == CaseComparison::Rule {
-                        result.report.diagnostics.retain(|finding| {
-                            finding.rule == case.rule
-                                || finding.rule.as_ref()
-                                    == crate::domain::diagnostics::constants::FRONTEND_SYNTAX
-                        });
-                    }
-                    let expected = if contestant == Contestant::Reference {
-                        crate::domain::discrepancy::service::reference_expected(&case)?
-                    } else {
-                        &case.expected
-                    };
-                    crate::domain::discrepancy::service::complete(
-                        &case,
-                        &result.report,
-                        contestant,
-                    )?;
-                    let comparison = compare(expected, &result.report);
+                    let comparison = judge(&case, contestant, result.report)?.comparison;
                     record(
                         suite,
+                        receipts,
                         context,
                         &case,
                         contestant,
@@ -503,6 +487,7 @@ fn verify_prepared_shard(
                     });
                     record(
                         suite,
+                        receipts,
                         context,
                         &case,
                         contestant,

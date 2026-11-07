@@ -1,7 +1,11 @@
 //! Admit authored cases and compose physical materialization for the verifier.
 use crate::domain::rule_context::service as rule_context;
 use crate::domain::suite::service as policy;
-use crate::outbound::suite::{interface::SuitePort, types::ArtifactPath};
+use crate::outbound::context::interface::ContextPort;
+use crate::outbound::suite::{
+    interface::SuitePort,
+    types::{ArtifactPath, MaterializedContext},
+};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::{
     context::types::project_context_mode::value::ProjectContextMode, requests::types::RunRequest,
@@ -11,6 +15,7 @@ use std::path::Path;
 /// Load, admit and materialize the independent sources through the physical suite port.
 pub(crate) fn cases(
     suite: &dyn SuitePort,
+    context: &dyn ContextPort,
     rules: &Path,
     scratch: &Path,
 ) -> Result<Vec<PreparedCase>, Error> {
@@ -98,10 +103,20 @@ pub(crate) fn cases(
             ) {
                 return Err(Error::Invalid(super::constants::CONTEXT_MODE.into()));
             }
-            let physical = suite.materialize_case(
-                ArtifactPath(&scratch.join(rule.to_string()).join(index.to_string())),
-                &case,
-            )?;
+            let boundary = scratch.join(rule.to_string()).join(index.to_string());
+            let sealed = match &case.context {
+                ryo_benchmark_contracts::domain::workloads::types::ContextDeclaration::Declared(
+                    declared,
+                ) => MaterializedContext::Sealed(context.materialize(
+                    &boundary,
+                    declared,
+                    &case.files,
+                )?),
+                ryo_benchmark_contracts::domain::workloads::types::ContextDeclaration::Undeclared => {
+                    MaterializedContext::Isolated
+                }
+            };
+            let physical = suite.materialize_case(ArtifactPath(&boundary), &case, &sealed)?;
             let rule_context = rule_context::resolve(
                 profile
                     .as_ref()
@@ -127,11 +142,11 @@ pub(crate) fn cases(
                 given_project_inventory,
                 staged_sources: ryo_benchmark_contracts::domain::requests::types::StagedSources::Listed(case.files.keys().cloned().collect()),
                 file_metadata: case.file_metadata,
-                context_manifest: match physical.context {
-                    crate::outbound::suite::types::MaterializedContext::Isolated => {
+                context_manifest: match sealed {
+                    MaterializedContext::Isolated => {
                         ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed
                     }
-                    crate::outbound::suite::types::MaterializedContext::Sealed(manifest) => {
+                    MaterializedContext::Sealed(manifest) => {
                         ryo_benchmark_contracts::domain::requests::types::ContextSeal::Sealed(manifest)
                     }
                 },

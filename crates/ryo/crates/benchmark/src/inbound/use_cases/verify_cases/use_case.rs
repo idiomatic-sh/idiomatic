@@ -1,11 +1,13 @@
 //! Readable suite orchestration, borrowing the actual injected port owners.
 use super::interface::VerifyCasesUseCase;
-use crate::inbound::use_cases::verify_cases::constants;
+use crate::application::input_metadata::constants;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
 use std::path::Path;
 /// verify_cases with required borrowed boundaries.
 pub struct VerifyCasesUseCaseImpl<'a> {
     suite: &'a dyn crate::outbound::suite::interface::SuitePort,
+    receipts: &'a dyn crate::outbound::receipts::interface::ReceiptsPort,
+    context: &'a dyn crate::outbound::context::interface::ContextPort,
     reference: &'a dyn crate::outbound::linter::interface::LinterPort,
     candidate: &'a dyn crate::outbound::linter::interface::LinterPort,
     execution: &'a dyn crate::outbound::execution::interface::ExecutionPort,
@@ -16,6 +18,8 @@ impl<'a> VerifyCasesUseCaseImpl<'a> {
     #[must_use]
     pub fn new(
         suite: &'a dyn crate::outbound::suite::interface::SuitePort,
+        receipts: &'a dyn crate::outbound::receipts::interface::ReceiptsPort,
+        context: &'a dyn crate::outbound::context::interface::ContextPort,
         reference: &'a dyn crate::outbound::linter::interface::LinterPort,
         candidate: &'a dyn crate::outbound::linter::interface::LinterPort,
         execution: &'a dyn crate::outbound::execution::interface::ExecutionPort,
@@ -23,6 +27,8 @@ impl<'a> VerifyCasesUseCaseImpl<'a> {
     ) -> Self {
         Self {
             suite,
+            receipts,
+            context,
             reference,
             candidate,
             execution,
@@ -55,9 +61,11 @@ impl VerifyCasesUseCase for VerifyCasesUseCaseImpl<'_> {
             crate::domain::suite::service::require_accounted(&audit, &tool)?;
         }
         let cases =
-            crate::application::case_preparation::service::cases(self.suite, rules, scratch)?;
-        crate::application::run::service::verify_prepared_shard(
+            crate::application::case_preparation::service::cases(self.suite, self.context, rules, scratch)?;
+        super::service::verify_prepared_shard(
             self.suite,
+            self.receipts,
+            self.context,
             self.reference,
             self.candidate,
             self.execution,

@@ -96,6 +96,8 @@ pub fn exercise(
     change: Change,
     constructor: impl FnOnce(
         std::sync::Arc<dyn crate::outbound::suite::interface::SuitePort>,
+        std::sync::Arc<dyn crate::outbound::receipts::interface::ReceiptsPort>,
+        std::sync::Arc<dyn crate::outbound::context::interface::ContextPort>,
         std::sync::Arc<dyn LinterPort>,
         std::sync::Arc<dyn LinterPort>,
         std::sync::Arc<dyn crate::outbound::execution::interface::ExecutionPort>,
@@ -146,7 +148,7 @@ pub fn exercise(
         constants::FIXTURE_TOOL_SCRIPT,
     )
     .expect(constants::FIXTURE_PRECONDITION);
-    let suite = std::sync::Arc::new(crate::outbound::suite::factory::local(crate::outbound::suite::types::CaseReceipts::Unrecorded));
+    let suite = std::sync::Arc::new(crate::outbound::suite::factory::local());
     let reference = std::sync::Arc::new(Contestant {
         executable: executable.clone(),
         arguments: vec![],
@@ -170,6 +172,8 @@ pub fn exercise(
     ));
     let operation = constructor(
         suite.clone(),
+        std::sync::Arc::new(crate::outbound::receipts::fixtures::fake::ReceiptsFake::default()),
+        std::sync::Arc::new(crate::outbound::context::factory::local()),
         reference.clone(),
         candidate.clone(),
         execution.clone(),

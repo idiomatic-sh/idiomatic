@@ -1,8 +1,8 @@
 //! Compose a boundary-owned registration and raw bytes with the existing shared validator.
 use super::interface::ValidateCaseReceiptsUseCase;
-use crate::application::run::receipt_validation;
+use crate::application::receipt_validation::service as receipt_validation;
 use crate::outbound::inventory::interface::InventoryPort;
-use ryo_benchmark_contracts::domain::process::types::ReceiptAudit;
+use ryo_benchmark_contracts::domain::receipts::types::ReceiptAudit;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::{path::Path, sync::Arc};
 /// The edge selects the artifact store; application code does not hardwire it.

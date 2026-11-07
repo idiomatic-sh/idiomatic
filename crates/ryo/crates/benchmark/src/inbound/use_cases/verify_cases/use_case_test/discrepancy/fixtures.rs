@@ -135,19 +135,42 @@ pub(crate) fn discrepancy_suite() -> SuiteFake {
         unreachable!("fixture canonical certificate")
     };
     let identity = item.identity;
-    let discrepancy = crate::outbound::suite::fixtures::reference::claim(&serde_json::json!({
-        "expected": [], "reason": item.reason.0,
-        "identity": { "tool": identity.tool.to_string(), "version": identity.version.to_string(),
-            "observed-executable-sha256": identity.observed_executable_sha256.0, "profile-sha256": identity.profile_sha256.0,
-            "settings-sha256": identity.settings_sha256.0, "source-sha256": identity.source_sha256.0,
-            "reference-output-sha256": identity.reference_output_sha256.0, "intended-output-sha256": identity.intended_output_sha256.0 },
-        "evidence": [{ "path": "evidence.json", "sha256": "d".repeat(64), "kind": "independent-language-run",
-            "language-version": "3.10", "target-configuration": "python-target=3.10", "version-rationale": "exact target independently evaluated" }],
-    }).to_string());
+    let discrepancy = {
+        use crate::outbound::suite::types::{
+            ClaimedDiscrepancy, ClaimedEvidence, ClaimedIdentity, ClaimedMetadata, ClaimedProcess,
+        };
+        use ryo_benchmark_contracts::domain::documents::types::text::value::Sha256Text;
+        use ryo_benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::{
+            LanguageVersion, ParserTarget, Rationale,
+        };
+        ClaimedDiscrepancy {
+            process: ClaimedProcess::Absent,
+            expected: Vec::new(),
+            identity: ClaimedIdentity {
+                file_metadata_sha256: ClaimedMetadata::Undeclared,
+                tool: identity.tool,
+                version: identity.version,
+                observed_executable_sha256: Sha256Text(identity.observed_executable_sha256.0),
+                profile_sha256: Sha256Text(identity.profile_sha256.0),
+                settings_sha256: Sha256Text(identity.settings_sha256.0),
+                source_sha256: Sha256Text(identity.source_sha256.0),
+                reference_output_sha256: Sha256Text(identity.reference_output_sha256.0),
+                intended_output_sha256: Sha256Text(identity.intended_output_sha256.0),
+            },
+            evidence: vec![ClaimedEvidence::IndependentLanguageRun {
+                path: "evidence.json".into(),
+                sha256: Sha256Text("d".repeat(64)),
+                language_version: LanguageVersion("3.10".into()),
+                target_configuration: ParserTarget("python-target=3.10".into()),
+                version_rationale: Rationale("exact target independently evaluated".into()),
+            }],
+            reason: item.reason,
+        }
+    };
     suite.reference_claims.push(
         crate::outbound::suite::types::CaseClaim {
-            rule: ryo_benchmark_contracts::domain::documents::types::text::RuleName(authored_case.rule.to_string()),
-            name: ryo_benchmark_contracts::domain::documents::types::text::CaseName(authored_case.name.to_string()),
+            rule: ryo_benchmark_contracts::domain::documents::types::text::value::RuleName(authored_case.rule.to_string()),
+            name: ryo_benchmark_contracts::domain::documents::types::text::value::CaseName(authored_case.name.to_string()),
             basis: ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis::LanguageDefect,
             discrepancy,
         },

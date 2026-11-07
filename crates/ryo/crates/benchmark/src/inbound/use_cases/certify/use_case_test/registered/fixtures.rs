@@ -163,7 +163,9 @@ impl Fixture {
         selected_rules: &Path,
     ) -> Result<crate::domain::suite::types::certificate::value::Certificate, ReportsError> {
         let operation = crate::inbound::use_cases::certify::use_case::CertifyUseCaseImpl::new(
-            Arc::new(crate::outbound::suite::factory::local(crate::outbound::suite::types::CaseReceipts::Unrecorded)),
+            Arc::new(crate::outbound::suite::factory::local()),
+            Arc::new(crate::outbound::receipts::fixtures::fake::ReceiptsFake::default()),
+            Arc::new(crate::outbound::context::factory::local()),
             Arc::new(crate::outbound::linter::fixtures::fake::LinterFake::default()),
             Arc::new(crate::outbound::linter::fixtures::fake::LinterFake::default()),
             self.execution.clone(),
@@ -227,7 +229,7 @@ pub(in crate::inbound::use_cases::certify::use_case_test) fn failed(error: &Repo
 pub(in crate::inbound::use_cases::certify::use_case_test) fn swapped(reason: &'static str) -> Result<usize, Cow<'static, str>> {
     use crate::outbound::suite::interface::SuitePort as _;
     let f = Fixture::new();
-    let suite = crate::outbound::suite::factory::local(crate::outbound::suite::types::CaseReceipts::Unrecorded);
+    let suite = crate::outbound::suite::factory::local();
     let tool = suite
         .profile(crate::outbound::suite::types::ArtifactPath(&f.profile))
         .unwrap();

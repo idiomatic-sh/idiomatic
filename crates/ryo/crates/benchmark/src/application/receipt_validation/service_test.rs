@@ -1,12 +1,10 @@
 //! The offline entry recomputes the metadata witness and never echoes a stale declared digest.
-use super::validate;
+use super::service::validate;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::application::inventory_receipts::fixtures::with_file_metadata;
-use crate::outbound::inventory::types::{
-    CapturedObservation, RegisteredRule, Registration, RegistrationAuthority,
-    case_document::{CaseDocument, FileMetadata},
-};
-use crate::outbound::suite::types::text::{PathText, Sha256Text};
+use crate::domain::inventory_receipts::fixtures::with_file_metadata;
+use crate::outbound::inventory::types::{CapturedObservation, RegisteredRule, Registration, RegistrationAuthority};
+use ryo_benchmark_contracts::domain::documents::types::case_document::value::{CaseDocument, FileMetadata};
+use ryo_benchmark_contracts::domain::documents::types::text::value::{PathText, Sha256Text};
 use ryo_benchmark_contracts::domain::artifacts::types::FileExecutable;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
 use std::borrow::Cow;
@@ -84,7 +82,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     let verdict = match scenario {
         Scenario::Declared => {
             let audit = audit_of(case.clone()).map_err(|error| error.to_string())?;
-            let witness = audit.metadata_verified.first().map(|entry| entry.2.0.as_str());
+            let witness = audit.metadata_verified.first().map(|entry| entry.digest.0.as_str());
             if audit.errors.is_empty()
                 && audit.metadata_verified.len() == 1
                 && witness

@@ -2,11 +2,10 @@
 use super::constants;
 use crate::domain::suite::types::inventory::value::Inventory;
 use ryo_benchmark_contracts::domain::requests::types::RuleLabel;
-use crate::outbound::inventory::types::{
-    CapturedObservation, Registration,
-    case_document::CaseDocument,
-};
-use ryo_benchmark_contracts::domain::documents::types::{observation_document::ObservationDocument, text::ContestantSide};
+use crate::outbound::inventory::types::{CapturedObservation, Registration};
+use ryo_benchmark_contracts::domain::documents::types::case_document::value::CaseDocument;
+use ryo_benchmark_contracts::domain::documents::types::observation_document::value::ObservationDocument;
+use ryo_benchmark_contracts::domain::documents::types::text::value::ContestantSide;
 use ryo_benchmark_contracts::domain::receipts::types::{
     AuditFailure, CaseKey, MetadataVerifiedCase, ReceiptAudit,
 };
@@ -101,12 +100,11 @@ pub fn validate(
                     });
                 }
                 if counts.documented.0 > 0
-                    && case
-                        .reference_discrepancy
-                        .as_ref()
-                        .is_some_and(|certificate| {
-                            certificate.basis == DiscrepancyBasis::ToolContract
-                        })
+                    && matches!(
+                        &case.reference_discrepancy,
+                        ryo_benchmark_contracts::domain::documents::types::case_document::value::CaseReference::Differs(certificate)
+                            if certificate.basis == DiscrepancyBasis::ToolContract
+                    )
                 {
                     audit.tool_contract_differences.push(case_key.clone());
                 }

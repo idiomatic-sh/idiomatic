@@ -43,38 +43,41 @@ impl Scenario {
 
 /// Each actual global subscriber runs in a fresh process, preserving its one-shot contract.
 pub(super) fn trace_sessions() {
-    if let Some(scenario) = std::env::args()
-        .find_map(|argument| argument.strip_prefix(CHILD_SCENARIO).map(str::to_owned))
-    {
-        let scenario = Scenario::parse(&scenario);
-        actual_session(scenario);
-        println!("{VERIFIED}{}", scenario.label());
-        return;
-    }
-    for scenario in [
-        Scenario::Success,
-        Scenario::LoadRefusal,
-        Scenario::ConfigureRefusal,
-        Scenario::ExecuteRefusal,
-        Scenario::Abandoned,
-    ] {
-        let output = std::process::Command::new(std::env::current_exe().unwrap())
-            .args(["--exact", RUNNER, "--test-threads=1", "--nocapture"])
-            .args(["--skip", &format!("{CHILD_SCENARIO}{}", scenario.label())])
-            .output()
-            .unwrap();
-        assert!(
-            output.status.success(),
-            "scenario {:?}: stdout={} stderr={}",
-            scenario,
-            String::from_utf8_lossy(&output.stdout),
-            String::from_utf8_lossy(&output.stderr)
-        );
-        assert!(
-            String::from_utf8_lossy(&output.stdout)
-                .contains(&format!("{VERIFIED}{}", scenario.label())),
-            "the child must execute the actual lifecycle case; zero-test success is not proof"
-        );
+    let child = std::env::args()
+        .find_map(|argument| argument.strip_prefix(CHILD_SCENARIO).map(str::to_owned));
+    match child {
+        Some(scenario) => {
+            let scenario = Scenario::parse(&scenario);
+            actual_session(scenario);
+            println!("{VERIFIED}{}", scenario.label());
+        }
+        None => {
+            for scenario in [
+                Scenario::Success,
+                Scenario::LoadRefusal,
+                Scenario::ConfigureRefusal,
+                Scenario::ExecuteRefusal,
+                Scenario::Abandoned,
+            ] {
+                let output = std::process::Command::new(std::env::current_exe().unwrap())
+                    .args(["--exact", RUNNER, "--test-threads=1", "--nocapture"])
+                    .args(["--skip", &format!("{CHILD_SCENARIO}{}", scenario.label())])
+                    .output()
+                    .unwrap();
+                assert!(
+                    output.status.success(),
+                    "scenario {:?}: stdout={} stderr={}",
+                    scenario,
+                    String::from_utf8_lossy(&output.stdout),
+                    String::from_utf8_lossy(&output.stderr)
+                );
+                assert!(
+                    String::from_utf8_lossy(&output.stdout)
+                        .contains(&format!("{VERIFIED}{}", scenario.label())),
+                    "the child must execute the actual lifecycle case; zero-test success is not proof"
+                );
+            }
+        }
     }
 }
 
@@ -154,7 +157,8 @@ fn request(scenario: Scenario, scratch: &Path, rules: std::path::PathBuf) -> Wor
         )
     } else {
         let boundary = scratch.join("snapshot");
-        let manifest = crate::outbound::context::adapters::local::adapter::materialize(
+        let manifest = crate::outbound::context::interface::ContextPort::materialize(
+            &crate::outbound::context::factory::local(),
             &boundary,
             &CaseContext {
                 logical_root: "project".into(),
@@ -173,7 +177,7 @@ fn request(scenario: Scenario, scratch: &Path, rules: std::path::PathBuf) -> Wor
     };
     WorkerRequest {
         performance: Default::default(),
-        selected_rules: Some(vec![
+        selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(vec![
             RuleId::try_from(if matches!(scenario, Scenario::ConfigureRefusal) {
                 "R404"
             } else {
@@ -181,9 +185,9 @@ fn request(scenario: Scenario, scratch: &Path, rules: std::path::PathBuf) -> Wor
             })
             .unwrap(),
         ]),
-        rule_observations: None,
-        rule_context: None,
-        project_search_roots: None,
+        rule_observations: ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+        rule_context: ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+        project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
         given_project_inventory: Default::default(),
         project_context_mode: mode,
         context_manifest: manifest,
@@ -191,8 +195,8 @@ fn request(scenario: Scenario, scratch: &Path, rules: std::path::PathBuf) -> Wor
         rules,
         query_modules: BTreeMap::new(),
         rule_applicability: BTreeMap::new(),
-        parser_configuration: None,
-        source_language: None,
+        parser_configuration: ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
+        source_language: ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
         files: vec![RelativePath(file.into())],
         state: WorkerState::Fresh,
     }

@@ -5,6 +5,8 @@ use std::path::Path;
 /// verify_reference_cases with required borrowed boundaries.
 pub struct VerifyReferenceCasesUseCaseImpl<'a> {
     suite: &'a dyn crate::outbound::suite::interface::SuitePort,
+    receipts: &'a dyn crate::outbound::receipts::interface::ReceiptsPort,
+    context: &'a dyn crate::outbound::context::interface::ContextPort,
     reference: &'a dyn crate::outbound::linter::interface::LinterPort,
     execution: &'a dyn crate::outbound::execution::interface::ExecutionPort,
     inventory: &'a dyn crate::outbound::inventory::interface::InventoryPort,
@@ -14,12 +16,16 @@ impl<'a> VerifyReferenceCasesUseCaseImpl<'a> {
     #[must_use]
     pub fn new(
         suite: &'a dyn crate::outbound::suite::interface::SuitePort,
+        receipts: &'a dyn crate::outbound::receipts::interface::ReceiptsPort,
+        context: &'a dyn crate::outbound::context::interface::ContextPort,
         reference: &'a dyn crate::outbound::linter::interface::LinterPort,
         execution: &'a dyn crate::outbound::execution::interface::ExecutionPort,
         inventory: &'a dyn crate::outbound::inventory::interface::InventoryPort,
     ) -> Self {
         Self {
             suite,
+            receipts,
+            context,
             reference,
             execution,
             inventory,
@@ -29,9 +35,11 @@ impl<'a> VerifyReferenceCasesUseCaseImpl<'a> {
 impl VerifyReferenceCasesUseCase for VerifyReferenceCasesUseCaseImpl<'_> {
     fn verify_reference_cases(&self, rules: &Path, scratch: &Path) -> Result<ryo_benchmark_contracts::domain::workloads::types::reference_case_count::value::ReferenceCaseCount, ReportsError>{
         let cases =
-            crate::application::case_preparation::service::cases(self.suite, rules, scratch)?;
-        crate::application::run::service::verify_prepared_reference_cases(
+            crate::application::case_preparation::service::cases(self.suite, self.context, rules, scratch)?;
+        super::service::verify_prepared_reference_cases(
             self.suite,
+            self.receipts,
+            self.context,
             self.reference,
             self.execution,
             self.inventory,

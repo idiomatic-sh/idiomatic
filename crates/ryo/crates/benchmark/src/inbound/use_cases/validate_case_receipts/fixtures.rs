@@ -1,6 +1,11 @@
 //! The shared producer fixture crosses the real injected filesystem receipt boundary.
 use super::interface::ValidateCaseReceiptsUseCase;
+use ryo_benchmark_contracts::domain::receipts::types::CaseKey;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
+use ryo_benchmark_contracts::domain::requests::types::RuleLabel;
+use ryo_benchmark_contracts::domain::workloads::types::{
+    benchmark_case_name::value::BenchmarkCaseName, case_count::value::CaseCount,
+};
 #[derive(Clone, Copy)]
 pub enum Scenario {
     Complete,
@@ -50,10 +55,16 @@ pub fn exercise(
     match use_case.validate_case_receipts(&registration_path, &receipts) {
         Ok(audit) => {
             assert!(audit.errors.is_empty(), "{:?}", audit.errors);
-            assert_eq!(audit.verified, vec![("A001".into(), "mode".into())]);
-            assert_eq!(audit.raw_exact, 1);
+            assert_eq!(
+                audit.verified,
+                vec![CaseKey {
+                    rule: RuleLabel("A001".into()),
+                    name: BenchmarkCaseName("mode".into()),
+                }]
+            );
+            assert_eq!(audit.raw_exact, CaseCount(1));
             assert_eq!(audit.metadata_verified.len(), 1);
-            Ok(audit.case_count)
+            Ok(audit.case_count.0)
         }
         Err(ReportsError::Invalid(message)) => {
             let key = missing.expect("complete fixture must decode and verify");

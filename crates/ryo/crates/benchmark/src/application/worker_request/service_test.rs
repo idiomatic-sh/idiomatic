@@ -75,17 +75,17 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     };
     let request = WorkerRequest {
         performance: Default::default(),
-        selected_rules: Some(vec![ryo::linter::RuleId::try_from("R1").unwrap()]),
-        rule_observations: None,
-        rule_context: None,
-        project_search_roots: None,
+        selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(vec![ryo::linter::RuleId::try_from("R1").unwrap()]),
+        rule_observations: ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+        rule_context: ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+        project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
         given_project_inventory: Default::default(),
         project_context_mode: if matches!(scenario, Scenario::WrongMode) {
             ProjectContextMode::Isolated
         } else {
             ProjectContextMode::ListedDisk
         },
-        context_manifest: Some(ContextManifest {
+        context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Sealed(ContextManifest {
             boundary: PathBuf::from("/snapshot"),
             logical_root: PathBuf::from("project"),
             auxiliary_files: BTreeMap::new(),
@@ -99,8 +99,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         rules: PathBuf::from("rules"),
         query_modules: BTreeMap::new(),
         rule_applicability: BTreeMap::new(),
-        parser_configuration: None,
-        source_language: None,
+        parser_configuration: ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
+        source_language: ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
         files: vec![
             ryo::linter::RelativePath("readable.py".into()),
             ryo::linter::RelativePath("missing.py".into()),
@@ -173,25 +173,25 @@ fn actual_sdk_executes_missing_input_facts_but_refuses_unmodeled_provider_unread
     .unwrap();
     let request = WorkerRequest {
         performance: Default::default(),
-        selected_rules: Some(vec![ryo::linter::RuleId::try_from("R1").unwrap()]),
-        rule_observations: None,
-        rule_context: None,
-        project_search_roots: None,
+        selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(vec![ryo::linter::RuleId::try_from("R1").unwrap()]),
+        rule_observations: ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+        rule_context: ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+        project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
         given_project_inventory: Default::default(),
         project_context_mode: ProjectContextMode::ListedDisk,
-        context_manifest: Some(manifest),
+        context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Sealed(manifest),
         root: boundary.join("project"),
         rules,
         query_modules: Default::default(),
         rule_applicability: Default::default(),
-        parser_configuration: None,
-        source_language: None,
+        parser_configuration: ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
+        source_language: ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
         files: vec![ryo::linter::RelativePath("missing.py".into())],
         state: WorkerState::Fresh,
     };
     let engine = crate::outbound::engine::factory::local_with_frontend_diagnostic(
         ryo::linter::Languages::default(), None,
-        crate::outbound::engine::factory::FrontendDiagnosticProjection {
+        crate::outbound::engine::types::FrontendDiagnosticProjection {
             rule: ryo::linter::RuleId::try_from("P001").unwrap(),
             query: ryo::query::RyoQlQuery::try_from("let diagnostics = select id, file, span from \"syntax-error\"; emit diagnostics subject file key(id);").unwrap(),
         },
@@ -214,7 +214,7 @@ fn actual_sdk_executes_missing_input_facts_but_refuses_unmodeled_provider_unread
         ryo::linter::SourceText("value = 1\n".into()),
     )]
     .into();
-    readable.context_manifest = Some(
+    readable.context_manifest = ryo_benchmark_contracts::domain::requests::types::ContextSeal::Sealed(
         crate::outbound::context::adapters::local::adapter::materialize(
             &boundary,
             &CaseContext {

@@ -35,7 +35,8 @@ fn verify(
 ) -> Result<usize, ReportsError> {
     let inventory = crate::outbound::inventory::factory::local();
     let context = crate::outbound::context::factory::local();
-    VerifyReferenceCasesUseCaseImpl::new(suite, &context, reference, execution, &inventory)
+    let receipts = crate::outbound::receipts::fixtures::fake::ReceiptsFake::default();
+    VerifyReferenceCasesUseCaseImpl::new(suite, &receipts, &context, reference, execution, &inventory)
         .verify_reference_cases(rules, scratch)
         .map(|count| count.0)
 }

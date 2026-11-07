@@ -1,14 +1,69 @@
 //! The shared preparation boundary rejects physical drift before linter preparation.
-use super::*;
+use super::service::{candidate, run as run_case};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::{execution::fixtures::fake::ExecutionFake, linter::interface::LinterPort};
-use ryo_benchmark_contracts::domain::measurements::types::Invocation;
-use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
-use ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata;
-use ryo_benchmark_contracts::domain::reports::types::RunReport;
-use ryo_benchmark_contracts::domain::requests::types::RunRequest;
-use ryo_benchmark_contracts::domain::workloads::types::CaseComparison;
-use ryo_benchmark_contracts::domain::workloads::types::PreparedCase;
+use ryo_benchmark_contracts::domain::artifacts::types::FileExecutable;
+use ryo_benchmark_contracts::domain::measurements::types::{Invocation, ProcessOutput};
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::reports::types::{
+    CoverageAccounting, ExecutionMetadata, ProjectContext, RunReport,
+};
+use ryo_benchmark_contracts::domain::requests::types::{
+    CohortSelection, ContextSeal, FileMetadataDeclaration, InputDeclaration,
+    RuleContextPreparation, RunRequest, SearchRoots, StagedSources,
+};
+use ryo_benchmark_contracts::domain::workloads::types::{
+    CaseComparison, PreparedCase, PreparedReferenceBehavior,
+};
 use std::{cell::Cell, collections::BTreeMap};
+
+/// What a drift scenario establishes once its assertions hold.
+#[derive(Debug, PartialEq, Eq)]
+enum Outcome {
+    Blocked,
+}
+
+/// Which physical drift a row exercises.
+#[derive(Clone, Copy)]
+enum Scenario {
+    #[cfg(unix)]
+    ModeDrift,
+    DeclaredMissing,
+}
+
+type Input = Scenario;
+type Failure = ();
+
+const CASES: &[Case<Input, Outcome, Failure>] = &[
+    #[cfg(unix)]
+    Case {
+        name: CaseName("metadata drift blocks each attempt before prepare with a live positive control"),
+        word: Word::Succeeds,
+        input: || Scenario::ModeDrift,
+        expect: Expect::Value(Outcome::Blocked),
+    },
+    Case {
+        name: CaseName("a declared missing primary is reverified before both contestants prepare"),
+        word: Word::Succeeds,
+        input: || Scenario::DeclaredMissing,
+        expect: Expect::Value(Outcome::Blocked),
+    },
+];
+
+fn subject(scenario: Input) -> Result<Outcome, Failure> {
+    match scenario {
+        #[cfg(unix)]
+        Scenario::ModeDrift => metadata_drift_blocks_each_attempt(),
+        Scenario::DeclaredMissing => declared_missing_primary_is_reverified(),
+    }
+    Ok(Outcome::Blocked)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
 struct ObservedPrepare(Cell<usize>);
 impl LinterPort for ObservedPrepare {
     fn rule_configuration(
@@ -25,8 +80,7 @@ impl LinterPort for ObservedPrepare {
     }
 }
 #[cfg(unix)]
-#[test]
-fn metadata_drift_blocks_each_attempt_before_prepare_with_a_live_positive_control() {
+fn metadata_drift_blocks_each_attempt() {
     use std::os::unix::fs::PermissionsExt as _;
     for expected in [false, true] {
         let root = tempfile::tempdir().unwrap();
@@ -41,32 +95,36 @@ fn metadata_drift_blocks_each_attempt_before_prepare_with_a_live_positive_contro
             name: "mode".into(),
             request: RunRequest {
                 performance: Default::default(),
-                selected_rules: None,
-                rule_observations: None,
-                rule_context: None,
-                project_search_roots: None,
+                selected_rules: CohortSelection::Frozen,
+                rule_observations: InputDeclaration::Undeclared,
+                rule_context: RuleContextPreparation::Unconfigured,
+                project_search_roots: SearchRoots::Undeclared,
                 given_project_inventory: Default::default(),
-                staged_sources: None,
-                file_metadata: Some(BTreeMap::from([(file.clone(), expected)])),
-                context_manifest: None,
+                staged_sources: StagedSources::Unlisted,
+                file_metadata: FileMetadataDeclaration::Declared(BTreeMap::from([(
+                    file.clone(),
+                    if expected { FileExecutable::Set } else { FileExecutable::Unset },
+                )])),
+                context_manifest: ContextSeal::Unsealed,
                 root: root.path().to_path_buf(),
                 files: vec![file.clone()],
                 state: root.path().join("cache"),
             },
             expected: RunReport {
                 execution_metadata: ExecutionMetadata::Complete,
-                project_context: None,
+                project_context: ProjectContext::NotRequested,
                 diagnostics: Vec::new(),
                 skipped: Vec::new(),
-                coverage: None,
+                coverage: CoverageAccounting::Unaccounted,
                 files: vec![file],
             },
-            reference_discrepancy: None,
+            reference_discrepancy: PreparedReferenceBehavior::Agrees,
         };
         let execution = ExecutionFake::default();
         let reference = ObservedPrepare(Cell::new(0));
-        let result = run(
+        let result = run_case(
             &crate::outbound::suite::factory::local(),
+            &crate::outbound::context::factory::local(),
             &reference,
             &execution,
             &case,
@@ -87,8 +145,9 @@ fn metadata_drift_blocks_each_attempt_before_prepare_with_a_live_positive_contro
         .unwrap();
         let candidate = ObservedPrepare(Cell::new(0));
         assert!(
-            super::candidate(
+            candidate(
                 &crate::outbound::suite::factory::local(),
+            &crate::outbound::context::factory::local(),
                 &candidate,
                 &execution,
                 &case.request
@@ -98,8 +157,9 @@ fn metadata_drift_blocks_each_attempt_before_prepare_with_a_live_positive_contro
         assert_eq!(candidate.0.get(), 0);
         std::fs::set_permissions(&path, std::fs::Permissions::from_mode(mode)).unwrap();
         assert!(
-            super::candidate(
+            candidate(
                 &crate::outbound::suite::factory::local(),
+            &crate::outbound::context::factory::local(),
                 &candidate,
                 &execution,
                 &case.request
@@ -113,8 +173,9 @@ fn metadata_drift_blocks_each_attempt_before_prepare_with_a_live_positive_contro
     }
 }
 
-#[test]
-fn declared_missing_primary_is_reverified_before_both_contestants_prepare() {
+
+fn declared_missing_primary_is_reverified() {
+    use crate::outbound::context::interface::ContextPort as _;
     use ryo_benchmark_contracts::domain::context::types::CaseContext;
     let scratch = tempfile::tempdir().unwrap();
     let boundary = scratch.path().join("snapshot");
@@ -123,7 +184,7 @@ fn declared_missing_primary_is_reverified_before_both_contestants_prepare() {
         ryo::linter::SourceText("x = 1\n".into()),
     )]
     .into();
-    let manifest = crate::outbound::context::adapters::local::adapter::materialize(
+    let manifest = crate::outbound::context::factory::local().materialize(
         &boundary,
         &CaseContext {
             logical_root: "project".into(),
@@ -144,27 +205,27 @@ fn declared_missing_primary_is_reverified_before_both_contestants_prepare() {
         name: "missing".into(),
         request: RunRequest {
             performance: Default::default(),
-            selected_rules: None,
-            rule_observations: None,
-            rule_context: None,
-            project_search_roots: None,
+            selected_rules: CohortSelection::Frozen,
+            rule_observations: InputDeclaration::Undeclared,
+            rule_context: RuleContextPreparation::Unconfigured,
+            project_search_roots: SearchRoots::Undeclared,
             given_project_inventory: Default::default(),
-            staged_sources: None,
-            file_metadata: None,
-            context_manifest: Some(manifest),
+            staged_sources: StagedSources::Unlisted,
+            file_metadata: FileMetadataDeclaration::Undeclared,
+            context_manifest: ContextSeal::Sealed(manifest),
             root: root.clone(),
             files: files.clone(),
             state: scratch.path().join("cache"),
         },
         expected: RunReport {
             execution_metadata: ExecutionMetadata::Complete,
-            project_context: None,
+            project_context: ProjectContext::NotRequested,
             diagnostics: Vec::new(),
             skipped: Vec::new(),
-            coverage: None,
+            coverage: CoverageAccounting::Unaccounted,
             files,
         },
-        reference_discrepancy: None,
+        reference_discrepancy: PreparedReferenceBehavior::Agrees,
     };
     let execution = ExecutionFake::default();
     let observed = ObservedPrepare(Cell::new(0));
@@ -176,14 +237,16 @@ fn declared_missing_primary_is_reverified_before_both_contestants_prepare() {
             std::fs::remove_file(&path).unwrap();
         }
         let before = observed.0.get();
-        let candidate = super::candidate(
+        let candidate = candidate(
             &crate::outbound::suite::factory::local(),
+            &crate::outbound::context::factory::local(),
             &observed,
             &execution,
             &case.request,
         );
-        let reference = run(
+        let reference = run_case(
             &crate::outbound::suite::factory::local(),
+            &crate::outbound::context::factory::local(),
             &observed,
             &execution,
             &case,

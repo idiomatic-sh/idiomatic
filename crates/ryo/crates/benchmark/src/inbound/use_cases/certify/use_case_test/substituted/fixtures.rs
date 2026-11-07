@@ -99,7 +99,7 @@ pub(in crate::inbound::use_cases::certify::use_case_test) fn identical(changed: 
     match route {
         Route::Certify => f.certify_profile(&foreign).map(|_| 0),
         Route::Prepare => {
-            let suite = crate::outbound::suite::factory::local(crate::outbound::suite::types::CaseReceipts::Unrecorded);
+            let suite = crate::outbound::suite::factory::local();
             let tool = suite
                 .profile(crate::outbound::suite::types::ArtifactPath(&f.profile))
                 .unwrap();

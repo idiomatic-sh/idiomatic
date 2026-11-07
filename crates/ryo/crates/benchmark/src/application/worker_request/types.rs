@@ -3,7 +3,7 @@ use crate::outbound::engine::types::PreparedMissingInputs;
 use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
 
 /// The request and its sealed missing-input decision remain paired until dispatch.
-pub struct PreparedRequest {
+pub struct PreparedWorkerRequest {
     /// Original ordered transport inventory.
     pub request: WorkerRequest,
     /// Paths proved absent by the matching sealed context.
