@@ -13,7 +13,7 @@ fn prepare_cycles(
     destination: ColumnIndex,
 ) -> Result<super::derived::owner::acquisition::admission::service::AcquiredView, OperatingError> {
     let owner = super::relations::RelationOwner::new(
-        crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
+        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
         (std::sync::Arc::new(
             ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
@@ -53,7 +53,7 @@ fn prepare_closure(
 ) -> Result<Vec<super::derived::owner::acquisition::admission::service::AcquiredView>, OperatingError>
 {
     let owner = std::rc::Rc::new(super::relations::RelationOwner::new(
-        crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
+        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
         (std::sync::Arc::new(
             ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),

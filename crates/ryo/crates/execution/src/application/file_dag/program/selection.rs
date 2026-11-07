@@ -26,7 +26,7 @@ pub(super) fn acquire(
     let input = permit.selection_input(shape)?;
     let publication = input.publication(owner)?;
     let proof = owner.admit(publication.as_ref(), BorrowedRows::from(rows))?;
-    if owner.stable() == crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Ineligible {
+    if owner.stable() == crate::application::file_dag::relations::types::ReuseEligibility::Ineligible {
         return Ok(None);
     }
     let Rows::Stored(columns) = rows else {

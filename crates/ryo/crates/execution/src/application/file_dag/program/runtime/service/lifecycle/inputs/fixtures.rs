@@ -109,7 +109,7 @@ pub(in super::super) fn compiled() -> CompiledCase {
         roots[0], roots[1],
         "distinct source roots must remain distinct"
     );
-    let owner = Rc::new(RelationOwner::new(crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible, semantic));
+    let owner = Rc::new(RelationOwner::new(crate::application::file_dag::relations::types::ReuseEligibility::Eligible, semantic));
     let partition = Partition::File(
         crate::application::file_dag::program::admission::FileGeneration::from_owner(
             FileId(0),

@@ -1,6 +1,6 @@
 //! One request of two rules whose second has a step beyond its operator contract answers the second rule's error through the
 //! public file owner while the first rule delivers its rows: preparation succeeds, and the error is the second rule's alone.
-use crate::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use super::super::super::use_case::ExecutionUseCaseImpl;
 use crate::inbound::use_cases::execution::interface::ExecutionUseCase;
 use crate::outbound::facts::types::ResidentStability;
 use super::super::super::fixtures;

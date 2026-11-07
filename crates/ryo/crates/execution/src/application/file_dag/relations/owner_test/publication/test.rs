@@ -4,7 +4,7 @@ use super::super::*;
 #[test]
 fn lazy_source_normalization_is_shared_and_lives_until_the_last_consumer() {
     let owner = RelationOwner::new(
-        crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
+        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
         (std::sync::Arc::new(
             ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
@@ -61,7 +61,7 @@ fn lazy_source_normalization_is_shared_and_lives_until_the_last_consumer() {
 fn computed_publication_clones_keep_required_backing_until_last_handle_in_live_generation() {
     use ryo_values::domain::rows::types::{RowCount, Table};
     let owner = RelationOwner::new(
-        crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
+        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
         crate::application::file_dag::testing::program_derived_port(),
     );
     let generation = owner.generation_guard();

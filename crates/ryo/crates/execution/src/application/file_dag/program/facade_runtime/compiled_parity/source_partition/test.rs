@@ -139,7 +139,7 @@ fn subject(case: Input) -> Result<Value, Failure> {
         handover.validate_scope(prepared.program(), &required)?;
         return Ok("frontier-scope");
     }
-    let owner = open_program_owner(prepared.program(), Arc::clone(&derived), crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible);
+    let owner = open_program_owner(prepared.program(), Arc::clone(&derived), crate::application::file_dag::relations::types::ReuseEligibility::Eligible);
     let project = Partition::Project(required);
     let scope = if project_case {
         project.clone()
@@ -186,7 +186,7 @@ fn subject(case: Input) -> Result<Value, Failure> {
         }
     };
     let walk_owner = if matches!(case, SourceCase::ForeignWalkGeneration) {
-        open_program_owner(prepared.program(), Arc::clone(&derived), crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible)
+        open_program_owner(prepared.program(), Arc::clone(&derived), crate::application::file_dag::relations::types::ReuseEligibility::Eligible)
     } else {
         Rc::clone(&owner)
     };

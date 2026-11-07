@@ -107,7 +107,7 @@ fn drive(
     } else {
         program_derived_port()
     };
-    let owner = Rc::new(RelationOwner::new(crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible, port));
+    let owner = Rc::new(RelationOwner::new(crate::application::file_dag::relations::types::ReuseEligibility::Eligible, port));
     let mut leaked = None;
     let actual = acquire(kind, scenario, Rc::clone(&owner), release, &mut leaked);
     owner.release_population();

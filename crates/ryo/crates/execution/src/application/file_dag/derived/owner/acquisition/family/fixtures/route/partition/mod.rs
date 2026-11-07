@@ -10,7 +10,7 @@ use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::rc::Rc;
 
 pub(super) fn partition(kind: DerivedKind, exit: Exit) -> Result<DerivedKind, OperatingError> {
-    let owner = Rc::new(RelationOwner::new(crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible, program_derived_port()));
+    let owner = Rc::new(RelationOwner::new(crate::application::file_dag::relations::types::ReuseEligibility::Eligible, program_derived_port()));
     let result = through_partition(kind, exit, &owner);
     owner.release_population();
     released(kind, exit, owner.derived().publication_ownership_bytes());

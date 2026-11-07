@@ -1,6 +1,8 @@
 //! Compact adjacency matches the actual public closure owner without enumerating unrelated roots.
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use super::super::super::fixtures;
+use crate::domain::operating::errors::OperatingError;
+use ryo_values::domain::rows::errors::RowsError;
 
 use crate::application::file_dag::testing::CompleteTableRows;
 use crate::domain::stored_graph::types::traversal::value::GraphTraversal;
@@ -185,24 +187,24 @@ fn sparse_demand_work_is_independent_of_unrelated_components() -> Result<(), Fai
 
 fn invalid_columns_are_rejected_even_on_empty_edges() -> Result<(), Failure> {
     let edges = table(&[], 2);
-    assert!(
+    assert!(matches!(
         build(
             identity(vec![], 0),
             &Rows::Computed(&edges),
             [ColumnIndex(0), ColumnIndex(2)],
             &[]
-        )
-        .is_err()
-    );
-    assert!(
+        ),
+        Err(OperatingError::Table(RowsError::NoSuchColumn { .. }))
+    ));
+    assert!(matches!(
         build(
             identity(vec![ColumnIndex(3)], 0),
             &Rows::Computed(&edges),
             [ColumnIndex(0), ColumnIndex(1)],
             &[ColumnIndex(3)]
-        )
-        .is_err()
-    );
+        ),
+        Err(OperatingError::Table(RowsError::NoSuchColumn { .. }))
+    ));
     Ok(())
 }
 

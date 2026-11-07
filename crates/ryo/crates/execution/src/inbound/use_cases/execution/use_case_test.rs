@@ -1,7 +1,6 @@
 //! A request execution begins over a prepared program, and its file owner reuses only recognized stable sources.
 use super::fixtures::{Authored, Preparation};
 use super::{interface::ExecutionUseCase, use_case::ExecutionUseCaseImpl};
-use crate::application::file_dag::program::facade_runtime::types::ReuseEligibility;
 use crate::application::file_dag::program::file_session::interface::FileExecution;
 use crate::application::file_dag::program::file_session::types::{FileInput, SourceLanguage};
 use crate::application::file_dag::program::request_execution::interface::ExecutionRequest;
@@ -24,7 +23,7 @@ enum Scenario {
 #[derive(Debug, PartialEq, Eq)]
 enum Outcome {
     Finished,
-    Reuse(ReuseEligibility),
+    Reuse(bool),
 }
 type Input = Scenario;
 type Value = Outcome;
@@ -40,30 +39,23 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName(stringify!(a_recognized_stable_source_is_reused)),
         word: Word::Succeeds,
         input: || Scenario::File(SourceLanguage::Recognized, ResidentStability::Stable),
-        expect: Expect::Value(Outcome::Reuse(ReuseEligibility::Eligible)),
+        expect: Expect::Value(Outcome::Reuse(true)),
     },
     Case {
         name: CaseName(stringify!(an_unstable_source_is_not_reused)),
         word: Word::Succeeds,
         input: || Scenario::File(SourceLanguage::Recognized, ResidentStability::Unstable),
-        expect: Expect::Value(Outcome::Reuse(ReuseEligibility::Ineligible)),
+        expect: Expect::Value(Outcome::Reuse(false)),
     },
     Case {
         name: CaseName(stringify!(an_unrecognized_source_is_not_reused)),
         word: Word::Succeeds,
         input: || Scenario::File(SourceLanguage::Unrecognized, ResidentStability::Stable),
-        expect: Expect::Value(Outcome::Reuse(ReuseEligibility::Ineligible)),
+        expect: Expect::Value(Outcome::Reuse(false)),
     },
 ];
 fn subject(input: Input) -> Result<Value, Failure> {
-    let prepare = Preparation::new(
-        Arc::new(
-            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(Arc::new(
-                ryo_operators::outbound::matching::factory::use_case(),
-            )),
-        ),
-        Arc::new(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new()),
-    );
+    let prepare = Preparation::real();
     let prepared = prepare.prepare(Authored { plans: vec![],
             bindings: vec![], rules: vec![],
         digests: vec![],
@@ -103,7 +95,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
                 },
                 &mut symbols,
             )?;
-            let eligibility = file.inner.source_reuse_eligible();
+            let eligibility = file.reuse_eligible();
             file.finish()?;
             Ok(Outcome::Reuse(eligibility))
         }

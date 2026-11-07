@@ -1,7 +1,7 @@
 //! Canonical stored graph acquisition and hosted ordinary traversal publish identical ordered bags.
 use super::super::super::fixtures::{Authored, Preparation};
 use crate::outbound::facts::types::ResidentStability;
-use crate::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use super::super::super::use_case::ExecutionUseCaseImpl;
 use crate::inbound::use_cases::execution::interface::ExecutionUseCase;
 use super::super::super::fixtures;
 use crate::application::file_dag::program::file_session::types::FileInput;
@@ -92,12 +92,7 @@ fn plan(direction: Direction, stored: bool, projected: bool) -> Plan {
     ])
 }
 fn execute(stored: bool, projected: bool) -> Result<Vec<Table>, OperatingError> {
-    let engine = Preparation::new(
-        Arc::new(
-            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
-        ),
-        Arc::new(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new()),
-    );
+    let engine = Preparation::real();
     let plans = DIRECTIONS
         .into_iter()
         .map(|d| plan(d, stored, projected))

@@ -1,4 +1,5 @@
 //! The public protocol is the only execution entry used by these controls.
+use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
 use ryo_execution::outbound::query_language::errors::QueryLanguageError;
 use ryo_execution::outbound::query_language::interface::QueryLanguagePort;
 use ryo_execution::outbound::facts::types::ResidentStability;

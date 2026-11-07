@@ -21,7 +21,7 @@ pub(crate) struct ResourceFixture {
 impl ResourceFixture {
     pub(crate) fn new(wanted: &[Relation], partials: &[Partial], limit: usize) -> Option<Self> {
         let owner = Rc::new(RelationOwner::new(
-            crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
+            crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
             crate::application::file_dag::testing::program_derived_port(),
         ));
         let plans = wanted

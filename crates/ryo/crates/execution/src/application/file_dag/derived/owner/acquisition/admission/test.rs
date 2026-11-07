@@ -99,7 +99,7 @@ fn table() -> Table {
     }
 }
 fn subject(input: Input) -> Result<(), Failure> {
-    let owner = RelationOwner::new(crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible, program_derived_port());
+    let owner = RelationOwner::new(crate::application::file_dag::relations::types::ReuseEligibility::Eligible, program_derived_port());
     let publication = owner.computed(table())?;
     let rows = owner.resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))?;
     let proof = owner.admit(publication.as_ref(), BorrowedRows::from(&rows))?;
@@ -124,7 +124,7 @@ fn subject(input: Input) -> Result<(), Failure> {
     let original = [proof.rows()];
     match input {
         Input::ForeignOwner => {
-            let foreign = RelationOwner::new(crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible, program_derived_port());
+            let foreign = RelationOwner::new(crate::application::file_dag::relations::types::ReuseEligibility::Eligible, program_derived_port());
             foreign
                 .derived()
                 .acquire_stored(

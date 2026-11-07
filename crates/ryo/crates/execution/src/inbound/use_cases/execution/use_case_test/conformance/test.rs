@@ -2,7 +2,7 @@
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use super::super::super::fixtures::{Authored, Preparation};
 use crate::outbound::facts::types::ResidentStability;
-use crate::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use super::super::super::use_case::ExecutionUseCaseImpl;
 use crate::inbound::use_cases::execution::interface::ExecutionUseCase;
 use super::super::super::fixtures as owner_fixtures;
 use crate::application::file_dag::program::file_session::types::FileInput;
@@ -95,9 +95,7 @@ pub(in super::super) fn compare_delivery_with_semantic(
         stop,
         semantic,
         refusal,
-        Arc::new(
-            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
-        ),
+        Arc::new(owner_fixtures::operators()),
     )
 }
 /// This helper only drives supported owner APIs. It cannot invoke a primitive,
@@ -333,6 +331,7 @@ impl ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase
         use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
         use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
         use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
+        use ryo_operators::domain::set_rows::errors::SetRowsError;
         use ryo_operators::domain::set_rows::types::SetInput;
         use ryo_operators::domain::set_rows::types::SetKind;
         match call {
@@ -350,15 +349,17 @@ impl ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase
                 let refusal = driver.contains_right(row);
                 let later_emit = driver.emit(row);
                 let later_lookup = driver.first_time(row);
-                if first.is_ok() && refusal.is_err() && later_emit.is_err() && later_lookup.is_err()
+                if matches!(first, Ok(()))
+                    && matches!(refusal, Err(SetRowsError::Interrupted))
+                    && matches!(later_emit, Err(SetRowsError::Interrupted))
+                    && matches!(later_lookup, Err(SetRowsError::Interrupted))
                 {
                     self.0.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                 }
                 Ok(OperatorAnswer::Written)
             }
             other => {
-                ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case()))
-                    .operators(other)
+                owner_fixtures::operators().operators(other)
             }
         }
     }

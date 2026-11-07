@@ -203,7 +203,7 @@ pub(super) fn run(
             }],
             services,
             source,
-            crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
+            crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
             symbols,
             None,
             None)?;

@@ -1,5 +1,5 @@
 //! Binary operators must demand the refusing RHS after a real nonempty successful LHS.
-use crate::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use super::super::super::use_case::ExecutionUseCaseImpl;
 use crate::inbound::use_cases::execution::interface::ExecutionUseCase;
 use crate::outbound::facts::types::ResidentStability;
 use super::super::super::fixtures;

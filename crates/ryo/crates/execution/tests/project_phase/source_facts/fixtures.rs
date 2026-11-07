@@ -7,7 +7,6 @@ use ryo_execution::outbound::facts::interface::FactsWorker;
 use ryo_execution::outbound::facts::types::KeptBucket;
 use ryo_execution::outbound::facts::types::ResidentStability;
 use ryo_execution::outbound::facts::types::WordsToKeep;
-use ryo_execution::inbound::use_cases::execution::types::facts;
 use ryo_execution::inbound::use_cases::execution::interface::CapturedFrontier;
 use ryo_relations::domain::relations::{
     fixtures::kinds,

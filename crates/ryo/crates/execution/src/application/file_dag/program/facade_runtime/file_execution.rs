@@ -9,8 +9,9 @@ use crate::application::file_dag::program::constants::{
 use crate::application::file_dag::program::facade_runtime::source_admission::table_of;
 use crate::application::file_dag::program::facade_runtime::types::ProgramServices;
 use crate::application::file_dag::program::facade_runtime::types::{
-    FileRoot, FrontierCommit, ObservationKey, PreparedNamed, ReuseEligibility, WalkPreparation,
+    FileRoot, FrontierCommit, ObservationKey, PreparedNamed, WalkPreparation,
 };
+use crate::application::file_dag::relations::types::ReuseEligibility;
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use crate::domain::rule_intent::types::FileRuleIntent;
 use crate::domain::operator::types::LogicalCounts;

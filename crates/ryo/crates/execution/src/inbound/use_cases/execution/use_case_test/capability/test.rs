@@ -1,7 +1,7 @@
 //! Recursive producers and roots use the actual injected semantic capability, with terminal refusal.
 use super::super::super::fixtures::{Authored, Preparation};
 use crate::outbound::facts::types::ResidentStability;
-use crate::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use super::super::super::use_case::ExecutionUseCaseImpl;
 use crate::inbound::use_cases::execution::interface::ExecutionUseCase;
 use super::super::super::fixtures;
 use crate::application::file_dag::program::file_session::types::FileInput;
@@ -21,7 +21,6 @@ use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
 use ryo_operators::domain::contract::types::PortableOperatorFault;
-use ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl;
 use ryo_values::{
     cases::{Case, CaseName, Expect, Word, run},
     domain::{
@@ -72,7 +71,7 @@ impl OperatorsUseCase for ObservedSemantics {
         if refuse {
             Err(PortableOperatorFault::ShapeMismatch)
         } else {
-            OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())).operators(call)
+            fixtures::operators().operators(call)
         }
     }
 }

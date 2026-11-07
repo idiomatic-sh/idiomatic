@@ -46,7 +46,7 @@ fn plan() -> Arc<DerivedContract> {
 
 fn owner(entries: EntryLimit) -> RelationOwner {
     let mut owner = RelationOwner::new(
-        crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
+        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
         crate::application::file_dag::testing::program_derived_port(),
     );
     owner.derived_mut().max_entries = entries;

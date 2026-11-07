@@ -228,7 +228,7 @@ impl CapturedProject {
             &intents,
             Arc::clone(&services),
             ryo_values::domain::files::types::SourceView(b""),
-            crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
+            crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
             symbols,
             None,
             None)?;

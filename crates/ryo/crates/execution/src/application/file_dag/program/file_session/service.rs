@@ -15,6 +15,7 @@ use crate::domain::rule_intent::types::RuleDemand;
 use crate::domain::shared_walk::types::WalkCounts;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::stored_facts::types::Bucket;
+use crate::application::file_dag::relations::types::ReuseEligibility;
 impl FileExecution for FileSession<'_, '_> {
     fn readiness_counts(&self) -> ReadinessCounts {
         self.inner.readiness_counts()
@@ -105,4 +106,11 @@ fn source_rows<'a, 'facts: 'a>(
         SourceRows::Stored(columns) => Rows::Stored(columns),
         SourceRows::Computed(table) => Rows::Computed(table),
     })
+}
+
+impl FileSession<'_, '_> {
+    /// Whether the source of this file may be reused by a later run.
+    pub(crate) fn reuse_eligible(&self) -> bool {
+        self.inner.source_reuse_eligible() == ReuseEligibility::Eligible
+    }
 }

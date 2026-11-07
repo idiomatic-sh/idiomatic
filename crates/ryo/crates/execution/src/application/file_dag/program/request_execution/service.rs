@@ -109,9 +109,9 @@ impl ExecutionRequest for RequestExecution {
             if matches!(input.language, SourceLanguage::Recognized)
                 && input.resident_stability == ResidentStability::Stable
             {
-                crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible
+                crate::application::file_dag::relations::types::ReuseEligibility::Eligible
             } else {
-                crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Ineligible
+                crate::application::file_dag::relations::types::ReuseEligibility::Ineligible
             },
             symbols,
             input.semantic,

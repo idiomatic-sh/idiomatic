@@ -190,7 +190,7 @@ pub(crate) fn execute_request(
         }],
         services,
         ryo_values::domain::files::types::SourceView(source),
-        crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
+        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
         symbols,
         None,
         None,

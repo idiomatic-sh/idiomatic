@@ -199,7 +199,13 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 let bindings = [ParameterBinding::Text(LiteralText(pattern.into()))];
                 let (engine, program, mut symbols, _) =
                     prepare(parameter.clone(), Some("alpha"), &bindings, &shadow)?;
-                assert!(program.inner.matchers().regex("a.*").unwrap().is_ok());
+                program
+                    .inner
+                    .matchers()
+                    .regex("a.*")
+                    .unwrap()
+                    .as_ref()
+                    .expect("the prepared literal matcher compiled");
                 let actual = evaluate(&engine, &program, &mut symbols)?;
                 assert_eq!((actual.0.count.0, actual.1), (expected, 1));
                 assert_eq!(
@@ -225,7 +231,13 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             for (operation, text) in [(function, "alpha"), (row, "a.*")] {
                 let (engine, program, mut symbols, _) =
                     prepare(operation, Some(text), &[], &shadow)?;
-                assert!(program.inner.matchers().regex("a.*").unwrap().is_ok());
+                program
+                    .inner
+                    .matchers()
+                    .regex("a.*")
+                    .unwrap()
+                    .as_ref()
+                    .expect("the prepared literal matcher compiled");
                 let actual = evaluate(&engine, &program, &mut symbols)?;
                 assert_eq!((actual.0.count.0, actual.1), (1, 1));
                 assert_eq!(builds(&program), 1);

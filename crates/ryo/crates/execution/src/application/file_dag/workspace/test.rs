@@ -352,7 +352,7 @@ use ryo_derived::domain::contract::types::DerivedKind;
 
 fn owner() -> Rc<crate::application::file_dag::relations::RelationOwner> {
     Rc::new(crate::application::file_dag::relations::RelationOwner::new(
-        crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
+        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
         (std::sync::Arc::new(
             ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),

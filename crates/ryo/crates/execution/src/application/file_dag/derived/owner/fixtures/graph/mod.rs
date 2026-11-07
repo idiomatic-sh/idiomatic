@@ -49,9 +49,9 @@ impl GraphFixture {
         let fixture = Self {
             owner: Rc::new(RelationOwner::for_request(
                 if stable {
-                    crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible
+                    crate::application::file_dag::relations::types::ReuseEligibility::Eligible
                 } else {
-                    crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Ineligible
+                    crate::application::file_dag::relations::types::ReuseEligibility::Ineligible
                 },
                 crate::application::file_dag::relations::types::PinnedViewCount(max_views),
                 (std::sync::Arc::new(

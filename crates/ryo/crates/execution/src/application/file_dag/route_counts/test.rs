@@ -190,7 +190,7 @@ fn owner_routes_count_each_physical_equality_build_once() {
         let _rule = rule(2, &RuleId(QUERY_TWO.into()));
         let _node = node(41);
         let owner = RelationOwner::new(
-            crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
+            crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
             crate::application::file_dag::testing::program_derived_port(),
         );
         let proof = owner
@@ -213,7 +213,7 @@ fn owner_routes_count_each_physical_equality_build_once() {
             .unwrap();
         assert!(matches!(held.view().unwrap(), DerivedView::Equality(_)));
         let selector_owner = RelationOwner::new(
-            crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
+            crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
             crate::application::file_dag::testing::program_derived_port(),
         );
         let proof = selector_owner

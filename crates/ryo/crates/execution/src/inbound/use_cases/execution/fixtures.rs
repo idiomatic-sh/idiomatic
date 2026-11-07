@@ -116,7 +116,20 @@ pub(super) struct Preparation {
     operators: Arc<dyn OperatorsPort>,
     derived: DerivedAccess,
 }
+/// The real operators capability, as the engine composes it.
+pub(super) fn operators() -> ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl {
+    ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(Arc::new(
+        ryo_operators::outbound::matching::factory::use_case(),
+    ))
+}
 impl Preparation {
+    /// The preparation over the real operators and derived views.
+    pub(super) fn real() -> Self {
+        Self::new(
+            Arc::new(operators()),
+            Arc::new(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new()),
+        )
+    }
     pub(super) fn new(operators: Arc<dyn OperatorsPort>, derived: Arc<dyn DerivedPort>) -> Self {
         Self {
             operators,
@@ -155,12 +168,7 @@ pub(super) fn prepared_many(
     bindings: Vec<Vec<ParameterBinding>>,
     hosted: Vec<HostRelation>,
 ) -> Result<(Preparation, PreparedExecutionProgram), OperatingError> {
-    let engine = Preparation::new(
-        Arc::new(
-            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
-        ),
-        Arc::new(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new()),
-    );
+    let engine = Preparation::real();
     let rules: Vec<RuleSpec> = (0..plans.len())
         .map(|at| {
             let id = if at == 0 {

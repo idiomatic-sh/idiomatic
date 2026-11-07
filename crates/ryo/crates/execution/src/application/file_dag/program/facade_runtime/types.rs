@@ -16,7 +16,6 @@ pub(super) enum FrontierCommit {
     Pending,
     Committed,
 }
-pub(crate) use crate::application::file_dag::relations::types::ReuseEligibility;
 /// Whether the native walk of a file has bound its roots.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum WalkPreparation {

@@ -122,7 +122,7 @@ impl SelectionFixture {
         plans: &[ryo_values::domain::plans::types::Plan],
     ) -> Result<Self, OperatingError> {
         let owner = Rc::new(RelationOwner::new(
-            crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
+            crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
             (std::sync::Arc::new(
                 ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
             ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),

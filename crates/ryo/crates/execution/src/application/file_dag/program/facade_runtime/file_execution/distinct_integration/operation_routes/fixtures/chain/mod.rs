@@ -221,7 +221,7 @@ pub(crate) fn run_chain(
         }],
         services,
         ryo_values::domain::files::types::SourceView(fixtures::expectations::SOURCE),
-        crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
+        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
         &mut case.symbols,
         Some(&semantic),
         None,
