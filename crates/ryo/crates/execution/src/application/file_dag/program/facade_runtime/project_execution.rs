@@ -277,7 +277,10 @@ pub(crate) fn evaluate_roots<E>(
     let _retire = Retire(
         roots
             .iter()
-            .filter_map(|root| root.run.as_ref().ok().map(|run| run.publication))
+            .filter_map(|root| match &root.run {
+                Ok(run) => Some(run.publication),
+                Err(_) => None,
+            })
             .collect(),
     );
     let mut cohorts = Vec::new();
