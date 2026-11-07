@@ -37,6 +37,14 @@ pub enum MemoryDiagnostics {
     Disabled,
 }
 
+/// The point of a run a memory diagnostic is written at.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct MemoryPhase(pub &'static str);
+
+/// What a memory diagnostic measures.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct MemoryOwner(pub &'static str);
+
 /// The rules to check in a session.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LintRequest {

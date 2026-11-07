@@ -1113,7 +1113,7 @@ impl LintUseCaseImpl {
             let written = read.keep(to_store.stored, &to_store.kept);
             if memory_diagnostics() == MemoryDiagnostics::Enabled {
                 // Ownership moved into the outbound call; this does not claim it freed allocator pages.
-                tracing::trace!(target: LIFECYCLE_MEMORY_DIAGNOSTIC, phase = AFTER_STORE_WRITE, owner = STORE_HANDED, caller_payload_owned = false, success = written.is_ok());
+                tracing::trace!(target: LIFECYCLE_MEMORY_DIAGNOSTIC, phase = AFTER_STORE_WRITE.0, owner = STORE_HANDED.0, caller_payload_owned = false, success = written.is_ok());
             }
             written?;
         }

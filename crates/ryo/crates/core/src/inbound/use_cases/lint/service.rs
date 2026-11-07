@@ -2,7 +2,7 @@
 
 use super::constants::TASK_ANSWERED;
 use super::errors::LintError;
-use super::types::MemoryDiagnostics;
+use super::types::{MemoryDiagnostics, MemoryOwner, MemoryPhase};
 use crate::domain::project::types::Projected;
 use crate::domain::reporting::service::report_refused;
 use ryo_language::domain::files::types::FilePath;
@@ -96,11 +96,11 @@ pub(super) fn memory_diagnostics() -> MemoryDiagnostics {
 
 /// Component capacities are distinct from RSS, allocator retention and unmeasured provider storage.
 pub(super) fn observed_memory(
-    phase: &'static str,
-    owner: &'static str,
+    phase: MemoryPhase,
+    owner: MemoryOwner,
     bytes: ryo_values::domain::stores::types::retention::value::RetainedBytes,
 ) {
-    tracing::trace!(target: LIFECYCLE_MEMORY_DIAGNOSTIC, phase, owner,
+    tracing::trace!(target: LIFECYCLE_MEMORY_DIAGNOSTIC, phase = phase.0, owner = owner.0,
         objects = bytes.objects.0, metadata_capacity_bytes = bytes.metadata.0,
         packed_live_bytes = bytes.packed_live.0, packed_capacity_bytes = bytes.packed_capacity.0,
         staged_objects = bytes.staged_objects.0, staged_payload_bytes = bytes.staged_payload_bytes.0,
@@ -112,7 +112,7 @@ pub(super) fn observed_memory(
 }
 
 /// Record capacity traversal is disabled on the normal lint path.
-pub(super) fn observed_records(phase: &'static str, records: &Vec<Record>) {
+pub(super) fn observed_records(phase: MemoryPhase, records: &Vec<Record>) {
     if memory_diagnostics() == MemoryDiagnostics::Enabled {
         observed_memory(
             phase,
@@ -124,7 +124,7 @@ pub(super) fn observed_records(phase: &'static str, records: &Vec<Record>) {
 
 /// The arena owner survives independently of the normalized text in fresh records.
 pub(super) fn observed_arenas(
-    phase: &'static str,
+    phase: MemoryPhase,
     arenas: &Vec<ryo_values::domain::stored_facts::types::ArenaBytes>,
 ) {
     if memory_diagnostics() == MemoryDiagnostics::Enabled {
@@ -138,7 +138,7 @@ pub(super) fn observed_arenas(
 
 /// Observe the cross-file symbols owned here; execution owns input residency.
 pub(super) fn observed_cross_symbols(
-    phase: &'static str,
+    phase: MemoryPhase,
     symbols: &mut ryo_language::domain::symbols::types::Symbols,
 ) {
     if memory_diagnostics() == MemoryDiagnostics::Enabled {
@@ -158,7 +158,7 @@ pub(super) fn observed_cross_symbols(
 
 /// Worker notes are a separate owner from their normalized record copy.
 pub(super) fn observed_notes(
-    phase: &'static str,
+    phase: MemoryPhase,
     notes: &crate::domain::workers::types::FreshNotes,
 ) {
     if memory_diagnostics() == MemoryDiagnostics::Enabled {
@@ -182,7 +182,7 @@ pub(super) fn memory_rule(
 }
 
 /// Do not walk stored payload metadata on ordinary lints.
-pub(super) fn observed_stored(phase: &'static str, handed: &StoredHanded) {
+pub(super) fn observed_stored(phase: MemoryPhase, handed: &StoredHanded) {
     if memory_diagnostics() == MemoryDiagnostics::Enabled {
         observed_memory(
             phase,
@@ -194,7 +194,7 @@ pub(super) fn observed_stored(phase: &'static str, handed: &StoredHanded) {
 
 /// Publication observes staged descriptor capacity without reading spool contents.
 pub(super) fn observed_staged(
-    phase: &'static str,
+    phase: MemoryPhase,
     kept: &ryo_values::domain::stores::types::KeptRows,
 ) {
     if memory_diagnostics() == MemoryDiagnostics::Enabled {
