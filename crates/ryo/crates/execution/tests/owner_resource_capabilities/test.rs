@@ -72,7 +72,9 @@ pub mod domain {
 }
 pub mod application {pub mod file_dag {
  pub mod derived {
+  pub mod ledger {pub mod types {#[derive(Debug,Clone,Copy,Default)]pub struct ByteCount(pub usize);}}
   pub mod owner {
+   pub mod index {pub mod types {#[derive(Debug,Clone,Copy,Default)]pub struct ByteLimit(pub usize);}}
    pub mod types {
     #[derive(Debug)]pub struct BuildCount(pub u64);
     #[derive(Debug)]pub struct ReuseCount(pub u64);
@@ -155,8 +157,8 @@ pub mod domain {
   pub trait SemanticLookup: std::fmt::Debug {}
   __DECLARATION__
  }}
- pub mod matching {pub mod types {pub mod prepared {pub mod value {#[derive(Debug)]pub struct PreparedMatchers;}}}}
- pub mod kind_sets {pub mod types {#[derive(Debug)]pub struct PreparedVocabulary;}}
+ pub mod matching {pub mod types {#[derive(Debug)]pub struct PatternMatcher<'a>(pub std::marker::PhantomData<&'a()>);pub mod prepared {pub mod value {#[derive(Debug)]pub struct PreparedMatchers;}}}}
+ pub mod kind_sets {pub mod types {pub mod vocabulary {pub mod value {#[derive(Debug)]pub struct PreparedVocabulary;}}}}
  pub mod table_model {pub mod types {#[derive(Debug)]pub struct ParameterBinding;}}
  pub mod symbols {pub mod types {#[derive(Debug)]pub struct QuerySymbols<'a>(pub std::marker::PhantomData<&'a()>);}}
  pub mod table_texts {pub mod types {#[derive(Debug)]pub struct SourceView<'a>(pub std::marker::PhantomData<&'a()>);}}

@@ -76,7 +76,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
                     right_on: vec![ColumnIndex(0), ColumnIndex(1)],
                     view: Vec::new(),
                 },
-                vec![schemas[0].clone(), schemas[0].clone()],
+                vec![vec![CellKind::Number, CellKind::Number]; 2],
             );
             Ok(usize::from(native_finding(&native, NativeForm::Edges)?.is_some()))
         }

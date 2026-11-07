@@ -54,7 +54,8 @@ fn refuses(directory: &Path, name: &str, source: &str, expected: &str) {
 
 fn program_source(client: &str) -> String {
     let source = fs::read_to_string(
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("src/domain/executable_program/types.rs"),
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("src/domain/executable_program/types/executable_program/value.rs"),
     )
     .unwrap();
     let data = declaration(&source, "pub(crate) struct ExecutableProgram");
@@ -69,18 +70,30 @@ mod domain {
       pub struct RoutePolicy;
       pub struct RegionId(pub usize);
       pub struct OperatingError;
-      __DECLARATION__
-      impl ExecutableProgram {
-        pub fn regions(&self) -> &[Region] { &self.regions }
+      pub mod executable_program {
+        pub mod value {
+          use super::super::*;
+          __DECLARATION__
+          impl ExecutableProgram {
+            pub(in crate::domain::executable_program) fn new(
+              regions: Box<[Region]>, file_readers: FileReaderGraph, rules: Box<[RuleProgram]>,
+              logical_regions: Box<[RegionId]>, observation_regions: Box<[Result<RegionId, OperatingError>]>,
+              routes: RoutePolicy,
+            ) -> Self {
+              Self { regions, file_readers, rules, logical_regions, observation_regions, routes }
+            }
+            pub fn regions(&self) -> &[Region] { &self.regions }
+          }
+        }
       }
+      pub use executable_program::value::ExecutableProgram;
     }
     pub mod service {
       use super::types::*;
       pub fn compile() -> ExecutableProgram {
-        ExecutableProgram {
-          regions: Box::new([]), file_readers: FileReaderGraph, rules: Box::new([]),
-          logical_regions: Box::new([]), observation_regions: Box::new([]), routes: RoutePolicy,
-        }
+        ExecutableProgram::new(
+          Box::new([]), FileReaderGraph, Box::new([]), Box::new([]), Box::new([]), RoutePolicy,
+        )
       }
     }
   }
@@ -165,7 +178,8 @@ pub mod inbound { pub mod use_cases { pub mod operators { pub mod types {
 pub mod domain {
   pub mod executable_program {
     pub mod types {
-      pub struct ExecutableProgram;
+      pub mod executable_program { pub mod value { pub struct ExecutableProgram; } }
+      pub use executable_program::value::ExecutableProgram;
       pub struct RegionId(pub usize);
     }
     pub mod physical { pub struct PhysicalAuthorization; }

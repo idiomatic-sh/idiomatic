@@ -137,7 +137,7 @@ impl ActualSource {
                 assert_eq!(self.selection.matches(anchor).count(), 1);
                 let mutant = self
                     .selection
-                    .replacen(anchor, ".try_reserve(views.groups)", 1);
+                    .replacen(anchor, ".try_reserve(views.groups.0)", 1);
                 fs::write(self.overlay.path().join(SELECTION), mutant).unwrap();
                 (
                     ALLOCATION,

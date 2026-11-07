@@ -61,14 +61,14 @@ Branch `claude/w2-review-v` from checkpoint 319 `f2d8aaf1db` (the Phase 1 re-own
 - **R4, hardening-1 placement:** `Region`, `Instruction`, `DemandProgram` and `ExecutableProgram` are sealed values, each in `domain/executable_program/types/<value>/value.rs` with a `value_test.rs`; only the compiler constructs and writes them (`pub(in crate::domain::executable_program)`). `ColumnAlternative` (now one definition over original nodes and regions, which removes the mirrored `OriginalColumn`) and `SelectionAlternative` are plain route payloads in `types.rs`: the route lives in the sealed `Region`. Bare integers and bools are typed (`ObservationPlace`, `ProducerMember`, `DraftIndex`, `RegexIdentity`, `JoinLease`, `RowGate`, `Equivalence`, `StepUse`, `AbsenceInputs`); `service.rs` is split into `merge.rs`, `origins.rs` and `aliases.rs`, and `trust/service.rs` into `trust/reads.rs`. The observation slot proofs moved from the domain to `application/file_dag/acceptance/{observations_test.rs, observation_census_test.rs}` because they prepare through the application request preparation. Weak closures kept and closed by the store and runtime crates (hardening steps 2 and 3): `FrontierCache::new` stays `pub(crate)`, and `ReadProof::complete` stays callable within the program. Controls: `types::region::value_test`, `types::instruction::value_test`, `types::demand_program::value_test`, `types::executable_program::value_test`; `tm` over `domain/executable_program` and `domain/trust` is 0.
 - **R5:** this record.
 
-### Current ownership checkpoint — source `da1fe3eff3`, validation319
+### Current ownership checkpoint — source `137d4a5a6c`, validation320
 
 Written by `evidence/checkpoint/run.py` from [validation.json](evidence/checkpoint/validation.json); do not edit by hand. Review: [checkpoint](audits/2026-11-06-derived/ownership/checkpoint.json).
 
 | Check | Result |
 |---|---|
-| Source | `da1fe3eff3` |
-| Validation | validation319 (raw logs in the directory named `ryo-contract-validation319-20261107`, kept outside the repository) |
+| Source | `137d4a5a6c` |
+| Validation | validation320 (raw logs in the directory named `ryo-contract-validation320-20261107`, kept outside the repository) |
 | execution library | 549 PASS / 2 failed (the two are the errored_rule rows (compiled_parity and use_case_test)) |
 | core library | 108 PASS / 2 failed (application::file_analysis::service_test::succeeds (staged replay of an unrequested span) and lint::use_case_test::succeeds (a_removed_file_leaves_no_unknown_or_skip_behind_in_any_store)) |
 | benchmark passed | 154 |
@@ -95,7 +95,7 @@ Written by `evidence/checkpoint/run.py` from [validation.json](evidence/checkpoi
 | conformance | targets 10, exit 0 |
 | harness hooks | 15 PASS / 0 failed |
 | tm_cli_source findings | 0 (0 production, 0 test), 0 suppressed, 1 scoped directories |
-| tm_source findings | 250 (200 production, 50 test), 0 suppressed, 16 scoped directories |
+| tm_source findings | 17 (14 production, 3 test), 2 suppressed, 16 scoped directories |
 | Whole-tree TM | 2762 findings, 0 suppressed (3676 at 318) |
 | File-level ownership cycles | 1 (0 targeted) |
 

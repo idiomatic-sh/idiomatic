@@ -71,7 +71,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
                     right_on: vec![ColumnIndex(0), ColumnIndex(1)],
                     view: Vec::new(),
                 },
-                vec![schema.clone(), schema],
+                vec![vec![CellKind::Number, CellKind::Number]; 2],
             ),
             BuildInputs::Native(NativeForm::Edges),
             &mut room,

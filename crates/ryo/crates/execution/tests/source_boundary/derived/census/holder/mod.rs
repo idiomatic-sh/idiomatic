@@ -32,8 +32,9 @@ pub(super) enum Holder {
     DerivedAccessServices,
     DerivedAccessPreparation,
     DerivedAccessOrders,
-    DerivedAccessInboundTypes,
-    DerivedAccessInboundUseCase,
+    DerivedAccessPreparedProgram,
+    DerivedAccessPreparedViews,
+    DerivedAccessPrepareUseCase,
     AddedClosurePartitionsSchemas,
     AddedSelectedSchemas,
     AddedWorkspaceService,
@@ -63,8 +64,9 @@ impl Holder {
         Holder::DerivedAccessServices,
         Holder::DerivedAccessPreparation,
         Holder::DerivedAccessOrders,
-        Holder::DerivedAccessInboundTypes,
-        Holder::DerivedAccessInboundUseCase,
+        Holder::DerivedAccessPreparedProgram,
+        Holder::DerivedAccessPreparedViews,
+        Holder::DerivedAccessPrepareUseCase,
         Holder::AddedClosurePartitionsSchemas,
         Holder::AddedSelectedSchemas,
         Holder::AddedWorkspaceService,
@@ -94,8 +96,9 @@ impl Holder {
             Holder::DerivedAccessServices => file!("program/facade_runtime/types.rs"),
             Holder::DerivedAccessPreparation => file!("program/preparation/service.rs"),
             Holder::DerivedAccessOrders => file!("program/preparation/service/orders/service.rs"),
-            Holder::DerivedAccessInboundTypes => "inbound/use_cases/execution/types.rs",
-            Holder::DerivedAccessInboundUseCase => "inbound/use_cases/execution/use_case.rs",
+            Holder::DerivedAccessPreparedProgram => file!("program/prepared_execution/types.rs"),
+            Holder::DerivedAccessPreparedViews => file!("program/prepared_execution/service.rs"),
+            Holder::DerivedAccessPrepareUseCase => "inbound/use_cases/prepare/use_case.rs",
             Holder::AddedClosurePartitionsSchemas => file!("closure_partitions/schemas.rs"),
             Holder::AddedSelectedSchemas => file!("selected/schemas.rs"),
             Holder::AddedWorkspaceService => file!("workspace/service.rs"),
@@ -126,8 +129,9 @@ impl Holder {
             | Holder::DerivedAccessServices
             | Holder::DerivedAccessPreparation
             | Holder::DerivedAccessOrders
-            | Holder::DerivedAccessInboundTypes
-            | Holder::DerivedAccessInboundUseCase => &[Authority::DerivedAccess],
+            | Holder::DerivedAccessPreparedProgram
+            | Holder::DerivedAccessPreparedViews
+            | Holder::DerivedAccessPrepareUseCase => &[Authority::DerivedAccess],
             Holder::AddedClosurePartitionsSchemas => &[Authority::AcquiredView],
             Holder::AddedSelectedSchemas => &[Authority::AcquiredView],
             Holder::AddedWorkspaceService => &[Authority::AcquiredView],
