@@ -8,6 +8,7 @@ use ryo_relations::domain::relations::constants::NO_SYMBOL;
 use ryo_relations::domain::relations::types::KindBits;
 
 use super::constants::{NO_NAME, SET_OF_TEST};
+use crate::domain::matching::types::Matcher;
 use super::types::vocabulary::value::{PreparedKindTest, PreparedVocabulary};
 use super::types::{ComparisonOrdinal, KindScratch, ListAddress};
 use crate::domain::comparing::collections::comparisons::affix::item::AffixItem;
@@ -69,7 +70,12 @@ fn naming(test: Test) -> Option<NamingPlace> {
 }
 
 /// Whether the name of a kind satisfies the test against `wanted`.
-pub(crate) fn satisfies(test: Test, name: TextView<'_>, wanted: TextView<'_>) -> Verdict {
+pub(crate) fn satisfies(
+    test: Test,
+    name: TextView<'_>,
+    wanted: TextView<'_>,
+    matcher: Matcher<'_>,
+) -> Verdict {
     let (left, right) = (Datum::Text(name), Datum::Text(wanted));
     match test {
         Test::Equal | Test::NotEqual => EqualityItem.holds(test, &left, &right),
@@ -78,6 +84,7 @@ pub(crate) fn satisfies(test: Test, name: TextView<'_>, wanted: TextView<'_>) ->
             &left,
             &right,
             &mut crate::domain::table_scratch::types::Patterns::default(),
+            matcher,
         ),
         Test::LessThan
         | Test::LessThanOrEqual
@@ -90,7 +97,7 @@ pub(crate) fn satisfies(test: Test, name: TextView<'_>, wanted: TextView<'_>) ->
         | Test::In
         | Test::NotIn
         | Test::GlobAny
-        | Test::NotGlobAny => GlobItem.holds(test, &left, &right),
+        | Test::NotGlobAny => GlobItem(matcher).holds(test, &left, &right),
     }
     .unwrap_or(Verdict::Fails)
 }
@@ -150,12 +157,12 @@ pub(crate) fn kind_tests(
                     let _previous = prepared
                         .builds
                         .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                    std::sync::Arc::new(make_set(&prepared.names, comparison.test, named))
+                    std::sync::Arc::new(make_set(&prepared.names, comparison.test, named, context.matcher))
                 }))
             } else {
                 let names =
                     vocabulary_names(tree.elements, context.symbols.as_ref(), context.source);
-                std::sync::Arc::new(make_set(&names, comparison.test, named))
+                std::sync::Arc::new(make_set(&names, comparison.test, named, context.matcher))
             };
             scratch.sets.push(made);
             let _: Option<KindSetPlace> = scratch
@@ -286,12 +293,17 @@ pub(crate) fn prepare_vocabulary(
 }
 
 /// Evaluate a literal predicate once over a vocabulary, never over source rows.
-fn make_set(names: &[Option<KindWord>], test: Test, literal: &LiteralText) -> KindSet {
+fn make_set(
+    names: &[Option<KindWord>],
+    test: Test,
+    literal: &LiteralText,
+    matcher: Matcher<'_>,
+) -> KindSet {
     let mut made = KindSet::default();
     made.bits.0.resize(names.len().div_ceil(64), 0);
     for (bits, name) in names.iter().enumerate() {
         if name.as_ref().is_some_and(|name| {
-            satisfies(test, TextView(&name.0), TextView(&literal.0)) == Verdict::Holds
+            satisfies(test, TextView(&name.0), TextView(&literal.0), matcher) == Verdict::Holds
         }) {
             if let Some(word) = made.bits.0.get_mut(bits / 64) {
                 *word |= 1 << (bits % 64);

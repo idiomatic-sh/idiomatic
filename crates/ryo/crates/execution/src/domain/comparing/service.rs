@@ -13,6 +13,7 @@ use crate::domain::comparing::collections::comparisons::membership::item::Member
 use crate::domain::comparing::collections::comparisons::ordering::item::OrderingItem;
 use crate::domain::comparing::types::{DecisionWorkspace, NumberedComparison, RowShape};
 use crate::domain::functions::types::MadeText;
+use crate::domain::matching::types::Matcher;
 use crate::domain::matching::types::prepared::value::PreparedMatchers;
 use crate::domain::operands::service::resolve;
 use crate::domain::operating::errors::OperatingError;
@@ -79,6 +80,7 @@ pub(crate) fn evaluate_comparison(
     prepared: Option<&PreparedMatchers>,
     compiled: &mut hashbrown::HashMap<ComparisonSlot, CompiledTextGlobs>,
     regexes: &mut crate::domain::table_scratch::types::Patterns,
+    matcher: Matcher<'_>,
 ) -> Result<Verdict, OperatingError> {
     let (mut left_made, mut right_made) = (MadeText::default(), MadeText::default());
     let left = resolve(&comparison.left, row, bindings, texts, &mut left_made)?;
@@ -102,12 +104,15 @@ pub(crate) fn evaluate_comparison(
             prepared
                 .filter(|_| matches!(comparison.right, Operand::Literal(QueryLiteral::Text(_)))),
             regexes,
+            matcher,
         ),
         Family::Glob => {
-            if let Some(verdict) = compiled_glob(comparison, &left, &right, prepared, compiled) {
+            if let Some(verdict) =
+                compiled_glob(comparison, &left, &right, prepared, compiled, matcher)
+            {
                 return Ok(verdict);
             }
-            GlobItem.holds(comparison.test, &left, &right)
+            GlobItem(matcher).holds(comparison.test, &left, &right)
         }
     }
 }
@@ -173,6 +178,7 @@ fn holds_one_bound(
     texts: &Texts<'_>,
     bindings: &[ParameterBinding],
     prepared: Option<&PreparedMatchers>,
+    matcher: Matcher<'_>,
     work: DecisionWorkspace<'_>,
 ) -> Result<Verdict, OperatingError> {
     let NumberedComparison { number, comparison } = numbered;
@@ -207,6 +213,7 @@ fn holds_one_bound(
             prepared,
             &mut select.compiled_globs,
             &mut select.compiled_regexes,
+            matcher,
         )?;
         if select.verdicts.len() >= VERDICTS {
             select.verdicts.clear();
@@ -241,6 +248,7 @@ fn holds_one_bound(
                         prepared,
                         &mut select.compiled_globs,
                         &mut select.compiled_regexes,
+                        matcher,
                     )?;
                     if let Some(key) = known {
                         // The verdicts of the texts met so far are kept for the next file; a run with more texts
@@ -273,6 +281,7 @@ pub(crate) fn holds_bound(
     texts: &Texts<'_>,
     bindings: &[ParameterBinding],
     prepared: Option<&PreparedMatchers>,
+    matcher: Matcher<'_>,
     work: DecisionWorkspace<'_>,
 ) -> Result<Verdict, OperatingError> {
     let DecisionWorkspace { select, memo } = work;
@@ -287,6 +296,7 @@ pub(crate) fn holds_bound(
             texts,
             bindings,
             prepared,
+            matcher,
             DecisionWorkspace {
                 select: &mut *select,
                 memo: &mut *memo,
@@ -325,6 +335,7 @@ fn holds_one(
         &texts,
         context.bindings,
         context.prepared_matchers,
+        context.matcher,
         DecisionWorkspace {
             select: &mut *context.scratch.select_scratch,
             memo: &mut *context.memo,

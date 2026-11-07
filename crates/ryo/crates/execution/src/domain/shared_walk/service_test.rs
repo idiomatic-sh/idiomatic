@@ -18,10 +18,9 @@ use ryo_relations::domain::relations::types::{FileId, KindBits, Offset, Relation
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::files::types::SourceView;
-use ryo_values::domain::plan_parts::types::Input as PlanInput;
-use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, LiteralText, Operand, ParameterId, PlanComparison, QueryLiteral, StepId, Test,
+    ColumnIndex, Input as PlanInput, LiteralText, Operand, ParameterId, PlanComparison,
+    QueryLiteral, StepId, StepScope, Test,
 };
 use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
 use ryo_values::domain::query_bindings::types::ParameterBinding;
@@ -85,6 +84,7 @@ pub(crate) fn evaluate_plans(
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
+        matcher: crate::domain::matching::service_test::matcher(),
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: SourceView(SMALL_SOURCE),
@@ -269,6 +269,7 @@ fn different_kind_errors_keep_the_first_source_row() {
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
+        matcher: crate::domain::matching::service_test::matcher(),
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: SourceView(source),
@@ -387,6 +388,7 @@ pub(crate) fn with_context<T>(
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
+        matcher: crate::domain::matching::service_test::matcher(),
         bindings: &[],
         symbols: symbols.into(),
         source: SourceView(b""),

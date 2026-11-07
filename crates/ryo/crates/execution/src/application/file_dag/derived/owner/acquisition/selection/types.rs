@@ -68,6 +68,9 @@ impl PredicateProgram for PredicateDecision<'_> {
             &texts,
             self.bindings,
             self.prepared,
+            crate::domain::matching::types::Matcher(
+                &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
+            ),
             crate::domain::comparing::types::DecisionWorkspace {
                 select: &mut *self.select,
                 memo: &mut *self.memo,

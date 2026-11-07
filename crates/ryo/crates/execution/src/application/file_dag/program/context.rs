@@ -80,6 +80,7 @@ impl<'a> RunContext<'a> {
             semantic: self.semantic,
             prepared_kinds: self.kinds.as_deref(),
             prepared_matchers: Some(program.matchers().as_ref()),
+            matcher: crate::domain::matching::types::Matcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl),
             bindings: program.bindings(rule)?,
             symbols: symbols.into(),
             source: self.source,

@@ -39,6 +39,7 @@ fn class_context<'a>(
         semantic: base.semantic,
         prepared_kinds: base.prepared_kinds,
         prepared_matchers: base.prepared_matchers,
+        matcher: base.matcher,
         bindings: bound,
         symbols: query_reborrow(&mut base.symbols),
         source: base.source,

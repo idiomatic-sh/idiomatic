@@ -5,10 +5,9 @@ use crate::domain::table_texts::types::{RegexPattern, TextView};
 use ryo_matching::inbound::use_cases::matching::{
     compiled::{CompiledRegex, CompiledTextGlobs},
     errors::MatchingError,
-    interface::MatchingUseCase,
     types::{GlobPattern, RegexSource as AuthoredRegex},
-    use_case::MatchingUseCaseImpl,
 };
+use crate::domain::matching::types::Matcher;
 use ryo_values::domain::plan_parts::types::{Operand, QueryLiteral, Test};
 use ryo_values::domain::plans::types::Operation;
 #[cfg(test)]
@@ -84,7 +83,11 @@ impl PreparedMatchers {
     }
 
     /// Read an exact authored regex slot after the evaluator has validated both text operands.
-    pub(crate) fn regex(&self, pattern: TextView<'_>) -> Option<Result<&CompiledRegex, OperatingError>> {
+    pub(crate) fn regex(
+        &self,
+        pattern: TextView<'_>,
+        matcher: Matcher<'_>,
+    ) -> Option<Result<&CompiledRegex, OperatingError>> {
         let PreparedPattern::Regex(slot) = self.slots.get(&Test::Matches)?.get(pattern.0)? else {
             return None;
         };
@@ -94,7 +97,7 @@ impl PreparedMatchers {
                 let _previous = self
                     .builds
                     .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                compile_regex(pattern)
+                compile_regex(pattern, matcher)
             })
             .as_ref()
             .map_err(Clone::clone),
@@ -102,7 +105,12 @@ impl PreparedMatchers {
     }
 
     /// Read an exact authored glob slot only after resolving an actual text subject.
-    pub(crate) fn glob(&self, test: Test, pattern: TextView<'_>) -> Option<&CompiledTextGlobs> {
+    pub(crate) fn glob(
+        &self,
+        test: Test,
+        pattern: TextView<'_>,
+        matcher: Matcher<'_>,
+    ) -> Option<&CompiledTextGlobs> {
         let PreparedPattern::Glob(slot) = self.slots.get(&test)?.get(pattern.0)? else {
             return None;
         };
@@ -111,14 +119,18 @@ impl PreparedMatchers {
             let _previous = self
                 .builds
                 .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-            MatchingUseCaseImpl::new().compile_text_globs(&[GlobPattern(pattern.0)])
+            matcher.0.compile_text_globs(&[GlobPattern(pattern.0)])
         }))
     }
 }
 
 /// Adapt semantic compilation refusal without changing the engine's cache or error meaning.
-pub(crate) fn compile_regex(pattern: TextView<'_>) -> Result<CompiledRegex, OperatingError> {
-    MatchingUseCaseImpl::new()
+pub(crate) fn compile_regex(
+    pattern: TextView<'_>,
+    matcher: Matcher<'_>,
+) -> Result<CompiledRegex, OperatingError> {
+    matcher
+        .0
         .compile_regex(AuthoredRegex(pattern.0))
         .map_err(|error| {
             let (MatchingError::InvalidRegex { reason } | MatchingError::BadGlob { reason, .. }) =

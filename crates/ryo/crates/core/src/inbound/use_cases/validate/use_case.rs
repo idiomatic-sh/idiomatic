@@ -62,7 +62,11 @@ impl ValidateUseCase for ValidateUseCaseImpl {
             .map_err(|error| match error {
                 QueryLanguageError::Refused { error } => ValidateError::Uncompilable { error },
             })?;
-        match MetadataUseCaseImpl.kind_refusal(&plan, &vocabularies) {
+        match MetadataUseCaseImpl.kind_refusal(
+            &plan,
+            &vocabularies,
+            &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl::new(),
+        ) {
             Some(message) => Err(ValidateError::UnknownKind {
                 reason: message.message.0.into(),
                 origin: match message.origin {

@@ -65,6 +65,7 @@ fn distinct_projections_preserve_rows_and_predicate_cache() -> Result<(), Failur
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
+        matcher: crate::domain::matching::types::Matcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl),
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: SourceView(b""),

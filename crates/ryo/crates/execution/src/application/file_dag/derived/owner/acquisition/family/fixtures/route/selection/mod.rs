@@ -187,6 +187,7 @@ fn run_with(
             semantic: None,
             prepared_kinds: None,
             prepared_matchers: None,
+            matcher: crate::domain::matching::types::Matcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl),
             bindings: &[],
             symbols: (&mut *symbols).into(),
             source: SourceView(b""),

@@ -52,13 +52,19 @@ pub use crate::domain::trust::types::RelationRead;
 /// Decisions that inspect request metadata without owning its execution.
 pub trait MetadataUseCase {
     fn rule_id(&self, ids: &[RuleId], rule: RuleIndex) -> RuleId;
-    fn kind_refusal(&self, plan: &Plan, vocabularies: &KindVocabularies) -> Option<KindRefusal>;
+    fn kind_refusal(
+        &self,
+        plan: &Plan,
+        vocabularies: &KindVocabularies,
+        matching: &dyn ryo_matching::inbound::use_cases::matching::interface::MatchingUseCase,
+    ) -> Option<KindRefusal>;
     fn kinds_asked(&self, plan: &Plan, bound: &[ParameterBinding]) -> Vec<AskedKind>;
     fn first_unknown(
         &self,
         plans: &[Plan],
         bindings: &[Vec<ParameterBinding>],
         vocabularies: &KindVocabularies,
+        matching: &dyn ryo_matching::inbound::use_cases::matching::interface::MatchingUseCase,
     ) -> Option<UnknownKind>;
     fn unknown_kind_message(&self, word: &KindWord, vocabularies: &KindVocabularies)
     -> KindRefusal;

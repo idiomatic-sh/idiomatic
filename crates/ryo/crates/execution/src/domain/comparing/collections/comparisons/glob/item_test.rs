@@ -219,7 +219,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 ];
 
 fn subject((test, left, right): Input) -> Result<Value, Failure> {
-    GlobItem.holds(test, &left, &right)
+    GlobItem(crate::domain::matching::types::Matcher(
+        &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
+    ))
+    .holds(test, &left, &right)
 }
 
 #[test]

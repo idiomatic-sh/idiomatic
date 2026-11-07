@@ -198,10 +198,10 @@ fn names_a_kind_by_a_test_on_its_name() -> Value {
     let naming = names_a_kind(&by_name) == KindNaming::Names
         && names_a_kind(&by_text) == KindNaming::Silent
         && names_a_kind(&by_order) == KindNaming::Silent;
-    let satisfying = satisfies(Test::Equal, TextView("word"), TextView("word")) == Verdict::Holds
-        && satisfies(Test::NotEqual, TextView("word"), TextView("word")) == Verdict::Fails
-        && satisfies(Test::StartsWith, TextView("word"), TextView("wo")) == Verdict::Holds
-        && satisfies(Test::GlobAny, TextView("word"), TextView("{file,word}")) == Verdict::Holds;
+    let satisfying = satisfies(Test::Equal, TextView("word"), TextView("word"), crate::domain::matching::types::Matcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl)) == Verdict::Holds
+        && satisfies(Test::NotEqual, TextView("word"), TextView("word"), crate::domain::matching::types::Matcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl)) == Verdict::Fails
+        && satisfies(Test::StartsWith, TextView("word"), TextView("wo"), crate::domain::matching::types::Matcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl)) == Verdict::Holds
+        && satisfies(Test::GlobAny, TextView("word"), TextView("{file,word}"), crate::domain::matching::types::Matcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl)) == Verdict::Holds;
     usize::from(naming && satisfying)
 }
 

@@ -178,6 +178,7 @@ fn selected_row_ids_pinned_by_a_graph_or_view_cannot_be_reclaimed() {
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
+        matcher: crate::domain::matching::types::Matcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl),
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: SourceView(constants::NO_SOURCE),
