@@ -55,7 +55,7 @@ impl<'f> PartitionedClosure<'f> {
         }
         let input = proof.rows();
         owner
-            .derived
+            .derived()
             .admit_partition(&closure_plan, &owner, &proof, &ordered)?;
         #[cfg(test)]
         let ordering_capacity = ordered.partition_order_capacity()?.0;
@@ -88,13 +88,13 @@ impl<'f> PartitionedClosure<'f> {
             kinds: input.kinds(),
             tree: None,
         }];
-        let partition_plan = Arc::new(owner.derived.prepare_view(
+        let partition_plan = Arc::new(owner.derived().prepare_view(
             &ViewRequest::PartitionOrder {
                 keys: keys.to_vec(),
             },
             &schema,
         )?);
-        let closure_plan = Arc::new(owner.derived.prepare_view(
+        let closure_plan = Arc::new(owner.derived().prepare_view(
             &ViewRequest::ClosureAdjacency {
                 source,
                 destination,
@@ -103,9 +103,9 @@ impl<'f> PartitionedClosure<'f> {
         )?);
         let proof = owner.admit(publication.as_ref(), input)?;
         let admitted = owner
-            .derived
+            .derived()
             .admit_view(&partition_plan, &owner, &[&proof])?;
-        let ordered = owner.derived.acquire_stored(
+        let ordered = owner.derived().acquire_stored(
             &partition_plan,
             &admitted,
             super::derived::owner::ViewContext::default(),
@@ -155,13 +155,13 @@ impl<'f> PartitionedClosure<'f> {
         }
         // The old partition's mandatory charge ends before its reusable buffer
         // is rebuilt for the next key. A taken partition transfers its lease.
-        let admitted = self.owner.derived.admit_partition(
+        let admitted = self.owner.derived().admit_partition(
             &self.closure_plan,
             &self.owner,
             &self.proof,
             &self.ordered,
         )?;
-        self.current = Some(self.owner.derived.scoped_build(
+        self.current = Some(self.owner.derived().scoped_build(
             crate::application::file_dag::route_counts::BuildRoute::ClosurePartition,
             &self.closure_plan,
             &admitted,

@@ -49,10 +49,10 @@ fn exercise(exit: PhaseExit, delivery: Delivery) -> Result<(), OperatingError> {
     // use this real owner; optional retention requires an installed file cache.
     // Configuring its absent backend would refuse before any root is submitted.
     assert!(
-        !owner.derived.index_observation().available,
+        !owner.derived().index_observation().available,
         "project phase must not install a file-only optional cache for this proof"
     );
-    assert_eq!(owner.derived.retained_bytes(), 0);
+    assert_eq!(owner.derived().retained_bytes(), 0);
     let required =
         crate::application::file_dag::program::facade_runtime::service::required_partitions(
             &prepared,
@@ -156,8 +156,8 @@ fn exercise(exit: PhaseExit, delivery: Delivery) -> Result<(), OperatingError> {
                 0,
                 "guard refusal cannot admit any root"
             );
-            assert_eq!(owner.derived.working_bytes(), 0);
-            assert_eq!(owner.derived.counts().0, 0);
+            assert_eq!(owner.derived().working_bytes(), 0);
+            assert_eq!(owner.derived().counts().0, 0);
             completed
         }
         (PhaseExit::RefuseLaterCohort, ProjectBatch::Refused { completed, error }) => {
@@ -186,19 +186,19 @@ fn exercise(exit: PhaseExit, delivery: Delivery) -> Result<(), OperatingError> {
         _ => panic!("unexpected project batch disposition for {exit:?}"),
     };
     let counts = phase.readiness_counts();
-    let builds = owner.derived.counts();
-    let live = owner.derived.working_bytes();
+    let builds = owner.derived().counts();
+    let live = owner.derived().working_bytes();
     assert_eq!(
-        owner.derived.retained_bytes(),
+        owner.derived().retained_bytes(),
         0,
         "project acquisition cannot retain optional views without a file backend"
     );
     assert!(
-        !owner.derived.index_observation().available,
+        !owner.derived().index_observation().available,
         "actual project execution must preserve its backend-free ownership boundary"
     );
     let backing = owner
-        .derived
+        .derived()
         .view_witness(ryo_derived::domain::contract::types::DerivedKind::Equality);
     if !matches!(exit, PhaseExit::RefuseBeforeWork) {
         assert!(
@@ -309,8 +309,8 @@ fn exercise(exit: PhaseExit, delivery: Delivery) -> Result<(), OperatingError> {
                     counts,
                     "project replay cannot schedule terminal roots"
                 );
-                assert_eq!(owner.derived.counts(), builds);
-                assert_eq!(owner.derived.working_bytes(), live);
+                assert_eq!(owner.derived().counts(), builds);
+                assert_eq!(owner.derived().working_bytes(), live);
                 assert!(
                     backing.as_ref().unwrap().liveness() == BackingLiveness::Alive,
                     "duplicate outer deliveries retain the same phase lease"
@@ -322,17 +322,17 @@ fn exercise(exit: PhaseExit, delivery: Delivery) -> Result<(), OperatingError> {
         panic!("{exit:?}: phase finish after every terminal result: {error:?}")
     });
     assert_eq!(
-        owner.derived.working_bytes(),
+        owner.derived().working_bytes(),
         0,
         "success/error/cancellation all release phase charges"
     );
-    assert_eq!(owner.derived.owned_bytes(), 0);
+    assert_eq!(owner.derived().owned_bytes(), 0);
     assert!(
         backing.is_none_or(|backing| backing.liveness() == BackingLiveness::Released),
         "same real backing drops at phase finish"
     );
     assert_eq!(
-        owner.derived.counts(),
+        owner.derived().counts(),
         builds,
         "finish cannot dispatch or acquire work"
     );

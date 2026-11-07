@@ -162,9 +162,9 @@ fn owner_routes_count_each_physical_equality_build_once() {
                 BorrowedRows::Stored(rows),
             )
             .unwrap();
-        let admitted = owner.derived.admit_view(&plan, &owner, &[&proof]).unwrap();
+        let admitted = owner.derived().admit_view(&plan, &owner, &[&proof]).unwrap();
         let held = owner
-            .derived
+            .derived()
             .acquire_stored(
                 &plan,
                 &admitted,
@@ -186,11 +186,11 @@ fn owner_routes_count_each_physical_equality_build_once() {
             )
             .unwrap();
         let admitted = selector_owner
-            .derived
+            .derived()
             .admit_view(&plan, &selector_owner, &[&proof])
             .unwrap();
         let first = selector_owner
-            .derived
+            .derived()
             .acquire_stored_with_route(
                 BuildRoute::SelectorCandidate,
                 &plan,
@@ -203,7 +203,7 @@ fn owner_routes_count_each_physical_equality_build_once() {
             .unwrap();
         assert_eq!(first.construction(), Construction::Built);
         let second = selector_owner
-            .derived
+            .derived()
             .acquire_stored_with_route(
                 BuildRoute::SelectorCandidate,
                 &plan,

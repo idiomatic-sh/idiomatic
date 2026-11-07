@@ -108,6 +108,6 @@ fn named_population_barrier_cannot_reuse_a_direct_relation_class_or_erase_replay
     assert_eq!(derived.snapshot(), builds);
     let owner = Rc::clone(&file.owner);
     file.finish().unwrap();
-    assert_eq!(owner.derived.working_bytes(), 0);
+    assert_eq!(owner.derived().working_bytes(), 0);
     assert_eq!(named.cells, cells(&[1, 3]));
 }

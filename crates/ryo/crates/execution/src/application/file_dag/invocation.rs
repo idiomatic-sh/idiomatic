@@ -202,7 +202,7 @@ impl<'f> InvocationResources<'f> {
         if !empty_domain {
             resources.cached_graph = admission
                 .owner()
-                .derived
+                .derived()
                 .prepare_graph(contract, admission, program, originals)?;
             if resources.cached_graph.is_some() {
                 return Ok(resources);

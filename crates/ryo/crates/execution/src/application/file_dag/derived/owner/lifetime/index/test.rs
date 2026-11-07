@@ -53,7 +53,7 @@ fn hold(
     });
     let proof = owner.admit_relation(Relation::Function, rows).unwrap();
     let plan = owner
-        .derived
+        .derived()
         .state
         .borrow()
         .entries
@@ -63,10 +63,10 @@ fn hold(
         ._plan
         .clone();
     owner
-        .derived
+        .derived()
         .acquire_stored(
             &plan,
-            &owner.derived.admit_view(&plan, &owner, &[&proof]).unwrap(),
+            &owner.derived().admit_view(&plan, &owner, &[&proof]).unwrap(),
             ViewContext::default(),
             DerivedInputs::Rows(&[rows]),
             &mut DerivedScratch::default(),
@@ -75,7 +75,7 @@ fn hold(
         .unwrap()
 }
 fn reclaim(fixture: &ResourceFixture) -> Room {
-    let owner = &fixture.owner().derived;
+    let owner = fixture.owner().derived();
     let mut backend = owner.backend.borrow_mut();
     let cache = backend.as_mut().unwrap();
     // The single owner charges each optional physical allocation once.
@@ -120,7 +120,7 @@ fn one_owner_reclaims_index_only_after_the_final_live_consumer_releases() {
     assert_eq!(
         fixture
             .owner()
-            .derived
+            .derived()
             .ledger
             .borrow()
             .snapshot()
@@ -141,7 +141,7 @@ fn backend_clear_preserves_one_required_backing_until_last_consumer_drops() {
     assert_eq!(
         fixture
             .owner()
-            .derived
+            .derived()
             .ledger
             .borrow()
             .snapshot()
@@ -163,7 +163,7 @@ fn backend_clear_preserves_one_required_backing_until_last_consumer_drops() {
     assert_eq!(
         fixture
             .owner()
-            .derived
+            .derived()
             .ledger
             .borrow()
             .snapshot()

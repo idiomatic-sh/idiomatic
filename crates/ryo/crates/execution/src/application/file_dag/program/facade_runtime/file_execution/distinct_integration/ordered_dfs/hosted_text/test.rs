@@ -266,5 +266,5 @@ fn one_file_owner_resets_dfs_across_closure_empty_and_different_graph() {
     expected(&outputs[3], 5, &[&[9, 9, 8, 98, 0]]);
     let owner = Rc::clone(&file.owner);
     file.finish().unwrap();
-    assert_eq!(owner.derived.working_bytes(), 0);
+    assert_eq!(owner.derived().working_bytes(), 0);
 }

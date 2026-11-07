@@ -47,10 +47,10 @@ fn production_cycle_lease_borrows_actual_trait_output_and_refuses_foreign_storag
     let rows = BorrowedRows::from(&held);
     let proof = owner.admit(publication.as_ref(), rows).unwrap();
     let acquired = owner
-        .derived
+        .derived()
         .acquire_stored(
             &plan,
-            &owner.derived.admit_view(&plan, &owner, &[&proof]).unwrap(),
+            &owner.derived().admit_view(&plan, &owner, &[&proof]).unwrap(),
             crate::application::file_dag::derived::owner::ViewContext::default(),
             DerivedInputs::Rows(&[rows]),
             &mut DerivedScratch::default(),
@@ -89,11 +89,11 @@ fn production_cycle_lease_borrows_actual_trait_output_and_refuses_foreign_storag
         .unwrap(),
     );
     let wrong = owner
-        .derived
+        .derived()
         .acquire_stored(
             &equality,
             &owner
-                .derived
+                .derived()
                 .admit_view(&equality, &owner, &[&proof])
                 .unwrap(),
             crate::application::file_dag::derived::owner::ViewContext::default(),

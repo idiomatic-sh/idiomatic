@@ -13,7 +13,7 @@ pub(super) fn partition(kind: DerivedKind, exit: Exit) -> Result<DerivedKind, Op
     let owner = Rc::new(RelationOwner::new(true, program_derived_port()));
     let result = through_partition(kind, exit, &owner);
     owner.release_population();
-    released(kind, exit, owner.derived.publication_ownership_bytes());
+    released(kind, exit, owner.derived().publication_ownership_bytes());
     result
 }
 fn through_partition(

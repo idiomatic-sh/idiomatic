@@ -25,7 +25,7 @@ fn prepare_cycles(
     let held = owner.resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))?;
     let input = BorrowedRows::from(&held);
     let proof = owner.admit(publication.as_ref(), input)?;
-    let plan = std::sync::Arc::new(owner.derived.prepare_view(
+    let plan = std::sync::Arc::new(owner.derived().prepare_view(
         &ViewRequest::CycleAdjacency {
             source,
             destination,
@@ -35,8 +35,8 @@ fn prepare_cycles(
             tree: None,
         }],
     )?);
-    let admitted = owner.derived.admit_view(&plan, &owner, &[&proof])?;
-    owner.derived.acquire_stored(
+    let admitted = owner.derived().admit_view(&plan, &owner, &[&proof])?;
+    owner.derived().acquire_stored(
         &plan,
         &admitted,
         super::derived::owner::ViewContext::default(),

@@ -140,7 +140,7 @@ fn exercise(residency: Residency) -> Result<(), OperatingError> {
     assert_eq!(derived.snapshot(), builds);
     let owner = Rc::clone(&file.owner);
     file.finish()?;
-    assert_eq!(owner.derived.working_bytes(), 0);
+    assert_eq!(owner.derived().working_bytes(), 0);
     assert_eq!(
         transferred.cells, replay,
         "transferred output survives file retirement"

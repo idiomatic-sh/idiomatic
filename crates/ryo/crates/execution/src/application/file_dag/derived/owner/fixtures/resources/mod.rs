@@ -30,11 +30,11 @@ impl ResourceFixture {
             .map(crate::application::file_dag::derived::owner::fixtures::source_plan)
             .collect::<Vec<_>>();
         owner
-            .derived
+            .derived()
             .prepare_program_file(
                 &crate::application::file_dag::derived::owner::fixtures::prepared_sources(
                     &plans,
-                    owner.derived.semantic.clone(),
+                    owner.derived().semantic.clone(),
                 ),
                 &(0..plans.len())
                     .map(crate::domain::coverage::types::RuleIndex)
@@ -42,11 +42,11 @@ impl ResourceFixture {
                 partials,
             )
             .unwrap();
-        if !owner.derived.index_observation().available {
+        if !owner.derived().index_observation().available {
             return None;
         }
         owner
-            .derived
+            .derived()
             .set_optional_limit(
                 crate::application::file_dag::derived::owner::index::types::ByteLimit(limit),
             )
@@ -66,7 +66,7 @@ impl ResourceFixture {
         OperatingError,
     > {
         let plan = crate::application::file_dag::derived::owner::fixtures::prepare_view(
-            self.owner.derived.semantic.clone(),
+            self.owner.derived().semantic.clone(),
             ViewRequest::Equality {
                 columns: columns.to_vec(),
             },
@@ -78,11 +78,11 @@ impl ResourceFixture {
         let Rows::Stored(source) = rows else {
             return Err(OperatingError::WrongOperation);
         };
-        self.owner.derived.acquire_stored(
+        self.owner.derived().acquire_stored(
             &plan,
             &self
                 .owner
-                .derived
+                .derived()
                 .admit_view(&plan, &self.owner, &[&proof])
                 .unwrap(),
             ViewContext::default(),
@@ -94,13 +94,13 @@ impl ResourceFixture {
         )
     }
     pub(crate) fn no_invocation_index_handles(&self) -> bool {
-        self.owner.derived.no_invocation_index_handles()
+        self.owner.derived().no_invocation_index_handles()
     }
     pub(crate) fn shared_index_backings(&self) -> usize {
-        self.owner.derived.shared_index_backings()
+        self.owner.derived().shared_index_backings()
     }
     pub(crate) fn first_index_weak(&self) -> Option<Weak<KeyIndex>> {
-        self.owner.derived.first_index_weak()
+        self.owner.derived().first_index_weak()
     }
 }
 /// Observe backing lifetime without retaining a lease or exposing mutable storage.

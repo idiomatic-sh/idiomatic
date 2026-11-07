@@ -120,7 +120,7 @@ fn one_prepared_request_reopens_same_file_after_delivery_failure_empty_skip_and_
                 Some(RepresentationKind::Stored)
             }
         );
-        let counts = file.owner.derived.counts();
+        let counts = file.owner.derived().counts();
         total_builds += counts.0.0;
         assert_eq!(
             total_builds, expected_builds,
@@ -140,8 +140,8 @@ fn one_prepared_request_reopens_same_file_after_delivery_failure_empty_skip_and_
         }
         let owner = Rc::clone(&file.owner);
         file.finish().unwrap();
-        assert_eq!(owner.derived.working_bytes(), 0);
-        assert_eq!(owner.derived.owned_bytes(), 0);
+        assert_eq!(owner.derived().working_bytes(), 0);
+        assert_eq!(owner.derived().owned_bytes(), 0);
         drop(owner);
         assert!(
             weak.upgrade().is_none(),
@@ -195,7 +195,7 @@ fn one_prepared_request_reopens_same_file_after_delivery_failure_empty_skip_and_
     ));
     assert_eq!(right_refusals.get(), 1);
     assert!(rows.is_empty());
-    assert_eq!(file.owner.derived.counts().0, 0);
+    assert_eq!(file.owner.derived().counts().0, 0);
     assert_eq!(
         recorded.builds().len(),
         2,

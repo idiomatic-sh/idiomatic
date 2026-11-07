@@ -34,7 +34,7 @@ fn exercise(exit: Exit) -> Result<(), OperatingError> {
     }
     let partials = Partials::default();
     let owner = Rc::clone(captured.phase.owner());
-    assert!(!owner.derived.index_observation().available);
+    assert!(!owner.derived().index_observation().available);
     let demand = RuleDemand {
         emit: EmitDemand::Enabled,
         observations: ObservationDemand::Required,
@@ -220,11 +220,11 @@ fn exercise(exit: Exit) -> Result<(), OperatingError> {
     );
     assert!(backing.liveness() == BackingLiveness::Released);
     let counts = captured.phase.readiness_counts();
-    let builds = owner.derived.counts();
+    let builds = owner.derived().counts();
     // The previous oracle incorrectly required a lookup to outlive the batch.
     // Returned Tables and terminal replay have no dependency on that lookup.
     assert_eq!(
-        owner.derived.working_bytes(),
+        owner.derived().working_bytes(),
         0,
         "all compute lookup leases are already released"
     );
@@ -234,7 +234,7 @@ fn exercise(exit: Exit) -> Result<(), OperatingError> {
         "the actual restored population acquires required equality backing"
     );
 
-    assert_eq!(owner.derived.retained_bytes(), 0);
+    assert_eq!(owner.derived().retained_bytes(), 0);
 
     for at in [1, 2, 4] {
         if at == 4 && matches!(exit, Exit::CancelledDelivery) {
@@ -272,11 +272,11 @@ fn exercise(exit: Exit) -> Result<(), OperatingError> {
                 "replay cannot schedule a terminal restored root"
             );
             assert_eq!(
-                owner.derived.counts(),
+                owner.derived().counts(),
                 builds,
                 "replay cannot reacquire a restored view"
             );
-            assert_eq!(owner.derived.working_bytes(), 0);
+            assert_eq!(owner.derived().working_bytes(), 0);
             assert!(
                 backing.liveness() == BackingLiveness::Released,
                 "copied output replay must not reacquire the retired lookup"
@@ -284,14 +284,14 @@ fn exercise(exit: Exit) -> Result<(), OperatingError> {
         }
     }
     captured.phase.finish()?;
-    assert_eq!(owner.derived.working_bytes(), 0);
-    assert_eq!(owner.derived.owned_bytes(), 0);
+    assert_eq!(owner.derived().working_bytes(), 0);
+    assert_eq!(owner.derived().owned_bytes(), 0);
     assert!(
         backing.liveness() == BackingLiveness::Released,
         "phase finish cannot revive the already released compute backing"
     );
     assert_eq!(
-        owner.derived.counts(),
+        owner.derived().counts(),
         builds,
         "finish cannot dispatch or acquire work"
     );

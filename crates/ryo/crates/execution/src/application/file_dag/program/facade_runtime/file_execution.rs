@@ -142,7 +142,7 @@ pub(crate) fn open_file<'a>(
     };
     let demanded = run.bind_intents()?;
     run.owner
-        .derived
+        .derived()
         .prepare_program_file(program.derived(), &demanded, publication)?;
     Ok(run)
 }
@@ -155,12 +155,12 @@ impl FileRun<'_> {
         self.roots.clear();
         self.observed.clear();
         self.walk.retire_all();
-        self.owner.derived.report(self.file);
+        self.owner.derived().report(self.file);
         let crate::application::file_dag::derived::owner::types::BuildCounts(
             builds,
             hits,
             refusals,
-        ) = self.owner.derived.counts();
+        ) = self.owner.derived().counts();
         tracing::trace!(target: RESOURCE_ROUTES_TARGET, file = self.file.0, builds = builds.0, hits = hits.0, refusals = refusals.0, event = FILE_OWNER_FINISH);
         self.execution.finish()?;
         drop(self.routes);
@@ -185,7 +185,7 @@ impl FileRun<'_> {
     pub(crate) fn resource_fixture_counts(
         &self,
     ) -> crate::application::file_dag::derived::owner::fixtures::resources::Snapshot {
-        self.owner.derived.resource_fixture_counts()
+        self.owner.derived().resource_fixture_counts()
     }
     #[cfg(test)]
     pub(crate) fn observation_routes(

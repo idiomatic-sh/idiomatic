@@ -4,7 +4,7 @@ use super::*;
 #[test]
 fn release_drops_only_the_dependent_required_view() {
     let relation_owner = owner(EntryLimit(0));
-    let owner = &relation_owner.derived;
+    let owner = relation_owner.derived();
     let first_publication = relation_owner.computed(source()).unwrap();
     let second_publication = relation_owner.computed(source()).unwrap();
     let first_population = population(&relation_owner, &first_publication);
@@ -52,7 +52,7 @@ fn release_drops_only_the_dependent_required_view() {
 #[test]
 fn two_population_view_survives_either_release_and_repin_without_duplicate_dependencies() {
     let relation_owner = owner(EntryLimit(0));
-    let owner = &relation_owner.derived;
+    let owner = relation_owner.derived();
     let mut ordered_source = source();
     ordered_source.cells = [3, 1, 2]
         .into_iter()

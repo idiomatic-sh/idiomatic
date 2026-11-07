@@ -163,13 +163,13 @@ fn immutable_demand_checks_identity_once_across_views_and_refuses_expired_proof(
         "both actual families use the same admitted input"
     );
     owner.release_population();
-    let builds = owner.derived.counts().0;
+    let builds = owner.derived().counts().0;
     assert!(matches!(
         scope.acquire_rows(&equality, &mut context),
         Err(OperatingError::NotRead)
     ));
     assert_eq!(
-        owner.derived.counts().0,
+        owner.derived().counts().0,
         builds,
         "expired proof never reaches the builder"
     );
@@ -244,7 +244,7 @@ fn distinct_published_populations_never_share_slot_only_identities() {
         ryo_derived::domain::contract::types::OwnedOrderedKey::Value(Value::Number(Integer(4)))
     ));
     assert_eq!(
-        owner.derived.counts().0,
+        owner.derived().counts().0,
         2,
         "mixed inputs use the same owner with distinct admitted populations"
     );
@@ -343,7 +343,7 @@ fn recapturing_publications_replaces_population_without_replacing_owner() {
         );
     }
     assert_ne!(views[0].storage_identity(), views[1].storage_identity());
-    assert_eq!(owner.derived.counts().0, 2);
+    assert_eq!(owner.derived().counts().0, 2);
 }
 
 use ryo_values::domain::rows::types::RowCount;

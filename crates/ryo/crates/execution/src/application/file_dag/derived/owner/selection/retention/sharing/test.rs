@@ -55,10 +55,10 @@ fn typed_positions_share_the_owner_acquired_buffer_and_refuse_wrong_views() -> R
     let held = owner.resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))?;
     let rows = BorrowedRows::from(&held);
     let proof = owner.admit(publication.as_ref(), rows)?;
-    let acquired = owner.derived.acquire_stored(
+    let acquired = owner.derived().acquire_stored(
         &distinct,
         &owner
-            .derived
+            .derived()
             .admit_view(&distinct, &owner, &[&proof])
             .unwrap(),
         ViewContext::default(),
@@ -97,9 +97,9 @@ fn typed_positions_share_the_owner_acquired_buffer_and_refuse_wrong_views() -> R
         ),
         Err(OperatingError::ShapeMismatch)
     ));
-    let wrong = owner.derived.acquire_stored(
+    let wrong = owner.derived().acquire_stored(
         &order,
-        &owner.derived.admit_view(&order, &owner, &[&proof]).unwrap(),
+        &owner.derived().admit_view(&order, &owner, &[&proof]).unwrap(),
         ViewContext::default(),
         DerivedInputs::Rows(&[proof.rows()]),
         &mut DerivedScratch::default(),

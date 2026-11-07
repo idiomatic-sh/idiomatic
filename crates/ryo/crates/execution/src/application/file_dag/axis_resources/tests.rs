@@ -84,10 +84,10 @@ fn acquired(
         DerivedInputs::Rows(&inputs)
     };
     owner
-        .derived
+        .derived()
         .acquire_stored(
             &plan,
-            &owner.derived.admit_view(&plan, &owner, &[&proof]).unwrap(),
+            &owner.derived().admit_view(&plan, &owner, &[&proof]).unwrap(),
             crate::application::file_dag::derived::owner::ViewContext::default(),
             data,
             &mut DerivedScratch::default(),

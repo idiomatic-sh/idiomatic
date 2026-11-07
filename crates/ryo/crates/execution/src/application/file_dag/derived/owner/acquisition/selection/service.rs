@@ -28,7 +28,7 @@ impl<'a> SelectionSource<'a> {
         source: ColumnsView<'_>,
     ) -> Result<Self, OperatingError> {
         proof.require_publication(relation_owner, publication.as_ref())?;
-        if !std::ptr::eq(owner, &relation_owner.derived)
+        if !std::ptr::eq(owner, relation_owner.derived())
             || !crate::application::file_dag::relations::same_admitted_rows(
                 proof.rows(),
                 crate::domain::operator::contract::views::BorrowedRows::Stored(source),

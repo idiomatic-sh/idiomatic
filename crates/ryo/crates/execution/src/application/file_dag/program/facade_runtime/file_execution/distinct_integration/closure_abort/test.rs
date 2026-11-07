@@ -229,7 +229,7 @@ fn exercise(refusal: Refusal, fused: bool) {
             }
         }
     }
-    let (builds, last_backing) = owner.derived.scoped_observation();
+    let (builds, last_backing) = owner.derived().scoped_observation();
     assert_eq!(
         builds,
         if fused && !matches!(refusal, Refusal::Callback) {
@@ -261,6 +261,6 @@ fn exercise(refusal: Refusal, fused: bool) {
         "failed invocation releases its current partition backing"
     );
     file.finish().unwrap();
-    assert_eq!(owner.derived.working_bytes(), 0);
-    assert_eq!(owner.derived.publication_ownership_bytes().0, 0);
+    assert_eq!(owner.derived().working_bytes(), 0);
+    assert_eq!(owner.derived().publication_ownership_bytes().0, 0);
 }

@@ -112,21 +112,21 @@ fn subject(input: Input) -> Result<(), Failure> {
             keys: vec![ColumnIndex(0)],
         },
     };
-    let plan = Arc::new(owner.derived.prepare_view(
+    let plan = Arc::new(owner.derived().prepare_view(
         &request,
         &[InputShape {
             kinds: proof.rows().kinds(),
             tree: None,
         }],
     )?);
-    let admitted = owner.derived.admit_view(&plan, &owner, &[&proof])?;
+    let admitted = owner.derived().admit_view(&plan, &owner, &[&proof])?;
     let mut scratch = DerivedScratch::default();
     let original = [proof.rows()];
     match input {
         Input::ForeignOwner => {
             let foreign = RelationOwner::new(true, program_derived_port());
             foreign
-                .derived
+                .derived()
                 .acquire_stored(
                     &plan,
                     &admitted,
@@ -140,7 +140,7 @@ fn subject(input: Input) -> Result<(), Failure> {
         Input::ExpiredAdmission => {
             owner.release_population();
             owner
-                .derived
+                .derived()
                 .acquire_stored(
                     &plan,
                     &admitted,
@@ -152,7 +152,7 @@ fn subject(input: Input) -> Result<(), Failure> {
                 .map(|_| ())
         }
         Input::ForeignDescriptor => owner
-            .derived
+            .derived()
             .acquire_stored(
                 &Arc::new((*plan).clone()),
                 &admitted,
@@ -163,7 +163,7 @@ fn subject(input: Input) -> Result<(), Failure> {
             )
             .map(|_| ()),
         Input::SubstitutedRows => owner
-            .derived
+            .derived()
             .acquire_stored(
                 &plan,
                 &admitted,
@@ -174,7 +174,7 @@ fn subject(input: Input) -> Result<(), Failure> {
             )
             .map(|_| ()),
         Input::UnprovedDense => owner
-            .derived
+            .derived()
             .acquire_stored(
                 &plan,
                 &admitted,
@@ -188,7 +188,7 @@ fn subject(input: Input) -> Result<(), Failure> {
             )
             .map(|_| ()),
         Input::UnpermittedRaw => owner
-            .derived
+            .derived()
             .acquire_stored(
                 &plan,
                 &admitted,
@@ -199,9 +199,9 @@ fn subject(input: Input) -> Result<(), Failure> {
             )
             .map(|_| ()),
         Input::CloneKeepsLease => {
-            let required = || owner.derived.ledger.borrow().snapshot().required_bytes;
+            let required = || owner.derived().ledger.borrow().snapshot().required_bytes;
             let before = required();
-            let first = owner.derived.acquire_stored(
+            let first = owner.derived().acquire_stored(
                 &plan,
                 &admitted,
                 Default::default(),
@@ -221,7 +221,7 @@ fn subject(input: Input) -> Result<(), Failure> {
             Ok(())
         }
         Input::ExpiredView | Input::Reuse => {
-            let first: AcquiredView = owner.derived.acquire_stored(
+            let first: AcquiredView = owner.derived().acquire_stored(
                 &plan,
                 &admitted,
                 Default::default(),
@@ -233,7 +233,7 @@ fn subject(input: Input) -> Result<(), Failure> {
                 owner.release_population();
                 return first.view().map(|_| ());
             }
-            let second = owner.derived.acquire_stored(
+            let second = owner.derived().acquire_stored(
                 &plan,
                 &admitted,
                 Default::default(),

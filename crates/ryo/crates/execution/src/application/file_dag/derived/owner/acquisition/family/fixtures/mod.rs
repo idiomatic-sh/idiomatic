@@ -112,7 +112,7 @@ fn drive(
     let actual = acquire(kind, scenario, Rc::clone(&owner), release, &mut leaked);
     owner.release_population();
     assert_eq!(
-        owner.derived.publication_ownership_bytes(),
+        owner.derived().publication_ownership_bytes(),
         (0, 0, 0),
         "{kind:?} {scenario:?}: every lease retires with the owner generation"
     );
@@ -197,13 +197,13 @@ fn acquire(
             kinds: first.rows().kinds(),
             tree: None,
         }];
-        let partition_plan = Arc::new(owner.derived.prepare_view(
+        let partition_plan = Arc::new(owner.derived().prepare_view(
             &ViewRequest::PartitionOrder {
                 keys: keys.to_vec(),
             },
             &schema,
         )?);
-        let closure_plan = Arc::new(owner.derived.prepare_view(
+        let closure_plan = Arc::new(owner.derived().prepare_view(
             &ViewRequest::ClosureAdjacency {
                 source,
                 destination,
@@ -211,14 +211,14 @@ fn acquire(
             &schema,
         )?);
         let admitted = owner
-            .derived
+            .derived()
             .admit_view(&partition_plan, &owner, &[&first])?;
         let ordered_plan = if scenario == Scenario::RetargetedDescriptor {
             Arc::new((*partition_plan).clone())
         } else {
             Arc::clone(&partition_plan)
         };
-        let ordered = owner.derived.acquire_stored(
+        let ordered = owner.derived().acquire_stored(
             &ordered_plan,
             &admitted,
             Default::default(),
@@ -238,7 +238,7 @@ fn acquire(
             _ => (&closure_plan, &first),
         };
         return owner
-            .derived
+            .derived()
             .admit_partition(plan, &owner, proof, &ordered)
             .map(|_| DerivedKind::ClosureAdjacency);
     }
@@ -276,13 +276,13 @@ fn acquire(
         },
     ];
     let shapes = &shapes[..if pair { 2 } else { 1 }];
-    let plan = Arc::new(owner.derived.prepare_view(&request(kind), shapes)?);
+    let plan = Arc::new(owner.derived().prepare_view(&request(kind), shapes)?);
     let proofs = [&first, &second];
     let admitted = owner
-        .derived
+        .derived()
         .admit_view(&plan, &owner, &proofs[..shapes.len()])?;
     let presented = match scenario {
-        Scenario::OtherPlan => Arc::new(owner.derived.prepare_view(&request(kind), shapes)?),
+        Scenario::OtherPlan => Arc::new(owner.derived().prepare_view(&request(kind), shapes)?),
         Scenario::RetargetedDescriptor => Arc::new((*plan).clone()),
         _ => Arc::clone(&plan),
     };
@@ -297,7 +297,7 @@ fn acquire(
     ];
     owner.bind_producer(producers[0].0, producers[0].1, publication.as_ref())?;
     owner.bind_producer(producers[1].0, producers[1].1, other.as_ref())?;
-    let baseline = owner.derived.publication_ownership_bytes().0;
+    let baseline = owner.derived().publication_ownership_bytes().0;
     owner.pin_derived(publication.as_ref());
     owner.pin_derived(other.as_ref());
     // A real lease exists before every exit that is not a success. `RawKeyOrder` is refused
@@ -367,7 +367,7 @@ fn leave(
             owner.release_derived_producer(scope, node);
         }
     }
-    let after = owner.derived.publication_ownership_bytes().0;
+    let after = owner.derived().publication_ownership_bytes().0;
     if after == baseline {
         Ok(())
     } else {

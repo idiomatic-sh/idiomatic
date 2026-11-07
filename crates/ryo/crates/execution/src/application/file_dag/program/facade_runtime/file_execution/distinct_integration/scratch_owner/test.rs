@@ -105,7 +105,7 @@ pub(in super::super) fn execute(
     let owner = Rc::clone(&file.owner);
     file.finish().unwrap();
     assert_eq!(
-        owner.derived.working_bytes(),
+        owner.derived().working_bytes(),
         0,
         "normal file shutdown releases actual required resources"
     );

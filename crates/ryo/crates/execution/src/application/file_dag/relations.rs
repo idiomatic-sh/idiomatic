@@ -46,7 +46,7 @@ struct SourceViews {
 pub(crate) struct RelationOwner {
     #[cfg(test)]
     pub(super) identity_checks: Cell<u64>,
-    pub(super) derived: super::derived::owner::DerivedOwner,
+    derived: super::derived::owner::DerivedOwner,
     next_population: Cell<usize>,
     producer_populations: RefCell<HashMap<(ProducerScope, usize), (usize, PopulationId)>>,
     generation: RefCell<Arc<()>>,
@@ -59,6 +59,11 @@ pub(crate) struct RelationOwner {
     pub reuses: Cell<u64>,
 }
 impl RelationOwner {
+    pub(in crate::application::file_dag) fn derived(
+        &self,
+    ) -> &super::derived::owner::DerivedOwner {
+        &self.derived
+    }
     pub(in crate::application::file_dag) fn publication_kinds<'a>(
         &self,
         publication: &'a PublishedInput,

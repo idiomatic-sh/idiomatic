@@ -77,7 +77,7 @@ impl super::super::KernelSession<'_, '_> {
             .map_err(InvocationFailure::Semantic)?;
         let mut derived = self
             .owner
-            .derived
+            .derived()
             .finite_raw(Rc::clone(&self.owner), order.clone(), &permit)
             .map_err(InvocationFailure::Semantic)?;
         let mut sources = Vec::new();

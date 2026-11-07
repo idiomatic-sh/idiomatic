@@ -230,7 +230,7 @@ pub(crate) fn execute_request(
     let owner = Rc::clone(&file.owner);
     file.finish()?;
     assert_eq!(
-        owner.derived.working_bytes(),
+        owner.derived().working_bytes(),
         0,
         "actual graph owner releases file resources"
     );

@@ -86,7 +86,7 @@ impl DerivedOwner {
             'a,
         >],
     ) -> Result<AdmittedViewInputs<'a>, OperatingError> {
-        if !std::ptr::eq(self, &owner.derived) || proofs.is_empty() || proofs.len() > 2 {
+        if !std::ptr::eq(self, owner.derived()) || proofs.is_empty() || proofs.len() > 2 {
             return Err(OperatingError::NotRead);
         }
         let populations = proofs
@@ -134,7 +134,7 @@ impl DerivedOwner {
         permit: &crate::application::file_dag::program::runtime::service::KernelPermit<'_>,
     ) -> Result<AdmittedViewInputs<'static>, OperatingError> {
         permit.validate_derived_owner(owner)?;
-        if !std::ptr::eq(self, &owner.derived) || plan.kind != DerivedKind::RawKeyOrder {
+        if !std::ptr::eq(self, owner.derived()) || plan.kind != DerivedKind::RawKeyOrder {
             return Err(OperatingError::WrongOperation);
         }
         Ok(AdmittedViewInputs {

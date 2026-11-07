@@ -129,7 +129,7 @@ fn advancing_releases_only_the_previous_partition_lease() {
             Err(crate::domain::operating::errors::OperatingError::NotRead)
         })
         .unwrap();
-    let input_charge = scope.derived.publication_ownership_bytes().0;
+    let input_charge = scope.derived().publication_ownership_bytes().0;
     assert!(
         input_charge > 0,
         "the actual input publication remains live"
@@ -149,7 +149,7 @@ fn advancing_releases_only_the_previous_partition_lease() {
         crate::application::file_dag::derived::owner::fixtures::resources::weak_storage(
             cursor.current.as_ref().unwrap(),
         );
-    let first_charge = owner.derived.publication_ownership_bytes().0;
+    let first_charge = owner.derived().publication_ownership_bytes().0;
     assert!(first_charge > input_charge);
     assert!(cursor.advance().unwrap());
     assert!(
@@ -161,7 +161,7 @@ fn advancing_releases_only_the_previous_partition_lease() {
             cursor.current.as_ref().unwrap(),
         );
     assert_eq!(
-        owner.derived.publication_ownership_bytes().0,
+        owner.derived().publication_ownership_bytes().0,
         first_charge,
         "advancing releases the preceding equal-sized partition charge"
     );
@@ -179,7 +179,7 @@ fn advancing_releases_only_the_previous_partition_lease() {
         "transferred view retains the physical backing"
     );
     assert!(
-        owner.derived.publication_ownership_bytes().0 > 0,
+        owner.derived().publication_ownership_bytes().0 > 0,
         "the transferred consumer still owns its mandatory charge"
     );
     drop(transferred);
@@ -187,10 +187,10 @@ fn advancing_releases_only_the_previous_partition_lease() {
         second_backing.upgrade().is_none(),
         "final consumer releases the physical backing"
     );
-    assert_eq!(owner.derived.publication_ownership_bytes().0, input_charge);
+    assert_eq!(owner.derived().publication_ownership_bytes().0, input_charge);
     drop(rows);
     drop(publication);
-    assert_eq!(owner.derived.publication_ownership_bytes().0, 0);
+    assert_eq!(owner.derived().publication_ownership_bytes().0, 0);
 }
 
 #[test]

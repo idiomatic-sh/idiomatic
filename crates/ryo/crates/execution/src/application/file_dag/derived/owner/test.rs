@@ -49,7 +49,7 @@ fn owner(entries: EntryLimit) -> RelationOwner {
         true,
         crate::application::file_dag::testing::program_derived_port(),
     );
-    owner.derived.max_entries = entries;
+    owner.derived().max_entries = entries;
     owner
 }
 fn population(owner: &RelationOwner, publication: &PublishedInput) -> PopulationId {
@@ -106,7 +106,7 @@ fn acquire_pair(
         .admit(publications[1].as_ref(), BorrowedRows::from(&right))
         .unwrap();
     let admitted = owner
-        .derived
+        .derived()
         .admit_view(plan, owner, &[&left, &right])
         .unwrap();
     let symbols = ryo_language::domain::symbols::types::Symbols::default();
@@ -117,7 +117,7 @@ fn acquire_pair(
         arenas: &[],
     };
     owner
-        .derived
+        .derived()
         .acquire_stored(
             plan,
             &admitted,
@@ -144,9 +144,9 @@ fn acquire(
     let proof = owner
         .admit(publication.as_ref(), BorrowedRows::from(&held))
         .unwrap();
-    let admitted = owner.derived.admit_view(plan, owner, &[&proof]).unwrap();
+    let admitted = owner.derived().admit_view(plan, owner, &[&proof]).unwrap();
     owner
-        .derived
+        .derived()
         .acquire_stored(
             plan,
             &admitted,
@@ -161,7 +161,7 @@ fn acquire(
 #[test]
 fn pinned_population_shares_even_with_zero_entry_and_retained_budget() {
     let relation_owner = owner(EntryLimit(0));
-    let owner = &relation_owner.derived;
+    let owner = relation_owner.derived();
     let publication = relation_owner.computed(source()).unwrap();
     let population = population(&relation_owner, &publication);
     owner.pin(population);
@@ -203,7 +203,7 @@ fn pinned_population_shares_even_with_zero_entry_and_retained_budget() {
 #[test]
 fn expired_weak_entry_is_replaced_without_retaining_stale_storage() {
     let relation_owner = owner(EntryLimit(1));
-    let owner = &relation_owner.derived;
+    let owner = relation_owner.derived();
     let publication = relation_owner.computed(source()).unwrap();
     let plan = plan();
     let mut scratch = DerivedScratch::default();
@@ -234,7 +234,7 @@ fn expired_weak_entry_is_replaced_without_retaining_stale_storage() {
 #[test]
 fn optional_misses_do_not_accumulate_identity_metadata() {
     let relation_owner = owner(EntryLimit(0));
-    let owner = &relation_owner.derived;
+    let owner = relation_owner.derived();
     let plan = plan();
     let mut scratch = DerivedScratch::default();
     let initial_metadata = owner.metadata_bytes();
@@ -260,7 +260,7 @@ fn optional_misses_do_not_accumulate_identity_metadata() {
 #[test]
 fn population_and_semantic_context_are_part_of_the_view_identity() {
     let relation_owner = owner(EntryLimit(0));
-    let owner = &relation_owner.derived;
+    let owner = relation_owner.derived();
     let first_publication = relation_owner.computed(source()).unwrap();
     let second_publication = relation_owner.computed(source()).unwrap();
     let first_population = population(&relation_owner, &first_publication);
