@@ -38,7 +38,7 @@ struct CaseSchema {
     /// Contextual entry kinds for the candidate's Given corpus.
     #[serde(default, rename = "given-project-inventory")]
     given_project_inventory:
-        Option<crate::outbound::context::adapters::local::schemas::ProjectInventorySchema>,
+        Option<ProjectInventorySchema>,
     /// Optional explicit primary inventory; absent paths require the shared context absence seal.
     #[serde(default, rename = "requested-files")]
     requested_files: Option<Vec<String>>,
@@ -93,7 +93,7 @@ enum ComparisonSchema {
 }
 
 fn given_project_inventory(
-    inventory: crate::outbound::context::adapters::local::schemas::ProjectInventorySchema,
+    inventory: ProjectInventorySchema,
 ) -> Result<ryo::linter::GivenProjectInventory, Error> {
     let inventory: ryo::linter::GivenProjectInventory = inventory.into();
     for entry in &inventory.entries {
@@ -282,4 +282,72 @@ pub(in super::super) fn case_reference_wires(
 /// Validate a rule identifier before it enters the benchmark domain.
 pub(in super::super) fn rule(value: &str) -> Result<ryo::linter::RuleId, Error> {
     ryo::linter::RuleId::try_from(value).map_err(|error| Error::Invalid(error.to_string()))
+}
+
+/// How complete a declared project inventory is.
+#[derive(Clone, Copy, Debug, Default, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+enum ProjectInventoryCompletenessSchema {
+    #[default]
+    Partial,
+    CompleteWithinDeclaredScope,
+}
+
+/// What a declared project entry is.
+#[derive(Clone, Copy, Debug, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+enum ProjectEntryStateSchema {
+    File,
+    Directory,
+    Other,
+    Missing,
+    Unknown,
+}
+
+/// One declared project entry.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ProjectEntrySchema {
+    path: String,
+    state: ProjectEntryStateSchema,
+}
+
+/// The declared project inventory of a case.
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ProjectInventorySchema {
+    #[serde(default)]
+    completeness: ProjectInventoryCompletenessSchema,
+    #[serde(default)]
+    entries: Vec<ProjectEntrySchema>,
+}
+impl From<ProjectInventorySchema> for ryo::linter::GivenProjectInventory {
+    fn from(wire: ProjectInventorySchema) -> Self {
+        Self {
+            entries: wire
+                .entries
+                .into_iter()
+                .map(|entry| ryo::linter::ProjectEntryObservation {
+                    path: ryo::linter::RelativePath(entry.path.into_boxed_str()),
+                    state: match entry.state {
+                        ProjectEntryStateSchema::File => ryo::linter::ProjectEntryState::File,
+                        ProjectEntryStateSchema::Directory => {
+                            ryo::linter::ProjectEntryState::Directory
+                        }
+                        ProjectEntryStateSchema::Other => ryo::linter::ProjectEntryState::Other,
+                        ProjectEntryStateSchema::Missing => ryo::linter::ProjectEntryState::Missing,
+                        ProjectEntryStateSchema::Unknown => ryo::linter::ProjectEntryState::Unknown,
+                    },
+                })
+                .collect(),
+            completeness: match wire.completeness {
+                ProjectInventoryCompletenessSchema::Partial => {
+                    ryo::linter::ProjectInventoryCompleteness::Partial
+                }
+                ProjectInventoryCompletenessSchema::CompleteWithinDeclaredScope => {
+                    ryo::linter::ProjectInventoryCompleteness::CompleteWithinDeclaredScope
+                }
+            },
+        }
+    }
 }

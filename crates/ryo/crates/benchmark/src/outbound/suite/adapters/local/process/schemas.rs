@@ -12,6 +12,10 @@ use ryo_benchmark_contracts::domain::process::types::{
 };
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;
+
 
 /// An identity digest is exactly 64 lowercase hexadecimal digits.
 fn identity_digest(value: String) -> Result<ArtifactDigest, Error> {

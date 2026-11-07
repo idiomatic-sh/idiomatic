@@ -1,5 +1,5 @@
 //! Exercise the actual TOML case boundary before any authored process certificates are admitted.
-use super::cases::schemas::case_reference_wires;
+use crate::outbound::suite::adapters::local::rule_cases::schemas::case_reference_wires;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::suite::types::process::{
     OutputPartWire, PathEncodingWire, ProcessFailureWire,

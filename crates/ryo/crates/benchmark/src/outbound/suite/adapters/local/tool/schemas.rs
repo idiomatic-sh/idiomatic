@@ -29,7 +29,7 @@ struct ToolSchema {
     file_observation: Option<String>,
     #[serde(default, rename = "project-context-mode")]
     /// Explicit project lookup mode for this invocation.
-    project_context_mode: crate::outbound::context::adapters::local::schemas::ModeSchema,
+    project_context_mode: ModeSchema,
     /// Reference tool name.
     tool: String,
     /// Exact expected version output.
@@ -226,4 +226,65 @@ fn dispositions(
 /// Validate a rule identifier before it enters the benchmark domain.
 fn rule(value: &str) -> Result<ryo::linter::RuleId, Error> {
     ryo::linter::RuleId::try_from(value).map_err(|error| Error::Invalid(error.to_string()))
+}
+
+/// Rewrite a profile document so it selects exactly the authored rules and keeps the definitions the others need.
+pub(in super::super) fn narrowed(
+    original: &str,
+    authored: &[ryo::linter::RuleId],
+    definitions: &std::collections::BTreeSet<ryo::linter::RuleId>,
+) -> Result<String, Error> {
+    use crate::outbound::suite::adapters::local::constants;
+    let mut value: toml::Value = toml::from_str(original)?;
+    let table = value
+        .as_table_mut()
+        .ok_or_else(|| Error::Invalid(constants::PROFILE_MUST_BE_A_TABLE.into()))?;
+    table.insert(
+        constants::DEFAULTS.into(),
+        toml::Value::Array(
+            authored
+                .iter()
+                .map(|id| toml::Value::String(id.to_string()))
+                .collect(),
+        ),
+    );
+    table.insert(
+        constants::SUPPORTING_RULES.into(),
+        toml::Value::Array(
+            definitions
+                .iter()
+                .filter(|id| !authored.contains(id))
+                .map(|id| toml::Value::String(id.to_string()))
+                .collect(),
+        ),
+    );
+    table.remove(constants::PENDING);
+    table.remove(constants::DEFERRED);
+    for key in [constants::RULE_OBSERVATIONS, constants::RULE_APPLICABILITY] {
+        if let Some(entries) = table.get_mut(key).and_then(toml::Value::as_table_mut) {
+            entries.retain(|id, _| definitions.iter().any(|rule| rule.as_ref() == id));
+        }
+    }
+    toml::to_string(&value).map_err(|error| Error::Invalid(error.to_string()))
+}
+
+/// Explicit project lookup mode a profile declares.
+#[derive(Clone, Copy, Debug, Default, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+enum ModeSchema {
+    /// Source-only execution with no external project lookup.
+    #[default]
+    Isolated,
+    /// Disk lookup constrained by the sealed context manifest.
+    ListedDisk,
+}
+impl From<ModeSchema>
+    for ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode
+{
+    fn from(mode: ModeSchema) -> Self {
+        match mode {
+            ModeSchema::Isolated => Self::Isolated,
+            ModeSchema::ListedDisk => Self::ListedDisk,
+        }
+    }
 }

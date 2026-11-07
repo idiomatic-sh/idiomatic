@@ -5,10 +5,11 @@ use crate::outbound::suite::types::observation_document::ObservationDocument;
 
 type Input = String;
 type Value = usize;
+type Failure = Refusal;
 
 /// Why a receipt document was refused.
 #[derive(Debug, PartialEq, Eq)]
-enum Failure {
+enum Refusal {
     UnknownField,
     Malformed,
 }
@@ -31,13 +32,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a row field the producers never write is refused by name"),
         word: Word::Refuses,
         input: || fixture("receipts/python-v2-rows.jsonl").replacen("{", "{\"surprise\":1,", 1),
-        expect: Expect::Error(Failure::UnknownField),
+        expect: Expect::Error(Refusal::UnknownField),
     },
     Case {
         name: CaseName("a row that is not a document is refused"),
         word: Word::Refuses,
         input: || "[1]".into(),
-        expect: Expect::Error(Failure::Malformed),
+        expect: Expect::Error(Refusal::Malformed),
     },
 ];
 
@@ -58,19 +59,19 @@ fn present(row: &serde_json::Value) -> serde_json::Map<String, serde_json::Value
 fn subject(text: Input) -> Result<Value, Failure> {
     let mut rows = 0;
     for line in text.lines().filter(|line| !line.trim().is_empty()) {
-        let original: serde_json::Value = serde_json::from_str(line).map_err(|_| Failure::Malformed)?;
+        let original: serde_json::Value = serde_json::from_str(line).map_err(|_| Refusal::Malformed)?;
         let wire: ObservationSchema = serde_json::from_value(original.clone()).map_err(|error| {
             if error.to_string().contains("unknown field") {
-                Failure::UnknownField
+                Refusal::UnknownField
             } else {
-                Failure::Malformed
+                Refusal::Malformed
             }
         })?;
         let document = ObservationDocument::from(wire);
         let written = serde_json::to_value(ObservationSchema::from(&document))
-            .map_err(|_| Failure::Malformed)?;
+            .map_err(|_| Refusal::Malformed)?;
         if present(&written) != present(&original) {
-            return Err(Failure::Malformed);
+            return Err(Refusal::Malformed);
         }
         rows += 1;
     }
