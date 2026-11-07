@@ -666,7 +666,7 @@ impl ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase f
             }
             _ => {}
         }
-        OperatorsUseCase::operators(&OperatorsUseCaseImpl::new(), call)
+        OperatorsUseCase::operators(&OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())), call)
     }
 }
 #[test]

@@ -26,7 +26,7 @@ impl OperatorsUseCase for RefuseCount {
         ) {
             return Err(PortableOperatorFault::WrongOperation);
         }
-        OperatorsUseCaseImpl::new().operators(call)
+        OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())).operators(call)
     }
 }
 fn columns(failed_emit: bool) -> Vec<ObservationColumn> {

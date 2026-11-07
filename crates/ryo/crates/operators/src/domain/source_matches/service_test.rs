@@ -3,7 +3,8 @@ use super::service::occurrences;
 use crate::domain::contract::types::{PortableOperatorFault, SemanticInterrupted};
 use crate::domain::source_matches::types::{SourceMatchesInput, TextRowDriver};
 use ryo_matching::inbound::use_cases::matching::{
-    interface::MatchingUseCase, types::RegexSource, use_case::MatchingUseCaseImpl,
+    interface::MatchingUseCase, types::{GroupName, RegexSource, SearchText},
+    use_case::MatchingUseCaseImpl,
 };
 use ryo_relations::domain::relations::types::{Integer, Offset, Span, Value as Cell};
 use crate::cases::{Case, CaseName, Expect, Word, run};
@@ -126,6 +127,21 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         },
         &mut driver,
         &mut output,
+        &|each| match capture {
+            Some(name) => MatchingUseCaseImpl::new()
+                .visit_regex_captures(
+                    &regex,
+                    SearchText(source),
+                    GroupName(name),
+                    &mut |found, group| each(found.0, Some(group.0)),
+                )
+                .map_err(|_| PortableOperatorFault::MissingCapture),
+            None => Ok(MatchingUseCaseImpl::new().visit_regex_matches(
+                &regex,
+                SearchText(source),
+                &mut |found| each(found.0, None),
+            )),
+        },
     );
     match scenario {
         Scenario::Lines => {

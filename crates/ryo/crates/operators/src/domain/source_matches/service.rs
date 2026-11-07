@@ -3,11 +3,6 @@ use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::source_matches::types::{
     CarriageReturn, LineBytes, LineCursor, SourceBase, SourceMatchesInput, TextRowDriver,
 };
-use ryo_matching::inbound::use_cases::matching::{
-    interface::MatchingUseCase,
-    types::{GroupName, SearchText, TextSpan},
-    use_case::MatchingUseCaseImpl,
-};
 use ryo_relations::domain::relations::types::{Integer, Offset, Span, Value};
 use std::ops::ControlFlow;
 fn advance_line(
@@ -54,10 +49,16 @@ fn advance_line(
     Ok(())
 }
 
+/// Visits the occurrences of the input's pattern: each whole span with the span of the captured group, when one was asked for.
+pub(crate) type VisitOccurrences<'visit> = &'visit dyn Fn(
+    &mut dyn FnMut(std::ops::Range<usize>, Option<std::ops::Range<usize>>) -> ControlFlow<()>,
+) -> Result<ControlFlow<()>, PortableOperatorFault>;
+
 pub(crate) fn occurrences(
     input: SourceMatchesInput<'_>,
     driver: &mut dyn TextRowDriver,
     joined: &mut Vec<Value>,
+    visit: VisitOccurrences<'_>,
 ) -> Result<(), PortableOperatorFault> {
     let SourceMatchesInput {
         row,
@@ -65,7 +66,7 @@ pub(crate) fn occurrences(
         base,
         text,
         line,
-        regex,
+        regex: _,
         capture,
         capture_text,
         capture_line,
@@ -80,10 +81,10 @@ pub(crate) fn occurrences(
     }
     let mut cursor = LineCursor(0);
     let mut pending_cr = CarriageReturn::Clear;
-    let mut emit_one = |whole: TextSpan,
-                        captured: Option<TextSpan>|
+    let mut emit_one = |whole: std::ops::Range<usize>,
+                        captured: Option<std::ops::Range<usize>>|
      -> Result<(), PortableOperatorFault> {
-        let (start_at, end_at) = (whole.0.start, whole.0.end);
+        let (start_at, end_at) = (whole.start, whole.end);
         let mut whole_line = None;
         if let Some(current) = line.as_mut() {
             advance_line(
@@ -102,7 +103,7 @@ pub(crate) fn occurrences(
                     LineBytes(source),
                     base,
                     &mut cursor,
-                    LineCursor(group.0.start),
+                    LineCursor(group.start),
                     current,
                     &mut pending_cr,
                 )?;
@@ -129,7 +130,7 @@ pub(crate) fn occurrences(
             joined.push(Value::Number(current));
         }
         if let Some(group) = captured {
-            let (capture_start, capture_end) = (group.0.start, group.0.end);
+            let (capture_start, capture_end) = (group.start, group.end);
             let absolute_start = u32::try_from(
                 base.0
                     .checked_add(capture_start)
@@ -167,33 +168,13 @@ pub(crate) fn occurrences(
         Ok(())
     };
     let mut failure = None;
-    if let Some(name) = capture {
-        let _flow = MatchingUseCaseImpl::new()
-            .visit_regex_captures(
-                regex,
-                SearchText(text),
-                GroupName(name),
-                &mut |found, group| match emit_one(found, Some(group)) {
-                    Ok(()) => ControlFlow::Continue(()),
-                    Err(error) => {
-                        failure = Some(error);
-                        ControlFlow::Break(())
-                    }
-                },
-            )
-            .map_err(|_| PortableOperatorFault::MissingCapture)?;
-    } else {
-        let _flow =
-            MatchingUseCaseImpl::new().visit_regex_matches(regex, SearchText(text), &mut |found| {
-                match emit_one(found, None) {
-                    Ok(()) => ControlFlow::Continue(()),
-                    Err(error) => {
-                        failure = Some(error);
-                        ControlFlow::Break(())
-                    }
-                }
-            });
-    }
+    let _flow = visit(&mut |whole, group| match emit_one(whole, group) {
+        Ok(()) => ControlFlow::Continue(()),
+        Err(error) => {
+            failure = Some(error);
+            ControlFlow::Break(())
+        }
+    })?;
     if let Some(error) = failure {
         return Err(error);
     }

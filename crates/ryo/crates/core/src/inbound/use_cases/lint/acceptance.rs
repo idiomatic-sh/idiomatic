@@ -120,7 +120,7 @@ fn runs(world: &mut Behavior) {
             Arc::new(query_language),
             Arc::clone(&analysis_memory),
             Arc::new(ryo_core::outbound::operators::factory::use_case(
-                ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
+                ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
             )),
             std::sync::Arc::new(ryo_core::outbound::derived::factory::use_case(
                 ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),

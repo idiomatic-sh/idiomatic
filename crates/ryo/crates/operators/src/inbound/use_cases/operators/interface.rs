@@ -12,7 +12,7 @@ use crate::domain::contract::types::{OperatorAnswer, OperatorCall, PortableOpera
 /// use ryo_values::domain::plan_parts::types::ColumnIndex;
 /// let row = [Value::Number(Integer(7))];
 /// let mut output = Vec::new();
-/// assert_eq!(OperatorsUseCaseImpl::new().operators(OperatorCall::Project {
+/// assert_eq!(OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())).operators(OperatorCall::Project {
 ///     row: &row, columns: &[ColumnIndex(0)], target: &mut output,
 /// }), Ok(OperatorAnswer::Written));
 /// assert_eq!(output, row);

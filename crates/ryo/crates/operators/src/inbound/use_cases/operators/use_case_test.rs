@@ -126,7 +126,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 ];
 fn written(call: OperatorCall<'_>) -> Result<(), Failure> {
     assert_eq!(
-        OperatorsUseCaseImpl::new().operators(call)?,
+        OperatorsUseCaseImpl::new(std::sync::Arc::new(crate::outbound::matching::factory::use_case())).operators(call)?,
         OperatorAnswer::Written
     );
     Ok(())
@@ -166,7 +166,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
                 Scenario::SelectOriginal => &[],
                 _ => &[ColumnIndex(9), ColumnIndex(8)],
             };
-            let answer = OperatorsUseCaseImpl::new().operators(OperatorCall::Select {
+            let answer = OperatorsUseCaseImpl::new(std::sync::Arc::new(crate::outbound::matching::factory::use_case())).operators(OperatorCall::Select {
                 row: &ROW,
                 kept,
                 holds: !matches!(input, Scenario::SelectRejected),

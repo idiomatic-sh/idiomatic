@@ -103,7 +103,7 @@ pub(super) fn world(plan: Plan) -> World {
     world_with(
         vec![plan],
         Arc::new(crate::outbound::operators::factory::use_case(
-            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
+            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
         )),
     )
 }
@@ -378,7 +378,7 @@ impl ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase f
             }
             _ => {}
         }
-        ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new()
+        ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case()))
             .operators(call)
     }
 }

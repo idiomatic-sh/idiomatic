@@ -30,7 +30,7 @@ impl OperatorsUseCase for ProjectPressure {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
         let reduction = matches!(&call, OperatorCall::ReduceCount { .. });
         let answer =
-            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new()
+            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case()))
                 .operators(call)?;
         if reduction {
             self.reductions.fetch_add(1, Ordering::SeqCst);

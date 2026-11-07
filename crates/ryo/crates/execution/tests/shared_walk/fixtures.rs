@@ -40,7 +40,7 @@ impl OperatorsUseCase for SemanticCalls {
         if matches!(&call, OperatorCall::Select { .. }) {
             let _previous = self.0.fetch_add(1, Ordering::Relaxed);
         }
-        OperatorsUseCaseImpl::new().operators(call)
+        OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())).operators(call)
     }
 }
 impl SemanticCalls {

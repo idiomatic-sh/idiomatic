@@ -21,7 +21,7 @@ impl ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase f
         if self.refuses {
             return Err(PortableOperatorFault::NoSuchColumn { index: 8 });
         }
-        OperatorsUseCaseImpl::new().operators(call)
+        OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())).operators(call)
     }
 }
 

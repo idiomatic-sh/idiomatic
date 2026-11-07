@@ -46,7 +46,7 @@ fn shared_tree_positions_keep_native_join_projection_refusal_and_replay() {
                     return Err(PortableOperatorFault::ShapeMismatch);
                 }
             }
-            OperatorsUseCaseImpl::new().operators(call)
+            OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())).operators(call)
         }
     }
     for relation in [Relation::SyntaxTree, Relation::SyntaxChild] {

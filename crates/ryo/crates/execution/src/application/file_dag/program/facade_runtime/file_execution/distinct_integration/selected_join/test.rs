@@ -13,7 +13,7 @@ impl OperatorsUseCase for JoinReads {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
         let before = matches!(&call, OperatorCall::EqualityJoin { .. }).then(read_row_counts);
         let answer =
-            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new()
+            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case()))
                 .operators(call);
         if let Some(before) = before {
             let after = read_row_counts();

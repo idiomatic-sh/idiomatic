@@ -788,7 +788,7 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
             ) {
                 let _previous = self.0.fetch_add(1, Ordering::SeqCst);
             }
-            OperatorsUseCaseImpl::new().operators(call)
+            OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())).operators(call)
         }
     }
     let union_semantic_calls = Arc::new(UnionSemanticCalls::default());

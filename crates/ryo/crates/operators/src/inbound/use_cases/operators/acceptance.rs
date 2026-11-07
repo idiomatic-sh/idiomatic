@@ -23,7 +23,7 @@ fn runs(world: &mut Behavior) {
         &[ColumnIndex(1), ColumnIndex(0), ColumnIndex(1)]
     };
     let mut output = Vec::new();
-    world.answer = match OperatorsUseCaseImpl::new().operators(OperatorCall::Project {
+    world.answer = match OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())).operators(OperatorCall::Project {
         row: &row,
         columns,
         target: &mut output,

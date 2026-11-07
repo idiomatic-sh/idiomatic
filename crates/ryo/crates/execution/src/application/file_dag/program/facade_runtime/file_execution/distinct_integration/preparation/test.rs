@@ -149,7 +149,7 @@ fn opening_and_preparing_one_rule_uses_only_its_reached_metadata_and_preserves_a
     );
     let services = Arc::new(ProgramServices::new(
         Arc::new(CommonOperatorEngine::new(Arc::new(
-            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
+            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
         ))),
         derived,
         &[CorpusInput::Available(CorpusEntry {

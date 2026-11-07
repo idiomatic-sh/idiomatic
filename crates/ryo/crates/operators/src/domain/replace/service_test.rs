@@ -3,7 +3,7 @@ use super::service::replace_compiled;
 use super::types::{ReplacedText, ReplacementText};
 use crate::domain::contract::types::PortableOperatorFault;
 use ryo_matching::inbound::use_cases::matching::{
-    interface::MatchingUseCase, types::RegexSource, use_case::MatchingUseCaseImpl,
+    interface::MatchingUseCase, types::{RegexSource, SearchText}, use_case::MatchingUseCaseImpl,
 };
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::row_texts::types::CellText;
@@ -36,7 +36,9 @@ fn subject((pattern, text, replacement): Input) -> Result<Value, Failure> {
         .expect("valid test pattern");
     let mut output = String::from("stale");
     replace_compiled(
-        &regex,
+        &|each| {
+            MatchingUseCaseImpl::new().visit_regex_matches(&regex, SearchText(text), &mut |found| each(found.0))
+        },
         CellText(text),
         ReplacementText(replacement),
         ReplacedText(&mut output),

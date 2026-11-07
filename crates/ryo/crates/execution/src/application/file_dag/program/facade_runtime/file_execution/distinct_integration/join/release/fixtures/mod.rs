@@ -22,7 +22,7 @@ impl OperatorsUseCase for OrderedPort {
                 return Err(PortableOperatorFault::NoSuchColumn { index: REFUSAL });
             }
         }
-        OperatorsUseCaseImpl::new().operators(call)
+        OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())).operators(call)
     }
 }
 /// The error every refusing port raises, as the owner reports it.

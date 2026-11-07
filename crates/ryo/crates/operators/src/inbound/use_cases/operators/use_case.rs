@@ -1,5 +1,8 @@
 //! Inbound implementation delegates projection to the pure domain algorithm.
 use super::interface::OperatorsUseCase;
+use std::sync::Arc;
+use crate::outbound::matching::interface::MatchingPort;
+use ryo_matching::inbound::use_cases::matching::types::{GroupName, SearchText};
 use crate::domain::capture::types::{CaptureSlots, SlotPattern, SlotSubject};
 use crate::domain::equality_join::types::{PositionSlots, PositionTarget};
 use crate::domain::project::service;
@@ -13,15 +16,26 @@ use crate::domain::contract::types::PortableOperatorFault;
 use ryo_relations::domain::relations::types::{Count, Integer};
 use ryo_values::domain::row_texts::types::CellText;
 
-/// Stateless capability implementation; the adapter is composed once by the engine.
-#[derive(Clone, Copy, Debug)]
-pub struct OperatorsUseCaseImpl;
+/// Capability implementation over the matching port; the edge composes it once.
+#[derive(Clone)]
+pub struct OperatorsUseCaseImpl {
+    /// Finds the occurrences of a prepared regex in a text.
+    matching: Arc<dyn MatchingPort>,
+}
+
+impl std::fmt::Debug for OperatorsUseCaseImpl {
+    /// The use case for a debug print: its port is a trait object with no `Debug`, so it names only itself.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct(std::any::type_name::<Self>())
+            .finish_non_exhaustive()
+    }
+}
 
 impl OperatorsUseCaseImpl {
-    /// A stateless semantic capability composed once at an edge.
+    /// A semantic capability composed once at an edge, with the port that finds regex occurrences.
     #[must_use]
-    pub const fn new() -> Self {
-        Self
+    pub fn new(matching: Arc<dyn MatchingPort>) -> Self {
+        Self { matching }
     }
 }
 
@@ -146,7 +160,10 @@ impl OperatorsUseCase for OperatorsUseCaseImpl {
                 target,
             } => {
                 crate::domain::replace::service::replace_compiled(
-                    regex,
+                    &|each| {
+                        self.matching
+                            .visit_regex_matches(regex, SearchText(text), &mut |found| each(found.0))
+                    },
                     CellText(text),
                     ReplacementText(replacement),
                     ReplacedText(target),
@@ -182,7 +199,28 @@ impl OperatorsUseCase for OperatorsUseCaseImpl {
                 driver,
                 target,
             } => {
-                crate::domain::source_matches::service::occurrences(input, driver, target)?;
+                let (regex, text, capture) = (input.regex, input.text, input.capture);
+                crate::domain::source_matches::service::occurrences(
+                    input,
+                    driver,
+                    target,
+                    &|each| match capture {
+                        Some(name) => self
+                            .matching
+                            .visit_regex_captures(
+                                regex,
+                                SearchText(text),
+                                GroupName(name),
+                                &mut |found, group| each(found.0, Some(group.0)),
+                            )
+                            .map_err(|_| PortableOperatorFault::MissingCapture),
+                        None => Ok(self.matching.visit_regex_matches(
+                            regex,
+                            SearchText(text),
+                            &mut |found| each(found.0, None),
+                        )),
+                    },
+                )?;
                 Ok(OperatorAnswer::Written)
             }
             OperatorCall::OrderedExistence {

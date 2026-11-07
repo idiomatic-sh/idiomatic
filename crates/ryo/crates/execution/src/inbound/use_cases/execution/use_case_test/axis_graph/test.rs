@@ -76,7 +76,7 @@ fn plan(direction: Direction, stored: bool, projected: bool) -> Plan {
 fn execute(stored: bool, projected: bool) -> Result<Vec<Table>, OperatingError> {
     let engine = ExecutionUseCaseImpl::new(
         Arc::new(
-            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
+            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
         ),
         Arc::new(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new()),
     );

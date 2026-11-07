@@ -76,7 +76,7 @@ pub(in super::super) fn compare_delivery_with_semantic(
         semantic,
         refusal,
         Arc::new(
-            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
+            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
         ),
     )
 }
@@ -344,7 +344,7 @@ impl ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase
                 Ok(OperatorAnswer::Written)
             }
             other => {
-                ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new()
+                ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case()))
                     .operators(other)
             }
         }

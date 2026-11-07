@@ -56,7 +56,7 @@ impl OperatorsUseCase for ObservedSemantics {
         if refuse {
             Err(PortableOperatorFault::ShapeMismatch)
         } else {
-            OperatorsUseCaseImpl::new().operators(call)
+            OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())).operators(call)
         }
     }
 }

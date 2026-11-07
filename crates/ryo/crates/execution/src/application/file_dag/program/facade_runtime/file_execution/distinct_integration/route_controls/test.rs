@@ -33,7 +33,7 @@ impl OperatorsUseCase for MeaningCalls {
             }
             _ => {}
         }
-        OperatorsUseCaseImpl::new().operators(call)
+        OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())).operators(call)
     }
 }
 fn run(

@@ -23,7 +23,7 @@ use std::{collections::BTreeMap, sync::Arc};
 pub(crate) fn engine() -> ExecutionUseCaseImpl {
     ExecutionUseCaseImpl::new(
         Arc::new(
-            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
+            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
         ),
         Arc::new(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new()),
     )
