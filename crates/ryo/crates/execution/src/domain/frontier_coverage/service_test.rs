@@ -197,6 +197,7 @@ fn a_restored_frontier_proof_clears_for_an_untouched_kind_and_stays_for_a_touche
                 ordinal: OperandOrdinal(0),
                 kinds: &kinds,
                 coverage: restored.clone(),
+                lineage: Default::default(),
             }],
         )
         .unwrap()
@@ -253,6 +254,7 @@ fn a_kind_partial_is_cleared_by_a_select_that_stops_the_kind_and_by_nothing_else
                     ordinal: crate::domain::output_coverage::types::OperandOrdinal(ordinal),
                     kinds: &kinds,
                     coverage,
+                    lineage: Default::default(),
                 }],
             )
             .unwrap()

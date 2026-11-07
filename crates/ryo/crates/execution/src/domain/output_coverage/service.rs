@@ -1,15 +1,19 @@
 //! The completeness of the answer of an operator, from the completeness of the operands it was given.
+use super::types::Proof;
 use super::types::{InputCoverage, OperandOrdinal, OperandReads};
 use crate::domain::completion::service::{
     after_select, any_of, lacks_of, partial_any, partial_of_lacks, remapped,
 };
 use crate::domain::completion::types::{CoverageState, FileLacks, MissingRows};
+use crate::domain::lineage::service::{anchor_at, anchor_through, pairing};
+use crate::domain::lineage::types::{ColumnAnchor, KeyPairing};
 use crate::domain::operating::errors::OperatingError;
 use ryo_relations::domain::relations::types::FileId;
+use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn};
 
-/// Whether operand `ordinal` of the operation reads a relation ryo owns. Only such an operand's file and node columns lie in the
-/// file its row is partitioned by; a step's columns may carry files and nodes of another operand's rows, and no per-column lineage
-/// says which, so a step operand anchors nothing.
+/// Whether operand `ordinal` of the operation reads a relation ryo owns. Such an operand's file and node columns lie in the file
+/// its row is partitioned by; a step's columns may carry files and nodes of another operand's rows, so a step's key anchors a
+/// missing file only where the step's lineage proves its rows and that key lie in one file ([`proven_by_lineage`]).
 fn reads_relation(
     operation: &ryo_values::domain::plans::types::Operation,
     ordinal: OperandOrdinal,
@@ -21,10 +25,54 @@ fn reads_relation(
     else {
         return OperandReads::Step;
     };
-    if matches!(if ordinal.0 == 0 { left } else { right }, Input::Relation(_)) {
+    if matches!(
+        if ordinal.0 == 0 { left } else { right },
+        Input::Relation(_)
+    ) {
         OperandReads::Relation
     } else {
         OperandReads::Step
+    }
+}
+
+/// Whether the lineage of the two operands of a join proves where the rows missing from either would lie: a key
+/// pairs a column of each operand that lies in its row's file, so the two rows a missing one would have been combined with come
+/// from its file, and every file or node column of the answer lies in its row's file, so it lies in the missing file too. The
+/// right keys and the answer's right columns are read through the view.
+fn proven_by_lineage(
+    inputs: &[InputCoverage<'_>],
+    left_on: &[ColumnIndex],
+    right_on: &[ColumnIndex],
+    output: &[JoinColumn],
+    view: &[ColumnIndex],
+    output_kinds: &[ryo_relations::domain::relations::types::CellKind],
+) -> Proof {
+    use ryo_relations::domain::relations::types::CellKind;
+    use ryo_values::domain::plan_parts::types::Side;
+    let lineage_of = |at: OperandOrdinal| {
+        inputs
+            .iter()
+            .find(|each| each.ordinal == at)
+            .map(|each| &each.lineage)
+    };
+    let (Some(left), Some(right)) = (lineage_of(OperandOrdinal(0)), lineage_of(OperandOrdinal(1)))
+    else {
+        return Proof::Unproven;
+    };
+    if pairing(left, left_on, right, right_on, view) == KeyPairing::Unproven {
+        return Proof::Unproven;
+    }
+    let anchored = output.iter().zip(output_kinds).all(|(column, kind)| {
+        !matches!(kind, CellKind::File | CellKind::Node)
+            || match column.side {
+                Side::Left => anchor_at(left, column.column),
+                Side::Right => anchor_through(right, view, column.column),
+            } == ColumnAnchor::InFile
+    });
+    if anchored && output.len() == output_kinds.len() {
+        Proof::Proven
+    } else {
+        Proof::Unproven
     }
 }
 
@@ -100,6 +148,8 @@ pub(crate) fn output_coverage(
                 view,
                 ..
             } => {
+                let proven =
+                    proven_by_lineage(inputs, left_on, right_on, output, view, output_kinds);
                 let own = if input.ordinal.0 == 0 {
                     left_on
                 } else {
@@ -135,34 +185,56 @@ pub(crate) fn output_coverage(
                         Side::Right => 1,
                     } != input.ordinal.0;
                 }
-                (base && file_keyed) || !other_identity
+                (base && file_keyed) || !other_identity || proven == Proof::Proven
             }
             Operation::Antijoin {
                 left_on, right_on, ..
             } if input.ordinal.0 == 1 => {
-                // The rows of the left operand a file or node key matches lie in the missing file, as the join above has it.
-                base && (right_on.iter().any(|right| {
-                    input
-                        .kinds
-                        .get(right.0 as usize)
-                        .copied()
-                        .is_some_and(file_kind)
-                }) || output_kinds
+                // The left rows a missing right row could keep out share a key with it that lies in its row's file, so they
+                // come from that file, and so do their own columns that lie in their row's file.
+                let proven = inputs
                     .iter()
-                    .copied()
-                    .enumerate()
-                    .filter(|(_, kind)| file_kind(*kind))
-                    .all(|(at, kind)| {
-                        left_on.iter().zip(right_on).any(|(left, right)| {
-                            left.0 as usize == at
-                                && input.kinds.get(right.0 as usize).copied() == Some(kind)
-                        })
-                    }))
+                    .find(|each| each.ordinal.0 == 0)
+                    .is_some_and(|left| {
+                        pairing(&left.lineage, left_on, &input.lineage, right_on, &[])
+                            == KeyPairing::SameFile
+                            && output_kinds.iter().enumerate().all(|(at, kind)| {
+                                !file_kind(*kind)
+                                    || u32::try_from(at).is_ok_and(|at| {
+                                        anchor_at(&left.lineage, ColumnIndex(at))
+                                            == ColumnAnchor::InFile
+                                    })
+                            })
+                    });
+                proven
+                    || (base
+                        && (right_on.iter().any(|right| {
+                            input
+                                .kinds
+                                .get(right.0 as usize)
+                                .copied()
+                                .is_some_and(file_kind)
+                        }) || output_kinds
+                            .iter()
+                            .copied()
+                            .enumerate()
+                            .filter(|(_, kind)| file_kind(*kind))
+                            .all(|(at, kind)| {
+                                left_on.iter().zip(right_on).any(|(left, right)| {
+                                    left.0 as usize == at
+                                        && input.kinds.get(right.0 as usize).copied() == Some(kind)
+                                })
+                            })))
             }
             // The rows an ordered match pairs agree on every key, so a file or node key keeps them in the missing file.
             Operation::OrderedMatch {
-                left_on, right_on, ..
+                left_on,
+                right_on,
+                output,
+                ..
             } => {
+                let proven =
+                    proven_by_lineage(inputs, left_on, right_on, output, &[], output_kinds);
                 let own = if input.ordinal.0 == 0 {
                     left_on
                 } else {
@@ -177,6 +249,7 @@ pub(crate) fn output_coverage(
                             .is_some_and(file_kind)
                     }))
                     || !output_kinds.iter().copied().any(file_kind)
+                    || proven == Proof::Proven
             }
             Operation::OrderedDfs { .. }
             | Operation::Axis { .. }

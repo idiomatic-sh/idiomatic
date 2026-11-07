@@ -97,6 +97,7 @@ fn contributor_partiality_filters_absence_answers_before_keys_can_be_projected_a
                         files: affected.clone(),
                         lacks: vec![],
                     },
+                    lineage: Default::default(),
                 })
                 .collect::<Vec<_>>();
             filter_contributor_rows(&operation, absence, &contributions, &mut rows);
@@ -135,6 +136,7 @@ fn contributor_partiality_filters_absence_answers_before_keys_can_be_projected_a
                 files: vec![Some(FileId(1))],
                 lacks: vec![],
             },
+            lineage: Default::default(),
         }],
         &mut count,
     );
@@ -223,6 +225,7 @@ fn an_inapplicable_file_withholds_nothing_from_a_symbol_keyed_group_and_only_its
             ordinal: OperandOrdinal(0),
             kinds: &operand,
             coverage: coverage(),
+            lineage: Default::default(),
         }],
         &mut kept,
     );
@@ -239,6 +242,7 @@ fn an_inapplicable_file_withholds_nothing_from_a_symbol_keyed_group_and_only_its
                 ordinal: OperandOrdinal(0),
                 kinds: &operand,
                 coverage: coverage(),
+                lineage: Default::default(),
             }],
         )
         .unwrap(),
@@ -260,6 +264,7 @@ fn an_inapplicable_file_withholds_nothing_from_a_symbol_keyed_group_and_only_its
             ordinal: OperandOrdinal(0),
             kinds: &operand,
             coverage: coverage(),
+            lineage: Default::default(),
         }],
         &mut kept,
     );
@@ -277,6 +282,7 @@ fn an_inapplicable_file_withholds_nothing_from_a_symbol_keyed_group_and_only_its
                 ordinal: OperandOrdinal(0),
                 kinds: &operand,
                 coverage: coverage(),
+                lineage: Default::default(),
             }],
         )
         .unwrap(),
@@ -297,6 +303,7 @@ fn an_inapplicable_file_withholds_nothing_from_a_symbol_keyed_group_and_only_its
             ordinal: OperandOrdinal(1),
             kinds: &operand,
             coverage: coverage(),
+            lineage: Default::default(),
         }],
         &mut checked,
     );

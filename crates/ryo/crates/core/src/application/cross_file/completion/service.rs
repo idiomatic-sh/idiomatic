@@ -110,6 +110,15 @@ impl ProjectCompletion {
                 }) {
                     continue;
                 }
+                // A file the rule skipped, its syntax rejected, is skipped: it lacks the rule's input without the rule being
+                // undecided there.
+                if crossing
+                    .skipped
+                    .iter()
+                    .any(|skip| skip.rule == todo.id && skip.path == *path)
+                {
+                    continue;
+                }
                 unknowns.push(
                     ryo_execution::inbound::use_cases::metadata::interface::Unknown {
                         rule: todo.id.clone(),

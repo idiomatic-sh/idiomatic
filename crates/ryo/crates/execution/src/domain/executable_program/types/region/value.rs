@@ -1,6 +1,7 @@
 //! A compiled region: fields private, written only by the executable-program compiler, read through accessors.
 use super::super::instruction::value::Instruction;
 use super::super::{InputSource, ReaderMultiplicity, RegionId, Route, SourcePartition};
+use crate::domain::lineage::types::Lineage;
 use crate::domain::{
     coverage::types::RuleIndex, operating::errors::OperatingError, trust::types::RelationRead,
 };
@@ -19,6 +20,7 @@ pub(crate) struct Region {
     consumers: ReaderMultiplicity,
     dependencies: Box<[RegionId]>,
     route: Route,
+    lineage: Lineage,
 }
 
 impl Region {
@@ -43,6 +45,7 @@ impl Region {
             consumers,
             dependencies: Box::new([]),
             route: Route::Generic,
+            lineage: Lineage::Mixed,
         }
     }
     /// One more reader of the region's publication.
@@ -60,6 +63,10 @@ impl Region {
     /// The regions the region depends on, resolved once by the compiler.
     pub(in crate::domain::executable_program) fn set_dependencies(&mut self, dependencies: Box<[RegionId]>) {
         self.dependencies = dependencies;
+    }
+    /// Where the rows the region publishes come from, compiled once from its instructions and inputs.
+    pub(in crate::domain::executable_program) fn set_lineage(&mut self, lineage: Lineage) {
+        self.lineage = lineage;
     }
     /// The partition each relation input of the region declares.
     pub(in crate::domain::executable_program) fn set_source_partitions(
@@ -97,6 +104,9 @@ impl Region {
     }
     pub(crate) fn route(&self) -> &Route {
         &self.route
+    }
+    pub(crate) fn lineage(&self) -> &Lineage {
+        &self.lineage
     }
     pub(crate) fn last_operation(&self) -> Result<&Operation, OperatingError> {
         self.instructions

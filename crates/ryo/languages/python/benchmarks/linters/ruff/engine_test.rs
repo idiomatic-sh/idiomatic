@@ -36,6 +36,7 @@ mod rule_fixtures_test;
 use rule_fixtures_test::{modules_for, write_rule_fixtures};
 mod rejected_syntax_test;
 use rejected_syntax_test::{
+    a_rejected_file_leaves_i001_plw0406_and_ruf100_answering_the_valid_file,
     a_rejected_file_leaves_pt020_pt025_and_pt026_answering_the_valid_file,
     rejected_syntax_with_provider_partials_skips_only_accepted_syntax_rules,
 };
@@ -167,6 +168,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(true),
     },
     Case {
+        name: CaseName("a_rejected_file_leaves_i001_plw0406_and_ruf100_answering_the_valid_file"),
+        word: Word::Succeeds,
+        input: || EngineScenario::ARejectedFileLeavesI001Plw0406AndRuf100AnsweringTheValidFile,
+        expect: Expect::Value(true),
+    },
+    Case {
         name: CaseName("shared_suppression_fragment_matches_the_historical_inline_queries"),
         word: Word::Succeeds,
         input: || EngineScenario::SharedSuppressionFragmentMatchesTheHistoricalInlineQueries,
@@ -235,6 +242,10 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
     if scenario == EngineScenario::ARejectedFileLeavesPt020Pt025AndPt026AnsweringTheValidFile {
         return a_rejected_file_leaves_pt020_pt025_and_pt026_answering_the_valid_file()
             .map(|()| true);
+    }
+    if scenario == EngineScenario::ARejectedFileLeavesI001Plw0406AndRuf100AnsweringTheValidFile {
+        a_rejected_file_leaves_i001_plw0406_and_ruf100_answering_the_valid_file();
+        return Ok(true);
     }
     if scenario == EngineScenario::SharedSuppressionFragmentMatchesTheHistoricalInlineQueries {
         return shared_suppression_fragment_matches_the_historical_inline_queries().map(|()| true);

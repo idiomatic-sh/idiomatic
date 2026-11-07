@@ -21,4 +21,15 @@ pub(crate) struct InputCoverage<'a> {
     pub ordinal: OperandOrdinal,
     pub kinds: &'a [ryo_relations::domain::relations::types::CellKind],
     pub coverage: CoverageState,
+    /// Where the operand's rows come from: which of its columns lie in the file a row comes from.
+    pub lineage: crate::domain::lineage::types::Lineage,
+}
+
+/// Whether the lineage of a join's operands proves where the rows missing from one of them would lie.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Proof {
+    /// Every file or node column of the answer lies in the file the missing rows come from.
+    Proven,
+    /// The lineage does not show where the missing rows would lie.
+    Unproven,
 }

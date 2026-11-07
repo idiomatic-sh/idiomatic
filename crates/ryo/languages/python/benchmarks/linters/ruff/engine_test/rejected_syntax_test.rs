@@ -150,3 +150,226 @@ pub(super) fn a_rejected_file_leaves_pt020_pt025_and_pt026_answering_the_valid_f
     );
     Ok(())
 }
+
+/// The rules whose plans cross files by design (I001 reads `project-namespace-membership`, PLW0406 `module-identity`) and RUF100,
+/// which consumes their `noqa_matches`, beside a syntax-rejected file: the lineage of their cross-file steps keeps the rejected
+/// file's missing input in that file, so the valid file answers Ruff 0.16.5's findings (I001 and PLW0406 on the import of the
+/// module itself, RUF100 on the unused `noqa`), I001 and PLW0406 skip the rejected file and are undecided nowhere. Before the
+/// lineage, the one rejected file left all three Unknown at every file.
+pub(super) fn a_rejected_file_leaves_i001_plw0406_and_ruf100_answering_the_valid_file() {
+    use super::constants::{
+        BENCHMARK_TOML, BENCHMARKS_LINTERS_RUFF, CODE, CONFIG_DISABLED, CONFIG_EXTERNAL,
+        CONFIG_SELECTED, DIRECTIVE, EMPTY, FILE, NOQA_MATCHES, PREFIX, QUERY_MODULES,
+        RULES_I001_QUERY_RYOQL, RULES_RUF100_QUERY_RYOQL, SUPPRESSION_MATCHES,
+    };
+    use ryo::linter::{
+        Cache, CaseSource, Cell, Corpus, ExecutablePermission, GivenProjectInventory, HostColumn,
+        HostColumnName, HostKind, HostRelation, HostRelationName, HostRow, HostText, LintRequest,
+        Linter, MemoryBudget, ObservationBinding, ObservationBindingName, ObservationColumn,
+        ObservationColumnName, ObservationKind, ObservationName, ObservationProducer,
+        ProjectEntryObservation, ProjectEntryState, ProjectInventoryCompleteness,
+        ProjectSearchScope, RelativePath, Rule, RuleApplicability, RuleId, SourceText, WorkerPool,
+        Workers, lint_with,
+    };
+    const CASE: &str = "pkg/case.py";
+    const PACKAGE: &str = "pkg/__init__.py";
+    const BROKEN: &str = "broken.py";
+    let root = tempfile::tempdir().unwrap();
+    let authored = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(BENCHMARKS_LINTERS_RUFF);
+    let profile: toml::Value =
+        toml::from_str(&std::fs::read_to_string(authored.join(BENCHMARK_TOML)).unwrap()).unwrap();
+    let modules = profile[QUERY_MODULES]
+        .as_table()
+        .unwrap()
+        .iter()
+        .map(|(name, path)| {
+            ryo::query::QueryModuleSource::try_new(
+                name,
+                &std::fs::read_to_string(authored.join(path.as_str().unwrap())).unwrap(),
+            )
+            .unwrap()
+        })
+        .collect::<Vec<_>>();
+    let modules = ryo::query::QueryModuleCatalog::try_new(modules).unwrap();
+    let i001 = RuleId::try_from("I001").unwrap();
+    let plw0406 = RuleId::try_from("PLW0406").unwrap();
+    let ruf100 = RuleId::try_from("RUF100").unwrap();
+    let rule = |name: &str, query: &str, applicability, observations| Rule {
+        query: ryo::query::RyoQlQuery::with_modules(name, query, &modules).unwrap(),
+        observations,
+        applicability,
+        parameters: BTreeMap::new(),
+        include: Vec::new(),
+        exclude: Vec::new(),
+    };
+    let read = |path: &str| std::fs::read_to_string(authored.join(path)).unwrap();
+    let columns = vec![
+        ObservationColumn {
+            name: ObservationColumnName(DIRECTIVE.into()),
+            kind: ObservationKind::Node,
+        },
+        ObservationColumn {
+            name: ObservationColumnName(FILE.into()),
+            kind: ObservationKind::File,
+        },
+        ObservationColumn {
+            name: ObservationColumnName(CODE.into()),
+            kind: ObservationKind::Symbol,
+        },
+    ];
+    let consumed = vec![ObservationBinding {
+        name: ObservationBindingName(SUPPRESSION_MATCHES.into()),
+        columns,
+        producers: [&i001, &plw0406]
+            .into_iter()
+            .map(|producer| ObservationProducer::Output {
+                rule: producer.clone(),
+                output: ObservationName(NOQA_MATCHES.into()),
+            })
+            .collect(),
+    }];
+    let text = |code: &str| HostRow(vec![Cell::Text(HostText(code.into()))]);
+    let hosted = vec![
+        HostRelation {
+            name: HostRelationName(CONFIG_SELECTED.into()),
+            columns: vec![HostColumn {
+                name: HostColumnName(CODE.into()),
+                kind: HostKind::Text,
+            }],
+            rows: ["I001", "PLW0406", "RUF100"]
+                .into_iter()
+                .map(text)
+                .collect(),
+        },
+        HostRelation {
+            name: HostRelationName(CONFIG_DISABLED.into()),
+            columns: vec![
+                HostColumn {
+                    name: HostColumnName(FILE.into()),
+                    kind: HostKind::File,
+                },
+                HostColumn {
+                    name: HostColumnName(CODE.into()),
+                    kind: HostKind::Text,
+                },
+            ],
+            rows: Vec::new(),
+        },
+        HostRelation {
+            name: HostRelationName(CONFIG_EXTERNAL.into()),
+            columns: vec![HostColumn {
+                name: HostColumnName(PREFIX.into()),
+                kind: HostKind::Text,
+            }],
+            rows: Vec::new(),
+        },
+    ];
+    let source = |path: &str, text: &str| CaseSource {
+        path: RelativePath(path.into()),
+        text: SourceText(text.into()),
+        executable: ExecutablePermission::Unknown,
+    };
+    let request = LintRequest {
+        source_language: ryo::linter::SourceLanguage::Recognized,
+        root: root.path().into(),
+        project_search_scope: ProjectSearchScope::Declared(vec![RelativePath(EMPTY.into())]),
+        given_project_inventory: GivenProjectInventory {
+            entries: [CASE, PACKAGE, BROKEN]
+                .into_iter()
+                .map(|path| ProjectEntryObservation {
+                    path: RelativePath(path.into()),
+                    state: ProjectEntryState::File,
+                })
+                .collect(),
+            completeness: ProjectInventoryCompleteness::CompleteWithinDeclaredScope,
+        },
+        corpus: Corpus::Given(vec![
+            source(BROKEN, "def broken(:\n    pass\n"),
+            source(PACKAGE, ""),
+            source(
+                CASE,
+                "import sys\nimport os\nimport pkg.case\n\nvalue = 1  # noqa: E501\n",
+            ),
+        ]),
+        rules: BTreeMap::from([
+            (
+                i001.clone(),
+                rule(
+                    "test/I001",
+                    &read(RULES_I001_QUERY_RYOQL),
+                    RuleApplicability::AcceptedSyntax,
+                    Vec::new(),
+                ),
+            ),
+            (
+                plw0406.clone(),
+                rule(
+                    "test/PLW0406",
+                    include_str!("../rules/PLW0406/query.ryoql"),
+                    RuleApplicability::AcceptedSyntax,
+                    Vec::new(),
+                ),
+            ),
+            (
+                ruf100.clone(),
+                rule(
+                    "test/RUF100",
+                    &read(RULES_RUF100_QUERY_RYOQL),
+                    RuleApplicability::Always,
+                    consumed,
+                ),
+            ),
+        ]),
+        files: Vec::new(),
+        beside: Vec::new(),
+        hosted,
+    };
+    let linter = Linter::new(
+        python_310(),
+        WorkerPool::from(Workers(std::num::NonZeroUsize::MIN)),
+        MemoryBudget::Machine,
+        Cache::None,
+    );
+    let report = lint_with(&linter, request).unwrap();
+    let at_case = |rule: &RuleId| {
+        report
+            .findings
+            .iter()
+            .filter(|finding| {
+                &finding.rule == rule
+                    && finding.subject
+                        == ryo::linter::Slot::Is(Cell::File(RelativePath(CASE.into())))
+            })
+            .count()
+    };
+    // Ruff 0.16.5 on the same files: I001 at 1:1-3:16, PLW0406 at 3:8-3:16, RUF100 at 5:12-5:24 of pkg/case.py.
+    for rule in [&i001, &plw0406, &ruf100] {
+        assert_eq!(
+            at_case(rule),
+            1,
+            "{rule:?} answers the valid file as Ruff does"
+        );
+    }
+    assert!(
+        !report
+            .unknowns
+            .iter()
+            .any(|unknown| unknown.path != RelativePath(BROKEN.into())),
+        "the rejected file leaves no rule undecided at the valid files: {:?}",
+        report.unknowns
+    );
+    for rule in [&i001, &plw0406] {
+        assert!(
+            report
+                .skipped
+                .iter()
+                .any(|skip| &skip.rule == rule && skip.path == RelativePath(BROKEN.into())),
+            "{rule:?} skips the rejected file"
+        );
+        assert!(
+            !report.unknowns.iter().any(|unknown| &unknown.rule == rule),
+            "{rule:?} is skipped at the rejected file, not undecided: {:?}",
+            report.unknowns
+        );
+    }
+}
