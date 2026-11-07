@@ -178,7 +178,7 @@ fn prepared_packed_buckets_preserve_flat_digests_store_bytes_and_move_ownership(
         panic!("fresh handover");
     };
     for (index, bucket) in handed.buckets.iter().enumerate() {
-        let ryo_values::domain::records::types::RecordWords::Inline(words) = &bucket.words else {
+        let ryo_values::domain::records::types::RecordWords::Inline(words) = &bucket.handed else {
             panic!("pure normalization stays inline");
         };
         assert_eq!(

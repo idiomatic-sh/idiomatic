@@ -95,7 +95,7 @@ pub(crate) fn hand_into(
                 bucket: each.bucket,
                 proof: each.proof.clone(),
             });
-        match each.words {
+        match each.handed {
             RecordWords::Inline(words) => stored.frontier.push(StoredWords {
                 file,
                 bucket: each.bucket,

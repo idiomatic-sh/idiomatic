@@ -423,18 +423,18 @@ fn subject(question: Input) -> Result<Value, Failure> {
     let directory = root.path().join("cache");
     let store = store_in(&directory, "build-1");
     Ok(match question {
-        Question::NormalizedStagingPreservesStoreBytesAndSnapshotLifetime => normalized_staging_preserves_store_bytes_and_snapshot_lifetime(),
-        Question::WarmPartialFrontierKeepsExactProofThroughFactsHandover => warm_partial_frontier_keeps_exact_proof_through_facts_handover(),
-        Question::StagedFreshAndSelectedOldRowsMatchInlineEditAddRemoveAndReorder => staged_fresh_and_selected_old_rows_match_inline_edit_add_remove_and_reorder(),
-        Question::FailedWriteFlushOrRenameNeverPublishesOrRemovesPreviousCache => failed_write_flush_or_rename_never_publishes_or_removes_previous_cache(),
-        Question::OldReadDescriptorsSurviveReplacementAndRejectOtherSnapshots => old_read_descriptors_survive_replacement_and_reject_other_snapshots(),
-        Question::AnOpenSnapshotRefusesExternalPayloadTruncation => an_open_snapshot_refuses_external_payload_truncation(),
+        Question::NormalizedStagingPreservesStoreBytesAndSnapshotLifetime => normalized_staging_preserves_store_bytes_and_snapshot_lifetime()?,
+        Question::WarmPartialFrontierKeepsExactProofThroughFactsHandover => warm_partial_frontier_keeps_exact_proof_through_facts_handover()?,
+        Question::StagedFreshAndSelectedOldRowsMatchInlineEditAddRemoveAndReorder => staged_fresh_and_selected_old_rows_match_inline_edit_add_remove_and_reorder()?,
+        Question::FailedWriteFlushOrRenameNeverPublishesOrRemovesPreviousCache => failed_write_flush_or_rename_never_publishes_or_removes_previous_cache()?,
+        Question::OldReadDescriptorsSurviveReplacementAndRejectOtherSnapshots => old_read_descriptors_survive_replacement_and_reject_other_snapshots()?,
+        Question::AnOpenSnapshotRefusesExternalPayloadTruncation => an_open_snapshot_refuses_external_payload_truncation()?,
         #[cfg(unix)]
-        Question::BucketReaderObservesEachRowAtItsBufferAcquisition => bucket_reader_observes_each_row_at_its_buffer_acquisition(),
+        Question::BucketReaderObservesEachRowAtItsBufferAcquisition => bucket_reader_observes_each_row_at_its_buffer_acquisition()?,
         #[cfg(unix)]
-        Question::BucketReaderAcquiresOtherBucketAfterMutationOrTruncation => bucket_reader_acquires_other_bucket_after_mutation_or_truncation(),
+        Question::BucketReaderAcquiresOtherBucketAfterMutationOrTruncation => bucket_reader_acquires_other_bucket_after_mutation_or_truncation()?,
         #[cfg(unix)]
-        Question::BucketReadersKeepSnapshotIdentityAcrossConcurrentConsumers => bucket_readers_keep_snapshot_identity_across_concurrent_consumers(),
+        Question::BucketReadersKeepSnapshotIdentityAcrossConcurrentConsumers => bucket_readers_keep_snapshot_identity_across_concurrent_consumers()?,
         Question::PriorSchemaStoreIsEmpty => {
             store.stored()?.keep(stored(1), &KeptRows::default())?;
             let current = store.stored()?.tables() == tables(stored(1));
@@ -684,7 +684,7 @@ fn warm_partial_frontier_keeps_exact_proof_through_facts_handover() -> Result<Va
         .into_iter()
         .next()
         .expect("retained bucket");
-    let ReadWordPayload::Old(descriptor) = row.words else {
+    let ReadWordPayload::Old(descriptor) = row.payload else {
         panic!("postcard frontier must retain snapshot-bound old descriptor")
     };
     let mut bytes = PackedWords::default();
@@ -825,12 +825,12 @@ fn old_read_descriptors_survive_replacement_and_reject_other_snapshots() -> Resu
         handed
             .frontier
             .iter()
-            .all(|row| matches!(row.words, ReadWordPayload::Old(_)))
+            .all(|row| matches!(row.payload, ReadWordPayload::Old(_)))
     );
     let descriptors: Vec<_> = handed
         .frontier
         .iter()
-        .map(|row| match row.words {
+        .map(|row| match row.payload {
             ReadWordPayload::Old(words) => words,
             ReadWordPayload::Inline(_) => panic!("postcard retains no old payload"),
         })
@@ -890,7 +890,7 @@ fn an_open_snapshot_refuses_external_payload_truncation() -> Result<Value, Failu
         .unwrap();
     let snapshot = store.stored().expect("open immutable snapshot");
     let handed = snapshot.handed(&BucketsWanted::All).expect("row framing");
-    let descriptor = match handed.frontier.first().expect("a row").words {
+    let descriptor = match handed.frontier.first().expect("a row").payload {
         ReadWordPayload::Old(words) => words,
         ReadWordPayload::Inline(_) => panic!("postcard retains descriptors"),
     };
@@ -931,11 +931,11 @@ fn bucket_reader_observes_each_row_at_its_buffer_acquisition() -> Result<Value, 
             .expect("rows")
             .0
             .frontier;
-        let first = match &rows[0].words {
+        let first = match &rows[0].payload {
             ReadWordPayload::Old(words) => *words,
             ReadWordPayload::Inline(_) => panic!("old row"),
         };
-        let second = match &rows[1].words {
+        let second = match &rows[1].payload {
             ReadWordPayload::Old(words) => *words,
             ReadWordPayload::Inline(_) => panic!("old row"),
         };
@@ -1004,11 +1004,11 @@ fn bucket_reader_acquires_other_bucket_after_mutation_or_truncation() -> Result<
             .expect("rows")
             .0
             .frontier;
-        let first = match &rows[0].words {
+        let first = match &rows[0].payload {
             ReadWordPayload::Old(words) => *words,
             ReadWordPayload::Inline(_) => panic!("old row"),
         };
-        let second = match &rows[1].words {
+        let second = match &rows[1].payload {
             ReadWordPayload::Old(words) => *words,
             ReadWordPayload::Inline(_) => panic!("old row"),
         };
@@ -1058,7 +1058,7 @@ fn bucket_readers_keep_snapshot_identity_across_concurrent_consumers() -> Result
         .expect("rows")
         .0
         .frontier;
-    let descriptor = match &rows[0].words {
+    let descriptor = match &rows[0].payload {
         ReadWordPayload::Old(words) => *words,
         ReadWordPayload::Inline(_) => panic!("old row"),
     };
@@ -1068,7 +1068,7 @@ fn bucket_readers_keep_snapshot_identity_across_concurrent_consumers() -> Result
         .expect("foreign rows")
         .0
         .frontier;
-    let foreign_descriptor = match &foreign_rows[0].words {
+    let foreign_descriptor = match &foreign_rows[0].payload {
         ReadWordPayload::Old(words) => *words,
         ReadWordPayload::Inline(_) => panic!("old row"),
     };

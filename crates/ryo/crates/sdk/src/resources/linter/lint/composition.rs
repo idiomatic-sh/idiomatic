@@ -7,10 +7,8 @@ use ryo_core::inbound::use_cases::lint::interface::LintUseCase;
 use ryo_core::inbound::use_cases::open::interface::OpenUseCase;
 use ryo_core::outbound::lint_store::interface::LintStorePort;
 use ryo_core::outbound::lint_store::types::BuildIdentity;
-use ryo_core::outbound::{
-    corpus, digest, facts, language, lint_store, matching, memory, query_language, row_sink,
-    scheduler,
-};
+use ryo_core::outbound::{corpus, language, lint_store, memory, row_sink, scheduler};
+use ryo_execution::outbound::{digest, facts, matching, query_language};
 use ryo_execution::inbound::use_cases::execution::types::matching::MatchingPort;
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::files::types::{CorpusFile, CorpusListing, FileBytes};

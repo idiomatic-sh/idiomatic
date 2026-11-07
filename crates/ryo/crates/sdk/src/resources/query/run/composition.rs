@@ -2,9 +2,8 @@
 //! in its builder, and builds the service it calls. `compose` only constructs. Nothing here implements a port.
 
 use ryo_core::inbound::use_cases::lint::interface::LintUseCase;
-use ryo_core::outbound::{
-    corpus, digest, facts, language, lint_store, matching, memory, query_language, row_sink,
-};
+use ryo_core::outbound::{corpus, language, lint_store, memory, row_sink};
+use ryo_execution::outbound::{digest, facts, matching, query_language};
 use std::sync::Arc;
 
 use crate::domain::capacity::types::WorkerPool;

@@ -118,6 +118,10 @@ impl TryFrom<&str> for Glob {
         match super::composition::build_matching().parse(&CoreGlob(text.into())) {
             Ok(()) => Ok(Self(text.into())),
             Err(MatchingError::BadGlob { glob, reason }) => Err(GlobSchemaError { glob, reason }),
+            Err(MatchingError::InvalidRegex { reason }) => Err(GlobSchemaError {
+                glob: text.into(),
+                reason,
+            }),
         }
     }
 }

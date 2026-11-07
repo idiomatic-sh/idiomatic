@@ -54,7 +54,8 @@ use crate::outbound::row_sink::fixtures::fake::{BytesRowSinkFake, TallyRowSinkFa
 use crate::outbound::row_sink::interface::RowSinkPort;
 use crate::outbound::scheduler::fixtures::fake::{CountingSchedulerFake, SchedulerFake};
 use crate::outbound::scheduler::interface::SchedulerPort;
-use crate::outbound::{facts, matching, query_language, row_sink};
+use crate::outbound::row_sink;
+use ryo_execution::outbound::{facts, matching, query_language};
 use ryo_execution::inbound::use_cases::execution::types::facts::FactsPort;
 use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
 use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;

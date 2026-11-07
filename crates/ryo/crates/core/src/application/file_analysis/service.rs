@@ -938,10 +938,10 @@ impl FileAnalysis {
         {
             for bucket in &mut handed.buckets {
                 let words = std::mem::replace(
-                    &mut bucket.words,
+                    &mut bucket.handed,
                     ryo_values::domain::records::types::RecordWords::Inline(PackedWords::default()),
                 );
-                bucket.words = match words {
+                bucket.handed = match words {
                     ryo_values::domain::records::types::RecordWords::Inline(words) => {
                         read.stage_words(words)?
                     }
@@ -995,7 +995,7 @@ impl FileAnalysis {
                     .buckets
                     .iter()
                     .map(|each| {
-                        let held = match &each.words {
+                        let held = match &each.handed {
                             ryo_values::domain::records::types::RecordWords::Inline(words) => {
                                 Held::Words(words)
                             }
@@ -1034,7 +1034,7 @@ impl FileAnalysis {
                     buckets: rows_of_file(&kept.frontier, file, |each| each.file)
                         .iter()
                         .map(|each| {
-                            let held = match &each.words {
+                            let held = match &each.payload {
                                 ryo_values::domain::stores::types::ReadWordPayload::Inline(
                                     words,
                                 ) => Held::Words(words),

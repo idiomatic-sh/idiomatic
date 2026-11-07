@@ -104,21 +104,21 @@ pub use crate::domain::place::types::Place;
 
 pub use lint::types::Workers;
 
-pub use lint::types::FlagState;
+pub use crate::domain::parameter::types::FlagState;
 
-pub use lint::types::ParameterNumber;
+pub use crate::domain::parameter::types::ParameterNumber;
 
-pub use lint::types::ParameterNumbers;
+pub use crate::domain::parameter::types::ParameterNumbers;
 
 pub use lint::types::Message;
 
-pub use lint::types::ParameterName;
+pub use crate::domain::parameter::types::ParameterName;
 
-pub use lint::types::ParameterText;
+pub use crate::domain::parameter::types::ParameterText;
 
-pub use lint::types::ParameterCell;
+pub use crate::domain::parameter::types::ParameterCell;
 
-pub use lint::types::ParameterTable;
+pub use crate::domain::parameter::types::ParameterTable;
 
 pub use crate::domain::file::types::ReadFailure;
 

@@ -36,7 +36,6 @@ impl SyntaxPort for MissingPayload {
         &self,
         _text: SourceText<'_>,
         _source_kind: PythonSourceKind,
-        _settings: &crate::settings::PythonParserSettings,
         builder: &mut TableBuilder<'_>,
     ) {
         languages::set_syntax_acceptance(builder, languages::SyntaxAcceptance::Accepted);

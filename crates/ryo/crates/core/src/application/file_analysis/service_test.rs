@@ -1562,7 +1562,7 @@ fn successful_outcomes_stage_once_and_keep_digests_without_retaining_payloads() 
     };
     assert_eq!(read.calls.load(Ordering::Relaxed), 64);
     assert!(handed.buckets.iter().all(|row| matches!(
-        row.words,
+        row.handed,
         RecordWords::Staged(StagedWords {
             length: ryo_values::domain::records::types::PayloadLength(4096),
             ..
@@ -1745,7 +1745,7 @@ fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() 
     let Handing::Made(handed) = &ran.handed else {
         panic!("made")
     };
-    let RecordWords::Staged(descriptor) = &handed.buckets[0].words else {
+    let RecordWords::Staged(descriptor) = &handed.buckets[0].handed else {
         panic!("staged")
     };
     snapshot

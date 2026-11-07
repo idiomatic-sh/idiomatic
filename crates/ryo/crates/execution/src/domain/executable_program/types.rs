@@ -305,17 +305,9 @@ impl Instruction {
     pub(crate) fn demand(&self) -> &DemandProgram {
         &self.demand
     }
-    #[cfg(test)]
-    pub(crate) fn partition(&self) -> PartitionRequirement {
-        self.partition
-    }
 }
 
 impl Region {
-    #[cfg(test)]
-    pub(crate) fn id(&self) -> RegionId {
-        self.id
-    }
     pub(crate) fn producer(&self) -> RuleIndex {
         self.producer
     }
@@ -332,10 +324,6 @@ impl Region {
     }
     pub(crate) fn inputs(&self) -> &[InputSource] {
         &self.inputs
-    }
-    #[cfg(test)]
-    pub(crate) fn source_partitions(&self) -> &[SourcePartition] {
-        &self.source_partitions
     }
     pub(crate) fn consumers(&self) -> usize {
         self.consumers

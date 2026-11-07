@@ -111,8 +111,8 @@ const SAMPLES: &[languages::SourceFile] = &[
 /// Which of the file's cases a row runs.
 #[derive(Clone, Copy, Debug)]
 enum Body {
-    /// The case `parse_contract_passes_path_kind_and_its_settings_to_syntax`.
-    ParseContractPassesPathKindAndItsSettingsToSyntax,
+    /// The case `parse_contract_passes_path_kind_to_syntax_and_keeps_its_settings_identity`.
+    ParseContractPassesPathKindToSyntaxAndKeepsItsSettingsIdentity,
     /// The case `linked_python_keeps_latest_as_its_default_target`.
     LinkedPythonKeepsLatestAsItsDefaultTarget,
     /// The case `explicit_source_selection_preserves_paths_and_default_recognition`.
@@ -124,9 +124,9 @@ enum Body {
 /// The rows of the cases whose bodies assert for themselves.
 const BODIES: &[Case<Body, (), ()>] = &[
     Case {
-        name: CaseName("parse_contract_passes_path_kind_and_its_settings_to_syntax"),
+        name: CaseName("parse_contract_passes_path_kind_to_syntax_and_keeps_its_settings_identity"),
         word: Word::Succeeds,
-        input: || Body::ParseContractPassesPathKindAndItsSettingsToSyntax,
+        input: || Body::ParseContractPassesPathKindToSyntaxAndKeepsItsSettingsIdentity,
         expect: Expect::Value(()),
     },
     Case {
@@ -154,8 +154,8 @@ const BODIES: &[Case<Body, (), ()>] = &[
 /// Runs the body of one case.
 fn body(given: Body) -> Result<(), ()> {
     match given {
-        Body::ParseContractPassesPathKindAndItsSettingsToSyntax => {
-            parse_contract_passes_path_kind_and_its_settings_to_syntax()
+        Body::ParseContractPassesPathKindToSyntaxAndKeepsItsSettingsIdentity => {
+            parse_contract_passes_path_kind_to_syntax_and_keeps_its_settings_identity()
         }
         Body::LinkedPythonKeepsLatestAsItsDefaultTarget => {
             linked_python_keeps_latest_as_its_default_target()
@@ -182,7 +182,7 @@ fn refuses() {
 }
 
 #[derive(Clone)]
-struct CapturingSyntax(Arc<Mutex<Vec<(PythonSourceKind, String)>>>);
+struct CapturingSyntax(Arc<Mutex<Vec<PythonSourceKind>>>);
 
 impl SyntaxPort for CapturingSyntax {
     fn expand_annotations(
@@ -201,17 +201,13 @@ impl SyntaxPort for CapturingSyntax {
         &self,
         _text: SourceText<'_>,
         source_kind: PythonSourceKind,
-        settings: &PythonParserSettings,
         _builder: &mut languages::TableBuilder<'_>,
     ) {
-        self.0
-            .lock()
-            .expect("capture lock")
-            .push((source_kind, settings.identity().0.to_owned()));
+        self.0.lock().expect("capture lock").push(source_kind);
     }
 }
 
-fn parse_contract_passes_path_kind_and_its_settings_to_syntax() {
+fn parse_contract_passes_path_kind_to_syntax_and_keeps_its_settings_identity() {
     let seen = Arc::new(Mutex::new(Vec::new()));
     let settings = PythonParserSettings::new(PythonTargetVersion::Py310);
     let language = ParseContract::new(
@@ -242,10 +238,7 @@ fn parse_contract_passes_path_kind_and_its_settings_to_syntax() {
 
     assert_eq!(
         *seen.lock().expect("capture lock"),
-        [
-            (PythonSourceKind::Python, "python-target=3.10".to_owned()),
-            (PythonSourceKind::Stub, "python-target=3.10".to_owned()),
-        ]
+        [PythonSourceKind::Python, PythonSourceKind::Stub]
     );
     assert_eq!(language.configuration_identity().0, "python-target=3.10");
 }

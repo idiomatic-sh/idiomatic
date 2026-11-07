@@ -5,7 +5,8 @@
 use std::sync::Arc;
 
 use ryo_core::inbound::use_cases::validate::interface::ValidateUseCase;
-use ryo_core::outbound::{language, query_language};
+use ryo_core::outbound::language;
+use ryo_execution::outbound::query_language;
 
 use crate::domain::language::types::Language;
 

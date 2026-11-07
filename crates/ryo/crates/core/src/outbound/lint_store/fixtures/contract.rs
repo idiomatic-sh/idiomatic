@@ -23,7 +23,7 @@ pub fn materialized_handed(
     let handed = read.handed(wanted)?.0;
     let mut rows = Vec::with_capacity(handed.frontier.len());
     for row in handed.frontier {
-        let words = match row.words {
+        let words = match row.payload {
             ryo_values::domain::stores::types::ReadWordPayload::Inline(words) => words,
             ryo_values::domain::stores::types::ReadWordPayload::Old(span) => {
                 let mut loaded = PackedWords::default();

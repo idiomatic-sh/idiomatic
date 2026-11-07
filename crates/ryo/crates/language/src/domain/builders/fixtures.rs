@@ -3,7 +3,7 @@
 use super::service;
 use crate::domain::elements::types::{Elements, TableBuilder};
 use crate::domain::symbols::types::{ByteSlice, Symbols};
-use ryo_relations::domain::relations::types::{KindBits, Offset};
+use ryo_relations::domain::relations::types::{KindBits, Offset, Position};
 
 /// Opens a builder over an element table, a symbol table and the source of a file.
 pub fn table_builder<'a>(
@@ -27,4 +27,10 @@ pub fn leave_node(builder: &mut TableBuilder<'_>, end: Offset) {
 /// Writes a token of a kind between two offsets.
 pub fn token(builder: &mut TableBuilder<'_>, kind: KindBits, start: Offset, end: Offset) {
     service::token(builder, kind, start, end);
+}
+
+/// The identity of the next element the builder will append.
+#[must_use]
+pub fn builder_position(builder: &mut TableBuilder<'_>) -> Position {
+    service::builder_position(builder)
 }
