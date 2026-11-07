@@ -39,11 +39,11 @@ impl TreeDriver<'_, '_, '_> {
         let elements = kinds_of(&tree_rows);
         while let Some(found) = self.state.stretched.get(self.at.0).copied() {
             self.at = StretchCursor(self.at.0 + 1);
-            self.work.found(1, 1);
+            self.work.found(ryo_values::domain::plan_parts::types::InputNumber(1), crate::domain::operator::contract::types::FoundRows(1));
             #[cfg(feature = "diagnostic-row-progress")]
             (self.progress)(
                 crate::domain::operator::contract::views::ProgressCounter::JoinCandidatePairs,
-                1,
+                crate::domain::operator::contract::views::ProgressAmount(1),
             );
             if !self.state.kinds.tests.0.is_empty()
                 && passes(&self.state.kinds, kind_at(self.tree.elements, found)) == Verdict::Fails
@@ -55,7 +55,7 @@ impl TreeDriver<'_, '_, '_> {
             if !self.state.gate.0.is_empty() {
                 (self.progress)(
                     crate::domain::operator::contract::views::ProgressCounter::PredicateEvaluations,
-                    1,
+                    crate::domain::operator::contract::views::ProgressAmount(1),
                 );
             }
             if !self.state.gate.0.is_empty()
@@ -77,7 +77,7 @@ impl TreeDriver<'_, '_, '_> {
             if !self.state.rest.0.is_empty() {
                 (self.progress)(
                     crate::domain::operator::contract::views::ProgressCounter::PredicateEvaluations,
-                    1,
+                    crate::domain::operator::contract::views::ProgressAmount(1),
                 );
             }
             if !self.state.rest.0.is_empty()

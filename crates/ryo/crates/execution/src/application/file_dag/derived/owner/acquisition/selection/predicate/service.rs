@@ -11,10 +11,11 @@ use crate::application::file_dag::derived::owner::selection::types::{
 use crate::domain::{
     derived_views::types::PreparedSelectorViews,
     operating::types::{Memo, NameCount, OperatorContext},
-    operator::contract::views::BorrowedRows,
+    operator::contract::
     stored_selection::types::Selector,
     table_model::service::check_columns,
 };
+use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
 use ryo_language::domain::names::service::name_count;
 use ryo_relations::domain::relations::types::ColumnsView;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -43,7 +44,7 @@ pub(in crate::application::file_dag::derived::owner) fn matches(
     let acquired = resources.acquire_predicate(
         cache,
         &views.predicate,
-        SelectorGroup(views.group),
+        SelectorGroup(views.group.0),
         |cache| build_matches(cache, resources, program, views, source, context, choose),
     )?;
     let population = source.columns.first().map_or(0, |column| column.0.len());

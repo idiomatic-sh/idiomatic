@@ -9,8 +9,9 @@ use crate::domain::lowering::types::Counting;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::contract::{
     types::{PrimitiveSemantics, join_result},
-    views::{BorrowedRows, IndexedRows},
+    views::{IndexedRows},
 };
+use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
 use crate::domain::operator::types::PlanLayout;
 
 use ryo_operators::domain::equality_join::types::JoinInput;
@@ -159,7 +160,7 @@ pub(crate) fn compile(plan: &Plan, layout: &PlanLayout) -> KernelPlan {
             continue;
         };
         chains[target] = Some(Chain {
-            left_step: left_id,
+            left_step: *left_step,
             filter_step: ryo_values::domain::plan_parts::types::StepId(filter_id as u32),
             join_step: ryo_values::domain::plan_parts::types::StepId(join_id as u32),
             right: *right,
@@ -210,7 +211,7 @@ pub(crate) fn execute_with_index(
             #[cfg(feature = "diagnostic-row-progress")]
             (semantics.progress())(
                 crate::domain::operator::contract::views::ProgressCounter::InputRows,
-                1,
+                crate::domain::operator::contract::views::ProgressAmount(1),
             );
             let left_row = RowIndex(position);
             let reader = driver::Left {

@@ -1,15 +1,16 @@
 //! Application policy for prepared compact selections and their shared file backend.
 use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
 use crate::domain::{
-    derived_views::types::{DerivedContract, DerivedInputs, DerivedScratch},
+    derived_views::types::{contract::value::DerivedContract, DerivedInputs, DerivedScratch},
     operating::{errors::OperatingError, types::OperatorContext},
-    operator::contract::views::BorrowedRows,
+    operator::contract::
     stored_selection::types::Selector,
     table_model::{
         service::check_columns,
         types::{SelectedRows, StoredSelection},
     },
 };
+use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
 use ryo_relations::domain::relations::types::ColumnsView;
 use std::sync::Arc;
 pub(super) mod candidates;
@@ -62,7 +63,7 @@ fn make<'a>(
     let Some(views) = cache
         .selection_views
         .as_ref()
-        .and_then(|prepared| prepared.by_selector.get(&(Arc::as_ptr(program) as usize)))
+        .and_then(|prepared| prepared.by_selector.get(&crate::domain::derived_views::types::SelectorAddress(Arc::as_ptr(program) as usize)))
         .cloned()
     else {
         return Ok(None);
@@ -153,7 +154,7 @@ impl DerivedOwner {
             .ok_or(OperatingError::NotRun)?;
         let views = plans
             .by_selector
-            .get(&(Arc::as_ptr(program) as usize))
+                .get(&crate::domain::derived_views::types::SelectorAddress(Arc::as_ptr(program) as usize))
             .ok_or(OperatingError::NotRun)?;
         if backend.selector_repetition_failed
             == crate::application::file_dag::derived::owner::cache::types::RepetitionTracking::Failed

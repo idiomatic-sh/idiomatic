@@ -2,12 +2,13 @@
 use super::super::super::admission::service::{AcquiredView, AdmittedViewInputs};
 use crate::application::file_dag::{predicates::BoundPredicate, relations::RelationOwner};
 use crate::domain::{
-    derived_views::types::{DerivedContract, DerivedInputs, DerivedScratch, MembershipSpace},
+    derived_views::types::{contract::value::DerivedContract, DerivedInputs, DerivedScratch, MembershipSpace},
     operating::errors::OperatingError,
-    operator::contract::{types::PreparedPredicates, views::BorrowedRows},
+    operator::contract::{types::PreparedPredicates, },
     positions::service_test::SMALL_SOURCE,
     table_texts::types::Texts,
 };
+use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
 use ryo_derived::domain::contract::types::DerivedKind;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::{files::types::SourceView, plan_parts::types::LiteralText};

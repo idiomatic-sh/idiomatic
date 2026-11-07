@@ -358,7 +358,7 @@ fn exhaustive_contract_declarations() {
                 PreflightOrder::ResourcesFirst
             }
         };
-        assert_eq!(semantics(kind).0.preflight, expected, "{kind:?}");
+        assert_eq!(semantics(kind).contract.preflight, expected, "{kind:?}");
     }
 }
 const CASES: &[Case<Input, Value, Failure>] = &[

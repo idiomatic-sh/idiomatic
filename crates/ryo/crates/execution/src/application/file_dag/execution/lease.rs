@@ -10,8 +10,9 @@ use crate::domain::operating::{
     types::{Emit, OperatorContext},
 };
 use crate::domain::operator::contract::{
-    context::with_primitive_context, types::*, views::BorrowedRows,
+    context::with_primitive_context, types::*, 
 };
+use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::{
     service::datum,
@@ -91,7 +92,7 @@ fn evaluate_once(
         crate::application::file_dag::route_counts::progress::service::row_file(row, context.paths);
         crate::application::file_dag::route_counts::progress::service::progress(
             crate::domain::operator::contract::views::ProgressCounter::InputRows,
-            1,
+            crate::domain::operator::contract::views::ProgressAmount(1),
         );
     }
     let mut validated_source = None;
@@ -102,7 +103,7 @@ fn evaluate_once(
         match contract.source_gate {
             SourceGate::None => {}
             SourceGate::CheckedSpan { span, base_line } => {
-                validated_source=crate::domain::operator::collections::operators::source_matches::source::validate(row,span,base_line,context.source.0)?;
+                validated_source=crate::domain::operator::collections::operators::source_matches::item::validate(row,span,base_line,context.source)?;
                 if validated_source.is_none() {
                     return Ok(());
                 }
@@ -123,13 +124,19 @@ fn evaluate_once(
     let regex = if let Some(pattern) = &contract.literal_pattern {
         if let Some(prepared) = context
             .prepared_matchers
-            .and_then(|prepared| prepared.regex(crate::domain::table_texts::types::TextView(&pattern.0)))
+            .and_then(|prepared| prepared.regex(
+                crate::domain::table_texts::types::TextView(&pattern.0),
+                context.matcher,
+            ))
         {
             Some(prepared?)
         } else {
             if workspace.literal_regex.is_none() {
                 workspace.literal_regex = Some(
-                    crate::domain::matching::types::prepared::value::compile_regex(crate::domain::table_texts::types::TextView(&pattern.0))?,
+                    crate::domain::matching::types::prepared::value::compile_regex(
+                        crate::domain::table_texts::types::TextView(&pattern.0),
+                        context.matcher,
+                    )?,
                 );
             }
             workspace.literal_regex.as_ref()

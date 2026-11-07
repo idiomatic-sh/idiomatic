@@ -1,4 +1,5 @@
-use crate::domain::operator::contract::views::BorrowedRows;
+
+use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::service::push_row;

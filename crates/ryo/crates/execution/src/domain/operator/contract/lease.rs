@@ -1,6 +1,6 @@
 //! The lease's own operations: the capabilities a primitive reaches through its borrowed context.
 use super::types::{
-    DistinctWorkspace, PrimitiveLease, PrimitiveSemantics, PrimitiveViews, PrimitiveWorkspace,
+    DistinctWorkspace, FoundRows, PrimitiveLease, PrimitiveSemantics, PrimitiveViews, PrimitiveWorkspace,
     WorkCounters, portable_fault,
 };
 use super::views::PredicateProgram;
@@ -9,9 +9,9 @@ use ryo_language::domain::symbols::types::QuerySymbols;
 use ryo_relations::domain::relations::types::Value;
 
 impl WorkCounters {
-    pub(crate) fn found(&self, input: usize, rows: u64) {
-        if let Some(total) = self.0.get(input) {
-            total.set(total.get().saturating_add(rows));
+    pub(crate) fn found(&self, input: ryo_values::domain::plan_parts::types::InputNumber, rows: FoundRows) {
+        if let Some(total) = self.0.get(input.0) {
+            total.set(total.get().saturating_add(rows.0));
         }
     }
     pub(crate) fn take(&self) -> [u64; 3] {
@@ -56,7 +56,7 @@ impl<'a> PrimitiveLease<'a> {
     pub(crate) fn progress(
         &self,
         counter: crate::domain::operator::contract::views::ProgressCounter,
-        amount: u64,
+        amount: crate::domain::operator::contract::views::ProgressAmount,
     ) {
         (self.semantics.progress())(counter, amount);
     }
@@ -83,7 +83,7 @@ impl<'a> PrimitiveLease<'a> {
             work,
         }
     }
-    pub(crate) fn found(&self, input: usize, rows: u64) {
+    pub(crate) fn found(&self, input: ryo_values::domain::plan_parts::types::InputNumber, rows: FoundRows) {
         self.work.found(input, rows);
     }
     pub(crate) fn project(

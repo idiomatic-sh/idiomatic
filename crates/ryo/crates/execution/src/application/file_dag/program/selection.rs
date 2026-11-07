@@ -5,9 +5,10 @@ use crate::application::file_dag::relations::{RelationOwner, handle::service::Pu
 use crate::domain::{
     executable_program::types::SelectionAlternative,
     operating::{errors::OperatingError, types::OperatorContext},
-    operator::contract::{types::WorkCounters, views::BorrowedRows},
+    operator::contract::{types::WorkCounters, },
     table_model::{service::rectangular, types::Rows},
 };
+use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
 use std::rc::Rc;
 
 /// No provider callbacks or dependency requests enter this stage. The source is

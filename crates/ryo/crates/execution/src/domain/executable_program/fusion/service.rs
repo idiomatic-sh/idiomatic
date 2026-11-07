@@ -13,7 +13,7 @@ use crate::domain::{
     },
     operator::contract::{
         resources::ResourceProgram,
-        types::{Effects, InputShape, ReuseScope},
+        types::{Effects, InputMode, ReuseScope},
     },
 };
 use ryo_values::domain::{
@@ -127,7 +127,7 @@ fn fusibility_of(
     if node.contract.effects != Effects::Pure {
         return Fusibility::Excluded(Ineligible::RowFault);
     }
-    if !matches!(node.contract.semantics.shape, InputShape::Row { .. }) {
+    if !matches!(node.contract.semantics.shape, InputMode::Row { .. }) {
         return Fusibility::Excluded(Ineligible::Whole);
     }
     if !matches!(node.contract.resources, ResourceProgram::None)

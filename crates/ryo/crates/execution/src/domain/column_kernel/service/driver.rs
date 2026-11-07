@@ -54,7 +54,7 @@ impl JoinDriver for ChainDriver<'_, '_> {
             #[cfg(feature = "diagnostic-row-progress")]
             (self.index.progress)(
                 crate::domain::operator::contract::views::ProgressCounter::JoinCandidatePairs,
-                1,
+                crate::domain::operator::contract::views::ProgressAmount(1),
             );
             self.hits.set(JoinedHits(self.hits.get().0.saturating_add(1)));
             let Some(value) = cell(
@@ -71,7 +71,7 @@ impl JoinDriver for ChainDriver<'_, '_> {
             #[cfg(feature = "diagnostic-row-progress")]
             (self.index.progress)(
                 crate::domain::operator::contract::views::ProgressCounter::PredicateEvaluations,
-                1,
+                crate::domain::operator::contract::views::ProgressAmount(1),
             );
             if symbol_holds(value, &self.chain.literal, self.symbols, self.source)
                 == SymbolVerdict::Differs
@@ -102,7 +102,7 @@ impl JoinDriver for ChainDriver<'_, '_> {
         #[cfg(feature = "diagnostic-row-progress")]
         (self.index.progress)(
             crate::domain::operator::contract::views::ProgressCounter::KernelOutputRows,
-            1,
+            crate::domain::operator::contract::views::ProgressAmount(1),
         );
         push_row(self.target, row);
         self.emitted.set(RowsFiltered(self.emitted.get().0.saturating_add(1)));

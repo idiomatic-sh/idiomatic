@@ -4,7 +4,7 @@ use std::time::Instant;
 use ryo_language::domain::files::types::FilePath;
 use ryo_relations::domain::relations::types::Value;
 
-use crate::domain::operator::contract::views::ProgressCounter;
+use crate::domain::operator::contract::views::{ProgressAmount, ProgressCounter};
 
 use super::super::constants::{self, MAX_KEYS};
 use super::super::profile::service::STATE;
@@ -57,7 +57,8 @@ fn counter_label(counter: ProgressCounter) -> RouteLabel {
         ProgressCounter::KernelOutputRows => constants::COUNTER_KERNEL_OUTPUT_ROWS,
     })
 }
-pub(crate) fn progress(counter: ProgressCounter, amount: u64) {
+pub(crate) fn progress(counter: ProgressCounter, amount: ProgressAmount) {
+    let amount = amount.0;
     let label = counter_label(counter);
     let flush_now = STATE.with_borrow_mut(|state| {
         let Some(state) = state else {

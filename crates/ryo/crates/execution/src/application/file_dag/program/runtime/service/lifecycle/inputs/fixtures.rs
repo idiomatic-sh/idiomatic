@@ -12,9 +12,10 @@ use crate::domain::operating::types::OperatorContext;
 use crate::domain::{
     coverage::types::RuleIndex,
     executable_program::types::{InputSource, PartitionRequirement, ProducerPartitions},
-    operator::contract::views::BorrowedRows,
+    operator::contract::
     table_model::types::Rows,
 };
+use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
 use ryo_relations::domain::{
     relations::{
         service::kinds,

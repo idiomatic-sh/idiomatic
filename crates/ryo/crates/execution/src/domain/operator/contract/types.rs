@@ -12,7 +12,7 @@ use ryo_values::domain::query_bindings::types::ParameterBinding;
 
 /// The finite existing semantic input shapes; dependency acquisition is engine work.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum InputShape {
+pub(crate) enum InputMode {
     /// One row and immutable side resources, preserving immediate emitter failure.
     Row {
         /// The input whose rows trigger this mode.
@@ -78,11 +78,20 @@ pub(crate) enum Effects {
 /// One prepared semantic dependency and input contract for every output consumer.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct SemanticContract {
-    pub(crate) shape: InputShape,
+    pub(crate) shape: InputMode,
     pub(crate) demand: DemandOrder,
     pub(crate) acquisition: AcquisitionBoundary,
     pub(crate) row_inputs: RowInputMask,
     pub(crate) preflight: PreflightOrder,
+}
+
+/// What an operation declares of its semantics: its input contract, the resources it needs, its effects and the
+/// inputs whose absence of rows it trusts.
+pub(crate) struct OperationSemantics {
+    pub contract: SemanticContract,
+    pub resources: ResourceNeeds,
+    pub effects: Effects,
+    pub absence: crate::domain::contributor_rows::types::AbsenceMask,
 }
 
 /// Inputs whose rows may trigger evaluation in this mode.
@@ -153,7 +162,7 @@ pub(crate) struct OperatorContract {
     /// Payload-independent collected layout; row-lazy refusals are not raised by it.
     pub output_kinds: Result<Vec<CellKind>, OperatingError>,
     /// Input-position bitset: absence-dependent outputs require these populations complete.
-    pub absence_inputs: u8,
+    pub absence_inputs: crate::domain::contributor_rows::types::AbsenceMask,
     pub workspace: WorkspaceProgram,
     pub resources: super::resources::ResourceProgram,
     pub empty_results: Vec<EmptyResult>,
@@ -212,7 +221,7 @@ pub(crate) struct PrimitiveViews<'a> {
     pub source: SourceView<'a>,
     pub bindings: &'a [ParameterBinding],
     pub validated_source: Option<
-        crate::domain::operator::collections::operators::source_matches::source::ValidatedSource<
+        crate::domain::operator::collections::operators::source_matches::item::ValidatedSource<
             'a,
         >,
     >,
@@ -241,6 +250,10 @@ pub(crate) struct PrimitiveWorkspace {
     pub closure_walk: Option<crate::domain::table_reach::types::Walk>,
     pub distinct: Option<DistinctWorkspace>,
 }
+/// How many rows a counted step found.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct FoundRows(pub u64);
+
 /// The engine constructs and releases this borrow; a primitive owns no service state.
 /// Borrowed logical work counters; storage belongs to the invocation owner.
 #[derive(Default)]
@@ -319,7 +332,7 @@ pub(crate) struct RequestOperators {
     pub preparations: PreparationCount,
     pub physical: Vec<
         Vec<
-            crate::domain::table_model::collections::representations::publication::PreparedPhysical,
+            crate::domain::table_model::types::PreparedPhysical,
         >,
     >,
 }

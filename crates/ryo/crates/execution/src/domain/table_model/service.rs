@@ -9,7 +9,10 @@ use ryo_relations::domain::relations::types::{
 };
 
 use super::constants::MATERIALIZED;
+use super::types::registered_representation::value::RegisteredRepresentation;
+use super::types::representation_input::value::RepresentationInput;
 use super::types::Rows;
+use super::collections::representations::types::RepresentationKind;
 use crate::domain::table_cells::service::{edge_of, element_of};
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
 use ryo_derived::domain::contract::key::hash_key;
@@ -91,7 +94,7 @@ pub(crate) fn read_row<'s>(
     index: RowIndex,
     scratch: &'s mut Vec<Value>,
 ) -> Option<&'s [Value]> {
-    let found = crate::domain::table_model::collections::representations::service::borrowed(rows)
+    let found = borrowed(rows)
         .read(index, scratch);
     #[cfg(test)]
     if let Some(row) = found {
@@ -225,7 +228,7 @@ fn selected_view_cell(
 
 /// Read one typed cell without decoding unused stored payload or allocating a row buffer.
 pub(crate) fn cell_at(rows: &Rows<'_>, row: RowIndex, column: ColumnIndex) -> Option<Value> {
-    crate::domain::table_model::collections::representations::service::borrowed(rows)
+    borrowed(rows)
         .cell(row, column)
 }
 
@@ -242,7 +245,7 @@ pub(crate) fn matching_stored<'o, 'k>(
     #[cfg(feature = "diagnostic-row-progress")]
     observer(
         crate::domain::operator::contract::views::ProgressCounter::IndexProbes,
-        1,
+        crate::domain::operator::contract::views::ProgressAmount(1),
     );
     let hash = hash_key(key.iter().map(Some));
     let bucket = usize::try_from(hash.0).unwrap_or(0) & order.heads().len().saturating_sub(1);
@@ -252,7 +255,7 @@ pub(crate) fn matching_stored<'o, 'k>(
             #[cfg(feature = "diagnostic-row-progress")]
             observer(
                 crate::domain::operator::contract::views::ProgressCounter::IndexRowsExamined,
-                1,
+                crate::domain::operator::contract::views::ProgressAmount(1),
             );
             let place = usize::try_from(at.0 - 1).unwrap_or(usize::MAX);
             at = order.links().get(place).copied().unwrap_or(ChainLink(0));
@@ -266,7 +269,7 @@ pub(crate) fn matching_stored<'o, 'k>(
                 if row.is_some() {
                     observer(
                         crate::domain::operator::contract::views::ProgressCounter::EqualityMatches,
-                        1,
+                        crate::domain::operator::contract::views::ProgressAmount(1),
                     );
                 }
                 return row;
@@ -305,3 +308,17 @@ pub(crate) fn matching<'o, 'k>(
 
 use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
 
+/// The classified catalog value that reads rows of `kind`.
+pub(crate) fn registered(kind: RepresentationKind) -> RegisteredRepresentation {
+    RegisteredRepresentation::new(kind)
+}
+
+/// The representation `input` is held in.
+pub(crate) fn kind(input: RepresentationInput<'_>) -> RepresentationKind {
+    RegisteredRepresentation::kind(input)
+}
+
+/// The rows as a physical representation reads them.
+pub(crate) fn borrowed<'a>(rows: &'a Rows<'a>) -> RepresentationInput<'a> {
+    RepresentationInput::from(rows)
+}

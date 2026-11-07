@@ -1,7 +1,8 @@
 //! Differential traversal behavior over an actual prepared equality index.
 use super::*;
 use ryo_relations::domain::relations::types::Value as Cell;
-use crate::domain::operator::contract::views::BorrowedRows;
+
+use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
 use ryo_derived::domain::contract::types::{
     BuildOutcome, BuildWorkspace, BulkRows, DerivedFault, DerivedInputs, DerivedView, KeyIndex,
     RowCells, ViewRequest,

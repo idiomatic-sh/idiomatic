@@ -62,7 +62,7 @@ fn contributor_partiality_filters_absence_answers_before_keys_can_be_projected_a
         },
     ];
     for operation in operations {
-        let (_, _, _, absence) = semantics(kind_of(&operation));
+        let absence = semantics(kind_of(&operation)).absence;
         let input_kinds = vec![vec![CellKind::File, CellKind::Number]; 2];
         let digest = matches!(operation, Operation::GroupDigest { .. });
         let extend_digest = |cells: &[Cell]| {
@@ -99,7 +99,7 @@ fn contributor_partiality_filters_absence_answers_before_keys_can_be_projected_a
                     },
                 })
                 .collect::<Vec<_>>();
-            filter_contributor_rows(&operation, AbsenceMask(absence), &contributions, &mut rows);
+            filter_contributor_rows(&operation, absence, &contributions, &mut rows);
             assert_eq!(
                 rows.cells,
                 if affected.contains(&None) {

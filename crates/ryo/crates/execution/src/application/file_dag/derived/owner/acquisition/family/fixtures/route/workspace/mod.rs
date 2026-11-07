@@ -12,11 +12,12 @@ use crate::domain::{
     derived_views::types::PreparedViewUse,
     operating::errors::OperatingError,
     operation_schema::types::InputShape,
-    operator::contract::views::BorrowedRows,
+    operator::contract::
     table_cells::types::{TreeForm, TreeRows},
     table_model::types::Rows,
     table_texts::types::Texts,
 };
+use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
 use ryo_derived::domain::contract::types::DerivedKind;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, FileId, NodeId, Relation, Value};
@@ -85,9 +86,14 @@ fn through_workspace(
     let plan = Arc::new(owner.derived().prepare_view(&request(kind), &shapes[..len])?);
     let use_ = PreparedViewUse {
         plan,
-        inputs: [0, 1],
+        inputs: [
+            ryo_values::domain::plan_parts::types::InputNumber(0),
+            ryo_values::domain::plan_parts::types::InputNumber(1),
+        ],
         relations: [None, None],
-        len: u8::try_from(len).map_err(|_| OperatingError::ShapeMismatch)?,
+        len: crate::domain::derived_views::types::InputsUsed(
+            u8::try_from(len).map_err(|_| OperatingError::ShapeMismatch)?,
+        ),
     };
     let mut published = vec![first.clone()];
     if pair {

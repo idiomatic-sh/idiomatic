@@ -128,11 +128,12 @@ fn oversized_selection_refuses_retention_without_charging_the_cache() -> Result<
     use crate::domain::{
         derived_views::types::*,
         operation_schema::types::InputShape,
-        operator::contract::views::{BorrowedRows, PredicateProgram},
+        operator::contract::views::{PredicateProgram},
         stored_selection::types::Selector,
         stored_selection::types::SelectionIdentity,
         table_model::types::Verdict,
     };
+use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
     use ryo_relations::domain::relations::types::Value;
 
     struct AlwaysHolds;
@@ -294,7 +295,7 @@ fn every_possible_discriminator_column_is_prepared_once() -> Result<(), Failure>
             ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     )?;
-    let plans = &views.by_selector[&(Arc::as_ptr(&selector) as usize)].equalities;
+    let plans = &views.by_selector[&crate::domain::derived_views::types::SelectorAddress(Arc::as_ptr(&selector) as usize)].equalities;
     assert_eq!(plans.len(), 2);
     for column in [ColumnIndex(1), ColumnIndex(2)] {
         let plan = &plans[&column];

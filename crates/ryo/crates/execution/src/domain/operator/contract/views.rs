@@ -7,7 +7,7 @@ use ryo_operators::domain::set_rows::types::Membership;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
-pub(crate) use crate::domain::table_model::collections::representations::types::RepresentationInput as BorrowedRows;
+pub(crate) use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
 
 /// Profile-only semantic observations. No execution or ownership policy is reachable.
 #[cfg(feature = "diagnostic-row-progress")]
@@ -22,7 +22,12 @@ pub(crate) enum ProgressCounter {
     KernelOutputRows,
 }
 #[cfg(feature = "diagnostic-row-progress")]
-pub(crate) type ProgressObserver = fn(ProgressCounter, u64);
+pub(crate) type ProgressObserver = fn(ProgressCounter, ProgressAmount);
+
+/// How much of a counted thing one observation adds.
+#[cfg(feature = "diagnostic-row-progress")]
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct ProgressAmount(pub u64);
 
 /// Exact typed key lookup prepared by the engine; primitives only probe it.
 #[derive(Clone, Copy)]

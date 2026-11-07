@@ -18,11 +18,11 @@ pub(crate) fn row_admissible(
     match contract.source_gate {
         SourceGate::None => Ok(true),
         SourceGate::CheckedSpan { span, base_line } => Ok(
-            crate::domain::operator::collections::operators::source_matches::source::validate(
+            crate::domain::operator::collections::operators::source_matches::item::validate(
                 row,
                 span,
                 base_line,
-                texts.source.0,
+                texts.source,
             )?
             .is_some(),
         ),

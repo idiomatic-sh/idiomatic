@@ -4,10 +4,11 @@ use crate::domain::{
     operating::errors::OperatingError,
     operator::contract::{
         axis::PreparedAxis,
-        views::{BorrowedRows, IndexedRows},
+        views::{IndexedRows},
     },
     table_cells::types::TreeRows,
 };
+use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
 use ryo_derived::domain::contract::types::{DerivedView, MembershipView};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 

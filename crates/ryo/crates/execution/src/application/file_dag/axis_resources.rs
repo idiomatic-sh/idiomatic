@@ -8,11 +8,12 @@ mod tests;
 use super::derived::owner::acquisition::admission::service::AcquiredView;
 use crate::domain::{
     operating::errors::OperatingError,
-    operator::contract::{resources::AxisResources, views::BorrowedRows},
+    operator::contract::{resources::AxisResources, },
     table_cells::types::{TreeForm, TreeRows},
     table_model::service::check_columns,
     tree_walk::service::entity_of,
 };
+use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Direction};
 
 #[derive(Clone, Copy)]

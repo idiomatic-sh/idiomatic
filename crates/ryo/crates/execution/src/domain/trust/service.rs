@@ -277,7 +277,8 @@ fn needs_from(plan: &Plan, reads: &[StepReads]) -> Vec<Vec<RelationRead>> {
         crate::domain::operator::contract::service::semantics(
             ryo_values::domain::plans::service::kind_of(&step.operation),
         )
-        .3
+        .absence
+        .0
     });
     needs_with_masks(plan, of, masks)
 }
@@ -477,7 +478,7 @@ pub(crate) fn needs_of_contracts(
                 .get(id.0 as usize)
                 .map_or_else(Vec::new, |step| step.uses.clone()),
         },
-        contracts.iter().map(|contract| contract.absence_inputs),
+        contracts.iter().map(|contract| contract.absence_inputs.0),
     ))
 }
 

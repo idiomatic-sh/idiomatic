@@ -14,13 +14,14 @@ use ryo_values::domain::plan_parts::types::{
 use std::sync::Arc;
 use {
     crate::domain::operating::types::OperatorContext,
-    crate::domain::operator::contract::views::BorrowedRows,
+    crate::domain::operator::contract::
     crate::domain::stored_selection::types::Selector,
     crate::domain::table_model::collections::representations::types::PhysicalShape,
     crate::domain::table_model::types::Rows, crate::domain::stored_selection::types::SelectionIdentity,
     crate::domain::table_scratch::types::OperatorScratch,
     ryo_values::domain::files::types::SourceView,
 };
+use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
 
 #[test]
 fn real_selector_producer_is_the_only_trusted_selection_path() {

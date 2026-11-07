@@ -4,9 +4,8 @@ use crate::application::file_dag::{
     derived::owner::acquisition::admission::service::AcquiredView, relations::RelationOwner,
 };
 use crate::domain::{
-    derived_views::types::DerivedContract, operating::errors::OperatingError,
-    operator::contract::views::BorrowedRows,
-};
+    derived_views::types::contract::value::DerivedContract, operating::errors::OperatingError};
+use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
 use std::{rc::Rc, sync::Arc};
 
 pub(in crate::application::file_dag) fn from_prepared<'f>(

@@ -193,9 +193,10 @@ impl AdmittedInput {
         generation: &Arc<()>,
     ) -> Result<Option<AdmittedWalkSource<'call>>, OperatingError> {
         use crate::domain::{
-            operator::contract::views::BorrowedRows,
+            operator::contract::
             table_model::{service::kinds_of, types::Rows},
         };
+use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
         if self.root != ProducerRoot::Input(InputSource::Relation(relation)) {
             return Err(OperatingError::WrongOperation);
         }

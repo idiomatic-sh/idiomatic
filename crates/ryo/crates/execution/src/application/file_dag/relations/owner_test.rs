@@ -3,15 +3,13 @@ use super::RelationOwner;
 use crate::domain::{
     coverage::types::{Lacking, Partial},
     operating::errors::OperatingError,
-    operator::contract::views::BorrowedRows,
+    operator::contract::
     table_model::{
-        collections::representations::{
-            publication::PublishedRelation,
-            types::{PhysicalShape, RepresentationKind},
-        },
-        types::{Rows, SelectedRows, StoredSelection},
+        collections::representations::types::{PhysicalShape, RepresentationKind},
+        types::{PublishedRelation, Rows, SelectedRows, StoredSelection},
     },
 };
+use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
 use ryo_relations::domain::relations::{
     service::{all, kinds, to_bits},
     types::{CellKind, ColumnsView, FileId, Integer, Relation, Value},
@@ -66,7 +64,7 @@ fn compact_publications_share_backing_accounting_and_expire_with_generation() {
     owner
         .admit(
             first.as_ref(),
-            crate::domain::operator::contract::views::BorrowedRows::Compact(&compact),
+            crate::domain::table_model::types::representation_input::value::RepresentationInput::Compact(&compact),
         )
         .unwrap();
     let first_unique = owner.derived.publication_ownership_bytes().2;
@@ -74,7 +72,7 @@ fn compact_publications_share_backing_accounting_and_expire_with_generation() {
     owner
         .admit(
             second.as_ref(),
-            crate::domain::operator::contract::views::BorrowedRows::Compact(&compact),
+            crate::domain::table_model::types::representation_input::value::RepresentationInput::Compact(&compact),
         )
         .unwrap();
     assert_eq!(first.same_record(&second), crate::application::file_dag::relations::types::Sameness::Different);

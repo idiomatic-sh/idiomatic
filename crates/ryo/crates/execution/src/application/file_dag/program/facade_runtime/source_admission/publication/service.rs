@@ -94,7 +94,7 @@ impl SourceInputs<'_, '_> {
                 .collect::<Result<Vec<_>, OperatingError>>()?;
             crate::domain::contributor_rows::service::filter_contributor_rows(
                 &instruction.operation(),
-                crate::domain::contributor_rows::types::AbsenceMask(instruction.contract().absence_inputs),
+                instruction.contract().absence_inputs,
                 &contributions,
                 rows,
             );
@@ -131,7 +131,7 @@ impl SourceInputs<'_, '_> {
         let resolved = self.owner.resolve(publication.as_ref(), self.read)?;
         let checked = self.owner.admit(
             publication.as_ref(),
-            crate::domain::operator::contract::views::BorrowedRows::from(&resolved),
+            crate::domain::table_model::types::representation_input::value::RepresentationInput::from(&resolved),
         )?;
         AdmittedInput::from_publication(
             Rc::clone(&self.owner),

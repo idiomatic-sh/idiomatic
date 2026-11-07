@@ -262,11 +262,11 @@ impl Driver<'_, '_> {
             }
             while let Some(position) = self.positions.get(self.at.0).copied() {
                 self.at.0 += 1;
-                self.lease.found(1, 1);
+                self.lease.found(ryo_values::domain::plan_parts::types::InputNumber(1), crate::domain::operator::contract::types::FoundRows(1));
                 #[cfg(feature = "diagnostic-row-progress")]
                 self.lease.progress(
                     crate::domain::operator::contract::views::ProgressCounter::JoinCandidatePairs,
-                    1,
+                    crate::domain::operator::contract::views::ProgressAmount(1),
                 );
                 if self.filtered == Filtering::Filtered {
                     let row = std::array::from_fn::<_, 5, _>(|at| {
@@ -290,13 +290,13 @@ impl Driver<'_, '_> {
         let probe = self.probe.get_or_insert_with(|| index.probe(key));
         self.current = index.next_match(key, probe);
         if self.current.is_some() {
-            self.lease.found(1, 1);
+            self.lease.found(ryo_values::domain::plan_parts::types::InputNumber(1), crate::domain::operator::contract::types::FoundRows(1));
         }
         #[cfg(feature = "diagnostic-row-progress")]
         if self.current.is_some() {
             self.lease.progress(
                 crate::domain::operator::contract::views::ProgressCounter::JoinCandidatePairs,
-                1,
+                crate::domain::operator::contract::views::ProgressAmount(1),
             );
         }
         Ok(Advance::from(self.current.is_some()))

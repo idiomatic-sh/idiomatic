@@ -1,11 +1,12 @@
 //! Adapt already-admitted finite physical data; all semantic builds cross the injected port.
 use crate::domain::derived_views::types::{
-    DerivedContract, DerivedInputs, DerivedScratch, ViewRequest,
+    contract::value::DerivedContract, DerivedInputs, DerivedScratch, ViewRequest,
 };
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::contract::{
-    derived::portable_fault, failure::FailureLatch, views::BorrowedRows,
+    derived::portable_fault, failure::FailureLatch, 
 };
+use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
 use crate::outbound::derived::interface::DerivedPort;
 use ryo_derived::domain::contract::types::{self as semantic};
 use ryo_language::domain::symbols::types::ByteSlice;
@@ -40,7 +41,7 @@ pub(in crate::application::file_dag::derived::owner::acquisition) fn build(
     let answer = match inputs {
         DerivedInputs::RawWords(keys) => port.build(
             &plan.semantic,
-            semantic::DerivedInputs::RawWords(keys),
+            semantic::DerivedInputs::RawWords(&keys.0),
             &mut scratch.semantic,
             recycled,
         ),

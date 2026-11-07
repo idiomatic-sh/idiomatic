@@ -10,8 +10,9 @@ use crate::domain::operator::contract::{
     join::NativeJoin,
     resources::{IndexColumns, JoinResources, ResourceProgram},
     types::OperatorContract,
-    views::BorrowedRows,
+    
 };
+use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
 use crate::domain::table_texts::types::Texts;
 use ryo_values::domain::plan_parts::{service::parameter_in, types::InputNumber};
 use ryo_values::domain::query_bindings::types::ParameterBinding;

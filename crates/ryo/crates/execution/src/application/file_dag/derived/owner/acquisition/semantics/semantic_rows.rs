@@ -1,6 +1,7 @@
 //! Borrowed adapters that present admitted rows and texts to the injected semantic port.
 use crate::domain::operating::errors::OperatingError;
-use crate::domain::operator::contract::{failure::FailureLatch, views::BorrowedRows};
+use crate::domain::operator::contract::{failure::FailureLatch, };
+use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
 use crate::domain::table_texts::service::{datum, name_text, symbol_text};
 use crate::domain::table_texts::types::{Datum, Texts};
 use ryo_derived::domain::contract::types::{self as semantic, RowCells};

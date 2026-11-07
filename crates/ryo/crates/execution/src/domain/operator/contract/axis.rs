@@ -2,6 +2,7 @@
 use crate::domain::{
     operator::contract::views::IndexedRows, table_cells::types::TreeRows, table_reach::types::Walk,
 };
+use ryo_relations::domain::relations::types::Position;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 pub(crate) enum PreparedAxis<'a> {
     Empty,
@@ -19,5 +20,5 @@ pub(crate) enum PreparedAxis<'a> {
 #[derive(Debug, Default)]
 pub(crate) struct AxisWorkspace {
     pub(crate) walk: Walk,
-    pub(crate) found: Vec<u32>,
+    pub(crate) found: Vec<Position>,
 }

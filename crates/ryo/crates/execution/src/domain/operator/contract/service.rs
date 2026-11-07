@@ -1,9 +1,10 @@
 //! Exhaustive semantic declarations; strategy, cache admission and lifetimes are not kinds.
 use super::types::*;
+use crate::domain::contributor_rows::types::AbsenceMask;
 use ryo_values::domain::query_operators::types::OperationKind;
 
 /// One semantic input and dependency contract, independent of output delivery.
-pub(crate) fn semantics(kind: OperationKind) -> (SemanticContract, ResourceNeeds, Effects, u8) {
+pub(crate) fn semantics(kind: OperationKind) -> OperationSemantics {
     use OperationKind::*;
     let (demand, resource, effects, absence) = match kind {
         Select => (
@@ -119,16 +120,16 @@ pub(crate) fn semantics(kind: OperationKind) -> (SemanticContract, ResourceNeeds
         ),
     };
     let shape = match kind {
-        Rows | Hosted => InputShape::RequestSource,
+        Rows | Hosted => InputMode::RequestSource,
         GroupCount | GroupDigest | OrderedMatch | Closure | Cycles | OrderedDfs | RenderSyntax => {
-            InputShape::Views
+            InputMode::Views
         }
-        _ => InputShape::Row {
+        _ => InputMode::Row {
             primary: ryo_values::domain::plan_parts::types::InputNumber(0),
         },
     };
     let row_inputs = RowInputMask(match shape {
-        InputShape::Row { .. } => {
+        InputMode::Row { .. } => {
             if kind == Union {
                 3
             } else {
@@ -153,18 +154,18 @@ pub(crate) fn semantics(kind: OperationKind) -> (SemanticContract, ResourceNeeds
     } else {
         PreflightOrder::ResourcesFirst
     };
-    (
-        SemanticContract {
+    OperationSemantics {
+        contract: SemanticContract {
             shape,
             demand,
             acquisition,
             row_inputs,
             preflight,
         },
-        resource,
+        resources: resource,
         effects,
-        absence,
-    )
+        absence: AbsenceMask(absence),
+    }
 }
 
 /// Once-per-request preparation preserves execution-timed metadata failures.
@@ -177,7 +178,12 @@ pub(crate) fn prepare_for(
     if ryo_values::domain::plans::service::kind_of(operation) != expected {
         return Err(crate::domain::operating::errors::OperatingError::WrongOperation);
     }
-    let (semantics, _resource_class, effects, absence_inputs) = semantics(expected);
+    let OperationSemantics {
+        contract: semantics,
+        effects,
+        absence: absence_inputs,
+        ..
+    } = semantics(expected);
     let source_gate = match operation {
         ryo_values::domain::plans::types::Operation::SourceMatches {
             span, base_line, ..

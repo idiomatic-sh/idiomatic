@@ -1,21 +1,22 @@
 //! The `source_matches` item's cases, and the collection's shared cases.
 
 use super::super::fixtures::contract::check;
-use super::item::SourceMatchesItem;
+use super::item::{SourceMatchesItem, ValidatedSource, validate};
 use super::super::interface::OperatorsItem;
-use super::source::{ValidatedSource, validate};
 use crate::domain::operating::errors::OperatingError;
+use ryo_operators::domain::source_matches::types::BaseLine;
 use ryo_relations::domain::relations::constants::NO_SPAN;
 use ryo_relations::domain::relations::types::{Integer, Offset, Relation, Span, Value as Cell};
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
+use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input as Source};
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_operators::types::QueryOperator;
 
 /// A line break between an accented letter and the end of the text.
-const SPLIT: &[u8] = "xé\r\ny".as_bytes();
+const SPLIT: SourceView<'static> = SourceView("xé\r\ny".as_bytes());
 /// One accented letter, two bytes.
-const ACCENT: &[u8] = "é".as_bytes();
+const ACCENT: SourceView<'static> = SourceView("é".as_bytes());
 
 /// What a row asks of the item.
 #[derive(Clone, Copy)]
@@ -63,9 +64,12 @@ fn span(start: u32, end: u32) -> Cell {
 fn found(validated: Option<ValidatedSource<'static>>) -> Found {
     match validated {
         Some(gate) => Found::Gate {
-            base: gate.base,
-            text: gate.text,
-            line: gate.line,
+            base: gate.base.0,
+            text: gate.text.0,
+            line: match gate.line {
+                BaseLine::Unnumbered => None,
+                BaseLine::Starts(Integer(line)) => Some(line),
+            },
         },
         None => Found::Absent,
     }

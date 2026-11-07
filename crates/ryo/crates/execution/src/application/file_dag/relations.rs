@@ -1,14 +1,13 @@
 //! One file generation owns representation descriptors and lazy admission proofs.
 use super::derived::population::types::PopulationId;
-use crate::domain::operator::contract::views::BorrowedRows;
-use crate::domain::table_model::collections::representations::{
-    publication::PublishedRelation,
-    service::{kind, registered},
-    types::{PhysicalShape, RepresentationKind},
+
+use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::collections::representations::types::{
+    PhysicalShape, RepresentationKind,
 };
 use crate::domain::table_model::{
-    service::materialize,
-    types::{Rows, SelectedRows, StoredSelection},
+    service::{kind, materialize, registered},
+    types::{PublishedRelation, Rows, SelectedRows, StoredSelection},
 };
 use crate::domain::{executable_program::types::RegionId, operating::errors::OperatingError};
 use ryo_relations::domain::relations::types::{CellKind, Relation};

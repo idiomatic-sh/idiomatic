@@ -165,7 +165,7 @@ pub(crate) fn probe(
     #[cfg(feature = "diagnostic-row-progress")]
     (semantics.progress())(
         crate::domain::operator::contract::views::ProgressCounter::InputRows,
-        1,
+        crate::domain::operator::contract::views::ProgressAmount(1),
     );
     let mut driver = driver::TreeDriver {
         #[cfg(feature = "diagnostic-row-progress")]
@@ -264,7 +264,7 @@ pub(crate) fn join_tree(
             let Some(left_row) = read_row(left, position, &mut buffer) else {
                 continue;
             };
-            work.found(0, 1);
+            work.found(ryo_values::domain::plan_parts::types::InputNumber(0), crate::domain::operator::contract::types::FoundRows(1));
             outcome = probe(
                 semantics, left_on, work, &mut state, tree, finding, shape, left_row, context, emit,
             );

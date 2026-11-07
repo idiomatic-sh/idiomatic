@@ -1,7 +1,8 @@
 //! One invocation uses the existing owner and injected meaning; no retained strategy state.
 use crate::domain::operator::contract::{
-    failure::FailureLatch, types::portable_fault, views::BorrowedRows,
+    failure::FailureLatch, types::portable_fault, 
 };
+use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
 use crate::domain::{operating::errors::OperatingError, self_join_recogniser::types::Extremum};
 use ryo_operators::domain::equality_join::errors::EqualityJoinError;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
@@ -46,7 +47,7 @@ impl OrderedExistenceDriver for Driver<'_, '_> {
             .map_err(|_| EqualityJoinError::Interrupted)
     }
     fn emit_dominated(&mut self, row: RowIndex, witness: RowIndex) -> Result<(), EqualityJoinError> {
-        self.work.found(0, 1);
+        self.work.found(ryo_values::domain::plan_parts::types::InputNumber(0), crate::domain::operator::contract::types::FoundRows(1));
         let rows = self.rows;
         let logical = &mut self.row;
         let output = self.output;
