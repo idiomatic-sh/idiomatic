@@ -1,6 +1,6 @@
 //! What the rules cost, held to the ratchet (`tests/fixtures/ratchet.toml`): every live rule together over ruff, cold, warm, after an
 //! edit and at its peak, and the runbook workloads over Django. A run may not cost more than the best a run has done, within its
-//! tolerance, and a run that beats it must lower it. The owner's budget (the `[budget]` table of the same file) is the target and is
+//! tolerance, and a run that beats it must lower it. The budget (the `[budget]` table of the same file) is the target and is
 //! never changed: each run reports its gap to it. These rows time the process: they run on a quiet lock, alone, and the Django rows run
 //! only where the pinned run and the sealed worker are on disk.
 
@@ -20,7 +20,7 @@ fn every_rule() -> Vec<Rule> {
         .collect()
 }
 
-/// The workers the owner's budget for ruff runs on.
+/// The workers the budget for ruff runs on.
 fn workers() -> usize {
     usize::try_from(budget_number("workers")).expect("the budget's workers fit a count")
 }
