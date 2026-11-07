@@ -1,0 +1,3 @@
+# repeated-string-literals 0.3.0
+
+A value that is one lower-case word is not a repeated literal. 0.2.0 reported `source`, `reference`, `candidate`, `running` or `failed` once three `constants.rs` or `schemas.rs` files of different crates each named a column, key or state of their own format with the same word, although no crate can name another's constant. `constants-once` already treats such a word as a format's vocabulary; this rule now does too. The query keeps only the literals that hold a character outside `a-z`. A longer or multi-word value (`two words`, `Source1`, `cases.jsonl`) is still reported, and the scenarios prove both sides.

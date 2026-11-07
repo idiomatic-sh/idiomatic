@@ -1,0 +1,273 @@
+description = "A string literal of six or more characters, not an import specifier and not one lower-case word, whose decoded value appears in at least `min-files` files in scope, reported at each occurrence."
+why = "The same text written in many files is one value with no single definition: a change to it is a search-and-replace, and a typo in one copy is a silent divergence. Name it once, as a constant or a function, where the concept it names lives. Read from the decoded value (`\"a\\n\"` and `\"a\n\"` written two ways are one value); values the entry's `allowed` lists are never reported. An import specifier (`'../../context'` in `import { x } from '../../context'`, a `require`, an `import \"fmt\"`, a `#[path]`) is not counted: it names a module where it is loaded, and the import relations read it. A value that is one lower-case word (`source`, `reference`, `running`) is a format's vocabulary, a column, a key or a state a file's format names, and is never counted, as `constants-once` already treats it; a value with any other character (`two words`, `Source1`, `cases.jsonl`) is. Not seen: a literal inside a macro's tokens that the provider does not decode, byte strings, and a value built at run time."
+
+query = '''
+param min-files: integer;
+param allowed: set<string>;
+let long = select * from "string-literal" where import = "false" and glob_any(value, "??????*") and glob_any(value, "*[!a-z]*");
+let literals = select * from long where value not in $allowed;
+let spread = group-count(from=literals, keys=["value"], count="files", distinct="file");
+let repeated = select * from spread where files >= $min-files;
+let occurrences = select r."files" as "files", l."file" as "file", l."span" as "span", l."value" as "value" from literals as l join repeated as r on l."value" = r."value";
+emit occurrences subject "file" key("span");
+'''
+
+[params.min-files]
+type = "integer"
+description = "The fewest distinct files a value must appear in to be reported."
+
+[params.allowed]
+type = "set<string>"
+description = "Values that may repeat freely, such as a common format string."
+
+[diagnostic]
+primary = "span"
+message = "the string `{value}` is written in {files} files"
+help = "Name it once, as a constant or a function where its concept lives, and use that."
+
+[[scenarios]]
+id = 'one-message-written-three-files'
+scenario = 'One message written in three files.'
+given.include = ['**']
+given.params = { min-files = 3, allowed = ['{} {}'] }
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+mod load;
+mod save;
+
+pub(crate) fn fail() -> &'static str {
+    "configuration missing"
+}
+'''
+given.files.'src/load.rs' = '''
+pub(crate) fn fail() -> &'static str {
+    "configuration missing"
+}
+'''
+given.files.'src/save.rs' = '''
+pub(crate) fn fail() -> &'static str {
+    "configuration missing"
+}
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 5 },
+  { path = 'src/load.rs', line = 2 },
+  { path = 'src/save.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'below-threshold'
+scenario = 'One message written in two files.'
+given.include = ['**']
+given.params = { min-files = 3, allowed = ['{} {}'] }
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+mod load;
+
+pub(crate) fn fail() -> &'static str {
+    "configuration missing"
+}
+'''
+given.files.'src/load.rs' = '''
+pub(crate) fn fail() -> &'static str {
+    "configuration missing"
+}
+'''
+
+[[scenarios]]
+id = 'allowed-and-short'
+scenario = 'An allowed value and a short value in three files.'
+given.include = ['**']
+given.params = { min-files = 3, allowed = ['allowed value'] }
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+mod load;
+mod save;
+
+pub(crate) fn names() -> [&'static str; 2] {
+    ["allowed value", "short"]
+}
+'''
+given.files.'src/load.rs' = '''
+pub(crate) fn names() -> [&'static str; 2] {
+    ["allowed value", "short"]
+}
+'''
+given.files.'src/save.rs' = '''
+pub(crate) fn names() -> [&'static str; 2] {
+    ["allowed value", "short"]
+}
+'''
+
+[[scenarios]]
+id = 'import-specifier-three-files'
+scenario = 'One module imported by the same specifier in three files.'
+given.include = ['**']
+given.params = { min-files = 3, allowed = [] }
+given.files.'src/load/index.ts' = '''
+import { context } from "../shared/context";
+
+export const load = context;
+'''
+given.files.'src/save/index.ts' = '''
+import { context } from "../shared/context";
+
+export const save = context;
+'''
+given.files.'src/show/index.ts' = '''
+export { context as show } from "../shared/context";
+'''
+given.files.'src/shared/context.ts' = '''
+export const context = 1;
+'''
+
+[[scenarios]]
+id = 'lower-case-word-three-files'
+scenario = 'One lower-case word written in three files is a format vocabulary, not a repeated literal.'
+given.include = ['**']
+given.params = { min-files = 3, allowed = [] }
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+mod load;
+mod save;
+
+pub(crate) fn column() -> &'static str {
+    "source"
+}
+'''
+given.files.'src/load.rs' = '''
+pub(crate) fn column() -> &'static str {
+    "source"
+}
+'''
+given.files.'src/save.rs' = '''
+pub(crate) fn column() -> &'static str {
+    "source"
+}
+'''
+
+
+[[scenarios]]
+id = 'two-words-three-files'
+scenario = 'The value `two words` written in three files is still one repeated literal.'
+given.include = ['**']
+given.params = { min-files = 3, allowed = [] }
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+mod load;
+mod save;
+
+pub(crate) fn label() -> &'static str {
+    "two words"
+}
+'''
+given.files.'src/load.rs' = '''
+pub(crate) fn label() -> &'static str {
+    "two words"
+}
+'''
+given.files.'src/save.rs' = '''
+pub(crate) fn label() -> &'static str {
+    "two words"
+}
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 5 },
+  { path = 'src/load.rs', line = 2 },
+  { path = 'src/save.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'word-with-digit-three-files'
+scenario = 'The value `Source1` written in three files is still one repeated literal.'
+given.include = ['**']
+given.params = { min-files = 3, allowed = [] }
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+mod load;
+mod save;
+
+pub(crate) fn label() -> &'static str {
+    "Source1"
+}
+'''
+given.files.'src/load.rs' = '''
+pub(crate) fn label() -> &'static str {
+    "Source1"
+}
+'''
+given.files.'src/save.rs' = '''
+pub(crate) fn label() -> &'static str {
+    "Source1"
+}
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 5 },
+  { path = 'src/load.rs', line = 2 },
+  { path = 'src/save.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'longer-multi-word-three-files'
+scenario = 'The value `a longer repeated message` written in three files is still one repeated literal.'
+given.include = ['**']
+given.params = { min-files = 3, allowed = [] }
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+mod load;
+mod save;
+
+pub(crate) fn label() -> &'static str {
+    "a longer repeated message"
+}
+'''
+given.files.'src/load.rs' = '''
+pub(crate) fn label() -> &'static str {
+    "a longer repeated message"
+}
+'''
+given.files.'src/save.rs' = '''
+pub(crate) fn label() -> &'static str {
+    "a longer repeated message"
+}
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 5 },
+  { path = 'src/load.rs', line = 2 },
+  { path = 'src/save.rs', line = 2 },
+]
