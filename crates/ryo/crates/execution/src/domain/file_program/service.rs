@@ -40,7 +40,7 @@ fn node_input(
             NodeInput::Observation(super::types::ObservationGraphInputId(
                 bound_offsets
                     .get(rule)?
-                    .checked_add(usize::try_from(input.0).ok()?)?,
+                    .checked_add(input.0 as usize)?,
             )),
         )),
         Input::Step(step) => Some((
@@ -205,16 +205,18 @@ pub(crate) fn compile_prepared_observations(
         let needs = crate::domain::trust::service::needs_of_contracts(plan, &operators.rules[rule]);
         // The one analysis of the rule: the lowering is made once and the column chains are
         // compiled over it. Nothing of it outlives the loop but the shapes found per step.
-        let layout = operators.rules[rule]
+        let layout = match operators.rules[rule]
             .iter()
             .map(|contract| contract.output_kinds.clone())
             .collect::<Result<Vec<_>, _>>()
-            .ok()
-            .map(|kinds| crate::domain::operator::types::PlanLayout {
+        {
+            Ok(kinds) => Some(crate::domain::operator::types::PlanLayout {
                 kept: crate::domain::operator::types::KeptSteps(kept.clone()),
                 kinds,
                 lowering: crate::domain::lowering::service::lower(plan),
-            });
+            }),
+            Err(_) => None,
+        };
         let columns = layout
             .as_ref()
             .map(|layout| crate::domain::column_kernel::service::compile(plan, layout));
@@ -268,8 +270,7 @@ pub(crate) fn compile_prepared_observations(
                         }
                         return Some(found);
                     }
-                    let validated = contract.schema.clone().ok();
-                    let schema_valid = validated.is_some()
+                    let schema_valid = contract.schema.is_ok()
                         && inputs.iter().all(|input| match input {
                             NodeInput::Node(id) => nodes[id.0].schema_valid,
                             NodeInput::Relation(_) | NodeInput::Observation(_) => true,

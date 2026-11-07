@@ -122,7 +122,7 @@ pub(crate) fn link(
                 if let ResolvedObservationProducer::Output { rule, output } = producer {
                     *output = output_maps
                         .get(rule.0)
-                        .and_then(|mapping| mapping.get(usize::try_from(output.0).ok()?))
+                        .and_then(|mapping| mapping.get(output.0 as usize))
                         .and_then(|id| *id)
                         .ok_or(FileProgramError::InvalidReference)?;
                 }

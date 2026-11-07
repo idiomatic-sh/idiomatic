@@ -197,7 +197,7 @@ pub(crate) fn rectangular(view: ColumnsView<'_>) -> bool {
 
 /// Decode one typed stored cell, preserving normalization such as nonzero flag encodings.
 fn stored_cell(view: ColumnsView<'_>, row: RowIndex, column: ColumnIndex) -> Option<Value> {
-    let place = usize::try_from(column.0).ok()?;
+    let place = column.0 as usize;
     let kind = view.kinds.get(place)?;
     let bits = view.columns.get(place)?.0.get(row.0)?;
     Some(from_bits(*kind, Bits(*bits)))
@@ -225,7 +225,7 @@ fn selected_view_cell(
     row: RowIndex,
     column: ColumnIndex,
 ) -> Option<Value> {
-    let physical = RowIndex(usize::try_from(*view.positions.get(row.0)?).ok()?);
+    let physical = RowIndex(*view.positions.get(row.0)? as usize);
     stored_cell(view.source, physical, *view.columns.get(column.0 as usize)?)
 }
 

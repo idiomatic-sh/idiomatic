@@ -103,7 +103,7 @@ impl<'a> SelectionProgram<'a> {
                         .map(|index| {
                             selector
                                 .columns
-                                .get(usize::try_from(index.0).ok()?)
+                                .get(index.0 as usize)
                                 .copied()
                         })
                         .collect::<Option<_>>()?;
@@ -121,7 +121,7 @@ impl<'a> SelectionProgram<'a> {
                     .map(|index| {
                         selector
                             .columns
-                            .get(usize::try_from(index.0).ok()?)
+                            .get(index.0 as usize)
                             .copied()
                     })
                     .collect::<Option<_>>()?;
@@ -159,11 +159,11 @@ impl<'a> SelectionProgram<'a> {
     fn operand(&self, operand: &Operand, selector: &mut Selector) -> Option<Operand> {
         Some(match operand {
             Operand::Column(index) => {
-                Operand::Column(*selector.columns.get(usize::try_from(index.0).ok()?)?)
+                Operand::Column(*selector.columns.get(index.0 as usize)?)
             }
             Operand::Literal(value) => Operand::Literal(value.clone()),
             Operand::Parameter(id) => {
-                let value = self.bindings.get(usize::try_from(id.0).ok()?)?;
+                let value = self.bindings.get(id.0 as usize)?;
                 if matches!(
                     value,
                     ParameterBinding::Tables(_) | ParameterBinding::TextSets(_)
@@ -180,7 +180,10 @@ impl<'a> SelectionProgram<'a> {
                         identity.bindings.push(value.clone());
                         identity.bindings.len() - 1
                     });
-                Operand::Parameter(ParameterId(u32::try_from(index).ok()?))
+                let Ok(index) = u32::try_from(index) else {
+                    return None;
+                };
+                Operand::Parameter(ParameterId(index))
             }
             Operand::Function(_) => return None,
         })

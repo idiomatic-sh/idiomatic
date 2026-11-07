@@ -89,7 +89,10 @@ impl RepresentationsItem for TreeItem {
             .checked_add(usize::from(
                 tree.form == crate::domain::table_cells::types::TreeForm::Edges,
             ))
-            .and_then(|at| u32::try_from(at).ok())
+            .and_then(|at| match u32::try_from(at) {
+                Ok(place) => Some(place),
+                Err(_) => None,
+            })
         else {
             return Ok(RowRead::MissingPhysical);
         };

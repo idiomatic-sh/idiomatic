@@ -71,7 +71,7 @@ pub(crate) fn compile(
     let count = graph.nodes.len();
     let mut origins = vec![None; count];
     for (rule, nodes) in graph.program_nodes.iter().enumerate() {
-        for node in nodes.iter().filter_map(|node| node.as_ref().ok()) {
+        for node in nodes.iter().flatten() {
             origins[node.0].get_or_insert(crate::domain::coverage::types::RuleIndex(rule));
         }
     }
@@ -472,11 +472,7 @@ pub(crate) fn compile(
     }
     for rule in &mut rules {
         let mut root_readers = rule.root_readers.to_vec();
-        for source in rule
-            .frontier
-            .iter()
-            .filter_map(|source| source.as_ref().ok())
-        {
+        for source in rule.frontier.iter().flatten() {
             if let InputSource::Observation(slot) = source {
                 if let Some(count) = named_readers.get_mut(*slot) {
                     *count += 1;

@@ -73,10 +73,15 @@ pub(crate) fn read(text: &str) -> Option<Numeric<'_>> {
         "inf" => Some(Numeric::Float(f64::INFINITY)),
         "-inf" => Some(Numeric::Float(f64::NEG_INFINITY)),
         "NaN" => Some(Numeric::Float(f64::NAN)),
-        _ if text.contains(['.', 'e', 'E']) => float_spelling(text)
-            .then(|| text.parse::<f64>().ok())
-            .flatten()
-            .map(Numeric::Float),
+        _ if text.contains(['.', 'e', 'E']) => {
+            if !float_spelling(text) {
+                return None;
+            }
+            match text.parse::<f64>() {
+                Ok(number) => Some(Numeric::Float(number)),
+                Err(_) => None,
+            }
+        }
         _ => decimal(text).map(Numeric::Decimal),
     }
 }
@@ -159,7 +164,10 @@ fn integer_float(integer: Numeric<'_>, float: f64) -> Option<Ordering> {
     let (negative, small, digits) = match integer {
         Numeric::Decimal(integer) => (
             integer.negative,
-            integer.digits.parse::<u128>().ok(),
+            match integer.digits.parse::<u128>() {
+                Ok(magnitude) => Some(magnitude),
+                Err(_) => None,
+            },
             Some(integer.digits),
         ),
         Numeric::Whole(integer) => (integer < 0, Some(u128::from(integer.unsigned_abs())), None),
@@ -210,7 +218,9 @@ fn small_integer(value: Numeric<'_>) -> Option<i128> {
     match value {
         Numeric::Whole(value) => Some(i128::from(value)),
         Numeric::Decimal(value) => {
-            let magnitude = value.digits.parse::<i128>().ok()?;
+            let Ok(magnitude) = value.digits.parse::<i128>() else {
+                return None;
+            };
             if value.negative {
                 magnitude.checked_neg()
             } else {
