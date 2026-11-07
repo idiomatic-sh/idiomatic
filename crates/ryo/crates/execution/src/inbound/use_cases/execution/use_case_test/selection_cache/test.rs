@@ -1,27 +1,33 @@
 //! Public-owner selection oracles stay at the inbound boundary.
-use ryo_values::cases::{Case, CaseName, Expect, Word, run};
+use ryo_values::cases::Case;
+use ryo_values::cases::CaseName;
+use ryo_values::cases::Expect;
+use ryo_values::cases::Word;
+use ryo_values::cases::run;
 use super::super::super::fixtures as public_owner;
 use crate::application::file_dag::program::file_session::types::SourceRows;
-use crate::domain::{
-    operating::errors::OperatingError,
-    stored_selection::{
-        fixtures::{expected_columns, program},
-        types::Selector,
-    },
-    table_model::{service::materialize, types::Rows},
-};
+use crate::domain::operating::errors::OperatingError;
+use crate::domain::stored_selection::fixtures::expected_columns;
+use crate::domain::stored_selection::fixtures::program;
+use crate::domain::stored_selection::types::Selector;
+use crate::domain::table_model::service::materialize;
+use crate::domain::table_model::types::Rows;
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_relations::domain::relations::{
-    service::to_bits,
-    types::{CellKind, ColumnsView, FactColumn, Integer, Relation, Value as Cell},
-};
+use ryo_relations::domain::relations::service::to_bits;
+use ryo_relations::domain::relations::types::CellKind;
+use ryo_relations::domain::relations::types::ColumnsView;
+use ryo_relations::domain::relations::types::FactColumn;
+use ryo_relations::domain::relations::types::Integer;
+use ryo_relations::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Value as Cell;
 use ryo_relations::domain::terms::types::Symbol;
-use ryo_values::domain::{
-    plan_parts::types::{ColumnIndex, Input as Source, RepeatedRows},
-    plans::types::Operation,
-    rows::types::Table,
-};
+use ryo_values::domain::plan_parts::types::ColumnIndex;
+use ryo_values::domain::plan_parts::types::Input as Source;
+use ryo_values::domain::plan_parts::types::RepeatedRows;
+use ryo_values::domain::plans::types::Operation;
+use ryo_values::domain::rows::types::Table;
 use std::sync::Arc;
+
 type Failure = OperatingError;
 /// Generic cache policy data is projected from a genuine provider schema for
 /// the independent public-owner oracle. No catalog reader receives a synthetic schema.
@@ -155,7 +161,6 @@ fn baseline_with_symbols(
         &read,
     )
 }
-
 fn ordered_duplicate_matches_share_one_index_and_selection() -> Result<(), Failure> {
     let columns: Vec<_> = (0_i64..3)
         .map(|column| {
@@ -208,7 +213,6 @@ fn ordered_duplicate_matches_share_one_index_and_selection() -> Result<(), Failu
     );
     Ok(())
 }
-
 fn symbol_discriminator_preserves_text_equality_with_term_aliases() -> Result<(), Failure> {
     use ryo_language::domain::symbols::{service::intern_derived, types::ByteSlice};
     use ryo_relations::domain::terms::{
@@ -252,7 +256,6 @@ fn symbol_discriminator_preserves_text_equality_with_term_aliases() -> Result<()
     );
     Ok(())
 }
-
 fn literal(text: &str, columns: Vec<ColumnIndex>) -> Selector {
     use ryo_values::domain::{
         plan_parts::types::{LiteralText, Operand, PlanComparison, QueryLiteral, Test},
@@ -273,163 +276,23 @@ fn literal(text: &str, columns: Vec<ColumnIndex>) -> Selector {
         distinct: false,
     }
 }
-
-fn literal_fanout_routes_aliases_once_and_refuses_incomplete_inputs() -> Result<(), Failure> {
-    use ryo_language::domain::symbols::{service::intern_derived, types::ByteSlice};
-    use ryo_relations::domain::terms::{
-        service::term_symbol,
-        types::{DeclarationKind, NameText, Symbol},
-    };
-    let mut symbols = Symbols::default();
-    let dynamic = intern_derived(&mut symbols, ByteSlice(b""), NameText("class"));
-    let extras = (0..7)
-        .map(|number| {
-            intern_derived(
-                &mut symbols,
-                ByteSlice(b""),
-                NameText(&format!("word{number}")),
-            )
-        })
-        .collect::<Vec<_>>();
-    let mut bits = vec![to_bits(Cell::Symbol(term_symbol(DeclarationKind::Method))).0; 128];
-    for row in [1, 4, 8] {
-        bits[row] = to_bits(Cell::Symbol(term_symbol(DeclarationKind::Class))).0;
-    }
-    bits[5] = to_bits(Cell::Symbol(dynamic)).0;
-    bits[127] = to_bits(Cell::Symbol(Symbol(u32::MAX))).0;
-    for (number, &symbol) in extras.iter().enumerate() {
-        bits[20 + number * 2] = to_bits(Cell::Symbol(symbol)).0;
-    }
-    let columns = [FactColumn(bits)];
-    let source = ColumnsView {
-        kinds: &[CellKind::Symbol],
-        columns: &columns,
-    };
-    let mut words = vec![("class".to_owned(), vec![1, 4, 5, 8])];
-    words.extend((0..7).map(|number| (format!("word{number}"), vec![20 + number * 2])));
-    for (word, positions) in words {
-        let selector = literal(&word, vec![ColumnIndex(0), ColumnIndex(0)]);
-        assert_eq!(
-            baseline_with_symbols(source, &selector, &mut symbols)?,
-            expected_columns(source, &selector.columns, &positions)
-        );
-    }
-    Ok(())
-}
-
-fn empty_literal_preserves_malformed_symbol_fallback() -> Result<(), Failure> {
-    use ryo_relations::domain::terms::types::Symbol;
-    let columns = [FactColumn(vec![
-        to_bits(Cell::Symbol(Symbol(u32::MAX))).0;
-        3
-    ])];
-    let source = ColumnsView {
-        kinds: &[CellKind::Symbol],
-        columns: &columns,
-    };
-    let selector = literal("", vec![ColumnIndex(0), ColumnIndex(0)]);
-    assert_eq!(
-        baseline_with_symbols(source, &selector, &mut Symbols::default())?,
-        expected_columns(source, &selector.columns, &[0, 1, 2])
-    );
-    Ok(())
-}
-
-fn distinct_projections_preserve_rows_and_predicate_cache() -> Result<(), Failure> {
-    let columns = [
-        FactColumn(vec![7, 7, 7, 7, 7, 8]),
-        FactColumn(vec![1, 2, 0, 7, 0, 1]),
-        FactColumn(vec![10, 10, 20, 11, 20, 10]),
-    ];
-    let source = ColumnsView {
-        kinds: &[CellKind::Number, CellKind::Flag, CellKind::Symbol],
-        columns: &columns,
-    };
-    for (columns, positions) in [
-        (
-            vec![ColumnIndex(2), ColumnIndex(1), ColumnIndex(2)],
-            vec![0, 2, 3],
-        ),
-        (vec![ColumnIndex(1)], vec![0, 2]),
-        (vec![], vec![0]),
-    ] {
-        let mut selector = (*program(7)).clone();
-        selector.columns = columns;
-        selector.distinct = true;
-        assert_eq!(
-            baseline(source, &selector)?,
-            expected_columns(source, &selector.columns, &positions)
-        );
-    }
-    let changed = [
-        FactColumn(vec![7]),
-        FactColumn(vec![0]),
-        FactColumn(vec![20]),
-    ];
-    let changed = ColumnsView {
-        columns: &changed,
-        ..source
-    };
-    let mut selector = (*program(7)).clone();
-    selector.columns = vec![ColumnIndex(2), ColumnIndex(1), ColumnIndex(2)];
-    selector.distinct = true;
-    assert_eq!(
-        baseline(changed, &selector)?,
-        expected_columns(changed, &selector.columns, &[0])
-    );
-    Ok(())
-}
-/// The scenarios of this group, one row each.
-#[derive(Clone, Copy, Debug)]
-enum Scenario {
-    OrderedDuplicateMatchesShareOneIndexAndSelection,
-    SymbolDiscriminatorPreservesTextEqualityWithTermAliases,
-    LiteralFanoutRoutesAliasesOnceAndRefusesIncompleteInputs,
-    EmptyLiteralPreservesMalformedSymbolFallback,
-    DistinctProjectionsPreserveRowsAndPredicateCache,
-}
-type Input = Scenario;
+type Input = fn() -> Result<Value, Failure>;
 type Value = ();
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName(stringify!(ordered_duplicate_matches_share_one_index_and_selection)),
         word: Word::Succeeds,
-        input: || Scenario::OrderedDuplicateMatchesShareOneIndexAndSelection,
+        input: || ordered_duplicate_matches_share_one_index_and_selection,
         expect: Expect::Value(()),
     },
     Case {
         name: CaseName(stringify!(symbol_discriminator_preserves_text_equality_with_term_aliases)),
         word: Word::Succeeds,
-        input: || Scenario::SymbolDiscriminatorPreservesTextEqualityWithTermAliases,
+        input: || symbol_discriminator_preserves_text_equality_with_term_aliases,
         expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName(stringify!(literal_fanout_routes_aliases_once_and_refuses_incomplete_inputs)),
-        word: Word::Succeeds,
-        input: || Scenario::LiteralFanoutRoutesAliasesOnceAndRefusesIncompleteInputs,
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName(stringify!(empty_literal_preserves_malformed_symbol_fallback)),
-        word: Word::Succeeds,
-        input: || Scenario::EmptyLiteralPreservesMalformedSymbolFallback,
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName(stringify!(distinct_projections_preserve_rows_and_predicate_cache)),
-        word: Word::Succeeds,
-        input: || Scenario::DistinctProjectionsPreserveRowsAndPredicateCache,
-        expect: Expect::Value(()),
-    },
-];
+    },];
 fn subject(input: Input) -> Result<Value, Failure> {
-    match input {
-        Scenario::OrderedDuplicateMatchesShareOneIndexAndSelection => ordered_duplicate_matches_share_one_index_and_selection(),
-        Scenario::SymbolDiscriminatorPreservesTextEqualityWithTermAliases => symbol_discriminator_preserves_text_equality_with_term_aliases(),
-        Scenario::LiteralFanoutRoutesAliasesOnceAndRefusesIncompleteInputs => literal_fanout_routes_aliases_once_and_refuses_incomplete_inputs(),
-        Scenario::EmptyLiteralPreservesMalformedSymbolFallback => empty_literal_preserves_malformed_symbol_fallback(),
-        Scenario::DistinctProjectionsPreserveRowsAndPredicateCache => distinct_projections_preserve_rows_and_predicate_cache(),
-    }
+    input()
 }
 #[test]
 fn succeeds() {

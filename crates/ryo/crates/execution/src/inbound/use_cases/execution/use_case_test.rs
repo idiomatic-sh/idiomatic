@@ -146,6 +146,9 @@ mod extend;
 mod closure;
 
 #[cfg(test)]
+mod closure_partitions;
+
+#[cfg(test)]
 mod graph;
 #[cfg(test)]
 mod span_join;
@@ -157,6 +160,9 @@ mod kinds;
 mod axis;
 
 #[cfg(test)]
+mod axis_tree;
+
+#[cfg(test)]
 mod capability;
 
 #[cfg(test)]
@@ -164,6 +170,9 @@ mod axis_graph;
 
 #[cfg(test)]
 mod conformance;
+
+#[cfg(test)]
+mod conformance_driver;
 
 #[cfg(test)]
 mod conformance_boundary;
@@ -195,10 +204,16 @@ mod project_input;
 mod selection_cache;
 
 #[cfg(test)]
+mod selection_cache_literals;
+
+#[cfg(test)]
 mod contract_timing;
 
 #[cfg(test)]
 mod admission_order;
+
+#[cfg(test)]
+mod admission_order_precedence;
 
 #[cfg(test)]
 mod errored_rule;
