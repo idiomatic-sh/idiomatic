@@ -70,7 +70,7 @@ fn exercise(exit: PhaseExit, values: [i64; 4], stored: Stored) -> Observed {
         corpus,
     } = prepare_case(exit).expect("compile the four project readers");
     let phase = crate::application::file_dag::program::facade_runtime::service::publication_owner(
-        &prepared, &services,
+        &prepared, &services, std::sync::Arc::new(crate::outbound::digest::fixtures::fake::DigestFake),
     )
     .expect("open the publication scope");
     let required =

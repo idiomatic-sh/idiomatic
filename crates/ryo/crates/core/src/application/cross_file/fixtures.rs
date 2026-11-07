@@ -172,6 +172,7 @@ pub(super) fn world_with_applicability(
     let engine = PrepareUseCaseImpl::new(
         operators,
         Arc::new(ryo_execution::outbound::derived::factory::semantics()),
+        Arc::new(ryo_execution::outbound::digest::factory::blake3()),
     );
     let program = Arc::new(
         engine

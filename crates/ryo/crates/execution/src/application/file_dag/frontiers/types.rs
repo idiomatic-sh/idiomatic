@@ -159,11 +159,12 @@ pub(in crate::application::file_dag) enum DecodeShape {
     Decoded,
 }
 
-/// One decode of a publication scope: the words it read, how and under which symbol generation it
-/// read them, and what it admitted. The words are the stored bytes, held so that a later root's
-/// content-equal words find this decode; the admitted rows are already retained by the population.
+/// One decode of a publication scope: the digest of the words it read, how and under which symbol
+/// generation it read them, and what it admitted. A later root's content-equal words find this decode
+/// by their digest, so the packed words are released once decoded; the admitted rows are what the
+/// population retains.
 pub(in crate::application::file_dag) struct DecodedFrontier {
-    pub words: std::sync::Arc<ryo_values::domain::stored_facts::types::KeptWords>,
+    pub content: ryo_values::domain::stored_facts::types::Digest,
     pub shape: DecodeShape,
     pub mode: ryo_values::domain::table_words::types::DecodeMode,
     pub permit: ryo_language::domain::symbols::types::TransportPermit,
@@ -178,14 +179,20 @@ pub(in crate::application::file_dag) struct DecodedFrontier {
 pub(in crate::application::file_dag) struct FrontierDecodes {
     pub(super) decoded: std::cell::RefCell<Vec<DecodedFrontier>>,
     pub(super) count: std::cell::Cell<DecodeCount>,
+    /// What names the content of the words: the request's digest port.
+    pub(super) digest: std::sync::Arc<dyn crate::outbound::digest::interface::DigestPort>,
 }
 
 impl FrontierDecodes {
-    /// The decodes of one publication scope: `publication_owner` issues it into the scope.
-    pub(in crate::application::file_dag) fn new() -> Self {
+    /// The decodes of one publication scope: `publication_owner` issues it into the scope, over the
+    /// digest port the prepared program carries.
+    pub(in crate::application::file_dag) fn new(
+        digest: std::sync::Arc<dyn crate::outbound::digest::interface::DigestPort>,
+    ) -> Self {
         Self {
             decoded: std::cell::RefCell::new(Vec::new()),
             count: std::cell::Cell::new(DecodeCount::default()),
+            digest,
         }
     }
     #[cfg(test)]
@@ -211,21 +218,23 @@ impl FrontierDecodes {
         };
         let permit = transport_permit(symbols);
         let shape = shape_of(packed.input);
+        let content = self.digest.digest(crate::outbound::digest::types::DigestBytes(
+            &packed.words.0.0,
+        ));
         let mut decoded = self.decoded.borrow_mut();
         if let Some(found) = decoded.iter().find(|found| {
             found.shape == shape
                 && found.mode == packed.mode
                 && same_transport_generation(&found.permit, &permit) == Generation::Same
-                && found.words == packed.words
+                && found.content == content
         }) {
             return relabel(&found.admitted, packed.input, packed.coverage);
         }
-        let words = std::sync::Arc::clone(&packed.words);
         let mode = packed.mode;
         let admitted = decode(packed, symbols);
         self.count.set(DecodeCount(self.count.get().0 + 1));
         decoded.push(DecodedFrontier {
-            words,
+            content,
             shape,
             mode,
             permit,

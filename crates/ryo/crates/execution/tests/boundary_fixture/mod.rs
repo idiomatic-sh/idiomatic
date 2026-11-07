@@ -36,6 +36,7 @@ pub(crate) fn engine() -> PrepareUseCaseImpl {
     PrepareUseCaseImpl::new(
         Arc::new(ryo_execution::inbound::use_cases::execution::fixtures::operators()),
         Arc::new(ryo_execution::inbound::use_cases::execution::fixtures::derived()),
+        Arc::new(ryo_execution::outbound::digest::factory::blake3()),
     )
 }
 pub(crate) fn prepared(engine: &PrepareUseCaseImpl) -> PreparedExecutionProgram {

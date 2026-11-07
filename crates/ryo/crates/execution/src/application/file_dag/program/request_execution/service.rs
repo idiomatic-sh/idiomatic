@@ -118,6 +118,7 @@ impl ExecutionRequest for RequestExecution {
             publication: std::rc::Rc::new(facade_runtime::service::publication_owner(
                 &self.program,
                 &self.services,
+                Arc::clone(&self.digest),
             )?),
         })
     }
@@ -383,5 +384,6 @@ pub(crate) fn begin(program: &PreparedExecutionProgram, corpus: &[CorpusInput]) 
             corpus,
         )),
         frontiers: crate::application::file_dag::frontiers::types::FrontierCache::new(),
+        digest: Arc::clone(&program.digest),
     }
 }

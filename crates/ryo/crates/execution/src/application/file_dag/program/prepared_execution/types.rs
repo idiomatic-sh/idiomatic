@@ -55,7 +55,7 @@ use std::sync::Arc;
 /// They cannot be minted by a caller.
 /// ```compile_fail,E0451
 /// use ryo_execution::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
-/// let _ = PreparedExecutionProgram { inner: panic!(), kernels: panic!(), derived: panic!() };
+/// let _ = PreparedExecutionProgram { inner: panic!(), kernels: panic!(), derived: panic!(), digest: panic!() };
 /// ```
 /// ```compile_fail,E0451
 /// use ryo_execution::application::file_dag::program::file_session::types::FileSession;
@@ -69,4 +69,6 @@ pub struct PreparedExecutionProgram {
     pub(crate) derived: crate::application::file_dag::derived::owner::types::DerivedAccess,
     pub(crate) inner:
         Arc<crate::application::file_dag::program::preparation::types::PreparedProgram>,
+    /// What names the content of packed words, for every request of the program.
+    pub(crate) digest: Arc<dyn crate::outbound::digest::interface::DigestPort>,
 }

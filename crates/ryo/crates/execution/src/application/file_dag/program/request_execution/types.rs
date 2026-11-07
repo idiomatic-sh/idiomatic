@@ -7,5 +7,7 @@ pub struct RequestExecution {
         Arc<crate::application::file_dag::program::facade_runtime::types::ProgramServices>,
     /// Prepared frontiers of this request, one acquisition per population.
     pub(crate) frontiers: crate::application::file_dag::frontiers::types::FrontierCache,
+    /// The prepared program's digest port, handed to each publication scope.
+    pub(crate) digest: std::sync::Arc<dyn crate::outbound::digest::interface::DigestPort>,
 }
 

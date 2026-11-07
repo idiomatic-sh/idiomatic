@@ -133,6 +133,7 @@ impl Preparation {
             request.observations,
             Arc::clone(&self.operators),
             &self.derived,
+            Arc::new(crate::outbound::digest::fixtures::fake::DigestFake),
         )
     }
 }
