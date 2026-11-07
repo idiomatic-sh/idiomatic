@@ -953,7 +953,7 @@ pub fn table(_input: TokenStream) -> TokenStream {
 given.files.'src/lib.rs' = '''
 #[cfg(feature = "derive")]
 #[expect(clippy::pub_use, clippy::useless_attribute, reason = "the derive facade")]
-#[allow(unused_imports)]
+#[allow(unused_imports)] // the suppression this scenario states
 pub use fixture_macros::Features;
 '''
 then.findings = [
@@ -1042,7 +1042,7 @@ edition = "2024"
 '''
 given.files.'src/field.rs' = '''
 pub struct Fielded {
-    #[allow(clippy::pub_use)]
+    #[allow(clippy::pub_use)] // the suppression this scenario states
     pub field: u8,
 }
 '''
@@ -1051,7 +1051,7 @@ given.files.'src/function.rs' = '''
 pub fn exported() {}
 '''
 given.files.'src/inner.rs' = '''
-#![allow(clippy::pub_use)]
+#![allow(clippy::pub_use)] // the suppression this scenario states
 '''
 given.files.'src/lib.rs' = '''
 pub mod inner;
@@ -1069,19 +1069,19 @@ pub struct Fielded {
 }
 
 impl Fielded {
-    #[allow(clippy::pub_use)]
+    #[allow(clippy::pub_use)] // the suppression this scenario states
     pub fn method(&self) -> u8 {
         self.field
     }
 }
 '''
 given.files.'src/restriction.rs' = '''
-#[allow(dead_code, clippy::restriction)]
+#[allow(dead_code, clippy::restriction)] // the suppression this scenario states
 mod quiet {}
 '''
 given.files.'src/statement.rs' = '''
 pub fn copy(value: u8) -> u8 {
-    #[allow(clippy::pub_use)]
+    #[allow(clippy::pub_use)] // the suppression this scenario states
     let copy = value;
     copy
 }
@@ -1093,7 +1093,7 @@ pub trait Traited {
 }
 '''
 given.files.'src/unrelated.rs' = '''
-#[allow(clippy::pedantic)]
+#[allow(clippy::pedantic)] // the suppression this scenario states
 mod unrelated {}
 '''
 then.findings = [
@@ -1357,7 +1357,7 @@ pub fn table(_input: TokenStream) -> TokenStream {
 }
 '''
 given.files.'src/lib.rs' = '''
-#![allow(clippy::pub_use)]
+#![allow(clippy::pub_use)] // the suppression this scenario states
 pub struct Owned;
 '''
 then.findings = [
@@ -1532,7 +1532,7 @@ pub type Find<R> = dyn Fn(&R) -> bool;
 id = 'resource-connection'
 scenario = 'A factory exposes its adapter resource connection.'
 given.files.'src/outbound/cache/factory.rs' = '''
-#![allow(clippy::pub_use)]
+#![allow(clippy::pub_use)] // the suppression this scenario states
 pub use super::adapters::arrow::connection::CacheConnection;
 '''
 
@@ -1570,7 +1570,7 @@ then.findings = [
 id = 'resource-plus-invalid'
 scenario = 'A permitted resource cannot hide another public import.'
 given.files.'src/outbound/cache/factory.rs' = '''
-#![allow(clippy::pub_use)]
+#![allow(clippy::pub_use)] // the suppression this scenario states
 pub use super::adapters::arrow::connection::CacheConnection;
 pub use super::adapters::arrow::adapter::CacheArrowAdapter;
 '''
@@ -1582,7 +1582,7 @@ then.findings = [
 id = 'resource-broad-allow'
 scenario = 'A resource export permits no blanket Clippy restriction allowance.'
 given.files.'src/outbound/cache/factory.rs' = '''
-#![allow(clippy::restriction)]
+#![allow(clippy::restriction)] // the suppression this scenario states
 pub use super::adapters::arrow::connection::CacheConnection;
 '''
 then.findings = [
