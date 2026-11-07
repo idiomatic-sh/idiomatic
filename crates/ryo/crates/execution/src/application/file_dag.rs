@@ -7,7 +7,7 @@ pub(crate) mod invocation;
 pub(crate) mod predicates;
 pub(crate) mod request;
 pub(crate) mod resources;
-#[cfg(test)]
+#[cfg(any(test, feature = "fixtures"))]
 pub(crate) mod testing;
 pub(crate) mod workspace;
 
