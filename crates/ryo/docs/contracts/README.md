@@ -132,7 +132,7 @@ The wave-3 branches and the benchmark branch are merged into one tree from check
 
 ### Fold repair
 
-Branch `claude/w4-fold-repair` from checkpoint 321 `0015475b6e` (bead `ryo-l3sw`). Authored, not compiled: the integrator compiles once at checkpoint 322. No engine code changes; no data structure is added or deleted.
+Branch `claude/w4-fold-repair` from checkpoint 321 `0015475b6e`. Authored, not compiled: the integrator compiles once at checkpoint 322. No engine code changes; no data structure is added or deleted.
 
 - **R1, the Django canary (cause):** no answer changed. The recorded 112 (`evidence/checkpoint/measurements.json`, run at `7752021acd` on 2026-11-06, before both the fold and walk extension C) is the report's whole diagnostics list: 110 N999 and the 2 `invalid-syntax` diagnostics of the frontend projection (`tests/migrations/migrations_test_apps/with_generic_model/models.py`, `tests/test_runner_apps/tagged/tests_syntax_error.py`). The canary counted only the entries whose rule is N999, so it compared 110 with 112. The run of 2026-11-07 01:27 (also before both) answers 110 and 2 as well, 321 answers 110 N999, and pinned Ruff 0.16.5 (`--select N999 --target-version py310`, the 2,875 listed files) reports N999 on the same 110 files. Neither a deleted path (column fusion fences, copied population rows, the module-identity route, the ordered-existence decline) nor walk extension C's shared decode is involved.
 - **R2, control:** `the_one_path_answers_the_django_canary_as_recorded` counts the report's `diagnostics` list, which is what the measurement counted (`sharing/fixtures/measurement.rs::diagnostics` in place of `diagnostics_of`); it expects 112. The route-differential README names the 110 and the 2.
@@ -146,7 +146,7 @@ Branch `claude/w4-fold-repair` from checkpoint 321 `0015475b6e` (bead `ryo-l3sw`
 
 ### Lineage repairs
 
-Branch `claude/w4-lineage-repairs` from checkpoint 321 `0015475b6e` (bead `ryo-tquc`, carrying `ryo-xyk0`, `ryo-jx2q`, `ryo-xqxb` and the removed-file item of `ryo-66jv`). Authored, not compiled: the integrator compiles once at 322. Review repairs IV's rule holds: a missing file is never narrowed through a step operand's key alone; every narrowing below is proven by the lineage of the operand that misses the rows.
+Branch `claude/w4-lineage-repairs` from checkpoint 321 `0015475b6e`. Authored, not compiled: the integrator compiles once at 322. Review repairs IV's rule holds: a missing file is never narrowed through a step operand's key alone; every narrowing below is proven by the lineage of the operand that misses the rows.
 
 | Row (validation321) | Cause | Repair | Control |
 |---|---|---|---|
