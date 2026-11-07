@@ -59,6 +59,10 @@ person reads the source:
 3. `validation.json` records the `no_print` clippy target green and file-level
    ownership cycles 0.
 
+The request points at the checkpoint's integration record, and the record's
+pass/error table is part of it: one row per `cargo check` pass with the errors
+that pass reported and the errors it fixed.
+
 ## Review priorities
 
 The five adversarial bullets in the agent file apply unchanged: callers and

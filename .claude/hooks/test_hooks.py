@@ -8,6 +8,7 @@ import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 LOCK = "flock /workspaces/.cargo-build.lock "
+CHECK = " --target-dir /workspaces/idiomatic-check-target"
 
 
 def run_hook(name, payload, env=None):
@@ -66,6 +67,49 @@ class GuardShell(unittest.TestCase):
                         "x\ncargo bench", "bash -c 'x; cargo test'", LOCK + "cargo clippy"]:
             with self.subTest(command=command):
                 self.assertEqual(shell(command, self.builder), 2)
+
+    def test_builder_may_check_one_package_into_the_check_target(self):
+        crate = os.path.join(self.builder, "crate")
+        os.makedirs(crate, exist_ok=True)
+        with open(os.path.join(crate, "Cargo.toml"), "w", encoding="utf-8") as handle:
+            handle.write("[package]\nname = \"crate\"\n")
+        with open(os.path.join(self.builder, "Cargo.toml"), "w", encoding="utf-8") as handle:
+            handle.write("[workspace]\nmembers = [\"crate\"]\n")
+        for command in ["cargo check -p x" + CHECK, "cargo check --package=x --all-features" + CHECK,
+                        "cargo check --manifest-path crate/Cargo.toml" + CHECK, "cd crate && cargo check -px" + CHECK,
+                        LOCK + "cargo check -p x" + CHECK]:
+            with self.subTest(command=command):
+                self.assertEqual(shell(command, self.builder), 0)
+
+    def test_builder_check_without_the_check_target_is_refused(self):
+        for command in ["cargo check -p x", LOCK + "cargo check -p x",
+                        "cargo check -p x --target-dir /workspaces/idiomatic-benchmark-guards/target",
+                        LOCK + "cargo check -p x --target-dir=/workspaces/idiomatic-benchmark-guards/target",
+                        "cargo check -p x --target-dir /tmp/other"]:
+            with self.subTest(command=command):
+                result = run_hook("guard_shell.py", {"tool_input": {"command": command}, "cwd": self.builder})
+                self.assertEqual(result.returncode, 2)
+                self.assertIn("cargo check -p <crate> --target-dir /workspaces/idiomatic-check-target", result.stderr)
+
+    def test_builder_workspace_wide_check_is_refused(self):
+        for command in ["cargo check" + CHECK, "cargo check --workspace -p x" + CHECK, "cargo check --all" + CHECK,
+                        "cargo check --manifest-path Cargo.toml" + CHECK, "cargo check --manifest-path nope/Cargo.toml" + CHECK]:
+            with self.subTest(command=command):
+                self.assertEqual(shell(command, self.builder), 2)
+
+    def test_builder_test_build_clippy_with_a_package_are_refused(self):
+        for command in ["cargo test -p x" + CHECK, "cargo build -p x" + CHECK, "cargo clippy -p x" + CHECK,
+                        LOCK + "cargo test -p x", "bash -c 'cargo check -p x" + CHECK + "'"]:
+            with self.subTest(command=command):
+                self.assertEqual(shell(command, self.builder), 2)
+
+    def test_integration_tree_forms_are_unchanged(self):
+        for command, code in [(LOCK + "cargo check --workspace --all-features --message-format=json", 0),
+                              ("cargo check --workspace", 2), (LOCK + "cargo test --workspace", 0),
+                              ("cargo check -p x" + CHECK, 0), ("cargo build -p x" + CHECK, 2),
+                              (LOCK + "cargo check --target-dir /tmp/other", 2)]:
+            with self.subTest(command=command):
+                self.assertEqual(shell(command, self.integration), code)
 
     def test_hidden_cargo_is_allowed_in_an_integration_tree(self):
         self.assertEqual(shell(LOCK + 'bash -c "cargo test"', self.integration), 0)
