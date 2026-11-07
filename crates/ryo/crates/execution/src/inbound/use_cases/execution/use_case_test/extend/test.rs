@@ -1,5 +1,6 @@
 //! Extend resolves values through the real request compiler and file owner.
 use super::super::super::fixtures;
+use crate::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
 use crate::inbound::use_cases::execution::interface::OperatingError;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, Integer};
@@ -36,7 +37,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             Operand::Parameter(ParameterId(0)),
         ]
     };
-    let mut plan = fixtures::plan(vec![
+    let mut plan = inputs::plan(vec![
         Operation::Hosted {
             relation: HostedNumber(0),
         },
@@ -72,10 +73,10 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             out.kinds,
             [CellKind::Number, CellKind::Symbol, CellKind::Symbol]
         );
-        assert_eq!(fixtures::text(out.cells[1], &symbols), "here");
+        assert_eq!(inputs::text(out.cells[1], &symbols), "here");
         assert_eq!(out.cells[1], out.cells[2]);
         assert_eq!(out.cells[2], out.cells[4]);
-        assert_eq!(fixtures::text(out.cells[5], &symbols), "here");
+        assert_eq!(inputs::text(out.cells[5], &symbols), "here");
         Ok(1)
     } else {
         assert_eq!(

@@ -1,5 +1,6 @@
 //! Digest membership, framing and malformed inputs through actual grouped execution.
 use super::super::super::fixtures;
+use crate::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
 use crate::inbound::use_cases::execution::interface::OperatingError;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{Integer, Relation, Value as Cell};
@@ -54,7 +55,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
         }),
     });
     let output = fixtures::published(
-        fixtures::plan(operations),
+        inputs::plan(operations),
         vec![],
         hosted,
         &mut Symbols::default(),

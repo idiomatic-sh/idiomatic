@@ -1,5 +1,6 @@
 //! Text row operators retain the original row and publish exact appended words or slots.
 use super::super::super::fixtures;
+use crate::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
 use crate::inbound::use_cases::execution::interface::OperatingError;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::Relation;
@@ -70,11 +71,11 @@ fn subject(input: Input) -> Result<Value, Failure> {
         }
     });
     let mut symbols = Symbols::default();
-    let output = fixtures::published(fixtures::plan(operations), vec![], hosted, &mut symbols)?;
+    let output = fixtures::published(inputs::plan(operations), vec![], hosted, &mut symbols)?;
     let width = output.kinds.len();
     let mut appended = Vec::new();
     for row in output.cells.chunks(width) {
-        let original = fixtures::text(row[0], &symbols);
+        let original = inputs::text(row[0], &symbols);
         assert!(
             originals.contains(&original),
             "every output retains an original input text"
@@ -82,7 +83,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
         appended.extend(
             row[1..]
                 .iter()
-                .map(|cell| Cow::Owned(fixtures::text(*cell, &symbols).to_owned())),
+                .map(|cell| Cow::Owned(inputs::text(*cell, &symbols).to_owned())),
         );
     }
     assert_eq!(output.cells.len(), output.count.0 * width);

@@ -1,5 +1,6 @@
 //! Selection predicates and projections run through a genuine hosted input and file owner.
 use super::super::super::fixtures;
+use crate::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
 use crate::inbound::use_cases::execution::interface::OperatingError;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::Integer;
@@ -59,7 +60,7 @@ fn services(test: Test, left: Operand, right: Operand) -> Result<usize, Failure>
         .map(|row| HostRow(row.into_iter().map(|s| Cell::Text(s.into())).collect()))
         .collect(),
     };
-    let plan = fixtures::plan(vec![
+    let plan = inputs::plan(vec![
         Operation::Hosted {
             relation: HostedNumber(0),
         },
@@ -100,7 +101,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         }
         _ => {
             let kept = matches!(scenario, Scenario::Kept);
-            let mut plan = fixtures::plan(vec![
+            let mut plan = inputs::plan(vec![
                 Operation::Hosted {
                     relation: HostedNumber(0),
                 },

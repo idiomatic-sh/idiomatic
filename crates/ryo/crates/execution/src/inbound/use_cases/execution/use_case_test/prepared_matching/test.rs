@@ -1,5 +1,6 @@
 //! Literal metadata and dynamic patterns are exercised through real prepared file owners.
 use super::super::super::fixtures;
+use crate::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
 use crate::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
 use crate::domain::operating::errors::OperatingError;
 use ryo_language::domain::{
@@ -71,7 +72,7 @@ fn prepare(
         let symbol = intern_derived(&mut symbols, ByteSlice(b""), NameText(text));
         push_row(&mut input, &[Cell::Symbol(symbol)]);
     }
-    let mut authored = fixtures::table_inputs(operation, &[&input], bindings, &mut symbols);
+    let mut authored = inputs::table_inputs(operation, &[&input], bindings, &mut symbols);
     // A real but undemanded authored literal remains in the same immutable request.
     // Dynamic callers must not acquire its already-compiled slot merely by equal bytes.
     let mut shadow = shadow.clone();

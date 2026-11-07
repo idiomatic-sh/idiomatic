@@ -1,7 +1,6 @@
 //! Authored request assembly; every operation runs through the public execution owner.
 use crate::outbound::facts::types::ResidentStability;
 use crate::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
-use crate::inbound::use_cases::execution::interface::ExecutionUseCase;
 use crate::application::file_dag::derived::owner::types::DerivedAccess;
 use crate::application::file_dag::program::prepared_execution::service::prepare;
 use crate::domain::executable_program::types::RoutePolicy;
@@ -20,29 +19,36 @@ use crate::inbound::use_cases::execution::interface::ObservationDemand;
 use crate::inbound::use_cases::execution::interface::RuleDemand;
 use crate::inbound::use_cases::execution::interface::RuleIndex;
 use crate::domain::prepared_request::types::ObservationIdentity;
-use ryo_language::domain::completion::service::{completion, name_kind};
-use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
-use ryo_language::{
-    domain::elements::types::Elements,
-    domain::symbols::types::{ByteSlice, Symbols},
-};
-use ryo_relations::domain::relations::types::{FileId, Relation};
-use ryo_relations::domain::{
-    relations::types::{KindBits, Offset},
-    terms::types::NameText,
-};
-use ryo_values::domain::{
-    files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
-    hosted::types::HostRelation,
-    plans::types::Plan,
-    query_bindings::types::ParameterBinding,
-    query_tokens::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
-    rows::types::Table,
-    rule_requests::types::{RuleParameters, RuleSpec},
-    runs::types::{RuleApplicability, RuleId},
-    stored_facts::types::Digest,
-};
-use std::{cell::Cell, collections::BTreeMap, sync::Arc};
+use ryo_language::domain::completion::service::completion;
+use ryo_language::domain::completion::service::name_kind;
+use ryo_language::domain::builders::service::enter_node;
+use ryo_language::domain::builders::service::leave_node;
+use ryo_language::domain::builders::service::table_builder;
+use ryo_language::domain::builders::service::token;
+use ryo_language::domain::elements::types::Elements;
+use ryo_language::domain::symbols::types::ByteSlice;
+use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::types::FileId;
+use ryo_relations::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::KindBits;
+use ryo_relations::domain::relations::types::Offset;
+use ryo_relations::domain::terms::types::NameText;
+use ryo_values::domain::files::types::CorpusEntry;
+use ryo_values::domain::files::types::CorpusInput;
+use ryo_values::domain::files::types::ExecutablePermission;
+use ryo_values::domain::files::types::FileSize;
+use ryo_values::domain::files::types::Nanoseconds;
+use ryo_values::domain::hosted::types::HostRelation;
+use ryo_values::domain::plans::types::Plan;
+use ryo_values::domain::query_bindings::types::ParameterBinding;
+use ryo_values::domain::rows::types::Table;
+use ryo_values::domain::rule_requests::types::RuleSpec;
+use ryo_values::domain::stored_facts::types::Digest;
+use std::cell::Cell;
+use std::sync::Arc;
+use crate::application::file_dag::acceptance::operator_contract_test::fixtures::inputs::plan;
+use crate::application::file_dag::acceptance::operator_contract_test::fixtures::inputs::text;
+use crate::application::file_dag::acceptance::operator_contract_test::fixtures::inputs::table_inputs;
 
 pub(super) fn published(
     plan: Plan,
@@ -52,7 +58,6 @@ pub(super) fn published(
 ) -> Result<Table, OperatingError> {
     published_file(plan, bindings, hosted, &[], &Elements::default(), symbols)
 }
-
 pub(super) fn published_file(
     plan: Plan,
     bindings: Vec<ParameterBinding>,
@@ -76,7 +81,6 @@ pub(super) fn published_file(
     }
     result
 }
-
 pub(super) fn published_from<'facts>(
     plan: Plan,
     bindings: Vec<ParameterBinding>,
@@ -89,7 +93,6 @@ pub(super) fn published_from<'facts>(
     published_observed(plan, bindings, hosted, source, elements, symbols, read)
         .map(|(table, _)| table)
 }
-
 pub(super) fn published_observed<'facts>(
     plan: Plan,
     bindings: Vec<ParameterBinding>,
@@ -172,44 +175,6 @@ pub(super) fn prepared(
 ) -> Result<(Preparation, PreparedExecutionProgram), OperatingError> {
     prepared_many(vec![plan], vec![bindings], hosted)
 }
-/// One request of several authored rules, the first named as `prepared` names its only one.
-pub(super) fn prepared_many(
-    plans: Vec<Plan>,
-    bindings: Vec<Vec<ParameterBinding>>,
-    hosted: Vec<HostRelation>,
-) -> Result<(Preparation, PreparedExecutionProgram), OperatingError> {
-    let engine = Preparation::real();
-    let rules: Vec<RuleSpec> = (0..plans.len())
-        .map(|at| {
-            let id = if at == 0 {
-                "authored-operator-contract".to_string()
-            } else {
-                format!("authored-operator-contract-{at}")
-            };
-            RuleSpec {
-                id: RuleId(id.clone().into()),
-                query: QueryBundle {
-                    root: QueryDocumentSource {
-                        id: QuerySourceId(id.into()),
-                        text: "".into(),
-                    },
-                    modules: BTreeMap::new().into(),
-                },
-                applicability: RuleApplicability::Always,
-                given: vec![],
-                observations: vec![],
-                spelled: RuleParameters("".into()),
-                include: vec![],
-                exclude: vec![],
-            }
-        })
-        .collect();
-    let digests = (0..plans.len())
-        .map(|at| Digest([u8::try_from(at).unwrap_or(u8::MAX); 16]))
-        .collect();
-    let prepared = engine.prepare(Authored { plans, bindings, rules, digests, hosted, observations: ObservationIdentity::Independent })?;
-    Ok((engine, prepared))
-}
 /// Repeat the supported public owner protocol over the same immutable compiled request.
 pub(super) fn run_prepared<'facts>(
     _engine: &Preparation,
@@ -221,7 +186,6 @@ pub(super) fn run_prepared<'facts>(
 ) -> Result<(Table, crate::domain::operating::types::ExecutionObservation), OperatingError> {
     run_prepared_context(_engine, prepared, source, elements, symbols, read, None)
 }
-
 /// The same public owner with its real borrowed rendering capability.
 pub(super) fn run_prepared_context<'facts>(
     _engine: &Preparation,
@@ -296,7 +260,6 @@ pub(super) fn run_prepared_context<'facts>(
     };
     Ok((table, observed))
 }
-
 /// Exact typed input data, not a provider for one of the catalog relations.
 pub(super) fn numbers(name: &str, width: usize, rows: &[&[i64]]) -> HostRelation {
     use ryo_relations::domain::relations::types::Integer;
@@ -324,35 +287,6 @@ pub(super) fn numbers(name: &str, width: usize, rows: &[&[i64]]) -> HostRelation
             .collect(),
     }
 }
-/// Assemble explicit step data; the production compiler owns dependencies and schemas.
-pub(super) fn plan(operations: Vec<ryo_values::domain::plans::types::Operation>) -> Plan {
-    use ryo_values::domain::{
-        plan_parts::types::{ColumnIndex, StepId, StepScope},
-        plans::types::{Emit, PlanStep},
-    };
-    let emit = Emit {
-        step: StepId((operations.len() - 1) as u32),
-        subject: ColumnIndex(0),
-        key: vec![],
-        headings: vec![],
-    };
-    Plan {
-        parameters: vec![],
-        observation_inputs: vec![],
-        observations: vec![],
-        comparison_origins: vec![],
-        frontier: vec![],
-        emit,
-        steps: operations
-            .into_iter()
-            .map(|operation| PlanStep {
-                scope: StepScope::PerFile,
-                operation,
-            })
-            .collect(),
-    }
-}
-
 pub(super) fn texts(name: &str, rows: &[&str]) -> HostRelation {
     use ryo_values::domain::{
         hosted::types::{HostColumn, HostColumnName, HostKind, HostName, HostRow},
@@ -370,27 +304,6 @@ pub(super) fn texts(name: &str, rows: &[&str]) -> HostRelation {
             .collect(),
     }
 }
-/// Resolve published physical vocabulary; this does not evaluate an operation.
-pub(super) fn text<'a>(
-    cell: ryo_relations::domain::relations::types::Value,
-    symbols: &'a Symbols,
-) -> &'a str {
-    use crate::domain::table_texts::{
-        service::datum,
-        types::{Datum, Texts},
-    };
-    let texts = Texts {
-        symbols,
-        source: ryo_values::domain::files::types::SourceView(&[]),
-        paths: &[],
-        arenas: &[],
-    };
-    match datum(cell, &texts) {
-        Datum::Text(text) => text.0,
-        _ => panic!("published text cell required"),
-    }
-}
-
 pub(super) fn tree_with_names() -> (Elements, Symbols) {
     let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
     let mut builder = table_builder(&mut elements, &mut symbols, ByteSlice(b"abcd"));
@@ -410,7 +323,6 @@ pub(super) fn tree_with_names() -> (Elements, Symbols) {
     }
     (elements, symbols)
 }
-
 /// Assemble real hosted rows or complete canonical fact rows, then use the same public file owner.
 /// No primitive is invoked here and no executor, pool or raw permission is constructed.
 pub(super) fn table_request(
@@ -421,7 +333,6 @@ pub(super) fn table_request(
 ) -> Result<(Table, crate::domain::operating::types::ExecutionObservation), OperatingError> {
     table_request_context(operation, inputs, bindings, symbols, b"", None)
 }
-
 /// Typed fixture data enters the same public owner and optional real capability.
 pub(super) fn table_request_context(
     operation: ryo_values::domain::plans::types::Operation,
@@ -450,229 +361,4 @@ pub(super) fn table_request_context(
         &read,
         semantic,
     )
-}
-
-pub(super) struct AuthoredRows {
-    pub plan: Plan,
-    pub hosted: Vec<HostRelation>,
-    pub facts: Vec<(Relation, Table)>,
-}
-/// Only fixture input and plan assembly; callers execute through the real inbound API.
-pub(super) fn table_inputs(
-    mut operation: ryo_values::domain::plans::types::Operation,
-    inputs: &[&Table],
-    bindings: &[ParameterBinding],
-    symbols: &mut Symbols,
-) -> AuthoredRows {
-    use ryo_relations::domain::relations::{
-        service::kinds,
-        types::{CellKind, Flag, Offset, Span, Value},
-    };
-    use ryo_values::domain::{
-        hosted::types::{HostColumn, HostColumnName, HostKind, HostName, HostRow},
-        plan_parts::types::{ColumnIndex, HostedNumber, Input, ParameterName, StepId},
-        plans::types::Operation,
-        query_bindings::types::{ParameterType, PlanParameter},
-        row_texts::types::Cell as HostCell,
-    };
-    let mut operations = vec![];
-    let mut sources = vec![];
-    let mut hosted = vec![];
-    let mut facts = vec![];
-    for (at, table) in inputs.iter().enumerate() {
-        if table
-            .kinds
-            .iter()
-            .all(|kind| matches!(kind, CellKind::Number | CellKind::Symbol | CellKind::File))
-        {
-            let columns = table
-                .kinds
-                .iter()
-                .enumerate()
-                .map(|(n, kind)| HostColumn {
-                    name: HostColumnName(format!("column-{n}").into()),
-                    kind: match kind {
-                        CellKind::Number => HostKind::Number,
-                        CellKind::Symbol => HostKind::Text,
-                        CellKind::File => HostKind::File,
-                        _ => unreachable!(),
-                    },
-                })
-                .collect();
-            let rows = (0..table.count.0)
-                .map(|index| {
-                    let width = table.kinds.len();
-                    let row = &table.cells[index * width..(index + 1) * width];
-                    HostRow(
-                        row.iter()
-                            .map(|cell| match *cell {
-                                Value::Number(n) => HostCell::Number(n),
-                                Value::Symbol(_) => HostCell::Text(text(*cell, symbols).into()),
-                                Value::File(_) => HostCell::File("operator-contract.py".into()),
-                                _ => unreachable!(),
-                            })
-                            .collect(),
-                    )
-                })
-                .collect();
-            operations.push(Operation::Hosted {
-                relation: HostedNumber(hosted.len() as u32),
-            });
-            hosted.push(HostRelation {
-                name: HostName(format!("input-{at}").into()),
-                columns,
-                rows,
-            });
-        } else {
-            let (relation, columns) = match table.kinds.as_slice() {
-                [CellKind::Node] => (
-                    if at == 2 {
-                        Relation::Identifier
-                    } else {
-                        Relation::Function
-                    },
-                    vec![0],
-                ),
-                [CellKind::Node, CellKind::Node] => (Relation::Resolves, vec![0, 1]),
-                [CellKind::Node, CellKind::Node, CellKind::File] => {
-                    (Relation::Resolves, vec![0, 1, 4])
-                }
-                [CellKind::Node, CellKind::Number] => (Relation::SemanticChild, vec![0, 2]),
-                [
-                    CellKind::Node,
-                    CellKind::Node,
-                    CellKind::Number,
-                    CellKind::Symbol,
-                    CellKind::File,
-                ] => (Relation::SemanticChild, vec![0, 1, 2, 3, 4]),
-                [
-                    CellKind::Number,
-                    CellKind::Symbol,
-                    CellKind::Node,
-                    CellKind::Span,
-                    CellKind::Flag,
-                    CellKind::File,
-                ] => {
-                    if at == 0 {
-                        (Relation::FormatParse, vec![6, 1, 0, 12, 8, 11])
-                    } else {
-                        (Relation::BraceFormatField, vec![1, 2, 0, 9, 6, 8])
-                    }
-                }
-                [CellKind::Number, CellKind::Flag, CellKind::Symbol] => {
-                    (Relation::FormatParse, vec![6, 8, 1])
-                }
-                [CellKind::Span] => {
-                    if at == 0 {
-                        (Relation::SourceLocation, vec![2])
-                    } else {
-                        (Relation::StringLiteral, vec![4])
-                    }
-                }
-                [CellKind::Symbol, CellKind::Span] => (Relation::StringLiteral, vec![2, 4]),
-                [CellKind::File, CellKind::Span] => (Relation::SourceLocation, vec![1, 2]),
-                [CellKind::Span, CellKind::File] => (Relation::SourceLocation, vec![2, 1]),
-                [
-                    CellKind::Node,
-                    CellKind::Symbol,
-                    CellKind::File,
-                    CellKind::Span,
-                ] => (
-                    if at == 0 {
-                        Relation::Function
-                    } else {
-                        Relation::Identifier
-                    },
-                    vec![0, 1, 2, 3],
-                ),
-
-                _ => panic!("fixture must supply an actual schema for its typed data"),
-            };
-            for (&column, kind) in columns.iter().zip(&table.kinds) {
-                assert_eq!(
-                    kinds(relation)[column as usize],
-                    *kind,
-                    "fixture projection must follow its actual catalog"
-                );
-            }
-            assert!(
-                !facts.iter().any(|(old, _)| *old == relation),
-                "distinct facts cannot masquerade as one provider snapshot"
-            );
-            let word = ryo_language::domain::symbols::service::intern_derived(
-                symbols,
-                ByteSlice(b""),
-                NameText("fixture"),
-            );
-            let mut supplied = Table {
-                kinds: kinds(relation).to_vec(),
-                ..Table::default()
-            };
-            for row in table.cells.chunks(table.kinds.len()) {
-                let mut cells = kinds(relation)
-                    .iter()
-                    .map(|kind| match kind {
-                        CellKind::Node => {
-                            Value::Node(ryo_relations::domain::relations::service::node_id(
-                                FileId(0),
-                                ryo_relations::domain::relations::types::Position(0),
-                            ))
-                        }
-                        CellKind::Symbol => Value::Symbol(word),
-                        CellKind::File => Value::File(FileId(0)),
-                        CellKind::Number => {
-                            Value::Number(ryo_relations::domain::relations::types::Integer(0))
-                        }
-                        CellKind::Span => Value::Span(Span {
-                            start: Offset(0),
-                            end: Offset(0),
-                        }),
-                        CellKind::Flag => Value::Flag(Flag::Lowered),
-                    })
-                    .collect::<Vec<_>>();
-                for (&column, &value) in columns.iter().zip(row) {
-                    cells[column as usize] = value;
-                }
-                supplied.cells.extend(cells);
-                supplied.count.0 += 1;
-            }
-            facts.push((relation, supplied));
-            operations.push(Operation::Select {
-                from: Input::Relation(relation),
-                comparisons: vec![],
-                kept: columns.into_iter().map(ColumnIndex).collect(),
-            });
-        }
-        sources.push(Input::Step(StepId((operations.len() - 1) as u32)));
-    }
-    let mut at = 0;
-    ryo_values::domain::plans::service::each_input(&mut operation, &mut |input| {
-        *input = *sources
-            .get(at)
-            .expect("authored fixture supplies every required input");
-        at += 1;
-    });
-    operations.push(operation);
-    let mut plan = plan(operations);
-    plan.parameters = bindings
-        .iter()
-        .enumerate()
-        .map(|(at, binding)| PlanParameter {
-            name: ParameterName(format!("parameter-{at}").into()),
-            kind: match binding {
-                ParameterBinding::Number(_) => ParameterType::Number,
-                ParameterBinding::Text(_) => ParameterType::Text,
-                ParameterBinding::Numbers(_) => ParameterType::Numbers,
-                ParameterBinding::Texts(_) => ParameterType::Texts,
-                ParameterBinding::TextSets(_) => ParameterType::TextSets,
-                ParameterBinding::Tables(_) => ParameterType::Tables,
-                ParameterBinding::Flag(_) => ParameterType::Flag,
-            },
-        })
-        .collect();
-    AuthoredRows {
-        plan,
-        hosted,
-        facts,
-    }
 }

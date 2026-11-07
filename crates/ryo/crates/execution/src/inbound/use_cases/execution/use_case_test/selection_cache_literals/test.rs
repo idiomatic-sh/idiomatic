@@ -4,6 +4,7 @@ use ryo_values::cases::CaseName;
 use ryo_values::cases::Expect;
 use ryo_values::cases::Word;
 use ryo_values::cases::run;
+use crate::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
 use super::super::super::fixtures as public_owner;
 use crate::application::file_dag::program::file_session::types::SourceRows;
 use crate::domain::operating::errors::OperatingError;
@@ -60,7 +61,7 @@ fn baseline_with_symbols(
     };
     let (mut plan, hosted, facts) = if logical.kinds.iter().all(|kind| *kind == CellKind::Number) {
         let authored =
-            public_owner::table_inputs(select, &[&logical], &program.identity.bindings, symbols);
+            inputs::table_inputs(select, &[&logical], &program.identity.bindings, symbols);
         (authored.plan, authored.hosted, authored.facts)
     } else {
         let (relation, projection) = match logical.kinds.as_slice() {
@@ -99,7 +100,7 @@ fn baseline_with_symbols(
             canonical.cells.extend(cells);
             canonical.count.0 += 1;
         }
-        let plan = public_owner::plan(vec![
+        let plan = inputs::plan(vec![
             Operation::Select {
                 from: Source::Relation(relation),
                 comparisons: vec![],

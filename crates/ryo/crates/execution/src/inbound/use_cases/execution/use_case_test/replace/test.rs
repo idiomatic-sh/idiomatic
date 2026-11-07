@@ -1,5 +1,6 @@
 //! Literal replacement and regex preparation errors use the real owner and matching contract.
 use super::super::super::fixtures;
+use crate::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
 use crate::inbound::use_cases::execution::interface::OperatingError;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::selects;
@@ -21,7 +22,7 @@ type Input = Scenario;
 type Value = bool;
 type Failure = OperatingError;
 fn subject(input: Input) -> Result<Value, Failure> {
-    let plan = fixtures::plan(vec![
+    let plan = inputs::plan(vec![
         Operation::Hosted {
             relation: HostedNumber(0),
         },
@@ -50,8 +51,8 @@ fn subject(input: Input) -> Result<Value, Failure> {
         output.cells[0],
         ryo_relations::domain::relations::types::Value::Symbol(original)
     );
-    assert_eq!(fixtures::text(output.cells[0], &symbols), input.text);
-    assert_eq!(fixtures::text(output.cells[1], &symbols), input.expected);
+    assert_eq!(inputs::text(output.cells[0], &symbols), input.text);
+    assert_eq!(inputs::text(output.cells[1], &symbols), input.expected);
     Ok(true)
 }
 const CASES: &[Case<Input, Value, Failure>] = &[

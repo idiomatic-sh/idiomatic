@@ -1,5 +1,6 @@
 //! Axis walks over the syntax tree through the mandatory public execution owner.
 use super::super::super::fixtures;
+use crate::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_relations::domain::relations::types::Relation;
@@ -151,7 +152,7 @@ fn over_the_tree(
         _ => Err(OperatingError::NotRead),
     };
     fixtures::published_from(
-        fixtures::plan(operations),
+        inputs::plan(operations),
         vec![],
         vec![],
         b"abcd",

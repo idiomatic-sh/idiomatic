@@ -1,5 +1,6 @@
 //! Required row bindings are materialized only by the actual public request owner.
 use super::super::super::fixtures;
+use crate::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
 use crate::inbound::use_cases::execution::interface::OperatingError;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::{
@@ -33,7 +34,7 @@ fn tables(rows: &[&[(&str, &str)]]) -> ParameterBinding {
 }
 
 fn subject((keys, binding): Input) -> Result<Value, Failure> {
-    let mut plan = fixtures::plan(vec![Operation::Rows {
+    let mut plan = inputs::plan(vec![Operation::Rows {
         parameter: ParameterId(0),
         keys: keys.iter().map(|key| TableKey((*key).into())).collect(),
     }]);
@@ -49,7 +50,7 @@ fn subject((keys, binding): Input) -> Result<Value, Failure> {
         .chunks(keys.len().max(1))
         .map(|row| {
             row.iter()
-                .map(|cell| fixtures::text(*cell, &symbols))
+                .map(|cell| inputs::text(*cell, &symbols))
                 .collect::<Vec<_>>()
                 .join(" ")
         })

@@ -4,6 +4,7 @@ use super::super::super::fixtures::{Authored, Preparation};
 use crate::outbound::facts::types::ResidentStability;
 use crate::inbound::use_cases::execution::interface::ExecutionUseCase;
 use super::super::super::fixtures;
+use crate::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
 use crate::application::file_dag::program::file_session::types::FileInput;
 use crate::application::file_dag::program::file_session::types::SourceLanguage;
 use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
@@ -89,7 +90,7 @@ fn subject(refusal: Input) -> Result<Value, Failure> {
         port.clone(),
         Arc::new(fixtures::derived()),
     );
-    let mut plan = fixtures::plan(vec![
+    let mut plan = inputs::plan(vec![
         Operation::Hosted {
             relation: HostedNumber(0),
         },

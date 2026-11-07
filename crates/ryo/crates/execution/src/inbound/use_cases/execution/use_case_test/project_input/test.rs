@@ -9,6 +9,7 @@ use crate::outbound::facts::types::KeptBucket;
 use crate::outbound::facts::types::ResidentStability;
 use crate::outbound::facts::types::WordsToKeep;
 use super::super::super::fixtures;
+use crate::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
 use crate::application::file_dag::program::project_phase::types::ProjectInput;
 use crate::application::file_dag::program::project_phase::types::ProjectTask;
 use crate::application::file_dag::program::project_phase::types::FrontierDemand;
@@ -67,7 +68,7 @@ impl FactsFinish for UnavailableFacts {
     }
 }
 fn project_step_without_a_declared_handover_cannot_read_a_per_file_source() -> Result<(), Failure> {
-    let mut plan = fixtures::plan(vec![
+    let mut plan = inputs::plan(vec![
         Operation::Select {
             from: Source::Relation(Relation::Function),
             kept: vec![ColumnIndex(0)],

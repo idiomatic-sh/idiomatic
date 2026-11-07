@@ -7,6 +7,7 @@ use ryo_values::cases::run;
 use super::super::super::fixtures::Authored;
 use super::super::super::fixtures::Preparation;
 use crate::outbound::facts::types::ResidentStability;
+use crate::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
 use super::super::super::fixtures as owner_fixtures;
 use crate::application::file_dag::program::file_session::types::FileInput;
 use crate::application::file_dag::program::file_session::types::SourceLanguage;
@@ -163,7 +164,7 @@ pub(in super::super) fn compare_delivery_with_port(
             view: vec![],
             reach: None,
         };
-        let mut a = owner_fixtures::table_inputs(join, &[&left, &right], bindings, symbols);
+        let mut a = inputs::table_inputs(join, &[&left, &right], bindings, symbols);
         let mut span = operation.clone();
         ryo_values::domain::plans::service::each_input(&mut span, &mut |input| {
             *input = Input::Step(a.plan.emit.step)
@@ -177,7 +178,7 @@ pub(in super::super) fn compare_delivery_with_port(
         a.plan.emit.step = StepId((a.plan.steps.len() - 1) as u32);
         a
     } else {
-        owner_fixtures::table_inputs(operation.clone(), &refs, bindings, symbols)
+        inputs::table_inputs(operation.clone(), &refs, bindings, symbols)
     };
     let emit = authored.plan.emit.step;
     let engine = Preparation::new(

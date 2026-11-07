@@ -3,6 +3,7 @@ use super::super::super::fixtures::{Authored, Preparation};
 use crate::outbound::facts::types::ResidentStability;
 use crate::inbound::use_cases::execution::interface::ExecutionUseCase;
 use super::super::super::fixtures;
+use crate::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
 use crate::application::file_dag::program::file_session::types::FileInput;
 use crate::application::file_dag::program::file_session::types::SourceLanguage;
 use crate::application::file_dag::program::file_session::types::SourceRows;
@@ -53,7 +54,7 @@ const EDGES: &[&[i64]] = &[
     &[90, 91],
 ];
 fn plan(direction: Direction, stored: bool, projected: bool) -> Plan {
-    fixtures::plan(vec![
+    inputs::plan(vec![
         Operation::Hosted {
             relation: HostedNumber(0),
         },

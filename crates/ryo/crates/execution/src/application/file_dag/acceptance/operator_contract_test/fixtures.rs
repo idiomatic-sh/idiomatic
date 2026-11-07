@@ -23,6 +23,7 @@ use ryo_values::domain::query_bindings::types::BindingTable;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::query_operators::types::OperationKind;
 pub(crate) mod expectations;
+pub(crate) mod inputs;
 pub(crate) mod values;
 use values::{FROM, RIGHT, DOMAIN, n, span, node, table, numbers, matrix, text};
 

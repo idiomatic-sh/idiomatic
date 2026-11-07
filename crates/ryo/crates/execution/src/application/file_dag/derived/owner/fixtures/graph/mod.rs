@@ -306,16 +306,10 @@ impl GraphFixture {
     ) -> Result<Option<u32>, OperatingError> {
         let mut cache = self.owner.derived().graph_cache()?;
         let mut answers = NearestAnswers(std::mem::take(local));
-        let nearest = DemandAnswers::new(self.owner.derived(), &mut cache).nearest(
-            access,
-            domain,
-            GraphVertex(root),
-            orientation,
-            &mut answers,
-            walk,
-        );
+        let found = DemandAnswers::new(self.owner.derived(), &mut cache)
+            .nearest(access, domain, GraphVertex(root), orientation, &mut answers, walk);
         *local = answers.0;
-        nearest.map(|found| found.map(|vertex| vertex.0))
+        found.map(|found| found.map(|vertex| vertex.0))
     }
     pub(in crate::application::file_dag) fn index(
         &self,

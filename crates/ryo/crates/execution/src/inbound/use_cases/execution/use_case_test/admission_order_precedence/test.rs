@@ -1,5 +1,6 @@
 //! Preflight precedence of producer failures, stored prefixes and registered kinds through the mandatory public execution owner.
 use super::super::super::fixtures;
+use crate::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
 use crate::inbound::use_cases::execution::interface::OperatingError;
 use crate::application::file_dag::program::file_session::types::SourceRows;
 use crate::domain::operator::contract::service::semantics;
@@ -182,7 +183,7 @@ fn child_failure_and_resources_first() {
         columns: vec![ColumnIndex(99)],
         distinct: RepeatedRows::Kept,
     };
-    let (result, _) = execute(fixtures::plan(vec![first, last]), true, Supply::Present);
+    let (result, _) = execute(inputs::plan(vec![first, last]), true, Supply::Present);
     assert_eq!(
         result,
         Err(OperatingError::ShapeMismatch),
@@ -193,7 +194,7 @@ fn child_failure_and_resources_first() {
         keys: vec![ColumnIndex(99)],
         distinct: None,
     };
-    let (result, calls) = execute(fixtures::plan(vec![count]), true, Supply::MissingAfterFirst);
+    let (result, calls) = execute(inputs::plan(vec![count]), true, Supply::MissingAfterFirst);
     assert_eq!(
         result,
         Err(OperatingError::ShapeMismatch),
@@ -232,7 +233,7 @@ fn stored_prefix_keeps_static_error_order_and_source_identity() {
             }))
         };
         let (engine, prepared) = fixtures::prepared(
-            fixtures::plan(vec![operation(OperationKind::Project, bad_layout)]),
+            inputs::plan(vec![operation(OperationKind::Project, bad_layout)]),
             vec![],
             vec![],
         )

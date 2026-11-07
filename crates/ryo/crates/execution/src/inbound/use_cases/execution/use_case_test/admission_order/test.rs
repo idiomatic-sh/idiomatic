@@ -1,5 +1,6 @@
 //! Exact conflicting failures through the mandatory public execution owner.
 use super::super::super::fixtures;
+use crate::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
 use crate::inbound::use_cases::execution::interface::OperatingError;
 use crate::application::file_dag::program::file_session::types::SourceRows;
 use ryo_language::domain::elements::types::Elements;
@@ -183,7 +184,7 @@ fn layout_error(kind: OperationKind) -> OperatingError {
 fn schema_before_physical() {
     for &kind in SCHEMA {
         let (result, calls) = execute(
-            fixtures::plan(vec![operation(kind, true)]),
+            inputs::plan(vec![operation(kind, true)]),
             true,
             Supply::Present,
         );
@@ -202,7 +203,7 @@ fn schema_before_physical() {
 fn source_failure_before_local_layout() {
     for &kind in SCHEMA {
         let (result, calls) = execute(
-            fixtures::plan(vec![operation(kind, true)]),
+            inputs::plan(vec![operation(kind, true)]),
             true,
             Supply::MissingLeft,
         );
@@ -211,7 +212,7 @@ fn source_failure_before_local_layout() {
     }
     for &kind in &SCHEMA[2..] {
         let (result, calls) = execute(
-            fixtures::plan(vec![operation(kind, true)]),
+            inputs::plan(vec![operation(kind, true)]),
             true,
             Supply::MissingRight,
         );
@@ -226,7 +227,7 @@ fn source_failure_before_local_layout() {
 fn valid_populations_and_generation_binding() {
     for &kind in SCHEMA {
         let (result, _) = execute(
-            fixtures::plan(vec![operation(kind, false)]),
+            inputs::plan(vec![operation(kind, false)]),
             false,
             Supply::Present,
         );
@@ -248,7 +249,7 @@ fn valid_populations_and_generation_binding() {
         }
     }
     let (changed, calls) = execute(
-        fixtures::plan(vec![operation(OperationKind::Project, false)]),
+        inputs::plan(vec![operation(OperationKind::Project, false)]),
         false,
         Supply::Changed,
     );

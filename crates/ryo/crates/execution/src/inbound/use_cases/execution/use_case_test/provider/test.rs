@@ -2,6 +2,7 @@
 use crate::inbound::use_cases::execution::interface::ExecutionUseCase;
 use crate::outbound::facts::types::ResidentStability;
 use super::super::super::fixtures;
+use crate::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
 use crate::application::file_dag::program::file_session::types::FileInput;
 use crate::application::file_dag::program::file_session::types::SourceLanguage;
 use crate::application::file_dag::program::file_session::types::SourceRows;
@@ -92,7 +93,7 @@ fn subject((operator, missing, delivery): Input) -> Result<Value, Failure> {
             right_on: vec![ColumnIndex(0)],
         },
     };
-    let plan = fixtures::plan(vec![
+    let plan = inputs::plan(vec![
         Operation::Select {
             from: PlanInput::Relation(Relation::Function),
             comparisons: vec![],
