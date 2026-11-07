@@ -1751,7 +1751,7 @@ fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() 
     snapshot
         .read_staged(descriptor, &mut valid)
         .expect("valid packed words");
-    let mut persisted = crate::outbound::lint_store::fixtures::fake::stored(1);
+    let mut persisted = crate::outbound::lint_store::fixtures::tables::stored(1);
     persisted.files[0].path = record.path.clone();
     persisted.handed.frontier[0].bucket = Bucket(0);
     persisted.handed.proofs[0].bucket = Bucket(0);

@@ -6,7 +6,7 @@ use super::{
     tables_of,
 };
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::outbound::lint_store::fixtures::fake::stored;
+use crate::outbound::lint_store::fixtures::tables::stored;
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::row_texts::types::Cell;
 use ryo_values::domain::runs::types::{RuleId, SkipReason, Skipped};

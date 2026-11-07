@@ -4,7 +4,7 @@ use super::super::errors::LintStoreError;
 use super::super::interface::LintStorePort;
 use super::super::types::StoreKeeping;
 use super::handed::materialized_handed;
-use super::fake::{
+use super::tables::{
     again, failed, over_a_b_d_and_e, over_b_and_d, register_proofs, stored, words_of,
 };
 use crate::cases::{Case, CaseName, Expect, Word, run};
