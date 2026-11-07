@@ -2,7 +2,7 @@
 
 /// Why a finite callback of the `set_rows` concept stopped.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
-pub enum SetError {
+pub enum SetRowsError {
     /// the engine interrupted a set operation; its own error is retained with the driver.
     #[error("the engine interrupted a set operation; its own error is retained with the driver")]
     Interrupted,

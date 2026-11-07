@@ -15,17 +15,17 @@ pub trait OrderedExistenceDriver {
         &mut self,
         row: usize,
         column: ryo_values::domain::plan_parts::types::ColumnIndex,
-    ) -> Result<ryo_relations::domain::relations::types::Value, JoinError>;
+    ) -> Result<ryo_relations::domain::relations::types::Value, EqualityJoinError>;
     /// Total non-null whole-number evidence is required before this driver is constructed.
     fn number(
         &mut self,
         row: usize,
         column: ryo_values::domain::plan_parts::types::ColumnIndex,
-    ) -> Result<ryo_relations::domain::relations::types::Integer, JoinError>;
+    ) -> Result<ryo_relations::domain::relations::types::Integer, EqualityJoinError>;
     /// Deliver a dominated source row and an actual same-partition dominating witness.
     /// The engine can reconstruct the original logical Join coordinates for the unchanged Project.
     /// First interruption is sticky, including every subsequent callback.
-    fn emit_dominated(&mut self, row: usize, witness: usize) -> Result<(), JoinError>;
+    fn emit_dominated(&mut self, row: usize, witness: usize) -> Result<(), EqualityJoinError>;
 }
 
 /// Per-step scratch supplied and owned by the engine; no completed population is retained.
@@ -44,4 +44,4 @@ pub struct ExtremumWitness {
     pub row: usize,
 }
 
-use crate::domain::equality_join::errors::JoinError;
+use crate::domain::equality_join::errors::EqualityJoinError;

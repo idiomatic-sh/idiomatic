@@ -2,7 +2,7 @@
 use super::service::{positions, values};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::set_rows::types::{SetKind, SetPositionsDriver, SetRowDriver};
-use crate::domain::set_rows::errors::SetError;
+use crate::domain::set_rows::errors::SetRowsError;
 use ryo_relations::domain::relations::types::{Integer, Value as Cell};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -108,7 +108,7 @@ struct PositionProbe {
     calls: Value,
 }
 impl SetPositionsDriver for PositionProbe {
-    fn next(&mut self) -> Result<bool, SetError> {
+    fn next(&mut self) -> Result<bool, SetRowsError> {
         if self.next == 2 {
             return Ok(false);
         }
@@ -116,21 +116,21 @@ impl SetPositionsDriver for PositionProbe {
         self.next += 1;
         Ok(true)
     }
-    fn right_empty(&mut self) -> Result<bool, SetError> {
+    fn right_empty(&mut self) -> Result<bool, SetRowsError> {
         Ok(self.right_empty)
     }
-    fn contains_right(&mut self) -> Result<bool, SetError> {
+    fn contains_right(&mut self) -> Result<bool, SetRowsError> {
         self.calls[0] += 1;
         Ok(self.current == 0)
     }
-    fn first_time(&mut self) -> Result<bool, SetError> {
+    fn first_time(&mut self) -> Result<bool, SetRowsError> {
         self.calls[1] += 1;
         Ok(self.current == 0)
     }
-    fn emit(&mut self) -> Result<(), SetError> {
+    fn emit(&mut self) -> Result<(), SetRowsError> {
         self.calls[2] += 1;
         if self.fail_emit {
-            return Err(SetError::Interrupted);
+            return Err(SetRowsError::Interrupted);
         }
         Ok(())
     }
@@ -143,20 +143,20 @@ struct Probe {
     calls: Value,
 }
 impl SetRowDriver for Probe {
-    fn right_empty(&mut self) -> Result<bool, SetError> {
+    fn right_empty(&mut self) -> Result<bool, SetRowsError> {
         Ok(self.right_empty)
     }
-    fn contains_right(&mut self, key: &[Cell]) -> Result<bool, SetError> {
+    fn contains_right(&mut self, key: &[Cell]) -> Result<bool, SetRowsError> {
         assert_eq!(key, &[Cell::Number(Integer(7))]);
         self.calls[0] += 1;
         Ok(self.contains)
     }
-    fn first_time(&mut self, row: &[Cell]) -> Result<bool, SetError> {
+    fn first_time(&mut self, row: &[Cell]) -> Result<bool, SetRowsError> {
         assert_eq!(row, &[Cell::Number(Integer(7))]);
         self.calls[1] += 1;
         Ok(self.first)
     }
-    fn emit(&mut self, row: &[Cell]) -> Result<(), SetError> {
+    fn emit(&mut self, row: &[Cell]) -> Result<(), SetRowsError> {
         assert_eq!(row, &[Cell::Number(Integer(7))]);
         self.calls[2] += 1;
         Ok(())

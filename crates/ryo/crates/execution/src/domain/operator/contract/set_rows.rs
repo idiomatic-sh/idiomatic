@@ -6,7 +6,7 @@ use crate::domain::table_dedup::service::first_time;
 use crate::domain::table_model::types::Addition;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_operators::domain::set_rows::types::SetInput;
-use ryo_operators::domain::set_rows::errors::SetError;
+use ryo_operators::domain::set_rows::errors::SetRowsError;
 use ryo_operators::domain::set_rows::types::SetKind;
 use ryo_operators::domain::set_rows::types::SetRowDriver;
 use ryo_relations::domain::relations::types::Value;
@@ -19,7 +19,7 @@ struct EngineRows<'a, 'b> {
 }
 
 impl SetRowDriver for EngineRows<'_, '_> {
-    fn right_empty(&mut self) -> Result<bool, SetError> {
+    fn right_empty(&mut self) -> Result<bool, SetRowsError> {
         self.failure
             .run(|| {
                 let index = self
@@ -30,10 +30,10 @@ impl SetRowDriver for EngineRows<'_, '_> {
                     .ok_or(OperatingError::WrongBinding)?;
                 Ok(index.rows.count() == 0)
             })
-            .map_err(|()| SetError::Interrupted)
+            .map_err(|()| SetRowsError::Interrupted)
     }
 
-    fn contains_right(&mut self, key: &[Value]) -> Result<bool, SetError> {
+    fn contains_right(&mut self, key: &[Value]) -> Result<bool, SetRowsError> {
         self.failure
             .run(|| {
                 let index = self
@@ -44,22 +44,22 @@ impl SetRowDriver for EngineRows<'_, '_> {
                     .ok_or(OperatingError::WrongBinding)?;
                 Ok(index.contains(key))
             })
-            .map_err(|()| SetError::Interrupted)
+            .map_err(|()| SetRowsError::Interrupted)
     }
 
-    fn first_time(&mut self, row: &[Value]) -> Result<bool, SetError> {
+    fn first_time(&mut self, row: &[Value]) -> Result<bool, SetRowsError> {
         self.failure
             .run(|| {
                 let state = self.lease.distinct()?;
                 Ok(first_time(&mut state.rows, &mut state.seen, row) == Addition::Added)
             })
-            .map_err(|()| SetError::Interrupted)
+            .map_err(|()| SetRowsError::Interrupted)
     }
 
-    fn emit(&mut self, row: &[Value]) -> Result<(), SetError> {
+    fn emit(&mut self, row: &[Value]) -> Result<(), SetRowsError> {
         self.failure
             .run(|| self.emit.row(self.lease, row))
-            .map_err(|()| SetError::Interrupted)
+            .map_err(|()| SetRowsError::Interrupted)
     }
 }
 

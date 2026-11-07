@@ -14,7 +14,7 @@ use crate::domain::tree_join::{
 };
 use ryo_derived::domain::contract::types::Finding;
 use ryo_operators::domain::equality_join::types::JoinDriver;
-use ryo_operators::domain::equality_join::errors::JoinError;
+use ryo_operators::domain::equality_join::errors::EqualityJoinError;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_relations::domain::relations::types::{Position, Value};
 use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn};
@@ -97,13 +97,13 @@ impl Driver<'_, '_> {
     }
 }
 impl JoinDriver for Driver<'_, '_> {
-    fn next(&mut self, key: &[Value]) -> Result<bool, JoinError> {
+    fn next(&mut self, key: &[Value]) -> Result<bool, EqualityJoinError> {
         if self.error.is_some() {
-            return Err(JoinError::Interrupted);
+            return Err(EqualityJoinError::Interrupted);
         }
         self.advance(key).map_err(|error| {
             self.error = Some(error);
-            JoinError::Interrupted
+            EqualityJoinError::Interrupted
         })
     }
     fn right_cell(&self, column: ColumnIndex) -> Option<Value> {
@@ -119,13 +119,13 @@ impl JoinDriver for Driver<'_, '_> {
                 .and_then(|at| self.index?.rows.cell(at, column))
         }
     }
-    fn emit(&mut self, row: &[Value]) -> Result<(), JoinError> {
+    fn emit(&mut self, row: &[Value]) -> Result<(), EqualityJoinError> {
         if self.error.is_some() {
-            return Err(JoinError::Interrupted);
+            return Err(EqualityJoinError::Interrupted);
         }
         self.sink.row(self.lease, row).map_err(|error| {
             self.error = Some(error);
-            JoinError::Interrupted
+            EqualityJoinError::Interrupted
         })
     }
 }

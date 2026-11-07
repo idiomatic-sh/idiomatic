@@ -3,7 +3,7 @@ use super::{
     service::flag,
     types::{OrderedExistenceDriver, OrderedExistenceScratch, PartitionExtremum},
 };
-use crate::domain::equality_join::errors::JoinError;
+use crate::domain::equality_join::errors::EqualityJoinError;
 use crate::domain::ordered_existence::types::ExtremumWitness;
 use ryo_relations::domain::relations::types::{Integer, Value as ValueCell};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -13,13 +13,13 @@ impl OrderedExistenceDriver for Empty {
     fn len(&self) -> usize {
         0
     }
-    fn key_cell(&mut self, _: usize, _: ColumnIndex) -> Result<ValueCell, JoinError> {
+    fn key_cell(&mut self, _: usize, _: ColumnIndex) -> Result<ValueCell, EqualityJoinError> {
         panic!("empty input cannot read a key")
     }
-    fn number(&mut self, _: usize, _: ColumnIndex) -> Result<Integer, JoinError> {
+    fn number(&mut self, _: usize, _: ColumnIndex) -> Result<Integer, EqualityJoinError> {
         panic!("empty input cannot read an ordering value")
     }
-    fn emit_dominated(&mut self, _: usize, _: usize) -> Result<(), JoinError> {
+    fn emit_dominated(&mut self, _: usize, _: usize) -> Result<(), EqualityJoinError> {
         panic!("empty input cannot emit a row")
     }
 }

@@ -3,7 +3,7 @@ use crate::domain::operator::contract::{
     failure::FailureLatch, types::portable_fault, views::BorrowedRows,
 };
 use crate::domain::{operating::errors::OperatingError, ordered_existence::types::Extremum};
-use ryo_operators::domain::equality_join::errors::JoinError;
+use ryo_operators::domain::equality_join::errors::EqualityJoinError;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_operators::domain::ordered_existence::types::OrderedExistenceDriver;
 use ryo_operators::domain::ordered_existence::types::OrderedExistenceScratch;
@@ -27,25 +27,25 @@ impl OrderedExistenceDriver for Driver<'_, '_> {
     fn len(&self) -> usize {
         self.rows.count()
     }
-    fn key_cell(&mut self, row: usize, column: ColumnIndex) -> Result<Value, JoinError> {
+    fn key_cell(&mut self, row: usize, column: ColumnIndex) -> Result<Value, EqualityJoinError> {
         let rows = self.rows;
         self.failure
             .run(|| {
                 rows.cell(RowIndex(row), column)
                     .ok_or(OperatingError::ShapeMismatch)
             })
-            .map_err(|_| JoinError::Interrupted)
+            .map_err(|_| EqualityJoinError::Interrupted)
     }
-    fn number(&mut self, row: usize, column: ColumnIndex) -> Result<Integer, JoinError> {
+    fn number(&mut self, row: usize, column: ColumnIndex) -> Result<Integer, EqualityJoinError> {
         let rows = self.rows;
         self.failure
             .run(|| match rows.cell(RowIndex(row), column) {
                 Some(Value::Number(value)) => Ok(value),
                 _ => Err(OperatingError::ShapeMismatch),
             })
-            .map_err(|_| JoinError::Interrupted)
+            .map_err(|_| EqualityJoinError::Interrupted)
     }
-    fn emit_dominated(&mut self, row: usize, witness: usize) -> Result<(), JoinError> {
+    fn emit_dominated(&mut self, row: usize, witness: usize) -> Result<(), EqualityJoinError> {
         self.work.found(0, 1);
         let rows = self.rows;
         let logical = &mut self.row;
@@ -70,7 +70,7 @@ impl OrderedExistenceDriver for Driver<'_, '_> {
                 }
                 emit.row(context, logical)
             })
-            .map_err(|_| JoinError::Interrupted)
+            .map_err(|_| EqualityJoinError::Interrupted)
     }
 }
 

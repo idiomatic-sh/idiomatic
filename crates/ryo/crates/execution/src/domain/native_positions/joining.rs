@@ -30,7 +30,7 @@ use ryo_derived::domain::contract::types::RawOrder;
 use ryo_language::domain::elements::service::children;
 use ryo_language::domain::names::service::name_count;
 use ryo_operators::domain::equality_join::types::JoinInput;
-use ryo_operators::domain::equality_join::errors::JoinError;
+use ryo_operators::domain::equality_join::errors::EqualityJoinError;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_operators::domain::equality_join::types::PositionJoinDriver;
 use ryo_relations::domain::relations::types::{Position, Relation, Value};
@@ -49,7 +49,7 @@ struct StepMatches<'a> {
     counts: &'a WorkCounters,
 }
 impl PositionJoinDriver for StepMatches<'_> {
-    fn next(&mut self) -> Result<bool, JoinError> {
+    fn next(&mut self) -> Result<bool, EqualityJoinError> {
         while self.place.0 < self.end.0 {
             let place = self.place;
             self.place.0 += 1;
@@ -89,9 +89,9 @@ struct TreeMatch<'a, 't, 'c, 'f> {
     counts: &'a WorkCounters,
 }
 impl PositionJoinDriver for TreeMatch<'_, '_, '_, '_> {
-    fn next(&mut self) -> Result<bool, JoinError> {
+    fn next(&mut self) -> Result<bool, EqualityJoinError> {
         if self.error.is_some() {
-            return Err(JoinError::Interrupted);
+            return Err(EqualityJoinError::Interrupted);
         }
         self.ready = TreeAdmission::Unchecked;
         if matches!(self.pending, TreeCandidate::Exhausted) {
@@ -110,7 +110,7 @@ impl PositionJoinDriver for TreeMatch<'_, '_, '_, '_> {
             }
             Err(error) => {
                 self.error = Some(error);
-                Err(JoinError::Interrupted)
+                Err(EqualityJoinError::Interrupted)
             }
         }
     }
@@ -135,9 +135,9 @@ struct EdgeMatches<'a, 't, 'c> {
     counts: &'a WorkCounters,
 }
 impl PositionJoinDriver for EdgeMatches<'_, '_, '_> {
-    fn next(&mut self) -> Result<bool, JoinError> {
+    fn next(&mut self) -> Result<bool, EqualityJoinError> {
         if self.error.is_some() {
-            return Err(JoinError::Interrupted);
+            return Err(EqualityJoinError::Interrupted);
         }
         self.current = None;
         while let Some(child) = self.found.0.get(self.at.0).copied() {
@@ -162,7 +162,7 @@ impl PositionJoinDriver for EdgeMatches<'_, '_, '_> {
                 Ok(Verdict::Fails) => {}
                 Err(error) => {
                     self.error = Some(error);
-                    return Err(JoinError::Interrupted);
+                    return Err(EqualityJoinError::Interrupted);
                 }
             }
         }

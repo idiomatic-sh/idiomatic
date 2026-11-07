@@ -1,7 +1,7 @@
 //! Ordered Join meaning: bag order, view mapping, refusal order and the prefix a downstream refusal keeps.
 use super::service::join_row;
 use super::types::{JoinCells, JoinDriver, JoinRow};
-use super::errors::JoinError;
+use super::errors::EqualityJoinError;
 use crate::domain::contract::types::PortableOperatorFault;
 use ryo_relations::domain::relations::types::{Integer, Value as Cell};
 use crate::cases::{Case, CaseName, Expect, Word, run};
@@ -84,9 +84,9 @@ struct Driver {
     stopped: bool,
 }
 impl JoinDriver for Driver {
-    fn next(&mut self, key: &[Cell]) -> Result<bool, JoinError> {
+    fn next(&mut self, key: &[Cell]) -> Result<bool, EqualityJoinError> {
         if self.stopped {
-            return Err(JoinError::Interrupted);
+            return Err(EqualityJoinError::Interrupted);
         }
         assert_eq!(key, &[number(7)]);
         self.next_calls += 1;
@@ -100,13 +100,13 @@ impl JoinDriver for Driver {
             .get(usize::try_from(column.0).unwrap_or(usize::MAX))
             .copied()
     }
-    fn emit(&mut self, row: &[Cell]) -> Result<(), JoinError> {
+    fn emit(&mut self, row: &[Cell]) -> Result<(), EqualityJoinError> {
         if self.stopped {
-            return Err(JoinError::Interrupted);
+            return Err(EqualityJoinError::Interrupted);
         }
         if self.interrupt == Some(self.outputs.len()) {
             self.stopped = true;
-            return Err(JoinError::Interrupted);
+            return Err(EqualityJoinError::Interrupted);
         }
         self.outputs.push(row.to_vec());
         Ok(())
