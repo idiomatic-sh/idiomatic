@@ -1,7 +1,11 @@
 //! Existing dense cycle adjacency, preserving first-seen IDs and duplicate edges.
-use crate::domain::contract::types::{CycleGraph, DerivedFault, RowCells};
+use super::types::{CycleGraph, LeavingStart, NodeSlot};
+use crate::domain::fault::types::DerivedFault;
+use crate::domain::rows::types::RowCells;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
+use ryo_values::domain::rows::types::RowIndex;
+
 fn check_columns(
     kinds: &[ryo_relations::domain::relations::types::CellKind],
     columns: &[ColumnIndex],
@@ -13,11 +17,14 @@ fn check_columns(
     }
     Ok(())
 }
+
 fn cell(row: &[Value], column: ColumnIndex) -> Result<Value, DerivedFault> {
     row.get(column.0 as usize)
         .copied()
         .ok_or(DerivedFault::NoSuchColumn { column })
 }
+
+/// Numbers the nodes in first-seen order and groups each edge under its source.
 pub(crate) fn build(
     input: &dyn RowCells,
     source: ColumnIndex,
@@ -27,15 +34,15 @@ pub(crate) fn build(
     check_columns(input.kinds(), &[source, destination])?;
     let mut graph = CycleGraph::default();
     let mut numbers = hashbrown::HashMap::new();
-    let mut pairs = Vec::with_capacity(input.count());
-    for at in 0..input.count() {
-        let Some(edge) = input.read_row(at, row) else {
+    let mut pairs = Vec::with_capacity(input.count().0);
+    for at in 0..input.count().0 {
+        let Some(edge) = input.read_row(RowIndex(at), row) else {
             continue;
         };
         let mut number = |value: Value| {
             *numbers.entry(value).or_insert_with(|| {
                 graph.values.push(value);
-                graph.values.len() - 1
+                NodeSlot(graph.values.len() - 1)
             })
         };
         pairs.push((
@@ -43,29 +50,31 @@ pub(crate) fn build(
             number(cell(edge, destination)?),
         ));
     }
-    graph.starts.resize(graph.values.len() + 1, 0);
+    graph.starts.resize(graph.values.len() + 1, LeavingStart(0));
     for (from, _) in &pairs {
-        *graph
+        graph
             .starts
-            .get_mut(from + 1)
-            .ok_or(DerivedFault::ShapeMismatch)? += 1;
+            .get_mut(from.0 + 1)
+            .ok_or(DerivedFault::ShapeMismatch)?
+            .0 += 1;
     }
     for at in 0..graph.values.len() {
-        let before = *graph.starts.get(at).ok_or(DerivedFault::ShapeMismatch)?;
-        *graph
+        let before = graph.starts.get(at).ok_or(DerivedFault::ShapeMismatch)?.0;
+        graph
             .starts
             .get_mut(at + 1)
-            .ok_or(DerivedFault::ShapeMismatch)? += before;
+            .ok_or(DerivedFault::ShapeMismatch)?
+            .0 += before;
     }
     let mut filled = graph.starts.clone();
-    graph.leaving.resize(pairs.len(), 0);
+    graph.leaving.resize(pairs.len(), NodeSlot(0));
     for (from, to) in pairs {
-        let place = filled.get_mut(from).ok_or(DerivedFault::ShapeMismatch)?;
+        let place = filled.get_mut(from.0).ok_or(DerivedFault::ShapeMismatch)?;
         *graph
             .leaving
-            .get_mut(*place)
+            .get_mut(place.0)
             .ok_or(DerivedFault::ShapeMismatch)? = to;
-        *place += 1;
+        place.0 += 1;
     }
     Ok(graph)
 }

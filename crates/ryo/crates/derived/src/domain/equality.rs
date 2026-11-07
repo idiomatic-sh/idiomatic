@@ -1,3 +1,7 @@
-//! Existing typed hash-chain semantics, with reusable owned buffers.
-
+//! Typed hash-chain key identity over finite rows, with reusable owned buffers.
 pub(crate) mod service;
+
+#[cfg(test)]
+mod service_test;
+
+pub mod types;

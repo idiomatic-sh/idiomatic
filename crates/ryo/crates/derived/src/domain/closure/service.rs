@@ -1,10 +1,16 @@
 //! One current closure adjacency. Partition scheduling stays outside this capability.
-use crate::domain::contract::types::{ClosurePartition, DerivedFault, RowCells};
+use super::types::{ClosureCapacities, ClosurePartition};
+use crate::domain::allocation::types::ElementCapacity;
+use crate::domain::fault::types::DerivedFault;
+use crate::domain::rows::types::RowCells;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
+use ryo_values::domain::rows::types::RowIndex;
+
+/// Builds the closure adjacency of one partition from its rows, reusing a recycled partition's buffers.
 pub(crate) fn build(
     input: &dyn RowCells,
-    positions: Option<&[ryo_values::domain::rows::types::RowIndex]>,
+    positions: Option<&[RowIndex]>,
     key: &[Value],
     source: ColumnIndex,
     destination: ColumnIndex,
@@ -34,12 +40,9 @@ pub(crate) fn build(
     part.table.cells.clear();
     part.table.count.0 = 0;
     part.sources.clear();
-    for at in 0..positions.map_or(
-        input.count(),
-        <[ryo_values::domain::rows::types::RowIndex]>::len,
-    ) {
+    for at in 0..positions.map_or(input.count().0, <[RowIndex]>::len) {
         let row = input
-            .read_row(positions.map_or(at, |positions| positions[at].0), buffer)
+            .read_row(positions.map_or(RowIndex(at), |positions| positions[at]), buffer)
             .ok_or(DerivedFault::ShapeMismatch)?;
         let from = *row
             .get(source.0 as usize)
@@ -51,9 +54,21 @@ pub(crate) fn build(
         part.table.count.0 += 1;
         part.sources.push(from);
     }
-    part.index =
-        crate::domain::equality::service::build(&part.table, &[ColumnIndex(0)], Some(part.index))?;
+    part.index = crate::domain::equality::service::build(
+        &part.table,
+        &[ColumnIndex(0)],
+        Some(part.index),
+    )?;
     part.sources.sort_unstable();
     part.sources.dedup();
     Ok(part)
+}
+
+/// The capacity of the key and the sources of a partition.
+#[must_use]
+pub fn capacities(part: &ClosurePartition) -> ClosureCapacities {
+    ClosureCapacities {
+        key: ElementCapacity(part.key.capacity()),
+        sources: ElementCapacity(part.sources.capacity()),
+    }
 }
