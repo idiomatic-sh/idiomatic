@@ -49,4 +49,7 @@ pub(crate) enum FileAnalysisError {
     /// Project analysis failed.
     #[error(transparent)]
     Language(#[from] LanguageError),
+    /// The scheduler could not run the files' jobs or the project's.
+    #[error(transparent)]
+    Scheduler(#[from] crate::outbound::scheduler::errors::SchedulerError),
 }

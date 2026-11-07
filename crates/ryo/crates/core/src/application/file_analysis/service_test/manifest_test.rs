@@ -8,6 +8,7 @@ use crate::outbound::corpus::interface::CorpusPort;
 use crate::outbound::corpus::types::CorpusInventory;
 use crate::outbound::corpus::types::PathStat;
 use crate::outbound::language::fixtures::fake::LanguageFake;
+use crate::outbound::language::interface::LanguagePort;
 use crate::outbound::language::types::ProjectNotes;
 use crate::outbound::language::types::ProjectToRead;
 use crate::outbound::memory::fixtures::fake::MemoryFake;
@@ -211,4 +212,81 @@ impl CorpusPort for CountingCorpus {
         self.observations.fetch_add(1, Ordering::Relaxed);
         self.inner.observe_entry(path)
     }
+}
+
+/// A language that answers the project without the entries it was given to observe.
+struct Forgetful(LanguageFake);
+
+impl LanguagePort for Forgetful {
+    fn relations(
+        &self,
+    ) -> Result<crate::outbound::language::types::RelationList, crate::outbound::language::errors::LanguageError>
+    {
+        self.0.relations()
+    }
+    fn linked(&self) -> crate::outbound::language::types::LinkedNames {
+        self.0.linked()
+    }
+    fn kind_vocabularies(&self) -> ryo_values::domain::descriptions::types::KindVocabularies {
+        self.0.kind_vocabularies()
+    }
+    fn unknown_reasons(&self) -> crate::outbound::language::types::UnknownReasons {
+        self.0.unknown_reasons()
+    }
+    fn supports(&self, relation: Relation) -> crate::outbound::language::types::Answers {
+        self.0.supports(relation)
+    }
+    fn reads_manifest(&self, path: &FilePath) -> crate::outbound::language::types::ManifestReading {
+        self.0.reads_manifest(path)
+    }
+    fn parse(
+        &self,
+        file: crate::outbound::language::types::FileToRead<'_>,
+        table: &mut ryo_language::domain::elements::types::Elements,
+        symbols: &mut Symbols,
+        out: &mut dyn ryo_relations::domain::relations::types::RowWriter,
+    ) -> crate::outbound::language::types::FileReading {
+        self.0.parse(file, table, symbols, out)
+    }
+    fn project_entries(&self, input: &ProjectToRead<'_>) -> Vec<FilePath> {
+        self.0.project_entries(input)
+    }
+    fn project(
+        &self,
+        input: &ProjectToRead<'_>,
+        symbols: &mut Symbols,
+        out: &mut dyn ryo_relations::domain::relations::types::RowWriter,
+    ) -> Result<crate::outbound::language::types::ProjectAnswer, crate::outbound::language::errors::LanguageError>
+    {
+        let mut answer = self.0.project(input, symbols, out)?;
+        answer.observed_entries.clear();
+        Ok(answer)
+    }
+}
+
+/// A project answer that drops an entry the run observed for it is refused: the project made from it is not the one observed.
+pub(super) fn a_project_answer_that_drops_an_observed_entry_is_refused() -> Result<usize, FileAnalysisError> {
+    let service = FileAnalysis::new(
+        Arc::new(CorpusFake::default()),
+        Arc::new(Forgetful(LanguageFake {
+            project_entry_paths: vec![FilePath("setup.cfg".into())],
+            ..LanguageFake::default()
+        })),
+        Arc::new(DigestFake),
+        Arc::new(MemoryFake::default()),
+    );
+    let input = ProjectToRead {
+        search_scope: &Default::default(),
+        given_inventory: &Default::default(),
+        observed_entries: &Default::default(),
+        repository: ryo_language::inbound::use_cases::project::types::Repository::Disk,
+        root: &RootPath(".".into()),
+        manifests: &[],
+        files: &[],
+        notes: &ProjectNotes(Vec::new()),
+        wanted: &[],
+    };
+    let mut facts = FactsFake::default().worker()?;
+    service.project_now(&input, &mut Symbols::default(), &mut *facts)?;
+    Ok(0)
 }

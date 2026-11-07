@@ -5,3 +5,4 @@ pub mod engine;
 pub mod file_analysis;
 pub mod metadata;
 pub mod project_context;
+pub(crate) mod storing;

@@ -100,6 +100,9 @@ fn subject(path: Input) -> Result<Value, Failure> {
     if path == "digests" {
         return visit_test::digested();
     }
+    if path == "forgetful.manifest.fake" {
+        return manifest_test::a_project_answer_that_drops_an_observed_entry_is_refused();
+    }
     if path == "unlinked-source-provider" {
         let service = FileAnalysis::new(
             Arc::new(CorpusFake::default()),
@@ -134,6 +137,21 @@ fn subject(path: Input) -> Result<Value, Failure> {
         wanted: &[],
     };
     let mut facts = FactsFake::default().worker()?;
+    if path == "scheduler-fails.manifest.fake" {
+        let visits = super::streaming::service::FileVisits::new(
+            service,
+            Arc::new(FactsFake::default()),
+            Arc::new(crate::outbound::scheduler::fixtures::fake::SchedulerFake { fails: true }),
+            crate::outbound::scheduler::types::WorkerCount(1),
+            Arc::new(crate::outbound::row_sink::fixtures::fake::RowSinkFake::default()),
+        );
+        let mut project = crate::domain::workers::types::ProjectHandle {
+            symbols: Symbols::default(),
+            facts,
+        };
+        visits.projected(&input, &mut project)?;
+        return Ok(0);
+    }
     let projected = service.project_now(&input, &mut Symbols::default(), &mut *facts)?;
     assert!(
         projected.refused.is_empty(),
@@ -185,6 +203,30 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || "manifest-and-stray",
         expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("a_project_answer_that_drops_an_observed_entry_is_refused"),
+        word: Word::Refuses,
+        input: || "forgetful.manifest.fake",
+        expect: Expect::Refusal(|error| {
+            if matches!(error, FileAnalysisError::ProjectObservationMismatch) {
+                Selection::Matches
+            } else {
+                Selection::Differs
+            }
+        }),
+    },
+    Case {
+        name: CaseName("a_scheduler_that_cannot_start_fails_the_project_made_on_its_pool"),
+        word: Word::Fails,
+        input: || "scheduler-fails.manifest.fake",
+        expect: Expect::Refusal(|error| {
+            if matches!(error, FileAnalysisError::Scheduler(_)) {
+                Selection::Matches
+            } else {
+                Selection::Differs
+            }
+        }),
     },
     Case {
         name: CaseName("a_required_language_failure_prevents_an_analysis_result"),

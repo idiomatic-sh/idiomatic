@@ -80,3 +80,39 @@ pub(crate) struct ReadyProject {
     /// The partials the publication sees.
     pub publication: Partials,
 }
+
+/// What the ordinary project phase reads: the crossing, the request's execution, the rules to make and what their frontiers are read
+/// from, and the budget each rule is made within.
+pub(crate) struct OrdinaryRun<'a> {
+    /// What the cross-file steps of every rule read, with the program and the arenas.
+    pub crossing: ProjectCrossing<'a>,
+    /// The request's execution capabilities.
+    pub services: &'a RequestExecution,
+    /// The occurrences of the ordinary rules to make, in order.
+    pub todo: &'a [Todo],
+    /// The first bucket of each rule's frontier.
+    pub first_bucket: &'a [Bucket],
+    /// Finishes the facts the frontiers are read from.
+    pub facts: &'a dyn FactsFinish,
+    /// The project's worker over the facts.
+    pub project: &'a dyn FactsWorker,
+    /// The symbols the project facts name.
+    pub project_symbols: &'a Symbols,
+    /// The rules' ids, by rule.
+    pub ids: &'a [ryo_values::domain::runs::types::RuleId],
+    /// The most memory the run may hold.
+    pub budget: ryo_values::domain::runs::types::MemoryBytes,
+}
+
+/// What the ordinary project phase came to: each rule's outcome in order, the budget guard's refusal, the release of the stage and
+/// the symbols the phase named.
+pub(crate) struct OrdinaryOutcome {
+    /// Each evaluated rule's outcome, in the order of the rules.
+    pub outcomes: Vec<ProjectOutcome>,
+    /// The budget guard's refusal, when it stopped the batch.
+    pub refused: Option<CrossFileError>,
+    /// The release of the shared stage.
+    pub finished: Result<(), CrossFileError>,
+    /// The symbols the phase named.
+    pub symbols: Symbols,
+}
