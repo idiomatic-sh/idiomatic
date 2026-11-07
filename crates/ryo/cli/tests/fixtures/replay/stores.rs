@@ -126,6 +126,15 @@ impl LintStorePort for CountingStore {
             files_again: Arc::clone(&self.files_again),
         }))
     }
+    fn plans(&self) -> Vec<ryo_execution::inbound::use_cases::prepare::interface::CachedPlan> {
+        self.store.plans()
+    }
+    fn keep_plans(
+        &self,
+        plans: &[ryo_execution::inbound::use_cases::prepare::interface::CachedPlan],
+    ) -> Result<(), LintStoreError> {
+        self.store.keep_plans(plans)
+    }
 }
 
 /// A store a run read through the counting store: it counts what the run keeps.

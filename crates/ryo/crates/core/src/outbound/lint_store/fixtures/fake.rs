@@ -29,6 +29,8 @@ pub struct LintStoreFake {
     pub reads: Arc<AtomicUsize>,
     /// How many times the tables were kept.
     pub keeps: Arc<AtomicUsize>,
+    /// The compiled plans the last run kept.
+    pub plans: Arc<Mutex<Vec<ryo_execution::inbound::use_cases::prepare::interface::CachedPlan>>>,
 }
 
 /// The fake's stream of old rows: it holds none, so every row it is asked for is refused as the fake's `read_old` refuses it.
@@ -79,9 +81,34 @@ impl LintStorePort for LintStoreFake {
                 unwritable: self.unwritable,
                 reads: Arc::clone(&self.reads),
                 keeps: Arc::clone(&self.keeps),
+                plans: Arc::clone(&self.plans),
             },
             was,
         }))
+    }
+
+    fn plans(&self) -> Vec<ryo_execution::inbound::use_cases::prepare::interface::CachedPlan> {
+        if self.unreadable {
+            return Vec::new();
+        }
+        self.plans
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone()
+    }
+
+    fn keep_plans(
+        &self,
+        plans: &[ryo_execution::inbound::use_cases::prepare::interface::CachedPlan],
+    ) -> Result<(), LintStoreError> {
+        if self.unwritable {
+            return Err(LintStoreError::Unwritable {
+                directory: String::new(),
+                reason: String::new(),
+            });
+        }
+        *self.plans.lock().unwrap_or_else(PoisonError::into_inner) = plans.to_vec();
+        Ok(())
     }
 }
 

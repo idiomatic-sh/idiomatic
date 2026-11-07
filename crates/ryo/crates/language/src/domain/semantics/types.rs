@@ -31,7 +31,7 @@ pub enum SemanticSlot {
 }
 
 /// The role in which a rendered syntax node will be embedded.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
 pub enum RenderContext {
     /// A target on the left of an assignment.
     AssignmentTarget,

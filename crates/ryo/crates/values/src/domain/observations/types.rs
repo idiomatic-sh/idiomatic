@@ -6,16 +6,16 @@ use crate::domain::runs::types::RuleId;
 use ryo_relations::domain::relations::types::CellKind;
 
 /// An explicit output name written by the query author.
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
 pub struct ObservationName(pub Box<str>);
 /// A local bound input name written by the consumer author.
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
 pub struct ObservationBindingName(pub Box<str>);
 /// A semantic column name in a named-output contract.
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
 pub struct ObservationColumnName(pub Box<str>);
 /// One ordered column in a named-output contract.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ObservationColumn {
     /// Semantic column spelling, independent of any physical row representation.
     pub name: ObservationColumnName,
@@ -23,7 +23,7 @@ pub struct ObservationColumn {
     pub kind: CellKind,
 }
 /// An authored root retained independently of the diagnostic Emit root.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct PlanObservation {
     /// Public output name.
     pub name: ObservationName,
@@ -35,7 +35,7 @@ pub struct PlanObservation {
     pub scope: StepScope,
 }
 /// An explicit producer source. Missing execution is not a successful empty result.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum ObservationProducer {
     /// A real selected query's explicitly authored export.
     Output {
@@ -52,7 +52,7 @@ pub enum ObservationProducer {
     },
 }
 /// The schema of a consumer's bound input, supplied during query compilation.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct BoundObservationInput {
     /// Local source name in the consumer query.
     pub name: ObservationBindingName,
@@ -63,7 +63,7 @@ pub struct BoundObservationInput {
 }
 /// One explicit rule dependency, resolved to real producer roots by the common request graph.
 /// Input rows are the distinct set union of all complete producer outputs, including singleton bindings.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ObservationBinding {
     /// Local source name in the consumer query.
     pub name: ObservationBindingName,

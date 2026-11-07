@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use super::errors::LintStoreError;
 use super::types::StoreKeeping;
+use ryo_execution::inbound::use_cases::prepare::interface::CachedPlan;
 use ryo_values::domain::stores::types::{BucketsWanted, KeptRows, ReadHanded, Stored};
 
 /// A worker-owned stream of old rows. Postcard may observe a row when its
@@ -32,6 +33,18 @@ pub trait LintStorePort: Send + Sync {
     ///
     /// `Unreadable` when the place cannot be read.
     fn stored(&self) -> Result<Arc<dyn ReadStore>, LintStoreError>;
+
+    /// The compiled plans the last run of this build kept, each with the compilation identity it was compiled under: none when
+    /// nothing is kept, the plans are another build's, or they do not read back. A plan is used only by a rule whose identity it
+    /// still matches, so the plans are a cache: one missing or unreadable is compiled again, and no answer changes.
+    fn plans(&self) -> Vec<CachedPlan>;
+
+    /// Keeps `plans` in place of the plans kept, for the next run of this build.
+    ///
+    /// # Errors
+    ///
+    /// `Unwritable` when the place cannot be written.
+    fn keep_plans(&self, plans: &[CachedPlan]) -> Result<(), LintStoreError>;
 }
 
 /// The store exactly as one run read it.

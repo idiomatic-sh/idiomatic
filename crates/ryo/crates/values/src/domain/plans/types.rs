@@ -32,7 +32,7 @@ pub struct QueryRequest {
 }
 
 /// A compiled query: its parameters, its steps in the order to run them, and what it emits.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Plan {
     /// Ordered schemas of explicit bound inputs; source IDs remain stable through request pruning.
     pub observation_inputs: Vec<crate::domain::observations::types::BoundObservationInput>,
@@ -52,7 +52,7 @@ pub struct Plan {
 }
 
 /// One operation of the plan.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct PlanStep {
     /// What the step does.
     pub operation: Operation,
@@ -61,7 +61,7 @@ pub struct PlanStep {
 }
 
 /// The operations of the language, one variant each, with typed fields.
-#[derive(Clone, Debug, PartialEq, Hash)]
+#[derive(Clone, Debug, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum Operation {
     /// Keep the rows for which every comparison holds.
     Select {
@@ -350,7 +350,7 @@ pub enum Operation {
 }
 
 /// What the query emits.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Emit {
     /// The step whose rows answer the query.
     pub step: StepId,

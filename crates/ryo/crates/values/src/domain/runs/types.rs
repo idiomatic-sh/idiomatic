@@ -36,7 +36,7 @@ pub struct Session {
 }
 
 /// The id of a rule, as the store keeps it.
-#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
 pub struct RuleId(pub Box<str>);
 
 /// Whether a rule runs regardless of parser acceptance or only on accepted syntax trees.

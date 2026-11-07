@@ -1513,6 +1513,7 @@ dependencies = [
  "idiomatic-sh-ryo-language",
  "idiomatic-sh-ryo-relations",
  "rustc-hash 2.1.3",
+ "serde",
  "thiserror 2.0.20",
  "tokio",
  "toml 1.1.4+spec-1.1.0",
@@ -1608,6 +1609,7 @@ name = "idiomatic-sh-ryo-relations"
 version = "0.1.2"
 dependencies = [
  "idiomatic-sh-ryo-relations",
+ "serde",
  "strum",
 ]
 
@@ -1698,6 +1700,7 @@ dependencies = [
  "idiomatic-sh-ryo-language",
  "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-values",
+ "serde",
  "thiserror 2.0.20",
  "tracing",
 ]

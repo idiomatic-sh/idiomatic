@@ -5,11 +5,11 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 /// A place in the query text, counted in bytes from its start.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
 pub struct ByteOffset(pub usize);
 
 /// A stretch of the query text, in bytes.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
 pub struct QuerySpan {
     /// Where it starts.
     pub start: ByteOffset,
@@ -22,11 +22,11 @@ pub struct QuerySpan {
 pub struct QueryView<'a>(pub &'a str);
 
 /// Stable logical identity of one source in a query bundle.
-#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
 pub struct QuerySourceId(pub Box<str>);
 
 /// One exact source in a query bundle, with its logical identity retained for diagnostics.
-#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
 pub struct QueryDocumentSource {
     /// The stable logical identity used by imports and diagnostics.
     pub id: QuerySourceId,
@@ -35,7 +35,7 @@ pub struct QueryDocumentSource {
 }
 
 /// The exact text of one query source, shared by snapshots without copying.
-#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
 pub struct QuerySourceText(pub std::sync::Arc<str>);
 
 impl std::ops::Deref for QuerySourceText {
@@ -75,7 +75,7 @@ impl From<std::sync::Arc<str>> for QuerySourceText {
 pub struct ModuleCatalog(pub std::sync::Arc<BTreeMap<QuerySourceId, QueryDocumentSource>>);
 
 /// The in-memory root and immutable named module sources for one query.
-#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
 pub struct QueryBundle {
     /// The entry document compiled for this query.
     pub root: QueryDocumentSource,
@@ -219,7 +219,7 @@ pub enum Linking {
 }
 
 /// Where a linked syntax node came from, including the import and call path used to reach it.
-#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
 pub struct QueryOrigin {
     /// The source document that wrote the node.
     pub source_id: QuerySourceId,
@@ -230,7 +230,7 @@ pub struct QueryOrigin {
 }
 
 /// One source boundary crossed while linking a fragment.
-#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
 pub struct QueryTraceSite {
     /// The source containing this import or call.
     pub source_id: QuerySourceId,

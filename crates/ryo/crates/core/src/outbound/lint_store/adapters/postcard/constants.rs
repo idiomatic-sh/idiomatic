@@ -5,6 +5,10 @@ pub(super) const FILE: &str = "lint.store";
 
 /// What a file is called while it is written, before it is renamed into place.
 pub(super) const TEMPORARY: &str = "lint.store.tmp";
+/// The file of the compiled plans in the cache directory, kept beside the store's file and written on its own, when a run compiled.
+pub(super) const PLANS: &str = "lint.plans";
+/// What the file of the compiled plans is called while it is written, before it is renamed into place.
+pub(super) const PLANS_TEMPORARY: &str = "lint.plans.tmp";
 
 /// What the store says when its place holds something that is not a file.
 pub(super) const NOT_A_FILE: &str = "the store is not a file";

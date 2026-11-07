@@ -1,7 +1,7 @@
 //! The types of the `hosted` concept: the relations a host declares to a run, and their rows. Plain data, public fields and derives, with no constructor and no inherent impl.
 
 /// A relation the host declares, as the compiler is told of it: the name a query writes and the columns its rows have.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct HostedRelation {
     /// The name a query writes: text that came from the host.
     pub name: HostedName,
@@ -10,11 +10,11 @@ pub struct HostedRelation {
 }
 
 /// The name of a relation the host declares: text that came from the host.
-#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
 pub struct HostedName(pub Box<str>);
 
 /// A column of a relation the host declares.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct HostedColumn {
     /// The name a query writes for it: text that came from the host.
     pub name: ColumnLabel,
@@ -23,7 +23,7 @@ pub struct HostedColumn {
 }
 
 /// The name of a column of a relation the host declares: text that came from the host.
-#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
 pub struct ColumnLabel(pub Box<str>);
 
 /// A relation the host declares beside ryo's own: a name a rule writes, the columns its rows have, and the rows.

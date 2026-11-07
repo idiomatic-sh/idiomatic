@@ -27,7 +27,9 @@ use super::skips::a_syntax_skipped_file_does_not_poison_unrelated_partitions_col
 use super::skips::cold_warm_and_edited_runs_answer_the_same_in_every_store;
 use super::skips::consulted_equal_byte_files_revalidate_on_each_executable_metadata_change;
 use super::skips::removed_file_leaves_nothing;
+use super::stores::a_changed_rule_text_recompiles_only_that_rule;
 use super::stores::accepted_syntax_applicability_replays_skips_and_invalidates_on_policy_change;
+use super::stores::compiles_no_rule_on_a_warm_run;
 use super::stores::project_entry_observations_invalidate_persisted_absence_and_presence;
 use super::stores::project_reuse_frames_root_and_repository_and_keeps_dependency_evidence;
 use super::super::errors::LintError;
@@ -58,6 +60,10 @@ pub(crate) enum Scenario {
     CompilesPerSession,
     /// Lints once with two rules.
     CompilesPerRule,
+    /// Lints twice with two rules, each run in a new session over one store of each kind.
+    CompilesNoRuleOnAWarmRun,
+    /// Lints with two rules, then with one rule's text changed, then again, each run in a new session over one store.
+    AChangedRuleTextRecompilesOnlyThatRule,
     /// Lints many times in a row over one store, a file edited back and forth: what the store keeps stops growing.
     ManyRuns,
     /// Lints a rule, then the rule of the same id with another query, over plans one session shares.
@@ -172,6 +178,10 @@ pub(crate) fn scenario(scenario: Scenario) -> Result<(usize, usize), LintError> 
             read_and_unread(again(&SOURCES, "root", "a rule", &Arc::new(store())))
         }
         Scenario::CompilesPerSession => compiles_per_session(),
+        Scenario::CompilesNoRuleOnAWarmRun => compiles_no_rule_on_a_warm_run(),
+        Scenario::AChangedRuleTextRecompilesOnlyThatRule => {
+            a_changed_rule_text_recompiles_only_that_rule()
+        }
         Scenario::ChangedQueryKeepsOnePlan => {
             let rule = |query| Given {
                 files: vec![SOURCES[0]],

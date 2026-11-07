@@ -23,6 +23,30 @@ use crate::outbound::digest::interface::DigestPort;
 #[derive(Clone, Debug, Default)]
 pub struct CompiledPlans(pub(super) Arc<Mutex<PlanCache>>);
 
+impl CompiledPlans {
+    /// Holds the plans a store kept as if this session had compiled them, so a rule whose compilation identity is unchanged is not
+    /// compiled again; a rule this session already holds a plan of keeps its own. An entry whose identity no longer matches the rule
+    /// is replaced by the first compile that misses it, so restoring never changes an answer.
+    pub fn restore(&self, plans: &[CachedPlan]) {
+        let mut kept = self.0.lock().unwrap_or_else(PoisonError::into_inner);
+        for cached in plans {
+            if !kept.plans.contains_key(&cached.rule) {
+                hold(&mut kept, cached.clone());
+            }
+        }
+    }
+
+    /// The plan this session holds of each of `rules`, in their order: what a store keeps for the next run.
+    #[must_use]
+    pub fn kept(&self, rules: &[RuleSpec]) -> Vec<CachedPlan> {
+        let kept = self.0.lock().unwrap_or_else(PoisonError::into_inner);
+        rules
+            .iter()
+            .filter_map(|rule| kept.plans.get(&rule.id).cloned())
+            .collect()
+    }
+}
+
 /// Request preparation retains its graph privately; callers may inspect source plans only.
 pub struct CompiledQueries {
     pub(crate) inner: crate::domain::prepared_request::types::Compiled,
@@ -186,26 +210,35 @@ impl RuleCompilation {
         plan: &ryo_values::domain::plans::types::Plan,
     ) {
         let cached = CachedPlan {
+            rule: rule.id.clone(),
             query: rule.query.clone(),
             hosted: declared.to_vec(),
             observation_bindings: rule.observations.clone(),
             observation_inputs: observations.to_vec(),
             plan: plan.clone(),
         };
-        let mut kept = self
-            .compiled
-            .0
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner);
-        if kept.plans.insert(rule.id.clone(), cached).is_none() {
-            kept.order.push_back(rule.id.clone());
-        }
-        while kept.plans.len() > COMPILED_PLANS {
-            let Some(oldest) = kept.order.pop_front() else {
-                break;
-            };
-            drop(kept.plans.remove(&oldest));
-        }
+        hold(
+            &mut self
+                .compiled
+                .0
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner),
+            cached,
+        );
+    }
+}
+
+/// Holds `cached` as the plan of its rule; past `COMPILED_PLANS` the plan kept longest is dropped.
+fn hold(kept: &mut PlanCache, cached: CachedPlan) {
+    let rule = cached.rule.clone();
+    if kept.plans.insert(rule.clone(), cached).is_none() {
+        kept.order.push_back(rule);
+    }
+    while kept.plans.len() > COMPILED_PLANS {
+        let Some(oldest) = kept.order.pop_front() else {
+            break;
+        };
+        drop(kept.plans.remove(&oldest));
     }
 }
 
@@ -222,6 +255,8 @@ pub(crate) fn observed(
 
 pub trait ExecutionCompilation {
     fn compiling_into(self, cache: CompiledPlans) -> Self;
+    /// The plans this compilation keeps, which a store restores before it compiles and keeps after a run.
+    fn plans(&self) -> &CompiledPlans;
     fn compile(
         &self,
         rules: &[ryo_values::domain::rule_requests::types::RuleSpec],
@@ -255,6 +290,9 @@ impl ExecutionCompilation for QueryCompilation {
         Self {
             inner: self.inner.compiling_into(cache),
         }
+    }
+    fn plans(&self) -> &CompiledPlans {
+        &self.inner.compiled
     }
     fn compile(
         &self,

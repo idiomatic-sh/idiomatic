@@ -6,6 +6,7 @@ use crate::domain::operating::errors::OperatingError;
 // The compiled queries and the compilation the contract is made of.
 pub use crate::application::rule_compilation::errors::RuleCompilationError;
 pub use crate::application::rule_compilation::service::CompiledPlans;
+pub use crate::application::rule_compilation::types::CachedPlan;
 pub use crate::application::rule_compilation::service::CompiledQueries;
 pub use crate::application::rule_compilation::service::ExecutionCompilation;
 pub use crate::application::rule_compilation::service::PreparedQueries;

@@ -6,7 +6,7 @@
 use crate::domain::terms::types::Symbol;
 
 /// A whole number a relation holds as a cell, positive or negative.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
 pub struct Integer(pub i64);
 
 impl std::fmt::Display for Integer {
@@ -205,7 +205,7 @@ pub enum Class {
 }
 
 /// What a column holds.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
 pub enum CellKind {
     /// A node.
     Node,
@@ -228,7 +228,7 @@ macro_rules! catalog_types {
         $( $group:ident { $( $variant:ident $module:ident $row:ident $column:ident ; )* } )*
     ) => {
         /// The relations ryo owns, one variant each.
-        #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+        #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
         pub enum Relation {
             $( $(
                 #[doc = stringify!($module)]

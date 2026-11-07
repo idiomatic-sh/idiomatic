@@ -44,6 +44,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value((2, 0)),
     },
     Case {
+        name: CaseName("compiles_no_rule_on_a_warm_run"),
+        word: Word::Succeeds,
+        input: || Scenario::CompilesNoRuleOnAWarmRun,
+        expect: Expect::Value((0, 2)),
+    },
+    Case {
+        name: CaseName("a_changed_rule_text_recompiles_only_that_rule"),
+        word: Word::Succeeds,
+        input: || Scenario::AChangedRuleTextRecompilesOnlyThatRule,
+        expect: Expect::Value((1, 0)),
+    },
+    Case {
         name: CaseName("unchanged_reuse_reads_no_file"),
         word: Word::Succeeds,
         input: || Scenario::Unchanged,

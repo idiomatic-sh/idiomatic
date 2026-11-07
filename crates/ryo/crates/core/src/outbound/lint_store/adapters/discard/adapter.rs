@@ -21,6 +21,17 @@ impl LintStorePort for LintStoreDiscardAdapter {
     fn stored(&self) -> Result<Arc<dyn ReadStore>, LintStoreError> {
         Ok(Arc::new(DiscardRead))
     }
+
+    fn plans(&self) -> Vec<ryo_execution::inbound::use_cases::prepare::interface::CachedPlan> {
+        Vec::new()
+    }
+
+    fn keep_plans(
+        &self,
+        _plans: &[ryo_execution::inbound::use_cases::prepare::interface::CachedPlan],
+    ) -> Result<(), LintStoreError> {
+        Ok(())
+    }
 }
 
 impl ReadStore for DiscardRead {

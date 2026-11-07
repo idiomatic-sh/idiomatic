@@ -79,6 +79,8 @@ enum Question {
     PriorSchemaStoreIsEmpty,
     /// What another build kept reads as nothing kept.
     AnotherBuildsStoreIsEmpty,
+    /// The compiled plans kept read back as they were kept by the same build; another build's, or damaged bytes, read as none.
+    CachedPlanReadsBackForItsBuildAlone,
     /// Bytes that are not a store read as nothing kept.
     ADamagedStoreIsEmpty,
     /// A table of contents that reads back but names a section longer than the file reads as nothing kept, whichever section it
@@ -172,6 +174,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("another_builds_store_reads_as_nothing_kept"),
         word: Word::Succeeds,
         input: || Question::AnotherBuildsStoreIsEmpty,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("a_cached_program_reads_back_for_its_build_alone"),
+        word: Word::Succeeds,
+        input: || Question::CachedPlanReadsBackForItsBuildAlone,
         expect: Expect::Value(true),
     },
     Case {
@@ -1462,6 +1470,26 @@ fn subject(question: Input) -> Result<Value, Failure> {
             let missed = store.stored()?.tables() == Stored::default();
             store.stored()?.keep(stored(1), &KeptRows::default())?;
             current && missed && store.stored()?.tables() == tables(stored(1))
+        }
+        Question::CachedPlanReadsBackForItsBuildAlone => {
+            use ryo_execution::inbound::use_cases::prepare::interface::CachedPlan;
+            let plans = vec![CachedPlan {
+                rule: ryo_values::domain::runs::types::RuleId("rule".into()),
+                query: ryo_values::domain::query_tokens::types::QueryBundle::from(
+                    ryo_values::domain::plan_parts::types::QueryText("select".into()),
+                ),
+                hosted: Vec::new(),
+                observation_bindings: Vec::new(),
+                observation_inputs: Vec::new(),
+                plan: ryo_execution::outbound::query_language::fixtures::fake::QueryLanguageFake::selecting().plan,
+            }];
+            let none_before = store.plans().is_empty();
+            store.keep_plans(&plans)?;
+            let same = store.plans() == plans;
+            let other_build = store_in(&directory, "build-2").plans().is_empty();
+            std::fs::write(directory.join(super::constants::PLANS), b"not plans")
+                .expect("damaged plans");
+            none_before && same && other_build && store.plans().is_empty()
         }
         Question::AnotherBuildsStoreIsEmpty => {
             store.stored()?.keep(stored(1), &KeptRows::default())?;

@@ -16,6 +16,8 @@ use ryo_values::domain::stores::types::{
 pub(crate) struct LintStoreMemoryAdapter {
     /// What the last run kept; a run that read it holds it as it was whatever a run keeps after.
     kept: KeptStore,
+    /// The compiled plans the last run kept.
+    plans: std::sync::Mutex<Vec<ryo_execution::inbound::use_cases::prepare::interface::CachedPlan>>,
 }
 
 impl LintStorePort for LintStoreMemoryAdapter {
@@ -29,6 +31,21 @@ impl LintStorePort for LintStoreMemoryAdapter {
             cell: self.kept.clone(),
             was,
         }))
+    }
+
+    fn plans(&self) -> Vec<ryo_execution::inbound::use_cases::prepare::interface::CachedPlan> {
+        self.plans
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone()
+    }
+
+    fn keep_plans(
+        &self,
+        plans: &[ryo_execution::inbound::use_cases::prepare::interface::CachedPlan],
+    ) -> Result<(), LintStoreError> {
+        *self.plans.lock().unwrap_or_else(PoisonError::into_inner) = plans.to_vec();
+        Ok(())
     }
 }
 

@@ -14,8 +14,12 @@ pub(crate) struct PlanCache {
 }
 
 /// The plan a rule's query compiled to, kept with the query it was compiled from: a rule whose query changed is compiled again.
-#[derive(Clone, Debug)]
-pub(crate) struct CachedPlan {
+/// It is also what the lint store keeps between runs, as it is: a run whose store holds a rule's entry under the same compilation
+/// identity compiles nothing for that rule.
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct CachedPlan {
+    /// The rule the plan is of.
+    pub rule: RuleId,
     /// The RyoQL text the plan was compiled from.
     pub query: QueryBundle,
     /// The relations the host declared when it was: a plan that names one is another plan when they are others.

@@ -1,7 +1,7 @@
 //! The types of the `query_operators` concept: the operators of the engine and the output choices of their steps. Plain data, public fields and derives, with no constructor and no inherent impl.
 
 /// Whether the source-matches step appends the captured physical text as a Symbol.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum TextOutput {
     /// The text is appended.
     Appended,
@@ -10,7 +10,7 @@ pub enum TextOutput {
 }
 
 /// Whether the source-matches step appends the captured start line.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum LineOutput {
     /// The line is appended.
     Appended,
@@ -75,11 +75,11 @@ pub enum QueryOperator {
 }
 
 /// Maximum physical display columns of a source line.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct MaxLine(pub i64);
 
 /// Physical tab stop width in display columns.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct TabWidth(pub u32);
 
 /// Keep the feature catalog's variants generated from the same declaration as

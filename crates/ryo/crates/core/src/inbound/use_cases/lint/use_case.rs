@@ -179,6 +179,9 @@ impl LintUseCase for LintUseCaseImpl {
         analysis.validate_source_language(named_provider(&request.source_language))?;
         let rules: Vec<RuleSpec> = request.rules.iter().map(RuleSpec::from).collect();
         let compiling = tracing::info_span!("compile").entered();
+        // The plans the last run kept: a rule whose compilation identity is unchanged is not compiled again.
+        let kept_plans = self.store.plans();
+        self.compilation.plans().restore(&kept_plans);
         let compiled = self
             .compilation
             .checked(
@@ -373,7 +376,7 @@ impl LintUseCase for LintUseCaseImpl {
             language: self.language.as_ref(),
             memory: self.memory.as_ref(),
         };
-        answer(
+        let report = answer(
             &self.visits,
             &self.cross_file,
             ports,
@@ -383,6 +386,13 @@ impl LintUseCase for LintUseCaseImpl {
             &run,
             &visit,
             &mut project,
-        )
+        )?;
+        // The plans are kept once the run answered, and only when they differ from what the store held: a run that compiled
+        // nothing writes nothing.
+        let plans_now = self.compilation.plans().kept(&rules);
+        if plans_now != kept_plans {
+            self.store.keep_plans(&plans_now)?;
+        }
+        Ok(report)
     }
 }

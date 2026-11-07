@@ -1,7 +1,8 @@
 // ignore: idiomatic.arch/file-length - one single-port adapter: the adapter spec places one adapter.rs, and the store file reading and keeping is one sequence over one open snapshot that no placed role splits
 //! The store port, implemented with one file in the cache directory: sections one after the other and a table of contents last, so
 //! a run reads only the sections it needs; written whole through a temporary file renamed into place, so a reader sees the old store
-//! or the new, never part of one. A bucket whose words are as they were is copied from the old file as it is.
+//! or the new, never part of one. A bucket whose words are as they were is copied from the old file as it is. The compiled plans
+//! are a second file beside it, written the same way when a run compiled, so a run that compiles nothing rewrites neither.
 use crate::outbound::lint_store::adapters::postcard::constants::FRONTIER_PAYLOAD_LACKS_ITS_EXACT_SOURCE;
 use crate::outbound::lint_store::adapters::postcard::constants::FRONTIER_PROOFS_HAVE_DUPLICATE_OR_UNORDERED;
 use crate::outbound::lint_store::adapters::postcard::constants::NO_STAGING_SESSION_WAS_READ;
@@ -26,6 +27,8 @@ use std::sync::Mutex;
 use std::sync::MutexGuard;
 use std::sync::PoisonError;
 use super::constants::FILE;
+use super::constants::PLANS;
+use super::constants::PLANS_TEMPORARY;
 use super::constants::TRAILER;
 use super::constants::LENGTH;
 use super::constants::NOT_A_FILE;
@@ -319,6 +322,11 @@ impl LintStorePostcardAdapter {
         Path::new(&*self.store.directory.0).join(FILE)
     }
 
+    /// The file of the compiled plans.
+    fn plans_file(&self) -> PathBuf {
+        Path::new(&*self.store.directory.0).join(PLANS)
+    }
+
     /// The failure to read the store, saying why.
     fn unreadable(&self, reason: &dyn std::fmt::Display) -> LintStoreError {
         LintStoreError::Unreadable {
@@ -538,6 +546,47 @@ impl LintStorePort for LintStorePostcardAdapter {
             session,
             spool: Mutex::new(None),
         }))
+    }
+
+    fn plans(&self) -> Vec<ryo_execution::inbound::use_cases::prepare::interface::CachedPlan> {
+        // The plans are a cache: a file that is absent, cannot be read, is another build's or does not read back holds none, and
+        // every rule is compiled as on a cold run.
+        let Ok(bytes) = std::fs::read(self.plans_file()) else {
+            return Vec::new();
+        };
+        match postcard::from_bytes::<(
+            Box<str>,
+            Vec<ryo_execution::inbound::use_cases::prepare::interface::CachedPlan>,
+        )>(&bytes)
+        {
+            Ok((build, plans)) if build == self.store.build.0 => plans,
+            Ok(_) | Err(_) => Vec::new(),
+        }
+    }
+
+    fn keep_plans(
+        &self,
+        plans: &[ryo_execution::inbound::use_cases::prepare::interface::CachedPlan],
+    ) -> Result<(), LintStoreError> {
+        let directory = Path::new(&*self.store.directory.0);
+        let unwritable = |reason: &dyn std::fmt::Display| LintStoreError::Unwritable {
+            directory: self.store.directory.0.to_string(),
+            reason: reason.to_string(),
+        };
+        // The build is written first, so a store of another build reads back as holding no plan.
+        let bytes = postcard::to_stdvec(&(&*self.store.build.0, plans))
+            .map_err(|error| unwritable(&error))?;
+        std::fs::create_dir_all(directory).map_err(|error| unwritable(&error))?;
+        let temporary = directory.join(format!(
+            "{PLANS_TEMPORARY}.{}.{:x}.{}",
+            std::process::id(),
+            Arc::as_ptr(&self.sequence.0).addr(),
+            self.unique().map_err(|error| unwritable(&error))?.0
+        ));
+        let written = std::fs::write(&temporary, &bytes).map_err(|error| unwritable(&error));
+        published(&temporary, written, || {
+            std::fs::rename(&temporary, self.plans_file()).map_err(|error| unwritable(&error))
+        })
     }
 }
 

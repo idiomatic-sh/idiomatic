@@ -86,6 +86,10 @@ impl ExecutionCompilation for Compilation {
         Self(self.0.compiling_into(cache))
     }
 
+    fn plans(&self) -> &CompiledPlans {
+        self.0.plans()
+    }
+
     fn compile(
         &self,
         rules: &[ryo_values::domain::rule_requests::types::RuleSpec],

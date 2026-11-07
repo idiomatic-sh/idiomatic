@@ -14,6 +14,7 @@ use super::given::request;
 use super::lifecycle::counted_lint;
 use super::lifecycle::reading_the_project;
 use super::super::errors::LintError;
+use super::worlds::lint;
 use super::worlds::world;
 use crate::inbound::use_cases::lint::fixtures::given::violations;
 
@@ -81,6 +82,53 @@ pub(crate) fn store_of(
         )),
         _ => Arc::new(crate::outbound::lint_store::factory::discard()),
     }
+}
+
+/// A run in a new session over the rules a store kept the plans of compiles no rule and answers what the cold run answered,
+/// in the memory and the postcard store; a store that discards keeps no plan, so its second run compiles every rule again (the
+/// negative control). Answers the compiles of the warm runs over the stores that keep, then of the second run over the one that
+/// discards.
+pub(crate) fn compiles_no_rule_on_a_warm_run() -> Result<(usize, usize), LintError> {
+    let given = |kept_in| Given {
+        rules: vec!["one", "two"],
+        kept_in: Some(kept_in),
+        ..violations()
+    };
+    let mut warm_compiles = 0;
+    for kind in ["memory", "postcard"] {
+        let directory = tempfile::tempdir().expect("a directory");
+        let kept_in = store_of(kind, directory.path());
+        let cold = lint(given(Arc::clone(&kept_in)));
+        let warm = lint(given(kept_in));
+        assert_eq!(cold.compiles, 2, "{kind}: a cold run compiles each rule");
+        assert_eq!(warm.rows, cold.rows, "{kind}: the warm run writes what the cold run wrote");
+        assert_eq!(warm.report?, cold.report?, "{kind}: the warm run leaves unread what the cold run did");
+        warm_compiles += warm.compiles;
+    }
+    let directory = tempfile::tempdir().expect("a directory");
+    let discarded = store_of("discard", directory.path());
+    let _cold = lint(given(Arc::clone(&discarded))).report?;
+    let again = lint(given(discarded));
+    let _again = again.report?;
+    Ok((warm_compiles, again.compiles))
+}
+
+/// The plans are kept per rule: a run in a new session after one rule's text changed compiles that rule alone, and the run after
+/// it compiles none. Answers the compiles of the changed run, then of the run after it.
+pub(crate) fn a_changed_rule_text_recompiles_only_that_rule() -> Result<(usize, usize), LintError> {
+    let directory = tempfile::tempdir().expect("a directory");
+    let kept_in = store_of("postcard", directory.path());
+    let given = |rules, kept_in| Given {
+        rules,
+        kept_in: Some(kept_in),
+        ..violations()
+    };
+    let _cold = lint(given(vec!["one", "two"], Arc::clone(&kept_in))).report?;
+    let changed = lint(given(vec!["one", "changed"], Arc::clone(&kept_in)));
+    let _changed = changed.report?;
+    let after = lint(given(vec!["one", "changed"], kept_in));
+    let _after = after.report?;
+    Ok((changed.compiles, after.compiles))
 }
 
 pub(crate) const THREE: [(&str, &str); 3] = [

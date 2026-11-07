@@ -7,23 +7,23 @@ use ryo_relations::domain::relations::types::{Integer, Relation, Span};
 pub struct QueryText(pub Box<str>);
 
 /// Text the query wrote: a string, a path or a glob.
-#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
 pub struct LiteralText(pub Box<str>);
 
 /// A parameter's name, as the host supplies it.
-#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
 pub struct ParameterName(pub Box<str>);
 
 /// A key of the tables a `list<table>` parameter holds, naming the column its values fill: text from the query.
-#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
 pub struct TableKey(pub Box<str>);
 
 /// A pattern with `{slot}` where text is captured.
-#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
 pub struct CapturePattern(pub Box<str>);
 
 /// Whether a projection drops the rows that repeat.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum RepeatedRows {
     /// A row that repeats is kept once.
     Dropped,
@@ -40,15 +40,15 @@ pub struct InputNumber(pub usize);
 pub struct BindingPlace(pub usize);
 
 /// A step of the plan, by its place in the plan.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
 pub struct StepId(pub u32);
 
 /// A column, by its place in the table that holds it.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
 pub struct ColumnIndex(pub u32);
 
 /// A parameter, by its place among the plan's parameters.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
 pub struct ParameterId(pub u32);
 
 /// A whole number a cell or a parameter holds.
@@ -65,7 +65,7 @@ pub enum FlagState {
 }
 
 /// What a step reads.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum Input {
     /// A relation ryo owns.
     Relation(Relation),
@@ -76,7 +76,7 @@ pub enum Input {
 }
 
 /// Which side of a join a column comes from.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum Side {
     /// The left input.
     Left,
@@ -85,7 +85,7 @@ pub enum Side {
 }
 
 /// Which way an axis walks.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
 pub enum Direction {
     /// To the parent.
     Parent,
@@ -106,7 +106,7 @@ pub enum Direction {
 }
 
 /// A column a join keeps.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct JoinColumn {
     /// The input it comes from.
     pub side: Side,
@@ -115,7 +115,7 @@ pub struct JoinColumn {
 }
 
 /// Physical source-keyed lookup of a positive transitive closure, internal to a compiled join.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct ReachLookup {
     /// Physical edge column holding the closure source.
     pub source: ColumnIndex,
@@ -128,11 +128,11 @@ pub struct ReachLookup {
 }
 
 /// A relation the host declared, by its place among the ones declared with the request.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
 pub struct HostedNumber(pub u32);
 
 /// How a comparison compares its sides.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
 pub enum Test {
     /// `=`.
     Equal,
@@ -172,7 +172,7 @@ pub enum Test {
 }
 
 /// One condition of a `select` step.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct PlanComparison {
     /// How the sides compare.
     pub test: Test,
@@ -185,7 +185,7 @@ pub struct PlanComparison {
 }
 
 /// Whether a comparison carries a source-origin table index.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum ComparisonOrigin {
     /// The comparison has an entry in the owning plan's source-origin table.
     Recorded(ComparisonOriginId),
@@ -194,11 +194,11 @@ pub enum ComparisonOrigin {
 }
 
 /// A source-origin table index attached to a comparison for diagnostics; meaningful only with its owning plan.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ComparisonOriginId(pub u32);
 
 /// One side of a comparison.
-#[derive(Clone, Debug, PartialEq, Hash)]
+#[derive(Clone, Debug, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum Operand {
     /// A column of the step's input.
     Column(ColumnIndex),
@@ -211,7 +211,7 @@ pub enum Operand {
 }
 
 /// A function a comparison applies to text.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
 pub enum Function {
     /// `concat`: the texts one after the other.
     Concat,
@@ -228,7 +228,7 @@ pub enum Function {
 }
 
 /// A function and the operands it is applied to.
-#[derive(Clone, Debug, PartialEq, Hash)]
+#[derive(Clone, Debug, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct Applied {
     /// The function.
     pub function: Function,
@@ -237,7 +237,7 @@ pub struct Applied {
 }
 
 /// A value the query wrote: text that entered the engine, or a number.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum QueryLiteral {
     /// A whole number.
     Number(Integer),
@@ -246,7 +246,7 @@ pub enum QueryLiteral {
 }
 
 /// The heading of a column of the answer.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Heading(pub Box<str>);
 
 /// What an operation reads: up to three inputs, as many as the operation names.
@@ -278,12 +278,12 @@ impl PartialEq for PlanComparison {
 }
 
 /// A bound input's stable local position within one compiled consumer plan.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
 pub struct ObservationBindingId(pub u32);
 
 /// Where a step runs: in the worker that has the file, or once after the workers on the rows they
 /// handed over.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum StepScope {
     /// On one file's rows, in the worker.
     PerFile,

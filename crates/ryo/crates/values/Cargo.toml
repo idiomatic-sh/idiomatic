@@ -15,6 +15,7 @@ autobenches = false
 name = "ryo_values"
 
 [dependencies]
+serde.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations", version = "0.1.2" }
