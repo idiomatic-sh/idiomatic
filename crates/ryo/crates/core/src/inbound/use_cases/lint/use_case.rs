@@ -28,8 +28,8 @@ use ryo_execution::inbound::use_cases::execution::{
         PreparedQueries, PreparedReporting, ProjectStage,
     },
     types::{CompiledPlans, CompiledQueries, FrontierDemand, FrontierRequest, PreparationError},
-    use_case::{CompilationUseCaseImpl, ExecutionUseCaseImpl},
 };
+use crate::application::engine::service::{Compilation, Execution};
 
 use crate::domain::answering::service::{cross_steps, settle, todo_list};
 use crate::domain::answering::types::Todo;
@@ -146,7 +146,7 @@ pub struct LintUseCaseImpl {
     /// Decides which files a rule's include and exclude globs govern.
     matching: Arc<dyn MatchingPort>,
     /// Owns rule compilation, independent per-request binding and bounded session plans.
-    compilation: CompilationUseCaseImpl,
+    compilation: Compilation,
     /// Says how much memory the machine has, which sizes the lint's budget.
     memory: Arc<dyn MemoryPort>,
     /// Pure primitive meanings supplied by the composition edge.
@@ -206,7 +206,7 @@ impl LintUseCaseImpl {
             facts,
             language,
             matching,
-            compilation: CompilationUseCaseImpl::new(query_language),
+            compilation: Compilation::new(query_language),
             memory,
             operators,
             derived,
@@ -1441,7 +1441,7 @@ impl LintUseCase for LintUseCaseImpl {
         );
         let unknown = self.language.unknown_reasons();
         let execution =
-            ExecutionUseCaseImpl::new(Arc::clone(&self.operators), Arc::clone(&self.derived));
+            Execution::new(Arc::clone(&self.operators), Arc::clone(&self.derived));
         #[cfg(feature = "fixtures")]
         let execution = execution.routing(self.routes);
         let rule_digests: Vec<_> = stored_rules.iter().map(|rule| rule.digest).collect();

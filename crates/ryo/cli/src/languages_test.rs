@@ -35,6 +35,7 @@ fn the_walk_does_not_enter_the_directories_the_linked_languages_declare() {
         &crate::resources::edge_at(
             RootPath(".".into()),
             RootPath(".".into()),
+            ryo_values::domain::runs::types::MachineWorkers(1),
             crate::output::Format::Terminal,
         ),
         ryo_core::outbound::lint_store::types::Store::default(),

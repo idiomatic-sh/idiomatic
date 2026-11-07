@@ -15,4 +15,6 @@ pub struct Edge {
     pub build: ryo_core::outbound::lint_store::types::BuildIdentity,
     /// The format the answer is printed in: `--format`, `--json` or `-q`, taken anywhere on the line.
     pub format: crate::output::Format,
+    /// How many threads the machine can run at once, read once where the process starts.
+    pub machine: ryo_values::domain::runs::types::MachineWorkers,
 }

@@ -33,5 +33,10 @@ fn main() -> std::process::ExitCode {
                 .unwrap_or_else(|_| ".".to_owned())
         },
     );
-    ryo_cli::resources::run(here)
+    // How many threads the machine can run at once is read here too, and handed down.
+    let machine = ryo_values::domain::runs::types::MachineWorkers(
+        u32::try_from(std::thread::available_parallelism().map_or(1, std::num::NonZero::get))
+            .unwrap_or(1),
+    );
+    ryo_cli::resources::run(here, machine)
 }
