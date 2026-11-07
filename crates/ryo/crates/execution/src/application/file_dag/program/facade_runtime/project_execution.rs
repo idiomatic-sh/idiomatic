@@ -7,6 +7,7 @@ use crate::application::file_dag::program::admission::RequiredPartitions;
 use crate::application::file_dag::program::facade_runtime::types::ProgramServices;
 use crate::application::file_dag::program::facade_runtime::types::ProjectFrontiers;
 use crate::application::file_dag::program::facade_runtime::types::PublicationScope;
+use crate::application::file_dag::program::native_walk::Deliveries;
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use crate::application::file_dag::program::protocol::types::EmitDemand;
 use crate::application::file_dag::program::protocol::types::ObservationDemand;
@@ -86,7 +87,11 @@ pub(crate) fn open_project<'a>(
             .map_err(|_| OperatingError::WrongOperation)?;
     }
     let execution = scope.execution.get().ok_or(OperatingError::NotRun)?;
-    let ordinary = scope.sources(&owner, &frontiers.ordinary.sources, &frontiers.ordinary.rows)?;
+    let ordinary = scope.sources(
+        &owner,
+        &frontiers.ordinary.sources,
+        &frontiers.ordinary.rows,
+    )?;
     Ok(ProjectRun {
         program,
         services: Arc::clone(&services),
@@ -153,6 +158,15 @@ impl ProjectRun<'_> {
         let state = self.execution.project_state(self.identity(rule)?);
         Ok(self.execution.take_producer_releases(&state))
     }
+    /// The rule is a declared root of its cohort: it owes the project walk one delivery, and
+    /// only a declared rule's project-stage classes are admitted to the walk.
+    fn declare(&self, rule: RuleIndex) {
+        self.publication.walk.owe(self.program, rule, Deliveries(1));
+    }
+    /// The rule's delivery ended, whatever its outcome: its classes are no longer needed.
+    fn delivered(&self, rule: RuleIndex) {
+        self.publication.walk.delivered(self.program, rule);
+    }
     fn completion(&self, rule: RuleIndex) -> Result<CompletionPolicy, OperatingError> {
         match &self.partials {
             ScopePartials::Project {
@@ -214,7 +228,12 @@ impl ProjectRun<'_> {
         let roots = self.roots(rule, demand)?;
         let identity = self.identity(rule)?;
         let state = self.execution.project_state(identity);
-        self.deliver(&state, rule, demand, &roots, symbols)
+        if !roots.is_empty() {
+            self.declare(rule);
+        }
+        let outcome = self.deliver(&state, rule, demand, &roots, symbols);
+        self.delivered(rule);
+        outcome
     }
 }
 
@@ -244,6 +263,22 @@ pub(crate) fn evaluate_roots<E>(
         state: Rc<crate::application::file_dag::program::runtime::service::RuntimeState>,
         roots: RootSet,
     }
+    // The walk's batches end with this evaluation on every exit: completion, error or a
+    // refusing guard that leaves later roots undelivered.
+    struct Retire<'scope>(Vec<&'scope PublicationScope>);
+    impl Drop for Retire<'_> {
+        fn drop(&mut self) {
+            for scope in &self.0 {
+                scope.walk.retire_all();
+            }
+        }
+    }
+    let _retire = Retire(
+        roots
+            .iter()
+            .filter_map(|root| root.run.as_ref().ok().map(|run| run.publication))
+            .collect(),
+    );
     let mut cohorts = Vec::new();
     let mut by_identity: HashMap<PopulationId, usize> = HashMap::new();
     let mut memberships = Vec::with_capacity(roots.len());
@@ -265,6 +300,9 @@ pub(crate) fn evaluate_roots<E>(
                         at
                     }
                 };
+                if !roots.is_empty() {
+                    run.declare(rule);
+                }
                 if let RootSet::Pending(all) = &mut cohorts[at].roots {
                     all.extend(roots);
                 }
@@ -292,7 +330,9 @@ pub(crate) fn evaluate_roots<E>(
                 RootSet::Pending(roots) => roots,
                 RootSet::Prepared => Vec::new(),
             };
-            run.deliver(&cohort.state, rule, demand, &roots, symbols)
+            let outcome = run.deliver(&cohort.state, rule, demand, &roots, symbols);
+            run.delivered(rule);
+            outcome
         })();
         completed.push(result);
     }

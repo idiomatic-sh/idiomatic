@@ -1,5 +1,6 @@
 //! One admitted source population is scanned only after ordinary input admission.
 pub(crate) mod lease;
+pub(super) mod project;
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use crate::application::file_dag::program::runtime::service::KernelPermit;
 use crate::domain::{coverage::types::RuleIndex, shared_walk::types::WalkCounts};
@@ -37,16 +38,16 @@ struct SourceWork {
 }
 
 /// The production invocation is explicitly bound to a file owner or project stage.
-/// A file invocation cannot opt out of the shared-walk owner.
+/// An invocation of either partition cannot opt out of its shared-walk owner.
 pub(super) enum WalkPartition<'a> {
     File(&'a FileWalk),
-    Project,
+    Project(&'a project::service::ProjectWalk),
 }
 impl WalkPartition<'_> {
     pub(super) fn validate(&self, permit: &KernelPermit<'_>) -> Result<(), OperatingError> {
         match self {
             Self::File(walk) => permit.require_file_walk(&walk.generation),
-            Self::Project => permit.require_project_walk(),
+            Self::Project(_) => permit.require_project_walk(),
         }
     }
     pub(super) fn submit<'facts>(
@@ -58,9 +59,6 @@ impl WalkPartition<'_> {
         read: &dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
     ) -> Result<Submission, OperatingError> {
         self.validate(ready.permit())?;
-        let Self::File(walk) = self else {
-            return Ok(Submission::Declined);
-        };
         let permit = ready.permit();
         let Some(class) = prepared.walk_class(permit.descriptor()) else {
             return Ok(Submission::Declined);
@@ -69,8 +67,11 @@ impl WalkPartition<'_> {
             return Err(OperatingError::WrongOperation);
         };
         let rows = input.rows(owner, read)?;
-        let relation = walk.relation(prepared, permit)?;
-        let submitted = walk.submit(prepared, ready, relation, &rows)?;
+        let relation = relation_of(prepared, permit)?;
+        let submitted = match self {
+            Self::File(walk) => walk.submit(prepared, ready, relation, &rows)?,
+            Self::Project(walk) => walk.submit(prepared, ready, relation, &rows)?,
+        };
         if submitted == Submission::Declined {
             tracing::trace!(target: super::constants::WALK_TARGET,
                 event = super::constants::WALK_REFUSED,
@@ -91,9 +92,6 @@ impl WalkPartition<'_> {
         kernels: &dyn super::super::executor::PrimitiveExecutor,
     ) -> Result<Option<WalkResult>, OperatingError> {
         self.validate(permit)?;
-        let Self::File(walk) = self else {
-            return Ok(None);
-        };
         let Some(class) = prepared.walk_class(permit.descriptor()) else {
             return Ok(None);
         };
@@ -103,14 +101,34 @@ impl WalkPartition<'_> {
             | (WalkDelivery::Rows, _) => {}
             _ => return Ok(None),
         }
-        let relation = walk.relation(prepared, permit)?;
-        let Some(batch) = walk.prepare(prepared, permit, relation, rows, context, kernels)? else {
+        let relation = relation_of(prepared, permit)?;
+        let prepared_batch = match self {
+            Self::File(walk) => walk.prepare(prepared, permit, relation, rows, context, kernels)?,
+            Self::Project(walk) => {
+                walk.prepare(prepared, permit, relation, rows, context, kernels)?
+            }
+        };
+        let Some(batch) = prepared_batch else {
             return Ok(None);
         };
         // Result leases contain no RefCell guard or provider borrow. Reentrant
         // delivery may safely advance another admitted source in this file.
         Ok(batch.lease(class).map(|lease| WalkResult { lease }))
     }
+}
+fn relation_of(
+    prepared: &PreparedProgram,
+    permit: &KernelPermit<'_>,
+) -> Result<Relation, OperatingError> {
+    let class = prepared
+        .walk_class(permit.descriptor())
+        .ok_or(OperatingError::WrongOperation)?;
+    prepared
+        .walk()
+        .classes()
+        .get(class.0)
+        .map(|class| class.source)
+        .ok_or(OperatingError::WrongOperation)
 }
 /// Physical delivery must decline before opening any shared predicate work.
 #[derive(Clone, Copy)]
@@ -170,21 +188,6 @@ impl FileWalk {
             retired: Cell::new(WalkCounts::default()),
             work: RefCell::new(WalkWork::default()),
         }
-    }
-    fn relation(
-        &self,
-        prepared: &PreparedProgram,
-        permit: &KernelPermit<'_>,
-    ) -> Result<Relation, OperatingError> {
-        let class = prepared
-            .walk_class(permit.descriptor())
-            .ok_or(OperatingError::WrongOperation)?;
-        prepared
-            .walk()
-            .classes()
-            .get(class.0)
-            .map(|class| class.source)
-            .ok_or(OperatingError::WrongOperation)
     }
     /// Called only when the existing runtime has completed the head's demand program.
     /// A rule being requested is never sufficient to queue its other classes.

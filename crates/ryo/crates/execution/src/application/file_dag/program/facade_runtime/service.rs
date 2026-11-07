@@ -17,6 +17,8 @@ pub(crate) fn publication_owner(
         program: Arc::clone(program.program()),
         owner: open_program_owner(program.program(), services.derived().clone(), true),
         execution: std::cell::OnceCell::new(),
+        walk:
+            crate::application::file_dag::program::native_walk::project::service::ProjectWalk::new(),
         populations: std::cell::RefCell::new(Default::default()),
         symbols: std::cell::OnceCell::new(),
     })

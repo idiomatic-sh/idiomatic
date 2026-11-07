@@ -36,6 +36,7 @@ impl ProjectRun<'_> {
             self.program,
             Rc::clone(&self.owner),
             &unavailable,
+            &self.publication.walk,
         );
         let mut absent = HashMap::new();
         let mut sources = SourceInputs {

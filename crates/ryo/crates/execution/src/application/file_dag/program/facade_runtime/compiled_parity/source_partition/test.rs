@@ -209,17 +209,29 @@ fn subject(case: Input) -> Result<Value, Failure> {
         FileId(0),
         &walk_owner,
     ));
+    let project_walk =
+        crate::application::file_dag::program::native_walk::project::service::ProjectWalk::new();
     let kernels = match (&scope, case) {
-        (_, SourceCase::FileAsProject) => {
-            KernelSession::project(engine.as_ref(), &prepared, Rc::clone(&owner), &read)
-        }
+        (_, SourceCase::FileAsProject) => KernelSession::project(
+            engine.as_ref(),
+            &prepared,
+            Rc::clone(&owner),
+            &read,
+            &project_walk,
+        ),
         (_, SourceCase::ProjectAsFile) => {
             KernelSession::file(engine.as_ref(), &prepared, Rc::clone(&owner), &read, &walk)
         }
         (Partition::File(_), _) => {
             KernelSession::file(engine.as_ref(), &prepared, Rc::clone(&owner), &read, &walk)
         }
-        _ => KernelSession::project(engine.as_ref(), &prepared, Rc::clone(&owner), &read),
+        _ => KernelSession::project(
+            engine.as_ref(),
+            &prepared,
+            Rc::clone(&owner),
+            &read,
+            &project_walk,
+        ),
     };
     let mut observed = std::collections::HashMap::new();
     let mut sources =

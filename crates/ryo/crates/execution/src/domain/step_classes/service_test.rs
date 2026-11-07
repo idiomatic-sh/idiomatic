@@ -325,6 +325,32 @@ fn relation_identity_and_wide_source_projections_are_preserved() {
     );
 }
 
+/// A project step and a file step over one relation select the rows of different partitions: two
+/// classes, and a project step that reads a file step's frontier joins no class of its own.
+fn a_class_never_spans_two_partitions() {
+    let mut project = plan("word");
+    project.steps[0].scope = StepScope::CrossFile;
+    let merged = merge(&[plan("word"), project.clone(), project], &vec![vec![]; 3]);
+    assert_eq!(merged.classes.len(), 2);
+    assert_eq!(merged.classes[0].scope, StepScope::PerFile);
+    assert_eq!(merged.classes[1].scope, StepScope::CrossFile);
+    assert_eq!(merged.classes[1].members.len(), 2);
+    let mut frontier = plan("word");
+    frontier.steps.push(PlanStep {
+        operation: Operation::Select {
+            from: PlanInput::Step(StepId(0)),
+            comparisons: Vec::new(),
+            kept: Vec::new(),
+        },
+        scope: StepScope::CrossFile,
+    });
+    let merged = merge(&[frontier], &[Vec::new()]);
+    assert_eq!(
+        merged.class_of[0],
+        vec![Some(crate::domain::positions::types::ClassPlace(0)), None]
+    );
+}
+
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("rules_that_select_the_same_elements_are_one_class"),
@@ -382,6 +408,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("relation_identity_and_wide_source_projections_are_preserved"),
         word: Word::Succeeds,
         input: || Scenario::Check(relation_identity_and_wide_source_projections_are_preserved),
+        expect: Expect::Value("held"),
+    },
+    Case {
+        name: CaseName("a_class_never_spans_two_partitions"),
+        word: Word::Succeeds,
+        input: || Scenario::Check(a_class_never_spans_two_partitions),
         expect: Expect::Value("held"),
     },
 ];

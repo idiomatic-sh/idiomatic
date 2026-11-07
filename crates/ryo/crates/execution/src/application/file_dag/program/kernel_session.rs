@@ -50,13 +50,14 @@ impl<'a, 'facts> KernelSession<'a, 'facts> {
         prepared: &'a crate::application::file_dag::program::preparation::types::PreparedProgram,
         owner: Rc<RelationOwner>,
         read: &'a dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
+        walk: &'a super::native_walk::project::service::ProjectWalk,
     ) -> Self {
         Self {
             kernels,
             prepared,
             owner,
             read,
-            walk: super::native_walk::WalkPartition::Project,
+            walk: super::native_walk::WalkPartition::Project(walk),
         }
     }
 }

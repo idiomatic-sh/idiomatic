@@ -96,10 +96,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Error(Refusal::EligibleHeadMissing),
     },
     Case {
-        name: CaseName("a consistent census cannot classify a project phase head as file work"),
+        name: CaseName(
+            "a consistent census cannot conceal a project phase head relabelled as a barrier",
+        ),
         word: Word::Rejects,
         input: || Scenario::ProjectPhase,
-        expect: Expect::Error(Refusal::IneligibleHeadShared),
+        expect: Expect::Error(Refusal::EligibleHeadMissing),
     },
     Case {
         name: CaseName("an errored origin refuses only its own rule; a sibling rule still shares"),
@@ -239,7 +241,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 .instructions
                 .first()
                 .unwrap();
-            walk.physical[project.logical.0] = walk.physical[logical.0];
+            walk.physical[project.logical.0] =
+                Some(WalkRoute::Barrier(WalkBarrier::Representation));
         }
     }
     internally_consistent(&walk);
