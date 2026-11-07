@@ -3,9 +3,9 @@ use ryo_language::domain::{
     files::types::FilePath,
     symbols::types::{QuerySymbols, Symbols},
 };
-use ryo_relations::domain::relations::types::{CellKind, Value};
+use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::{
-    plan_parts::types::{ColumnIndex, InputNumber, LiteralText},
+    plan_parts::types::{ColumnIndex, LiteralText},
     stored_facts::types::ArenaBytes,
 };
 use std::sync::Arc;
@@ -16,7 +16,7 @@ use {
     crate::domain::operator::contract::
     crate::domain::operator::contract::views::PredicateProgram,
     crate::domain::stored_graph::types::GraphSource,
-    crate::domain::stored_selection::types::Selector, crate::domain::table_cells::types::TreeRows,
+    crate::domain::stored_selection::types::{BorrowedPositions, Selector}, crate::domain::table_cells::types::TreeRows,
     crate::domain::table_texts::types::Texts, ryo_values::domain::files::types::SourceView,
 };
 use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
@@ -73,7 +73,6 @@ pub(crate) enum ViewRequest {
 pub(crate) struct IdentityHash(pub u64);
 
 pub(crate) mod contract;
-use contract::value::DerivedContract;
 
 /// Membership semantics can address values, existing dense graph vertices or a native tree.
 pub(crate) enum MembershipSpace<'a> {
@@ -97,13 +96,13 @@ pub(crate) enum DerivedInputs<'a, 's> {
     Rows(&'a [BorrowedRows<'a>]),
     Predicate {
         rows: BorrowedRows<'a>,
-        candidates: Option<&'a [u32]>,
+        candidates: Option<BorrowedPositions<'a>>,
         program: &'a mut dyn PredicateProgram,
         symbols: &'a Symbols,
     },
     Distinct {
         rows: BorrowedRows<'a>,
-        positions: &'a [u32],
+        positions: BorrowedPositions<'a>,
     },
     Text {
         rows: &'a [BorrowedRows<'a>],
@@ -135,27 +134,8 @@ pub(crate) struct DerivedScratch {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct InputsUsed(pub u8);
 
-/// Request-owned prepared use; population slots are immutable dependency metadata, not a scheduler.
-#[derive(Clone, Debug)]
-pub(crate) struct PreparedViewUse {
-    pub plan: Arc<DerivedContract>,
-    pub inputs: [InputNumber; 2],
-    pub relations: [Option<ryo_relations::domain::relations::types::Relation>; 2],
-    pub len: InputsUsed,
-}
-#[derive(Clone, Debug)]
-pub(crate) struct PreparedViewGroup {
-    pub primary: Arc<PreparedViewUse>,
-    pub secondary: Option<Arc<PreparedViewUse>>,
-}
-#[derive(Clone, Debug, Default)]
-pub(crate) struct DerivedSlots {
-    pub slots: [Option<Arc<PreparedViewGroup>>; DerivedKind::ALL.len()],
-}
-
 use ryo_values::domain::rows::types::RowIndex;
 
-use ryo_derived::domain::contract::types::DerivedKind;
 
 /// The address of a selector, which names it for the whole request.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -168,22 +148,3 @@ pub(crate) struct ViewGroup(pub usize);
 /// How many groups of equal selectors a request has.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct ViewGroupCount(pub usize);
-
-/// Prepared construction contracts indexed by exact request-owned selector identity.
-#[derive(Debug, Default)]
-pub(crate) struct PreparedSelectionViews {
-    /// Pins every selector address for the complete request lifetime.
-    pub selectors: Vec<Arc<Selector>>,
-    /// O(1) capability lookup; no metadata construction occurs while selecting.
-    pub by_selector: std::collections::HashMap<SelectorAddress, Arc<PreparedSelectorViews>>,
-    pub groups: ViewGroupCount,
-}
-#[derive(Debug)]
-pub(crate) struct PreparedSelectorViews {
-    pub group: ViewGroup,
-    pub predicate: Arc<DerivedContract>,
-    pub postings: Arc<DerivedContract>,
-    pub distinct: Arc<DerivedContract>,
-    /// Every statically possible equality discriminator, chosen without runtime preparation.
-    pub equalities: std::collections::HashMap<ColumnIndex, Arc<DerivedContract>>,
-}

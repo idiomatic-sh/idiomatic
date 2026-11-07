@@ -1,7 +1,7 @@
 //! The application owns each invocation's mutable allocations and release boundary.
 use super::relations::admission::service::BorrowedInput;
 use crate::domain::{
-    derived_views::types::{InputsUsed, PreparedViewUse},
+    derived_views::types::{InputsUsed, contract::value::PreparedViewUse},
     operating::{errors::OperatingError, types::OperatorContext}};
 use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
 use std::sync::Arc;

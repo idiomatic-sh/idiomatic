@@ -2,7 +2,7 @@
 use super::*;
 use crate::application::file_dag::derived::owner::ViewContext;
 use crate::domain::{
-    derived_views::types::*,
+    derived_views::types::{contract::value::PreparedViewUse, *},
     operating::{errors::OperatingError, types::OperatorContext},
     operation_schema::types::InputShape,
     operator::contract::

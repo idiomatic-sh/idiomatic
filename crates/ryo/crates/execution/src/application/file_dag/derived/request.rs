@@ -1,7 +1,9 @@
 //! Request-only interning. Runtime acquisition compares prepared IDs, never request metadata.
 use crate::domain::{
     derived_views::types::{
-        contract::value::{DerivedContract, kind_of},
+        contract::value::{
+            DerivedContract, DerivedSlots, PreparedViewGroup, PreparedViewUse, kind_of,
+        },
         *,
     },
     operating::errors::OperatingError,

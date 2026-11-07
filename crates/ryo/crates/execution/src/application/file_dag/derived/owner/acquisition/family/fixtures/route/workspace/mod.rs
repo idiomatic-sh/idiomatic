@@ -9,7 +9,7 @@ use crate::application::file_dag::{
     workspace::{InputAdmissions, InvocationWorkspace, ViewInputs},
 };
 use crate::domain::{
-    derived_views::types::PreparedViewUse,
+    derived_views::types::contract::value::PreparedViewUse,
     operating::errors::OperatingError,
     operation_schema::types::InputShape,
     operator::contract::

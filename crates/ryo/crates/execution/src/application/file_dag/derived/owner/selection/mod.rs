@@ -101,7 +101,7 @@ fn make<'a>(
             ),
             DerivedInputs::Distinct {
                 rows: BorrowedRows::Stored(source),
-                positions: &rows,
+                positions: crate::domain::stored_selection::types::BorrowedPositions(&rows),
             },
             &mut DerivedScratch::default(),
             None,

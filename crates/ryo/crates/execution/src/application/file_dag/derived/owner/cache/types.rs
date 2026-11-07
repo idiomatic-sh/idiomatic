@@ -45,7 +45,7 @@ pub(in crate::application::file_dag) struct CacheBackend {
         RepetitionTracking,
     /// Immutable request-owned selector requirements, never file-owned payload.
     pub(in crate::application::file_dag::derived::owner) selection_views:
-        Option<Arc<crate::domain::derived_views::types::PreparedSelectionViews>>,
+        Option<Arc<crate::domain::derived_views::types::contract::value::PreparedSelectionViews>>,
     /// An active eligible graph consumer may request bounded adjacency admission.
     pub(in crate::application::file_dag::derived::owner) graph_enabled: GraphAdmission,
     /// Charged graph/domain/memo bytes within `bytes`.
@@ -106,7 +106,7 @@ impl CacheBackend {
     /// Install immutable request descriptors without exposing their catalog to a caller.
     pub(in crate::application::file_dag::derived::owner) fn bind_request_views(
         &mut self,
-        views: Arc<crate::domain::derived_views::types::PreparedSelectionViews>,
+        views: Arc<crate::domain::derived_views::types::contract::value::PreparedSelectionViews>,
     ) {
         self.selection_views = Some(views);
     }

@@ -95,7 +95,7 @@ pub(in crate::application::file_dag::derived::owner::acquisition) fn build(
                 &plan.semantic,
                 semantic::DerivedInputs::Predicate {
                     rows: &mut predicate,
-                    candidates,
+                    candidates: candidates.map(|rows| rows.0),
                 },
                 &mut scratch.semantic,
                 recycled,
@@ -110,7 +110,7 @@ pub(in crate::application::file_dag::derived::owner::acquisition) fn build(
                 &plan.semantic,
                 semantic::DerivedInputs::Distinct {
                     rows: &source,
-                    positions,
+                    positions: positions.0,
                 },
                 &mut scratch.semantic,
                 recycled,

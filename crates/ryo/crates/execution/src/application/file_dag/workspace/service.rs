@@ -3,7 +3,7 @@ use super::constants::{EXPECT_ADMITTED_INPUT, EXPECT_FIRST_INPUT};
 use super::{InputAdmissions, InvocationWorkspace, ViewInputs};
 use crate::application::file_dag::derived::owner::acquisition::selection::types::StoredColumns;
 use crate::application::file_dag::relations::admission::service::BorrowedInput;
-use crate::domain::derived_views::types::PreparedViewUse;
+use crate::domain::derived_views::types::contract::value::PreparedViewUse;
 use crate::domain::operating::errors::OperatingError;
 
 use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;

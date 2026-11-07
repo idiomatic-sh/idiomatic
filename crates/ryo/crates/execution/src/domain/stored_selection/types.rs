@@ -11,6 +11,10 @@ pub(crate) mod program;
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct SelectedPositions(pub Arc<Vec<u32>>);
 
+/// The borrowed form of `SelectedPositions`: original row positions read in place.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct BorrowedPositions<'a>(pub &'a [u32]);
+
 impl std::ops::Deref for SelectedPositions {
     type Target = Arc<Vec<u32>>;
     fn deref(&self) -> &Arc<Vec<u32>> {

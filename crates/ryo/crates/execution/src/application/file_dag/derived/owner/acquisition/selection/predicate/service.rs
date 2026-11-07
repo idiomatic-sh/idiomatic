@@ -9,7 +9,7 @@ use crate::application::file_dag::derived::owner::selection::types::{
     CandidateChoice, SelectionPath,
 };
 use crate::domain::{
-    derived_views::types::PreparedSelectorViews,
+    derived_views::types::contract::value::PreparedSelectorViews,
     operating::types::{Memo, NameCount, OperatorContext},
     operator::contract::
     stored_selection::types::Selector,
@@ -109,7 +109,7 @@ fn build_matches(
                 &views.predicate,
                 DerivedInputs::Predicate {
                     rows: BorrowedRows::Stored(source),
-                    candidates: candidates.as_ref().map(|rows| rows.as_slice().0),
+                    candidates: candidates.as_ref().map(|rows| rows.as_slice()),
                     program: &mut decision,
                     symbols: context.symbols.as_ref(),
                 },

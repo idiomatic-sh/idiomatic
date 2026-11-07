@@ -5,7 +5,7 @@ use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
 use crate::application::file_dag::derived::owner::selection::fanout::service::fanout_candidates;
 use crate::application::file_dag::derived::owner::selection::types::*;
 use crate::domain::{
-    derived_views::types::{DerivedInputs, DerivedScratch, PreparedSelectorViews},
+    derived_views::types::{DerivedInputs, DerivedScratch, contract::value::PreparedSelectorViews},
     operating::{errors::OperatingError, types::OperatorContext},
     operator::contract::
     stored_selection::types::{CandidateRepeat, Selector},

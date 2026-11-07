@@ -2,7 +2,7 @@
 use crate::application::file_dag::derived::constants as activation;
 use crate::domain::{
     coverage::types::RuleIndex,
-    derived_views::types::PreparedSelectionViews,
+    derived_views::types::contract::value::PreparedSelectionViews,
     executable_program::types::{ExecutableProgram, InputSource},
     operating::errors::OperatingError,
     operator::contract::types::RequestOperators,

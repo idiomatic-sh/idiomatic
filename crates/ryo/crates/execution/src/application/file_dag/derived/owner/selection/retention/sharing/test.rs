@@ -65,7 +65,7 @@ use crate::domain::table_model::types::representation_input::value::Representati
         ViewContext::default(),
         DerivedInputs::Distinct {
             rows: proof.rows(),
-            positions: &[0, 1, 2],
+            positions: crate::domain::stored_selection::types::BorrowedPositions(&[0, 1, 2]),
         },
         &mut DerivedScratch::default(),
         None,

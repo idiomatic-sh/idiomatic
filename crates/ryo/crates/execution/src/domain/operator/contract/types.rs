@@ -3,7 +3,9 @@ use super::views::{BorrowedRows, IndexedRows, PredicateProgram};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::InputPlace;
 use ryo_language::domain::symbols::types::QuerySymbols;
+use ryo_operators::domain::source_matches::types::{BaseLine, SourceBase};
 use ryo_relations::domain::relations::types::{CellKind, Value};
+use ryo_values::domain::row_texts::types::CellText;
 use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::Inputs;
 use ryo_values::domain::plans::types::Operation;
@@ -152,7 +154,7 @@ pub(crate) enum WorkspaceProgram {
 /// Owned by one request and aligned with the compiled operation.
 #[derive(Clone, Debug)]
 pub(crate) struct OperatorContract {
-    pub derived: crate::domain::derived_views::types::DerivedSlots,
+    pub derived: crate::domain::derived_views::types::contract::value::DerivedSlots,
     pub kind: OperationKind,
     pub inputs: Inputs,
     pub input_kinds: Vec<Vec<CellKind>>,
@@ -210,6 +212,14 @@ pub(crate) trait PrimitiveResources {
     fn groups(&self) -> Option<&[crate::domain::table_groups::types::Group]>;
 }
 
+/// The checked physical text of a source-matching span, with where it starts and the line it begins on.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct ValidatedSource<'a> {
+    pub base: SourceBase,
+    pub text: CellText<'a>,
+    pub line: BaseLine,
+}
+
 /// Only row-varying context is assembled at row delivery. Acquired resources
 /// remain in the invocation and are reached through a borrowed reader.
 pub(crate) struct PrimitiveViews<'a> {
@@ -220,11 +230,7 @@ pub(crate) struct PrimitiveViews<'a> {
     pub arenas: &'a [ryo_values::domain::stored_facts::types::ArenaBytes],
     pub source: SourceView<'a>,
     pub bindings: &'a [ParameterBinding],
-    pub validated_source: Option<
-        crate::domain::operator::collections::operators::source_matches::item::ValidatedSource<
-            'a,
-        >,
-    >,
+    pub validated_source: Option<ValidatedSource<'a>>,
     pub regex: Option<&'a ryo_matching::inbound::use_cases::matching::compiled::CompiledRegex>,
     pub cached_reach: Option<super::graph_view::ReachResult<'a>>,
     pub cached_axis: Option<super::graph_view::AxisResult<'a>>,
@@ -250,6 +256,10 @@ pub(crate) struct PrimitiveWorkspace {
     pub closure_walk: Option<crate::domain::table_reach::types::Walk>,
     pub distinct: Option<DistinctWorkspace>,
 }
+/// The rows found at each of the three inputs of a counted step.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct WorkTotals(pub [FoundRows; 3]);
+
 /// How many rows a counted step found.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct FoundRows(pub u64);
@@ -327,7 +337,7 @@ pub(crate) struct RequestOperators {
     pub ordered_existence: std::sync::Arc<Vec<crate::domain::self_join_recogniser::types::Program>>,
     pub selection_plans: std::sync::Arc<Vec<crate::domain::stored_selection::types::PreparedPlan>>,
     pub selection_views:
-        std::sync::Arc<crate::domain::derived_views::types::PreparedSelectionViews>,
+        std::sync::Arc<crate::domain::derived_views::types::contract::value::PreparedSelectionViews>,
     pub rules: Vec<Vec<std::sync::Arc<OperatorContract>>>,
     pub preparations: PreparationCount,
     pub physical: Vec<

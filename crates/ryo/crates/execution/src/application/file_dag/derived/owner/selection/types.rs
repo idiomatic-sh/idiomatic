@@ -33,9 +33,6 @@ pub(in crate::application::file_dag::derived::owner) enum SelectionPath {
 /// Row positions this selection owns outright.
 pub(in crate::application::file_dag::derived::owner) struct CandidatePositions(pub Vec<u32>);
 
-/// Borrowed candidate row positions.
-pub(in crate::application::file_dag::derived::owner) struct CandidateSlice<'a>(pub &'a [u32]);
-
 pub(in crate::application::file_dag::derived::owner) enum CandidateRows {
     Owned(CandidatePositions),
     Shared {
@@ -45,10 +42,10 @@ pub(in crate::application::file_dag::derived::owner) enum CandidateRows {
 }
 
 impl CandidateRows {
-    pub(in crate::application::file_dag::derived::owner) fn as_slice(&self) -> CandidateSlice<'_> {
+    pub(in crate::application::file_dag::derived::owner) fn as_slice(&self) -> crate::domain::stored_selection::types::BorrowedPositions<'_> {
         match self {
-            Self::Owned(rows) => CandidateSlice(&rows.0),
-            Self::Shared { rows, .. } => CandidateSlice(rows.0.as_ref().as_slice()),
+            Self::Owned(rows) => crate::domain::stored_selection::types::BorrowedPositions(&rows.0),
+            Self::Shared { rows, .. } => crate::domain::stored_selection::types::BorrowedPositions(rows.0.as_ref().as_slice()),
         }
     }
 }

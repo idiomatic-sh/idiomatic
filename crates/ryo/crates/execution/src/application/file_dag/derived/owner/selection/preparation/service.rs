@@ -6,7 +6,7 @@ use crate::application::file_dag::derived::owner::selection::literals::service::
 use crate::application::file_dag::derived::owner::selection::types::*;
 use crate::domain::{
     derived_views::types::{
-        contract::value::DerivedContract, PreparedSelectionViews, PreparedSelectorViews, ViewRequest,
+        contract::value::DerivedContract, contract::value::PreparedSelectionViews, contract::value::PreparedSelectorViews, ViewRequest,
     },
     operating::errors::OperatingError,
     stored_selection::types::Selector,
