@@ -8,3 +8,5 @@ pub const ACCEPTED_SYNTAX: &str = "accepted-syntax";
 pub const QUERY_FILE: &str = "query.ryoql";
 /// The module source a logical module name is probed with before the real source is read.
 pub const MODULE_NAME_PROBE: &str = "module source";
+/// The filename of a profile's manifest inside its profile directory.
+pub const PROFILE_MANIFEST: &str = "benchmark.toml";
