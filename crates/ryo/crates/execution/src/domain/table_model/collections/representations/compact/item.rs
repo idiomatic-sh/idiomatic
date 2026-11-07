@@ -5,7 +5,7 @@ use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 pub(crate) struct CompactItem;
 impl RepresentationsItem for CompactItem {
-    fn bulk<'f>(&self, input: RepresentationInput<'f>) -> Result<BulkAccess<'f>, OperatingError> {
+    fn bulk<'f>(&self, input: RepresentationInput<'f>) -> Result<RepresentationInput<'f>, OperatingError> {
         if matches!(input, RepresentationInput::Compact(_)) {
             Ok(input)
         } else {
@@ -23,7 +23,7 @@ impl RepresentationsItem for CompactItem {
             input,
             kind: RepresentationKind::Compact,
             kinds: ryo_values::domain::compact_table::service::compact_kinds(table),
-            rows: ryo_values::domain::compact_table::service::compact_rows(table).0,
+            rows: ryo_values::domain::compact_table::service::compact_rows(table),
             metadata: Ok(()),
         })
     }

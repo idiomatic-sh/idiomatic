@@ -1,6 +1,6 @@
 //! Representation semantics expose no input scheduler or cache owner.
 use super::types::{
-    BulkAccess, CellRead, PhysicalShape, RelationContract, RepresentationInput, RowRead,
+    CellRead, PhysicalShape, RelationContract, RepresentationInput, RowRead,
 };
 use crate::domain::operating::errors::OperatingError;
 
@@ -19,7 +19,7 @@ pub(super) trait RepresentationsItem: Sync {
     fn bulk<'file>(
         &self,
         input: RepresentationInput<'file>,
-    ) -> Result<BulkAccess<'file>, OperatingError>;
+    ) -> Result<RepresentationInput<'file>, OperatingError>;
     fn cell(
         &self,
         input: RepresentationInput<'_>,

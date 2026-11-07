@@ -6,8 +6,6 @@ pub(crate) mod publication;
 mod registration;
 pub(crate) mod selected;
 pub(crate) mod service;
-#[cfg(test)]
-mod service_test;
 pub(crate) mod stored;
 pub(crate) mod tree;
 pub(crate) mod types;

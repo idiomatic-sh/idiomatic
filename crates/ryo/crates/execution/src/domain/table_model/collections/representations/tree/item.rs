@@ -5,7 +5,7 @@ use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 pub(crate) struct TreeItem;
 impl RepresentationsItem for TreeItem {
-    fn bulk<'f>(&self, input: RepresentationInput<'f>) -> Result<BulkAccess<'f>, OperatingError> {
+    fn bulk<'f>(&self, input: RepresentationInput<'f>) -> Result<RepresentationInput<'f>, OperatingError> {
         if matches!(input, RepresentationInput::Tree(_)) {
             Ok(input)
         } else {
@@ -31,9 +31,9 @@ impl RepresentationsItem for TreeItem {
             input,
             kind: RepresentationKind::Tree,
             kinds: ryo_relations::domain::relations::service::kinds(relation),
-            rows: tree.elements.kind.len().saturating_sub(usize::from(
+            rows: RowCount(tree.elements.kind.len().saturating_sub(usize::from(
                 tree.form == crate::domain::table_cells::types::TreeForm::Edges,
-            )),
+            ))),
             metadata: Ok(()),
         })
     }
@@ -113,4 +113,4 @@ impl RepresentationsItem for TreeItem {
     }
 }
 
-use ryo_values::domain::rows::types::RowIndex;
+use ryo_values::domain::rows::types::{RowCount, RowIndex};

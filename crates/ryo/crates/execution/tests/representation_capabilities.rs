@@ -51,7 +51,7 @@ const METHODS: &[(&str, &str)] = &[
     ),
     (
         "bulk",
-        "fn bulk<'f>(&self,input:RepresentationInput<'f>)->Result<BulkAccess<'f>,OperatingError>{Ok(input)}",
+        "fn bulk<'f>(&self,input:RepresentationInput<'f>)->Result<RepresentationInput<'f>,OperatingError>{Ok(input)}",
     ),
     (
         "cell",
@@ -227,7 +227,7 @@ fn physical_readers_cannot_gain_scheduler_cache_mutation_or_static_source_lifeti
         ),
         (
             "source_escape",
-            "fn forbidden<'a>(input:RepresentationInput<'a>)->BulkAccess<'static>{input}",
+            "fn forbidden<'a>(input:RepresentationInput<'a>)->RepresentationInput<'static>{input}",
             "lifetime may not live long enough",
         ),
         (

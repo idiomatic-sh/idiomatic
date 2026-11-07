@@ -31,7 +31,7 @@ impl<'f> From<&'f Rows<'f>> for RepresentationInput<'f> {
 impl<'f> RepresentationInput<'f> {
     pub(crate) fn bulk(
         self,
-    ) -> Result<super::types::BulkAccess<'f>, crate::domain::operating::errors::OperatingError>
+    ) -> Result<super::types::RepresentationInput<'f>, crate::domain::operating::errors::OperatingError>
     {
         registered(kind(self)).bulk(self)
     }

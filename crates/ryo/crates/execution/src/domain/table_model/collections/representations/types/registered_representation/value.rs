@@ -3,7 +3,7 @@ use super::super::super::positioned::item::PositionedItem;
 use super::super::super::{
     interface::RepresentationsItem,
     types::{
-        BulkAccess, CellRead, PhysicalShape, RelationContract, RepresentationInput,
+        CellRead, PhysicalShape, RelationContract, RepresentationInput,
         RepresentationKind, RowRead,
     },
 };
@@ -66,7 +66,7 @@ impl RegisteredRepresentation {
     pub(crate) fn bulk<'f>(
         &self,
         input: RepresentationInput<'f>,
-    ) -> Result<BulkAccess<'f>, OperatingError> {
+    ) -> Result<RepresentationInput<'f>, OperatingError> {
         self.require(input)?;
         self.item().bulk(input)
     }

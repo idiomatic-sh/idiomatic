@@ -32,7 +32,6 @@ pub(crate) enum RepresentationInput<'a> {
     Computed(&'a Table),
     Compact(&'a ryo_values::domain::table_words::types::CompactTable),
 }
-pub(crate) type BulkAccess<'a> = RepresentationInput<'a>;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum PhysicalShape {
     Complete,
@@ -42,7 +41,7 @@ pub(crate) struct RelationContract<'a> {
     pub input: RepresentationInput<'a>,
     pub kind: RepresentationKind,
     pub kinds: &'a [CellKind],
-    pub rows: usize,
+    pub rows: RowCount,
     /// Captured metadata refusals are interpreted only at the existing demand gate.
     pub metadata: Result<(), OperatingError>,
 }
@@ -57,4 +56,4 @@ pub(crate) enum RowRead<'a> {
     MissingPhysical,
 }
 
-use ryo_values::domain::rows::types::Table;
+use ryo_values::domain::rows::types::{RowCount, Table};

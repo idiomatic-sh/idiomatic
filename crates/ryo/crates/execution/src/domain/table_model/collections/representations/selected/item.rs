@@ -5,7 +5,7 @@ use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 pub(crate) struct SelectedItem;
 impl RepresentationsItem for SelectedItem {
-    fn bulk<'f>(&self, input: RepresentationInput<'f>) -> Result<BulkAccess<'f>, OperatingError> {
+    fn bulk<'f>(&self, input: RepresentationInput<'f>) -> Result<RepresentationInput<'f>, OperatingError> {
         if matches!(input, RepresentationInput::Selected { .. }) {
             Ok(input)
         } else {
@@ -39,7 +39,7 @@ impl RepresentationsItem for SelectedItem {
             input,
             kind: RepresentationKind::Selected,
             kinds,
-            rows: positions.len(),
+            rows: RowCount(positions.len()),
             metadata,
         })
     }
@@ -139,4 +139,4 @@ impl RepresentationsItem for SelectedItem {
     }
 }
 
-use ryo_values::domain::rows::types::RowIndex;
+use ryo_values::domain::rows::types::{RowCount, RowIndex};

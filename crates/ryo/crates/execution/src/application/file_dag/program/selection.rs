@@ -32,7 +32,7 @@ pub(super) fn acquire(
     let Rows::Stored(columns) = rows else {
         return Ok(None);
     };
-    if !rectangular(*columns)
+    if rectangular(*columns) == ryo_values::domain::table_words::types::TableShape::Ragged
         || columns
             .columns
             .first()

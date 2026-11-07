@@ -2,28 +2,13 @@
 
 use std::cmp::Ordering;
 
-#[cfg(test)]
-thread_local! {
-    /// Actual full-row reads for same-binary kernel differential tests only.
-    static READ_ROW_COUNTS: std::cell::Cell<(u64, u64)> = const { std::cell::Cell::new((0, 0)) };
-}
-
-#[cfg(test)]
-pub(crate) fn read_row_counts() -> (u64, u64) {
-    READ_ROW_COUNTS.with(std::cell::Cell::get)
-}
-
-#[cfg(test)]
-pub(crate) fn take_read_row_counts() -> (u64, u64) {
-    READ_ROW_COUNTS.with(|counts| counts.replace((0, 0)))
-}
-
 use ryo_language::domain::elements::service::real_count;
 use ryo_relations::domain::relations::service::from_bits;
 use ryo_relations::domain::relations::types::{
     Bits, CellKind, ColumnsView, Flag, Integer, Position, Value,
 };
 
+use super::constants::MATERIALIZED;
 use super::types::Rows;
 use crate::domain::table_cells::service::{edge_of, element_of};
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
@@ -32,6 +17,7 @@ use ryo_derived::domain::contract::types::{ChainLink, KeyIndex, On};
 use ryo_values::domain::plan_parts::service::column_in;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::errors::RowsError;
+use ryo_values::domain::table_words::types::TableShape;
 
 use ryo_values::domain::rows::service::{positions, push_row, reset, row_in};
 
@@ -109,10 +95,7 @@ pub(crate) fn read_row<'s>(
         .read(index, scratch);
     #[cfg(test)]
     if let Some(row) = found {
-        READ_ROW_COUNTS.with(|counts| {
-            let (calls, cells) = counts.get();
-            counts.set((calls + 1, cells + row.len() as u64));
-        });
+        super::fixtures::note_read_row(row.len());
     }
     found
 }
@@ -149,7 +132,7 @@ pub(crate) fn materialize(rows: &Rows<'_>, into: &mut Table, scratch: &mut Vec<V
             }
         }
     }
-    tracing::trace!(target: "ryo::diagnostic::selection", event = "materialized",
+    tracing::trace!(target: "ryo::diagnostic::selection", event = MATERIALIZED,
         compact_source = matches!(rows, Rows::Compact(_)),
         rows = into.count.0, columns = into.kinds.len(),
         cell_bytes = into.cells.len().saturating_mul(size_of::<ryo_relations::domain::relations::types::Value>()),
@@ -190,10 +173,15 @@ pub(crate) fn check_columns(kinds: &[CellKind], columns: &[ColumnIndex]) -> Resu
 
 /// Whether every declared stored column has exactly the first column's row population.
 /// Other views keep the materializing path, including its treatment of incomplete rows.
-pub(crate) fn rectangular(view: ColumnsView<'_>) -> bool {
+pub(crate) fn rectangular(view: ColumnsView<'_>) -> TableShape {
     let count = view.columns.first().map_or(0, |column| column.0.len());
-    view.columns.len() == view.kinds.len()
+    if view.columns.len() == view.kinds.len()
         && view.columns.iter().all(|column| column.0.len() == count)
+    {
+        TableShape::Rectangular
+    } else {
+        TableShape::Ragged
+    }
 }
 
 /// Decode one typed stored cell, preserving normalization such as nonzero flag encodings.
@@ -212,7 +200,7 @@ fn selected_cell(
     selected_view_cell(
         super::types::SelectedView {
             source: view.source,
-            positions: &view.selection.rows,
+            positions: super::types::PhysicalRows(&view.selection.rows),
             columns: &view.selection.columns,
         },
         row,
@@ -225,7 +213,7 @@ fn selected_view_cell(
     row: RowIndex,
     column: ColumnIndex,
 ) -> Option<Value> {
-    let Ok(physical) = usize::try_from(*view.positions.get(row.0)?) else {
+    let Ok(physical) = usize::try_from(*view.positions.0.get(row.0)?) else {
         return None;
     };
     stored_cell(
