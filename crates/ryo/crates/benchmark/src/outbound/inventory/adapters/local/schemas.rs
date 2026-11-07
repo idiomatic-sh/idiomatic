@@ -1,48 +1,53 @@
 //! The wire shapes of the registration and of the native receipt rows. Unknown fields are refused:
 //! the documents are a contract, and the registration authoring is its source of truth.
 use super::constants;
-use crate::outbound::inventory::types::{
-    ArgumentText, CaseContextIdentity, CaseDocument, CaseReference, Command, CompleteInvocation,
-    ContextIdentity, DeclaredScope, EntryState, EnvironmentName, EnvironmentValue,
-    ExecutablePin, ExpectationContract, FailedInvocation, FileMetadata, FilePin,
-    IdentityKey, InventoryCompleteness, InvocationDocument, RegisteredModuleName, NormalizedSettings, Pin,
-    ProjectEntry, ProjectInventory, ProjectInventoryDocument, ProviderName, ReceiptDigest,
-    RegisteredRule, Registration, RegistrationAuthority, RowInstance, RowReason, RowStatus,
-    RuleCommand, RuleDefinition, RuleInstance, RuleReason, RunState, Row, Signal, Summary,
+use ryo_benchmark_contracts::domain::receipts::constants::{
+    BENCHMARK_INVENTORY_V1, COMPLETE, FAIL, FAILED, PASS, RUNNING,
 };
-use crate::outbound::suite::types::{process::ProcessFailureWire};
-use ryo_benchmark_contracts::domain::documents::types::{finding::{FindingOffset, Finding}, observation_document::{
-        ContextMode, ExitStatus, FileMetadataDigest, ProjectInputsDigest, ReferenceExpectation, RuleCohort,
-        RuleContextRecord, RuleObservationsRecord,
-    }, reference_discrepancy::{
-        DiscrepancyIdentity, ObservedExecutable, ReferenceDiscrepancy,
-    }, text::{CanonicalJson, CaseName, PathText, ReasonText, RuleName, Sha256Text, YesNo}};
+use crate::outbound::inventory::types::{
+    Command, ExecutablePin, FilePin, IdentityKey, ProviderName, ReceiptDigest,
+    RegisteredModuleName, RegisteredRule, Registration, RegistrationAuthority, Row, RowInstance,
+    RowReason, RowStatus, RuleCommand, RuleDefinition, RuleInstance, RuleReason, RunState, Summary,
+};
 use ryo_benchmark_contracts::domain::artifacts::types::FileExecutable;
-use ryo_benchmark_contracts::domain::reports::types::ComparisonContract;
-use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
+use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use ryo_benchmark_contracts::domain::documents::types::case_document::{
+    CaseContextIdentity, CaseDocument, CaseReference, ContextIdentity, DeclaredScope, EntryState,
+    ExpectationContract, FileMetadata, InventoryCompleteness, ProjectEntry, ProjectInventory,
+    ProjectInventoryDocument,
+};
+use ryo_benchmark_contracts::domain::documents::types::finding::{Finding, FindingOffset};
+use ryo_benchmark_contracts::domain::documents::types::invocation_document::{
+    ArgumentText, CompleteInvocation, EnvironmentName, EnvironmentValue, FailedInvocation,
+    InvocationDocument, NormalizedSettings, Pin, Signal,
+};
+use ryo_benchmark_contracts::domain::documents::types::observation_document::{
+    ContextMode, ExitStatus, FileMetadataDigest, ProjectInputsDigest, ReferenceExpectation,
+    RuleCohort, RuleContextRecord, RuleObservationsRecord,
+};
+use ryo_benchmark_contracts::domain::documents::types::reference_discrepancy::{
+    DiscrepancyIdentity, ObservedExecutable, ReferenceDiscrepancy,
+};
+use ryo_benchmark_contracts::domain::documents::types::text::{
+    CanonicalJson, CaseName, PathText, ReasonText, RuleName, Sha256Text, YesNo,
+};
+use ryo_benchmark_contracts::domain::measurements::types::{CapturedBytes, ProcessExitCode};
+use ryo_benchmark_contracts::domain::process::types::{
+    OutputPart, OutputText, PathEncoding, ProcessArtifact, ProcessFailure, ProcessObservation,
+};
 use ryo_benchmark_contracts::domain::receipts::types::ReceiptAudit;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::workloads::types::{CaseComparison, DiscrepancyBasis, FileObservation};
+use ryo_benchmark_contracts::domain::reports::types::ComparisonContract;
+use ryo_benchmark_contracts::domain::workloads::types::{
+    CaseComparison, DiscrepancyBasis, FileObservation,
+};
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, path::PathBuf};
-
-fn sha(value: Option<String>) -> Option<Sha256Text> {
-    value.map(Sha256Text)
-}
-fn path(value: String) -> PathText {
-    PathText(value)
-}
-fn canonical(value: Option<serde_json::Value>) -> Option<CanonicalJson> {
-    value.map(|value| CanonicalJson(value.to_string()))
-}
-fn findings(rows: Vec<FindingSchema>) -> Vec<Finding> {
-    rows.into_iter().map(Finding::from).collect()
-}
 
 /// The generated registration of one provider's rules.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(super) struct RegistrationSchema {
+struct RegistrationSchema {
     authority: AuthoritySchema,
     provider: String,
     defaults: Vec<String>,
@@ -50,6 +55,11 @@ pub(super) struct RegistrationSchema {
     #[serde(default)]
     identity: BTreeMap<String, serde_json::Value>,
 }
+
+/// The cases of one registered rule, a named list so a rule does not stack the case's records.
+#[derive(Debug, Default, Deserialize)]
+#[serde(transparent)]
+struct RuleCasesSchema(Vec<CaseSchema>);
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -61,7 +71,7 @@ struct RegisteredRuleSchema {
     command: Option<CommandSchema>,
     reason: Option<String>,
     #[serde(default)]
-    cases: Vec<CaseSchema>,
+    cases: RuleCasesSchema,
     instance: Option<serde_json::Value>,
 }
 
@@ -171,7 +181,7 @@ impl From<RegisteredRuleSchema> for RegisteredRule {
             reason: wire
                 .reason
                 .map_or(RuleReason::Unstated, |reason| RuleReason::Stated(ReasonText(reason))),
-            cases: wire.cases.into_iter().map(CaseDocument::from).collect(),
+            cases: wire.cases.0.into_iter().map(CaseDocument::from).collect(),
             instance: wire.instance.map_or(RuleInstance::Undeclared, |value| {
                 RuleInstance::Declared(CanonicalJson(value.to_string()))
             }),
@@ -179,24 +189,25 @@ impl From<RegisteredRuleSchema> for RegisteredRule {
     }
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct FindingSchema {
-    rule: String,
-    file: String,
-    start: u64,
-    end: u64,
+
+/// Decode the generated registration.
+pub(super) fn registration(bytes: &CapturedBytes) -> Result<Registration, Error> {
+    serde_json::from_slice::<RegistrationSchema>(&bytes.0)
+        .map(Registration::from)
+        .map_err(|error| Error::Json(Box::new(error)))
 }
 
-impl From<FindingSchema> for Finding {
-    fn from(wire: FindingSchema) -> Self {
-        Self {
-            rule: RuleName(wire.rule),
-            file: PathText(wire.file),
-            start: FindingOffset(wire.start),
-            end: FindingOffset(wire.end),
-        }
-    }
+/// The digest of an optional wire text.
+fn sha(value: Option<String>) -> Option<Sha256Text> {
+    value.map(Sha256Text)
+}
+/// The path a document spells.
+fn path(value: String) -> PathText {
+    PathText(value)
+}
+/// The canonical text of an optional wire value.
+fn canonical(value: Option<serde_json::Value>) -> Option<CanonicalJson> {
+    value.map(|value| CanonicalJson(value.to_string()))
 }
 
 #[derive(Clone, Copy, Debug, Deserialize)]
@@ -286,84 +297,6 @@ struct InventorySchema {
     completeness: CompletenessSchema,
     #[serde(default)]
     entries: Vec<EntrySchema>,
-}
-
-#[derive(Clone, Copy, Debug, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-enum BasisSchema {
-    LanguageDefect,
-    ToolContractDifference,
-}
-
-impl From<BasisSchema> for DiscrepancyBasis {
-    fn from(wire: BasisSchema) -> Self {
-        match wire {
-            BasisSchema::LanguageDefect => Self::LanguageDefect,
-            BasisSchema::ToolContractDifference => Self::ToolContract,
-        }
-    }
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "kebab-case", deny_unknown_fields)]
-struct IdentitySchema {
-    tool: String,
-    version: String,
-    observed_executable_sha256: Option<String>,
-    profile_sha256: String,
-    settings_sha256: String,
-    source_sha256: String,
-    reference_output_sha256: String,
-    intended_output_sha256: String,
-    file_metadata_sha256: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct DiscrepancySchema {
-    basis: Option<BasisSchema>,
-    identity: IdentitySchema,
-    approved_executable_sha256: Vec<String>,
-    reference_expected: Option<Vec<FindingSchema>>,
-    intended_expected: Vec<FindingSchema>,
-    reason: String,
-    process: Option<ProcessFailureWire>,
-}
-
-impl From<DiscrepancySchema> for ReferenceDiscrepancy {
-    fn from(wire: DiscrepancySchema) -> Self {
-        let identity = wire.identity;
-        Self {
-            basis: wire
-                .basis
-                .map_or(DiscrepancyBasis::LanguageDefect, Into::into),
-            identity: DiscrepancyIdentity {
-                tool: ReasonText(identity.tool),
-                version: ReasonText(identity.version),
-                observed_executable_sha256: sha(identity.observed_executable_sha256)
-                    .map_or(ObservedExecutable::NotObserved, ObservedExecutable::Observed),
-                profile: Sha256Text(identity.profile_sha256),
-                settings: Sha256Text(identity.settings_sha256),
-                source: Sha256Text(identity.source_sha256),
-                reference_output: Sha256Text(identity.reference_output_sha256),
-                intended_output: Sha256Text(identity.intended_output_sha256),
-                file_metadata: sha(identity.file_metadata_sha256),
-            },
-            approved_executable_sha256: wire
-                .approved_executable_sha256
-                .into_iter()
-                .map(Sha256Text)
-                .collect(),
-            reference_expected: wire
-                .reference_expected
-                .map_or(ReferenceExpectation::Underivable, |rows| {
-                    ReferenceExpectation::Derived(findings(rows))
-                }),
-            intended_expected: findings(wire.intended_expected),
-            reason: ReasonText(wire.reason),
-            process: wire.process,
-        }
-    }
 }
 
 /// One case a provider's authoring registers.
@@ -488,6 +421,226 @@ impl From<CaseSchema> for CaseDocument {
                 })
             }),
             project_inputs_sha256: ProjectInputsDigest::from(sha(wire.project_inputs_sha256)),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(super) struct FindingSchema {
+    rule: String,
+    file: String,
+    start: u64,
+    end: u64,
+}
+
+impl From<FindingSchema> for Finding {
+    fn from(wire: FindingSchema) -> Self {
+        Self {
+            rule: RuleName(wire.rule),
+            file: PathText(wire.file),
+            start: FindingOffset(wire.start),
+            end: FindingOffset(wire.end),
+        }
+    }
+}
+
+
+/// Every wire finding as a document finding.
+pub(super) fn findings(rows: Vec<FindingSchema>) -> Vec<Finding> {
+    rows.into_iter().map(Finding::from).collect()
+}
+
+/// Only this explicit variant can request process-failure comparison.
+#[derive(Debug, Deserialize)]
+#[serde(tag = "kind", rename_all = "kebab-case", deny_unknown_fields)]
+pub(super) enum ProcessFailureSchema {
+    /// A completed numeric failure with exactly pinned byte streams.
+    ProcessFailure {
+        /// Exact nonzero numeric status, never a signal.
+        exit: i32,
+        /// Whole output template.
+        stdout: Vec<OutputPartSchema>,
+        /// Whole error template.
+        stderr: Vec<OutputPartSchema>,
+        /// Two captures for each exact supported executable.
+        observations: Vec<ProcessObservationSchema>,
+    },
+}
+/// Exact byte spelling or a declared source path in one explicit encoding.
+#[derive(Debug, Deserialize)]
+#[serde(tag = "kind", rename_all = "kebab-case", deny_unknown_fields)]
+enum OutputPartSchema {
+    /// Unmodified UTF8 bytes, including whitespace.
+    Literal { value: String },
+    /// Authoritative invocation root joined to a declared input.
+    InputPath {
+        file: PathBuf,
+        encoding: PathEncodingSchema,
+    },
+}
+/// Output path encoding, without inferred normalization.
+#[derive(Clone, Copy, Debug, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+enum PathEncodingSchema {
+    /// Exact UTF8 bytes.
+    Utf8Bytes,
+    /// Canonical JSON string content, without surrounding quotes.
+    JsonStringContent,
+}
+/// A raw file stored separately from independent semantic evidence.
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+struct ProcessArtifactSchema {
+    /// Explicit profile-relative path.
+    path: PathBuf,
+    /// Exact raw byte SHA256.
+    sha256: String,
+}
+/// Independent captured observation grouped by exact executable digest.
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+struct ProcessObservationSchema {
+    /// No cross-architecture substitution is accepted.
+    executable_sha256: String,
+    /// Captured root/normalized settings/exit/source identity.
+    invocation: ProcessArtifactSchema,
+    /// Actual raw standard output.
+    stdout: ProcessArtifactSchema,
+    /// Actual raw standard error.
+    stderr: ProcessArtifactSchema,
+}
+
+impl From<ProcessArtifactSchema> for ProcessArtifact {
+    fn from(wire: ProcessArtifactSchema) -> Self {
+        Self {
+            path: wire.path,
+            sha256: ArtifactDigest(wire.sha256),
+        }
+    }
+}
+impl From<OutputPartSchema> for OutputPart {
+    fn from(wire: OutputPartSchema) -> Self {
+        match wire {
+            OutputPartSchema::Literal { value } => Self::Literal(OutputText(value)),
+            OutputPartSchema::InputPath { file, encoding } => Self::InputPath {
+                file,
+                encoding: match encoding {
+                    PathEncodingSchema::Utf8Bytes => PathEncoding::Utf8Bytes,
+                    PathEncodingSchema::JsonStringContent => PathEncoding::JsonStringContent,
+                },
+            },
+        }
+    }
+}
+impl From<ProcessObservationSchema> for ProcessObservation {
+    fn from(wire: ProcessObservationSchema) -> Self {
+        Self {
+            executable_sha256: ArtifactDigest(wire.executable_sha256),
+            invocation: wire.invocation.into(),
+            stdout: wire.stdout.into(),
+            stderr: wire.stderr.into(),
+        }
+    }
+}
+impl From<ProcessFailureSchema> for ProcessFailure {
+    fn from(wire: ProcessFailureSchema) -> Self {
+        let ProcessFailureSchema::ProcessFailure {
+            exit,
+            stdout,
+            stderr,
+            observations,
+        } = wire;
+        Self {
+            exit: ProcessExitCode(exit),
+            stdout: stdout.into_iter().map(Into::into).collect(),
+            stderr: stderr.into_iter().map(Into::into).collect(),
+            observations: observations.into_iter().map(Into::into).collect(),
+        }
+    }
+}
+
+
+#[derive(Clone, Copy, Debug, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+enum BasisSchema {
+    LanguageDefect,
+    ToolContractDifference,
+}
+
+impl From<BasisSchema> for DiscrepancyBasis {
+    fn from(wire: BasisSchema) -> Self {
+        match wire {
+            BasisSchema::LanguageDefect => Self::LanguageDefect,
+            BasisSchema::ToolContractDifference => Self::ToolContract,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+struct IdentitySchema {
+    tool: String,
+    version: String,
+    observed_executable_sha256: Option<String>,
+    profile_sha256: String,
+    settings_sha256: String,
+    source_sha256: String,
+    reference_output_sha256: String,
+    intended_output_sha256: String,
+    file_metadata_sha256: Option<String>,
+}
+
+/// The explicit process failure of a documented difference, if it declares one.
+#[derive(Debug, Default, Deserialize)]
+#[serde(transparent)]
+struct ReferenceProcessSchema(Option<ProcessFailureSchema>);
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(super) struct DiscrepancySchema {
+    basis: Option<BasisSchema>,
+    identity: IdentitySchema,
+    approved_executable_sha256: Vec<String>,
+    reference_expected: Option<Vec<FindingSchema>>,
+    intended_expected: Vec<FindingSchema>,
+    reason: String,
+    #[serde(default)]
+    process: ReferenceProcessSchema,
+}
+
+impl From<DiscrepancySchema> for ReferenceDiscrepancy {
+    fn from(wire: DiscrepancySchema) -> Self {
+        let identity = wire.identity;
+        Self {
+            basis: wire
+                .basis
+                .map_or(DiscrepancyBasis::LanguageDefect, Into::into),
+            identity: DiscrepancyIdentity {
+                tool: ReasonText(identity.tool),
+                version: ReasonText(identity.version),
+                observed_executable_sha256: sha(identity.observed_executable_sha256)
+                    .map_or(ObservedExecutable::NotObserved, ObservedExecutable::Observed),
+                profile: Sha256Text(identity.profile_sha256),
+                settings: Sha256Text(identity.settings_sha256),
+                source: Sha256Text(identity.source_sha256),
+                reference_output: Sha256Text(identity.reference_output_sha256),
+                intended_output: Sha256Text(identity.intended_output_sha256),
+                file_metadata: sha(identity.file_metadata_sha256),
+            },
+            approved_executable_sha256: wire
+                .approved_executable_sha256
+                .into_iter()
+                .map(Sha256Text)
+                .collect(),
+            reference_expected: wire
+                .reference_expected
+                .map_or(ReferenceExpectation::Underivable, |rows| {
+                    ReferenceExpectation::Derived(findings(rows))
+                }),
+            intended_expected: findings(wire.intended_expected),
+            reason: ReasonText(wire.reason),
+            process: wire.process.0.map(Into::into),
         }
     }
 }
@@ -622,13 +775,6 @@ pub(super) fn invocation(bytes: &CapturedBytes) -> Result<InvocationDocument, Er
     InvocationDocument::try_from(wire)
 }
 
-/// Decode the generated registration.
-pub(super) fn registration(bytes: &CapturedBytes) -> Result<Registration, Error> {
-    serde_json::from_slice::<RegistrationSchema>(&bytes.0)
-        .map(Registration::from)
-        .map_err(|error| Error::Json(Box::new(error)))
-}
-
 /// The one-line JSON answer of an offline receipt audit, newline included.
 pub(super) fn audit(audit: &ReceiptAudit) -> Result<CapturedBytes, Error> {
     use ryo_benchmark_contracts::domain::receipts::types::CaseKey;
@@ -701,8 +847,8 @@ fn row_schema(row: &Row) -> Result<RowSchema, Error> {
     Ok(RowSchema {
             rule_id: row.rule_id.0.clone(),
             status: match row.status {
-                RowStatus::Pass => constants::PASS,
-                RowStatus::Fail => constants::FAIL,
+                RowStatus::Pass => PASS,
+                RowStatus::Fail => FAIL,
             },
             reason: match &row.reason {
                 RowReason::Failed(reason) => Some(reason.0.clone()),
@@ -733,12 +879,12 @@ pub(super) fn row(row: &Row) -> Result<CapturedBytes, Error> {
 /// Encode a whole summary, pretty printed, with its final newline.
 pub(super) fn summary(summary: &Summary) -> Result<CapturedBytes, Error> {
     let wire = SummarySchema {
-        schema: constants::BENCHMARK_INVENTORY_V1,
+        schema: BENCHMARK_INVENTORY_V1,
         provider: summary.provider.0.clone(),
         run_state: match summary.run_state {
-            RunState::Running => constants::RUNNING,
-            RunState::Complete => constants::COMPLETE,
-            RunState::Failed => constants::FAILED,
+            RunState::Running => RUNNING,
+            RunState::Complete => COMPLETE,
+            RunState::Failed => FAILED,
         },
         identity: summary
             .identity
@@ -746,8 +892,8 @@ pub(super) fn summary(summary: &Summary) -> Result<CapturedBytes, Error> {
             .map(|(key, text)| Ok((key.0.clone(), value(text)?)))
             .collect::<Result<_, Error>>()?,
         counts: BTreeMap::from([
-            (constants::PASS, summary.passed.0),
-            (constants::FAIL, summary.failed.0),
+            (PASS, summary.passed.0),
+            (FAIL, summary.failed.0),
         ]),
         rules: summary
             .rules

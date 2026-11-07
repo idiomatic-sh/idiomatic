@@ -11,3 +11,9 @@ pub mod reference_discrepancy;
 
 /// One native side's observation row.
 pub mod observation_document;
+
+/// The registered case a provider's authoring writes.
+pub mod case_document;
+
+/// One raw invocation record kept beside a captured process.
+pub mod invocation_document;

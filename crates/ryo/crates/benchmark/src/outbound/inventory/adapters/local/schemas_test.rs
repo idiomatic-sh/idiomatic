@@ -1,8 +1,8 @@
 //! Documents the python authoring and the native producers write are read by their schemas; unknown fields are refused.
-use super::schemas::{RegistrationSchema, invocation};
+use super::{invocation, registration};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
-use crate::outbound::inventory::types::{InvocationDocument, Registration};
+use ryo_benchmark_contracts::domain::documents::types::invocation_document::InvocationDocument;
 use crate::outbound::suite::{interface::SuitePort as _, types::ArtifactPath};
 
 /// Which document a text is read as.
@@ -191,8 +191,7 @@ fn subject((document, text): Input) -> Result<Value, Failure> {
                 InvocationDocument::Failed(failed) => failed.arguments.len(),
             })
             .map_err(|error| named(&error.to_string())),
-        Document::Registration => serde_json::from_str::<RegistrationSchema>(&text)
-            .map(Registration::from)
+        Document::Registration => registration(&CapturedBytes(text.into_bytes()))
             .map(|registration| registration.rules.iter().map(|rule| rule.cases.len()).sum())
             .map_err(|error| unknown_field(&error.to_string())),
         Document::Observations => {

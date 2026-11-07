@@ -3,12 +3,12 @@ use super::constants;
 use ryo_benchmark_contracts::domain::receipts::constants::{
     CASES_JSONL, INVOCATION_JSON, STDERR_BIN, STDOUT_BIN,
 };
-use super::schemas;
 use crate::outbound::inventory::interface::InventoryPort;
 use crate::outbound::inventory::types::{
-    ContextFiles, InvocationDocument, RawArtifacts, ReceiptFile, Registration, Row, Summary,
+    ContextFiles, RawArtifacts, ReceiptFile, Registration, Row, Summary,
 };
-use crate::outbound::suite::types::{
+use ryo_benchmark_contracts::domain::documents::types::{
+    invocation_document::InvocationDocument,
     observation_document::ObservationDocument, reference_discrepancy::ArtifactPointer,
 };
 use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
@@ -25,7 +25,7 @@ use std::{
 fn publish(output: &Path, summary: &Summary) -> Result<(), Error> {
     std::fs::create_dir_all(output)?;
     let mut temporary = tempfile::NamedTempFile::new_in(output)?;
-    temporary.write_all(&schemas::summary(summary)?.0)?;
+    temporary.write_all(&super::schemas::summary(summary)?.0)?;
     temporary.as_file().sync_all()?;
     let _persisted = temporary
         .persist(output.join(constants::SUMMARY_JSON))
@@ -83,7 +83,7 @@ fn result(observations: &Path, row: &Row) -> Result<(), Error> {
     std::fs::create_dir_all(observations)?;
     Ok(std::fs::write(
         observations.join(constants::RESULT_JSON),
-        schemas::row(row)?.0,
+        super::schemas::row(row)?.0,
     )?)
 }
 
@@ -184,7 +184,7 @@ fn raw_artifacts(receipt: &Path, rows: &[ObservationDocument]) -> Result<RawArti
             if filename == INVOCATION_JSON {
                 let _previous = invocations.insert(
                     path.clone(),
-                    schemas::invocation(&CapturedBytes(data.clone()))?,
+                    super::schemas::invocation(&CapturedBytes(data.clone()))?,
                 );
             }
             if bytes.insert(path.clone(), CapturedBytes(data)).is_some() {
@@ -222,7 +222,7 @@ pub(crate) struct InventoryLocalAdapter;
 
 impl InventoryPort for InventoryLocalAdapter {
     fn load(&self, path: &Path) -> Result<Registration, Error> {
-        schemas::registration(&CapturedBytes(std::fs::read(path)?))
+        super::schemas::registration(&CapturedBytes(std::fs::read(path)?))
     }
     fn begin(&self, output: &Path) -> Result<(), Error> {
         begin(output)
@@ -245,7 +245,7 @@ impl InventoryPort for InventoryLocalAdapter {
         result(observations, row)
     }
     fn decode_invocation(&self, bytes: &CapturedBytes) -> Result<InvocationDocument, Error> {
-        schemas::invocation(bytes)
+        super::schemas::invocation(bytes)
     }
     fn raw_artifacts(
         &self,
@@ -258,6 +258,6 @@ impl InventoryPort for InventoryLocalAdapter {
         context_files(context)
     }
     fn audit_report(&self, audit: &ReceiptAudit) -> Result<CapturedBytes, Error> {
-        schemas::audit(audit)
+        super::schemas::audit(audit)
     }
 }

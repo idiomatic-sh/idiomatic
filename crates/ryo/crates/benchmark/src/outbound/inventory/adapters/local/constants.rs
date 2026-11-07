@@ -42,17 +42,5 @@ pub(super) const EXTRA_RAW_ARTIFACTS_IN_REFERENCED_CASE: &str =
 /// Text of an invocation record that names no process identity.
 pub(super) const INVOCATION_LACKS_PROCESS_IDENTITY: &str =
     "invocation record lacks its complete process identity";
-/// The schema label of a public inventory summary.
-pub(super) const BENCHMARK_INVENTORY_V1: &str = "benchmark-inventory/v1";
-/// The state of a summary whose rules are still being verified.
-pub(super) const RUNNING: &str = "running";
-/// The state of a summary that has a row for every rule.
-pub(super) const COMPLETE: &str = "complete";
-/// The state of a run refused before every rule had a row.
-pub(super) const FAILED: &str = "failed";
-/// The status of a rule that verified.
-pub(super) const PASS: &str = "PASS";
-/// The status of a rule that failed, was missing or was not run.
-pub(super) const FAIL: &str = "FAIL";
 /// The newline that ends a summary file.
 pub(super) const NEWLINE: &[u8] = b"\n";
