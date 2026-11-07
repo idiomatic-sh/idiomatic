@@ -43,8 +43,7 @@ use boundary_fixture::{
     authored_request, corpus, demand, engine, prepared, prepared_rules, source,
 };
 
-#[test]
-    use ryo_execution::application::rule_compilation::service::ExecutionCompilation;
+use ryo_execution::application::rule_compilation::service::ExecutionCompilation;
 
 #[derive(Debug, Default)]
 struct ReductionAudit {

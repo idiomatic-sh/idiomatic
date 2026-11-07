@@ -40,7 +40,7 @@ fn public_compiled_independent_rules_keep_exact_per_rule_source_declarations() {
     let compiler =
         QueryCompilation::new(Arc::new(AuthoredQueryProvider(crate::boundary_fixture::plans(&mut raw)[0].clone())));
     let compiled = compiler
-        .compile(&raw.rules, &raw.hosted)
+        .compile(&raw.rules, &raw.hosted, &ryo_execution::outbound::digest::fixtures::fake::DigestFake::default())
         .expect("compile independent rules");
     let program = engine
         .prepare(PrepareRequest { plans: PlanSource::Compiled(compiled), rules: raw.rules, digests: raw.digests, hosted: raw.hosted, observations: ObservationIdentity::Independent })
@@ -101,7 +101,7 @@ fn public_compiled_independent_rules_keep_exact_per_rule_source_declarations() {
 
     let raw = authored_request(2);
     let compiled = compiler
-        .compile(&raw.rules, &raw.hosted)
+        .compile(&raw.rules, &raw.hosted, &ryo_execution::outbound::digest::fixtures::fake::DigestFake::default())
         .expect("compile second request");
     let mut substituted = raw.rules;
     substituted.pop();
@@ -295,7 +295,7 @@ fn independent_compilation_preserves_unused_steps_and_original_frontier_order() 
     let original = crate::boundary_fixture::plans(&mut raw)[0].clone();
     let compiler = QueryCompilation::new(Arc::new(AuthoredQueryProvider(original.clone())));
     let compiled = compiler
-        .compile(&raw.rules, &raw.hosted)
+        .compile(&raw.rules, &raw.hosted, &ryo_execution::outbound::digest::fixtures::fake::DigestFake::default())
         .expect("independent compile");
     assert_eq!(
         compiled.plans(),

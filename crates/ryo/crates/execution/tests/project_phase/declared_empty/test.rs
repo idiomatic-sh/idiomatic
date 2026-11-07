@@ -1,4 +1,5 @@
 //! Closed empty declarations remain typed populations; absent declarations remain refusals.
+use ryo_execution::inbound::use_cases::execution::interface::FileProgramError;
 use ryo_execution::application::file_dag::frontiers::types::InputReadiness;
 use ryo_execution::outbound::facts::types::ResidentStability;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;

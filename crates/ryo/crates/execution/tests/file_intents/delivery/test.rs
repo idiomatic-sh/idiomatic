@@ -1,4 +1,7 @@
 //! Observation capture and diagnostic delivery are bound before admission.
+use crate::boundary_fixture::Observed as _;
+use ryo_execution::application::file_dag::program::file_session::types::CaptureContext;
+use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityRefusal;
 use super::super::*;
 
 #[test]
@@ -91,7 +94,7 @@ fn diagnostic_disabled_observation_producer_runs_and_captures_only_named_frontie
             phase: StepScope::CrossFile
         },
     ));
-    let readiness = file.finish().unwrap().readiness.unwrap();
+    let readiness = file.finish().unwrap().readiness.observed("the finished file observed its readiness");
     assert!(readiness.complete.0.iter().any(|bits| *bits != 0));
     assert!(readiness.skipped.0.is_empty());
     request.finish();
@@ -120,7 +123,7 @@ fn file_start_refusal_preserves_unknown_readiness_without_a_skip_proof() {
             .finish()
             .unwrap()
             .readiness
-            .expect("named frontier readiness");
+            .observed("named frontier readiness");
         let checked = validate_frontiers(&readiness, readiness.layout, readiness.slots).unwrap();
         assert!(matches!(
             frontier_state(checked, ObservationReadinessSlot(0)).unwrap(),

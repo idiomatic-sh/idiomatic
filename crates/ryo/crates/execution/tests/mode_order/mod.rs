@@ -1,4 +1,5 @@
 //! Declared schema/resource and transport ordering through the real public owner.
+use ryo_execution::inbound::use_cases::execution::interface::RowEmission;
 use ryo_execution::outbound::facts::types::ResidentStability;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;

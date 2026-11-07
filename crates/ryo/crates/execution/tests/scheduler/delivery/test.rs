@@ -1,4 +1,6 @@
 //! Sink refusal retries terminal delivery, while a new owner must admit a new population.
+use ryo_execution::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase as _;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::outbound::facts::types::ResidentStability;
@@ -25,7 +27,7 @@ use std::cell::Cell;
 fn sink_refusal_replays_delivery_without_restarting_the_shared_dependency_graph() {
     let engine = engine();
     let mut authored = authored_request(2);
-    for plan in &mut authored.plans {
+    for plan in crate::boundary_fixture::plans(&mut authored) {
         plan.steps.push(PlanStep {
             scope: StepScope::PerFile,
             operation: Operation::Union {

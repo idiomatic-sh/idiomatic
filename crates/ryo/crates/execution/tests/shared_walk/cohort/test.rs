@@ -1,4 +1,5 @@
 //! Dormant declarations cannot allocate cohort scratch or retained result slots.
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase as _;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use super::super::{fixtures::*, no_catalog};
 use crate::boundary_fixture::{authored_request, corpus, demand};
@@ -148,7 +149,7 @@ fn a_failed_dependency_does_not_prepare_a_later_class_of_the_same_rule() {
 fn later_cohorts_add_only_the_new_class_and_aliases_replay_both_results() {
     let (engine, semantics) = engine();
     let mut authored = authored_request(2);
-    for plan in &mut authored.plans {
+    for plan in crate::boundary_fixture::plans(&mut authored) {
         plan.steps = vec![
             PlanStep {
                 scope: StepScope::PerFile,

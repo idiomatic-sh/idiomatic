@@ -1,4 +1,5 @@
 //! Hosted ordered dependencies use the same scheduler for both delivery modes.
+use ryo_execution::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
 use ryo_execution::outbound::facts::types::ResidentStability;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
@@ -41,7 +42,7 @@ fn ordered() -> PrepareRequest {
                 .collect(),
         })
         .collect();
-    for plan in &mut authored.plans {
+    for plan in crate::boundary_fixture::plans(&mut authored) {
         plan.steps = vec![
             PlanStep {
                 scope: StepScope::PerFile,

@@ -1,4 +1,5 @@
 //! Captured name frames keep their own place numbers across publications.
+use ryo_execution::application::file_dag::program::file_session::types::CaptureContext;
 use super::super::*;
 
 #[test]

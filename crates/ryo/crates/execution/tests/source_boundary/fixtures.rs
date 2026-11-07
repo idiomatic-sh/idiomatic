@@ -1,14 +1,10 @@
 //! A production-source insertion and its precise Rust diagnostic contract.
-use super::fixtures::Compilation;
-use super::fixtures::Expectation;
-use super::fixtures::Probe;
 use cargo_metadata::DependencyKind;
 use cargo_metadata::MetadataCommand;
 use std::fs;
 use std::io;
 use std::path::Path;
 
-//! A production-source insertion and its precise Rust diagnostic contract.
 #[derive(Clone, Copy, Debug)]
 pub(super) enum Compilation {
     Library,

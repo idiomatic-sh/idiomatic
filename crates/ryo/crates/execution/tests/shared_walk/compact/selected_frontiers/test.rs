@@ -1,4 +1,6 @@
 //! A selected join shares work, keeps counts and exports owned frontiers.
+use ryo_execution::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase as _;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use super::super::super::fixtures::{complete, input};
@@ -25,7 +27,7 @@ use ryo_values::domain::stored_facts::types::Bucket;
 use ryo_values::domain::table_words::fixtures::decode_complete;
 use std::cell::Cell;
 fn selected_join(distinct: bool) -> Plan {
-    let mut plan = authored_request(1).plans.remove(0);
+    let mut plan = crate::boundary_fixture::plans(&mut authored_request(1)).remove(0);
     plan.steps = vec![
         PlanStep {
             scope: StepScope::PerFile,
@@ -107,7 +109,7 @@ fn selected_join_shares_work_preserves_counts_and_exports_owned_frontiers() {
         for stored in [false, true] {
             let engine = engine();
             let mut authored = authored_request(2);
-            authored.plans = vec![selected_join(distinct); 2];
+            *crate::boundary_fixture::plans(&mut authored) = vec![selected_join(distinct); 2];
             let program = engine.prepare(authored).unwrap();
             let corpus = corpus();
             let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);

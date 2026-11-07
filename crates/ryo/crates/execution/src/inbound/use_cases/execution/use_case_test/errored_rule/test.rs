@@ -292,38 +292,3 @@ fn subject(input: Input) -> Result<Value, Failure> {
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
 }
-    bindings: Vec<Vec<ParameterBinding>>,
-    hosted: Vec<HostRelation>,
-) -> Result<(fixtures::Preparation, PreparedExecutionProgram), OperatingError> {
-    let engine = fixtures::Preparation::real();
-    let rules: Vec<RuleSpec> = (0..plans.len())
-        .map(|at| {
-            let id = if at == 0 {
-                "authored-operator-contract".to_string()
-            } else {
-                format!("authored-operator-contract-{at}")
-            };
-            RuleSpec {
-                id: RuleId(id.clone().into()),
-                query: QueryBundle {
-                    root: QueryDocumentSource {
-                        id: QuerySourceId(id.into()),
-                        text: "".into(),
-                    },
-                    modules: BTreeMap::new().into(),
-                },
-                applicability: RuleApplicability::Always,
-                given: vec![],
-                observations: vec![],
-                spelled: RuleParameters("".into()),
-                include: vec![],
-                exclude: vec![],
-            }
-        })
-        .collect();
-    let digests = (0..plans.len())
-        .map(|at| Digest([u8::try_from(at).unwrap_or(u8::MAX); 16]))
-        .collect();
-    let prepared = engine.prepare(fixtures::Authored { plans, bindings, rules, digests, hosted, observations: ObservationIdentity::Independent })?;
-    Ok((engine, prepared))
-}

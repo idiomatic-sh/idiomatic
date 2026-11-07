@@ -1,5 +1,11 @@
 //! Actual two-file named restoration and absence publication, including a
 //! downstream projection that would erase the completeness key if fused early.
+use crate::boundary_fixture::Observed as _;
+use ryo_execution::application::file_dag::program::observation_stage::interface::ObservationExecution as _;
+use ryo_execution::application::file_dag::program::observation_stage::interface::ObservationPublication as _;
+use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityReason;
+use ryo_execution::inbound::use_cases::execution::interface::FileObservationReadiness;
+use ryo_execution::inbound::use_cases::execution::interface::Partial;
 use ryo_execution::application::file_dag::observations::types::AdmittedOutput;
 use ryo_execution::application::file_dag::observations::types::RuleSelection;
 use ryo_execution::application::file_dag::frontiers::types::InputReadiness;
@@ -109,7 +115,7 @@ pub(super) fn exercise_with(
         }
         readiness.push(FileObservationReadiness {
             file: file_id,
-            root: file.finish().unwrap().readiness.unwrap(),
+            root: file.finish().unwrap().readiness.observed("the finished file observed its readiness"),
         });
     }
     if stale_complete {

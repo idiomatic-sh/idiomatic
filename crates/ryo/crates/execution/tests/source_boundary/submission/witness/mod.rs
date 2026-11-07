@@ -187,7 +187,7 @@ impl ObservationExecution for Witness {
     fn binding_readiness(
         &self,
         _: RuleIndex,
-    ) -> Result<std::collections::BTreeMap<ObservationBindingId, bool>, OperatingError> {
+    ) -> Result<std::collections::BTreeMap<ObservationBindingId, ryo_execution::application::file_dag::frontiers::types::InputReadiness>, OperatingError> {
         witness(Method::ObservedBindingReadiness)
     }
     fn arenas(&self) -> &[ArenaBytes] {
@@ -260,10 +260,7 @@ impl ObservationPublication for Witness {
         _: RuleIndex,
         _: PublicationSlot,
         _: ryo_values::domain::records::types::CrossPublicationTransfer,
-        _: Vec<(
-            ryo_values::domain::records::types::ObservationIndex,
-            ObservedPublication,
-        )>,
+        _: Vec<ryo_execution::application::file_dag::observations::types::AdmittedOutput>,
     ) -> Result<(), OperatingError> {
         witness(Method::PublicationInstall)
     }
@@ -276,7 +273,7 @@ impl ObservationPublication for Witness {
         _: &[InapplicableFiles],
         _: &[FileObservationReadiness],
         _: &[Bucket],
-        _: &[bool],
+        _: &[ryo_execution::application::file_dag::observations::types::RuleSelection],
     ) -> Result<(), OperatingError> {
         witness(Method::PublicationRestoreFrontiers)
     }

@@ -197,3 +197,26 @@ pub(crate) fn bindings(
         PlanSource::Compiled(_) => panic!("a control edits only the bindings it authored"),
     }
 }
+
+/// The authored plans of a request a control reads.
+pub(crate) fn plans_of(request: &PrepareRequest) -> &[ryo_values::domain::plans::types::Plan] {
+    match &request.plans {
+        PlanSource::Authored { plans, .. } => plans,
+        PlanSource::Compiled(_) => panic!("a control reads only the plans it authored"),
+    }
+}
+
+/// The readiness a finished file observed, which a control that captures requires.
+pub(crate) trait Observed {
+    /// The observed readiness; a file that observed none fails the control with `reason`.
+    fn observed(self, reason: &str) -> std::sync::Arc<ryo_values::domain::records::types::FrontierReadiness>;
+}
+
+impl Observed for ryo_execution::application::file_dag::program::file_session::types::FinishedReadiness {
+    fn observed(self, reason: &str) -> std::sync::Arc<ryo_values::domain::records::types::FrontierReadiness> {
+        match self {
+            Self::Observed(readiness) => readiness,
+            Self::Unobserved => panic!("{reason}"),
+        }
+    }
+}

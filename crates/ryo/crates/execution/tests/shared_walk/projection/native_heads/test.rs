@@ -1,4 +1,5 @@
 //! Native heads keep their projected columns and source row order, and unused intents evaluate nothing.
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase as _;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use super::super::super::fixtures::*;
 use super::super::super::no_catalog;

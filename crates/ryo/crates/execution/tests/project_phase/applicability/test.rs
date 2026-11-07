@@ -1,4 +1,5 @@
 //! Missing transport remains an error; explicit syntax rejection remains partial.
+use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityReason;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::outbound::facts::types::ResidentStability;

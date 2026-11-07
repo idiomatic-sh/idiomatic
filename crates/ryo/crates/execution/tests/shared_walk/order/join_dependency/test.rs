@@ -1,4 +1,5 @@
 //! The shared walk uses one join dependency contract for callback delivery and shares one source walk.
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase as _;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use super::super::super::fixtures::*;
 use super::super::super::no_catalog;

@@ -73,13 +73,11 @@ fn readiness_hosted() -> HostRelation {
 }
 fn readiness_budget(request: &PrepareRequest) -> (u64, u64) {
     use ryo_values::domain::plans::fixtures::{inputs_of, named};
-    let nodes = request
-        .plans
+    let nodes = crate::boundary_fixture::plans_of(&request)
         .iter()
         .map(|plan| plan.steps.len() as u64)
         .sum();
-    let edges = request
-        .plans
+    let edges = crate::boundary_fixture::plans_of(&request)
         .iter()
         .flat_map(|plan| &plan.steps)
         .map(|step| {

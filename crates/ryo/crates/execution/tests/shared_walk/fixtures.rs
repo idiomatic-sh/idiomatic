@@ -163,7 +163,7 @@ pub(super) fn input<'a, 'facts>(
         evaluation: &[],
         publication: &[],
         intents,
-        source,
+        source: ryo_values::domain::files::types::SourceView(source),
         elements,
         read,
         semantic: ryo_execution::application::file_dag::program::file_session::types::SemanticSupport::Absent,

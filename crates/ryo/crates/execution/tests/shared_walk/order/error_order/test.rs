@@ -1,4 +1,5 @@
 //! Earlier semantic errors are never hidden by later ones and are terminal for every retry.
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase as _;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use super::super::super::fixtures::*;
 use super::super::super::no_catalog;
