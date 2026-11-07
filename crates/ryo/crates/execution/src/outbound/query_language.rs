@@ -1,6 +1,9 @@
-//! Required query compiler contract used during request preparation.
-pub(crate) mod errors;
-pub(crate) mod interface;
+//! The `query_language` port.
 
-#[cfg(test)]
-pub(crate) mod fixtures;
+pub mod interface;
+pub mod errors;
+pub(crate) mod adapters;
+pub mod factory;
+
+#[cfg(any(test, feature = "fixtures"))]
+pub mod fixtures;

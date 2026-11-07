@@ -9,7 +9,7 @@ use std::sync::Arc;
 use ryo_core::inbound::use_cases::lint::types::{LintRequest, Rule};
 use ryo_core::inbound::use_cases::lint::use_case::LintUseCaseImpl;
 use ryo_core::outbound::corpus::fixtures::fake::CorpusFake;
-use ryo_core::outbound::digest::fixtures::fake::DigestFake;
+use ryo_execution::outbound::digest::fixtures::fake::DigestFake;
 use ryo_core::outbound::lint_store::fixtures::fake::LintStoreFake;
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::inbound::use_cases::project::types::RootPath;
@@ -18,9 +18,9 @@ use ryo_values::domain::runs::types::RuleId;
 use ryo_values::domain::runs::types::Session;
 
 use ryo_core::outbound::language::fixtures::fake::LanguageFake;
-use ryo_core::outbound::matching::fixtures::fake::MatchingFake;
+use ryo_execution::outbound::matching::fixtures::fake::MatchingFake;
 use ryo_core::outbound::memory::fixtures::fake::MemoryFake;
-use ryo_core::outbound::query_language::fixtures::fake::QueryLanguageFake;
+use ryo_execution::outbound::query_language::fixtures::fake::QueryLanguageFake;
 use ryo_core::outbound::row_sink;
 use ryo_core::outbound::row_sink::interface::RowSinkPort;
 use ryo_core::outbound::scheduler::fixtures::fake::SchedulerFake;
@@ -114,15 +114,15 @@ fn runs(world: &mut Behavior) {
                 &analysis_corpus,
             ), std::sync::Arc::new(ryo_core::outbound::publication::factory::execution(std::sync::Arc::new(ryo_execution::inbound::use_cases::publication::use_case::PublicationUseCaseImpl::new())))),
             Arc::clone(&analysis_corpus),
-            Arc::new(ryo_core::outbound::facts::factory::memory()),
+            Arc::new(ryo_execution::outbound::facts::factory::memory()),
             Arc::clone(&analysis_language),
             Arc::new(MatchingFake),
             Arc::new(query_language),
             Arc::clone(&analysis_memory),
-            Arc::new(ryo_core::outbound::operators::factory::use_case(
+            Arc::new(ryo_execution::outbound::operators::factory::use_case(
                 ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
             )),
-            std::sync::Arc::new(ryo_core::outbound::derived::factory::use_case(
+            std::sync::Arc::new(ryo_execution::outbound::derived::factory::use_case(
                 ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
             )),
             Arc::new(SchedulerFake::default()),

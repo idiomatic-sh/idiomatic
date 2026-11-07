@@ -1,4 +1,10 @@
-//! Injected facts contract; no execution authority is exposed.
-pub(crate) mod errors;
-pub(crate) mod interface;
-pub(crate) mod types;
+//! The `facts` port.
+
+pub mod interface;
+pub mod types;
+pub mod errors;
+pub(crate) mod adapters;
+pub mod factory;
+
+#[cfg(any(test, feature = "fixtures"))]
+pub mod fixtures;

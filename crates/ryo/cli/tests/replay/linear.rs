@@ -23,7 +23,7 @@ fn wall_of(name: &str, query: &str) -> (u128, usize) {
     let (rows, _) = base::lint_with(
         &base::snapshot::ruff(),
         vec![crate::rule_from_query(name, query, &["**".to_owned()])],
-        Arc::new(ryo_core::outbound::facts::factory::spill(
+        Arc::new(ryo_execution::outbound::facts::factory::spill(
             spill.path().to_path_buf(),
         )),
         Arc::new(ryo_core::outbound::lint_store::fixtures::fake::LintStoreFake::default()),

@@ -102,7 +102,7 @@ pub(super) fn counting_plan(subject: u32, key: Vec<ColumnIndex>) -> Plan {
 pub(super) fn world(plan: Plan) -> World {
     world_with(
         vec![plan],
-        Arc::new(crate::outbound::operators::factory::use_case(
+        Arc::new(ryo_execution::outbound::operators::factory::use_case(
             ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
         )),
     )
@@ -140,7 +140,7 @@ pub(super) fn world_with_applicability(
             )
             .collect::<Vec<_>>(),
     );
-    let matcher = crate::outbound::matching::fixtures::fake::MatchingFake
+    let matcher = ryo_execution::outbound::matching::fixtures::fake::MatchingFake
         .compile(&placement.globs)
         .expect("matcher");
     let ids = (0..plans.len())
@@ -267,7 +267,7 @@ pub(super) fn prepared_in(
         records::types::{FrontierCoverage, FrontierProof},
         stored_facts::types::Bucket,
     };
-    let facts_port = crate::outbound::facts::fixtures::fake::FactsFake::default();
+    let facts_port = ryo_execution::outbound::facts::fixtures::fake::FactsFake::default();
     let mut workers = Vec::new();
     let proof = FrontierProof {
         rule: ryo_values::domain::records::types::ProducerRule(rule.0 as u32),

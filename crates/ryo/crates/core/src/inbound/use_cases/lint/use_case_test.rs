@@ -12,12 +12,12 @@ use super::types::{LintRequest, Rule, SourceProvider};
 use super::use_case::LintUseCaseImpl;
 use crate::cases::{Case, CaseName, Expect, Word, run, Matched, selects};
 use crate::outbound::corpus::fixtures::fake::CorpusFake;
-use crate::outbound::digest::fixtures::fake::DigestFake;
-use crate::outbound::facts::fixtures::fake::FactsFake;
+use ryo_execution::outbound::digest::fixtures::fake::DigestFake;
+use ryo_execution::outbound::facts::fixtures::fake::FactsFake;
 use crate::outbound::language::fixtures::fake::{FakeCatalog, LanguageFake};
-use crate::outbound::matching::fixtures::fake::MatchingFake;
+use ryo_execution::outbound::matching::fixtures::fake::MatchingFake;
 use crate::outbound::memory::fixtures::fake::MemoryFake;
-use crate::outbound::query_language::fixtures::fake::{QueryLanguageFake, REFUSED};
+use ryo_execution::outbound::query_language::fixtures::fake::{QueryLanguageFake, REFUSED};
 use crate::outbound::row_sink::fixtures::fake::{Ends, RowSinkFake};
 use crate::outbound::row_sink::interface::RowSinkPort;
 use ryo_values::domain::runs::types::AnswerShape;
@@ -431,7 +431,7 @@ fn scheduled_world_with_query(
     >,
 ) -> World {
     let memory = Arc::new(given.memory);
-    let operators = Arc::new(crate::outbound::operators::factory::use_case(
+    let operators = Arc::new(ryo_execution::outbound::operators::factory::use_case(
         ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
     ));
     scheduled_world_with_query_resources(
@@ -514,7 +514,7 @@ fn scheduled_world_with_query_resources(
             query_language,
             Arc::clone(&analysis_memory),
             operators,
-            std::sync::Arc::new(crate::outbound::derived::factory::use_case(
+            std::sync::Arc::new(ryo_execution::outbound::derived::factory::use_case(
                 ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
             )),
             scheduler,
@@ -1584,7 +1584,7 @@ fn changed_nested_module() -> Result<Value, Failure> {
 
 /// A module-only predicate edit changes actual findings through a retained real compiler plan.
 fn changed_fragment_plan() -> Result<Value, Failure> {
-    use crate::outbound::query_language::factory;
+    use ryo_execution::outbound::query_language::factory;
     use ryo_execution::inbound::use_cases::execution::types::CompiledPlans;
     use ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguagePort;
 
@@ -1780,10 +1780,10 @@ fn succeeds() {
             Arc::new(MatchingFake),
             Arc::new(QueryLanguageFake::selecting()),
             Arc::clone(&analysis_memory),
-            Arc::new(crate::outbound::operators::factory::use_case(
+            Arc::new(ryo_execution::outbound::operators::factory::use_case(
                 ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
             )),
-            std::sync::Arc::new(crate::outbound::derived::factory::use_case(
+            std::sync::Arc::new(ryo_execution::outbound::derived::factory::use_case(
                 ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
             )),
             Arc::new(SchedulerFake::default()),

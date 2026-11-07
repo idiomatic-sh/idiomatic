@@ -1,2 +1,4 @@
-//! Required borrowed semantic port.
-pub(crate) mod interface;
+//! The `derived` port.
+
+pub mod interface;
+pub mod factory;

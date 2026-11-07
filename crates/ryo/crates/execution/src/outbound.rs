@@ -1,8 +1,7 @@
 //! Injected semantic contracts; adapters remain at composition edges.
-pub(crate) mod derived;
-pub(crate) mod digest;
-pub(crate) mod facts;
-pub(crate) mod matching;
-pub(crate) mod operators;
-
-pub(crate) mod query_language;
+pub mod derived;
+pub mod digest;
+pub mod facts;
+pub mod matching;
+pub mod operators;
+pub mod query_language;

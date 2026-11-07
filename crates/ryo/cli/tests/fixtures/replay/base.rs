@@ -16,9 +16,8 @@ use ryo_values::domain::runs::types::Budget;
 use ryo_values::domain::runs::types::Session;
 
 use ryo_core::outbound::row_sink::interface::RowSinkPort;
-use ryo_core::outbound::{
-    corpus, digest, facts, language, matching, memory, query_language, row_sink, scheduler,
-};
+use ryo_core::outbound::{corpus, language, memory, row_sink, scheduler};
+use ryo_execution::outbound::{digest, facts, matching, query_language};
 use ryo_query_language::inbound::use_cases::compile::use_case::CompileUseCaseImpl;
 use ryo_query_language::inbound::use_cases::typecheck::use_case::TypecheckUseCaseImpl;
 use ryo_values::domain::files::types::Glob;
@@ -377,10 +376,10 @@ pub(crate) fn lint_report_with_languages(
                 )),
             )),
             Arc::clone(&analysis_memory),
-            Arc::new(ryo_core::outbound::operators::factory::use_case(
+            Arc::new(ryo_execution::outbound::operators::factory::use_case(
                 ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
             )),
-            std::sync::Arc::new(ryo_core::outbound::derived::factory::use_case(
+            std::sync::Arc::new(ryo_execution::outbound::derived::factory::use_case(
                 ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
             )),
             Arc::new(scheduler::factory::rayon(scheduler::factory::pool(

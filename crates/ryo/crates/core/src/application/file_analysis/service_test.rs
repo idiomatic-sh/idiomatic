@@ -3,8 +3,8 @@ use super::errors::FileAnalysisError;
 use super::service::{FileAnalysis, recovery_of};
 use crate::cases::{Case, CaseName, Expect, Selection, Word, run};
 use crate::outbound::corpus::fixtures::fake::CorpusFake;
-use crate::outbound::digest::fixtures::fake::DigestFake;
-use crate::outbound::facts::fixtures::fake::FactsFake;
+use ryo_execution::outbound::digest::fixtures::fake::DigestFake;
+use ryo_execution::outbound::facts::fixtures::fake::FactsFake;
 use ryo_execution::inbound::use_cases::execution::types::facts::FactsPort as _;
 
 use crate::outbound::language::fixtures::fake::LanguageFake;
@@ -189,7 +189,7 @@ fn replay_under_capture(
     let (program, request) = prepared_test_program(&plans, &ids, &[]);
     let placed = PlacedScopes {
         placement: ScopePlacement::default(),
-        matcher: crate::outbound::matching::fixtures::fake::MatchingFake
+        matcher: ryo_execution::outbound::matching::fixtures::fake::MatchingFake
             .compile(&[])
             .expect("matcher"),
     };
@@ -305,7 +305,7 @@ fn syntax_applicability_skips_only_gated_rules_and_names_the_reason() {
     let applicability = [RuleApplicability::AcceptedSyntax, RuleApplicability::Always];
     let placed = PlacedScopes {
         placement: ScopePlacement::default(),
-        matcher: crate::outbound::matching::fixtures::fake::MatchingFake
+        matcher: ryo_execution::outbound::matching::fixtures::fake::MatchingFake
             .compile(&[])
             .expect("empty matcher"),
     };
@@ -773,7 +773,7 @@ fn visited_inputs_with_rule_demands(
 ) -> Result<(super::types::Worker, Arc<LanguageFake>), Failure> {
     use super::types::{FileVisit, Worker};
     use crate::domain::visit::types::{Noting, RoleRead};
-    use crate::outbound::matching::fixtures::fake::MatchingFake;
+    use ryo_execution::outbound::matching::fixtures::fake::MatchingFake;
     use crate::outbound::scheduler::types::JobNumber;
     use ryo_values::domain::runs::types::MemoryBytes;
     let language = Arc::new(language);
@@ -901,13 +901,13 @@ fn digested() -> Result<Value, Failure> {
         crate::domain::visit::types::Keeping::Discards,
         crate::domain::visit::types::Keeping::Keeps,
     ] {
-        let digest = Arc::new(crate::outbound::digest::fixtures::fake::DigestCounting::default());
+        let digest = Arc::new(ryo_execution::outbound::digest::fixtures::fake::DigestCounting::default());
         let (worker, _) = visited_as(
             &["a.rs", "b.rs"],
             LanguageFake::default(),
             &crate::domain::render::types::Answering::Findings,
             keeping,
-            Arc::<crate::outbound::digest::fixtures::fake::DigestCounting>::clone(&digest),
+            Arc::<ryo_execution::outbound::digest::fixtures::fake::DigestCounting>::clone(&digest),
         )?;
         assert!(worker.failure.is_none(), "the files are read");
         assert_eq!(worker.tables.fresh.len(), 2, "and their findings recorded");
@@ -1229,7 +1229,7 @@ fn a_bad_last_captured_bucket_calls_no_digest_even_after_a_valid_rule_bucket() {
     use super::types::{FileVisit, Worker};
 
     use crate::domain::visit::types::{Keeping, Noting, RoleRead};
-    use crate::outbound::digest::fixtures::fake::DigestCounting;
+    use ryo_execution::outbound::digest::fixtures::fake::DigestCounting;
     use ryo_relations::domain::relations::types::{
         CellKind, FileId, Integer, Name, NamePlace, Offset, Origin, PlaceNumber, TextHash, Value,
         Words,
@@ -1268,7 +1268,7 @@ fn a_bad_last_captured_bucket_calls_no_digest_even_after_a_valid_rule_bucket() {
     let (program, request) = prepared_test_program(&plans, &ids, &[]);
     let placed = PlacedScopes {
         placement: ScopePlacement::default(),
-        matcher: crate::outbound::matching::fixtures::fake::MatchingFake
+        matcher: ryo_execution::outbound::matching::fixtures::fake::MatchingFake
             .compile(&[])
             .expect("matcher"),
     };
@@ -1624,7 +1624,7 @@ fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() 
     });
     let placed = PlacedScopes {
         placement: ScopePlacement::default(),
-        matcher: crate::outbound::matching::fixtures::fake::MatchingFake
+        matcher: ryo_execution::outbound::matching::fixtures::fake::MatchingFake
             .compile(&[])
             .expect("matcher"),
     };

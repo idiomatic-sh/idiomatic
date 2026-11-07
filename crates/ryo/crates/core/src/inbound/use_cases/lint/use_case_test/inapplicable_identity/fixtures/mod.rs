@@ -183,7 +183,7 @@ fn lint_once(
     };
     asked.rules[skipper].applicability = RuleApplicability::AcceptedSyntax;
     let memory = Arc::new(MemoryFake::default());
-    let operators = Arc::new(crate::outbound::operators::factory::use_case(
+    let operators = Arc::new(ryo_execution::outbound::operators::factory::use_case(
         ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
     ));
     let made = scheduled_world_with_query_resources(

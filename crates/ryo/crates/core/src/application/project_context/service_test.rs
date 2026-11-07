@@ -2,7 +2,7 @@
 use super::service::as_it_was;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::corpus::fixtures::fake::CorpusFake;
-use crate::outbound::digest::fixtures::fake::DigestFake;
+use ryo_execution::outbound::digest::fixtures::fake::DigestFake;
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::domain::project_context::types::{EntryObservation, ObservedEntryState};
 use ryo_values::domain::files::types::{CorpusFile, FileBytes};

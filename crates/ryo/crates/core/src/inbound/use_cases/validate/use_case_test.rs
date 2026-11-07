@@ -286,7 +286,7 @@ fn placed() -> HostedRelation {
 
 /// The query language over its own use cases, as an edge composes it.
 fn query_language() -> Arc<dyn QueryLanguagePort> {
-    Arc::new(crate::outbound::query_language::factory::use_case(
+    Arc::new(ryo_execution::outbound::query_language::factory::use_case(
         Arc::new(CompileUseCaseImpl::new(
             Arc::new(ryo_query_language::outbound::syntax::factory::winnow()),
             Arc::new(ryo_query_language::outbound::catalog::factory::language()),

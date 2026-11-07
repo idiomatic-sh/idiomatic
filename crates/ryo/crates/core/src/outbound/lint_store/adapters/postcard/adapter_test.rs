@@ -578,7 +578,7 @@ fn warm_partial_frontier_keeps_exact_proof_through_facts_handover() {
     let mut bytes = PackedWords::default();
     warm.read_old(&descriptor, &mut bytes)
         .expect("same snapshot resolves bytes");
-    let facts = crate::outbound::facts::factory::memory();
+    let facts = ryo_execution::outbound::facts::factory::memory();
     let mut worker = facts.worker().expect("facts worker");
     worker
         .keep(

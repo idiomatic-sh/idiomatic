@@ -66,7 +66,7 @@ pub(crate) fn replay(recordings: &[Recording]) -> Result<Replayed, String> {
     let ran = super::base::lint_report(
         &super::base::snapshot::ruff(),
         rules,
-        std::sync::Arc::new(ryo_core::outbound::facts::factory::memory()),
+        std::sync::Arc::new(ryo_execution::outbound::facts::factory::memory()),
         std::sync::Arc::new(
             ryo_core::outbound::lint_store::fixtures::fake::LintStoreFake::default(),
         ),
