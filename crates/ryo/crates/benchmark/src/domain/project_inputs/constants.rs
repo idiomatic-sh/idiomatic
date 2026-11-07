@@ -5,8 +5,6 @@ pub(super) const ENTRY_FILE: &str = "file";
 pub(super) const ENTRY_DIRECTORY: &str = "directory";
 /// Text of the other in this part.
 pub(super) const ENTRY_OTHER: &str = "other";
-/// Text of the missing in this part.
-pub(super) const ENTRY_MISSING: &str = "missing";
 /// Text of the unknown in this part.
 pub(super) const ENTRY_UNKNOWN: &str = "unknown";
 /// Text of the path in this part.

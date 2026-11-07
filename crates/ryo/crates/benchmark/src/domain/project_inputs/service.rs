@@ -1,4 +1,5 @@
 //! Canonical identity for optional project namespace inputs used by both contestants.
+use ryo_benchmark_contracts::domain::context::constants::MISSING;
 use super::constants;
 use crate::domain::canonical_text::{
     service::digest as document_digest,
@@ -23,10 +24,10 @@ fn document(roots: Option<&[RelativePath]>, inventory: &GivenProjectInventory) -
         .iter()
         .map(|entry| {
             let state = match entry.state {
-                ProjectEntryState::File => constants::ENTRY_FILE,
+                ProjectEntryState::Regular => constants::ENTRY_FILE,
                 ProjectEntryState::Directory => constants::ENTRY_DIRECTORY,
                 ProjectEntryState::Other => constants::ENTRY_OTHER,
-                ProjectEntryState::Missing => constants::ENTRY_MISSING,
+                ProjectEntryState::Missing => MISSING,
                 ProjectEntryState::Unknown => constants::ENTRY_UNKNOWN,
             };
             Fragment::Object(BTreeMap::from([

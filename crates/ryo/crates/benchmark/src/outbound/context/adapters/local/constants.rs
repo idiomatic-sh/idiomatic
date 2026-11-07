@@ -1,14 +1,8 @@
 //! The text this part uses.
 /// Text of the absolute context dependency in this part.
 pub(super) const ABSOLUTE_CONTEXT_DEPENDENCY: &str = "absolute context dependency";
-/// Text of the listed disk context v1 in this part.
-pub(super) const LISTED_DISK_CONTEXT_V1: &str = "listed-disk-context-v1";
-/// Text of the source in this part.
-pub(super) const SOURCE: &str = "source";
-/// Text of the auxiliary in this part.
-pub(super) const AUXILIARY: &str = "auxiliary";
-/// Text of the missing in this part.
-pub(super) const MISSING: &str = "missing";
+/// The domain-separation tag every listed-disk context digest starts with.
+pub(super) const LISTED_DISK_CONTEXT_DIGEST_TAG: &str = "listed-disk-context-v1";
 /// Text of the context logical and physical roots disagree in this part.
 pub(super) const CONTEXT_LOGICAL_AND_PHYSICAL_ROOTS_DISAGREE: &str =
     "context logical and physical roots disagree";

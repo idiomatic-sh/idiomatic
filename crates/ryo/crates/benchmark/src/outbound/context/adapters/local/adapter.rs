@@ -4,6 +4,7 @@ use super::writer::{PathScope, frame, no_symlinks, relative, resolve, walked_dep
 use crate::outbound::context::interface::ContextPort;
 use crate::outbound::context::types::CorpusFiles;
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use ryo_benchmark_contracts::domain::context::constants::{AUXILIARY, MISSING, SOURCE};
 use ryo_benchmark_contracts::domain::context::types::CaseContext;
 use ryo_benchmark_contracts::domain::context::types::ContextBytes;
 use ryo_benchmark_contracts::domain::context::types::ContextManifest;
@@ -23,11 +24,11 @@ pub(crate) fn artifact(bytes: &ContextBytes) -> ArtifactDigest {
 /// Content seal includes declared absences and stable logical location, never temporary physical directories.
 pub(crate) fn fingerprint(manifest: &ContextManifest) -> ArtifactDigest {
     let mut hash = Sha256::new();
-    frame(&mut hash, OsStr::new(constants::LISTED_DISK_CONTEXT_V1));
+    frame(&mut hash, OsStr::new(constants::LISTED_DISK_CONTEXT_DIGEST_TAG));
     frame(&mut hash, manifest.logical_root.as_os_str());
     for (kind, files) in [
-        (constants::SOURCE, &manifest.source_files),
-        (constants::AUXILIARY, &manifest.auxiliary_files),
+        (SOURCE, &manifest.source_files),
+        (AUXILIARY, &manifest.auxiliary_files),
     ] {
         frame(&mut hash, OsStr::new(kind));
         for (path, digest) in files {
@@ -38,7 +39,7 @@ pub(crate) fn fingerprint(manifest: &ContextManifest) -> ArtifactDigest {
     let mut missing = manifest.missing.clone();
     missing.sort();
     for path in missing {
-        frame(&mut hash, OsStr::new(constants::MISSING));
+        frame(&mut hash, OsStr::new(MISSING));
         frame(&mut hash, path.as_os_str());
     }
     ArtifactDigest(format!("{:x}", hash.finalize()))
@@ -188,7 +189,7 @@ pub(crate) fn materialize(
         let path = resolve(&manifest, Path::new(path.0.as_ref()))?;
         if manifest.auxiliary_files.contains_key(&path) {
             return Err(Error::Invalid(
-                constants::AUXILIARY_FILE_ALSO_REQUESTED_FOR_LINT.into(),
+                AUXILIARY_FILE_ALSO_REQUESTED_FOR_LINT.into(),
             ));
         }
         let actual = manifest.boundary.join(&path);
