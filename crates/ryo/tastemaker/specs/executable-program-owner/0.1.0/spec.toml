@@ -9,9 +9,35 @@ templates = [
   { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/preparation/mod.rs", description = "Private registration of immutable request preparation roles." },
   { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/preparation/types.rs", description = "Immutable prepared program and request metadata, independent of run orchestration." },
   { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/preparation/service.rs", description = "Request compilation, identity preparation and immutable metadata access." },
-  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/protocol/mod.rs", description = "Private registration of neutral execution protocol roles." },
-  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/protocol/types.rs", description = "Neutral run intents, output DTOs and opaque admitted handovers." },
-  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/protocol/service.rs", description = "Validation of admitted handovers without execution policy." },
+  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/prepared_execution/mod.rs", description = "Registration of the concept's roles." },
+  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/prepared_execution/types.rs", description = "The concept's handle or data types." },
+  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/prepared_execution/interface.rs", description = "The trait the concept's handle implements." },
+  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/prepared_execution/service.rs", description = "The implementation of the concept's traits over the program." },
+  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/request_execution/mod.rs", description = "Registration of the concept's roles." },
+  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/request_execution/types.rs", description = "The concept's handle or data types." },
+  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/request_execution/interface.rs", description = "The trait the concept's handle implements." },
+  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/request_execution/service.rs", description = "The implementation of the concept's traits over the program." },
+  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/file_session/mod.rs", description = "Registration of the concept's roles." },
+  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/file_session/types.rs", description = "The concept's handle or data types." },
+  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/file_session/interface.rs", description = "The trait the concept's handle implements." },
+  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/file_session/service.rs", description = "The implementation of the concept's traits over the program." },
+  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/project_phase/mod.rs", description = "Registration of the concept's roles." },
+  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/project_phase/types.rs", description = "The concept's handle or data types." },
+  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/project_phase/interface.rs", description = "The trait the concept's handle implements." },
+  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/project_phase/service.rs", description = "The implementation of the concept's traits over the program." },
+  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/observation_stage/mod.rs", description = "Registration of the concept's roles." },
+  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/observation_stage/types.rs", description = "The concept's handle or data types." },
+  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/observation_stage/interface.rs", description = "The trait the concept's handle implements." },
+  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/observation_stage/service.rs", description = "The implementation of the concept's traits over the program." },
+  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/rule_outcome/mod.rs", description = "Registration of the concept's roles." },
+  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/rule_outcome/types.rs", description = "The concept's handle or data types." },
+  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/observed_publication/mod.rs", description = "Registration of the concept's roles." },
+  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/observed_publication/types.rs", description = "The concept's handle or data types." },
+  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/observed_publication/service.rs", description = "The implementation of the concept's traits over the program." },
+  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/native_walk/project/mod.rs", description = "The project stage's shared walk registration." },
+  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/native_walk/project/service.rs", description = "The project stage's shared walk and the partition dispatch." },
+  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/facade_runtime/file_execution/distinct_integration/producer_lifetime/project/sharing/mod.rs", description = "Registration of the project sharing proof." },
+  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/facade_runtime/file_execution/distinct_integration/producer_lifetime/project/sharing/test.rs", description = "The project sharing proof." },
   { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/facade_runtime.rs", description = "Outer file and project execution orchestration." },
   { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/facade_runtime/file_execution.rs", description = "File-owned frontier capture and commit." },
   { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/facade_runtime/project_execution.rs", description = "Project-owned deferred source admission." },
@@ -39,15 +65,41 @@ scenario = "The exact declared owner parts are placed."
 given.at = "src/application/file_dag"
 given.files."src/application/file_dag/cross_execution.rs" = "pub fn coordinate() {}"
 given.files."src/application/file_dag/crossing.rs" = "pub fn cross() {}"
-given.files."src/application/file_dag/program.rs" = "mod admission; mod context; mod preparation; mod protocol; mod facade_runtime; mod kernel_session; mod native_walk; mod request_identity; mod restored; mod runtime; mod selection; mod native_join; mod project_population;"
+given.files."src/application/file_dag/program.rs" = "mod admission; mod context; mod preparation; mod prepared_execution; mod request_execution; mod file_session; mod project_phase; mod observation_stage; mod rule_outcome; mod observed_publication; mod facade_runtime; mod kernel_session; mod native_walk; mod request_identity; mod restored; mod runtime; mod selection; mod native_join; mod project_population;"
 given.files."src/application/file_dag/program/admission.rs" = "pub fn admit() {}"
 given.files."src/application/file_dag/program/context.rs" = "pub fn bind() {}"
 given.files."src/application/file_dag/program/preparation/mod.rs" = "pub(super) mod service; pub(super) mod types;"
 given.files."src/application/file_dag/program/preparation/types.rs" = "pub struct PreparedProgram;"
 given.files."src/application/file_dag/program/preparation/service.rs" = "pub fn owned() {}"
-given.files."src/application/file_dag/program/protocol/mod.rs" = "pub(super) mod service; pub(super) mod types;"
-given.files."src/application/file_dag/program/protocol/types.rs" = "pub fn owned() {}"
-given.files."src/application/file_dag/program/protocol/service.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/prepared_execution/mod.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/prepared_execution/types.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/prepared_execution/interface.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/prepared_execution/service.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/request_execution/mod.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/request_execution/types.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/request_execution/interface.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/request_execution/service.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/file_session/mod.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/file_session/types.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/file_session/interface.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/file_session/service.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/project_phase/mod.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/project_phase/types.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/project_phase/interface.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/project_phase/service.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/observation_stage/mod.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/observation_stage/types.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/observation_stage/interface.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/observation_stage/service.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/rule_outcome/mod.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/rule_outcome/types.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/observed_publication/mod.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/observed_publication/types.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/observed_publication/service.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/native_walk/project/mod.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/native_walk/project/service.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/producer_lifetime/project/sharing/mod.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/producer_lifetime/project/sharing/test.rs" = "pub fn owned() {}"
 given.files."src/application/file_dag/program/facade_runtime.rs" = "mod file_execution; mod project_execution; mod source_admission; pub fn run() {}"
 given.files."src/application/file_dag/program/facade_runtime/file_execution.rs" = "pub fn run_file() {}"
 given.files."src/application/file_dag/program/facade_runtime/project_execution.rs" = "pub fn run_project() {}"
@@ -80,15 +132,41 @@ scenario = 'The canonical population service remains a required owner part.'
 given.at = "src/application/file_dag"
 given.files."src/application/file_dag/cross_execution.rs" = "pub fn coordinate() {}"
 given.files."src/application/file_dag/crossing.rs" = "pub fn cross() {}"
-given.files."src/application/file_dag/program.rs" = "mod admission; mod context; mod preparation; mod protocol; mod facade_runtime; mod kernel_session; mod native_walk; mod request_identity; mod restored; mod runtime; mod selection; mod native_join; mod project_population;"
+given.files."src/application/file_dag/program.rs" = "mod admission; mod context; mod preparation; mod prepared_execution; mod request_execution; mod file_session; mod project_phase; mod observation_stage; mod rule_outcome; mod observed_publication; mod facade_runtime; mod kernel_session; mod native_walk; mod request_identity; mod restored; mod runtime; mod selection; mod native_join; mod project_population;"
 given.files."src/application/file_dag/program/admission.rs" = "pub fn admit() {}"
 given.files."src/application/file_dag/program/context.rs" = "pub fn bind() {}"
 given.files."src/application/file_dag/program/preparation/mod.rs" = "pub(super) mod service; pub(super) mod types;"
 given.files."src/application/file_dag/program/preparation/types.rs" = "pub struct PreparedProgram;"
 given.files."src/application/file_dag/program/preparation/service.rs" = "pub fn owned() {}"
-given.files."src/application/file_dag/program/protocol/mod.rs" = "pub(super) mod service; pub(super) mod types;"
-given.files."src/application/file_dag/program/protocol/types.rs" = "pub fn owned() {}"
-given.files."src/application/file_dag/program/protocol/service.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/prepared_execution/mod.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/prepared_execution/types.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/prepared_execution/interface.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/prepared_execution/service.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/request_execution/mod.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/request_execution/types.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/request_execution/interface.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/request_execution/service.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/file_session/mod.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/file_session/types.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/file_session/interface.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/file_session/service.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/project_phase/mod.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/project_phase/types.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/project_phase/interface.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/project_phase/service.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/observation_stage/mod.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/observation_stage/types.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/observation_stage/interface.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/observation_stage/service.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/rule_outcome/mod.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/rule_outcome/types.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/observed_publication/mod.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/observed_publication/types.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/observed_publication/service.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/native_walk/project/mod.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/native_walk/project/service.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/producer_lifetime/project/sharing/mod.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/producer_lifetime/project/sharing/test.rs" = "pub fn owned() {}"
 given.files."src/application/file_dag/program/facade_runtime.rs" = "mod file_execution; mod project_execution; mod source_admission; pub fn run() {}"
 given.files."src/application/file_dag/program/facade_runtime/file_execution.rs" = "pub fn run_file() {}"
 given.files."src/application/file_dag/program/facade_runtime/project_execution.rs" = "pub fn run_project() {}"
@@ -116,15 +194,41 @@ scenario = "A canonical population implementation retains its required directory
 given.at = "src/application/file_dag"
 given.files."src/application/file_dag/cross_execution.rs" = "pub fn coordinate() {}"
 given.files."src/application/file_dag/crossing.rs" = "pub fn cross() {}"
-given.files."src/application/file_dag/program.rs" = "mod admission; mod context; mod preparation; mod protocol; mod facade_runtime; mod kernel_session; mod native_walk; mod request_identity; mod restored; mod runtime; mod selection; mod native_join; mod project_population;"
+given.files."src/application/file_dag/program.rs" = "mod admission; mod context; mod preparation; mod prepared_execution; mod request_execution; mod file_session; mod project_phase; mod observation_stage; mod rule_outcome; mod observed_publication; mod facade_runtime; mod kernel_session; mod native_walk; mod request_identity; mod restored; mod runtime; mod selection; mod native_join; mod project_population;"
 given.files."src/application/file_dag/program/admission.rs" = "pub fn admit() {}"
 given.files."src/application/file_dag/program/context.rs" = "pub fn bind() {}"
 given.files."src/application/file_dag/program/preparation/mod.rs" = "pub(super) mod service; pub(super) mod types;"
 given.files."src/application/file_dag/program/preparation/types.rs" = "pub struct PreparedProgram;"
 given.files."src/application/file_dag/program/preparation/service.rs" = "pub fn owned() {}"
-given.files."src/application/file_dag/program/protocol/mod.rs" = "pub(super) mod service; pub(super) mod types;"
-given.files."src/application/file_dag/program/protocol/types.rs" = "pub fn owned() {}"
-given.files."src/application/file_dag/program/protocol/service.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/prepared_execution/mod.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/prepared_execution/types.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/prepared_execution/interface.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/prepared_execution/service.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/request_execution/mod.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/request_execution/types.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/request_execution/interface.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/request_execution/service.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/file_session/mod.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/file_session/types.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/file_session/interface.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/file_session/service.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/project_phase/mod.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/project_phase/types.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/project_phase/interface.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/project_phase/service.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/observation_stage/mod.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/observation_stage/types.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/observation_stage/interface.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/observation_stage/service.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/rule_outcome/mod.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/rule_outcome/types.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/observed_publication/mod.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/observed_publication/types.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/observed_publication/service.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/native_walk/project/mod.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/native_walk/project/service.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/producer_lifetime/project/sharing/mod.rs" = "pub fn owned() {}"
+given.files."src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/producer_lifetime/project/sharing/test.rs" = "pub fn owned() {}"
 given.files."src/application/file_dag/program/facade_runtime.rs" = "mod file_execution; mod project_execution; mod source_admission; pub fn run() {}"
 given.files."src/application/file_dag/program/facade_runtime/file_execution.rs" = "pub fn run_file() {}"
 given.files."src/application/file_dag/program/facade_runtime/project_execution.rs" = "pub fn run_project() {}"

@@ -7,7 +7,7 @@ use super::admission::ReadProof;
 use super::admission::RequiredPartitions;
 use super::facade_runtime::types::PublicationScope;
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
-use crate::application::file_dag::program::protocol::types::ObservedPublication;
+use crate::application::file_dag::program::observed_publication::types::ObservedPublication;
 use crate::domain::{
     completion::types::CoverageState,
     coverage::types::RuleIndex,

@@ -41,3 +41,8 @@ pub struct PreparedRuleIdentities {
     pub rules: Vec<ryo_values::domain::stores::types::StoredRule>,
     pub observations: ObservationIdentity,
 }
+
+/// Request preparation retains its graph privately; callers may inspect source plans only.
+pub struct CompiledQueries {
+    pub(crate) inner: crate::domain::prepared_request::types::Compiled,
+}

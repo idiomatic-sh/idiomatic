@@ -8,7 +8,7 @@ use crate::application::file_dag::frontiers::types::PreparedFrontiers;
 use crate::application::file_dag::program::facade_runtime::project_execution::ProjectRoot;
 use crate::application::file_dag::program::facade_runtime::project_execution::evaluate_roots;
 use crate::application::file_dag::program::facade_runtime::types::ProjectFrontiers;
-use crate::application::file_dag::program::protocol::types::ProjectBatch;
+use crate::application::file_dag::program::rule_outcome::types::ProjectBatch;
 use crate::domain::{
     completion::types::CoverageState, coverage::types::Partials, table_model::types::Frontier,
 };

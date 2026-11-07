@@ -1,10 +1,9 @@
-//! The execution protocol's data, independent of request compilation and run orchestration.
+//! What became of the rules of a request: the outcome of each root, output and project observation.
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::types::LogicalCounts;
 use ryo_values::domain::records::types::ObservationIndex;
 use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::rows::types::Table;
-
 pub enum RootOutcome {
     Complete(Table),
     /// Usable diagnostic rows and the exact physical partitions still uncertain.
@@ -20,12 +19,6 @@ pub enum RootOutcome {
     Deferred {
         phase: StepScope,
     },
-}
-/// Opaque application handover of the actual admitted population. Packed bytes
-/// may accompany it, but never substitute for its owner/generation evidence.
-#[derive(Clone)]
-pub struct ObservedPublication {
-    pub(super) admitted: crate::application::file_dag::program::admission::AdmittedInput,
 }
 /// What became of one declared output of a rule.
 pub struct OutputOutcome {
@@ -65,4 +58,3 @@ pub struct ProjectRuleOutcome {
     pub observations: Vec<ProjectOutputOutcome>,
     pub counts: LogicalCounts,
 }
-

@@ -33,6 +33,6 @@ mod ordered_existence;
 
 pub(crate) mod scope;
 
-pub(crate) mod program;
+pub mod program;
 
-pub(crate) mod frontiers;
+pub mod frontiers;

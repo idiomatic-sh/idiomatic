@@ -15,8 +15,8 @@ use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use crate::domain::rule_intent::types::FileRuleIntent;
 use crate::domain::operator::types::LogicalCounts;
 #[cfg(test)]
-use crate::application::file_dag::program::protocol::types::ProjectObservation;
-use crate::application::file_dag::program::protocol::types::RootOutcome;
+use crate::application::file_dag::program::rule_outcome::types::ProjectObservation;
+use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
 use crate::application::file_dag::program::runtime::service::InvocationOutcome;
 use crate::application::file_dag::program::runtime::service::ProgramExecution;
 use crate::application::file_dag::relations::RelationOwner;

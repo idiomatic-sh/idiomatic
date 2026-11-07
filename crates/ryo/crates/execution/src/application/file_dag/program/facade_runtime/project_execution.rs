@@ -11,7 +11,7 @@ use crate::application::file_dag::program::native_walk::Deliveries;
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use crate::domain::rule_intent::types::EmitDemand;
 use crate::domain::rule_intent::types::ObservationDemand;
-use crate::application::file_dag::program::protocol::types::ProjectRuleOutcome;
+use crate::application::file_dag::program::rule_outcome::types::ProjectRuleOutcome;
 use crate::domain::rule_intent::types::RuleDemand;
 use crate::application::file_dag::program::runtime::service::ProgramExecution;
 use crate::application::file_dag::relations::RelationOwner;
@@ -250,7 +250,7 @@ pub(crate) fn evaluate_roots<E>(
     mut roots: Vec<ProjectRoot<'_>>,
     symbols: &mut ryo_language::domain::symbols::types::Symbols,
     mut guard: impl FnMut(RuleIndex) -> Result<(), E>,
-) -> crate::application::file_dag::program::protocol::types::ProjectBatch<
+) -> crate::application::file_dag::program::rule_outcome::types::ProjectBatch<
     Result<ProjectRuleOutcome, OperatingError>,
     E,
 > {
@@ -320,7 +320,7 @@ pub(crate) fn evaluate_roots<E>(
         };
         if requires_guard {
             if let Err(error) = guard(rule) {
-                return crate::application::file_dag::program::protocol::types::ProjectBatch::Refused { completed, error };
+                return crate::application::file_dag::program::rule_outcome::types::ProjectBatch::Refused { completed, error };
             }
         }
         let result = (|| {
@@ -336,5 +336,5 @@ pub(crate) fn evaluate_roots<E>(
         })();
         completed.push(result);
     }
-    crate::application::file_dag::program::protocol::types::ProjectBatch::Complete(completed)
+    crate::application::file_dag::program::rule_outcome::types::ProjectBatch::Complete(completed)
 }

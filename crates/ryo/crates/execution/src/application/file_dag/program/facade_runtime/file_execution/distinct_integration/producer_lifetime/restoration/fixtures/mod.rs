@@ -311,7 +311,7 @@ impl CapturedProject {
         )?;
         assert!(matches!(produced.emit, RootOutcome::NoQuery));
         assert_eq!(produced.observations.len(), 1);
-        let crate::application::file_dag::program::protocol::types::ProjectOutputOutcome {
+        let crate::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome {
             outcome: observed,
             ..
         } = produced.observations.pop().unwrap();

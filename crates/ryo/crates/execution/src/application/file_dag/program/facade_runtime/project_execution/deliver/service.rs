@@ -7,10 +7,10 @@ use crate::application::file_dag::program::facade_runtime::source_admission::Sou
 use crate::application::file_dag::program::facade_runtime::source_admission::table_of;
 use crate::domain::rule_intent::types::EmitDemand;
 use crate::domain::rule_intent::types::ObservationDemand;
-use crate::application::file_dag::program::protocol::types::ObservedPublication;
-use crate::application::file_dag::program::protocol::types::ProjectObservation;
-use crate::application::file_dag::program::protocol::types::ProjectRuleOutcome;
-use crate::application::file_dag::program::protocol::types::RootOutcome;
+use crate::application::file_dag::program::observed_publication::types::ObservedPublication;
+use crate::application::file_dag::program::rule_outcome::types::ProjectObservation;
+use crate::application::file_dag::program::rule_outcome::types::ProjectRuleOutcome;
+use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
 use crate::domain::rule_intent::types::RuleDemand;
 use crate::domain::coverage::types::RuleIndex;
 use crate::domain::operating::errors::OperatingError;
@@ -114,7 +114,7 @@ impl ProjectRun<'_> {
                     })
                     .map(|input| input.with_coverage(completion.coverage(&root.reads)));
                 observations.push(
-                    crate::application::file_dag::program::protocol::types::ProjectOutputOutcome {
+                    crate::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome {
                     output: ryo_values::domain::records::types::ObservationIndex(
                         u32::try_from(index).map_err(|_| OperatingError::ShapeMismatch)?,
                     ),

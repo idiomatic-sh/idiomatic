@@ -118,13 +118,13 @@ pub use crate::domain::rule_intent::types::FileRuleIntent;
 pub use crate::domain::frontier_capture::types::FrontierCapture;
 pub use crate::domain::operator::types::LogicalCounts;
 pub use crate::domain::rule_intent::types::ObservationDemand;
-pub use crate::application::file_dag::program::protocol::types::OutputOutcome;
-pub use crate::application::file_dag::program::protocol::types::ProjectObservation;
-pub use crate::application::file_dag::program::protocol::types::ProjectOutputOutcome;
-pub use crate::application::file_dag::program::protocol::types::ProjectRuleOutcome;
-pub use crate::application::file_dag::program::protocol::types::RootOutcome;
+pub use crate::application::file_dag::program::rule_outcome::types::OutputOutcome;
+pub use crate::application::file_dag::program::rule_outcome::types::ProjectObservation;
+pub use crate::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome;
+pub use crate::application::file_dag::program::rule_outcome::types::ProjectRuleOutcome;
+pub use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
 pub use crate::domain::rule_intent::types::RuleDemand;
-pub use crate::application::file_dag::program::protocol::types::RuleOutcome;
+pub use crate::application::file_dag::program::rule_outcome::types::RuleOutcome;
 pub use crate::domain::coverage::types::{Covered, Partial, Partials, RuleIndex};
 pub use crate::domain::kind_sets::types::PreparedVocabulary;
 pub use crate::domain::operating::errors::OperatingError;
@@ -200,7 +200,7 @@ pub struct ProjectTask<'a> {
     pub demand: RuleDemand,
     pub input: ProjectInput<'a>,
 }
-pub use crate::application::file_dag::program::protocol::types::ProjectBatch;
+pub use crate::application::file_dag::program::rule_outcome::types::ProjectBatch;
 
 pub struct FileFinished {
     pub readiness: Option<Arc<ryo_values::domain::records::types::FrontierReadiness>>,
@@ -243,7 +243,7 @@ pub struct ObservationStage<'a> {
     pub(super) publications:
         crate::application::file_dag::observations::types::CrossPublications<'a>,
 }
-pub use crate::application::file_dag::program::protocol::types::ObservedPublication;
+pub use crate::application::file_dag::program::observed_publication::types::ObservedPublication;
 
 /// Output storage only; source file and rule digest come from the bound session.
 pub struct CaptureContext<'a> {

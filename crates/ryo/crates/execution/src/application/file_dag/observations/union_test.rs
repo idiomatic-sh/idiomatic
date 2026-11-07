@@ -7,7 +7,7 @@ use crate::domain::rule_intent::types::DiagnosticDelivery;
 use crate::domain::rule_intent::types::EmitDemand;
 use crate::domain::rule_intent::types::FileRuleIntent;
 use crate::domain::rule_intent::types::ObservationDemand;
-use crate::application::file_dag::program::protocol::types::RootOutcome;
+use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
 use crate::domain::rule_intent::types::RuleDemand;
 use crate::application::file_dag::scope::ScopePartials;
 use crate::domain::{

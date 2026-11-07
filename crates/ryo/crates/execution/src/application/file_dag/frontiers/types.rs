@@ -10,7 +10,7 @@ pub enum PublicationSlot {
 /// Each named member carries its own admission source, never just decoded words.
 #[derive(Clone)]
 pub(crate) enum BoundMember {
-    Current(crate::application::file_dag::program::protocol::types::ObservedPublication),
+    Current(crate::application::file_dag::program::observed_publication::types::ObservedPublication),
     Restored(crate::application::file_dag::program::restored::types::ValidatedFrontier),
 }
 
