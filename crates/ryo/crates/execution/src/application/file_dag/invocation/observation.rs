@@ -22,7 +22,7 @@ impl InvocationResources<'_> {
                     .is_some_and(|state| state.rows.cells.capacity() > 0),
             );
         if let Some(view) = view {
-            observed.index_rows = view.rows.count();
+            observed.index_rows = view.rows.count().0;
             observed.index_representation = Some(
                 crate::domain::table_model::service::kind(view.rows),
             );

@@ -176,7 +176,7 @@ fn all_registered_representations_preserve_bulk_cells_rows_and_bags() -> Result<
                 ..
             } => {
                 assert!(std::ptr::eq(view.columns, source.columns));
-                assert!(std::ptr::eq(positions, selected.selection.rows.as_slice()));
+                assert!(std::ptr::eq(positions.0, selected.selection.rows.as_slice()));
                 assert!(std::ptr::eq(columns, selected.selection.columns.as_slice()));
             }
             RepresentationInput::Tree(view) => assert!(std::ptr::eq(view.elements, &elements)),

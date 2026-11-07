@@ -5,7 +5,7 @@ use ryo_relations::domain::relations::types::{CellKind, Value};
 use std::sync::Arc;
 use ryo_values::domain::rows::types::Table;
 
-use crate::domain::stored_selection::types::{SelectedPositions, SelectionIdentity};
+use crate::domain::stored_selection::types::{BorrowedPositions, SelectedPositions, SelectionIdentity};
 use crate::domain::stored_selection::types::Selector;
 use crate::domain::table_cells::types::TreeRows;
 use ryo_relations::domain::relations::types::ColumnsView;
@@ -156,7 +156,7 @@ pub(crate) enum RepresentationInput<'a> {
     Stored(ColumnsView<'a>),
     Selected {
         source: ColumnsView<'a>,
-        positions: &'a [u32],
+        positions: BorrowedPositions<'a>,
         columns: &'a [ColumnIndex],
         kinds: &'a [CellKind],
     },
@@ -172,7 +172,7 @@ impl<'f> From<&'f Rows<'f>> for RepresentationInput<'f> {
             Rows::Stored(source) => Self::Stored(*source),
             Rows::Selected(view) => Self::Selected {
                 source: view.source,
-                positions: &view.selection.rows,
+                positions: BorrowedPositions(&view.selection.rows),
                 columns: &view.selection.columns,
                 kinds: &view.selection.kinds,
             },

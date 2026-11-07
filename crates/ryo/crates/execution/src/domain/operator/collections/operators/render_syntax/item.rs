@@ -51,8 +51,8 @@ impl OperatorsItem for RenderSyntaxItem {
         let mut row = std::mem::take(&mut lease.workspace.row);
         let mut joined = std::mem::take(&mut lease.workspace.other);
         let outcome = (|| {
-            let mut requests = Vec::with_capacity(source.count());
-            for position in 0..source.count() {
+            let mut requests = Vec::with_capacity(source.count().0);
+            for position in 0..source.count().0 {
                 let values = source
                     .read(RowIndex(position), &mut row)
                     .ok_or(OperatingError::NotRun)?;

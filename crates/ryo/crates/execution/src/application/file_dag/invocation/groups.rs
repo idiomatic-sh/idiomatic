@@ -22,7 +22,7 @@ fn materialized(input: BorrowedRows<'_>) -> Table {
         ..Table::default()
     };
     let mut row = Vec::new();
-    for at in 0..input.count() {
+    for at in 0..input.count().0 {
         if let Some(row) = input.read(RowIndex(at), &mut row) {
             push_row(&mut table, row);
         }

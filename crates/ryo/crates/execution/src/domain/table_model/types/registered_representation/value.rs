@@ -13,7 +13,10 @@ use crate::domain::table_model::collections::representations::{
 use crate::domain::table_model::types::RepresentationInput;
 use crate::domain::table_cells::types::TreeForm;
 use ryo_relations::domain::relations::types::{CellKind, Relation, Value};
-use ryo_values::domain::{plan_parts::types::ColumnIndex, rows::types::RowIndex};
+use ryo_values::domain::{
+    plan_parts::types::ColumnIndex,
+    rows::types::{RowCount, RowIndex},
+};
 pub(crate) struct RegisteredRepresentation {
     kind: RepresentationKind,
 }
@@ -163,24 +166,23 @@ impl<'f> RepresentationInput<'f> {
     }
     // Metadata-only compatibility for existing domain algorithms. Validation is
     // never triggered by a cardinality/schema request.
-    pub(crate) fn count(self) -> usize {
+    pub(crate) fn count(self) -> RowCount {
         match self {
-            Self::Stored(view) => view.columns.first().map_or(0, |column| column.0.len()),
-            Self::Selected { positions, .. } => positions.len(),
-            Self::Tree(tree) => tree.elements.kind.len().saturating_sub(usize::from(
+            Self::Stored(view) => RowCount(view.columns.first().map_or(0, |column| column.0.len())),
+            Self::Selected { positions, .. } => RowCount(positions.0.len()),
+            Self::Tree(tree) => RowCount(tree.elements.kind.len().saturating_sub(usize::from(
                 tree.form == TreeForm::Edges,
-            )),
-            Self::Computed(table) => table.count.0,
-            Self::Compact(table) => {
-                ryo_values::domain::compact_table::service::compact_rows(table).0
-            }
-            Self::Positioned(view) => view
-                .positions
-                .slots
-                .0
-                .len()
-                .checked_div(view.positions.width.0)
-                .unwrap_or(0),
+            ))),
+            Self::Computed(table) => table.count,
+            Self::Compact(table) => ryo_values::domain::compact_table::service::compact_rows(table),
+            Self::Positioned(view) => RowCount(
+                view.positions
+                    .slots
+                    .0
+                    .len()
+                    .checked_div(view.positions.width.0)
+                    .unwrap_or(0),
+            ),
         }
     }
     pub(crate) fn kinds(self) -> &'f [CellKind] {

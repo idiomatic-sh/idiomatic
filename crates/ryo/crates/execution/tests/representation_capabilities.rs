@@ -104,6 +104,7 @@ pub mod domain {
         pub struct Table {pub kinds:Vec<crate::domain::relations::types::CellKind>,pub cells:Vec<crate::domain::relations::types::Value>}
     }}
     pub mod table_words {pub mod types {pub struct CompactTable;}}
+    pub mod stored_selection {pub mod types {#[derive(Clone,Copy)]pub struct BorrowedPositions<'a>(pub &'a [u32]);}}
     pub mod table_cells {pub mod types {#[derive(Clone,Copy)]pub struct TreeRows<'a>(pub &'a());
       #[derive(Clone,Copy,PartialEq,Eq)]pub enum TreeForm {Elements,Edges}}}
     pub mod table_model {
@@ -113,6 +114,7 @@ pub mod domain {
           use crate::domain::plan_parts::types::ColumnIndex;
           use crate::domain::table_cells::types::TreeRows;
           use crate::domain::rows::types::Table;
+          use crate::domain::stored_selection::types::BorrowedPositions;
           __INPUT__
           pub mod registered_representation {pub mod value {__VALUE__}}
         }
@@ -245,7 +247,7 @@ fn physical_readers_cannot_gain_scheduler_cache_mutation_or_static_source_lifeti
         ),
         (
             "selected_mutation",
-            "fn forbidden(input:RepresentationInput<'_>){if let RepresentationInput::Selected{positions,..}=input{positions[0]=1;}}",
+            "fn forbidden(input:RepresentationInput<'_>){if let RepresentationInput::Selected{positions,..}=input{positions.0[0]=1;}}",
             "E0594",
         ),
         (

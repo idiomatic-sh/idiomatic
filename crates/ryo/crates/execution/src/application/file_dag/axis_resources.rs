@@ -46,7 +46,7 @@ pub(crate) fn classify<'f>(
         ..
     } = program;
     if matches!(domain, BorrowedRows::Computed(_) | BorrowedRows::Compact(_))
-        && domain.count() == 0
+        && domain.count().0 == 0
         && output.is_empty()
     {
         return Ok(AxisMode::Empty);

@@ -26,7 +26,7 @@ struct Driver<'a, 'c> {
 }
 impl OrderedExistenceDriver for Driver<'_, '_> {
     fn len(&self) -> RowCount {
-        RowCount(self.rows.count())
+        self.rows.count()
     }
     fn key_cell(&mut self, row: RowIndex, column: ColumnIndex) -> Result<Value, EqualityJoinError> {
         let rows = self.rows;

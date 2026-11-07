@@ -37,7 +37,9 @@ impl<'f> SelectedInput<'f> {
             progress: crate::application::file_dag::route_counts::progress::service::progress,
             rows: BorrowedRows::Selected {
                 source: self.original.source,
-                positions: &self.original.selection.rows,
+                positions: crate::domain::stored_selection::types::BorrowedPositions(
+                    &self.original.selection.rows,
+                ),
                 columns: &self.original.selection.columns,
                 kinds: &self.original.selection.kinds,
             },

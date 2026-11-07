@@ -40,7 +40,7 @@ impl RepresentationsItem for SelectedItem {
             input,
             kind: RepresentationKind::Selected,
             kinds,
-            rows: RowCount(positions.len()),
+            rows: RowCount(positions.0.len()),
             metadata,
         })
     }
@@ -61,7 +61,7 @@ impl RepresentationsItem for SelectedItem {
         let n = source.columns.first().map_or(0, |c| c.0.len());
         let rectangular = source.columns.len() == source.kinds.len()
             && source.columns.iter().all(|c| c.0.len() == n);
-        let complete = positions.iter().all(|position| {
+        let complete = positions.0.iter().all(|position| {
             columns.iter().all(|column| {
                 source
                     .columns
@@ -90,7 +90,7 @@ impl RepresentationsItem for SelectedItem {
         else {
             return Err(OperatingError::WrongOperation);
         };
-        let Some((physical, column)) = positions.get(row.0).zip(columns.get(column.0 as usize))
+        let Some((physical, column)) = positions.0.get(row.0).zip(columns.get(column.0 as usize))
         else {
             return Ok(CellRead::MissingPhysical);
         };
@@ -124,7 +124,7 @@ impl RepresentationsItem for SelectedItem {
         else {
             return Err(OperatingError::WrongOperation);
         };
-        if row.0 >= positions.len() {
+        if row.0 >= positions.0.len() {
             return Ok(RowRead::MissingPhysical);
         }
         if decode.len() < columns.len() {

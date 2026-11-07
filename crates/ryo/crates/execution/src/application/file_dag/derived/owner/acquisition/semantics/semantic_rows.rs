@@ -41,7 +41,7 @@ impl RowCells for AdmittedRows<'_, '_> {
                 ..
             } => Some(semantic::BulkRows::Selected {
                 source,
-                positions,
+                positions: positions.0,
                 columns,
             }),
             BorrowedRows::Computed(table) => Some(semantic::BulkRows::Computed(table)),
@@ -52,7 +52,7 @@ impl RowCells for AdmittedRows<'_, '_> {
         self.rows.kinds()
     }
     fn count(&self) -> usize {
-        self.rows.count()
+        self.rows.count().0
     }
     fn cell(&self, row: usize, column: ColumnIndex) -> Option<Value> {
         if self.failure.borrow().failed()
@@ -87,7 +87,7 @@ pub(super) struct Predicate<'a, 'f> {
 }
 impl semantic::PredicateRows for Predicate<'_, '_> {
     fn count(&self) -> usize {
-        self.rows.count()
+        self.rows.count().0
     }
     fn holds(&mut self, at: usize) -> Result<bool, semantic::DerivedFault> {
         let Self {

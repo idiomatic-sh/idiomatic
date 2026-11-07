@@ -8,7 +8,7 @@ use crate::domain::table_model::types::RepresentationInput;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
-pub(in crate::domain::table_model) trait RepresentationsItem: Sync {
+pub(crate) trait RepresentationsItem: Sync {
     /// Declare immutable metadata. Physical checks are deferred until demanded.
     fn prepare<'file>(
         &self,

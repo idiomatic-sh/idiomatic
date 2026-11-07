@@ -6,6 +6,7 @@ use super::super::{
 use crate::domain::table_model::types::RepresentationInput;
 use super::item::SelectedItem;
 use crate::domain::operating::errors::OperatingError;
+use crate::domain::stored_selection::types::BorrowedPositions;
 use crate::domain::table_model::service_test::{column, number, selection};
 use ryo_relations::domain::relations::types::{CellKind, ColumnsView};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -19,7 +20,7 @@ fn reads_the_positions_and_columns_of_a_selection() -> Result<(), OperatingError
     let kept = selection(vec![1, 0], vec![ColumnIndex(0)], vec![CellKind::Number]);
     let raw = RepresentationInput::Selected {
         source,
-        positions: &kept.rows,
+        positions: BorrowedPositions(&kept.rows),
         columns: &kept.columns,
         kinds: &kept.kinds,
     };

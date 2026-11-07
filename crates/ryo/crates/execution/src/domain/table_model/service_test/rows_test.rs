@@ -134,7 +134,7 @@ fn a_computed_table_is_not_copied_checked() -> Value {
         .expect("computed row");
     let same = std::ptr::eq(read.as_ptr(), computed.cells.as_ptr()) && scratch.is_empty();
     let stored_view = crate::domain::table_model::types::RepresentationInput::from(&stored);
-    let copied = (0..stored_view.count())
+    let copied = (0..stored_view.count().0)
         .map(|at| {
             stored_view
                 .read(RowIndex(at), &mut scratch)

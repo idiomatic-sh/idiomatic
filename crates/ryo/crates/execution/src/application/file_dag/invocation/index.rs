@@ -41,7 +41,7 @@ impl<'f> IndexResource<'f> {
         let source = admission.input(InputNumber(place))?;
         // Absence's established empty-RHS gate precedes key interpretation.
         if empty == EmptyInput::Skip
-            && source.count() == 0
+            && source.count().0 == 0
             && !matches!(source, BorrowedRows::Selected { .. })
         {
             return Ok(Self::Empty {

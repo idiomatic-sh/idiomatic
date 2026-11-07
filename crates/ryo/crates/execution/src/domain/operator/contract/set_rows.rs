@@ -29,7 +29,7 @@ impl SetRowDriver for EngineRows<'_, '_> {
                     .resources
                     .index()
                     .ok_or(OperatingError::WrongBinding)?;
-                Ok(Population::from(index.rows.count() == 0))
+                Ok(Population::from(index.rows.count().0 == 0))
             })
             .map_err(|()| SetRowsError::Interrupted)
     }
