@@ -3,8 +3,12 @@ use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::reports::types::BenchmarkFinding;
 use ryo_benchmark_contracts::domain::reports::types::RunReport;
 use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
+use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use ryo_benchmark_contracts::domain::context::types::ContextManifest;
+use ryo_benchmark_contracts::domain::context::types::ProjectContextReceipt;
+use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::{collections::BTreeMap, path::PathBuf};
 
 #[derive(Serialize)]
 #[serde(deny_unknown_fields)]
@@ -20,10 +24,10 @@ struct RyoWorkerRequestSchema {
     rule_observations: Option<serde_json::Value>,
     #[serde(default)]
     /// Explicit project lookup mode for this invocation.
-    project_context_mode: crate::outbound::context::adapters::local::schemas::ModeSchema,
+    project_context_mode: ModeSchema,
     #[serde(default)]
     /// Sealed source, auxiliary and missing context inventory.
-    context_manifest: Option<crate::outbound::context::adapters::local::schemas::ManifestSchema>,
+    context_manifest: Option<ManifestSchema>,
     /// Project root against which explicit file paths are resolved.
     root: PathBuf,
     /// Directory containing the selected RyoQL rule definitions.
@@ -43,10 +47,10 @@ struct RyoWorkerRequestSchema {
     project_search_roots: Option<Vec<String>>,
     #[serde(
         default,
-        skip_serializing_if = "crate::outbound::context::adapters::local::schemas::ProjectInventorySchema::is_default"
+        skip_serializing_if = "ProjectInventorySchema::is_default"
     )]
     given_project_inventory:
-        crate::outbound::context::adapters::local::schemas::ProjectInventorySchema,
+        ProjectInventorySchema,
     /// Exact project-relative file set covered by this request or report.
     files: Vec<String>,
     /// Retained worker state directory, or no retained state for a fresh run.
@@ -61,7 +65,7 @@ struct RyoReportSchema {
     execution_metadata: crate::outbound::worker::schemas::ExecutionMetadataSchema,
     #[serde(default)]
     /// Actual dependency observations returned by the candidate.
-    project_context: Option<crate::outbound::context::adapters::local::schemas::ReceiptSchema>,
+    project_context: Option<ReceiptSchema>,
     /// Reported findings, preserving multiplicity and source offsets.
     diagnostics: Vec<RyoDiagnosticSchema>,
     /// Rules explicitly skipped after typed syntax rejection.
@@ -115,28 +119,55 @@ impl From<WorkerRequest> for RyoWorkerRequestSchema {
     fn from(request: WorkerRequest) -> Self {
         Self {
             performance: request.performance.into(),
-            rule_context: request
-                .rule_context
-                .as_ref()
-                .map(crate::outbound::worker::schemas::prepared_value),
-            rule_observations: request
-                .rule_observations
-                .as_ref()
-                .map(crate::outbound::worker::schemas::observation_declarations_value),
+            rule_context: match &request.rule_context {
+                ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Prepared(prepared) => {
+                    Some(crate::outbound::worker::schemas::prepared_value(prepared))
+                }
+                ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured => None,
+            },
+            rule_observations: match &request.rule_observations {
+                ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Declared(declared) => {
+                    Some(crate::outbound::worker::schemas::observation_declarations_value(declared))
+                }
+                ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared => None,
+            },
             project_context_mode: request.project_context_mode.into(),
-            context_manifest: request.context_manifest.map(Into::into),
+            context_manifest: match request.context_manifest {
+                ryo_benchmark_contracts::domain::requests::types::ContextSeal::Sealed(manifest) => Some(manifest.into()),
+                ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed => None,
+            },
             root: request.root,
             rules: request.rules,
-            selected_rules: request
-                .selected_rules
-                .map(|rules| rules.into_iter().map(|id| id.to_string()).collect()),
-            query_modules: request.query_modules,
-            rule_applicability: request.rule_applicability,
-            parser_configuration: request.parser_configuration,
-            source_language: request.source_language,
-            project_search_roots: request
-                .project_search_roots
-                .map(|roots| roots.into_iter().map(|root| root.0.into_string()).collect()),
+            selected_rules: match request.selected_rules {
+                ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(rules) => {
+                    Some(rules.into_iter().map(|id| id.to_string()).collect())
+                }
+                ryo_benchmark_contracts::domain::requests::types::CohortSelection::Frozen => None,
+            },
+            query_modules: request
+                .query_modules
+                .into_iter()
+                .map(|(name, path)| (name.0, path))
+                .collect(),
+            rule_applicability: request
+                .rule_applicability
+                .into_iter()
+                .map(|(rule, policy)| (rule.0, policy.0))
+                .collect(),
+            parser_configuration: match request.parser_configuration {
+                ryo_benchmark_contracts::domain::requests::types::ParserSelection::Named(name) => Some(name.0),
+                ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified => None,
+            },
+            source_language: match request.source_language {
+                ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Selected(name) => Some(name.0),
+                ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified => None,
+            },
+            project_search_roots: match request.project_search_roots {
+                ryo_benchmark_contracts::domain::requests::types::SearchRoots::Declared(roots) => {
+                    Some(roots.into_iter().map(|root| root.0.into_string()).collect())
+                }
+                ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared => None,
+            },
             given_project_inventory: request.given_project_inventory.into(),
             files: request
                 .files
@@ -157,7 +188,9 @@ impl TryFrom<RyoReportSchema> for RunReport {
     fn try_from(wire: RyoReportSchema) -> Result<Self, Self::Error> {
         let report = Self {
             execution_metadata: wire.execution_metadata.into(),
-            project_context: wire.project_context.map(Into::into),
+            project_context: wire
+                .project_context
+                .map_or(ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested, |receipt| ryo_benchmark_contracts::domain::reports::types::ProjectContext::Observed(receipt.into())),
             files: wire
                 .files
                 .into_iter()
@@ -182,13 +215,13 @@ impl TryFrom<RyoReportSchema> for RunReport {
                     })
                 })
                 .collect::<Result<_, Error>>()?,
-            coverage: wire.coverage.map(|coverage| {
-                ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
-                    selected: coverage.selected,
-                    evaluated: coverage.evaluated,
-                    skipped: coverage.skipped,
-                    unknown_or_unread: coverage.unknown_or_unread,
-                }
+            coverage: wire.coverage.map_or(ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Unaccounted, |coverage| {
+                ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
+                    selected: ryo_benchmark_contracts::domain::reports::types::PairCount(coverage.selected),
+                    evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(coverage.evaluated),
+                    skipped: ryo_benchmark_contracts::domain::reports::types::PairCount(coverage.skipped),
+                    unknown_or_unread: ryo_benchmark_contracts::domain::reports::types::PairCount(coverage.unknown_or_unread),
+                })
             }),
             diagnostics: wire
                 .diagnostics
@@ -222,6 +255,157 @@ pub(super) fn decode_report(bytes: &[u8]) -> Result<RunReport, Error> {
     let wire: RyoReportSchema =
         serde_json::from_slice(bytes).map_err(|error| Error::Json(Box::new(error)))?;
     wire.try_into()
+}
+/// Explicit project lookup mode of a worker request and report.
+#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+enum ModeSchema {
+    /// Source-only execution with no external project lookup.
+    #[default]
+    Isolated,
+    /// Disk lookup constrained by the sealed context manifest.
+    ListedDisk,
+}
+impl From<ModeSchema> for ProjectContextMode {
+    fn from(mode: ModeSchema) -> Self {
+        match mode {
+            ModeSchema::Isolated => Self::Isolated,
+            ModeSchema::ListedDisk => Self::ListedDisk,
+        }
+    }
+}
+impl From<ProjectContextMode> for ModeSchema {
+    fn from(mode: ProjectContextMode) -> Self {
+        match mode {
+            ProjectContextMode::Isolated => Self::Isolated,
+            ProjectContextMode::ListedDisk => Self::ListedDisk,
+        }
+    }
+}
+
+/// How complete the declared project inventory is.
+#[derive(Clone, Copy, Debug, Default, Serialize)]
+#[serde(rename_all = "kebab-case")]
+enum ProjectInventoryCompletenessSchema {
+    #[default]
+    Partial,
+    CompleteWithinDeclaredScope,
+}
+
+/// What a declared project entry is.
+#[derive(Clone, Copy, Debug, Serialize)]
+#[serde(rename_all = "kebab-case")]
+enum ProjectEntryStateSchema {
+    File,
+    Directory,
+    Other,
+    Missing,
+    Unknown,
+}
+
+/// One declared project entry.
+#[derive(Clone, Debug, Serialize)]
+struct ProjectEntrySchema {
+    path: String,
+    state: ProjectEntryStateSchema,
+}
+
+/// The declared project inventory of a request.
+#[derive(Clone, Debug, Default, Serialize)]
+struct ProjectInventorySchema {
+    completeness: ProjectInventoryCompletenessSchema,
+    entries: Vec<ProjectEntrySchema>,
+}
+impl ProjectInventorySchema {
+    fn is_default(&self) -> bool {
+        matches!(
+            self.completeness,
+            ProjectInventoryCompletenessSchema::Partial
+        ) && self.entries.is_empty()
+    }
+}
+impl From<ryo::linter::GivenProjectInventory> for ProjectInventorySchema {
+    fn from(value: ryo::linter::GivenProjectInventory) -> Self {
+        Self {
+            entries: value
+                .entries
+                .into_iter()
+                .map(|entry| ProjectEntrySchema {
+                    path: entry.path.0.into_string(),
+                    state: match entry.state {
+                        ryo::linter::ProjectEntryState::File => ProjectEntryStateSchema::File,
+                        ryo::linter::ProjectEntryState::Directory => {
+                            ProjectEntryStateSchema::Directory
+                        }
+                        ryo::linter::ProjectEntryState::Other => ProjectEntryStateSchema::Other,
+                        ryo::linter::ProjectEntryState::Missing => ProjectEntryStateSchema::Missing,
+                        ryo::linter::ProjectEntryState::Unknown => ProjectEntryStateSchema::Unknown,
+                    },
+                })
+                .collect(),
+            completeness: match value.completeness {
+                ryo::linter::ProjectInventoryCompleteness::Partial => {
+                    ProjectInventoryCompletenessSchema::Partial
+                }
+                ryo::linter::ProjectInventoryCompleteness::CompleteWithinDeclaredScope => {
+                    ProjectInventoryCompletenessSchema::CompleteWithinDeclaredScope
+                }
+            },
+        }
+    }
+}
+
+/// The sealed context inventory a worker request declares.
+#[derive(Clone, Debug, Serialize)]
+struct ManifestSchema {
+    boundary: PathBuf,
+    logical_root: PathBuf,
+    auxiliary_files: BTreeMap<PathBuf, String>,
+    source_files: BTreeMap<PathBuf, String>,
+    missing: Vec<PathBuf>,
+}
+impl From<ContextManifest> for ManifestSchema {
+    fn from(value: ContextManifest) -> Self {
+        let digests = |files: BTreeMap<PathBuf, ArtifactDigest>| {
+            files
+                .into_iter()
+                .map(|(path, digest)| (path, digest.0))
+                .collect()
+        };
+        Self {
+            boundary: value.boundary,
+            logical_root: value.logical_root,
+            auxiliary_files: digests(value.auxiliary_files),
+            source_files: digests(value.source_files),
+            missing: value.missing,
+        }
+    }
+}
+
+/// The actual dependency observations a worker report carries.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+struct ReceiptSchema {
+    mode: ModeSchema,
+    logical_root: PathBuf,
+    actual_root: PathBuf,
+    manifest_hash: String,
+    dependencies: BTreeMap<PathBuf, Option<[u8; 16]>>,
+}
+impl From<ReceiptSchema> for ProjectContextReceipt {
+    fn from(wire: ReceiptSchema) -> Self {
+        Self {
+            mode: wire.mode.into(),
+            logical_root: wire.logical_root,
+            actual_root: wire.actual_root,
+            manifest_hash: ArtifactDigest(wire.manifest_hash),
+            dependencies: wire
+                .dependencies
+                .into_iter()
+                .map(|(path, state)| (path, state.map(ryo::linter::DependencyFingerprint)))
+                .collect(),
+        }
+    }
 }
 #[cfg(test)]
 #[path = "schemas_test.rs"]

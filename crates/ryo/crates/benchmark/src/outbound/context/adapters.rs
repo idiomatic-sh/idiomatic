@@ -1,2 +1,3 @@
-//! Materialized snapshot boundaries.
-pub(crate) mod local;
+//! The context port's implementations, one module each.
+
+pub(super) mod local;

@@ -71,6 +71,30 @@ fn explicit_cohort_request() -> WorkerRequest {
 fn explicit_cohort_is_serialized(value: &serde_json::Value) -> bool {
     value["selected_rules"] == serde_json::json!(["F401", "RUF100"])
 }
+fn listed_context_request() -> WorkerRequest {
+    let mut request = crate::outbound::worker::fixtures::data::request();
+    request.project_context_mode =
+        ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::ListedDisk;
+    request.context_manifest = Some(ryo_benchmark_contracts::domain::context::types::ContextManifest {
+        boundary: "/snapshot".into(),
+        logical_root: "pkg".into(),
+        auxiliary_files: std::collections::BTreeMap::from([(
+            "pkg/__init__.py".into(),
+            ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest(
+                "auxiliary-hash".into(),
+            ),
+        )]),
+        source_files: std::collections::BTreeMap::new(),
+        missing: vec!["__init__.py".into()],
+    });
+    request
+}
+fn listed_context_is_transported(value: &serde_json::Value) -> bool {
+    value["project_context_mode"] == "listed-disk"
+        && value["context_manifest"]["logical_root"] == "pkg"
+        && value["context_manifest"]["auxiliary_files"]["pkg/__init__.py"] == "auxiliary-hash"
+        && value["context_manifest"]["missing"] == serde_json::json!(["__init__.py"])
+}
 type Value = bool;
 type Failure = ();
 const CASES: &[Case<Input, Value, Failure>] = &[
@@ -159,6 +183,20 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Wire::Request(explicit_cohort_request, explicit_cohort_is_serialized),
         expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("request transports the sealed context manifest and its mode"),
+        word: Word::Succeeds,
+        input: || Wire::Request(listed_context_request, listed_context_is_transported),
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("a receipt of an unknown project context mode is refused"),
+        word: Word::Refuses,
+        input: || {
+            report(br#"{"diagnostics":[],"files":[],"project_context":{"mode":"disk-by-default","logical_root":"pkg","actual_root":"/snapshot/pkg","manifest_hash":"context-hash","dependencies":{}}}"#)
+        },
+        expect: Expect::Error(()),
     },
 ];
 fn subject(wire: Input) -> Result<Value, Failure> {

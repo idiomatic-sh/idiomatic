@@ -2,13 +2,13 @@
 /// Text of the absolute context dependency in this part.
 pub(super) const ABSOLUTE_CONTEXT_DEPENDENCY: &str = "absolute context dependency";
 /// Text of the listed disk context v1 in this part.
-pub(super) const LISTED_DISK_CONTEXT_V1: &[u8] = b"listed-disk-context-v1";
+pub(super) const LISTED_DISK_CONTEXT_V1: &str = "listed-disk-context-v1";
 /// Text of the source in this part.
-pub(super) const SOURCE: &[u8] = b"source";
+pub(super) const SOURCE: &str = "source";
 /// Text of the auxiliary in this part.
-pub(super) const AUXILIARY: &[u8] = b"auxiliary";
+pub(super) const AUXILIARY: &str = "auxiliary";
 /// Text of the missing in this part.
-pub(super) const MISSING: &[u8] = b"missing";
+pub(super) const MISSING: &str = "missing";
 /// Text of the context logical and physical roots disagree in this part.
 pub(super) const CONTEXT_LOGICAL_AND_PHYSICAL_ROOTS_DISAGREE: &str =
     "context logical and physical roots disagree";
@@ -19,8 +19,6 @@ pub(super) const CONTEXT_PATH_HAS_CONFLICTING_ROLES: &str = "context path has co
 /// Text of the sealed corpus requires unique actual tracked in this part.
 pub(super) const SEALED_CORPUS_REQUIRES_UNIQUE_ACTUAL_TRACKED: &str =
     "sealed corpus requires unique actual tracked paths covering every requested source";
-/// Text of the dot in this part.
-pub(super) const DOT: &str = ".";
 /// Text of the missing context parent in this part.
 pub(super) const MISSING_CONTEXT_PARENT: &str = "missing context parent";
 /// Text of the auxiliary file also requested for lint in this part.

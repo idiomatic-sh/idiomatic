@@ -1,162 +1,45 @@
 //! Materialize and validate explicitly sealed project context at the filesystem boundary.
-use crate::outbound::context::adapters::local::constants;
+use super::constants;
+use super::writer::{PathScope, frame, no_symlinks, relative, resolve, walked_dependency};
+use crate::outbound::context::interface::ContextPort;
+use crate::outbound::context::types::CorpusFiles;
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
 use ryo_benchmark_contracts::domain::context::types::CaseContext;
+use ryo_benchmark_contracts::domain::context::types::ContextBytes;
 use ryo_benchmark_contracts::domain::context::types::ContextManifest;
 use ryo_benchmark_contracts::domain::context::types::ProjectContextReceipt;
 use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use sha2::{Digest as _, Sha256};
 use std::collections::BTreeMap;
+use std::ffi::OsStr;
 use std::path::{Component, Path, PathBuf};
 
 /// Raw artifact identity, independent of the engine's opaque dependency fingerprint.
-pub(crate) fn artifact(bytes: &[u8]) -> ArtifactDigest {
-    ArtifactDigest(format!("{:x}", Sha256::digest(bytes)))
-}
-
-/// Whether a validated path names the logical root or a member beneath it.
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum PathScope {
-    Root,
-    Member,
-}
-
-/// Validate a path wholly inside a snapshot; `.` is allowed only for the logical root.
-fn relative(path: &Path, scope: PathScope) -> Result<(), Error> {
-    if path.as_os_str().is_empty()
-        || path.is_absolute()
-        || path
-            .components()
-            .any(|part| !matches!(part, Component::Normal(_) | Component::CurDir))
-        || scope == PathScope::Member && path.components().all(|part| part == Component::CurDir)
-    {
-        return Err(Error::Invalid(format!(
-            "unsafe context path: {}",
-            path.display()
-        )));
-    }
-    Ok(())
-}
-
-/// Resolve a root-relative dependency lexically, without allowing it to escape its snapshot.
-fn resolve(manifest: &ContextManifest, path: &Path) -> Result<PathBuf, Error> {
-    if path.is_absolute() {
-        return Err(Error::Invalid(
-            constants::ABSOLUTE_CONTEXT_DEPENDENCY.into(),
-        ));
-    }
-    let mut resolved = PathBuf::new();
-    for part in manifest.logical_root.components() {
-        if let Component::Normal(name) = part {
-            resolved.push(name);
-        }
-    }
-    for part in path.components() {
-        match part {
-            Component::Normal(name) => resolved.push(name),
-            Component::CurDir => {}
-            Component::ParentDir if resolved.pop() => {}
-            Component::Prefix(_) | Component::RootDir | Component::ParentDir => {
-                return Err(Error::Invalid(format!(
-                    "context dependency escapes boundary: {}",
-                    path.display()
-                )));
-            }
-        }
-    }
-    relative(&resolved, PathScope::Member)?;
-    Ok(resolved)
-}
-
-/// Preserve the filesystem meaning of the original dependency path before lexical resolution.
-/// A cancelled component must be an existing directory, and no walked component may be a symlink.
-fn walked_dependency(manifest: &ContextManifest, path: &Path) -> Result<PathBuf, Error> {
-    let resolved = resolve(manifest, path)?;
-    let mut walked = manifest.boundary.join(&manifest.logical_root);
-    for part in path.components() {
-        match part {
-            Component::Normal(name) => {
-                walked.push(name);
-                match std::fs::symlink_metadata(&walked) {
-                    Ok(metadata) if metadata.file_type().is_symlink() => {
-                        return Err(Error::Invalid(format!(
-                            "symlink in context dependency: {}",
-                            path.display()
-                        )));
-                    }
-                    Ok(_) => {}
-                    Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-                    Err(error) => return Err(error.into()),
-                }
-            }
-            Component::ParentDir => {
-                let metadata = std::fs::symlink_metadata(&walked)?;
-                if !metadata.is_dir() || metadata.file_type().is_symlink() {
-                    return Err(Error::Invalid(format!(
-                        "non-directory in context dependency: {}",
-                        path.display()
-                    )));
-                }
-                let _parent = walked.pop();
-            }
-            Component::CurDir => {}
-            Component::Prefix(_) | Component::RootDir => {
-                return Err(Error::Invalid(format!(
-                    "unsafe context dependency: {}",
-                    path.display()
-                )));
-            }
-        }
-    }
-    Ok(resolved)
-}
-
-/// Reject symlinks within the snapshot, including missing paths with a symlinked parent.
-fn no_symlinks(boundary: &Path, relative: &Path) -> Result<(), Error> {
-    let mut path = boundary.to_owned();
-    for part in std::iter::once(None).chain(relative.components().map(Some)) {
-        if let Some(part) = part {
-            path.push(part.as_os_str());
-        }
-        match std::fs::symlink_metadata(&path) {
-            Ok(metadata) if metadata.file_type().is_symlink() => {
-                return Err(Error::Invalid(format!(
-                    "symlink in context: {}",
-                    path.display()
-                )));
-            }
-            Ok(_) => {}
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-            Err(error) => return Err(error.into()),
-        }
-    }
-    Ok(())
+pub(crate) fn artifact(bytes: &ContextBytes) -> ArtifactDigest {
+    ArtifactDigest(format!("{:x}", Sha256::digest(&bytes.0)))
 }
 
 /// Content seal includes declared absences and stable logical location, never temporary physical directories.
 pub(crate) fn fingerprint(manifest: &ContextManifest) -> ArtifactDigest {
     let mut hash = Sha256::new();
-    frame(&mut hash, constants::LISTED_DISK_CONTEXT_V1);
-    frame(
-        &mut hash,
-        manifest.logical_root.as_os_str().as_encoded_bytes(),
-    );
+    frame(&mut hash, OsStr::new(constants::LISTED_DISK_CONTEXT_V1));
+    frame(&mut hash, manifest.logical_root.as_os_str());
     for (kind, files) in [
         (constants::SOURCE, &manifest.source_files),
         (constants::AUXILIARY, &manifest.auxiliary_files),
     ] {
-        frame(&mut hash, kind);
+        frame(&mut hash, OsStr::new(kind));
         for (path, digest) in files {
-            frame(&mut hash, path.as_os_str().as_encoded_bytes());
-            frame(&mut hash, digest.0.as_bytes());
+            frame(&mut hash, path.as_os_str());
+            frame(&mut hash, OsStr::new(&digest.0));
         }
     }
     let mut missing = manifest.missing.clone();
     missing.sort();
     for path in missing {
-        frame(&mut hash, constants::MISSING);
-        frame(&mut hash, path.as_os_str().as_encoded_bytes());
+        frame(&mut hash, OsStr::new(constants::MISSING));
+        frame(&mut hash, path.as_os_str());
     }
     ArtifactDigest(format!("{:x}", hash.finalize()))
 }
@@ -195,7 +78,7 @@ pub(crate) fn validate(manifest: &ContextManifest, actual_root: &Path) -> Result
                 constants::CONTEXT_PATH_HAS_CONFLICTING_ROLES.into(),
             ));
         }
-        let bytes = std::fs::read(manifest.boundary.join(path))?;
+        let bytes = ContextBytes(std::fs::read(manifest.boundary.join(path))?);
         if artifact(&bytes) != *expected {
             return Err(Error::Invalid(format!(
                 "context bytes changed: {}",
@@ -242,7 +125,7 @@ pub(crate) fn seal_existing(
     }
     let mut manifest = ContextManifest {
         boundary,
-        logical_root: PathBuf::from(constants::DOT),
+        logical_root: PathBuf::from(Component::CurDir.as_os_str()),
         source_files: BTreeMap::new(),
         auxiliary_files: BTreeMap::new(),
         missing: Vec::new(),
@@ -251,12 +134,12 @@ pub(crate) fn seal_existing(
         relative(path, PathScope::Member)?;
         no_symlinks(&manifest.boundary, path)?;
         let actual = manifest.boundary.join(path);
-        let bytes = std::fs::read(&actual).map_err(|error| {
+        let bytes = ContextBytes(std::fs::read(&actual).map_err(|error| {
             Error::Io(std::io::Error::new(
                 error.kind(),
                 format!("seal corpus {}: {error}", actual.display()),
             ))
-        })?;
+        })?);
         let destination = if source_set.contains(path) {
             &mut manifest.source_files
         } else {
@@ -296,7 +179,7 @@ pub(crate) fn materialize(
                 .parent()
                 .ok_or_else(|| Error::Invalid(constants::MISSING_CONTEXT_PARENT.into()))?,
         )?;
-        std::fs::write(actual, bytes)?;
+        std::fs::write(actual, &bytes.0)?;
         let _previous = manifest
             .auxiliary_files
             .insert(path.clone(), artifact(bytes));
@@ -314,10 +197,9 @@ pub(crate) fn materialize(
                 .parent()
                 .ok_or_else(|| Error::Invalid(constants::MISSING_SOURCE_PARENT.into()))?,
         )?;
-        std::fs::write(actual, source.0.as_bytes())?;
-        let _previous = manifest
-            .source_files
-            .insert(path, artifact(source.0.as_bytes()));
+        let bytes = ContextBytes(source.0.as_bytes().to_vec());
+        std::fs::write(actual, &bytes.0)?;
+        let _previous = manifest.source_files.insert(path, artifact(&bytes));
     }
     validate(&manifest, &manifest.boundary.join(&manifest.logical_root))?;
     Ok(manifest)
@@ -425,8 +307,47 @@ pub(crate) fn verify_receipt(
     Ok(())
 }
 
-/// Hash one length-framed field without delimiter ambiguity.
-fn frame(hash: &mut Sha256, bytes: &[u8]) {
-    hash.update(u64::try_from(bytes.len()).unwrap_or(u64::MAX).to_le_bytes());
-    hash.update(bytes);
+/// The local filesystem context adapter.
+#[derive(Debug)]
+pub(crate) struct ContextLocalAdapter;
+
+impl ContextPort for ContextLocalAdapter {
+    fn fingerprint(&self, manifest: &ContextManifest) -> ArtifactDigest {
+        fingerprint(manifest)
+    }
+    fn validate(&self, manifest: &ContextManifest, actual_root: &Path) -> Result<(), Error> {
+        validate(manifest, actual_root)
+    }
+    fn seal_existing(
+        &self,
+        root: &Path,
+        sources: &[ryo::linter::RelativePath],
+        tracked: CorpusFiles<'_>,
+    ) -> Result<ContextManifest, Error> {
+        seal_existing(root, sources, tracked.0)
+    }
+    fn materialize(
+        &self,
+        boundary: &Path,
+        context: &CaseContext,
+        sources: &BTreeMap<ryo::linter::RelativePath, ryo::linter::SourceText>,
+    ) -> Result<ContextManifest, Error> {
+        materialize(boundary, context, sources)
+    }
+    fn receipt(
+        &self,
+        manifest: &ContextManifest,
+        actual_root: &Path,
+        dependencies: Vec<ryo::linter::ProjectDependency>,
+    ) -> Result<ProjectContextReceipt, Error> {
+        receipt(manifest, actual_root, dependencies)
+    }
+    fn verify_receipt(
+        &self,
+        manifest: &ContextManifest,
+        actual_root: &Path,
+        observed: &ProjectContextReceipt,
+    ) -> Result<(), Error> {
+        verify_receipt(manifest, actual_root, observed)
+    }
 }
