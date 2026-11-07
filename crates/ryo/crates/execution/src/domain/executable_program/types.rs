@@ -395,6 +395,7 @@ impl RemainingTable {
 #[derive(Debug)]
 pub(crate) struct Remaining {
     pub table: std::sync::Arc<RemainingTable>,
+    #[cfg(test)]
     pub computations: usize,
 }
 /// The typed semantic shape required by the shared physical invocation.

@@ -102,7 +102,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(true),
     },
     Case {
-        name: CaseName("a_zero_tab_width_is_an_invalid_span"),
+        name: CaseName("a_zero_tab_width_is_not_an_operation"),
         word: Word::Refuses,
         input: || Candidate {
             text: "x",
@@ -110,7 +110,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             maximum: 5,
             tab_width: 0,
         },
-        expect: Expect::Error(OperatingError::InvalidSpan),
+        expect: Expect::Error(OperatingError::WrongOperation),
     },
 ];
 

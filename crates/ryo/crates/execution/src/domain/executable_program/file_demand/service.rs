@@ -228,6 +228,7 @@ pub(crate) fn remaining(
     {
         return Ok(Remaining {
             table: std::sync::Arc::clone(table),
+            #[cfg(test)]
             computations: memo.computations,
         });
     }
@@ -236,6 +237,7 @@ pub(crate) fn remaining(
     memo.table = Some(std::sync::Arc::clone(&table));
     Ok(Remaining {
         table,
+        #[cfg(test)]
         computations: memo.computations,
     })
 }

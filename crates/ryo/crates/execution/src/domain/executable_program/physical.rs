@@ -47,6 +47,10 @@ pub(crate) fn authorize(
     const ORDERED_MATCH: u32 = 8192;
     const SOURCE_MATCHES: u32 = 16384;
     const REDUCTION: u32 = 32768;
+    const FITS_RENDERED: u32 = 65536;
+    const CYCLES: u32 = 131072;
+    const ROWS: u32 = 262144;
+    const RENDER_SYNTAX: u32 = 524288;
     let allowed = match ryo_values::domain::plans::service::kind_of(operation) {
         OperationKind::Project => {
             if matches!(route, PhysicalRoute::Column(_)) {
@@ -77,14 +81,14 @@ pub(crate) fn authorize(
         OperationKind::Words => WORDS,
         OperationKind::OrderedMatch => ORDERED_MATCH,
         OperationKind::SourceMatches => SOURCE_MATCHES,
+        OperationKind::FitsRendered => FITS_RENDERED,
+        OperationKind::Cycles => CYCLES,
+        OperationKind::Rows => ROWS,
+        OperationKind::RenderSyntax => RENDER_SYNTAX,
         OperationKind::Axis
         | OperationKind::Closure
-        | OperationKind::Cycles
         | OperationKind::OrderedDfs
-        | OperationKind::Rows
-        | OperationKind::Hosted
-        | OperationKind::RenderSyntax
-        | OperationKind::FitsRendered => 0,
+        | OperationKind::Hosted => 0,
     };
     let (family, exact) = match call {
         OperatorCall::Select { kept, .. } => (
@@ -281,12 +285,16 @@ pub(crate) fn authorize(
                 }
             },
         ),
-        // The width check, cycle marking, table rows and render batches run through the ordinary operator
-        // call of their registered items; a physical permit authorizes none of them.
-        OperatorCall::FitsRendered { .. }
-        | OperatorCall::Cycles { .. }
-        | OperatorCall::TableRows { .. }
-        | OperatorCall::RenderBatch { .. } => (0, false),
+        OperatorCall::FitsRendered { .. } => (
+            FITS_RENDERED,
+            matches!(operation, Operation::FitsRendered { .. }),
+        ),
+        OperatorCall::Cycles { .. } => (CYCLES, matches!(operation, Operation::Cycles { .. })),
+        OperatorCall::TableRows { .. } => (ROWS, matches!(operation, Operation::Rows { .. })),
+        OperatorCall::RenderBatch { .. } => (
+            RENDER_SYNTAX,
+            matches!(operation, Operation::RenderSyntax { .. }),
+        ),
     };
     if allowed & family == 0 || !exact {
         return Err(OperatingError::WrongOperation);
