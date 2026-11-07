@@ -4,7 +4,7 @@ use super::fusion::types::Ineligible;
 use super::fusion::types::{Fusibility, RegionSharing};
 use super::types::*;
 use crate::domain::{
-    file_program::types::{NodeId, NodeInput, RequestGraph},
+    file_program::types::{ProgramNodeId, NodeInput, RequestGraph},
     operating::errors::OperatingError,
     operator::contract::types::{DemandOrder, SemanticContract},
 };
@@ -43,7 +43,7 @@ fn canonical(draft: &DraftRegion, mapping: &[usize]) -> Vec<NodeInput> {
         .inputs
         .iter()
         .map(|input| match input {
-            NodeInput::Node(child) => NodeInput::Node(NodeId(mapping[child.0])),
+            NodeInput::Node(child) => NodeInput::Node(ProgramNodeId(mapping[child.0])),
             other => *other,
         })
         .collect()
@@ -373,7 +373,7 @@ pub(crate) fn compile(
                         .ok_or_else(missing)?
                         .slots
                         .iter()
-                        .position(|slot| slot.rule == rule && slot.input == *id)
+                        .position(|slot| slot.rule.0 == rule && slot.input == *id)
                         .ok_or_else(missing)?;
                     Ok(InputSource::Observation(slot))
                 }

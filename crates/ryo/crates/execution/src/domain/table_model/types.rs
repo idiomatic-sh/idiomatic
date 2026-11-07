@@ -4,7 +4,8 @@
 use ryo_relations::domain::relations::types::{CellKind, Value};
 use ryo_values::domain::rows::types::Table;
 
-use crate::domain::stored_selection::types::SelectionIdentity;
+use crate::domain::stored_selection::types::{SelectedPositions, SelectionIdentity};
+use crate::domain::stored_selection::types::Selector;
 use crate::domain::table_cells::types::TreeRows;
 use ryo_relations::domain::relations::types::ColumnsView;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -82,7 +83,7 @@ pub(crate) struct StoredSelection {
     /// Provider to reacquire before replay, preserving availability/error checks.
     pub relation: ryo_relations::domain::relations::types::Relation,
     /// Original row IDs in source order, including repeated positions when present.
-    pub rows: std::sync::Arc<Vec<u32>>,
+    pub rows: SelectedPositions,
     /// Physical source columns, in output order and with repeats retained.
     pub columns: Vec<ColumnIndex>,
     /// Types of the projected output columns, including zero-column projections.

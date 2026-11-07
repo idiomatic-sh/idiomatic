@@ -7,7 +7,10 @@ use crate::domain::{
         column::{ColumnCandidates, ReplacementUse},
         types::ReaderMultiplicity,
     },
-    file_program::types::{FileProgramNode, GraphObservationRoot, NodeId, NodeInput, RequestGraph},
+    file_program::types::{
+        FileProgramNode, GraphObservationRoot, NodeInput, ProgramNodeId, RequestGraph,
+        SchemaValidity,
+    },
     operator::contract::{
         resources::ResourceProgram,
         types::{Effects, InputShape, ReuseScope},
@@ -77,7 +80,7 @@ pub(super) fn rule_independent(values: &[Operand]) -> RegionSharing {
 /// Whether the node's answer depends only on its operation and inputs, so equal nodes of
 /// different rules may share one region. Rule-scoped work stays rule-scoped.
 pub(crate) fn region_sharing(node: &FileProgramNode, held: Option<Barrier>) -> RegionSharing {
-    if !node.schema_valid || !matches!(held, None | Some(Barrier::Handover)) {
+    if node.schema_valid == SchemaValidity::Invalid || !matches!(held, None | Some(Barrier::Handover)) {
         return RegionSharing::RuleScoped;
     }
     match &node.operation {
@@ -91,13 +94,13 @@ pub(crate) fn region_sharing(node: &FileProgramNode, held: Option<Barrier>) -> R
     }
 }
 
-fn hold(held: &mut [Option<Barrier>], node: NodeId, barrier: Barrier) {
+fn hold(held: &mut [Option<Barrier>], node: ProgramNodeId, barrier: Barrier) {
     if let Some(slot) = held.get_mut(node.0) {
         slot.get_or_insert(barrier);
     }
 }
 
-fn root(graph: &RequestGraph, rule: RuleIndex, step: StepId) -> Option<NodeId> {
+fn root(graph: &RequestGraph, rule: RuleIndex, step: StepId) -> Option<ProgramNodeId> {
     match graph.program_nodes.get(rule.0)?.get(step.0 as usize)? {
         Ok(id) => Some(*id),
         Err(_) => None,
@@ -118,7 +121,7 @@ fn fusibility_of(
     let [NodeInput::Node(child)] = node.inputs.as_slice() else {
         return Fusibility::Excluded(Ineligible::Source);
     };
-    if !node.schema_valid {
+    if node.schema_valid == SchemaValidity::Invalid {
         return Fusibility::Barrier(Barrier::Fault);
     }
     if node.contract.effects != Effects::Pure {
@@ -146,7 +149,7 @@ fn fusibility_of(
     }
     // Publish absence-sensitive answers before a continuation can project away the file
     // key needed for completeness.
-    if producer.contract.absence_inputs != 0 {
+    if producer.contract.absence_inputs.0 != 0 {
         return Fusibility::Barrier(Barrier::Fault);
     }
     Fusibility::Fusable
@@ -195,9 +198,9 @@ pub(crate) fn classify(
             }
         }
     }
-    for (node, derived) in graph.derived_sources.iter().enumerate() {
+    for (node, derived) in graph.derived_sources.0.iter().enumerate() {
         if *derived {
-            hold(&mut held, NodeId(node), Barrier::Derived);
+            hold(&mut held, ProgramNodeId(node), Barrier::Derived);
         }
     }
     for alternative in graph.ordered_existence.iter().flatten() {

@@ -132,7 +132,7 @@ fn exercise_real_selector(limit: Retention) {
         panic!("producer must publish compact rows")
     };
     assert!(
-        Arc::ptr_eq(&selected.selection.rows, &second_selected.selection.rows),
+        Arc::ptr_eq(&selected.selection.rows.0, &second_selected.selection.rows.0),
         "second registered consumer reuses the producer match IDs"
     );
     assert_eq!(

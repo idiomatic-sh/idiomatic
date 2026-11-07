@@ -97,7 +97,9 @@ impl DerivedStorage {
                 ),
                 retention_units: UnitCount(0),
             });
-            if let Some(rows) = &identity.population.positions {
+            if let Some(crate::domain::stored_selection::types::SelectedPositions(rows)) =
+                &identity.population.positions
+            {
                 output.push(Backing {
                     key: BackingKey {
                         tag: BackingTag(1),

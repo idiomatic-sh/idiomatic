@@ -101,7 +101,7 @@ fn population(
                 count,
                 None,
                 Some(Arc::clone(&view.selection.identity)),
-                Some(Arc::clone(&view.selection.rows)),
+                Some(view.selection.rows.clone()),
                 view.selection.columns.clone(),
             )
         }

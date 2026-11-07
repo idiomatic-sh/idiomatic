@@ -6,7 +6,7 @@ use crate::domain::{
     coverage::types::RuleIndex,
     derived_views::types::ViewRequest,
     executable_program::types::{ColumnAlternative, RegionId},
-    file_program::types::{NodeId, RequestGraph},
+    file_program::types::{ProgramNodeId, RequestGraph, SchemaValidity},
 };
 use ryo_derived::domain::contract::types::DerivedKind;
 use ryo_values::domain::plan_parts::types::StepId;
@@ -14,10 +14,10 @@ use std::sync::Arc;
 
 #[derive(Clone, Debug)]
 struct OriginalColumn {
-    target: NodeId,
-    filter: NodeId,
-    join: NodeId,
-    left: NodeId,
+    target: ProgramNodeId,
+    filter: ProgramNodeId,
+    join: ProgramNodeId,
+    left: ProgramNodeId,
     chain: Chain,
 }
 
@@ -28,7 +28,7 @@ pub(crate) struct ColumnCandidates {
     candidates: Vec<OriginalColumn>,
 }
 
-fn original(graph: &RequestGraph, rule: RuleIndex, step: StepId) -> Option<NodeId> {
+fn original(graph: &RequestGraph, rule: RuleIndex, step: StepId) -> Option<ProgramNodeId> {
     match graph.program_nodes.get(rule.0)?.get(step.0 as usize)? {
         Ok(node) => Some(*node),
         Err(_) => None,
@@ -54,7 +54,7 @@ impl ColumnCandidates {
                 let Some(target) = original(graph, rule, physical.step) else {
                     continue;
                 };
-                if target != NodeId(at) {
+                if target != ProgramNodeId(at) {
                     continue;
                 }
                 let (Some(filter), Some(join), Some(left)) = (
@@ -68,7 +68,7 @@ impl ColumnCandidates {
                     graph
                         .nodes
                         .get(node.0)
-                        .is_none_or(|node| !node.schema_valid)
+                        .is_none_or(|node| node.schema_valid == SchemaValidity::Invalid)
                 }) {
                     continue;
                 }
@@ -106,7 +106,7 @@ impl ColumnCandidates {
         Self { candidates }
     }
 
-    pub(super) fn retain_internal(&mut self, mut usage: impl FnMut(NodeId) -> ReplacementUse) {
+    pub(super) fn retain_internal(&mut self, mut usage: impl FnMut(ProgramNodeId) -> ReplacementUse) {
         self.candidates.retain(|candidate| {
             [candidate.join, candidate.filter]
                 .into_iter()
@@ -114,7 +114,7 @@ impl ColumnCandidates {
         });
     }
     /// Every original node in a candidate must remain a compiler boundary.
-    pub(crate) fn fences(&self) -> impl Iterator<Item = NodeId> + '_ {
+    pub(crate) fn fences(&self) -> impl Iterator<Item = ProgramNodeId> + '_ {
         self.candidates
             .iter()
             .flat_map(|each| [each.target, each.filter, each.join, each.left])

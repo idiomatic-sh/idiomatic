@@ -5,6 +5,7 @@ use super::super::types::{
     ComputationCount, RemainingMemo,
 };
 use super::types::*;
+use crate::domain::file_program::types::FrontierPurpose;
 use crate::domain::{
     coverage::types::RuleIndex, operating::errors::OperatingError, readiness::types::RegionCount,
 };

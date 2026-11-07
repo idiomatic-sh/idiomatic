@@ -47,7 +47,7 @@ fn exclusive_chain_lowers_once_and_duplicate_rule_shares_one_physical_owner() ->
     assert_eq!(ColumnCandidates::capture(&request).fences().count(), 8);
     let (ordinary_operators, mut without_replacement) = graph(&duplicate);
     let shared_join = node(&without_replacement, 0, 1);
-    without_replacement.derived_sources[shared_join.0] = true;
+    without_replacement.derived_sources.0[shared_join.0] = true;
     let ordinary = program(&duplicate, &ordinary_operators, without_replacement);
     let compiled = program(&duplicate, &operators, request);
     assert_eq!(column_count(&compiled), 1);
@@ -113,7 +113,7 @@ fn emit_frontier_named_and_derived_ancestor_boundaries_prevent_replacement() -> 
     let (operators, mut request) = graph(&plans);
     let filter = node(&request, 0, 2);
     assert_eq!(ColumnCandidates::capture(&request).fences().count(), 4);
-    request.derived_sources[filter.0] = true;
+    request.derived_sources.0[filter.0] = true;
     assert_eq!(column_count(&program(&plans, &operators, request)), 0);
     0
 }

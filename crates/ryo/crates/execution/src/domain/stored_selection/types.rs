@@ -7,6 +7,17 @@ use std::sync::Arc;
 
 pub(crate) mod program;
 
+/// Original row positions of a selection, shared through the admitted view that holds them.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct SelectedPositions(pub Arc<Vec<u32>>);
+
+impl std::ops::Deref for SelectedPositions {
+    type Target = Arc<Vec<u32>>;
+    fn deref(&self) -> &Arc<Vec<u32>> {
+        &self.0
+    }
+}
+
 /// Immutable semantic identity shared by prepared selectors and compact graph populations.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub(crate) struct SelectionIdentity {

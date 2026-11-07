@@ -145,7 +145,7 @@ pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn doma
     }
     let domain = Arc::new(GraphDomain {
         identity,
-        members: Arc::clone(members.backing()),
+        members,
     });
     let storage = Arc::new(storage);
     let mut backings = owner.graph_backings(&storage)?;
@@ -156,7 +156,7 @@ pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn doma
     if let Some(rows) = domain
         .identity
         .as_ref()
-        .and_then(|id| id.population.positions.as_ref())
+        .and_then(|id| id.population.positions.as_ref().map(|positions| &positions.0))
     {
         append_backing(
             &mut dependencies,
@@ -184,7 +184,7 @@ pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn doma
     if let Some(cache) = cache.as_mut() {
         owner.retain_domain(cache, population, access, &domain, &storage, &backings)?;
     }
-    tracing::trace!(target: constants::TARGET_GRAPH, event = constants::EVENT_DOMAIN, vertices = domain.members.len(), source_rows = count_of(rows).0, stable = domain.identity.is_some());
+    tracing::trace!(target: constants::TARGET_GRAPH, event = constants::EVENT_DOMAIN, vertices = domain.members.as_slice().len(), source_rows = count_of(rows).0, stable = domain.identity.is_some());
     Ok(BuiltDomain {
         storage,
         construction: Construction::Built,

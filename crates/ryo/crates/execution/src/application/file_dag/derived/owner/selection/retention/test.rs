@@ -77,8 +77,8 @@ fn retained_selections_keep_spare_owner_capacity_and_bounded_reacquisition() -> 
         .select(&first, source, &mut context)?
         .expect("shared repeated result");
     assert!(Arc::ptr_eq(
-        &selected.selection.rows,
-        &repeated.selection.rows
+        &selected.selection.rows.0,
+        &repeated.selection.rows.0
     ));
     let after_reuse = fixture.snapshot(Some(&first));
     assert_eq!(after_reuse.descriptor_address, Some(descriptor));

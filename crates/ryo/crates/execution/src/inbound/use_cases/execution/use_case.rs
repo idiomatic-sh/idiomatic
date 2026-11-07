@@ -433,7 +433,7 @@ impl PreparedExecution for PreparedExecutionProgram {
         Ok(self
             .inner
             .frontier_purpose(rule, ryo_values::domain::plan_parts::types::InputNumber(input))?
-            == crate::domain::executable_program::file_demand::types::FrontierPurpose::Observation)
+            == crate::domain::file_program::types::FrontierPurpose::Observation)
     }
     fn semantic_needed(&self) -> bool {
         self.inner.semantic_needed() == crate::application::file_dag::program::preparation::types::SemanticNeed::Required

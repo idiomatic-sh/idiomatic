@@ -122,7 +122,7 @@ fn make<'a>(
             source,
             selection: Arc::new(StoredSelection {
                 relation: program.relation,
-                rows,
+                rows: crate::domain::stored_selection::types::SelectedPositions(rows),
                 columns: program.columns.clone(),
                 kinds,
                 identity: (program.identity).clone(),
@@ -160,7 +160,7 @@ impl DerivedOwner {
         {
             return Ok(None);
         }
-        if views.group >= plans.groups {
+        if views.group.0 >= plans.groups.0 {
             return Err(OperatingError::NotRun);
         }
         Ok(Some(Arc::clone(&views.predicate)))

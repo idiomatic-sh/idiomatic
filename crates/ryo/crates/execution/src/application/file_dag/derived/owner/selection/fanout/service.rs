@@ -142,7 +142,7 @@ pub(in crate::application::file_dag::derived::owner::selection) fn fanout_candid
         SelectionPath::FanoutReused
     };
     Ok(Some(FanoutHit {
-        rows: SelectedPositions(Arc::clone(rows.backing())),
+        rows: crate::domain::stored_selection::types::SelectedPositions(Arc::clone(rows.backing())),
         resource: acquired,
         path,
     }))

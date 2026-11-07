@@ -105,7 +105,7 @@ fn exact_selected_bindings_population_and_projection_determine_graph_identity() 
                         ),
                     ],
                 }),
-                rows: Arc::new(positions),
+                rows: crate::domain::stored_selection::types::SelectedPositions(Arc::new(positions)),
                 columns,
                 kinds: vec![CellKind::Number; 2],
             }),

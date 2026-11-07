@@ -80,11 +80,13 @@ pub(super) fn acquire(
         }
         let selection = {
             let result = shared.result();
-            work.found(0, shared.visits().0);
+            work.found(ryo_values::domain::plan_parts::types::InputNumber(0), crate::domain::operator::contract::types::FoundRows(shared.visits().0));
             result.completion.clone()?;
             std::sync::Arc::new(crate::domain::table_model::types::StoredSelection {
                 relation: selector.relation,
-                rows: std::sync::Arc::new(result.positions.0.clone()),
+                rows: crate::domain::stored_selection::types::SelectedPositions(std::sync::Arc::new(
+                    result.positions.0.clone(),
+                )),
                 columns: selector.columns.clone(),
                 kinds,
                 identity: std::sync::Arc::clone(&selector.identity),
@@ -133,6 +135,6 @@ pub(super) fn acquire(
         &mut rebound,
     );
     let after = owner.derived().selector_work()?;
-    work.found(0, after.0[0].saturating_sub(before.0[0]));
+    work.found(ryo_values::domain::plan_parts::types::InputNumber(0), crate::domain::operator::contract::types::FoundRows(after.0[0].saturating_sub(before.0[0])));
     result
 }

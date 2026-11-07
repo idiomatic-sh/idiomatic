@@ -1,7 +1,7 @@
 //! Named distinct-set combinations are ordinary prepared program instructions.
 use super::types::*;
 use crate::domain::{
-    coverage::types::RuleIndex, file_program::types::GraphObservations,
+    file_program::types::GraphObservations,
     operating::errors::OperatingError,
 };
 use std::sync::Arc;
@@ -19,10 +19,10 @@ pub(super) fn compile_unions(
     let mut next_logical = first_logical;
     for (slot, declaration) in named.slots.iter().enumerate() {
         let compiled = (|| {
-            let rule = RuleIndex(declaration.rule);
+            let rule = declaration.rule;
             let binding = named
                 .bindings
-                .get(declaration.rule)
+                .get(declaration.rule.0)
                 .and_then(|bindings| bindings.get(declaration.input.0 as usize))
                 .ok_or(OperatingError::NotRun)?;
             let partition = partitions.observation(rule, declaration.input)?;

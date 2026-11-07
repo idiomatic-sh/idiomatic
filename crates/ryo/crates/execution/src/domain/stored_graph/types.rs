@@ -1,7 +1,8 @@
 //! Plain compact graph, population, traversal and bounded memo data.
 
-use crate::domain::stored_selection::types::SelectionIdentity;
+use crate::domain::stored_selection::types::{SelectedPositions, SelectionIdentity};
 use ryo_relations::domain::relations::types::{CellKind, FileId, Relation, Value};
+use ryo_derived::domain::contract::types::SharedMarks;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::types::RowCount;
 use std::sync::Arc;
@@ -22,7 +23,7 @@ pub(crate) struct RelationPopulation {
     /// Exact ordered predicates/bindings, absent for the complete raw relation.
     pub selected: Option<Arc<SelectionIdentity>>,
     /// Original positions, including order/multiplicity, for a selected population.
-    pub positions: Option<Arc<Vec<u32>>>,
+    pub positions: Option<SelectedPositions>,
 }
 
 /// The physical columns and population defining one adjacency, independent of lookup orientation.
@@ -80,7 +81,7 @@ pub(crate) struct GraphDomain {
     /// Exact domain identity when shared, absent for invocation-local computed rows.
     pub identity: Option<DomainIdentity>,
     /// Membership by dense vertex ID.
-    pub members: Arc<Vec<bool>>,
+    pub members: SharedMarks,
 }
 
 /// One domain-specific nearest context; mutable answers remain under the generation owner.

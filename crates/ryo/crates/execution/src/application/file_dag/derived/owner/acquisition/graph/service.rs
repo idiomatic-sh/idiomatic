@@ -246,15 +246,14 @@ pub(in crate::application::file_dag::derived::owner) fn domain(
         .payload()
         .share_marks()
         .ok_or(OperatingError::WrongOperation)?;
-    let members = members.backing();
     let found = cache.graph_domains.iter().find(|entry| {
-        Arc::ptr_eq(&entry.graph, access.raw_graph()) && Arc::ptr_eq(&entry.domain.members, members)
+        Arc::ptr_eq(&entry.graph, access.raw_graph()) && Arc::ptr_eq(entry.domain.members.backing(), members.backing())
     });
     let domain = found.map_or_else(
         || {
             Arc::new(GraphDomain {
                 identity,
-                members: Arc::clone(members),
+                members: members.clone(),
             })
         },
         |entry| Arc::clone(&entry.domain),
@@ -266,7 +265,13 @@ pub(in crate::application::file_dag::derived::owner) fn domain(
     if let Some(rows) = domain
         .identity
         .as_ref()
-        .and_then(|identity| identity.population.positions.as_ref())
+        .and_then(|identity| {
+            identity
+                .population
+                .positions
+                .as_ref()
+                .map(|positions| &positions.0)
+        })
     {
         append_backing(
             &mut backings,

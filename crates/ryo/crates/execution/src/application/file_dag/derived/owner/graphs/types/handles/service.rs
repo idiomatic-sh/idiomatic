@@ -89,7 +89,7 @@ impl DomainHandle {
             .payload()
             .share_marks()
             .ok_or(OperatingError::WrongOperation)?;
-        if !Arc::ptr_eq(marks.backing(), &domain.members)
+        if !Arc::ptr_eq(marks.backing(), domain.members.backing())
             || marks.as_slice().len() != parent.graph().vertices().len()
         {
             return Err(OperatingError::NotRead);
@@ -106,7 +106,7 @@ impl DomainHandle {
         self.acquired
             .view()
             .expect(constants::EXPECT_MEMBERSHIP_LEASE);
-        &self.domain.members
+        self.domain.members.as_slice()
     }
     pub(in crate::application::file_dag::derived::owner) fn raw_domain(&self) -> &Arc<GraphDomain> {
         &self.domain

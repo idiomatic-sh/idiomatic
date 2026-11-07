@@ -50,7 +50,7 @@ impl<'a> GraphTraversal<'a> {
         self.follow(root, orientation);
         while let Some(vertex) = self.walk.queue.pop_front() {
             self.walk.reached.push(vertex);
-            if nearest.is_some_and(|domain| domain.members.get(vertex.0 as usize) == Some(&true)) {
+            if nearest.is_some_and(|domain| domain.members.as_slice().get(vertex.0 as usize) == Some(&true)) {
                 return BreadthEnd::Stopped;
             }
             // Initial seeding already expanded the root. A real cycle may still emit it.
@@ -102,7 +102,7 @@ impl<'a> GraphTraversal<'a> {
             };
             self.walk.examined.0 += 1;
             let parent = VertexId(parent);
-            if domain.members[parent.0 as usize] {
+            if domain.members.as_slice()[parent.0 as usize] {
                 break parent;
             }
             if answers[parent.0 as usize] != UNKNOWN {

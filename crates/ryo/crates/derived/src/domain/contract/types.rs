@@ -401,6 +401,11 @@ impl SharedMarks {
         self.0.capacity()
     }
 }
+impl From<Vec<bool>> for SharedMarks {
+    fn from(marks: Vec<bool>) -> Self {
+        Self(Arc::new(marks))
+    }
+}
 pub enum MembershipSpace<'a> {
     Values,
     Dense(&'a [ryo_relations::domain::relations::types::Value]),

@@ -98,7 +98,7 @@ fn symbol_discriminator_preserves_text_equality_with_term_aliases() -> Result<()
     let rare_rows = fixture
         .select(&rare_selector, source, &mut context)?
         .expect("indexed rare");
-    assert_eq!(*rare_rows.selection.rows, [4]);
+    assert_eq!(**rare_rows.selection.rows, [4]);
     let indexes = fixture.snapshot(None);
     assert_eq!(indexes.entries, 1, "unique name uses the index");
     let candidates_before = indexes.counts.candidates;
@@ -106,7 +106,7 @@ fn symbol_discriminator_preserves_text_equality_with_term_aliases() -> Result<()
     let class_rows = fixture
         .select(&class_selector, source, &mut context)?
         .expect("term alias scan");
-    assert_eq!(*class_rows.selection.rows, [0, 2, 3, 17]);
+    assert_eq!(**class_rows.selection.rows, [0, 2, 3, 17]);
     let indexes = fixture.snapshot(None);
     assert_eq!(indexes.entries, 1);
     assert_eq!(indexes.counts.candidates, candidates_before);
@@ -296,7 +296,7 @@ fn empty_literal_preserves_malformed_symbol_fallback() -> Result<(), Failure> {
     let selected = fixture
         .select(&selector, source, &mut context)?
         .expect("compact result");
-    assert_eq!(*selected.selection.rows, [0, 1, 2]);
+    assert_eq!(**selected.selection.rows, [0, 1, 2]);
     assert_eq!(fixture.snapshot(None).counts.scanned, 3);
     let mut actual = Table::default();
     materialize(

@@ -6,10 +6,10 @@ use crate::application::file_dag::derived::owner::acquisition::population::types
 };
 use crate::application::file_dag::derived::owner::index::types::{IndexRowCount, KeyColumns};
 use crate::application::file_dag::derived::owner::selection::types::{
-    Retainability, SelectedPositions,
+    Retainability,
 };
 use crate::application::file_dag::relations::{RelationOwner, admission::service::BorrowedInput};
-use crate::domain::stored_selection::types::{Selector, SelectorHistogram};
+use crate::domain::stored_selection::types::{SelectedPositions, Selector, SelectorHistogram};
 use ryo_derived::domain::contract::types::DerivedView;
 use ryo_relations::domain::relations::types::ColumnsView;
 #[derive(Clone, Copy)]
@@ -200,7 +200,7 @@ impl SelectionSource<'_> {
         if cache
             .selection_views
             .as_ref()
-            .is_none_or(|views| group.0 >= views.groups)
+            .is_none_or(|views| group.0 >= views.groups.0)
         {
             return Err(OperatingError::NotRun);
         }

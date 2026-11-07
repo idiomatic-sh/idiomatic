@@ -274,7 +274,7 @@ pub(super) fn observation_slot(
     let mut matching = slots
         .iter()
         .enumerate()
-        .filter(|(_, slot)| slot.rule == rule.0 && slot.input == input);
+        .filter(|(_, slot)| slot.rule == rule && slot.input == input);
     let (index, _) = matching.next().ok_or(OperatingError::NotRun)?;
     if matching.next().is_some() {
         return Err(OperatingError::WrongOperation);

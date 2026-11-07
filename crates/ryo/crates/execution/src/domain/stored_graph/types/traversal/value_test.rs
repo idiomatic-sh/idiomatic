@@ -7,7 +7,7 @@ use crate::domain::stored_graph::types::{
     Orientation, VertexId, VisitEpoch,
 };
 use ryo_derived::domain::contract::types::{
-    BuildOutcome, BuildWorkspace, BulkRows, DerivedFault, DerivedInputs, RowCells, ViewRequest,
+    SharedMarks, BuildOutcome, BuildWorkspace, BulkRows, DerivedFault, DerivedInputs, RowCells, ViewRequest,
 };
 use ryo_derived::inbound::use_cases::derived::{
     interface::DerivedUseCase, use_case::DerivedUseCaseImpl,
@@ -95,12 +95,13 @@ fn vertex(graph: &ryo_derived::domain::contract::types::CompactGraph, value: i64
 fn bfs_nearest_stops_in_edge_encounter_order_and_direct_retains_duplicates() {
     let graph = graph(&[[1, 9], [1, 2], [1, 9], [9, 4], [2, 4], [4, 1]]);
     assert!(graph.forest(0).is_none());
-    let mut domain = GraphDomain {
+    let mut marks = vec![false; graph.vertices().len()];
+    marks[vertex(&graph, 9).0 as usize] = true;
+    marks[vertex(&graph, 2).0 as usize] = true;
+    let domain = GraphDomain {
         identity: None,
-        members: Arc::new(vec![false; graph.vertices().len()]),
+        members: SharedMarks::from(marks),
     };
-    Arc::make_mut(&mut domain.members)[vertex(&graph, 9).0 as usize] = true;
-    Arc::make_mut(&mut domain.members)[vertex(&graph, 2).0 as usize] = true;
     let mut walk = GraphWalk::default();
     let root = vertex(&graph, 1);
     assert_eq!(
@@ -131,12 +132,13 @@ fn bfs_nearest_stops_in_edge_encounter_order_and_direct_retains_duplicates() {
 fn validated_forest_compresses_shared_chains_without_including_the_start() {
     let graph = graph(&[[1, 2], [2, 3], [3, 4], [8, 2], [1, 2]]);
     assert!(graph.forest(0).is_some());
-    let mut domain = GraphDomain {
+    let mut marks = vec![false; graph.vertices().len()];
+    marks[vertex(&graph, 4).0 as usize] = true;
+    marks[vertex(&graph, 1).0 as usize] = true;
+    let domain = GraphDomain {
         identity: None,
-        members: Arc::new(vec![false; graph.vertices().len()]),
+        members: SharedMarks::from(marks),
     };
-    Arc::make_mut(&mut domain.members)[vertex(&graph, 4).0 as usize] = true;
-    Arc::make_mut(&mut domain.members)[vertex(&graph, 1).0 as usize] = true;
     let mut walk = GraphWalk::default();
     let mut answers = Vec::new();
     let first = GraphTraversal::new(&graph, &mut walk).nearest(

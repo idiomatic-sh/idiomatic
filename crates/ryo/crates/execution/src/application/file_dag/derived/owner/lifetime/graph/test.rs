@@ -309,7 +309,7 @@ fn impossible_selected_position_admission_does_not_evict_dormant_index() {
         selection: Arc::new(StoredSelection {
             relation: Relation::Function,
             identity: Arc::new(SelectionIdentity::default()),
-            rows: Arc::new(positions),
+            rows: crate::domain::stored_selection::types::SelectedPositions(Arc::new(positions)),
             columns: ENDPOINTS.to_vec(),
             kinds: vec![CellKind::Number; 2],
         }),

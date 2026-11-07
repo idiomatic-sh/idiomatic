@@ -232,13 +232,11 @@ fn prune(
     escapes: &EscapingOutputs,
 ) -> Result<Vec<Option<ObservationIndex>>, FileProgramError> {
     let mut step_map = vec![None; plan.steps.len()];
-    let mut next = 0_u32;
+    let mut next = StepId(0);
     for (at, keep) in wanted.0.iter().copied().enumerate() {
         if keep {
-            step_map[at] = Some(StepId(next));
-            next = next
-                .checked_add(1)
-                .ok_or(FileProgramError::TooManyOutputs)?;
+            step_map[at] = Some(next);
+            next = following(next)?;
         }
     }
     let remap = |id: StepId| {
@@ -299,6 +297,13 @@ fn prune(
         }
     }
     Ok(output_map)
+}
+
+/// The step number after `id`; a plan cannot have more steps than numbers.
+pub(crate) fn following(id: StepId) -> Result<StepId, FileProgramError> {
+    id.0.checked_add(1)
+        .map(StepId)
+        .ok_or(FileProgramError::TooManyOutputs)
 }
 
 fn frontier(plan: &Plan) -> Result<Vec<Input>, FileProgramError> {

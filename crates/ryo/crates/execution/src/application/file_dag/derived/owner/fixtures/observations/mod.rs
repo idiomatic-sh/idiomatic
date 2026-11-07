@@ -216,7 +216,7 @@ impl DerivedOwner {
             }
             if let Some(graph) = retained.storage.graph_identity() {
                 if let Some(positions) = &graph.population.positions {
-                    add_rows(positions);
+                    add_rows(&positions.0);
                 }
             }
         }

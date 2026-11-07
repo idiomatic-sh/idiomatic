@@ -4,114 +4,23 @@ pub(crate) mod link;
 pub(crate) mod observations;
 
 use super::constants::{EXPECT_BINDING_SLOTS, ORDERED_EXISTENCE_DECLINED, PREPARATION_TARGET};
+use super::types::canonical_operation::value::CanonicalOperation;
+use super::types::fingerprint::value::Fingerprint;
 use super::types::{
-    BindingOffset, CanonicalOperation, DerivedSources, FileProgramNode, Fingerprint, NodeId,
-    NodeInput, ObservationRequest, RequestGraph, ResolvedAlternative, ResolvedInput,
-    ResolvedShape,
+    BindingOffset, DerivedSources, FileProgramNode, ProgramNodeId, NodeInput, ObservationRequest,
+    RequestGraph, ResolvedAlternative, ResolvedShape, SchemaValidity,
 };
 use crate::domain::coverage::types::RuleIndex;
 use crate::domain::operator::contract::types::RequestOperators;
 use crate::domain::operator::types::KeptSteps;
 use crate::domain::self_join_recogniser::types::Decline;
 
-use ryo_values::domain::plan_parts::service::{binding_place, step_in};
 use ryo_values::domain::plan_parts::types::StepScope;
-use ryo_values::domain::plan_parts::types::{Input, Operand, QueryLiteral, StepId};
+use ryo_values::domain::plan_parts::types::{Input, StepId};
 use ryo_values::domain::plans::service::{inputs_of, named};
 use ryo_values::domain::plans::types::{Operation, Plan};
 use std::collections::HashMap;
-use std::hash::{Hash, Hasher};
 use std::sync::Arc;
-
-fn node_input(
-    input: Input,
-    previous: &[Option<NodeId>],
-    rule: RuleIndex,
-    bound_offsets: &[BindingOffset],
-) -> Option<ResolvedInput> {
-    match input {
-        Input::Relation(relation) => Some(ResolvedInput {
-            input,
-            edge: NodeInput::Relation(relation),
-        }),
-        Input::BoundObservation(input) => Some(ResolvedInput {
-            input: Input::Step(StepId(0)),
-            edge: NodeInput::Observation(super::types::ObservationGraphInputId(
-                bound_offsets
-                    .get(rule.0)?
-                    .0
-                    .checked_add(binding_place(input))?,
-            )),
-        }),
-        Input::Step(step) => Some(ResolvedInput {
-            input: Input::Step(StepId(0)),
-            edge: NodeInput::Node(*step_in(previous, step)?.as_ref()?),
-        }),
-    }
-}
-
-/// Preserve typed fields and ordered input edges; normalize only plan-local step
-/// numbers. Operation equality itself ignores diagnostic Comparison.origin.
-fn canonical(
-    operation: &Operation,
-    previous: &[Option<NodeId>],
-    rule: RuleIndex,
-    bound_offsets: &[BindingOffset],
-) -> Option<CanonicalOperation> {
-    let inputs = named(&inputs_of(operation))
-        .iter()
-        .map(|input| node_input(*input, previous, rule, bound_offsets))
-        .collect::<Option<Vec<_>>>()?;
-    let edges = inputs.iter().map(|resolved| resolved.edge).collect();
-    let mut normalized = operation.clone();
-    match &mut normalized {
-        Operation::Select { from, .. }
-        | Operation::Project { from, .. }
-        | Operation::Extend { from, .. }
-        | Operation::GroupCount { from, .. }
-        | Operation::GroupDigest { from, .. }
-        | Operation::Capture { from, .. }
-        | Operation::Rank { from, .. }
-        | Operation::Replace { from, .. }
-        | Operation::Words { from, .. }
-        | Operation::SpanBetween { from, .. }
-        | Operation::SourceMatches { from, .. }
-        | Operation::RenderSyntax { from, .. }
-        | Operation::FitsRendered { from, .. }
-        | Operation::SpanBounds { from, .. } => *from = inputs[0].input,
-        Operation::Join { left, right, .. }
-        | Operation::Union { left, right }
-        | Operation::Intersection { left, right }
-        | Operation::Difference { left, right }
-        | Operation::Antijoin { left, right, .. }
-        | Operation::OrderedMatch { left, right, .. } => {
-            *left = inputs[0].input;
-            *right = inputs[1].input;
-        }
-        Operation::Axis {
-            from,
-            edges,
-            domain,
-            ..
-        } => {
-            *from = inputs[0].input;
-            *edges = inputs[1].input;
-            *domain = inputs[2].input;
-        }
-        Operation::Closure { edges, .. } | Operation::Cycles { edges, .. } => {
-            *edges = inputs[0].input
-        }
-        Operation::OrderedDfs { from, edges, .. } => {
-            *from = inputs[0].input;
-            *edges = inputs[1].input;
-        }
-        Operation::Rows { .. } | Operation::Hosted { .. } => {}
-    }
-    Some(CanonicalOperation {
-        operation: normalized,
-        inputs: edges,
-    })
-}
 
 pub(crate) fn materialized_steps(plan: &Plan) -> KeptSteps {
     let mut readers = vec![0usize; plan.steps.len()];
@@ -150,21 +59,6 @@ pub(crate) fn materialized_steps(plan: &Plan) -> KeptSteps {
     )
 }
 
-/// Hash is an accelerator only: exact typed operation, edges and scope are compared.
-fn fingerprint(
-    operation: &Operation,
-    inputs: &[NodeInput],
-    scope: Option<RuleIndex>,
-    phase: StepScope,
-) -> Fingerprint {
-    let mut hash = std::collections::hash_map::DefaultHasher::new();
-    std::mem::discriminant(operation).hash(&mut hash);
-    inputs.hash(&mut hash);
-    scope.hash(&mut hash);
-    std::mem::discriminant(&phase).hash(&mut hash);
-    Fingerprint(hash.finish())
-}
-
 /// Compile one DAG for the entire ordered request. Unsupported descendants
 /// break the chain; no raw Debug serialization or source-origin text is a key.
 #[cfg(test)]
@@ -193,7 +87,7 @@ pub(crate) fn compile_prepared_observations(
     let mut scopes = Vec::<Option<RuleIndex>>::new();
     let mut cuts = Vec::with_capacity(plans.len());
     let mut observed_outputs = Vec::new();
-    let mut buckets = HashMap::<Fingerprint, Vec<NodeId>>::new();
+    let mut buckets = HashMap::<Fingerprint, Vec<ProgramNodeId>>::new();
     for (rule, plan) in plans.iter().enumerate() {
         let kept = materialized_steps(plan);
         let rule_index = RuleIndex(rule);
@@ -219,7 +113,7 @@ pub(crate) fn compile_prepared_observations(
         let mut mapped = Vec::with_capacity(plan.steps.len());
         let mut rule_cuts = Vec::with_capacity(plan.steps.len());
         for (index, step) in plan.steps.iter().enumerate() {
-            let node = canonical(&step.operation, &mapped, rule_index, &bound_offsets).and_then(
+            let node = CanonicalOperation::of(&step.operation, &mapped, rule_index, &bound_offsets).and_then(
                 |CanonicalOperation { operation, inputs }| {
                     let contract = Arc::clone(operators.rules.get(rule)?.get(index)?);
                     let scope = (contract.reuse
@@ -247,7 +141,7 @@ pub(crate) fn compile_prepared_observations(
                             column,
                         })
                     });
-                    let hash = fingerprint(&operation, &inputs, scope, step.scope);
+                    let hash = Fingerprint::of(&operation, &inputs, scope, step.scope);
                     // Delivery is outside semantic evaluation. Identical pure
                     // terminals and intermediates share one canonical publication;
                     // authored root-reader obligations remain distinct below.
@@ -265,12 +159,16 @@ pub(crate) fn compile_prepared_observations(
                         }
                         return Some(found);
                     }
-                    let schema_valid = contract.schema.is_ok()
+                    let schema_valid = if contract.schema.is_ok()
                         && inputs.iter().all(|input| match input {
-                            NodeInput::Node(id) => nodes[id.0].schema_valid,
+                            NodeInput::Node(id) => nodes[id.0].schema_valid == SchemaValidity::Valid,
                             NodeInput::Relation(_) | NodeInput::Observation(_) => true,
-                        });
-                    let id = NodeId(nodes.len());
+                        }) {
+                        SchemaValidity::Valid
+                    } else {
+                        SchemaValidity::Invalid
+                    };
+                    let id = ProgramNodeId(nodes.len());
                     scopes.push(scope);
                     nodes.push(FileProgramNode {
                         analysis: region.into_iter().collect(),
@@ -325,7 +223,7 @@ pub(crate) fn compile_prepared_observations(
         program_nodes,
         ordered_existence,
         observations,
-        derived_sources: derived_sources.0,
+        derived_sources,
         nodes,
     }
 }
@@ -352,7 +250,7 @@ fn binding_offsets(plans: &[Plan], observations: ObservationRequest<'_>) -> Vec<
 fn derived_sources_of(
     plans: &[Plan],
     operators: &RequestOperators,
-    cuts: &[Vec<Option<NodeId>>],
+    cuts: &[Vec<Option<ProgramNodeId>>],
     nodes: &[FileProgramNode],
 ) -> DerivedSources {
     let mut found = DerivedSources(vec![false; nodes.len()]);
@@ -367,7 +265,7 @@ fn plan_sources(
     rule: RuleIndex,
     plan: &Plan,
     operators: &RequestOperators,
-    cuts: &[Vec<Option<NodeId>>],
+    cuts: &[Vec<Option<ProgramNodeId>>],
     found: &mut DerivedSources,
 ) {
     for (step, operation) in plan.steps.iter().enumerate() {
@@ -386,8 +284,8 @@ fn plan_sources(
             .flatten()
             .flat_map(|group| std::iter::once(&group.primary).chain(group.secondary.iter()));
         for use_ in uses {
-            for place in &use_.inputs[..usize::from(use_.len)] {
-                if let Some(Input::Step(id)) = named(&inputs).get(*place)
+            for place in &use_.inputs[..usize::from(use_.len.0)] {
+                if let Some(Input::Step(id)) = named(&inputs).get(place.0)
                     && let Some(Some(node)) =
                         cuts.get(rule.0).and_then(|steps| steps.get(id.0 as usize))
                 {
@@ -402,9 +300,9 @@ fn plan_sources(
 fn ordered_alternatives(
     plans: &[Plan],
     operators: &RequestOperators,
-    cuts: &[Vec<Option<NodeId>>],
+    cuts: &[Vec<Option<ProgramNodeId>>],
     nodes: &[FileProgramNode],
-    observed_outputs: &[NodeId],
+    observed_outputs: &[ProgramNodeId],
 ) -> Vec<Option<ResolvedAlternative>> {
     // Canonical sharing can add consumers absent from any original-plan use
     // count. Include terminal/frontier observations, even where cuts are None.

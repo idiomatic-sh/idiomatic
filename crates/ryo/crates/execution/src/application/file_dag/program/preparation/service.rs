@@ -1,7 +1,7 @@
 //! Immutable request preparation, physical metadata and compilation ownership.
 use super::types::*;
 use crate::domain::coverage::types::RuleIndex;
-use crate::domain::executable_program::file_demand::types::FrontierPurpose;
+use crate::domain::file_program::types::FrontierPurpose;
 use crate::domain::executable_program::types::ExecutableProgram;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::prepared_request::types::Compiled;
@@ -277,22 +277,9 @@ pub(crate) fn prepare(
         .unwrap_or_else(|| {
             plans
                 .iter()
-                .map(|plan| vec![false; plan.frontier.len()])
+                .map(|plan| vec![FrontierPurpose::Diagnostic; plan.frontier.len()])
                 .collect()
-        })
-        .into_iter()
-        .map(|rule| {
-            rule.into_iter()
-                .map(|observed| {
-                    if observed {
-                        FrontierPurpose::Observation
-                    } else {
-                        FrontierPurpose::Diagnostic
-                    }
-                })
-                .collect()
-        })
-        .collect();
+        });
     let program = Arc::new(crate::domain::executable_program::service::compile(
         &plans,
         graph,

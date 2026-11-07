@@ -1,6 +1,4 @@
-//! The plans, rules and request graph the `file_program` tests share.
-use super::service::compile_prepared;
-use super::types::RequestGraph;
+//! The plans and rules the `file_program` tests share.
 use ryo_relations::domain::relations::types::{CellKind, Relation};
 use ryo_values::domain::observations::types::{
     BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn,
@@ -9,11 +7,9 @@ use ryo_values::domain::observations::types::{
 use ryo_values::domain::plan_parts::types::Input as InputSource;
 use ryo_values::domain::plan_parts::types::*;
 use ryo_values::domain::plans::types::*;
-use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::query_tokens::types::{QueryBundle, QueryDocumentSource, QuerySourceId};
 use ryo_values::domain::rule_requests::types::{RuleParameters, RuleSpec};
 use ryo_values::domain::runs::types::{RuleApplicability, RuleId};
-use std::sync::Arc;
 
 /// A rule's empty query text and parameter spelling.
 const NO_TEXT: &str = "";
@@ -22,7 +18,7 @@ const NO_TEXT: &str = "";
 const OUTPUT: &str = "out";
 
 /// A function selection followed by a projection of it.
-pub(super) fn plan() -> Plan {
+pub(crate) fn plan() -> Plan {
     Plan {
         observation_inputs: vec![],
         observations: vec![],
@@ -60,23 +56,8 @@ pub(super) fn plan() -> Plan {
         },
     }
 }
-/// The request graph of `plans` over the operators the application prepares for them.
-pub(super) fn graph(
-    plans: &[Plan],
-    bindings: &[Vec<ParameterBinding>],
-) -> RequestGraph {
-    let operators = crate::application::file_dag::request::prepare_with_schemas(
-        plans,
-        bindings,
-        &[],
-        &ryo_relations::domain::relations::service::kinds,
-        Arc::new(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new()),
-    )
-    .expect("the application prepares operators for the fixture plans");
-    compile_prepared(plans, &operators)
-}
 /// A rule that reads no named root.
-pub(super) fn rule(id: &str) -> RuleSpec {
+pub(crate) fn rule(id: &str) -> RuleSpec {
     RuleSpec {
         id: RuleId(id.into()),
         query: QueryBundle {
@@ -96,7 +77,7 @@ pub(super) fn rule(id: &str) -> RuleSpec {
 }
 
 /// The one column a named root of these fixtures holds.
-pub(super) fn column() -> ObservationColumn {
+pub(crate) fn column() -> ObservationColumn {
     ObservationColumn {
         name: ObservationColumnName("c".into()),
         kind: CellKind::Number,
@@ -104,7 +85,7 @@ pub(super) fn column() -> ObservationColumn {
 }
 
 /// The binding of `name` to the given producers, over the one column.
-pub(super) fn binding(name: &str, producers: Vec<ObservationProducer>) -> ObservationBinding {
+pub(crate) fn binding(name: &str, producers: Vec<ObservationProducer>) -> ObservationBinding {
     ObservationBinding {
         name: ObservationBindingName(name.into()),
         columns: vec![column()],
@@ -113,7 +94,7 @@ pub(super) fn binding(name: &str, producers: Vec<ObservationProducer>) -> Observ
 }
 
 /// The export of `rule` that every consumer of these fixtures names.
-pub(super) fn export(rule: &str) -> ObservationProducer {
+pub(crate) fn export(rule: &str) -> ObservationProducer {
     ObservationProducer::Output {
         rule: RuleId(rule.into()),
         output: ObservationName(OUTPUT.into()),
@@ -121,7 +102,7 @@ pub(super) fn export(rule: &str) -> ObservationProducer {
 }
 
 /// The rule `id` reading the given bindings.
-pub(super) fn observing(id: &str, observations: Vec<ObservationBinding>) -> RuleSpec {
+pub(crate) fn observing(id: &str, observations: Vec<ObservationBinding>) -> RuleSpec {
     RuleSpec {
         observations,
         ..rule(id)
@@ -129,7 +110,7 @@ pub(super) fn observing(id: &str, observations: Vec<ObservationBinding>) -> Rule
 }
 
 /// The plan of a producer that exports `OUTPUT` over the given columns.
-pub(super) fn exporting(columns: Vec<ObservationColumn>) -> Plan {
+pub(crate) fn exporting(columns: Vec<ObservationColumn>) -> Plan {
     let mut exporting = plan();
     exporting.observations.push(PlanObservation {
         name: ObservationName(OUTPUT.into()),
@@ -141,7 +122,7 @@ pub(super) fn exporting(columns: Vec<ObservationColumn>) -> Plan {
 }
 
 /// The input a plan declares for a binding over the one column.
-pub(super) fn bound_input(name: &str) -> BoundObservationInput {
+pub(crate) fn bound_input(name: &str) -> BoundObservationInput {
     BoundObservationInput {
         name: ObservationBindingName(name.into()),
         columns: vec![column()],

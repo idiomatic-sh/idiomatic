@@ -3,7 +3,7 @@ use crate::domain::coverage::types::RuleIndex;
 use crate::domain::file_program::constants::{EXPECT_BINDING_INDEX, EXPECT_OUTPUT_INDEX};
 use crate::domain::file_program::errors::FileProgramError;
 use crate::domain::file_program::types::{
-    PreparedObservationInputs, ResolvedObservationBinding, ResolvedObservationProducer,
+    FrontierPurpose, PreparedObservationInputs, ResolvedObservationBinding, ResolvedObservationProducer,
     RuleSchedule,
 };
 use ryo_values::domain::observations::types::{BoundObservationInput, ObservationProducer};
@@ -162,7 +162,7 @@ pub(crate) fn schemas<P: std::borrow::Borrow<Plan>>(
 /// Bind every output to the existing graph's actual node identity, with explicit unsupported admission.
 pub(crate) fn graph_outputs(
     plans: &[Plan],
-    nodes: &[Vec<Option<crate::domain::file_program::types::NodeId>>],
+    nodes: &[Vec<Option<crate::domain::file_program::types::ProgramNodeId>>],
     request: crate::domain::file_program::types::ObservationRequest<'_>,
 ) -> Option<crate::domain::file_program::types::GraphObservations> {
     use crate::domain::file_program::types::{
@@ -183,7 +183,7 @@ pub(crate) fn graph_outputs(
                 .enumerate()
                 .map(
                     move |(input, _)| crate::domain::file_program::types::ObservationSlot {
-                        rule,
+                        rule: RuleIndex(rule),
                         input: ryo_values::domain::plan_parts::types::ObservationBindingId(
                             u32::try_from(input).expect(EXPECT_BINDING_INDEX),
                         ),
@@ -329,7 +329,13 @@ pub(crate) fn graph_outputs(
             }
             plan.frontier
                 .iter()
-                .map(|input| needed.contains(input))
+                .map(|input| {
+                    if needed.contains(input) {
+                        FrontierPurpose::Observation
+                    } else {
+                        FrontierPurpose::Diagnostic
+                    }
+                })
                 .collect()
         })
         .collect();
