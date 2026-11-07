@@ -15,6 +15,23 @@ pub(crate) enum NodeInput {
     Observation(ObservationGraphInputId),
 }
 
+/// A plan input read as the node edge it stands for.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct ResolvedInput {
+    /// The plan input, with a step read as the first step.
+    pub input: ryo_values::domain::plan_parts::types::Input,
+    /// The node edge the input is.
+    pub edge: NodeInput,
+}
+
+/// An operation with its step numbers normalized, and the node edges it reads.
+pub(crate) struct CanonicalOperation {
+    /// The operation read by its normalized inputs.
+    pub operation: ryo_values::domain::plans::types::Operation,
+    /// The node edges, in input order.
+    pub inputs: Vec<NodeInput>,
+}
+
 /// What the one analysis of a rule found for one of its steps: the native shape the step lowers to
 /// and the column chain it ends. It holds neither the plan nor a layout, and no evaluator.
 #[derive(Debug)]

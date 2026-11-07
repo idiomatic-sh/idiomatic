@@ -3,7 +3,10 @@
 pub(crate) mod link;
 pub(crate) mod observations;
 
-use super::types::{FileProgramNode, NodeId, NodeInput, ObservationRequest, RequestGraph};
+use super::types::{
+    CanonicalOperation, FileProgramNode, NodeId, NodeInput, ObservationRequest, RequestGraph,
+    ResolvedInput,
+};
 
 use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{Input, Operand, QueryLiteral, StepId};
@@ -32,19 +35,22 @@ fn node_input(
     previous: &[Option<NodeId>],
     rule: usize,
     bound_offsets: &[usize],
-) -> Option<(Input, NodeInput)> {
+) -> Option<ResolvedInput> {
     match input {
-        Input::Relation(relation) => Some((input, NodeInput::Relation(relation))),
-        Input::BoundObservation(input) => Some((
-            Input::Step(StepId(0)),
-            NodeInput::Observation(super::types::ObservationGraphInputId(
+        Input::Relation(relation) => Some(ResolvedInput {
+            input,
+            edge: NodeInput::Relation(relation),
+        }),
+        Input::BoundObservation(input) => Some(ResolvedInput {
+            input: Input::Step(StepId(0)),
+            edge: NodeInput::Observation(super::types::ObservationGraphInputId(
                 bound_offsets.get(rule)?.checked_add(input.0 as usize)?,
             )),
-        )),
-        Input::Step(step) => Some((
-            Input::Step(StepId(0)),
-            NodeInput::Node(*previous.get(step.0 as usize)?.as_ref()?),
-        )),
+        }),
+        Input::Step(step) => Some(ResolvedInput {
+            input: Input::Step(StepId(0)),
+            edge: NodeInput::Node(*previous.get(step.0 as usize)?.as_ref()?),
+        }),
     }
 }
 
@@ -55,12 +61,12 @@ fn canonical(
     previous: &[Option<NodeId>],
     rule: usize,
     bound_offsets: &[usize],
-) -> Option<(Operation, Vec<NodeInput>)> {
+) -> Option<CanonicalOperation> {
     let inputs = named(&inputs_of(operation))
         .iter()
         .map(|input| node_input(*input, previous, rule, bound_offsets))
         .collect::<Option<Vec<_>>>()?;
-    let edges = inputs.iter().map(|(_, edge)| *edge).collect();
+    let edges = inputs.iter().map(|resolved| resolved.edge).collect();
     let mut normalized = operation.clone();
     match &mut normalized {
         Operation::Select { from, .. }
@@ -76,15 +82,15 @@ fn canonical(
         | Operation::SourceMatches { from, .. }
         | Operation::RenderSyntax { from, .. }
         | Operation::FitsRendered { from, .. }
-        | Operation::SpanBounds { from, .. } => *from = inputs[0].0,
+        | Operation::SpanBounds { from, .. } => *from = inputs[0].input,
         Operation::Join { left, right, .. }
         | Operation::Union { left, right }
         | Operation::Intersection { left, right }
         | Operation::Difference { left, right }
         | Operation::Antijoin { left, right, .. }
         | Operation::OrderedMatch { left, right, .. } => {
-            *left = inputs[0].0;
-            *right = inputs[1].0;
+            *left = inputs[0].input;
+            *right = inputs[1].input;
         }
         Operation::Axis {
             from,
@@ -92,18 +98,23 @@ fn canonical(
             domain,
             ..
         } => {
-            *from = inputs[0].0;
-            *edges = inputs[1].0;
-            *domain = inputs[2].0;
+            *from = inputs[0].input;
+            *edges = inputs[1].input;
+            *domain = inputs[2].input;
         }
-        Operation::Closure { edges, .. } | Operation::Cycles { edges, .. } => *edges = inputs[0].0,
+        Operation::Closure { edges, .. } | Operation::Cycles { edges, .. } => {
+            *edges = inputs[0].input
+        }
         Operation::OrderedDfs { from, edges, .. } => {
-            *from = inputs[0].0;
-            *edges = inputs[1].0;
+            *from = inputs[0].input;
+            *edges = inputs[1].input;
         }
         Operation::Rows { .. } | Operation::Hosted { .. } => {}
     }
-    Some((normalized, edges))
+    Some(CanonicalOperation {
+        operation: normalized,
+        inputs: edges,
+    })
 }
 
 pub(crate) fn materialized_steps(plan: &Plan) -> Vec<bool> {
@@ -223,7 +234,7 @@ pub(crate) fn compile_prepared_observations(
         let mut rule_cuts = Vec::with_capacity(plan.steps.len());
         for (index, step) in plan.steps.iter().enumerate() {
             let node = canonical(&step.operation, &mapped, rule, &bound_offsets).and_then(
-                |(operation, inputs)| {
+                |CanonicalOperation { operation, inputs }| {
                     let contract = Arc::clone(operators.rules.get(rule)?.get(index)?);
                     let scope = (contract.reuse
                         == crate::domain::operator::contract::types::ReuseScope::Rule
