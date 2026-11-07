@@ -1,7 +1,7 @@
 //! The native receipt row: read back by the inventory and written by the case observer.
 //! Unknown fields are refused; the documents are a contract.
 use crate::outbound::suite::types::{
-    finding::{ByteOffset, Finding, SkippedPair},
+    finding::{FindingOffset, Finding, SkippedPair},
     observation_document::{
         ContextManifest, ContextMode, ContextRun, ExitStatus, FileMetadataDigest, IntentMatch,
         ObservationDocument, ProcessArtifacts, ProcessObservation, ProjectContextRecord,
@@ -10,7 +10,7 @@ use crate::outbound::suite::types::{
     },
     reference_discrepancy::{ArtifactPointer, DiscrepancyValidation, ExpectationKind},
     text::{
-        CanonicalJson, CaseName, PathText, ReasonText, RuleName, SchemaName, Sha256Text, Side,
+        CanonicalJson, CaseName, PathText, ReasonText, RuleName, SchemaName, Sha256Text, ContestantSide,
         YesNo,
     },
 };
@@ -73,8 +73,8 @@ impl From<FindingSchema> for Finding {
         Self {
             rule: RuleName(wire.rule),
             file: PathText(wire.file),
-            start: ByteOffset(wire.start),
-            end: ByteOffset(wire.end),
+            start: FindingOffset(wire.start),
+            end: FindingOffset(wire.end),
         }
     }
 }
@@ -300,8 +300,8 @@ impl From<ObservationSchema> for ObservationDocument {
             rule: RuleName(wire.rule),
             name: CaseName(wire.name),
             side: match wire.side {
-                SideSchema::Reference => Side::Reference,
-                SideSchema::Candidate => Side::Candidate,
+                SideSchema::Reference => ContestantSide::Reference,
+                SideSchema::Candidate => ContestantSide::Candidate,
             },
             complete: flag(wire.complete),
             error: wire.error.map(ReasonText),
@@ -419,8 +419,8 @@ impl From<&ObservationDocument> for ObservationSchema {
             rule: value.rule.0.clone(),
             name: value.name.0.clone(),
             side: match value.side {
-                Side::Reference => SideSchema::Reference,
-                Side::Candidate => SideSchema::Candidate,
+                ContestantSide::Reference => SideSchema::Reference,
+                ContestantSide::Candidate => SideSchema::Candidate,
             },
             complete: is(value.complete),
             error: value.error.as_ref().map(|error| error.0.clone()),

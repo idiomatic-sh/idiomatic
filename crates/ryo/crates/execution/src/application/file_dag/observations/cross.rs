@@ -34,7 +34,7 @@ enum CrossRoot {
 pub(crate) struct FrontierPopulation<'a> {
     frames: Vec<(
         ryo_relations::domain::relations::types::FileId,
-        ryo_values::domain::observations::types::ValidatedFrontiers<'a>,
+        ryo_values::domain::observations::validated::ValidatedFrontiers<'a>,
     )>,
 }
 /// A checked physical frontier; aliases share this exact owned payload and common lease.

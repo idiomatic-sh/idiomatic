@@ -5,7 +5,7 @@ use crate::outbound::inventory::types::{
     CapturedObservation, Registration,
     case_document::CaseDocument,
 };
-use crate::outbound::suite::types::{observation_document::ObservationDocument, text::Side};
+use crate::outbound::suite::types::{observation_document::ObservationDocument, text::ContestantSide};
 use ryo_benchmark_contracts::domain::process::types::ReceiptAudit;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
@@ -52,7 +52,7 @@ pub fn validate(
     let mut grouped = BTreeMap::<(String, String), Vec<ObservationDocument>>::new();
     for row in &captured.records {
         let key = (row.rule.0.clone(), row.name.0.clone());
-        if !cases.contains_key(&key) || !matches!(row.side, Side::Reference | Side::Candidate) {
+        if !cases.contains_key(&key) || !matches!(row.side, ContestantSide::Reference | ContestantSide::Candidate) {
             return Err(Error::Invalid(
                 constants::UNREGISTERED_RECEIPT_IDENTITY.into(),
             ));

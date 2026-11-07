@@ -2,7 +2,7 @@
 use super::finding::{Finding, SkippedPair};
 use super::reference_discrepancy::{ArtifactPointer, DiscrepancyValidation, ExpectationKind};
 use super::text::{
-    CanonicalJson, CaseName, PathText, ReasonText, RuleName, SchemaName, Sha256Text, Side, YesNo,
+    CanonicalJson, CaseName, PathText, ReasonText, RuleName, SchemaName, Sha256Text, ContestantSide, YesNo,
 };
 use ryo_benchmark_contracts::domain::reports::types::{
     ComparisonContract, ExecutionMetadata, RuleCoverage,
@@ -190,7 +190,7 @@ pub struct ObservationDocument {
     /// The case observed.
     pub name: CaseName,
     /// The contestant.
-    pub side: Side,
+    pub side: ContestantSide,
     /// Whether the observation completed.
     pub complete: YesNo,
     /// Why it did not: present when verification failed.

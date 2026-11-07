@@ -45,7 +45,7 @@ impl From<bool> for YesNo {
 
 /// Which contestant an observation row belongs to.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub enum Side {
+pub enum ContestantSide {
     /// The pinned reference tool.
     Reference,
     /// The tool under measurement.

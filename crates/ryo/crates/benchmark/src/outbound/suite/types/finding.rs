@@ -3,7 +3,7 @@ use super::text::{PathText, RuleName};
 
 /// A byte offset into a source file.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct ByteOffset(pub u64);
+pub struct FindingOffset(pub u64);
 
 /// A rule finding at an exact file span.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -13,9 +13,9 @@ pub struct Finding {
     /// The file the finding is in.
     pub file: PathText,
     /// The first byte of the span.
-    pub start: ByteOffset,
+    pub start: FindingOffset,
     /// The byte after the span.
-    pub end: ByteOffset,
+    pub end: FindingOffset,
 }
 
 /// A rule/file pair skipped after the parser rejected the file's syntax.

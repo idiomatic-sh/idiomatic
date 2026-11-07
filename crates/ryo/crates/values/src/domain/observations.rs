@@ -1,6 +1,7 @@
 //! Explicit authored outputs and typed dependencies between rules; no scheduling or storage.
 pub mod errors;
 pub mod types;
+pub mod validated;
 
 /// Canonical declaration identity.
 pub mod service;

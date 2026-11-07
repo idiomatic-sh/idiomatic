@@ -5,7 +5,7 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::suite::types::{
     finding::SkippedPair,
     observation_document::ObservationDocument,
-    text::{PathText, RuleName, Side},
+    text::{PathText, RuleName, ContestantSide},
 };
 use ryo_benchmark_contracts::domain::reports::types::{
     Comparison, ComparisonContract, ExecutionMetadata, RuleCoverage,
@@ -44,13 +44,13 @@ fn candidate() -> ObservationDocument {
         files: vec![PathText("input".into())],
         skipped: Some(skipped()),
         coverage: Some(coverage()),
-        ..observed_row("R1", "syntax", Side::Candidate)
+        ..observed_row("R1", "syntax", ContestantSide::Candidate)
     }
 }
 
 fn unavailable_reference() -> ObservationDocument {
     ObservationDocument {
-        side: Side::Reference,
+        side: ContestantSide::Reference,
         skipped: Some(Vec::new()),
         coverage: None,
         execution_metadata: Some(ExecutionMetadata::Unavailable {

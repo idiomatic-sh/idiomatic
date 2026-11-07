@@ -159,13 +159,13 @@ mod tests {
                 ToolContractRecord,
             },
             reference_discrepancy::ExpectationKind,
-            text::{CaseName, ReasonText, RuleName, SchemaName, Side, YesNo},
+            text::{CaseName, ReasonText, RuleName, SchemaName, ContestantSide, YesNo},
         };
         use ryo_benchmark_contracts::domain::reports::types::ComparisonContract;
         ObservationDocument {
             rule: RuleName(constants::CHECK001.into()),
             name: CaseName(constants::ONE.into()),
-            side: Side::Reference,
+            side: ContestantSide::Reference,
             complete: YesNo::Yes,
             error: None::<ReasonText>,
             case_passed: YesNo::Yes,
