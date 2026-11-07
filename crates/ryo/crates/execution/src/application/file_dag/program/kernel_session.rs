@@ -7,7 +7,7 @@ use crate::application::file_dag::program::runtime::types::KernelScratch;
 use crate::{
     application::file_dag::{executor::PrimitiveExecutor, relations::RelationOwner},
     domain::{
-        executable_program::types::Instruction,
+        executable_program::types::instruction::value::Instruction,
         operating::{
             errors::OperatingError,
             types::{Emit, OperatorContext},

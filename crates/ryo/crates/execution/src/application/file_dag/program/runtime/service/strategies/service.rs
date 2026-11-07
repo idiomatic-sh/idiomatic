@@ -172,7 +172,7 @@ impl ProgramExecution {
             progress
                 .supply(
                     inputs,
-                    InputSource::Region(shape.left()),
+                    InputSource::Region(shape.left),
                     &self.partition,
                     context,
                 )
@@ -180,7 +180,7 @@ impl ProgramExecution {
             progress
                 .supply(
                     inputs,
-                    InputSource::Relation(shape.chain().right),
+                    InputSource::Relation(shape.chain.right),
                     &self.partition,
                     context,
                 )
@@ -191,7 +191,7 @@ impl ProgramExecution {
             let left = progress
                 .admit(
                     inputs,
-                    InputSource::Region(shape.left()),
+                    InputSource::Region(shape.left),
                     &self.partition,
                     context,
                 )
@@ -199,7 +199,7 @@ impl ProgramExecution {
             let right = progress
                 .admit(
                     inputs,
-                    InputSource::Relation(shape.chain().right),
+                    InputSource::Relation(shape.chain.right),
                     &self.partition,
                     context,
                 )

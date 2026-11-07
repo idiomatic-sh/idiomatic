@@ -39,7 +39,7 @@ pub struct PreparedFrontiers {
     pub(in crate::application::file_dag) sources: std::sync::Arc<[FrontierSource]>,
     pub(in crate::application::file_dag) rows: std::sync::Arc<[FrontierInput]>,
     pub(in crate::application::file_dag) program:
-        std::sync::Arc<crate::domain::executable_program::types::ExecutableProgram>,
+        std::sync::Arc<crate::domain::executable_program::types::executable_program::value::ExecutableProgram>,
     pub(in crate::application::file_dag) required:
         crate::application::file_dag::program::admission::RequiredPartitions,
     pub(in crate::application::file_dag) refused:
@@ -151,7 +151,7 @@ pub(crate) struct PackedFrontier {
 impl PreparedFrontiers {
     pub(in crate::application::file_dag) fn validate_scope(
         &self,
-        program: &std::sync::Arc<crate::domain::executable_program::types::ExecutableProgram>,
+        program: &std::sync::Arc<crate::domain::executable_program::types::executable_program::value::ExecutableProgram>,
         required: &crate::application::file_dag::program::admission::RequiredPartitions,
     ) -> Result<(), crate::domain::operating::errors::OperatingError> {
         if !std::sync::Arc::ptr_eq(&self.program, program) || self.required.same_request(required)

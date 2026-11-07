@@ -2,7 +2,7 @@
 use crate::domain::coverage::types::RuleIndex;
 use crate::domain::executable_program::service::compile;
 use crate::domain::executable_program::service;
-use crate::domain::executable_program::types::ExecutableProgram;
+use crate::domain::executable_program::types::executable_program::value::ExecutableProgram;
 use crate::domain::executable_program::types::PartitionRequirement;
 use crate::domain::executable_program::types::ProducerPartitions;
 use crate::domain::executable_program::types::Route;

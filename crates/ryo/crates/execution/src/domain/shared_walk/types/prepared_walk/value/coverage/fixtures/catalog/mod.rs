@@ -1,7 +1,7 @@
 //! The relation-catalog corpus: every catalog relation under every head shape.
 use crate::domain::coverage::types::RuleIndex;
 use crate::domain::executable_program::types::{
-    ExecutableProgram, PartitionRequirement, ProducerPartitions,
+    executable_program::value::ExecutableProgram, PartitionRequirement, ProducerPartitions,
 };
 use crate::domain::operating::errors::OperatingError;
 use ryo_relations::domain::relations::service::ALL;

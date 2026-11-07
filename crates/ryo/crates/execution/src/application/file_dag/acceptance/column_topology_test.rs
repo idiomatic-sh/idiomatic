@@ -55,8 +55,8 @@ fn exclusive_chain_lowers_once_and_duplicate_rule_shares_one_physical_owner() ->
     let left = compiled.logical_regions()[left_node.0];
     let ordinary_left = ordinary.logical_regions()[left_node.0];
     assert_eq!(
-        compiled.regions()[left.0].consumers(),
-        ordinary.regions()[ordinary_left.0].consumers() + 1,
+        compiled.regions()[left.0].consumers().0,
+        ordinary.regions()[ordinary_left.0].consumers().0 + 1,
         "one physical alternative owns one extra source reader, never one per duplicate rule"
     );
     column_count(&compiled)
@@ -79,7 +79,7 @@ fn distinct_targets_with_shared_join_and_filter_keep_both_ordinary_in_either_rul
         assert_eq!(column_count(&compiled), 0);
         assert_ne!(compiled.rules()[0].emit, compiled.rules()[1].emit);
         let filter = compiled.logical_regions()[filter_node.0];
-        assert_eq!(compiled.regions()[filter.0].consumers(), 2);
+        assert_eq!(compiled.regions()[filter.0].consumers().0, 2);
     }
     0
 }

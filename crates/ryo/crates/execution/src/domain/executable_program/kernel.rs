@@ -6,9 +6,13 @@ pub(crate) fn row_admissible(
     contract: &crate::domain::operator::contract::types::OperatorContract,
     row: &[ryo_relations::domain::relations::types::Value],
     texts: &crate::domain::table_texts::types::Texts<'_>,
-) -> Result<bool, crate::domain::operating::errors::OperatingError> {
+) -> Result<
+    crate::domain::executable_program::types::RowGate,
+    crate::domain::operating::errors::OperatingError,
+> {
     use {
         crate::domain::operator::contract::types::SourceGate,
+        crate::domain::executable_program::types::RowGate,
         crate::domain::table_texts::service::datum, crate::domain::table_texts::types::Datum,
         ryo_values::domain::rows::service::cell,
     };
@@ -16,19 +20,21 @@ pub(crate) fn row_admissible(
         return Err(error.clone());
     }
     match contract.source_gate {
-        SourceGate::None => Ok(true),
+        SourceGate::None => Ok(RowGate::Admitted),
         SourceGate::CheckedSpan { span, base_line } => Ok(
-            crate::domain::operator::collections::operators::source_matches::source::validate(
+            match crate::domain::operator::collections::operators::source_matches::source::validate(
                 row,
                 span,
                 base_line,
                 texts.source.0,
-            )?
-            .is_some(),
+            )? {
+                Some(_) => RowGate::Admitted,
+                None => RowGate::Withheld,
+            },
         ),
         SourceGate::CheckedText { column } => {
             if matches!(datum(cell(row, column)?, texts), Datum::Text(_)) {
-                Ok(true)
+                Ok(RowGate::Admitted)
             } else {
                 Err(crate::domain::operating::errors::OperatingError::ShapeMismatch)
             }

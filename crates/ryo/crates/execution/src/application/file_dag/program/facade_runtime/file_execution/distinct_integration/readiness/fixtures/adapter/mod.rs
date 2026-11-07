@@ -7,7 +7,7 @@ use crate::application::file_dag::program::runtime::service::{
 use crate::application::file_dag::program::runtime::types::{
     ColumnCounters, InvocationFailure, KernelInput, KernelScratch, StrategyOutcome,
 };
-use crate::domain::executable_program::types::{Instruction, LogicalInstruction};
+use crate::domain::executable_program::types::{instruction::value::Instruction, LogicalInstruction};
 use crate::domain::operating::types::Emit as RowSink;
 use std::cell::Cell as Counter;
 pub(crate) struct ReadyAdapter<'a> {

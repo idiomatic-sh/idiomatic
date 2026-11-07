@@ -1,9 +1,9 @@
 //! Pure, request-qualified stored-selection alternatives.
 //! Acquisition, population identity, capacity, and release stay with the program owner.
 
-use super::types::{
-    InputSource, OperandSource, Region, RegionId, RuleProgram, SelectionAlternative,
-};
+use super::types::region::value::Region;
+use super::types::SelectionAlternative;
+use super::types::{InputSource, OperandSource, RegionId, RuleProgram};
 use crate::domain::{
     coverage::types::RuleIndex, operator::contract::types::RequestOperators,
     stored_selection::types::Selector,
@@ -114,29 +114,28 @@ pub(crate) fn compile(
             let Some(region) = regions.get(target.0) else {
                 continue;
             };
-            if region.id != target
-                || region.phase != StepScope::PerFile
-                || region.producer != RuleIndex(rule)
-                || region.instructions.len() != 1
-                || region.inputs.len() != 1
+            if region.id() != target
+                || region.phase() != StepScope::PerFile
+                || region.producer() != RuleIndex(rule)
+                || region.instructions().len() != 1
+                || region.inputs().len() != 1
             {
                 continue;
             }
-            let instruction = &region.instructions[0];
-            let Some(relation) = direct_relation(&instruction.operation) else {
+            let instruction = &region.instructions()[0];
+            let Some(relation) = direct_relation(instruction.operation()) else {
                 continue;
             };
-            if instruction.logical != origin.logical
-                || instruction.producer != RuleIndex(rule)
-                || instruction.inputs.as_ref()
-                    != [OperandSource::Boundary(super::types::InputId(0))]
-                || region.inputs[0] != InputSource::Relation(relation)
+            if instruction.logical() != origin.logical
+                || instruction.producer() != RuleIndex(rule)
+                || instruction.inputs() != [OperandSource::Boundary(super::types::InputId(0))]
+                || region.inputs()[0] != InputSource::Relation(relation)
                 || !matches!(
-                    exact_output(&instruction.operation, selector, relation),
+                    exact_output(instruction.operation(), selector, relation),
                     OutputMap::Exact
                 )
                 || selector.identity.comparisons.len()
-                    != match &instruction.operation {
+                    != match instruction.operation() {
                         Operation::Select { comparisons, .. } => comparisons.len(),
                         Operation::Project { .. } => 0,
                         _ => unreachable!(),

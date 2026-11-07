@@ -11,9 +11,9 @@ use crate::application::file_dag::program::admission::Emptiness;
 use crate::application::file_dag::program::admission::Inputs;
 use crate::application::file_dag::program::admission::Partition;
 use crate::application::file_dag::relations::RelationOwner;
-use crate::domain::executable_program::types::ExecutableProgram;
-use crate::domain::executable_program::types::Instruction;
-use crate::domain::executable_program::types::Region;
+use crate::domain::executable_program::types::executable_program::value::ExecutableProgram;
+use crate::domain::executable_program::types::instruction::value::Instruction;
+use crate::domain::executable_program::types::region::value::Region;
 use crate::domain::executable_program::types::RegionId;
 use crate::domain::executable_program::types::RouteKind;
 use crate::domain::operating::errors::OperatingError;
@@ -237,7 +237,7 @@ enum BoundInputs<'a> {
     },
 }
 pub(crate) struct KernelPermit<'scope> {
-    program: &'scope crate::domain::executable_program::types::ExecutableProgram,
+    program: &'scope crate::domain::executable_program::types::executable_program::value::ExecutableProgram,
     region: RegionId,
     instruction: InstructionIndex,
     generation: &'scope Arc<()>,
@@ -252,7 +252,7 @@ pub(crate) struct KernelPermit<'scope> {
 /// Pure borrowed semantic authority. It exposes neither worker ownership nor
 /// dependency acquisition, and cannot outlive its admitted invocation permit.
 pub(in crate::application::file_dag) struct SemanticPermit<'scope> {
-    program: &'scope crate::domain::executable_program::types::ExecutableProgram,
+    program: &'scope crate::domain::executable_program::types::executable_program::value::ExecutableProgram,
     region: RegionId,
     instruction: InstructionIndex,
     live:

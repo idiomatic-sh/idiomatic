@@ -1,5 +1,5 @@
 //! The native key order each region with native positions reads.
-use crate::domain::executable_program::types::ExecutableProgram;
+use crate::domain::executable_program::types::executable_program::value::ExecutableProgram;
 use crate::domain::operating::errors::OperatingError;
 use ryo_values::domain::plan_parts::types::RepeatedRows;
 use ryo_values::domain::plans::types::Operation;

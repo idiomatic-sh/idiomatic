@@ -4,7 +4,7 @@ use crate::application::file_dag::program::preparation::types::{
 };
 use crate::domain::coverage::types::RuleIndex;
 use crate::domain::executable_program::file_demand::types::FrontierPurpose;
-use crate::domain::executable_program::types::{ExecutableProgram, InputSource};
+use crate::domain::executable_program::types::{executable_program::value::ExecutableProgram, InputSource};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::trust::types::RelationRead;
 use ryo_values::domain::plan_parts::types::{Input, StepId};
@@ -43,10 +43,15 @@ pub(in crate::application::file_dag::program::preparation) fn rules(
                     },
                     phase: output.scope,
                     reads: match output.source {
-                        Input::Step(step) => reads
+                        // A refused rule's named output reads nothing: it is refused on its root before any read.
+                        Input::Step(step) => match reads
                             .get(step.0 as usize)
-                            .cloned()
-                            .ok_or(OperatingError::NotRun)?,
+                            .ok_or(OperatingError::NotRun)?
+                        {
+                            Ok(reads) => reads.clone(),
+                            Err(_) if refusal.is_some() => Vec::new(),
+                            Err(error) => return Err(error.clone()),
+                        },
                         Input::Relation(relation) => vec![RelationRead {
                             relation,
                             kinds: vec![],

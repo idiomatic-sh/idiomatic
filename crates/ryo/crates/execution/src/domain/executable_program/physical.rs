@@ -1,5 +1,6 @@
 //! Pure physical-meaning authorization against the compiled semantic descriptor.
-use super::types::OrderedExistence;
+use super::types::ColumnAlternative;
+use super::types::{JoinLease, OrderedExistence, RegexIdentity};
 use crate::domain::operating::errors::OperatingError;
 use ryo_operators::domain::equality_join::types::JoinInput;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
@@ -13,16 +14,17 @@ pub(crate) enum PhysicalRoute<'a> {
     Registered,
     Positions(&'a crate::domain::lowering::types::LoweredShape),
     Ordered(&'a OrderedExistence),
-    Column(&'a super::types::ColumnAlternative),
+    Column(&'a ColumnAlternative),
 }
 pub(crate) struct PhysicalBinding<'a> {
     pub bindings: &'a [ryo_values::domain::query_bindings::types::ParameterBinding],
-    pub regex_identity: Option<usize>,
-    pub native_join: bool,
-    pub source_len: usize,
+    pub regex_identity: Option<RegexIdentity>,
+    pub native_join: JoinLease,
+    pub source_len: ryo_operators::domain::contract::types::SourceByteLength,
 }
+/// The proof that one operator call is the compiled meaning of its instruction; only [`authorize`] makes one.
 pub(crate) struct PhysicalAuthorization {
-    _private: (),
+    _sealed: std::marker::PhantomData<()>,
 }
 
 pub(crate) fn authorize(
@@ -114,7 +116,7 @@ pub(crate) fn authorize(
         } => (
             REPLACE,
             matches!(operation, Operation::Replace { replacement: expected, .. } if replacement.0 == expected.0.as_ref())
-                && binding.regex_identity == Some(*regex as *const _ as usize),
+                && binding.regex_identity == Some(RegexIdentity(*regex as *const _ as usize)),
         ),
         OperatorCall::Aggregate { keys, digest, .. } => (
             AGGREGATE,
@@ -135,7 +137,7 @@ pub(crate) fn authorize(
         OperatorCall::SourceMatches { input, .. } => (
             SOURCE_MATCHES,
             matches!(operation, Operation::SourceMatches { capture, capture_text, capture_line, .. } if input.capture == capture.as_ref().map_or(ryo_operators::domain::source_matches::types::CaptureRequest::Whole, |name| ryo_operators::domain::source_matches::types::CaptureRequest::Group(ryo_values::domain::row_texts::types::CellText(name.0.as_ref()))) && input.capture_text == *capture_text && input.capture_line == *capture_line)
-                && binding.regex_identity == Some(input.regex as *const _ as usize),
+                && binding.regex_identity == Some(RegexIdentity(input.regex as *const _ as usize)),
         ),
         OperatorCall::ReduceCount { keys, distinct, .. } => (
             REDUCTION,
@@ -147,7 +149,25 @@ pub(crate) fn authorize(
         ),
         OperatorCall::CheckAggregation { program, .. }
         | OperatorCall::StreamAggregation { program, .. } => {
-            (REDUCTION, aggregation_matches(operation, program))
+            use ryo_operators::domain::reduction::types::AggregationPlan;
+            let planned = match (operation, program) {
+                (
+                    Operation::GroupCount { keys, distinct, .. },
+                    AggregationPlan::Count {
+                        keys: actual,
+                        distinct: actual_distinct,
+                    },
+                ) => keys.as_slice() == *actual && distinct == actual_distinct,
+                (
+                    Operation::GroupDigest { keys, over, .. },
+                    AggregationPlan::Digest {
+                        keys: actual,
+                        over: actual_over,
+                    },
+                ) => keys.as_slice() == *actual && over == actual_over,
+                _ => false,
+            };
+            (REDUCTION, planned)
         }
         OperatorCall::FinishAggregation { digest, .. } => (
             REDUCTION,
@@ -208,7 +228,7 @@ pub(crate) fn authorize(
             ..
         } => (
             BETWEEN,
-            matches!(operation, Operation::SpanBetween { start: expected_start, end: expected_end, .. } if start == expected_start && end == expected_end && source_len.0 == binding.source_len),
+            matches!(operation, Operation::SpanBetween { start: expected_start, end: expected_end, .. } if start == expected_start && end == expected_end && *source_len == binding.source_len),
         ),
         OperatorCall::EqualityJoin { input } => (
             JOIN,
@@ -225,8 +245,8 @@ pub(crate) fn authorize(
                     let PhysicalRoute::Column(shape) = route else {
                         return Err(OperatingError::WrongOperation);
                     };
-                    *left_on == shape.chain().left_on.as_slice()
-                        && *output == shape.chain().projected.as_slice()
+                    *left_on == shape.chain.left_on.as_slice()
+                        && *output == shape.chain.projected.as_slice()
                         && view.is_empty()
                 }
 
@@ -246,7 +266,7 @@ pub(crate) fn authorize(
                 ) => {
                     left_on.as_slice() == *actual_left
                         && output.as_slice() == *actual_output
-                        && if binding.native_join {
+                        && if binding.native_join == JoinLease::Native {
                             view.as_slice() == *actual_view
                         } else {
                             actual_view.is_empty()
@@ -299,29 +319,7 @@ pub(crate) fn authorize(
     if allowed & family == 0 || !exact {
         return Err(OperatingError::WrongOperation);
     }
-    Ok(PhysicalAuthorization { _private: () })
-}
-
-fn aggregation_matches(
-    operation: &Operation,
-    program: &ryo_operators::domain::reduction::types::AggregationPlan<'_>,
-) -> bool {
-    use ryo_operators::domain::reduction::types::AggregationPlan;
-    match (operation, program) {
-        (
-            Operation::GroupCount { keys, distinct, .. },
-            AggregationPlan::Count {
-                keys: actual,
-                distinct: actual_distinct,
-            },
-        ) => keys.as_slice() == *actual && distinct == actual_distinct,
-        (
-            Operation::GroupDigest { keys, over, .. },
-            AggregationPlan::Digest {
-                keys: actual,
-                over: actual_over,
-            },
-        ) => keys.as_slice() == *actual && over == actual_over,
-        _ => false,
-    }
+    Ok(PhysicalAuthorization {
+        _sealed: std::marker::PhantomData,
+    })
 }

@@ -1,4 +1,7 @@
 //! Named distinct-set combinations are ordinary prepared program instructions.
+use super::types::demand_program::value::DemandProgram;
+use super::types::instruction::value::Instruction;
+use super::types::region::value::Region;
 use super::types::*;
 use crate::domain::{
     coverage::types::RuleIndex, file_program::types::GraphObservations,
@@ -10,7 +13,7 @@ pub(super) fn compile_unions(
     regions: &mut Vec<Region>,
     named: Option<&GraphObservations>,
     partitions: &dyn ProducerPartitions,
-    first_logical: usize,
+    LogicalInstruction(first_logical): LogicalInstruction,
 ) -> Result<Vec<Result<RegionId, OperatingError>>, OperatingError> {
     let Some(named) = named else {
         return Ok(Vec::new());
@@ -32,10 +35,13 @@ pub(super) fn compile_unions(
             // schema/phase have passed ProducerPartitions validation above.
             // It still runs the ordinary typed union and publication path.
             let mut level: Vec<_> = if used == 0 {
-                vec![InputSource::EmptyObservation(slot); 2]
+                vec![InputSource::EmptyObservation(ObservationPlace(slot)); 2]
             } else {
                 (0..used)
-                    .map(|member| InputSource::ObservationMember { slot, member })
+                    .map(|member| InputSource::ObservationMember {
+                        slot: ObservationPlace(slot),
+                        member: ProducerMember(member),
+                    })
                     .collect()
             };
             if level.len() == 1 {
@@ -53,41 +59,41 @@ pub(super) fn compile_unions(
                     next_logical += 1;
                     for source in pair {
                         if let InputSource::Region(child) = source {
-                            regions[child.0].consumers += 1;
+                            regions[child.0].add_consumer();
                         }
                     }
-                    regions.push(Region {
-                        source_partitions: Box::new([]),
-                        id,
-                        producer: rule,
-                        needs: Ok(Box::new([])),
-                        phase: binding.input.schema.scope,
-                        inputs: pair.to_vec().into_boxed_slice(),
-                        consumers: 0,
-                        dependencies: Box::new([]),
-                        route: super::types::Route::Generic,
-                        instructions: vec![Instruction {
-                            logical,
-                            producer: rule,
-                            operation: contract.identity.clone(),
-                            contract: Arc::clone(contract),
-                            inputs: vec![
-                                OperandSource::Boundary(InputId(0)),
-                                OperandSource::Boundary(InputId(1)),
-                            ]
-                            .into_boxed_slice(),
-                            demand: super::service::demand(contract.semantics, 2),
-                            partition,
-                        }]
+                    let instruction = Instruction::new(
+                        logical,
+                        rule,
+                        contract.identity.clone(),
+                        Arc::clone(contract),
+                        vec![
+                            OperandSource::Boundary(InputId(0)),
+                            OperandSource::Boundary(InputId(1)),
+                        ]
                         .into_boxed_slice(),
-                    });
+                        DemandProgram::compiled(
+                            contract.semantics,
+                            ryo_values::domain::plan_parts::types::InputCount(2),
+                        ),
+                        partition,
+                    );
+                    regions.push(Region::new(
+                        id,
+                        rule,
+                        Ok(Box::new([])),
+                        binding.input.schema.scope,
+                        vec![instruction].into_boxed_slice(),
+                        pair.to_vec().into_boxed_slice(),
+                        ReaderMultiplicity(0),
+                    ));
                     next.push(InputSource::Region(id));
                 }
                 level = next;
             }
             let current = level[0];
             if let InputSource::Region(root) = current {
-                regions[root.0].consumers += 1;
+                regions[root.0].add_consumer();
             }
             match current {
                 InputSource::Region(id) => Ok(id),

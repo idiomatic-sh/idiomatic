@@ -1,12 +1,13 @@
 //! Compile immutable file-intent root obligations once for the whole request.
+use super::super::types::executable_program::value::ExecutableProgram;
+use super::super::types::region::value::Region;
 use super::super::types::{
-    ConsumerObligation, ExecutableProgram, FileReaderGraph, InputSource, ReaderMultiplicity,
-    RegionId, Remaining, RemainingTable, RuleProgram,
-    ComputationCount, RemainingMemo,
+    ComputationCount, ConsumerObligation, FileReaderGraph, InputSource, ObservationPlace,
+    ReaderMultiplicity, RegionId, Remaining, RemainingMemo, RemainingTable, RuleProgram,
 };
 use super::types::*;
 use crate::domain::{
-    coverage::types::RuleIndex, operating::errors::OperatingError, readiness::types::RegionCount,
+    coverage::types::RuleIndex, operating::errors::OperatingError,
 };
 use ryo_values::domain::{
     plan_parts::types::StepScope,
@@ -19,7 +20,7 @@ fn region(
 ) -> Result<Option<RegionId>, OperatingError> {
     match source {
         InputSource::Region(id) => Ok(Some(*id)),
-        InputSource::Observation(slot) => program
+        InputSource::Observation(ObservationPlace(slot)) => program
             .observation_regions()
             .get(*slot)
             .ok_or(OperatingError::NotRun)?
@@ -43,7 +44,7 @@ fn file_root(
             return;
         }
     };
-    if program.regions()[id.0].phase != StepScope::PerFile {
+    if program.regions()[id.0].phase() != StepScope::PerFile {
         return;
     }
     roots.push(match output {
@@ -158,8 +159,8 @@ pub(crate) fn compile(
 
 /// Compute potential consumer obligations once, without opening or polling any input.
 pub(crate) fn readers(
-    regions: &[super::super::types::Region],
-    rules: &[super::super::types::RuleProgram],
+    regions: &[Region],
+    rules: &[RuleProgram],
 ) -> Result<FileReaderGraph, OperatingError> {
     use std::collections::{HashMap, HashSet};
     let mut compiled = HashMap::new();
@@ -178,7 +179,7 @@ pub(crate) fn readers(
                 continue;
             }
             let region = regions.get(id.0).ok_or(OperatingError::NotRun)?;
-            for &dependency in &region.dependencies {
+            for &dependency in region.dependencies() {
                 consumers
                     .entry(dependency)
                     .or_default()
@@ -217,7 +218,7 @@ pub(crate) fn readers(
 /// later file that selects the same roots.
 pub(crate) fn remaining(
     graph: &FileReaderGraph,
-    regions: RegionCount,
+    regions: &[Region],
     selected: &std::collections::HashMap<RegionId, ReaderMultiplicity>,
 ) -> Result<Remaining, OperatingError> {
     let mut memo = graph
@@ -247,11 +248,11 @@ pub(crate) fn remaining(
 /// Duplicate dependency edges remain distinct; shared consumers are counted once.
 fn table(
     graph: &FileReaderGraph,
-    regions: RegionCount,
+    regions: &[Region],
     selected: &std::collections::HashMap<RegionId, ReaderMultiplicity>,
 ) -> Result<RemainingTable, OperatingError> {
     let mut consumers =
-        vec![std::collections::HashMap::<RegionId, ReaderMultiplicity>::new(); regions.0];
+        vec![std::collections::HashMap::<RegionId, ReaderMultiplicity>::new(); regions.len()];
     for root in selected.keys() {
         let producers = graph.consumers.get(root).ok_or(OperatingError::NotRun)?;
         for (producer, users) in producers {

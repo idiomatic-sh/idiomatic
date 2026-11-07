@@ -18,7 +18,7 @@ use crate::application::file_dag::program::constants::REGION_POLL;
 use crate::application::file_dag::program::runtime::types::{
     InstructionIndex, InvocationFailure, KernelInput, KernelScratch, PollMode,
 };
-use crate::domain::executable_program::types::Region;
+use crate::domain::executable_program::types::region::value::Region;
 use crate::domain::executable_program::types::RegionId;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::Emit;

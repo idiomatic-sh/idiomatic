@@ -9,7 +9,7 @@ use crate::application::file_dag::program::runtime::types::KernelInput;
 use crate::application::file_dag::program::runtime::types::KernelScratch;
 use crate::application::file_dag::program::runtime::types::StrategyOutcome;
 use crate::domain::completion::types::completion_policy::value::CompletionPolicy;
-use crate::domain::executable_program::types::Instruction;
+use crate::domain::executable_program::types::instruction::value::Instruction;
 use crate::domain::executable_program::types::RegionId;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::Emit;

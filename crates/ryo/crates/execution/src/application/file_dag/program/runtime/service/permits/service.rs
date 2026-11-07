@@ -15,7 +15,7 @@ impl<'scope> KernelPermit<'scope> {
     pub(in crate::application::file_dag::program::runtime::service) fn code(
         execution: &ProgramExecution,
         region: RegionId,
-    ) -> Result<&crate::domain::executable_program::types::Region, OperatingError> {
+    ) -> Result<&crate::domain::executable_program::types::region::value::Region, OperatingError> {
         if execution.owner.matches_generation(&execution.generation) == crate::application::file_dag::relations::types::Sameness::Different {
             return Err(OperatingError::NotRead);
         }
@@ -104,13 +104,13 @@ impl<'scope> KernelPermit<'scope> {
             &execution.owner,
             &execution.generation,
             execution.partition(),
-            ProducerRoot::Region(shape.left()),
+            ProducerRoot::Region(shape.left),
         )?;
         right.validate_for(
             &execution.owner,
             &execution.generation,
             execution.partition(),
-            ProducerRoot::Input(InputSource::Relation(shape.chain().right)),
+            ProducerRoot::Input(InputSource::Relation(shape.chain.right)),
         )?;
         Ok(Self {
             program: &execution.program,
@@ -159,7 +159,7 @@ impl<'scope> KernelPermit<'scope> {
     }
     pub(in crate::application::file_dag::program) fn validate_program(
         &self,
-        program: &crate::domain::executable_program::types::ExecutableProgram,
+        program: &crate::domain::executable_program::types::executable_program::value::ExecutableProgram,
     ) -> Result<(), OperatingError> {
         self.validate_live()?;
         if std::ptr::eq(self.program, program) {
@@ -174,7 +174,7 @@ impl<'scope> KernelPermit<'scope> {
     }
     pub(in crate::application::file_dag::program) fn descriptor(
         &self,
-    ) -> &crate::domain::executable_program::types::Instruction {
+    ) -> &crate::domain::executable_program::types::instruction::value::Instruction {
         &self.program.regions()[self.region.0].instructions()[self.instruction.0]
     }
     pub(in crate::application::file_dag::program) fn position_semantics(

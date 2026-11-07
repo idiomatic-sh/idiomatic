@@ -2,7 +2,7 @@
 use super::super::fixtures::operations::{corpus::compile_program, heads::FUNCTION};
 use crate::domain::executable_program::{
     fusion::types::{Barrier, Fusibility, Ineligible},
-    types::{ExecutableProgram, LogicalInstruction},
+    types::{executable_program::value::ExecutableProgram, LogicalInstruction},
 };
 use ryo_relations::domain::relations::{service::kinds, types::Integer};
 use ryo_values::domain::{
@@ -215,10 +215,10 @@ fn equivalent_extends_of_two_rules_share_one_region() {
     );
     assert_eq!(emit_region(&program, 0), emit_region(&program, 1));
     let shared = &program.regions()[emit_region(&program, 0)];
-    assert_eq!(shared.consumers(), 2, "both rules read the one publication");
+    assert_eq!(shared.consumers().0, 2, "both rules read the one publication");
     assert_eq!(program.regions().len(), 2, "one producer, one extend");
     let producer = program.logical_regions()[logical(&program, 0, 0).0];
-    assert_eq!(program.regions()[producer.0].consumers(), 1);
+    assert_eq!(program.regions()[producer.0].consumers().0, 1);
     // Each rule still names an instruction its region contains.
     for rule in 0..2 {
         let at = logical(&program, rule, 1);

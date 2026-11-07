@@ -80,7 +80,7 @@ impl SourceInputs<'_, '_> {
                 .execution
                 .published(self.state, id)?
                 .ok_or(OperatingError::NotRun),
-            InputSource::Observation(slot) => {
+            InputSource::Observation(crate::domain::executable_program::types::ObservationPlace(slot)) => {
                 if let Some(input) = self.observations.get(&ObservationKey(slot)) {
                     return Ok(AvailableInput::published(input.clone()));
                 }
@@ -106,7 +106,7 @@ impl SourceInputs<'_, '_> {
                     .insert(ObservationKey(slot), admitted.clone());
                 Ok(admitted)
             }
-            InputSource::EmptyObservation(slot) => {
+            InputSource::EmptyObservation(crate::domain::executable_program::types::ObservationPlace(slot)) => {
                 let named = self
                     .program
                     .observation_metadata()
@@ -141,7 +141,10 @@ impl SourceInputs<'_, '_> {
                     })?;
                 admit_published(&self.owner, publication, source, &actual_partition)
             }
-            InputSource::ObservationMember { slot, member } => {
+            InputSource::ObservationMember {
+                slot: crate::domain::executable_program::types::ObservationPlace(slot),
+                member: crate::domain::executable_program::types::ProducerMember(member),
+            } => {
                 let outputs =
                     self.file_outputs
                         .ok_or_else(|| OperatingError::ObservationIncomplete {

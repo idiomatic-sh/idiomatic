@@ -2,7 +2,6 @@
 //! No authored plan, analysis graph, or physical layout survives this boundary.
 
 use crate::domain::{
-    column_kernel::types::Chain,
     coverage::types::RuleIndex,
     derived_views::types::ViewRequest,
     executable_program::types::{ColumnAlternative, RegionId},
@@ -12,20 +11,11 @@ use ryo_derived::domain::contract::types::DerivedKind;
 use ryo_values::domain::plan_parts::types::StepId;
 use std::sync::Arc;
 
-#[derive(Clone, Debug)]
-struct OriginalColumn {
-    target: NodeId,
-    filter: NodeId,
-    join: NodeId,
-    left: NodeId,
-    chain: Chain,
-}
-
 /// Immutable original-coordinate candidates. The compiler uses these nodes as
 /// fusion fences, then drops this value after lowering them into regions.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct ColumnCandidates {
-    candidates: Vec<OriginalColumn>,
+    candidates: Vec<ColumnAlternative<NodeId>>,
 }
 
 fn original(graph: &RequestGraph, rule: RuleIndex, step: StepId) -> Option<NodeId> {
@@ -94,11 +84,11 @@ impl ColumnCandidates {
                 }
                 let mut chain = chain.clone();
                 chain.index = Some(Arc::clone(&primary.plan));
-                candidates.push(OriginalColumn {
+                candidates.push(ColumnAlternative {
                     target,
-                    filter,
-                    join,
                     left,
+                    join,
+                    filter,
                     chain,
                 });
             }
@@ -126,19 +116,12 @@ impl ColumnCandidates {
         self.candidates
             .iter()
             .filter_map(|each| {
-                let (Some(&target), Some(&left), Some(&join), Some(&filter)) = (
-                    regions.get(each.target.0),
-                    regions.get(each.left.0),
-                    regions.get(each.join.0),
-                    regions.get(each.filter.0),
-                ) else {
-                    return None;
-                };
+                let place = |NodeId(node): NodeId| regions.get(node).copied();
                 Some(ColumnAlternative {
-                    target,
-                    left,
-                    join,
-                    filter,
+                    target: place(each.target)?,
+                    left: place(each.left)?,
+                    join: place(each.join)?,
+                    filter: place(each.filter)?,
                     chain: each.chain.clone(),
                 })
             })

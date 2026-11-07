@@ -1,9 +1,11 @@
 //! Request-qualified observation slots and the complete synthetic instruction census.
-use super::fixtures::{DeclaredFileProducers, Fixture, FrontierSlots, Names};
+#[cfg(test)]
+pub(super) mod fixtures;
+use fixtures::{DeclaredFileProducers, Fixture, FrontierSlots, Names};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::{
     coverage::types::RuleIndex,
-    executable_program::{service::compile, types::InputSource},
+    executable_program::{service::compile, types::{InputSource, ObservationPlace}},
     file_program::types::ResolvedObservationProducer,
     operating::errors::OperatingError,
 };
@@ -11,7 +13,7 @@ use ryo_values::domain::observations::types::{ObservationBindingName, Observatio
 use ryo_values::domain::records::types::ObservationIndex;
 
 fn fixture(frontier: FrontierSlots) -> Fixture {
-    super::fixtures::fixture(
+    fixtures::fixture(
         frontier,
         Names {
             left: ObservationBindingName("left".into()),
@@ -95,12 +97,12 @@ fn two_local_zero_inputs_keep_their_distinct_request_producers() -> Result<(), O
     );
     let program = compile(&plans, graph, &DeclaredFileProducers, &operators, crate::domain::executable_program::types::RoutePolicy::default()).unwrap();
     assert_eq!(
-        program.rules[2].frontier[0],
-        Ok(InputSource::Observation(0))
+        program.rules()[2].frontier[0],
+        Ok(InputSource::Observation(ObservationPlace(0)))
     );
     assert_eq!(
-        program.rules[3].frontier[0],
-        Ok(InputSource::Observation(1))
+        program.rules()[3].frontier[0],
+        Ok(InputSource::Observation(ObservationPlace(1)))
     );
     Ok(())
 }
@@ -113,14 +115,14 @@ fn undeclared_frontier_ordinal_is_a_typed_refusal() -> Result<(), OperatingError
     } = fixture(FrontierSlots::UndeclaredFirst);
     let program = compile(&plans, graph, &DeclaredFileProducers, &operators, crate::domain::executable_program::types::RoutePolicy::default()).unwrap();
     assert!(matches!(
-        &program.rules[2].frontier[0],
+        &program.rules()[2].frontier[0],
         Err(OperatingError::ObservationIncomplete { .. })
     ));
     assert_eq!(
-        program.rules[3].frontier[0],
-        Ok(InputSource::Observation(1))
+        program.rules()[3].frontier[0],
+        Ok(InputSource::Observation(ObservationPlace(1)))
     );
-    program.rules[2].frontier[0].clone().map(|_| ())
+    program.rules()[2].frontier[0].clone().map(|_| ())
 }
 
 fn declared_local_input_without_its_qualified_slot_is_a_typed_refusal() -> Result<(), OperatingError>
@@ -133,14 +135,14 @@ fn declared_local_input_without_its_qualified_slot_is_a_typed_refusal() -> Resul
     graph.observations.as_mut().unwrap().slots[0].rule = 99;
     let program = compile(&plans, graph, &DeclaredFileProducers, &operators, crate::domain::executable_program::types::RoutePolicy::default()).unwrap();
     assert!(matches!(
-        &program.rules[2].frontier[0],
+        &program.rules()[2].frontier[0],
         Err(OperatingError::ObservationIncomplete { .. })
     ));
     assert_eq!(
-        program.rules[3].frontier[0],
-        Ok(InputSource::Observation(1))
+        program.rules()[3].frontier[0],
+        Ok(InputSource::Observation(ObservationPlace(1)))
     );
-    program.rules[2].frontier[0].clone().map(|_| ())
+    program.rules()[2].frontier[0].clone().map(|_| ())
 }
 
 #[test]

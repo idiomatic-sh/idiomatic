@@ -201,9 +201,17 @@ fn evaluate_once(
         failure: &semantic_failure,
         binding: crate::domain::executable_program::physical::PhysicalBinding {
             bindings: context.bindings,
-            regex_identity: regex.map(|compiled| compiled as *const _ as usize),
-            native_join: resources.inputs.native_join.is_some(),
-            source_len: context.source.0.len(),
+            regex_identity: regex.map(|compiled| {
+                crate::domain::executable_program::types::RegexIdentity(compiled as *const _ as usize)
+            }),
+            native_join: if resources.inputs.native_join.is_some() {
+                crate::domain::executable_program::types::JoinLease::Native
+            } else {
+                crate::domain::executable_program::types::JoinLease::Absent
+            },
+            source_len: ryo_operators::domain::contract::types::SourceByteLength(
+                context.source.0.len(),
+            ),
         },
     };
     #[cfg(test)]

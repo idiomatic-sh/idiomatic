@@ -65,3 +65,7 @@ pub(crate) struct StepReads {
     /// For each column of the step, the read whose kind it is, when it is one.
     pub provenance: Vec<Option<ReadIndex>>,
 }
+
+/// The inputs, by position, whose absence of rows a step's operator trusts: bit `n` is the `n`th named input.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct AbsenceInputs(pub u8);
