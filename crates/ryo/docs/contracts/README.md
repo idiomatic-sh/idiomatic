@@ -34,6 +34,48 @@ Checkpoint 318: latest runnable source is `c043a6dc68` (validation318, [evidence
 
 Earlier integration records (checkpoints 319 to 322 and their branch records): [records.md](records.md).
 
+### Checkpoint 323 integration record
+
+The branches are merged into one tree from checkpoint 322 (`d13686afb5`), each as a merge commit, in this order: matrix rows (`997ce32eb3`), perf ratchet 321 (`61df1196e5`), enforcement rules (`ff61a2e765`), perf iteration 1a (`40319a332f`), perf iteration 1b (`e6f4da4305`) and the live hooks (`1c36e855b9`). The compile follows the cadence: `cargo check --workspace --all-features` passes until clean, each fixing every error it reported, then one full test build at exit 0 on its first run, then the default and `--features fixtures` builds at exit 0. validation323 ran on `c5772f1c91` (raw logs in `ryo-contract-validation323-20261107`). After it, review repairs VII (`317da54e72`) is merged and two repair commits land (`e8bd9bc9b3`, `f8659b91f6`); the targets they touch are run again on `f8659b91f6` into the same directory (`rerun-<target>-f8659b91f6.log`): `checkpoint_check`, the libraries, boundary, ruff, `ruff_canary`, `ruff_sharing`, conformance and the cli tests, and the python and language libraries, which the set does not hold. Under `crates/ryo` the checkpoint adds 1,737 lines and deletes 1,257 against 322 (Rust: +1,141 / -889).
+
+| Pass | Command | Errors reported | Errors fixed |
+|---|---|---|---|
+| 1 | `cargo check --workspace --all-features` (library targets) | 1: E0061, the python syntax fixture's `begin_semantics` without the `SemanticSlot` 1b added | 1 |
+| 2 | the same | 0 | 0 |
+| 3 | the same with `--all-targets` | 1: E0308, the activation dhat control compared `u64` bytes with a `usize` count | 1 |
+| 4 | the same with `--keep-going` | 4: the python tests built `Declarations` without the lazy `RefCell` fields and states (E0308 x2, E0063, E0599) | 4 |
+| 5 | the same | 1: `dead_code`, the `counting_parses` fixture no test calls (the semantic test builds the adapter itself); deleted | 1 |
+| 6 | the same | 0 | 0 |
+| 7 | the same, after validation and the repairs | 0 | 0 |
+
+Passes 3 to 7 add `--all-targets` so test-target errors surface in a check pass, not in the one build. Six warnings on lines this checkpoint added were fixed in passes 2 and 6 (four unnecessary qualifications, an undocumented `KeptBucket` field, an unused result).
+
+- **Spec and rule versions:** no two branches made the same version. New: `operator-meaning-once`, `driver-implementers`, `entry-traits-witnessed`, `catalog-lists-every-item`, `grammar-lists-every-parser` 0.1.0, `derived-view-acquisition` 0.2.0, `runtime-authority` 0.2.0 (enforcement rules) and `fixtures-only-in-tests` 0.1.0 (review repairs VII). `tm validate`: 240 versions hold in `crates/ryo`, 223 at the repository root, 0 do not.
+- **Joins:** the matrix-rows branch's QUEUED rows "Enforcement moves to the compiler and Tastemaker" and "perf iteration 1" and the builders' progress rows of the same names are one row each (exit, then progress). In the derived census, the enforcement branch's deletion of `PORT_NAMES` wins over repairs VII's allowlist line; the nine-kind loop stays. `run.py` and `run_test.py` are repairs VII's.
+- **Repairs after validation (no test weakened or deleted):** perf 1a added `QueryLanguagePort::compile_parsed` and `SyntaxPort::read_root` without a contract row (`port/contract-methods`, 2 findings); both contracts now run every row through them. Perf 1b's key hash is one `FxHasher` step of rustc-hash 2 (`K = 0xf135_7aea_2e62_a9c5`, rotate 26), which orders keys differently from the old hand-copied fold; three rows asserted the old hash order, and their premises are corrected with the hashes stated: derived `returning_key_runs_sort_by_hash_then_row` (keys 1, 2, 1: `[1, 0, 2]`), execution admission `actual_publication_reuses_same_physical_view` (keys 2, 1, 2: `[0, 2, 1]`), boundary `closure_runs_every_partition_and_empty_input_through_the_owner` (key 5's partition before key 7's). Perf 1b expands annotations only when a wanted reader is marked expanded; thirteen Python Module readers walk every position of the table, the expanded ones included, and were not marked, so wanted alone they answered the native tree only (preseal rows `nested_runtime_alias_has_two_real_hosts_and_live_semantic_tokens` and `invalid_nested_expression_keeps_outer_success_without_guessed_inner_root` red at `e8bd9bc9b3`, `rerun-libs-e8bd9bc9b3.log`). They are marked expanded and still read once. The demand row's embedded count is the two expressions the preseal row reads (outer and nested): `(1, 2)`, where the builder wrote `(1, 1)` unrun. The checkpoint 319 to 322 records move to [records.md](records.md) so this file stays within `file-length`.
+- **Behaviour changes, each with its control:** perf 1a: a literal pattern that parses but whose matcher is over the size limit is refused at first use by its slot, not at compile; a syntax error's reason is the parser's message (`prepare::use_case_test` row `compiles_each_pattern_once`: 0 matcher builds after compile and prepare, 413 after matching twice; the oversized pattern accepted by compile, 1 build at its slot); each query module is parsed once per compilation session (row `each_module_is_parsed_once_per_session`: 60 parses for 413 rules; a broken unimported module refuses `r0` as a lone compile does). Perf 1b: the facts finish shares one buffer (memory `the_finish_hands_out_a_stored_population_as_a_borrow_not_a_copy`, spill `the_words_kept_in_the_file_come_back_once_into_a_buffer_of_their_length`, activation dhat `the_facts_finish_reads_a_stored_population_without_copying_its_words`, 11 activation cases at validation323); one parse per file (`one_read_and_its_semantic_session_parse_the_file_once`, negative `a_session_begun_from_nothing_parses_the_file_again`); the binding model only for an expanded demand (`a_demand_that_reads_no_expanded_element_expands_no_annotation`); hash-ordered partitions follow the new key hash (the three rows above). The Django canary is unchanged (112 = 110 N999 + 2 `invalid-syntax`), and the ruff target's answers are those of 322.
+- **Validation323 and the reruns (rows, from `tests.json` and the rerun logs):** libraries 1076 / 4 at validation323, 1078 / 2 rerun (execution 486, core 120 / 1, benchmark 221 / 1, derived 35, query language 93, operators 61, sdk 29, values 28, matching 5); python library 138 / 0 and language 43 / 0 (narrow run); boundary 100 / 2, rerun 102 / 0; project boundary 1 / 0; activation 11 / 0; bdd 7 scenarios, core bdd 18; `ruff_sharing` 1 / 0; `ruff_canary` 1 / 0; ruff 11 / 1; program authority 9 / 0; doctests 35 / 0; conformance 10 targets exit 0; cli replay 75 / 3, the other cli targets 20 / 0; `cli_cost` 4 / 3; hooks 43 / 0; `checkpoint_check` 9 / 0, rerun 13 / 0 with the repairs VII cases; `no_print` and `bench_build` exit 0; `core_allocation` exit 101 (Phase 7); `ruff_rule_phases` exit 1.
+- **Named reds, each with its owning row:** core `a_removed_file_leaves_no_unknown_or_skip_behind_in_any_store` (the Phase 1 row "Repair every deferred output failure"); benchmark `process_capture` "a metadata failure preserves the process bytes and cannot be admitted" and `ruff_rule_phases` (the Phase 7 row "Close full TM, contracts, independent review and normal CI"); ruff I001 rows `a_rejected_file_leaves_i001_plw0406_and_ruf100_answering_the_valid_file` and `i001_hidden_match_and_ruf100_output_follow_first_import_and_unknown_inventory` (the Phase 1 row); cli replay feed (`operation:Closure`, `Cycles`, `Scope`: the Phase 5 row "Consolidate the kernels"), cache 78,525,063 bytes against 75,000,000 (the Phase 1 row), warm peak 113,815,552 bytes at validation323 and 115,728,384 at the rerun against 100,000,000 (the Phase 6 row "Decode lazy packed frontiers once per population"); `cli_cost` (the ruff rows of `ratchet.toml` still hold best 1; the one-file and Django rows report not available without `RYO_PREFLIGHT_WORKER`: the Phase 7 acceptance row); `core_allocation` (Phase 7).
+- **Perf iteration 1, not measured here:** the suite has no worker for the one-file and N999 rows, so no number of either branch is recorded at this checkpoint; the targets stay as the perf row states (one-file-413 about 6.5 s expected from 10.14 s; N999 peak under 600 MB from 1.14 GB). Structure delta: 1a +1 type (`ParsedModules`), +2 `PlanCache` fields, +1 field each on `QueryRequest` and `CompileReport`; 1b 0 added, 1 duplicate hash implementation deleted (the second hand-copied FxHash fold); census `Arc::ptr_eq` 59 to 59, `pub(in ` 882 to 882, `HashMap<` 52 to 52.
+- **Whole-tree TM:** 24 findings, 6 suppressed (the six admitted ignores), all `no-domain-concept-cycles` in `crates/execution/src/domain` (the ring row); every other crate 0 (24 at 322). File-level ownership cycles 0 over 6,888 edge occurrences. The five new rules' seeded-violation scenarios pass in `tm validate`.
+- **Un-ticked by the check:** repairs VII's `run.py --check` reads every `[x]` and `☑` of the README, `matrix.md` and `checklist.md`; at validation322 it un-ticked 92 rows (the repairs VII record lists them). At validation323 it un-ticks no further row and exits 0.
+- **Review 322 findings at 323:** P4 derived census: repaired (the census passes at validation323). P2 open_file seal: repaired, `fixtures-only-in-tests` 0.1.0 and the activation mutant built with the fixtures feature (boundary 102 / 0 rerun). P7 the check binds only rows citing tests: repaired (repairs VII, 92 rows un-ticked). P2 ticked rows 303 to 305 and 307, P3 count every physical instruction: un-ticked by machine. P1 RUF100 pin and I001, P1 removed_file, P6 warm peak: open, red as named above. P1 row text, P3 and P5 rows text, P4 rows text and row (c), P6 stale citations: open, matrix upkeep. P7 deleted tests unlisted 320 to 321, inventory 8 to 9, review README upkeep: open. P7 report card: the table carries the 323 row below, filled when the gate review returns.
+- **Owner-visible:** perf iteration 1 lands unmeasured; the enforcement rules hold eight invariants that source-reading tests held (602 test lines out); the ratchet's one-file bests are lowered (10,157 to 10,143 ms, 1,182 to 1,139 MB) and its N999 and Django rows are unchanged.
+
+**Cycle metrics:**
+
+| Metric | Checkpoint 323 |
+|---|---|
+| Builders | 4 (perf 1a, perf 1b, enforcement rules, and the small hook and matrix-row ones), and review repairs VII |
+| BLOCKED questions | 3 (perf 1a 2, perf 1b 1, enforcement 0) |
+| Time dispatch to FROZEN (bead timestamps) | perf 1a 21:33 to 22:13, perf 1b 21:33 to 22:15, enforcement 19:33 to 22:03, matrix rows 19:54 to 19:57 |
+| Largest builder | 452k tokens (perf 1a; perf 1b 285k, enforcement 334k) |
+| Compile passes | 7 check passes (errors 1, 0, 1, 4, 1, 0, 0; each pass fixed all it reported) and 1 full test build at exit 0 |
+| Rows ticked by machine | 0 (none re-ticked) |
+| Lines under `crates/ryo` | +1,737 / -1,257 |
+| Contract review | pending |
+| Rust gate review | pending |
+
 ### Review repairs VII
 
 Branch `claude/w5-review-repairs-vii` from checkpoint 322 `d13686afb5`, for the contract review of 322 (BLOCKING on Phases 1, 2, 3, 4 and 7). Authored and checked, not compiled or run: the next validation runs the two test repairs.
@@ -67,20 +109,20 @@ Written by `evidence/checkpoint/run.py` from [validation.json](evidence/checkpoi
 |---|---|
 | Source | `c5772f1c91` |
 | Validation | validation323 (raw logs in the directory named `ryo-contract-validation323-20261107`, kept outside the repository) |
-| execution library | 485 PASS / 1 failed (admission::test::succeeds, one red row actual_publication_reuses_same_physical_view: the partition order of keys 2, 1, 2 is [0, 2, 1] where the row expects [1, 0, 2]; the derived key hash is now one FxHasher step (rustc-hash 2), which orders key 2 below key 1: the premise is corrected after validation (perf iteration 1b)) |
+| execution library | 486 PASS / 0 failed (validation323 485/1 (admission row actual_publication_reuses_same_physical_view: the hash-order premise); rerun on f8659b91f6 after the post-validation repairs 486/0 (rerun-libraries-f8659b91f6.log)) |
 | core library | 120 PASS / 1 failed (lint::use_case_test::succeeds, one red row a_removed_file_leaves_no_unknown_or_skip_behind_in_any_store: the narrow instrumented run (narrow-removed_file-instrumented.log) shows the red call is the row's oracle run over the discard store (a.rs and c.rs), whose project phase receives an empty bucket (0 sources) for two required files; hand_words_again and remap_packed are not on that path; the store replay row) |
 | benchmark library | 221 PASS / 1 failed (verify_cases process_capture succeeds, one red row (a metadata failure preserves the process bytes and cannot be admitted): the failure text carries the raw process identity error (entity not found) where the row expects the bare operational failure, the benchmark TM row) |
 | sdk passed | 29 |
 | other libraries passed | 187 |
-| libraries total | 1076 PASS / 4 failed |
-| execution boundary | 100 PASS / 2 failed (compiled_rules::test::closure_runs_every_partition_and_empty_input_through_the_owner (the key partitions come in key-hash order: key 5 before key 7 under the FxHasher step, perf iteration 1b; premise corrected after validation); source_boundary::activation::test::rejects (the open_file mutant does not compile, E0599: the join leftovers row, repaired on the review repairs VII branch merged after validation); source_boundary::derived::census passes (the enforcement rules branch)) |
+| libraries total | 1078 PASS / 2 failed (validation323 1076/4; rerun on f8659b91f6 after the post-validation repairs 1078/2 (rerun-libraries-f8659b91f6.log): core removed_file and benchmark process_capture, as at 322) |
+| execution boundary | 102 PASS / 0 failed (validation323 100/2 (compiled_rules closure partitions: the hash-order premise; source_boundary::activation::test::rejects: the overlay built without fixtures); rerun on f8659b91f6 after the post-validation repairs and the review repairs VII merge 102/0 (rerun-boundary-f8659b91f6.log); source_boundary::derived::census passes) |
 | activation | 11 PASS / 0 failed (11 actual cases, the facts-finish dhat control among them) |
 | bdd | scenarios 7, failed 0 |
 | core bdd | scenarios 18, failed 0 |
 | core project boundary | 1 PASS / 0 failed |
-| ruff sharing | 1 PASS / 0 failed (sharing::test::succeeds without the canary in its process) |
-| ruff canary | 1 PASS / 0 failed (the_one_path_answers_the_django_canary_as_recorded alone: 112 = 110 N999 + 2 invalid-syntax, unchanged by perf iteration 1) |
-| ruff | 11 PASS / 1 failed (engine_test::succeeds, two red rows collected: a_rejected_file_leaves_i001_plw0406_and_ruf100_answering_the_valid_file (I001 answers the valid file 0 where Ruff answers 1; what it could not decide: [] so I001 answers no finding, not Unknown) and i001_hidden_match_and_ruf100_output_follow_first_import_and_unknown_inventory (the valid file keeps its I001 answer: 0 against 1), the per-column lineage row; project_context passes) |
+| ruff sharing | 1 PASS / 0 failed (sharing::test::succeeds without the canary in its process; rerun on f8659b91f6 after the post-validation repairs 1/0 (rerun-ruff_sharing-f8659b91f6.log)) |
+| ruff canary | 1 PASS / 0 failed (112 = 110 N999 + 2 invalid-syntax, unchanged by perf iteration 1; rerun on f8659b91f6 after the post-validation repairs 1/0 (rerun-ruff_canary-f8659b91f6.log)) |
+| ruff | 11 PASS / 1 failed (engine_test::succeeds, two red rows collected (I001 answers the valid file 0 where Ruff answers 1; unknowns []): the per-column lineage row, as at 322; rerun on f8659b91f6 after the post-validation repairs the same (rerun-ruff-f8659b91f6.log)) |
 | ruff rule phases | exit 1, note registry and base-profile guards and the native standalone guards pass; the staging guard exits 1 (durable verifier output or identities were not preserved), red at 321 too, the benchmark TM row |
 | execution program authority | 9 PASS / 0 failed |
 | doctests | execution 16, core 1, sdk 3, values 4, derived 11, failed 0 |
@@ -90,13 +132,14 @@ Written by `evidence/checkpoint/run.py` from [validation.json](evidence/checkpoi
 | core allocation | exit 101, phase 7 |
 | cli replay | 75 PASS / 3 failed |
 | cli replay reds | 3: `behavior::ruff_rules_feed_every_catalog_feature_a_thousand_rows`; `cache::every_recorded_rule_gives_over_ruff_the_rows_a_warm_run_gives_again_from_a_small_store`; `peak::a_warm_unchanged_run_over_ruff_peaks_within_its_bound` |
-| cli replay note | feed: 3 features fed fewer than 1,000 rows (operation:Closure, Cycles, Scope: the graph drivers record no WorkCounters::found, the fold area); cache: the store of ruff 78,525,063 bytes against 75,000,000 (unchanged from 322), the coverage missing-kinds row; warm peak 113,815,552 bytes against 100,000,000 (114,180,096 at 322): the walk extension C row |
+| cli replay note | feed: 3 features fed fewer than 1,000 rows (operation:Closure, Cycles, Scope: the graph drivers record no WorkCounters::found, the fold area); cache: the store of ruff 78,525,063 bytes against 75,000,000 (unchanged from 322), the coverage missing-kinds row; warm peak 113,815,552 bytes against 100,000,000 (114,180,096 at 322; 115,728,384 rerun on f8659b91f6 after the post-validation repairs, rerun-cli_tests-f8659b91f6.log, the same three reds): the walk extension C row |
 | cli cost | 4 PASS / 3 failed (the ruff rows of ratchet.toml still hold best 1 (cold 10,101 ms / CPU 60,157 ms, peak 583 MB, warm 551 ms, edit 2,738 ms measured): the ruff rows are not seeded; the Django and one-file rows report not available without RYO_PREFLIGHT_WORKER, so perf iteration 1 is not measured by this target) |
 | cli other targets | blocks (dhat run, no panic), call_count 1/1, command_line 7/7, command_tree 11/11, readme 1/1 |
-| conformance | targets 10, exit 0 |
+| conformance | targets 10, exit 0, note rerun on f8659b91f6 after the post-validation repairs exit 0 (rerun-conformance-f8659b91f6.log) |
 | harness hooks | 43 PASS / 0 failed |
-| checkpoint check | 9 PASS / 0 failed |
-| derived library | 34 PASS / 1 failed (partition::service_test::succeeds, one red row returning_key_runs_sort_by_hash_then_row: [1, 0, 2] answered where [0, 2, 1] is expected; the same hash change (perf iteration 1b), premise corrected after validation) |
+| checkpoint check | 13 PASS / 0 failed (validation323 9/0; with the review repairs VII cases rerun on f8659b91f6 after the post-validation repairs 13/0 (rerun-checkpoint_check-f8659b91f6.log)) |
+| derived library | 35 PASS / 0 failed (validation323 34/1 (returning_key_runs_sort_by_hash_then_row: the hash-order premise); rerun on f8659b91f6 after the post-validation repairs 35/0 (rerun-libraries-f8659b91f6.log)) |
+| python and language libraries | 181 PASS / 0 failed (not in the validation set; narrow run: python 136/2 at e8bd9bc9b3 (rerun-libs-e8bd9bc9b3.log, the two preseal rows and the demand row), 138/0 and language 43/0 on f8659b91f6 (rerun-python_language_lib-f8659b91f6.log)) |
 | tm_cli_source findings | 0 (0 production, 0 test), 0 suppressed, 1 scoped directories |
 | tm_source findings | 0 (0 production, 0 test), 2 suppressed, 16 scoped directories |
 | Whole-tree TM | 24 findings, 6 suppressed (3676 at 318) |
@@ -219,6 +262,7 @@ One row per checkpoint, landing and perf branch, copied from its `rust-review.js
 | Unit | Source | 1 | 2 | 3 | 4 | 5 | 6 | 7 | Verdict |
 |---|---|---|---|---|---|---|---|---|---|
 | Checkpoint 322 | `05d5c56a83` | FAIL | FAIL | FAIL | FAIL | FAIL | FAIL | FAIL | FAIL |
+| Checkpoint 323 | pending: the gate review of the final head | pending | pending | pending | pending | pending | pending | pending | pending |
 
 Earlier `36b0cdbea`/validation297 and300 findings remain source-bound in the [initial](audits/2026-11-06-derived/review.json) and [successor](audits/2026-11-06-derived/successor.json) reviews. The current checkpoint supersedes their repaired functional blockers without approving a whole phase or category.
 

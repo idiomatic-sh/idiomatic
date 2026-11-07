@@ -185,9 +185,9 @@
   },
   "results": {
     "execution_library": {
-      "passed": 485,
-      "failed": 1,
-      "note": "admission::test::succeeds, one red row actual_publication_reuses_same_physical_view: the partition order of keys 2, 1, 2 is [0, 2, 1] where the row expects [1, 0, 2]; the derived key hash is now one FxHasher step (rustc-hash 2), which orders key 2 below key 1: the premise is corrected after validation (perf iteration 1b)"
+      "passed": 486,
+      "failed": 0,
+      "note": "validation323 485/1 (admission row actual_publication_reuses_same_physical_view: the hash-order premise); rerun on f8659b91f6 after the post-validation repairs 486/0 (rerun-libraries-f8659b91f6.log)"
     },
     "core_library": {
       "passed": 120,
@@ -201,26 +201,34 @@
     },
     "sdk_passed": 29,
     "other_libraries_passed": 187,
-    "libraries_total": {"passed": 1076, "failed": 4},
-    "execution_boundary": {
-      "passed": 100,
+    "libraries_total": {
+      "passed": 1078,
       "failed": 2,
-      "note": "compiled_rules::test::closure_runs_every_partition_and_empty_input_through_the_owner (the key partitions come in key-hash order: key 5 before key 7 under the FxHasher step, perf iteration 1b; premise corrected after validation); source_boundary::activation::test::rejects (the open_file mutant does not compile, E0599: the join leftovers row, repaired on the review repairs VII branch merged after validation); source_boundary::derived::census passes (the enforcement rules branch)"
+      "note": "validation323 1076/4; rerun on f8659b91f6 after the post-validation repairs 1078/2 (rerun-libraries-f8659b91f6.log): core removed_file and benchmark process_capture, as at 322"
+    },
+    "execution_boundary": {
+      "passed": 102,
+      "failed": 0,
+      "note": "validation323 100/2 (compiled_rules closure partitions: the hash-order premise; source_boundary::activation::test::rejects: the overlay built without fixtures); rerun on f8659b91f6 after the post-validation repairs and the review repairs VII merge 102/0 (rerun-boundary-f8659b91f6.log); source_boundary::derived::census passes"
     },
     "activation": {"passed": 11, "failed": 0, "note": "11 actual cases, the facts-finish dhat control among them"},
     "bdd": {"scenarios": 7, "failed": 0},
     "core_bdd": {"scenarios": 18, "failed": 0},
     "core_project_boundary": {"passed": 1, "failed": 0},
-    "ruff_sharing": {"passed": 1, "failed": 0, "note": "sharing::test::succeeds without the canary in its process"},
+    "ruff_sharing": {
+      "passed": 1,
+      "failed": 0,
+      "note": "sharing::test::succeeds without the canary in its process; rerun on f8659b91f6 after the post-validation repairs 1/0 (rerun-ruff_sharing-f8659b91f6.log)"
+    },
     "ruff_canary": {
       "passed": 1,
       "failed": 0,
-      "note": "the_one_path_answers_the_django_canary_as_recorded alone: 112 = 110 N999 + 2 invalid-syntax, unchanged by perf iteration 1"
+      "note": "112 = 110 N999 + 2 invalid-syntax, unchanged by perf iteration 1; rerun on f8659b91f6 after the post-validation repairs 1/0 (rerun-ruff_canary-f8659b91f6.log)"
     },
     "ruff": {
       "passed": 11,
       "failed": 1,
-      "note": "engine_test::succeeds, two red rows collected: a_rejected_file_leaves_i001_plw0406_and_ruf100_answering_the_valid_file (I001 answers the valid file 0 where Ruff answers 1; what it could not decide: [] so I001 answers no finding, not Unknown) and i001_hidden_match_and_ruf100_output_follow_first_import_and_unknown_inventory (the valid file keeps its I001 answer: 0 against 1), the per-column lineage row; project_context passes"
+      "note": "engine_test::succeeds, two red rows collected (I001 answers the valid file 0 where Ruff answers 1; unknowns []): the per-column lineage row, as at 322; rerun on f8659b91f6 after the post-validation repairs the same (rerun-ruff-f8659b91f6.log)"
     },
     "ruff_rule_phases": {
       "exit": 1,
@@ -241,29 +249,42 @@
     "core_allocation": {"exit": 101, "phase": 7},
     "cli_replay": {"passed": 75, "failed": 3},
     "cli_replay_reds": ["behavior::ruff_rules_feed_every_catalog_feature_a_thousand_rows", "cache::every_recorded_rule_gives_over_ruff_the_rows_a_warm_run_gives_again_from_a_small_store", "peak::a_warm_unchanged_run_over_ruff_peaks_within_its_bound"],
-    "cli_replay_note": "feed: 3 features fed fewer than 1,000 rows (operation:Closure, Cycles, Scope: the graph drivers record no WorkCounters::found, the fold area); cache: the store of ruff 78,525,063 bytes against 75,000,000 (unchanged from 322), the coverage missing-kinds row; warm peak 113,815,552 bytes against 100,000,000 (114,180,096 at 322): the walk extension C row",
+    "cli_replay_note": "feed: 3 features fed fewer than 1,000 rows (operation:Closure, Cycles, Scope: the graph drivers record no WorkCounters::found, the fold area); cache: the store of ruff 78,525,063 bytes against 75,000,000 (unchanged from 322), the coverage missing-kinds row; warm peak 113,815,552 bytes against 100,000,000 (114,180,096 at 322; 115,728,384 rerun on f8659b91f6 after the post-validation repairs, rerun-cli_tests-f8659b91f6.log, the same three reds): the walk extension C row",
     "cli_cost": {
       "passed": 4,
       "failed": 3,
       "note": "the ruff rows of ratchet.toml still hold best 1 (cold 10,101 ms / CPU 60,157 ms, peak 583 MB, warm 551 ms, edit 2,738 ms measured): the ruff rows are not seeded; the Django and one-file rows report not available without RYO_PREFLIGHT_WORKER, so perf iteration 1 is not measured by this target"
     },
     "cli_other_targets": "blocks (dhat run, no panic), call_count 1/1, command_line 7/7, command_tree 11/11, readme 1/1",
-    "conformance": {"targets": 10, "exit": 0},
+    "conformance": {
+      "targets": 10,
+      "exit": 0,
+      "note": "rerun on f8659b91f6 after the post-validation repairs exit 0 (rerun-conformance-f8659b91f6.log)"
+    },
     "harness_hooks": {"passed": 43, "failed": 0},
-    "checkpoint_check": {"passed": 9, "failed": 0},
+    "checkpoint_check": {
+      "passed": 13,
+      "failed": 0,
+      "note": "validation323 9/0; with the review repairs VII cases rerun on f8659b91f6 after the post-validation repairs 13/0 (rerun-checkpoint_check-f8659b91f6.log)"
+    },
     "derived_library": {
-      "passed": 34,
-      "failed": 1,
-      "note": "partition::service_test::succeeds, one red row returning_key_runs_sort_by_hash_then_row: [1, 0, 2] answered where [0, 2, 1] is expected; the same hash change (perf iteration 1b), premise corrected after validation"
+      "passed": 35,
+      "failed": 0,
+      "note": "validation323 34/1 (returning_key_runs_sort_by_hash_then_row: the hash-order premise); rerun on f8659b91f6 after the post-validation repairs 35/0 (rerun-libraries-f8659b91f6.log)"
+    },
+    "python_and_language_libraries": {
+      "passed": 181,
+      "failed": 0,
+      "note": "not in the validation set; narrow run: python 136/2 at e8bd9bc9b3 (rerun-libs-e8bd9bc9b3.log, the two preseal rows and the demand row), 138/0 and language 43/0 on f8659b91f6 (rerun-python_language_lib-f8659b91f6.log)"
     }
   },
   "ownership_graph": {
     "source": "c5772f1c91bc53b5df735a50a183ed65d5ea7e9b",
     "raw": "ownership_edges.log (kept outside the repository)",
-    "occurrences": 6877,
+    "occurrences": 6888,
     "targeted_cycles": [],
     "other_cycles": 0,
-    "note": "file-level strongly connected components of the ownership edges, computed from ownership_edges.log of validation322: 0 (0 at 321)"
+    "note": "file-level strongly connected components of the ownership edges, computed from ownership_edges.log of validation323: 0 (0 at 322)"
   },
   "evidence_reuse": [],
   "review": "../../audits/2026-11-06-derived/ownership/checkpoint.json",
@@ -274,7 +295,7 @@
     "command": "tm --root crates/ryo check --format json (no --fix; git status unchanged)",
     "total": 24,
     "suppressed": 6,
-    "status": "measured whole-tree state at checkpoint 322; not a baseline and not a waiver",
+    "status": "measured whole-tree state at checkpoint 323 (f8659b91f6); not a baseline and not a waiver",
     "at_checkpoint_319": 2762,
     "at_checkpoint_318": 3676,
     "at_checkpoint_317": 4251,
@@ -306,7 +327,7 @@
     },
     "module_cycles_findings": 0,
     "no_domain_concept_cycles_findings": 24,
-    "tm_validate": "crates/ryo: 234 versions hold, 0 do not; repository root: 217 hold, 0 do not",
+    "tm_validate": "crates/ryo: 240 versions hold, 0 do not; repository root: 223 hold, 0 do not",
     "unknown_findings": 0,
     "at_checkpoint_320": 1223,
     "owned": {"no-domain-concept-cycles (execution) 24": "the domain concept cycle row"},
@@ -321,7 +342,8 @@
       "crates/derived": 1,
       "crates/values": 1
     },
-    "at_checkpoint_321": 34
+    "at_checkpoint_321": 34,
+    "at_checkpoint_322": 24
   },
   "tm_targets": {
     "tm_cli_source": {
