@@ -33,7 +33,7 @@ fn two_project_consumers_bind_their_own_slots_to_the_same_producer_in_both_order
             name: ObservationColumnName("file".into()),
             kind: CellKind::File,
         }];
-        authored.plans[0].steps = vec![PlanStep {
+        crate::boundary_fixture::plans(&mut authored)[0].steps = vec![PlanStep {
             scope: StepScope::CrossFile,
             operation: Operation::Select {
                 from: Input::Relation(relation),
@@ -41,8 +41,8 @@ fn two_project_consumers_bind_their_own_slots_to_the_same_producer_in_both_order
                 kept: vec![ColumnIndex(u32::try_from(file_column).unwrap())],
             },
         }];
-        authored.plans[0].frontier = vec![Input::Relation(relation)];
-        authored.plans[0].observations = vec![PlanObservation {
+        crate::boundary_fixture::plans(&mut authored)[0].frontier = vec![Input::Relation(relation)];
+        crate::boundary_fixture::plans(&mut authored)[0].observations = vec![PlanObservation {
             name: ObservationName("files".into()),
             source: Input::Step(StepId(0)),
             columns: columns.clone(),
@@ -50,7 +50,7 @@ fn two_project_consumers_bind_their_own_slots_to_the_same_producer_in_both_order
         }];
         let producer = authored.rules[0].id.clone();
         for consumer in [1, 2] {
-            authored.plans[consumer].steps = vec![PlanStep {
+            crate::boundary_fixture::plans(&mut authored)[consumer].steps = vec![PlanStep {
                 scope: StepScope::CrossFile,
                 operation: Operation::Select {
                     from: Input::BoundObservation(ObservationBindingId(0)),
@@ -58,9 +58,9 @@ fn two_project_consumers_bind_their_own_slots_to_the_same_producer_in_both_order
                     kept: vec![],
                 },
             }];
-            authored.plans[consumer].frontier =
+            crate::boundary_fixture::plans(&mut authored)[consumer].frontier =
                 vec![Input::BoundObservation(ObservationBindingId(0))];
-            authored.plans[consumer].observation_inputs = vec![BoundObservationInput {
+            crate::boundary_fixture::plans(&mut authored)[consumer].observation_inputs = vec![BoundObservationInput {
                 name: ObservationBindingName("files".into()),
                 columns: columns.clone(),
                 scope: StepScope::CrossFile,

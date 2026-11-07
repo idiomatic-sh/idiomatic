@@ -158,14 +158,14 @@ fn program(
             columns: columns.clone(),
             producers: vec![],
         });
-        authored.plans[0]
+        crate::boundary_fixture::plans(&mut authored)[0]
             .observation_inputs
             .push(BoundObservationInput {
                 name: ObservationBindingName("codes".into()),
                 columns,
                 scope: StepScope::CrossFile,
             });
-        authored.plans[0].steps = vec![PlanStep {
+        crate::boundary_fixture::plans(&mut authored)[0].steps = vec![PlanStep {
             scope: StepScope::CrossFile,
             operation: Operation::Select {
                 from: Input::BoundObservation(ObservationBindingId(0)),
@@ -173,7 +173,7 @@ fn program(
                 kept: vec![],
             },
         }];
-        authored.plans[0].frontier = vec![Input::BoundObservation(ObservationBindingId(0))];
+        crate::boundary_fixture::plans(&mut authored)[0].frontier = vec![Input::BoundObservation(ObservationBindingId(0))];
         authored.observations =
             ObservationIdentity::Named(ObservationReadinessLayout(Digest([7; 16])));
     }

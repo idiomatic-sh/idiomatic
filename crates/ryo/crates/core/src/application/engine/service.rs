@@ -19,7 +19,7 @@ use ryo_execution::outbound::derived::interface::DerivedPort;
 use ryo_execution::outbound::digest::interface::DigestPort;
 use ryo_execution::outbound::operators::interface::OperatorsPort;
 use ryo_execution::outbound::query_language::interface::QueryLanguagePort;
-use ryo_execution::domain::operating::errors::OperatingError;
+use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 
 /// The engine's rule compilation, with the plans it keeps.
 pub struct Compilation(QueryCompilation);
@@ -85,7 +85,7 @@ impl Execution {
     #[must_use]
     pub const fn routing(
         self,
-        routes: ryo_execution::domain::executable_program::types::RoutePolicy,
+        routes: ryo_execution::inbound::use_cases::prepare::interface::RoutePolicy,
     ) -> Self {
         Self(self.0.routing(routes))
     }

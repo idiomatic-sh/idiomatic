@@ -84,7 +84,7 @@ fn public_group_reduction_and_emission_use_the_admitted_semantic_path() {
         Arc::new(ryo_execution::outbound::derived::factory::semantics()),
     );
     let mut input = authored_request(1);
-    input.plans[0].steps.push(PlanStep {
+    crate::boundary_fixture::plans(&mut input)[0].steps.push(PlanStep {
         scope: StepScope::PerFile,
         operation: Operation::GroupCount {
             from: Input::Step(StepId(0)),
@@ -92,7 +92,7 @@ fn public_group_reduction_and_emission_use_the_admitted_semantic_path() {
             distinct: None,
         },
     });
-    input.plans[0].emit.step = StepId(1);
+    crate::boundary_fixture::plans(&mut input)[0].emit.step = StepId(1);
     let program = engine.prepare(input).expect("prepare real count");
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);

@@ -9,7 +9,7 @@ use ryo_values::domain::plan_parts::types::LiteralText;
 
 fn program(engine: &PrepareUseCaseImpl) -> PreparedExecutionProgram {
     let mut input = authored_request(1);
-    input.plans[0].steps = vec![PlanStep {
+    crate::boundary_fixture::plans(&mut input)[0].steps = vec![PlanStep {
         scope: StepScope::PerFile,
         operation: Operation::FitsRendered {
             from: Input::Relation(Relation::Function),
@@ -20,7 +20,7 @@ fn program(engine: &PrepareUseCaseImpl) -> PreparedExecutionProgram {
             tab_width: ryo_values::domain::query_operators::types::TabWidth(4),
         },
     }];
-    input.plans[0].emit.step = StepId(0);
+    crate::boundary_fixture::plans(&mut input)[0].emit.step = StepId(0);
     engine.prepare(input).expect("actual FitsRendered program")
 }
 

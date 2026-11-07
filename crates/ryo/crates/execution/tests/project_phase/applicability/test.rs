@@ -55,12 +55,12 @@ fn exercise(case: Case) {
         .iter()
         .position(|kind| *kind == CellKind::File)
         .unwrap();
-    authored.plans[0].steps[0].operation = Operation::Select {
+    crate::boundary_fixture::plans(&mut authored)[0].steps[0].operation = Operation::Select {
         from: Input::Relation(Relation::Function),
         comparisons: vec![],
         kept: vec![ColumnIndex(column as u32)],
     };
-    authored.plans[0].steps.push(PlanStep {
+    crate::boundary_fixture::plans(&mut authored)[0].steps.push(PlanStep {
         scope: StepScope::CrossFile,
         operation: Operation::Select {
             from: Input::Step(StepId(0)),
@@ -68,8 +68,8 @@ fn exercise(case: Case) {
             kept: vec![],
         },
     });
-    authored.plans[0].frontier = vec![Input::Step(StepId(0))];
-    authored.plans[0].emit.step = StepId(1);
+    crate::boundary_fixture::plans(&mut authored)[0].frontier = vec![Input::Step(StepId(0))];
+    crate::boundary_fixture::plans(&mut authored)[0].emit.step = StepId(1);
     let prepared = engine.prepare(authored).unwrap();
     let mut corpus = corpus();
     let mut second = corpus[0].clone();
@@ -264,7 +264,7 @@ fn wholly_skipped_frontier_is_unavailable_without_fabricating_a_schema_or_rows()
     let mut authored = authored_request(1);
     authored.rules[0].applicability = RuleApplicability::AcceptedSyntax;
     let rule_id = authored.rules[0].id.clone();
-    authored.plans[0].steps.push(PlanStep {
+    crate::boundary_fixture::plans(&mut authored)[0].steps.push(PlanStep {
         scope: StepScope::CrossFile,
         operation: Operation::Select {
             from: Input::Step(StepId(0)),
@@ -272,8 +272,8 @@ fn wholly_skipped_frontier_is_unavailable_without_fabricating_a_schema_or_rows()
             kept: vec![],
         },
     });
-    authored.plans[0].emit.step = StepId(1);
-    authored.plans[0].frontier = vec![Input::Step(StepId(0))];
+    crate::boundary_fixture::plans(&mut authored)[0].emit.step = StepId(1);
+    crate::boundary_fixture::plans(&mut authored)[0].frontier = vec![Input::Step(StepId(0))];
     let prepared = engine.prepare(authored).unwrap();
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);

@@ -68,7 +68,7 @@ fn mixed_program(engine: &PrepareUseCaseImpl, relation: Relation) -> PreparedExe
         .iter()
         .position(|kind| *kind == CellKind::File)
         .unwrap();
-    input.plans[0].steps = vec![
+    crate::boundary_fixture::plans(&mut input)[0].steps = vec![
         PlanStep {
             scope: StepScope::PerFile,
             operation: Operation::Select {
@@ -102,8 +102,8 @@ fn mixed_program(engine: &PrepareUseCaseImpl, relation: Relation) -> PreparedExe
             },
         },
     ];
-    input.plans[0].frontier = vec![Input::Step(StepId(0)), Input::Relation(relation)];
-    input.plans[0].emit.step = StepId(2);
+    crate::boundary_fixture::plans(&mut input)[0].frontier = vec![Input::Step(StepId(0)), Input::Relation(relation)];
+    crate::boundary_fixture::plans(&mut input)[0].emit.step = StepId(2);
     engine
         .prepare(input)
         .expect("compile actual mixed-phase request")

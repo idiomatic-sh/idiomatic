@@ -31,7 +31,7 @@ pub(crate) mod derived;
 
 pub mod route_counts;
 
-pub(crate) mod observations;
+pub mod observations;
 mod ordered_existence;
 
 pub(crate) mod scope;

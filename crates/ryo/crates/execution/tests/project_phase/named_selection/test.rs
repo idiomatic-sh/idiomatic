@@ -37,9 +37,9 @@ fn named_function_selection_replays_without_running_project_steps_or_hiding_abse
                 distinct: ryo_values::domain::plan_parts::types::RepeatedRows::Dropped,
             },
         };
-        input.plans[0].steps = vec![selected.clone(), projected.clone()];
-        input.plans[0].emit.step = StepId(1);
-        input.plans[1].steps = vec![
+        crate::boundary_fixture::plans(&mut input)[0].steps = vec![selected.clone(), projected.clone()];
+        crate::boundary_fixture::plans(&mut input)[0].emit.step = StepId(1);
+        crate::boundary_fixture::plans(&mut input)[1].steps = vec![
             selected,
             projected,
             PlanStep {
@@ -51,8 +51,8 @@ fn named_function_selection_replays_without_running_project_steps_or_hiding_abse
                 },
             },
         ];
-        input.plans[1].frontier = vec![Input::Step(StepId(1))];
-        input.plans[1].emit.step = StepId(2);
+        crate::boundary_fixture::plans(&mut input)[1].frontier = vec![Input::Step(StepId(1))];
+        crate::boundary_fixture::plans(&mut input)[1].emit.step = StepId(2);
         let program = engine.prepare(input).expect("compile both plans together");
         let mut corpus = corpus();
         if let ryo_values::domain::files::types::CorpusInput::Available(entry) = &mut corpus[0] {

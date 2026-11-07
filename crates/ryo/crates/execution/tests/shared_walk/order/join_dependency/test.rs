@@ -24,7 +24,7 @@ fn shared_walk_uses_the_same_join_dependency_contract_for_callback_delivery() {
     use ryo_values::domain::plan_parts::types::{JoinColumn, Side};
     let (engine, _) = engine();
     let mut authored = authored_request(2);
-    authored.plans[0].steps = vec![
+    crate::boundary_fixture::plans(&mut authored)[0].steps = vec![
         PlanStep {
             scope: StepScope::PerFile,
             operation: Operation::Select {
@@ -58,8 +58,8 @@ fn shared_walk_uses_the_same_join_dependency_contract_for_callback_delivery() {
             },
         },
     ];
-    authored.plans[0].emit.step = StepId(2);
-    authored.plans[1].steps[0].operation = Operation::Select {
+    crate::boundary_fixture::plans(&mut authored)[0].emit.step = StepId(2);
+    crate::boundary_fixture::plans(&mut authored)[1].steps[0].operation = Operation::Select {
         from: Input::Relation(Relation::SyntaxTree),
         comparisons: selection(Selector::Kind("other")),
         kept: vec![],
@@ -149,7 +149,7 @@ fn independent_semantic_relation_selectors_share_one_source_walk() {
     let (engine, semantics) = engine();
     let mut authored = authored_request(2);
     for (index, name) in ["main", "other"].iter().enumerate() {
-        authored.plans[index].steps[0].operation = Operation::Select {
+        crate::boundary_fixture::plans(&mut authored)[index].steps[0].operation = Operation::Select {
             from: Input::Relation(Relation::Function),
             comparisons: vec![compared(Test::Equal, 1, text(name))],
             kept: vec![ColumnIndex(0)],

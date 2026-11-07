@@ -25,7 +25,7 @@ fn captured_name_frames_do_not_inherit_previous_frame_place_numbers() {
     ] {
         let engine = engine();
         let mut input = authored_request(1);
-        input.plans[0].steps.push(PlanStep {
+        crate::boundary_fixture::plans(&mut input)[0].steps.push(PlanStep {
             scope: StepScope::PerFile,
             operation: Operation::Project {
                 from: Input::Relation(Relation::Function),
@@ -33,7 +33,7 @@ fn captured_name_frames_do_not_inherit_previous_frame_place_numbers() {
                 distinct: RepeatedRows::Kept,
             },
         });
-        input.plans[0].frontier = vec![Input::Step(StepId(1))];
+        crate::boundary_fixture::plans(&mut input)[0].frontier = vec![Input::Step(StepId(1))];
         let program = engine.prepare(input).expect("valid symbol frontier");
         let corpus = corpus();
         let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);

@@ -140,7 +140,7 @@ fn sink_refusal_replays_delivery_without_restarting_the_shared_dependency_graph(
 fn an_unbound_rule_cannot_schedule_an_independent_provider_after_a_failed_sibling() {
     let engine = engine();
     let mut authored = authored_request(2);
-    authored.plans[1].steps[0].operation = Operation::Select {
+    crate::boundary_fixture::plans(&mut authored)[1].steps[0].operation = Operation::Select {
         from: Input::Relation(Relation::Identifier),
         comparisons: vec![],
         kept: vec![ColumnIndex(0)],

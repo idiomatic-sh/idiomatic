@@ -90,7 +90,7 @@ fn an_earlier_false_kind_test_still_short_circuits_the_later_invalid_regex() {
 fn a_fused_child_error_precedes_a_later_head_error_and_is_terminal() {
     let (engine, _semantics) = engine();
     let mut authored = authored_request(1);
-    authored.plans[0].steps = vec![
+    crate::boundary_fixture::plans(&mut authored)[0].steps = vec![
         PlanStep {
             scope: StepScope::PerFile,
             operation: Operation::Select {
@@ -108,7 +108,7 @@ fn a_fused_child_error_precedes_a_later_head_error_and_is_terminal() {
             },
         },
     ];
-    authored.plans[0].emit.step = StepId(1);
+    crate::boundary_fixture::plans(&mut authored)[0].emit.step = StepId(1);
     let program = engine
         .prepare(authored)
         .expect("prepare actual fused head and child");

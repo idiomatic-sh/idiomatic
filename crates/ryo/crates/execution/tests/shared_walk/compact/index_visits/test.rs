@@ -64,7 +64,7 @@ fn indexed_join_counts_actual_matching_rhs_visits_and_does_no_work_on_replay() {
                     .collect(),
             },
         ];
-        let plan = &mut authored.plans[0];
+        let plan = &mut crate::boundary_fixture::plans(&mut authored)[0];
         plan.steps = [0, 1]
             .map(|relation| PlanStep {
                 scope: StepScope::PerFile,

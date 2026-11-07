@@ -292,9 +292,6 @@ fn subject(input: Input) -> Result<Value, Failure> {
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
 }
-/// One request of several authored rules, the first named as `prepared` names its only one.
-fn prepared_many(
-    plans: Vec<Plan>,
     bindings: Vec<Vec<ParameterBinding>>,
     hosted: Vec<HostRelation>,
 ) -> Result<(fixtures::Preparation, PreparedExecutionProgram), OperatingError> {

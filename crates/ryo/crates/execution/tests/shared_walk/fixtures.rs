@@ -109,17 +109,17 @@ pub(super) fn prepared(
 ) -> PreparedExecutionProgram {
     let mut input = authored_request(selectors.len());
     for (index, selector) in selectors.iter().copied().enumerate() {
-        input.plans[index].steps[0].operation = Operation::Select {
+        crate::boundary_fixture::plans(&mut input)[index].steps[0].operation = Operation::Select {
             from: Input::Relation(Relation::SyntaxTree),
             comparisons: selection(selector),
             kept: vec![],
         };
         if let Selector::Parameter(value) = selector {
-            input.plans[index].parameters.push(PlanParameter {
+            crate::boundary_fixture::plans(&mut input)[index].parameters.push(PlanParameter {
                 name: ParameterName("name".into()),
                 kind: ParameterType::Text,
             });
-            input.bindings[index] = vec![ParameterBinding::Text(LiteralText(value.into()))];
+            crate::boundary_fixture::bindings(&mut input)[index] = vec![ParameterBinding::Text(LiteralText(value.into()))];
         }
     }
     engine

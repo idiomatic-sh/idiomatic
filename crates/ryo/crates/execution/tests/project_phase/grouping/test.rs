@@ -10,7 +10,7 @@ fn project_grouping_reads_only_actual_captured_function_names() {
     use ryo_values::domain::stored_facts::types::ArenaBytes;
     let engine = engine();
     let mut input = authored_request(1);
-    input.plans[0].steps = vec![
+    crate::boundary_fixture::plans(&mut input)[0].steps = vec![
         PlanStep {
             scope: StepScope::PerFile,
             operation: Operation::Select {
@@ -28,8 +28,8 @@ fn project_grouping_reads_only_actual_captured_function_names() {
             },
         },
     ];
-    input.plans[0].frontier = vec![Input::Step(StepId(0))];
-    input.plans[0].emit.step = StepId(1);
+    crate::boundary_fixture::plans(&mut input)[0].frontier = vec![Input::Step(StepId(0))];
+    crate::boundary_fixture::plans(&mut input)[0].emit.step = StepId(1);
     let program = engine
         .prepare(input)
         .expect("prepare actual mixed-phase count");

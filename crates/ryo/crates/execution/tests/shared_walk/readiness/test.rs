@@ -111,7 +111,7 @@ fn exercise_readiness_chain(empty: bool) {
     let (engine, _) = engine();
     let mut authored = authored_request(3);
     let steps = readiness_chain();
-    for (index, plan) in authored.plans.iter_mut().enumerate() {
+    for (index, plan) in crate::boundary_fixture::plans(&mut authored).iter_mut().enumerate() {
         plan.steps = steps.clone();
         let last = Input::Step(StepId(u32::try_from(steps.len() - 1).unwrap()));
         let first = Input::Step(StepId(0));
@@ -205,7 +205,7 @@ fn failed_producers_wake_their_roots_without_erasing_independent_output() {
         comparisons: vec![],
         kept: vec![],
     };
-    for (index, plan) in authored.plans[..2].iter_mut().enumerate() {
+    for (index, plan) in crate::boundary_fixture::plans(&mut authored)[..2].iter_mut().enumerate() {
         plan.steps = failing.clone();
         let last = Input::Step(StepId(u32::try_from(failing.len() - 1).unwrap()));
         let first = Input::Step(StepId(0));
@@ -220,7 +220,7 @@ fn failed_producers_wake_their_roots_without_erasing_independent_output() {
         });
         plan.emit.step = StepId(u32::try_from(plan.steps.len() - 1).unwrap());
     }
-    authored.plans[2].steps = vec![PlanStep {
+    crate::boundary_fixture::plans(&mut authored)[2].steps = vec![PlanStep {
         scope: StepScope::PerFile,
         operation: Operation::Hosted {
             relation: HostedNumber(0),

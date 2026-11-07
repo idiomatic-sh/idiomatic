@@ -25,12 +25,12 @@ fn frontier_and_callback_share_the_same_atomic_semantic_failure() {
     for capture_first in [true, false] {
         let (engine, _) = engine();
         let mut authored = authored_request(1);
-        authored.plans[0].steps[0].operation = Operation::Select {
+        crate::boundary_fixture::plans(&mut authored)[0].steps[0].operation = Operation::Select {
             from: Input::Relation(Relation::SyntaxTree),
             comparisons: selection(Selector::DynamicRegex),
             kept: vec![],
         };
-        authored.plans[0].frontier = vec![Input::Step(StepId(0))];
+        crate::boundary_fixture::plans(&mut authored)[0].frontier = vec![Input::Step(StepId(0))];
         let program = engine.prepare(authored).unwrap();
         let corpus = corpus();
         let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
@@ -142,7 +142,7 @@ fn identical_join_diagnostics_have_equal_errors_for_both_delivery_orders() {
 fn conditional_join_request(count: usize) -> PrepareRequest {
     use ryo_values::domain::plan_parts::types::{JoinColumn, Side};
     let mut authored = authored_request(count);
-    authored.plans[0].steps = vec![
+    crate::boundary_fixture::plans(&mut authored)[0].steps = vec![
         PlanStep {
             scope: StepScope::PerFile,
             operation: Operation::Select {
@@ -176,9 +176,9 @@ fn conditional_join_request(count: usize) -> PrepareRequest {
             },
         },
     ];
-    authored.plans[0].emit.step = StepId(2);
+    crate::boundary_fixture::plans(&mut authored)[0].emit.step = StepId(2);
     for index in 1..count {
-        authored.plans[index] = authored.plans[0].clone();
+        crate::boundary_fixture::plans(&mut authored)[index] = crate::boundary_fixture::plans(&mut authored)[0].clone();
     }
     authored
 }
@@ -187,7 +187,7 @@ fn callback_and_frontier_use_one_dependency_contract_in_both_orders() {
     let (engine, _) = engine();
     use ryo_relations::domain::relations::types::{Words, WorkerNumber};
     let mut authored = conditional_join_request(1);
-    authored.plans[0].frontier = vec![Input::Step(StepId(2))];
+    crate::boundary_fixture::plans(&mut authored)[0].frontier = vec![Input::Step(StepId(2))];
     let program = engine.prepare(authored).unwrap();
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);

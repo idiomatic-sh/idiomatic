@@ -38,7 +38,7 @@ fn public_compiled_independent_rules_keep_exact_per_rule_source_declarations() {
     let engine = engine();
     let raw = authored_request(2);
     let compiler =
-        QueryCompilation::new(Arc::new(AuthoredQueryProvider(raw.plans[0].clone())));
+        QueryCompilation::new(Arc::new(AuthoredQueryProvider(crate::boundary_fixture::plans(&mut raw)[0].clone())));
     let compiled = compiler
         .compile(&raw.rules, &raw.hosted)
         .expect("compile independent rules");
@@ -124,7 +124,7 @@ fn closure_runs_every_partition_and_empty_input_through_the_owner() {
     for populated in [false, true] {
         let engine = engine();
         let mut input = authored_request(1);
-        input.plans[0].steps = vec![
+        crate::boundary_fixture::plans(&mut input)[0].steps = vec![
             PlanStep {
                 scope: StepScope::PerFile,
                 operation: Operation::Hosted {
@@ -141,7 +141,7 @@ fn closure_runs_every_partition_and_empty_input_through_the_owner() {
                 },
             },
         ];
-        input.plans[0].emit.step = StepId(1);
+        crate::boundary_fixture::plans(&mut input)[0].emit.step = StepId(1);
         input.hosted = vec![HostRelation {
             name: HostName("partitioned-edges".into()),
             columns: ["from", "to", "key"]
@@ -269,7 +269,7 @@ fn independent_compilation_preserves_unused_steps_and_original_frontier_order() 
     use ryo_values::domain::plan_parts::types::RepeatedRows;
     let engine = engine();
     let mut raw = authored_request(1);
-    raw.plans[0].steps.extend([
+    crate::boundary_fixture::plans(&mut raw)[0].steps.extend([
         PlanStep {
             scope: StepScope::PerFile,
             operation: Operation::Project {
@@ -287,12 +287,12 @@ fn independent_compilation_preserves_unused_steps_and_original_frontier_order() 
             },
         },
     ]);
-    raw.plans[0].frontier = vec![
+    crate::boundary_fixture::plans(&mut raw)[0].frontier = vec![
         Input::Step(StepId(2)),
         Input::Step(StepId(0)),
         Input::Step(StepId(2)),
     ];
-    let original = raw.plans[0].clone();
+    let original = crate::boundary_fixture::plans(&mut raw)[0].clone();
     let compiler = QueryCompilation::new(Arc::new(AuthoredQueryProvider(original.clone())));
     let compiled = compiler
         .compile(&raw.rules, &raw.hosted)

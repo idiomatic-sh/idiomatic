@@ -179,3 +179,21 @@ pub(crate) fn project_root<R: ProjectRootExecution>(
 ) -> Result<RuleOutcome<ProjectOutputOutcome>, OperatingError> {
     project_roots(root, rule, demand, vec![input], symbols).remove(0)
 }
+
+/// The authored plans of a request a control builds, for the control to edit before it prepares.
+pub(crate) fn plans(request: &mut PrepareRequest) -> &mut Vec<ryo_values::domain::plans::types::Plan> {
+    match &mut request.plans {
+        PlanSource::Authored { plans, .. } => plans,
+        PlanSource::Compiled(_) => panic!("a control edits only the plans it authored"),
+    }
+}
+
+/// The authored bindings of a request a control builds, for the control to edit before it prepares.
+pub(crate) fn bindings(
+    request: &mut PrepareRequest,
+) -> &mut Vec<Vec<ryo_values::domain::query_bindings::types::ParameterBinding>> {
+    match &mut request.plans {
+        PlanSource::Authored { bindings, .. } => bindings,
+        PlanSource::Compiled(_) => panic!("a control edits only the bindings it authored"),
+    }
+}

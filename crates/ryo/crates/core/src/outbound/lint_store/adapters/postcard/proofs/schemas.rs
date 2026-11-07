@@ -14,7 +14,7 @@ pub(in crate::outbound::lint_store::adapters::postcard) enum FrontierAffectedSch
 
 /// Where a frontier's words came from: the file, the bucket, the rule and its input, and what was uncertain of it, none when complete.
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-struct FrontierProofSchema {
+pub(in crate::outbound::lint_store::adapters::postcard) struct FrontierProofSchema {
     file: u32,
     bucket: u32,
     rule: u32,
@@ -24,7 +24,7 @@ struct FrontierProofSchema {
 }
 
 /// The section of what the files of `stored` handed but their words.
-fn proof_schema(
+pub(in crate::outbound::lint_store::adapters::postcard) fn proof_schema(
     row: &ryo_values::domain::stores::types::StoredFrontierProof,
 ) -> FrontierProofSchema {
     use ryo_values::domain::records::types::FrontierCoverage;
@@ -97,7 +97,7 @@ fn affected_row(
     }
 }
 
-fn proof_row(
+pub(in crate::outbound::lint_store::adapters::postcard) fn proof_row(
     row: &FrontierProofSchema,
 ) -> Result<ryo_values::domain::stores::types::StoredFrontierProof, postcard::Error> {
     use ryo_values::domain::records::types::{FrontierCoverage, FrontierProof};

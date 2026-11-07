@@ -54,7 +54,7 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
         name: ObservationColumnName("file".into()),
         kind: CellKind::File,
     }];
-    authored.plans[0].steps = vec![PlanStep {
+    crate::boundary_fixture::plans(&mut authored)[0].steps = vec![PlanStep {
         scope: StepScope::CrossFile,
         operation: Operation::Select {
             from: Input::Relation(relation),
@@ -67,7 +67,7 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
             name: ObservationColumnName("code".into()),
             kind: CellKind::Symbol,
         });
-        authored.plans[0].steps.push(PlanStep {
+        crate::boundary_fixture::plans(&mut authored)[0].steps.push(PlanStep {
             scope: StepScope::CrossFile,
             operation: Operation::Extend {
                 from: Input::Step(StepId(0)),
@@ -79,13 +79,13 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
             },
         });
     }
-    authored.plans[0].observations.push(PlanObservation {
+    crate::boundary_fixture::plans(&mut authored)[0].observations.push(PlanObservation {
         name: ObservationName("files".into()),
         source: Input::Step(StepId(if selected_text.is_some() { 1 } else { 0 })),
         columns: columns.clone(),
         scope: StepScope::CrossFile,
     });
-    authored.plans[1].steps = vec![PlanStep {
+    crate::boundary_fixture::plans(&mut authored)[1].steps = vec![PlanStep {
         scope: StepScope::CrossFile,
         operation: Operation::Select {
             from: Input::BoundObservation(ObservationBindingId(0)),
@@ -93,7 +93,7 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
             kept: vec![],
         },
     }];
-    authored.plans[1]
+    crate::boundary_fixture::plans(&mut authored)[1]
         .observation_inputs
         .push(BoundObservationInput {
             name: ObservationBindingName("files".into()),
@@ -115,7 +115,7 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
                 ryo_values::domain::row_texts::types::Cell::Text(selected.into()),
             ])],
         });
-        authored.plans[1].steps.extend([
+        crate::boundary_fixture::plans(&mut authored)[1].steps.extend([
             PlanStep {
                 scope: StepScope::CrossFile,
                 operation: Operation::Hosted {
@@ -139,7 +139,7 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
                 },
             },
         ]);
-        authored.plans[1].emit.step = StepId(2);
+        crate::boundary_fixture::plans(&mut authored)[1].emit.step = StepId(2);
     }
     let producer = authored.rules[0].id.clone();
     authored.rules[1].observations.push(ObservationBinding {

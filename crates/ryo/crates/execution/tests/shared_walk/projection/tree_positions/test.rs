@@ -86,7 +86,7 @@ fn shared_tree_positions_keep_native_join_projection_refusal_and_replay() {
             } else {
                 1
             };
-            authored.plans[0].steps = vec![
+            crate::boundary_fixture::plans(&mut authored)[0].steps = vec![
                 PlanStep {
                     scope: StepScope::PerFile,
                     operation: Operation::Select {
@@ -118,7 +118,7 @@ fn shared_tree_positions_keep_native_join_projection_refusal_and_replay() {
                     },
                 },
             ];
-            authored.plans[0].emit.step = StepId(1);
+            crate::boundary_fixture::plans(&mut authored)[0].emit.step = StepId(1);
             let program = engine.prepare(authored).unwrap();
             let corpus = corpus();
             let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
@@ -205,7 +205,7 @@ fn direct_pure_projections_share_source_scan_including_zero_columns_and_repeats(
     use ryo_values::domain::plan_parts::types::RepeatedRows;
     let (engine, semantics) = engine();
     let mut authored = authored_request(3);
-    for (plan, columns) in authored.plans.iter_mut().zip([
+    for (plan, columns) in crate::boundary_fixture::plans(&mut authored).iter_mut().zip([
         vec![ColumnIndex(2), ColumnIndex(2)],
         vec![],
         vec![ColumnIndex(1)],

@@ -21,7 +21,7 @@ fn only_admitted_classes_allocate_scratch_and_result_slots() {
     for declarations in [1, 257] {
         let (engine, semantics) = engine();
         let mut authored = authored_request(declarations);
-        for (index, plan) in authored.plans.iter_mut().enumerate() {
+        for (index, plan) in crate::boundary_fixture::plans(&mut authored).iter_mut().enumerate() {
             let (relation, comparisons) = if index == 0 {
                 (Relation::SyntaxTree, selection(Selector::Kind("word")))
             } else if index % 2 == 0 {
@@ -87,7 +87,7 @@ fn only_admitted_classes_allocate_scratch_and_result_slots() {
 fn a_failed_dependency_does_not_prepare_a_later_class_of_the_same_rule() {
     let (engine, semantics) = engine();
     let mut authored = authored_request(1);
-    authored.plans[0].steps = vec![
+    crate::boundary_fixture::plans(&mut authored)[0].steps = vec![
         PlanStep {
             scope: StepScope::PerFile,
             operation: Operation::Select {
@@ -112,7 +112,7 @@ fn a_failed_dependency_does_not_prepare_a_later_class_of_the_same_rule() {
             },
         },
     ];
-    authored.plans[0].emit.step = StepId(2);
+    crate::boundary_fixture::plans(&mut authored)[0].emit.step = StepId(2);
     let program = engine.prepare(authored).unwrap();
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
@@ -210,7 +210,7 @@ fn full_rule_count_shares_source_decoding_and_ordered_predicate_prefixes() {
     const RULES: usize = 413;
     let (engine, semantics) = engine();
     let mut authored = authored_request(RULES);
-    for (index, plan) in authored.plans.iter_mut().enumerate() {
+    for (index, plan) in crate::boundary_fixture::plans(&mut authored).iter_mut().enumerate() {
         let mut comparisons = selection(Selector::Kind("word"));
         comparisons.push(compared(
             Test::NotEqual,
@@ -271,12 +271,12 @@ fn shared_prefixes_preserve_distinct_parameter_bindings_and_first_errors() {
     };
     let (engine, semantics) = engine();
     let mut authored = authored_request(3);
-    for (index, plan) in authored.plans.iter_mut().enumerate() {
+    for (index, plan) in crate::boundary_fixture::plans(&mut authored).iter_mut().enumerate() {
         plan.parameters.push(PlanParameter {
             name: ParameterName("pattern".into()),
             kind: ParameterType::Text,
         });
-        authored.bindings[index] = vec![ParameterBinding::Text(
+        crate::boundary_fixture::bindings(&mut authored)[index] = vec![ParameterBinding::Text(
             ryo_values::domain::plan_parts::types::LiteralText(
                 if index == 0 { "[" } else { "a" }.into(),
             ),

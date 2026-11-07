@@ -183,7 +183,7 @@ pub(crate) fn named_request() -> PrepareRequest {
         name: ObservationColumnName("node".into()),
         kind: CellKind::Node,
     }];
-    let producer = &mut authored.plans[0];
+    let producer = &mut crate::boundary_fixture::plans(&mut authored)[0];
     producer.steps.push(PlanStep {
         scope: StepScope::PerFile,
         operation: Operation::Select {
@@ -208,13 +208,13 @@ pub(crate) fn named_request() -> PrepareRequest {
         columns: columns.clone(),
         scope: StepScope::PerFile,
     });
-    authored.plans[1].steps[0].scope = StepScope::CrossFile;
-    authored.plans[1].steps[0].operation = Operation::Select {
+    crate::boundary_fixture::plans(&mut authored)[1].steps[0].scope = StepScope::CrossFile;
+    crate::boundary_fixture::plans(&mut authored)[1].steps[0].operation = Operation::Select {
         from: Input::BoundObservation(ObservationBindingId(0)),
         comparisons: vec![],
         kept: vec![],
     };
-    authored.plans[1]
+    crate::boundary_fixture::plans(&mut authored)[1]
         .observation_inputs
         .push(BoundObservationInput {
             name: ObservationBindingName("input".into()),

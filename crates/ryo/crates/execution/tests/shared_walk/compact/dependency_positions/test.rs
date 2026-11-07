@@ -23,7 +23,7 @@ fn grouped_dependency_and_original_source_join_in_both_input_positions() {
         let engine = engine();
         let mut authored = authored_request(1);
         let source = Input::Relation(Relation::LanguageTarget);
-        authored.plans[0].steps = vec![
+        crate::boundary_fixture::plans(&mut authored)[0].steps = vec![
             PlanStep {
                 scope: StepScope::PerFile,
                 operation: Operation::Select {
@@ -79,8 +79,8 @@ fn grouped_dependency_and_original_source_join_in_both_input_positions() {
                 },
             },
         ];
-        authored.plans[0].emit.step = StepId(3);
-        authored.plans[0].emit.subject = ColumnIndex(0);
+        crate::boundary_fixture::plans(&mut authored)[0].emit.step = StepId(3);
+        crate::boundary_fixture::plans(&mut authored)[0].emit.subject = ColumnIndex(0);
         let program = engine.prepare(authored).unwrap();
         let corpus = corpus();
         let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);

@@ -152,7 +152,7 @@ fn a_skipped_project_frontier_preserves_the_later_original_file_error_index() {
             .unwrap(),
     )
     .unwrap();
-    input.plans[0].steps = vec![
+    crate::boundary_fixture::plans(&mut input)[0].steps = vec![
         PlanStep {
             scope: StepScope::PerFile,
             operation: Operation::Select {
@@ -178,12 +178,12 @@ fn a_skipped_project_frontier_preserves_the_later_original_file_error_index() {
             },
         },
     ];
-    input.plans[0].frontier = vec![
+    crate::boundary_fixture::plans(&mut input)[0].frontier = vec![
         Input::Step(StepId(0)),
         Input::Relation(Relation::ModuleIdentity),
         Input::Step(StepId(1)),
     ];
-    input.plans[0].emit.step = StepId(2);
+    crate::boundary_fixture::plans(&mut input)[0].emit.step = StepId(2);
     let prepared = engine
         .prepare(input)
         .expect("retain each frontier's independent refusal");

@@ -13,7 +13,7 @@ use ryo_values::domain::{
 
 fn program(engine: &PrepareUseCaseImpl, left: &[i64], right: &[i64]) -> PreparedExecutionProgram {
     let mut input = authored_request(1);
-    input.plans[0].steps = vec![
+    crate::boundary_fixture::plans(&mut input)[0].steps = vec![
         PlanStep {
             scope: StepScope::PerFile,
             operation: Operation::Hosted {
@@ -34,7 +34,7 @@ fn program(engine: &PrepareUseCaseImpl, left: &[i64], right: &[i64]) -> Prepared
             },
         },
     ];
-    input.plans[0].emit.step = StepId(2);
+    crate::boundary_fixture::plans(&mut input)[0].emit.step = StepId(2);
     input.hosted = [left, right]
         .into_iter()
         .enumerate()
@@ -191,7 +191,7 @@ fn union_preserves_left_source_refusal_and_demands_right_after_empty_left() {
     for left_refuses in [true, false] {
         let engine = engine();
         let mut input = authored_request(1);
-        input.plans[0].steps = vec![
+        crate::boundary_fixture::plans(&mut input)[0].steps = vec![
             PlanStep {
                 scope: StepScope::PerFile,
                 operation: Operation::Select {
@@ -216,7 +216,7 @@ fn union_preserves_left_source_refusal_and_demands_right_after_empty_left() {
                 },
             },
         ];
-        input.plans[0].emit.step = StepId(2);
+        crate::boundary_fixture::plans(&mut input)[0].emit.step = StepId(2);
         let prepared = engine.prepare(input).expect("source-bound Union");
         let corpus = corpus();
         let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);

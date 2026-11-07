@@ -68,7 +68,7 @@ x
     ] {
         let engine = engine();
         let mut input = authored_request(1);
-        input.plans[0].steps = vec![PlanStep {
+        crate::boundary_fixture::plans(&mut input)[0].steps = vec![PlanStep {
             scope: StepScope::PerFile,
             operation: Operation::Axis {
                 from: Input::Relation(Relation::Function),
@@ -84,7 +84,7 @@ x
                 output: vec![],
             },
         }];
-        input.plans[0].emit.step = StepId(0);
+        crate::boundary_fixture::plans(&mut input)[0].emit.step = StepId(0);
         let prepared = engine.prepare(input).expect("prepare real native Axis");
         let corpus = corpus();
         let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
@@ -149,7 +149,7 @@ fn ordinary_select_does_not_publish_a_prefix_before_late_predicate_failure() {
 ";
     let engine = engine();
     let mut input = authored_request(1);
-    input.plans[0].steps = vec![PlanStep {
+    crate::boundary_fixture::plans(&mut input)[0].steps = vec![PlanStep {
         scope: StepScope::PerFile,
         operation: Operation::Select {
             from: Input::Relation(Relation::SyntaxTree),
@@ -165,7 +165,7 @@ fn ordinary_select_does_not_publish_a_prefix_before_late_predicate_failure() {
             kept: vec![],
         },
     }];
-    input.plans[0].emit.step = StepId(0);
+    crate::boundary_fixture::plans(&mut input)[0].emit.step = StepId(0);
     let prepared = engine
         .prepare(input)
         .expect("prepare actual incremental Select");
