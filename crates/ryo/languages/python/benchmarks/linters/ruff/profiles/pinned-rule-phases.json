@@ -7784,7 +7784,8 @@
       "phases": [
         "noqa"
       ],
-      "applicability": "always",
+      "applicability": "accepted-syntax",
+      "consumer_policy": "RUF100 decides whether a noqa directive is used from its producers' named noqa_matches, and its producers skip a syntax-rejected file, so it cannot answer there: it takes its producers' accepted-syntax pin and reports the file skipped. Ruff 0.16.5 reports no RUF100 at a syntax-rejected file either (coordinator decision for ryo-jx2q, 2026-11-07)",
       "evidence": [
         {
           "kind": "code-to-variant",

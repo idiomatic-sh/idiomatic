@@ -85,10 +85,26 @@ impl SourceInputs<'_, '_> {
                             .get(ordinal)
                             .ok_or(OperatingError::NotRun)?
                     };
+                    // Where the operand's rows come from, as the compiler found it for the input the instruction reads.
+                    let lineage = if let Some(shape) = ordered {
+                        self.program
+                            .program()
+                            .regions()
+                            .get(shape.source.0)
+                            .map(|source| source.lineage().clone())
+                            .unwrap_or_default()
+                    } else {
+                        semantic
+                            .inputs()
+                            .get(ordinal)
+                            .map(|source| self.program.program().source_lineage(*source))
+                            .unwrap_or_default()
+                    };
                     Ok(crate::domain::output_coverage::types::InputCoverage {
                         ordinal: crate::domain::output_coverage::types::OperandOrdinal(ordinal),
                         kinds,
                         coverage: input.coverage()?,
+                        lineage,
                     })
                 })
                 .collect::<Result<Vec<_>, OperatingError>>()?;

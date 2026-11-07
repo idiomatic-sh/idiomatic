@@ -157,4 +157,28 @@ impl ExecutableProgram {
     pub(crate) fn routes(&self) -> RoutePolicy {
         self.routes
     }
+    /// Where the rows of one input of a region come from: a relation's from one file each, a region's or a named
+    /// observation's as the compiler found, anything else from no one file.
+    pub(crate) fn source_lineage(&self, source: InputSource) -> crate::domain::lineage::types::Lineage {
+        use crate::domain::lineage::types::Lineage;
+        let of_region = |id: RegionId| {
+            self.regions
+                .get(id.0)
+                .map(|region| region.lineage().clone())
+                .unwrap_or_default()
+        };
+        match source {
+            InputSource::Relation(relation) => crate::domain::lineage::service::one_file(
+                ryo_relations::domain::relations::service::kinds(relation),
+            ),
+            InputSource::Region(id) => of_region(id),
+            InputSource::Observation(place) => match self.observation_regions.get(place.0) {
+                Some(Ok(root)) => of_region(*root),
+                Some(Err(_)) | None => Lineage::Mixed,
+            },
+            InputSource::Hosted { .. }
+            | InputSource::EmptyObservation(_)
+            | InputSource::ObservationMember { .. } => Lineage::Mixed,
+        }
+    }
 }

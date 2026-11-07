@@ -7,12 +7,12 @@ let at_locations = select l.id as token, l.file as file, r."start-byte" as begin
 let at_in_decorators = select l.decorator as decorator, l.file as file, l.begin as begin, l.finish as decorator_finish, r.finish as after_at from decorator_locations as l join at_locations as r on l.file = r.file where r.begin >= l.begin and r.finish <= l.finish;
 let source_tokens = select id, file, kind, text from "syntax-tree" where text != "" and kind != "comment" and kind != "whitespace" and kind != "newline" and kind != "nl" and kind != "indent" and kind != "dedent";
 let token_locations = select l.id as token, l.file as file, l.kind as kind, l.text as text, r."start-byte" as begin, r."end-byte" as finish from source_tokens as l join "source-location" as r on l.id = r.id and l.file = r.file;
-let expression_tokens = select l.decorator as decorator, r.token as token, r.begin as begin from at_in_decorators as l join token_locations as r on l.file = r.file where r.begin >= l.after_at and r.begin < l.decorator_finish and r.text != "(";
+let expression_tokens = select l.decorator as decorator, l.file as file, r.token as token, r.begin as begin from at_in_decorators as l join token_locations as r on l.file = r.file where r.begin >= l.after_at and r.begin < l.decorator_finish and r.text != "(";
 let later_expression_tokens = select l.decorator as decorator, l.token as token from expression_tokens as l join expression_tokens as r on l.decorator = r.decorator where l.begin > r.begin;
 let first_expression_tokens = antijoin(left=expression_tokens, right=later_expression_tokens, left-on=["decorator", "token"], right-on=["decorator", "token"]);
-let names = select id from "qualified-name" where path = "pytest.mark.usefixtures";
-let name_locations = select l.id as qname, r."start-byte" as begin from names as l join "source-location" as r on l.id = r.id;
-let root_names = select l.qname as qname, r.decorator as decorator from name_locations as l join first_expression_tokens as r on l.begin = r.begin;
+let names = select id, file from "qualified-name" where path = "pytest.mark.usefixtures";
+let name_locations = select l.id as qname, l.file as file, r."start-byte" as begin from names as l join "source-location" as r on l.id = r.id and l.file = r.file;
+let root_names = select l.qname as qname, r.decorator as decorator from name_locations as l join first_expression_tokens as r on l.begin = r.begin and l.file = r.file;
 let name_ancestors = axis(from=names, relation="syntax-child", direction=nearest-ancestor, domain=decorators);
 let matching_name_decorators = select l.qname as qname, l.decorator as decorator from root_names as l join name_ancestors as r on l.qname = r.id and l.decorator = r.related;
 let pytest_mark_usefixtures = select occurrence as decorator from "decorates" where matches(target, "mark.usefixtures$");

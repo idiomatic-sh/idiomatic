@@ -184,7 +184,13 @@ def verify_rule_phase_registry(manifest: dict[str, object], registry: dict[str, 
             if not record.get('mixed_policy'):
                 raise ValueError(f'non-AST or mixed phase lacks explicit registry evidence for {rule}')
         applicability = record.get('applicability')
-        if set(phases) <= {'ast', 'imports'}:
+        consumer_policy = record.get('consumer_policy')
+        if consumer_policy is not None and (not isinstance(consumer_policy, str) or not consumer_policy.strip()):
+            raise ValueError(f'consumer applicability policy is not explicitly reviewed for {rule}')
+        if consumer_policy is not None:
+            # A consumer of named producers takes their accepted-syntax pin: it cannot answer where they skip.
+            expected_applicability = 'accepted-syntax'
+        elif set(phases) <= {'ast', 'imports'}:
             expected_applicability = 'accepted-syntax'
         elif set(phases) <= profile_config.RUFF_PHASES - {'ast', 'imports'}:
             expected_applicability = 'always'

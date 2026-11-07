@@ -299,6 +299,12 @@ pub(crate) fn compile(
         regions[at].set_route(route);
     }
     super::aliases::resolve(&mut regions, &mut rules, &observation_regions, partitions);
+    super::aliases::resolve_lineage(
+        &mut regions,
+        &observation_regions,
+        graph.observations.as_ref(),
+        &observed_roots,
+    );
     let file_readers = super::file_demand::service::readers(&regions, &rules)?;
     let program = ExecutableProgram::new(
         regions.into_boxed_slice(),

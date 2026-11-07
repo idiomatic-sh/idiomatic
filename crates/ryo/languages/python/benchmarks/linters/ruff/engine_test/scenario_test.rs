@@ -21,6 +21,8 @@ pub(super) enum EngineScenario {
     QueryModuleInlineEquivalence,
     TargetConfigurationCacheChange,
     RejectedSyntaxWithProviderPartialsSkipsOnlyAcceptedSyntaxRules,
+    ARejectedFileLeavesPt020Pt025AndPt026AnsweringTheValidFile,
+    ARejectedFileLeavesI001Plw0406AndRuf100AnsweringTheValidFile,
     SharedSuppressionFragmentMatchesTheHistoricalInlineQueries,
     LiteralPropertiesReachEngineQueriesForTrueAndFalseBooleanNodes,
     DecodedNumericPayloadsAndStrictGreaterCompositionReachEngineQueries,

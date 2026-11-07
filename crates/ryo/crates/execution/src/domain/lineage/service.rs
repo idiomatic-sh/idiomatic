@@ -1,0 +1,222 @@
+//! The `lineage` service: free functions named by verb over where the rows of a step come from, with no IO and no ports.
+//!
+//! A relation's rows are partitioned by their file column and its nodes lie in that file, and a per-file step reads only the rows
+//! of one file, so each of their file and node columns lies in the file its row comes from. A cross-file step keeps that only
+//! through what it does: a row it passes on keeps its columns, and a join keeps it only when a key pairs a column of each operand
+//! that lies in its row's file, so the two rows it combines come from one file.
+use super::types::{ColumnAnchor, KeyPairing, Lineage};
+use ryo_relations::domain::relations::types::CellKind;
+use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn, Side};
+use ryo_values::domain::plans::types::Operation;
+
+/// The lineage of rows that each come from one file, of these kinds: a relation's, or a per-file step's.
+#[must_use]
+pub(crate) fn one_file(kinds: &[CellKind]) -> Lineage {
+    Lineage::OneFile(
+        kinds
+            .iter()
+            .map(|kind| {
+                if matches!(kind, CellKind::File | CellKind::Node) {
+                    ColumnAnchor::InFile
+                } else {
+                    ColumnAnchor::Elsewhere
+                }
+            })
+            .collect(),
+    )
+}
+
+/// Whether the column `column` lies in the file its row comes from: a column the lineage does not name proves nothing.
+#[must_use]
+pub(crate) fn anchor_at(lineage: &Lineage, column: ColumnIndex) -> ColumnAnchor {
+    match lineage {
+        Lineage::OneFile(anchors)
+            if anchors.get(column.0 as usize) == Some(&ColumnAnchor::InFile) =>
+        {
+            ColumnAnchor::InFile
+        }
+        Lineage::OneFile(_) | Lineage::Mixed => ColumnAnchor::Elsewhere,
+    }
+}
+
+/// Whether the right operand's column a join names at `column` through its view lies in its row's file: the view's column at
+/// that place, the column itself without a view.
+#[must_use]
+pub(crate) fn anchor_through(
+    lineage: &Lineage,
+    view: &[ColumnIndex],
+    column: ColumnIndex,
+) -> ColumnAnchor {
+    if view.is_empty() {
+        return anchor_at(lineage, column);
+    }
+    match view.get(column.0 as usize) {
+        Some(own) => anchor_at(lineage, *own),
+        None => ColumnAnchor::Elsewhere,
+    }
+}
+
+/// Whether the keys of two operands pair a column of each that lies in its row's file, the right keys read through `view`.
+#[must_use]
+pub(crate) fn pairing(
+    left: &Lineage,
+    left_on: &[ColumnIndex],
+    right: &Lineage,
+    right_on: &[ColumnIndex],
+    view: &[ColumnIndex],
+) -> KeyPairing {
+    if left_on.iter().zip(right_on).any(|(l, r)| {
+        anchor_at(left, *l) == ColumnAnchor::InFile
+            && anchor_through(right, view, *r) == ColumnAnchor::InFile
+    }) {
+        KeyPairing::SameFile
+    } else {
+        KeyPairing::Unproven
+    }
+}
+
+/// The lineage of the columns `columns` of the rows of `lineage`, in that order.
+fn picked(lineage: &Lineage, columns: &[ColumnIndex]) -> Lineage {
+    match lineage {
+        Lineage::OneFile(_) => Lineage::OneFile(
+            columns
+                .iter()
+                .map(|column| anchor_at(lineage, *column))
+                .collect(),
+        ),
+        Lineage::Mixed => Lineage::Mixed,
+    }
+}
+
+/// The lineage of rows of the kinds `kinds` that keep the columns of `lineage` first and append columns of their own.
+fn widened(lineage: Lineage, kinds: &[CellKind]) -> Lineage {
+    match lineage {
+        Lineage::OneFile(anchors) => {
+            let mut anchors = anchors.into_vec();
+            anchors.resize(kinds.len(), ColumnAnchor::Elsewhere);
+            Lineage::OneFile(anchors.into_boxed_slice())
+        }
+        Lineage::Mixed => Lineage::Mixed,
+    }
+}
+
+/// The lineage of the answer of a join or an ordered match, whose `output` names columns of either operand.
+fn joined(
+    left: &Lineage,
+    left_on: &[ColumnIndex],
+    right: &Lineage,
+    right_on: &[ColumnIndex],
+    output: &[JoinColumn],
+    view: &[ColumnIndex],
+) -> Lineage {
+    if pairing(left, left_on, right, right_on, view) == KeyPairing::Unproven {
+        return Lineage::Mixed;
+    }
+    Lineage::OneFile(
+        output
+            .iter()
+            .map(|column| match column.side {
+                Side::Left => anchor_at(left, column.column),
+                Side::Right => anchor_through(right, view, column.column),
+            })
+            .collect(),
+    )
+}
+
+/// The lineage of rows that are rows of either operand: a column lies in its row's file only when it does in both.
+fn either(left: &Lineage, right: &Lineage) -> Lineage {
+    match (left, right) {
+        (Lineage::OneFile(first), Lineage::OneFile(second)) => Lineage::OneFile(
+            first
+                .iter()
+                .zip(second.iter())
+                .map(|(one, other)| {
+                    if *one == ColumnAnchor::InFile && *other == ColumnAnchor::InFile {
+                        ColumnAnchor::InFile
+                    } else {
+                        ColumnAnchor::Elsewhere
+                    }
+                })
+                .collect(),
+        ),
+        _ => Lineage::Mixed,
+    }
+}
+
+/// The lineage of the rows of a step, from the lineage of its operands in order; `kinds` are the kinds of its columns.
+#[must_use]
+pub(crate) fn of_step(operation: &Operation, operands: &[Lineage], kinds: &[CellKind]) -> Lineage {
+    let first = operands.first().cloned().unwrap_or_default();
+    let second = operands.get(1).cloned().unwrap_or_default();
+    match operation {
+        Operation::Select { kept, .. } => {
+            if kept.is_empty() {
+                first
+            } else {
+                picked(&first, kept)
+            }
+        }
+        Operation::Project { columns, .. } => picked(&first, columns),
+        Operation::Extend { .. }
+        | Operation::Capture { .. }
+        | Operation::Rank { .. }
+        | Operation::Words { .. }
+        | Operation::Replace { .. }
+        | Operation::SpanBetween { .. }
+        | Operation::SpanBounds { .. }
+        | Operation::SourceMatches { .. }
+        | Operation::RenderSyntax { .. }
+        | Operation::FitsRendered { .. } => widened(first, kinds),
+        Operation::Antijoin { .. }
+        | Operation::Difference { .. }
+        | Operation::Intersection { .. } => first,
+        Operation::Union { .. } => either(&first, &second),
+        Operation::Join {
+            left_on,
+            right_on,
+            output,
+            view,
+            reach: None,
+            ..
+        } => joined(&first, left_on, &second, right_on, output, view),
+        Operation::OrderedMatch {
+            left_on,
+            right_on,
+            output,
+            ..
+        } => joined(&first, left_on, &second, right_on, output, &[]),
+        Operation::GroupCount { keys, .. } | Operation::GroupDigest { keys, .. } => {
+            if keys
+                .iter()
+                .any(|key| anchor_at(&first, *key) == ColumnAnchor::InFile)
+            {
+                widened(picked(&first, keys), kinds)
+            } else {
+                Lineage::Mixed
+            }
+        }
+        Operation::Closure {
+            keys,
+            source,
+            destination,
+            ..
+        } => {
+            if keys
+                .iter()
+                .any(|key| anchor_at(&first, *key) == ColumnAnchor::InFile)
+            {
+                let mut columns = keys.clone();
+                columns.extend([*source, *destination]);
+                picked(&first, &columns)
+            } else {
+                Lineage::Mixed
+            }
+        }
+        Operation::Join { reach: Some(_), .. }
+        | Operation::Axis { .. }
+        | Operation::OrderedDfs { .. }
+        | Operation::Cycles { .. }
+        | Operation::Rows { .. }
+        | Operation::Hosted { .. } => Lineage::Mixed,
+    }
+}
