@@ -198,8 +198,8 @@ fn retirement_follows_a_cancelled_batch() {
     let seen = exercise(PhaseExit::RefuseLaterCohort, [2, 2, 8, 8]);
     assert!(seen.refused, "the guard refused the later cohort");
     assert_eq!(
-        seen.delivered, 3,
-        "earlier terminal deliveries survive the cancellation"
+        seen.delivered, 2,
+        "the two rules delivered before the refused cohort keep their terminal deliveries"
     );
     assert_eq!(
         seen.counts.passes.0, 1,

@@ -66,6 +66,7 @@ mod domain {
       pub struct Region;
       pub struct RuleProgram;
       pub struct FileReaderGraph;
+      pub struct RoutePolicy;
       pub struct RegionId(pub usize);
       pub struct OperatingError;
       __DECLARATION__
@@ -78,7 +79,7 @@ mod domain {
       pub fn compile() -> ExecutableProgram {
         ExecutableProgram {
           regions: Box::new([]), file_readers: FileReaderGraph, rules: Box::new([]),
-          logical_regions: Box::new([]), observation_regions: Box::new([]),
+          logical_regions: Box::new([]), observation_regions: Box::new([]), routes: RoutePolicy,
         }
       }
     }
@@ -116,9 +117,10 @@ fn compiled_program_state_is_constructed_only_by_its_domain_owner() {
               file_readers: crate::domain::executable_program::types::FileReaderGraph,
               rules: Box::new([]),
               logical_regions: Box::new([]), observation_regions: Box::new([]),
+              routes: crate::domain::executable_program::types::RoutePolicy,
             } }",
         ),
-        "E0451",
+        "private field",
     );
     refuses(
         directory.path(),
@@ -157,7 +159,7 @@ fn permit_source(client: &str) -> String {
     r#"
 #![allow(dead_code, unused_imports)]
 extern crate self as ryo_operators;
-pub mod inbound { pub mod use_cases { pub mod operators { pub mod interface {
+pub mod inbound { pub mod use_cases { pub mod operators { pub mod types {
   pub struct OperatorCall<'a>(pub std::marker::PhantomData<&'a ()>);
 }}}}
 pub mod domain {

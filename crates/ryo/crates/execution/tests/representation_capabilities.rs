@@ -295,6 +295,7 @@ pub mod application {pub mod file_dag {
       use crate::domain::operating::errors::OperatingError;
       use crate::domain::table_model::{types::Table,collections::representations::{publication::PublishedRelation,types::PhysicalShape}};
       use std::sync::{Arc,OnceLock};
+      #[derive(Clone,Copy,Debug,PartialEq,Eq)]pub struct PopulationId(pub usize);
       #[derive(Clone,Copy,Debug)]pub(in crate::application::file_dag) enum ProducerScope {File}
       #[derive(Debug)]pub(in crate::application::file_dag::relations) enum RelationBody {Computed(Arc<Table>)}
       #[derive(Debug)]
@@ -303,7 +304,7 @@ pub mod application {pub mod file_dag {
     }}
     pub fn control()->publication::types::RelationResult {
       use std::sync::{Arc,OnceLock};
-      publication::types::RelationResult{population:0,producer:OnceLock::new(),producer_scope:OnceLock::new(),generation:Arc::new(()),
+      publication::types::RelationResult{population:publication::types::PopulationId(0),producer:OnceLock::new(),producer_scope:OnceLock::new(),generation:Arc::new(()),
         body:publication::types::RelationBody::Computed(Arc::new(Default::default())),
         inspected:OnceLock::from(Ok(crate::domain::table_model::collections::representations::types::PhysicalShape::Complete)),normalized:OnceLock::new()}
     }

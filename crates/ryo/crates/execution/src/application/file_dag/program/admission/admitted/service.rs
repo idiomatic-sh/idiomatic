@@ -208,7 +208,11 @@ impl AdmittedInput {
             .owner
             .admit(publication.as_ref(), BorrowedRows::from(rows))?;
         let (population, actual_relation) = admitted.identity(&self.proof.owner)?;
-        if population != self.proof.population || actual_relation != Some(relation) {
+        // A project-stage input is the decoded frontier of the relation: computed rows carry no relation identity of their own, and
+        // the root and the population proof already say which relation they are.
+        if population != self.proof.population
+            || actual_relation.is_some_and(|actual| actual != relation)
+        {
             return Err(OperatingError::NotRead);
         }
         if kinds_of(rows) != ryo_relations::domain::relations::service::kinds(relation)

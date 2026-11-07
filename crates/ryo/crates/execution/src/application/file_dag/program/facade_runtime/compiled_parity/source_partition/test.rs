@@ -196,6 +196,12 @@ fn subject(case: Input) -> Result<Value, Failure> {
     ));
     let project_walk =
         crate::application::file_dag::program::native_walk::project::service::ProjectWalk::new();
+    // The project stage admits only the heads of a rule its cohort declared.
+    project_walk.owe(
+        &prepared,
+        RuleIndex(0),
+        crate::application::file_dag::program::native_walk::Deliveries(1),
+    );
     let kernels = match (&scope, case) {
         (_, SourceCase::FileAsProject) => KernelSession::project(
             engine.as_ref(),
