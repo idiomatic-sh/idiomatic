@@ -234,7 +234,7 @@ impl LintStorePostcardAdapter {
                     file: row.file,
                     bucket: each.bucket,
                     proof,
-                    words: ReadWordPayload::Old(OldWords {
+                    payload: ReadWordPayload::Old(OldWords {
                         snapshot,
                         bucket: each.bucket,
                         file: row.file,

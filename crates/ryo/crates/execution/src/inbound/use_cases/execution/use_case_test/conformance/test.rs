@@ -312,13 +312,13 @@ impl ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase
 {
     fn operators(
         &self,
-        call: ryo_operators::domain::contract::types::OperatorCall<'_>,
+        call: ryo_operators::inbound::use_cases::operators::types::OperatorCall<'_>,
     ) -> Result<
-        ryo_operators::domain::contract::types::OperatorAnswer,
+        ryo_operators::inbound::use_cases::operators::types::OperatorAnswer,
         ryo_operators::domain::contract::types::PortableOperatorFault,
     > {
-        use ryo_operators::domain::contract::types::OperatorAnswer;
-        use ryo_operators::domain::contract::types::OperatorCall;
+        use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
+        use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
         use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
         use ryo_operators::domain::set_rows::types::SetInput;
         use ryo_operators::domain::set_rows::types::SetKind;

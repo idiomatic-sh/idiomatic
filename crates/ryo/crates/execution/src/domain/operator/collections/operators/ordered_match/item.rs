@@ -5,7 +5,7 @@ use crate::domain::operator::contract::types::{
     OperatorContract, PreparedInputs, PrimitiveLease, RowSink,
 };
 use crate::domain::operator::contract::{failure::FailureLatch, views::BorrowedRows};
-use ryo_operators::domain::contract::types::OperatorCall;
+use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_operators::domain::ordered_match::types::OrderedMatchDriver;
 use ryo_operators::domain::contract::types::PortableOperatorFault;
 use ryo_operators::domain::contract::types::SemanticInterrupted;

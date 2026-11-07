@@ -15,8 +15,8 @@ use ryo_values::domain::plans::types::{Operation, PlanStep};
 fn shared_tree_positions_keep_native_join_projection_refusal_and_replay() {
     use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
     use ryo_operators::domain::equality_join::types::JoinInput;
-    use ryo_operators::domain::contract::types::OperatorAnswer;
-    use ryo_operators::domain::contract::types::OperatorCall;
+    use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
+    use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
     use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
     use ryo_operators::domain::contract::types::PortableOperatorFault;
     use ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl;

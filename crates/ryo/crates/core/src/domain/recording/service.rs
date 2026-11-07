@@ -217,7 +217,7 @@ pub(crate) fn made_ran(
                 .map(|each| HandedWords {
                     bucket: each.bucket,
                     proof: each.proof,
-                    words: each.words.into(),
+                    handed: each.words.into(),
                 })
                 .collect(),
             text: ArenaBytes(

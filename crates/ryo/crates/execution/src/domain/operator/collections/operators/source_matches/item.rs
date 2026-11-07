@@ -7,7 +7,7 @@ use crate::domain::operator::contract::types::{
 };
 use ryo_language::domain::symbols::service::query_intern_derived;
 use ryo_language::domain::symbols::types::ByteSlice;
-use ryo_operators::domain::contract::types::OperatorCall;
+use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_operators::domain::contract::types::PortableOperatorFault;
 use ryo_operators::domain::contract::types::SemanticInterrupted;
 use ryo_operators::domain::source_matches::types::SourceMatchesInput;

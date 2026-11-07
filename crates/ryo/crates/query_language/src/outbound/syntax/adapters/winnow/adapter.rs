@@ -505,7 +505,7 @@ pub(super) fn parameter_line(input: &mut Input<'_>) -> ModalResult<ParameterDecl
     .with_span()
     .parse_next(input)?;
     Ok(ParameterDeclaration {
-        name: WrittenParameter(Box::from(name.0)),
+        parameter: WrittenParameter(Box::from(name.0)),
         kind: TypeName(Box::from(kind)),
         span: QuerySpan {
             start: ByteOffset(span.start),

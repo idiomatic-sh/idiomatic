@@ -356,7 +356,7 @@ fn check_parameter(
 ) -> Result<(), ValidationError> {
     if parameters
         .iter()
-        .any(|parameter| *parameter.name.0 == *name.0)
+        .any(|parameter| *parameter.parameter.0 == *name.0)
     {
         return Ok(());
     }

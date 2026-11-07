@@ -81,7 +81,7 @@ fn unknown_parameter_kind_keeps_its_location() {
     let mut program = program();
     let span = program.emit.span;
     program.parameters.push(syntax::ParameterDeclaration {
-        name: tokens::WrittenParameter("limit".into()),
+        parameter: tokens::WrittenParameter("limit".into()),
         kind: tokens::TypeName("nothing".into()),
         span,
     });

@@ -15,7 +15,7 @@ use crate::domain::tree_join::{
 use ryo_derived::domain::contract::types::Finding;
 use ryo_operators::domain::equality_join::types::JoinDriver;
 use ryo_operators::domain::equality_join::types::JoinInterrupted;
-use ryo_operators::domain::contract::types::OperatorCall;
+use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_relations::domain::relations::types::{Position, Value};
 use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn};
 

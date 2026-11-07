@@ -4,7 +4,7 @@ use crate::domain::operator::contract::{
 };
 use crate::domain::{operating::errors::OperatingError, ordered_existence::types::Extremum};
 use ryo_operators::domain::equality_join::types::JoinInterrupted;
-use ryo_operators::domain::contract::types::OperatorCall;
+use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_operators::domain::ordered_existence::types::OrderedExistenceDriver;
 use ryo_operators::domain::ordered_existence::types::OrderedExistenceScratch;
 use ryo_operators::domain::ordered_existence::types::PartitionExtremum;
@@ -114,7 +114,7 @@ pub(super) fn evaluate(
         return Err(error);
     }
     match result {
-        Ok(ryo_operators::domain::contract::types::OperatorAnswer::Written) => {
+        Ok(ryo_operators::inbound::use_cases::operators::types::OperatorAnswer::Written) => {
             Ok(())
         }
         Ok(_) => Err(OperatingError::WrongOperation),

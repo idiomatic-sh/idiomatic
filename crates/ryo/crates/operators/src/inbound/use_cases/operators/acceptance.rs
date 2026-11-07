@@ -2,8 +2,8 @@
 use crate::Behavior;
 use cucumber::{given, then, when};
 use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase as _;
-use ryo_operators::domain::contract::types::OperatorAnswer;
-use ryo_operators::domain::contract::types::OperatorCall;
+use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
+use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_operators::domain::contract::types::PortableOperatorFault;
 use ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl;
 use ryo_relations::domain::relations::types::{Integer, Value};

@@ -4,7 +4,7 @@ use super::types::{PrimitiveLease, RowSink, written_result};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_dedup::service::first_time;
 use crate::domain::table_model::types::Addition;
-use ryo_operators::domain::contract::types::OperatorCall;
+use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_operators::domain::set_rows::types::SetInput;
 use ryo_operators::domain::set_rows::types::SetInterrupted;
 use ryo_operators::domain::set_rows::types::SetKind;

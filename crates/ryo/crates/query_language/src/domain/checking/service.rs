@@ -59,14 +59,14 @@ pub(crate) fn validate_fragment_signature(
         validate_relation_signature(source, &input.relation)?;
     }
     for parameter in &fragment.parameters {
-        if !names.insert(parameter.name.0.as_ref()) {
+        if !names.insert(parameter.parameter.0.as_ref()) {
             return Err(located(
                 source,
                 parameter.span,
                 Vec::new(),
                 format!(
                     "fragment parameter `{}` is declared more than once",
-                    parameter.name.0
+                    parameter.parameter.0
                 ),
             ));
         }

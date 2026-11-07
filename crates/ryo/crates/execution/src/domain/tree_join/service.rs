@@ -21,7 +21,7 @@ use crate::domain::tree_join::collections::strategies::interface::StrategiesItem
 use crate::domain::tree_join::collections::strategies::span_index::item::SpanIndexItem;
 use crate::domain::tree_join::collections::strategies::types::{Fitting, NodeColumns};
 use ryo_derived::domain::contract::types::Finding;
-use ryo_operators::domain::contract::types::OperatorCall;
+use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, PlanComparison};
 use ryo_values::domain::rows::errors::RowsError;
 pub(crate) mod driver;

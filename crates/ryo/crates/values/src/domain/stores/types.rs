@@ -188,7 +188,7 @@ pub struct ReadWords {
     /// Source-bound root and physical coverage beside the retained payload.
     pub proof: crate::domain::records::types::FrontierProof,
     /// Inline custom-store bytes or a lazy old-file descriptor.
-    pub words: ReadWordPayload,
+    pub payload: ReadWordPayload,
 }
 
 /// Read payload ownership is separate from the unchanged persistent write contract.

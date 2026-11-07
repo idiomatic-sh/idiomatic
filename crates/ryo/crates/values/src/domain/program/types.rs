@@ -148,7 +148,7 @@ pub struct FragmentReturn {
 #[derive(Clone, Debug, PartialEq)]
 pub struct ParameterDeclaration {
     /// The parameter's name.
-    pub name: WrittenParameter,
+    pub parameter: WrittenParameter,
     /// Its type, as written: `integer`, `list<string>`.
     pub kind: TypeName,
     /// Where it is written.

@@ -7,8 +7,8 @@ use ryo_execution::inbound::use_cases::execution::{
 };
 use ryo_language::domain::{completion::service::{completion, name_kind}, elements::{service::{kind_names, real_count, text_at}, types::Elements}, kind_index::service::index_kinds, symbols::types::{ByteSlice, Symbols}};
 use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
-use ryo_operators::domain::contract::types::OperatorAnswer;
-use ryo_operators::domain::contract::types::OperatorCall;
+use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
+use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
 use ryo_operators::domain::contract::types::PortableOperatorFault;
 use ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl;

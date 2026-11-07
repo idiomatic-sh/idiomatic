@@ -226,7 +226,7 @@ pub(crate) fn lower_with_observations(
             .zip(&builder.kinds)
             .map(
                 |(parameter, kind)| ryo_values::domain::query_bindings::types::PlanParameter {
-                    name: parts::ParameterName(parameter.name.0.clone()),
+                    name: parts::ParameterName(parameter.parameter.0.clone()),
                     kind: *kind,
                 },
             )

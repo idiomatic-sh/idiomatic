@@ -1,10 +1,11 @@
 //! The sole public contract for portable operator semantics.
-use crate::domain::contract::types::{OperatorAnswer, OperatorCall, PortableOperatorFault};
+use super::types::{OperatorAnswer, OperatorCall};
+use crate::domain::contract::types::PortableOperatorFault;
 
 /// The public capability accepts borrowed rows and caller-owned scratch.
 ///
 /// ```
-/// use ryo_operators::domain::contract::types::{OperatorAnswer, OperatorCall};
+/// use ryo_operators::inbound::use_cases::operators::types::{OperatorAnswer, OperatorCall};
 /// use ryo_operators::inbound::use_cases::operators::{
 ///     interface::OperatorsUseCase, use_case::OperatorsUseCaseImpl,
 /// };
@@ -43,7 +44,7 @@ use crate::domain::contract::types::{OperatorAnswer, OperatorCall, PortableOpera
 /// A borrowed request cannot retain its input beyond the invocation.
 ///
 /// ```compile_fail
-/// use ryo_operators::domain::contract::types::OperatorCall;
+/// use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 /// use ryo_relations::domain::relations::types::Value;
 /// fn retain(call: OperatorCall<'_>) -> &'static [Value] {
 ///     match call {

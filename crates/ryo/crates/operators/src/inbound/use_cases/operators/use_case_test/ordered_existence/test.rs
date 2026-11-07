@@ -2,6 +2,7 @@
 use crate::inbound::use_cases::operators::{fixtures, interface::OperatorsUseCase};
 use crate::domain::capture::types::*;
 use crate::domain::contract::types::*;
+use crate::inbound::use_cases::operators::types::*;
 use crate::domain::equality_join::types::*;
 use crate::domain::ordered_existence::types::*;
 use crate::domain::ordered_match::types::*;

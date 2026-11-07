@@ -10,8 +10,8 @@ use std::sync::atomic::Ordering;
 fn actual_column_join_counts_matching_visits_not_population_size_even_on_refusal() {
     use ryo_operators::domain::equality_join::types::JoinInput;
     use ryo_operators::domain::equality_join::types::JoinRow;
-    use ryo_operators::domain::contract::types::OperatorAnswer;
-    use ryo_operators::domain::contract::types::OperatorCall;
+    use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
+    use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
     use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
     use ryo_operators::domain::contract::types::PortableOperatorFault;
     #[derive(Debug)]

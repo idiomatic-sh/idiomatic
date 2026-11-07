@@ -2,8 +2,8 @@
 use super::{super::contract, OperatorsFake};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase as _;
-use ryo_operators::domain::contract::types::OperatorAnswer;
-use ryo_operators::domain::contract::types::OperatorCall;
+use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
+use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_operators::domain::contract::types::PortableOperatorFault;
 use ryo_relations::domain::relations::types::{Integer, Value as CellValue};
 use ryo_values::domain::plan_parts::types::ColumnIndex;

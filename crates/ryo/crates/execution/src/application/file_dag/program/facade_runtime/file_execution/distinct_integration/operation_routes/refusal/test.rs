@@ -10,9 +10,9 @@ impl ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase
 {
     fn operators(
         &self,
-        _: ryo_operators::domain::contract::types::OperatorCall<'_>,
+        _: ryo_operators::inbound::use_cases::operators::types::OperatorCall<'_>,
     ) -> Result<
-        ryo_operators::domain::contract::types::OperatorAnswer,
+        ryo_operators::inbound::use_cases::operators::types::OperatorAnswer,
         ryo_operators::domain::contract::types::PortableOperatorFault,
     > {
         Err(ryo_operators::domain::contract::types::PortableOperatorFault::WrongOperation)

@@ -191,7 +191,7 @@ pub(crate) fn operand_of(
         }
         WrittenOperand::Parameter(name) => {
             let id = find_parameter(builder.parameters, |parameter| {
-                if parameter.name == *name {
+                if parameter.parameter == *name {
                     SearchMatch::Matches
                 } else {
                     SearchMatch::Differs

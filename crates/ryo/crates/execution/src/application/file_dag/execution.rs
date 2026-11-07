@@ -49,9 +49,9 @@ impl PrimitiveSemantics for PrimitiveSemanticsBridge<'_> {
     }
     fn operators(
         &self,
-        meaning: ryo_operators::domain::contract::types::OperatorCall<'_>,
+        meaning: ryo_operators::inbound::use_cases::operators::types::OperatorCall<'_>,
     ) -> Result<
-        ryo_operators::domain::contract::types::OperatorAnswer,
+        ryo_operators::inbound::use_cases::operators::types::OperatorAnswer,
         ryo_operators::domain::contract::types::PortableOperatorFault,
     > {
         use ryo_operators::domain::contract::types::PortableOperatorFault;

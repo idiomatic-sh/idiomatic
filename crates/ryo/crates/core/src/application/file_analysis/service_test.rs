@@ -168,7 +168,7 @@ fn replay_under_capture(
                 buckets: vec![HandedWords {
                     bucket: Bucket(0),
                     proof,
-                    words: pack(WordSlice(&words.0)).into(),
+                    handed: pack(WordSlice(&words.0)).into(),
                 }],
                 text: ArenaBytes::default(),
                 ..Handed::default()
@@ -1439,7 +1439,7 @@ fn successful_outcomes_stage_once_and_keep_digests_without_retaining_payloads() 
                 .map(|bucket| HandedWords {
                     bucket: Bucket(bucket),
                     proof: crate::outbound::lint_store::fixtures::proof(),
-                    words: PackedWords(vec![7; 4096]).into(),
+                    handed: PackedWords(vec![7; 4096]).into(),
                 })
                 .collect(),
             ..Handed::default()
@@ -1539,7 +1539,7 @@ fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() 
             buckets: vec![HandedWords {
                 bucket: Bucket(0),
                 proof: crate::outbound::lint_store::fixtures::proof(),
-                words: packed.into(),
+                handed: packed.into(),
             }],
             text: ArenaBytes::default(),
             ..Handed::default()
@@ -1568,7 +1568,7 @@ fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() 
     handed.buckets.push(HandedWords {
         bucket: Bucket(1),
         proof: crate::outbound::lint_store::fixtures::proof(),
-        words: RecordWords::Staged(StagedWords {
+        handed: RecordWords::Staged(StagedWords {
             session: StagingSession(u64::MAX),
             offset: ryo_values::domain::records::types::PayloadOffset(u64::MAX),
             length: ryo_values::domain::records::types::PayloadLength(9),
@@ -1677,13 +1677,13 @@ fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() 
         file: StoredFileNumber(0),
         bucket: Bucket(1),
         proof: crate::outbound::lint_store::fixtures::proof(),
-        words: ReadWordPayload::Old(invalid),
+        payload: ReadWordPayload::Old(invalid),
     });
     old_handed.frontier.push(ReadWords {
         file: StoredFileNumber(1),
         bucket: Bucket(0),
         proof: crate::outbound::lint_store::fixtures::proof(),
-        words: ReadWordPayload::Old(invalid),
+        payload: ReadWordPayload::Old(invalid),
     });
     let mut old_record = record.clone();
     let FileOutcome::Read(ran) = &mut old_record.outcome else {

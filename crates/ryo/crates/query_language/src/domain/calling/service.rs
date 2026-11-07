@@ -159,7 +159,7 @@ pub(crate) fn call_extend(
             ),
             ast::ArgumentValue::Parameter(parameter) => {
                 let id = find_parameter(builder.parameters, |declared| {
-                    if declared.name == *parameter {
+                    if declared.parameter == *parameter {
                         SearchMatch::Matches
                     } else {
                         SearchMatch::Differs

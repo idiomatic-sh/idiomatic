@@ -51,12 +51,12 @@ fn handed() -> Handed {
             HandedWords {
                 bucket: Bucket(1),
                 proof: crate::outbound::lint_store::fixtures::proof(),
-                words: PackedWords(vec![1]).into(),
+                handed: PackedWords(vec![1]).into(),
             },
             HandedWords {
                 bucket: Bucket(2),
                 proof: crate::outbound::lint_store::fixtures::proof(),
-                words: PackedWords(vec![2]).into(),
+                handed: PackedWords(vec![2]).into(),
             },
         ],
         text: ArenaBytes(b"name".to_vec()),
@@ -129,22 +129,22 @@ fn moves_staged_descriptors_and_keeps_fresh_order() -> Value {
             HandedWords {
                 bucket: Bucket(0),
                 proof: crate::outbound::lint_store::fixtures::proof(),
-                words: PackedWords(vec![1]).into(),
+                handed: PackedWords(vec![1]).into(),
             },
             HandedWords {
                 bucket: Bucket(1),
                 proof: crate::outbound::lint_store::fixtures::proof(),
-                words: RecordWords::Staged(span),
+                handed: RecordWords::Staged(span),
             },
             HandedWords {
                 bucket: Bucket(0),
                 proof: crate::outbound::lint_store::fixtures::proof(),
-                words: RecordWords::Staged(span),
+                handed: RecordWords::Staged(span),
             },
             HandedWords {
                 bucket: Bucket(0),
                 proof: crate::outbound::lint_store::fixtures::proof(),
-                words: PackedWords(vec![2]).into(),
+                handed: PackedWords(vec![2]).into(),
             },
         ],
         ..Handed::default()
