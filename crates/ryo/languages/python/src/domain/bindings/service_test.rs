@@ -189,7 +189,7 @@ fn subject((source, wanted): Input) -> Value {
     };
     declare(&empty_tree, &mut model);
     index(&empty_tree, &mut model);
-    assert!(model.bindings.is_empty());
+    assert!(model.bindings.borrow().is_empty());
     declare(&tree, &mut model);
     index(&tree, &mut model);
     assert_eq!(model.bindings, expected);

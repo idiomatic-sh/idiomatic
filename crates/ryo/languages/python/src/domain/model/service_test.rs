@@ -41,7 +41,7 @@ fn subject((scope, name): Input) -> Value {
             major: crate::domain::standard_library::types::PythonMajor(3),
             minor: crate::domain::standard_library::types::PythonMinor(15),
         },
-        bindings: Vec::default(),
+        bindings: RefCell::default(),
         expression_shapes: RefCell::default(),
         constant_keys: RefCell::default(),
         format_parsing: RefCell::default(),
@@ -54,7 +54,7 @@ fn subject((scope, name): Input) -> Value {
         qualification: RefCell::default(),
         semantic: RefCell::default(),
         binding_analysis: RefCell::default(),
-        declared: vec![
+        declared: RefCell::new(vec![
             ScopeDeclaration {
                 scope: Position(3),
                 name: Symbol(1),
@@ -65,7 +65,9 @@ fn subject((scope, name): Input) -> Value {
                 name: Symbol(1),
                 redirect: BindingRedirect::Nonlocal,
             },
-        ],
+        ]),
+        declared_state: std::cell::Cell::default(),
+        bindings_state: std::cell::Cell::default(),
     };
     redirect_of(&model, scope, name)
 }

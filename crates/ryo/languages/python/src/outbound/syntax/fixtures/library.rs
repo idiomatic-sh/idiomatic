@@ -38,17 +38,3 @@ pub(crate) fn observed(
         ..Default::default()
     }
 }
-
-/// The adapter observed for its whole-file parses: `read` and a semantic session each count the file they parse into the
-/// counter the caller holds, under `settings`.
-#[cfg(test)]
-pub(crate) fn counting_parses(
-    settings: crate::settings::PythonParserSettings,
-    parses: std::sync::Arc<std::sync::atomic::AtomicUsize>,
-) -> impl crate::outbound::syntax::interface::SyntaxPort {
-    crate::outbound::syntax::adapters::ruff_python_parser::adapter::SyntaxRuffPythonParserAdapter {
-        settings,
-        file_parses: parses,
-        ..Default::default()
-    }
-}

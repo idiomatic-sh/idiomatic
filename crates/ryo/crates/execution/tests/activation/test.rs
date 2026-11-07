@@ -176,7 +176,7 @@ fn subject(input: Input) -> Result<(), OperatingError> {
             // Before one copy (checkpoint 322) the same read made four: the clone of the words and the sources, then the
             // concatenation of each.
             assert!(blocks <= 2, "the finish allocated {blocks} blocks");
-            assert!(bytes < WORDS, "the finish copied the words: {bytes} bytes");
+            assert!(usize::try_from(bytes).is_ok_and(|bytes| bytes < WORDS), "the finish copied the words: {bytes} bytes");
         }
     }
     Ok(())

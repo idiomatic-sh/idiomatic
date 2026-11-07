@@ -48,7 +48,9 @@ pub struct BucketSource {
 /// the one buffer that holds them, and every reader of the bucket borrows it.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct KeptBucket {
+    /// The bucket's words, the one buffer every reader of the bucket borrows.
     pub words: std::sync::Arc<KeptWords>,
+    /// The provenance of each source whose words the bucket holds.
     pub sources: Vec<BucketSource>,
 }
 

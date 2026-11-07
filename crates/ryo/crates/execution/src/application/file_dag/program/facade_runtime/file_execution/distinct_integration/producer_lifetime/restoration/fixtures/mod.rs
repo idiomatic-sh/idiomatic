@@ -267,7 +267,7 @@ impl CapturedProject {
             capture.bucket,
             &required,
             crate::outbound::facts::types::KeptBucket {
-                words: std::sync::Arc::new(KeptWords(capture.words)),
+                words: Arc::new(KeptWords(capture.words)),
                 sources: vec![crate::outbound::facts::types::BucketSource {
                     file: FileId(0),
                     start: crate::outbound::facts::types::KeptWordsStart(0),

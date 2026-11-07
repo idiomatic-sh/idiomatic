@@ -38,7 +38,7 @@ pub(crate) fn bound(tree: &Tree<'_>, model: &Declarations) {
     let mut bindings = model.bindings.take();
     bindings.clear();
     collect(tree, Position(0), model, &mut bindings);
-    model.bindings.replace(bindings);
+    drop(model.bindings.replace(bindings));
 }
 
 /// Pushes every definition from `from` to the end of the table, keeping the index sorted.
