@@ -4,7 +4,7 @@ use ryo_execution::inbound::use_cases::execution::types::{
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct Occurrence(pub usize);
+pub(crate) struct OccurrenceNumber(pub usize);
 
 pub(crate) struct PreparedProject {
     pub scope: ProjectScope,

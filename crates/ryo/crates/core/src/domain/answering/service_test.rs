@@ -11,6 +11,7 @@ use crate::domain::render::service::{end_row, lent_row, row_cells};
 use crate::domain::render::types::{Rendered, RowNumber};
 use ryo_execution::inbound::use_cases::execution::types::RowsFed;
 use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
+use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use ryo_values::domain::records::service::keep;
 use ryo_values::domain::row_texts::types::{Cell, CellText, RowsTextView};
 use ryo_values::domain::runs::types::RuleId;
@@ -130,6 +131,7 @@ fn subject(scenario: Input) -> Value {
             ];
             let ids = [RuleId("a".into()), RuleId("b".into()), RuleId("c".into())];
             todo_list(
+                &MetadataUseCaseImpl,
                 &ryo_values::domain::run_metadata::service::from_plans(&plans),
                 &ids,
             )

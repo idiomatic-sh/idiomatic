@@ -22,7 +22,7 @@ pub(crate) mod relation_lookup;
 pub(crate) mod render;
 pub(crate) mod reporting;
 pub(crate) mod repository;
-pub(crate) mod rules;
+pub(crate) mod run_rules;
 
 pub(crate) mod storing;
 pub(crate) mod value_cells;

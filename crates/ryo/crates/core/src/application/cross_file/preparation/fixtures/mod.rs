@@ -5,7 +5,7 @@ use crate::application::cross_file::{
     preparation::{
         errors::BatchPreparationError,
         service::Preparation,
-        types::{Occurrence, PreparedProject},
+        types::{OccurrenceNumber, PreparedProject},
     },
     fixtures::{
         ProjectCalls, counting_plan, crossing, frontier_rows, prepared_in, service, todo,
@@ -138,7 +138,7 @@ pub(in crate::application::cross_file::preparation) fn sealed_batch_control(
     }
     let sealed = pending
         .prepare_all(|occurrence, todo| {
-            if matches!(control, BatchControl::PreparationFailure) && occurrence == Occurrence(0) {
+            if matches!(control, BatchControl::PreparationFailure) && occurrence == OccurrenceNumber(0) {
                 Err(CrossFileError::from(OperatingError::WrongBinding))
             } else {
                 prepare(todo, &mut symbols)

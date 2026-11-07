@@ -1,5 +1,5 @@
 //! The declared-slot owner refuses omissions, substitutions and repeated accounting.
-use super::{errors::BatchPreparationError, service::Preparation, types::Occurrence};
+use super::{errors::BatchPreparationError, service::Preparation, types::OccurrenceNumber};
 use crate::application::cross_file::errors::CrossFileError;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::answering::types::Todo;
@@ -59,13 +59,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("ordinary_omission_refused_before_real_stage_submission"),
         word: Word::Refuses,
         input: || Scenario::OmitEngineOrdinary,
-        expect: Expect::Error(BatchPreparationError::Missing(Occurrence(1))),
+        expect: Expect::Error(BatchPreparationError::Missing(OccurrenceNumber(1))),
     },
     Case {
         name: CaseName("named_omission_refused_before_real_stage_submission"),
         word: Word::Refuses,
         input: || Scenario::OmitEngineNamed,
-        expect: Expect::Error(BatchPreparationError::Missing(Occurrence(1))),
+        expect: Expect::Error(BatchPreparationError::Missing(OccurrenceNumber(1))),
     },
     Case {
         name: CaseName("ordinary_all_declared_failures_are_explicit"),
@@ -89,13 +89,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("omitted_occurrence_refuses_sealing"),
         word: Word::Refuses,
         input: || Scenario::Omitted,
-        expect: Expect::Error(BatchPreparationError::Missing(Occurrence(1))),
+        expect: Expect::Error(BatchPreparationError::Missing(OccurrenceNumber(1))),
     },
     Case {
         name: CaseName("repeated_slot_cannot_hide_an_omission"),
         word: Word::Refuses,
         input: || Scenario::Repeated,
-        expect: Expect::Error(BatchPreparationError::Repeated(Occurrence(0))),
+        expect: Expect::Error(BatchPreparationError::Repeated(OccurrenceNumber(0))),
     },
     Case {
         name: CaseName("another_batch_cannot_supply_a_slot"),
@@ -148,7 +148,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 let sealed = pending.seal();
                 assert!(matches!(
                     sealed,
-                    Err(BatchPreparationError::Missing(Occurrence(1)))
+                    Err(BatchPreparationError::Missing(OccurrenceNumber(1)))
                 ));
                 sealed.map(|_| ())
             }
@@ -161,7 +161,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 let result = pending.account(slots[0].clone(), Err(failure()));
                 assert!(matches!(
                     result,
-                    Err(BatchPreparationError::Repeated(Occurrence(0)))
+                    Err(BatchPreparationError::Repeated(OccurrenceNumber(0)))
                 ));
                 result
             }
@@ -189,8 +189,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 })
                 .seal()?;
             assert_eq!(seen.len(), 2);
-            assert_eq!(seen[0].0, Occurrence(0));
-            assert_eq!(seen[1].0, Occurrence(1));
+            assert_eq!(seen[0].0, OccurrenceNumber(0));
+            assert_eq!(seen[1].0, OccurrenceNumber(1));
             assert_eq!(
                 seen[0].1,
                 if matches!(scenario, Scenario::Named) {

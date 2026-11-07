@@ -178,6 +178,20 @@ impl RetainedBytes {
         bytes
     }
 
+    /// The places and the derived text that the symbols of the cross-file steps hold.
+    pub fn cross_symbols(symbols: &mut ryo_language::domain::symbols::types::Symbols) -> Self {
+        let mut bytes = Self::default();
+        let places = ryo_language::domain::symbols::service::places_mut(symbols);
+        bytes.places_live.0 =
+            places.len() * size_of::<ryo_relations::domain::relations::types::NamePlace>();
+        bytes.places_capacity.0 =
+            places.capacity() * size_of::<ryo_relations::domain::relations::types::NamePlace>();
+        let text = ryo_language::domain::names::service::derived_of(symbols);
+        bytes.text_live.0 = text.0.len();
+        bytes.text_capacity.0 = text.0.capacity();
+        bytes
+    }
+
     /// A temporary caller-owned packed bucket; provider-internal storage is outside this measure.
     pub fn packed(words: &KeptWords) -> Self {
         Self {

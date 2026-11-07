@@ -58,7 +58,7 @@ use crate::domain::render::types::{Answering, Rendered, RowLimit};
 use crate::domain::reporting::service::{room_left, totals};
 use crate::domain::reporting::types::RowCounts;
 use crate::domain::repository::service::{by_path, configuration, paths_of};
-use crate::domain::rules::service::{ids_of, owner_of, scopes_of};
+use crate::domain::run_rules::service::{ids_of, owner_of, scopes_of};
 use crate::domain::storing::service::{
     decide as reuse_of, later_from, made_again, records_from, skipped_from, stored_of,
     unknowns_from, with_fresh, with_gone,
@@ -984,7 +984,7 @@ impl LintUseCaseImpl {
                     vec![each.id.clone()]
                 })?;
             }
-            let _memory_rule = memory_rule(&each.id, each.rule.0);
+            let _memory_rule = memory_rule(&each.id, each.rule);
             let first = *run.first_bucket.get(each.rule.0).ok_or_else(|| {
                 CrossFileError::from(ryo_values::domain::rule_requests::service::failed(
                     &each.id,
@@ -1243,7 +1243,7 @@ impl LintUseCaseImpl {
                 &later_from(&run.listing.stored, run.ids, &made_again).unwrap_or_default(),
             ),
         );
-        let mut todo = todo_list(run.metadata, run.ids);
+        let mut todo = todo_list(&kernel_metadata(), run.metadata, run.ids);
         todo.retain(|each| {
             rules
                 .binary_search_by_key(&each.rule.0, |rule| {
@@ -1334,7 +1334,7 @@ impl LintUseCaseImpl {
                 Projected::default()
             };
             unknowns.append(&mut now.unknowns);
-            let todo = todo_list(run.metadata, run.ids);
+            let todo = todo_list(&kernel_metadata(), run.metadata, run.ids);
             if !todo.is_empty() {
                 self.crossed(run, handed, &todo, project, &now, &mut answered)?;
             }

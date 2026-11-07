@@ -57,7 +57,7 @@ use ryo_values::domain::stores::types::BucketsWanted;
 use ryo_values::domain::table_words::service::pack_onto;
 use ryo_values::domain::table_words::types::WordSlice;
 
-use crate::domain::rules::service::governing;
+use crate::domain::run_rules::service::governing;
 
 use crate::domain::visit::service::lines_in;
 use crate::domain::visit::types::{BorrowedBytes, Keeping};

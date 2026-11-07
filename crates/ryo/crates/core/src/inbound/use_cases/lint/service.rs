@@ -152,17 +152,13 @@ pub(super) fn observed_cross_symbols(
     symbols: &mut ryo_language::domain::symbols::types::Symbols,
 ) {
     if memory_diagnostics() == MemoryDiagnostics::Enabled {
-        let mut bytes =
-            ryo_values::domain::stores::types::retention::value::RetainedBytes::default();
-        let places = ryo_language::domain::symbols::service::places_mut(symbols);
-        bytes.places_live.0 =
-            places.len() * size_of::<ryo_relations::domain::relations::types::NamePlace>();
-        bytes.places_capacity.0 =
-            places.capacity() * size_of::<ryo_relations::domain::relations::types::NamePlace>();
-        let text = ryo_language::domain::names::service::derived_of(symbols);
-        bytes.text_live.0 = text.0.len();
-        bytes.text_capacity.0 = text.0.capacity();
-        observed_memory(phase, CROSS_SYMBOLS, bytes);
+        observed_memory(
+            phase,
+            CROSS_SYMBOLS,
+            ryo_values::domain::stores::types::retention::value::RetainedBytes::cross_symbols(
+                symbols,
+            ),
+        );
     }
 }
 
@@ -186,9 +182,9 @@ pub(super) fn observed_notes(
 /// Keep rule identity on decoder events without changing its domain API.
 pub(super) fn memory_rule(
     id: &ryo_values::domain::runs::types::RuleId,
-    index: usize,
+    index: ryo_execution::inbound::use_cases::metadata::interface::RuleIndex,
 ) -> Option<tracing::span::EnteredSpan> {
-    (memory_diagnostics() == MemoryDiagnostics::Enabled).then(|| tracing::trace_span!(target: LIFECYCLE_MEMORY_DIAGNOSTIC, CROSS_RULE_MEMORY, rule = %id.0, rule_index = index).entered())
+    (memory_diagnostics() == MemoryDiagnostics::Enabled).then(|| tracing::trace_span!(target: LIFECYCLE_MEMORY_DIAGNOSTIC, CROSS_RULE_MEMORY, rule = %id.0, rule_index = index.0).entered())
 }
 
 /// Do not walk stored payload metadata on ordinary lints.
