@@ -42,7 +42,7 @@ impl super::super::KernelSession<'_, '_> {
             prepared_kinds: context.prepared_kinds,
             bindings: self
                 .prepared
-                .bindings(instruction.producer)
+                .bindings(instruction.producer())
                 .map_err(InvocationFailure::Semantic)?,
             symbols: ryo_language::domain::symbols::service::query_reborrow(&mut context.symbols),
             source: context.source,
@@ -54,7 +54,7 @@ impl super::super::KernelSession<'_, '_> {
         let workspace = scratch.workspace.get_or_insert_with(|| {
             InvocationWorkspace::for_contract(
                 Rc::clone(&self.owner),
-                permit.descriptor().contract.as_ref(),
+                permit.descriptor().contract().as_ref(),
             )
         });
         let failure = std::sync::OnceLock::new();
@@ -82,7 +82,7 @@ impl super::super::KernelSession<'_, '_> {
             .map_err(InvocationFailure::Semantic)?;
         let mut sources = Vec::new();
         let mut rows = Vec::new();
-        for at in 0..instruction.inputs.len() {
+        for at in 0..instruction.inputs().len() {
             let admitted = permit
                 .bound_input(InputId(at))
                 .map_err(InvocationFailure::Semantic)?;
@@ -223,7 +223,7 @@ impl super::super::KernelSession<'_, '_> {
             std::sync::Arc::clone(shape),
             std::sync::Arc::from(
                 instruction
-                    .contract
+                    .contract()
                     .output_kinds
                     .clone()
                     .map_err(InvocationFailure::Semantic)?,

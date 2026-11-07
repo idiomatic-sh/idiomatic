@@ -119,7 +119,7 @@ fn producer_scope_rebinding_refuses_before_registering_an_alias() {
         !owner
             .producer_populations
             .borrow()
-            .contains_key(&crate::application::file_dag::relations::types::ProducerKey {
+            .contains_key(&crate::application::file_dag::relations::publication::types::ProducerKey {
                 scope: foreign,
                 region: RegionId(8),
             })

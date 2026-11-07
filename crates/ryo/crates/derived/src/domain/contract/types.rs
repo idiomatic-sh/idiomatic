@@ -113,10 +113,10 @@ pub struct RawOrder {
 impl RawOrder {
     #[must_use]
     pub fn hits(&self, probe: &[u64]) -> std::ops::Range<usize> {
-        crate::domain::raw_order::hits(self, probe)
+        crate::domain::raw_order::service::hits(self, probe)
     }
     pub fn firsts(&self, keep: &mut Vec<bool>) {
-        crate::domain::raw_order::firsts(self, keep);
+        crate::domain::raw_order::service::firsts(self, keep);
     }
 
     #[must_use]
@@ -770,7 +770,7 @@ pub struct PayloadFootprint {
 }
 impl DerivedPayload {
     pub fn footprint(&self) -> Result<PayloadFootprint, DerivedFault> {
-        crate::domain::footprint::describe(self)
+        crate::domain::footprint::service::describe(self)
     }
 }
 

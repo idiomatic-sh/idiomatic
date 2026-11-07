@@ -34,7 +34,7 @@ pub(in crate::application::file_dag) fn from_prepared<'f>(
     }
     let input: BorrowedRows<'f> = proof.rows();
     owner
-        .derived
+        .derived()
         .admit_partition(&closure_plan, &owner, &proof, &ordered)?;
     #[cfg(test)]
     let ordering_capacity = ordered.partition_order_capacity()?;
@@ -68,13 +68,13 @@ pub(crate) fn prepare<'f>(
         kinds: input.kinds(),
         tree: None,
     }];
-    let partition_plan = Arc::new(owner.derived.prepare_view(
+    let partition_plan = Arc::new(owner.derived().prepare_view(
         &ViewRequest::PartitionOrder {
             keys: keys.to_vec(),
         },
         &schema,
     )?);
-    let closure_plan = Arc::new(owner.derived.prepare_view(
+    let closure_plan = Arc::new(owner.derived().prepare_view(
         &ViewRequest::ClosureAdjacency {
             source,
             destination,
@@ -83,9 +83,9 @@ pub(crate) fn prepare<'f>(
     )?);
     let proof = owner.admit(publication.as_ref(), input)?;
     let admitted = owner
-        .derived
+        .derived()
         .admit_view(&partition_plan, &owner, &[&proof])?;
-    let ordered = owner.derived.acquire_stored(
+    let ordered = owner.derived().acquire_stored(
         &partition_plan,
         &admitted,
         crate::application::file_dag::derived::owner::ViewContext::default(),

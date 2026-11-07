@@ -52,7 +52,7 @@ pub(crate) fn refusal(result: Result<Table, OperatingError>) {
         matches!(
             result,
             Err(OperatingError::Table(
-                ryo_values::domain::rows::errors::RowsError::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(REFUSAL) }
+                ryo_values::domain::rows::errors::RowsError::NoSuchColumn { index: REFUSAL }
             ))
         ),
         "{result:?}"

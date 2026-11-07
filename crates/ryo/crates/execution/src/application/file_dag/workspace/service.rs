@@ -10,7 +10,7 @@ use ryo_values::domain::plan_parts::types::InputNumber;
 use ryo_values::domain::rows::types::Table;
 
 impl InvocationWorkspace {
-    pub(super) fn inputs<'a, 'f>(
+    pub(in crate::application::file_dag) fn inputs<'a, 'f>(
         &'a self,
         inputs: &'a [BorrowedRows<'f>],
     ) -> InputAdmissions<'a, 'f> {
@@ -42,9 +42,9 @@ impl InvocationWorkspace {
         &self,
         use_: &PreparedViewUse,
         inputs: &InputAdmissions<'_, '_>,
-        identity: super::derived::owner::ViewContext,
+        identity: crate::application::file_dag::derived::owner::ViewContext,
         supplied: ViewInputs<'_, '_>,
-    ) -> Result<super::derived::owner::acquisition::admission::service::AcquiredView, OperatingError>
+    ) -> Result<crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView, OperatingError>
     {
         use crate::domain::{
             derived_views::types::{DerivedInputs, MembershipSpace},
@@ -133,7 +133,7 @@ impl InvocationWorkspace {
         } else {
             None
         };
-        let owner = &self.owner().derived;
+        let owner = self.owner().derived();
         let sources = proofs[..semantic_sources]
             .iter()
             .map(|proof| proof.expect(EXPECT_ADMITTED_INPUT))

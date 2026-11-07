@@ -44,7 +44,7 @@ impl super::super::KernelSession<'_, '_> {
             prepared_kinds: context.prepared_kinds,
             bindings: self
                 .prepared
-                .bindings(instruction.producer)
+                .bindings(instruction.producer())
                 .map_err(InvocationFailure::Semantic)?,
             symbols: ryo_language::domain::symbols::service::query_reborrow(&mut context.symbols),
             source: context.source,
@@ -57,11 +57,11 @@ impl super::super::KernelSession<'_, '_> {
         let mut invocation_workspace = scratch.workspace.take().unwrap_or_else(|| {
             InvocationWorkspace::for_contract(
                 Rc::clone(&self.owner),
-                permit.descriptor().contract.as_ref(),
+                permit.descriptor().contract().as_ref(),
             )
         });
         let workspace = &mut invocation_workspace;
-        let contract = instruction.contract.as_ref();
+        let contract = instruction.contract().as_ref();
         let setup_failure = std::sync::OnceLock::new();
         let setup_semantics = crate::application::file_dag::execution::PrimitiveSemanticsBridge {
             port: self.kernels,
@@ -84,7 +84,7 @@ impl super::super::KernelSession<'_, '_> {
                         self.kernels,
                         contract,
                         permit,
-                        &instruction.operation,
+                        &instruction.operation(),
                         PreparedInputs::Row {
                             input: InputPlace(0),
                             sides: &[],
@@ -125,7 +125,7 @@ impl super::super::KernelSession<'_, '_> {
                             use ryo_values::domain::{
                                 plan_parts::types::RepeatedRows, plans::types::Operation,
                             };
-                            let kept = match &instruction.operation {
+                            let kept = match &instruction.operation() {
                                 Operation::Select { kept, .. } if kept.is_empty() => {
                                     SelectionColumns::All
                                 }
@@ -260,7 +260,7 @@ impl super::super::KernelSession<'_, '_> {
                                 self.kernels,
                                 contract,
                                 permit,
-                                &instruction.operation,
+                                &instruction.operation(),
                                 PreparedInputs::Views(&views),
                                 resources
                                     .as_mut()
@@ -273,7 +273,7 @@ impl super::super::KernelSession<'_, '_> {
                         }
                         InputShape::RequestSource => {
                             let empty = ryo_values::domain::rows::types::Table::default();
-                            let source = match &instruction.operation {
+                            let source = match &instruction.operation() {
                                 // Rows semantics consume the exact producer's parameter
                                 // snapshot through the lease, not an external relation.
                                 ryo_values::domain::plans::types::Operation::Rows { .. } => {
@@ -287,7 +287,7 @@ impl super::super::KernelSession<'_, '_> {
                                 self.kernels,
                                 contract,
                                 permit,
-                                &instruction.operation,
+                                &instruction.operation(),
                                 PreparedInputs::RequestSource(&source),
                                 resources
                                     .as_mut()
@@ -362,7 +362,7 @@ impl super::super::KernelSession<'_, '_> {
                                         self.kernels,
                                         contract,
                                         permit,
-                                        &instruction.operation,
+                                        &instruction.operation(),
                                         PreparedInputs::Row {
                                             input: InputPlace(input),
                                             sides: &views,

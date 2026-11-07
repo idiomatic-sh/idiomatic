@@ -24,7 +24,7 @@ impl<'scope> KernelPermit<'scope> {
             .regions()
             .get(region.0)
             .ok_or(OperatingError::NotRun)?;
-        if code.instructions.is_empty() {
+        if code.instructions().is_empty() {
             return Err(OperatingError::NotRun);
         }
         Ok(code)
@@ -36,10 +36,10 @@ impl<'scope> KernelPermit<'scope> {
         let execution = authority.execution();
         let region = authority.region();
         let code = Self::code(execution, region)?;
-        if code.instructions.is_empty() || inputs.len() != code.inputs.len() {
+        if code.instructions().is_empty() || inputs.len() != code.inputs().len() {
             return Err(OperatingError::WrongOperation);
         }
-        for (source, input) in code.inputs.iter().zip(inputs) {
+        for (source, input) in code.inputs().iter().zip(inputs) {
             let expected = match source {
                 InputSource::Region(id) => ProducerRoot::Region(*id),
                 other => ProducerRoot::Input(*other),
@@ -70,7 +70,7 @@ impl<'scope> KernelPermit<'scope> {
         let execution = authority.execution();
         let region = authority.region();
         let code = Self::code(execution, region)?;
-        let shape = crate::domain::executable_program::service::ordered_existence(&code.route)
+        let shape = crate::domain::executable_program::service::ordered_existence(&code.route())
             .ok_or(OperatingError::WrongOperation)?;
         input.validate_for(
             &execution.owner,
@@ -98,7 +98,7 @@ impl<'scope> KernelPermit<'scope> {
         let execution = authority.execution();
         let region = authority.region();
         let code = Self::code(execution, region)?;
-        let shape = crate::domain::executable_program::service::column(&code.route)
+        let shape = crate::domain::executable_program::service::column(&code.route())
             .ok_or(OperatingError::WrongOperation)?;
         left.validate_for(
             &execution.owner,
@@ -131,7 +131,7 @@ impl<'scope> KernelPermit<'scope> {
         at: InstructionIndex,
     ) -> Result<Self, OperatingError> {
         self.program.regions()[self.region.0]
-            .instructions
+            .instructions()
             .get(at.0)
             .ok_or(OperatingError::NotRun)?;
         Ok(Self {
@@ -150,7 +150,7 @@ impl<'scope> KernelPermit<'scope> {
         &self,
     ) -> Result<&Arc<crate::domain::lowering::types::LoweredShape>, OperatingError> {
         crate::domain::executable_program::service::native_positions(
-            &self.program.regions()[self.region.0].route,
+            &self.program.regions()[self.region.0].route(),
         )
         .ok_or(OperatingError::WrongOperation)
     }
@@ -175,7 +175,7 @@ impl<'scope> KernelPermit<'scope> {
     pub(in crate::application::file_dag::program) fn descriptor(
         &self,
     ) -> &crate::domain::executable_program::types::Instruction {
-        &self.program.regions()[self.region.0].instructions[self.instruction.0]
+        &self.program.regions()[self.region.0].instructions()[self.instruction.0]
     }
     pub(in crate::application::file_dag::program) fn position_semantics(
         &self,
@@ -183,7 +183,7 @@ impl<'scope> KernelPermit<'scope> {
     ) -> Result<SemanticPermit<'_>, OperatingError> {
         self.validate_registered(self.operation())?;
         let actual = crate::domain::executable_program::service::native_positions(
-            &self.program.regions()[self.region.0].route,
+            &self.program.regions()[self.region.0].route(),
         )
         .ok_or(OperatingError::WrongOperation)?;
         if !Arc::ptr_eq(actual, shape) {
@@ -240,8 +240,8 @@ impl<'scope> KernelPermit<'scope> {
     pub(in crate::application::file_dag::program) fn output_kinds(
         &self,
     ) -> Result<&[ryo_relations::domain::relations::types::CellKind], OperatingError> {
-        self.program.regions()[self.region.0].instructions[self.instruction.0]
-            .contract
+        self.program.regions()[self.region.0].instructions()[self.instruction.0]
+            .contract()
             .output_kinds
             .as_deref()
             .map_err(Clone::clone)
@@ -257,11 +257,11 @@ impl<'scope> KernelPermit<'scope> {
         Ok(())
     }
     pub(crate) fn kind(&self) -> ryo_values::domain::query_operators::types::OperationKind {
-        self.program.regions()[self.region.0].instructions[self.instruction.0]
-            .contract
+        self.program.regions()[self.region.0].instructions()[self.instruction.0]
+            .contract()
             .kind
     }
     pub(crate) fn operation(&self) -> &ryo_values::domain::plans::types::Operation {
-        &self.program.regions()[self.region.0].instructions[self.instruction.0].operation
+        &self.program.regions()[self.region.0].instructions()[self.instruction.0].operation()
     }
 }

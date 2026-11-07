@@ -1,4 +1,6 @@
 //! Public acceptance of extrema, projection, antijoin and interruption semantics.
+use crate::domain::equality_join::errors::EqualityJoinError;
+use crate::domain::set_rows::errors::SetRowsError;
 use crate::inbound::use_cases::operators::{fixtures, interface::OperatorsUseCase};
 use crate::domain::capture::types::*;
 use crate::domain::contract::types::*;

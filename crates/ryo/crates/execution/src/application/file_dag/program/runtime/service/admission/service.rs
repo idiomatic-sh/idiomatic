@@ -35,9 +35,9 @@ pub(in crate::application::file_dag::program::runtime::service) fn first_preflig
     region: &Region,
 ) -> Option<crate::domain::operator::contract::types::PreflightOrder> {
     region
-        .instructions
+        .instructions()
         .first()
-        .map(|instruction| instruction.contract.semantics.preflight)
+        .map(|instruction| instruction.contract().semantics.preflight)
 }
 impl AdmissionProgress {
     pub(in crate::application::file_dag::program::runtime::service) fn is_empty(
@@ -68,12 +68,12 @@ impl AdmissionProgress {
         region: &Region,
     ) -> Result<(), OperatingError> {
         if self.schema_done == StageProgress::Pending {
-            for instruction in region.instructions.iter().rev() {
-                if instruction.contract.semantics.preflight
+            for instruction in region.instructions().iter().rev() {
+                if instruction.contract().semantics.preflight
                     == crate::domain::operator::contract::types::PreflightOrder::SchemaFirst
                 {
                     instruction
-                        .contract
+                        .contract()
                         .output_kinds
                         .as_ref()
                         .map_err(Clone::clone)?;
@@ -143,9 +143,9 @@ pub(in crate::application::file_dag::program::runtime::service) fn empty_output_
     gate: &crate::domain::operator::contract::types::EmptyResult,
 ) -> Result<Vec<ryo_relations::domain::relations::types::CellKind>, OperatingError> {
     let mut kinds = gate.kinds.clone()?;
-    for instruction in region.instructions.iter().skip(1) {
+    for instruction in region.instructions().iter().skip(1) {
         kinds = crate::domain::operation_schema::projection::continuation_kinds(
-            &instruction.operation,
+            &instruction.operation(),
             &kinds,
         )?;
     }

@@ -33,14 +33,14 @@ impl ProgramExecution {
         let context = &mut *call.context;
         let progress = &mut *call.progress;
         let first = region
-            .instructions
+            .instructions()
             .first()
             .ok_or_else(|| InvocationFailure::Semantic(OperatingError::NotRun))?;
         let needs = region
-            .needs
+            .needs()
             .as_ref()
             .map_err(|error| InvocationFailure::Semantic(error.clone()))?;
-        let program = &first.demand;
+        let program = &first.demand();
         if first_preflight(region) == Some(PreflightOrder::SchemaFirst) {
             for action in program
                 .actions()
@@ -49,7 +49,7 @@ impl ProgramExecution {
             {
                 match *action {
                     DemandAction::Admit(InputId(at)) => {
-                        let source = *region.inputs.get(at).ok_or(InvocationFailure::Semantic(
+                        let source = *region.inputs().get(at).ok_or(InvocationFailure::Semantic(
                             OperatingError::MissingInput { position: at + 1 },
                         ))?;
                         progress
@@ -66,7 +66,7 @@ impl ProgramExecution {
         for action in program.actions().iter().skip(progress.action.0) {
             match *action {
                 DemandAction::Admit(InputId(at)) => {
-                    let source = *region.inputs.get(at).ok_or_else(|| {
+                    let source = *region.inputs().get(at).ok_or_else(|| {
                         InvocationFailure::Semantic(OperatingError::MissingInput {
                             position: at + 1,
                         })
@@ -81,7 +81,7 @@ impl ProgramExecution {
             progress.action.0 += 1;
         }
         if progress.preflight_done == StageProgress::Pending {
-            for gate in &first.contract.empty_results {
+            for gate in &first.contract().empty_results {
                 let input = admitted.get(gate.input).ok_or(InvocationFailure::Semantic(
                     OperatingError::MissingInput {
                         position: gate.input + 1,
@@ -91,7 +91,7 @@ impl ProgramExecution {
                     .is_empty(
                         inputs,
                         *region
-                            .inputs
+                            .inputs()
                             .get(gate.input)
                             .ok_or(InvocationFailure::Semantic(OperatingError::MissingInput {
                                 position: gate.input + 1,
@@ -139,11 +139,11 @@ impl ProgramExecution {
         let context = &mut *call.context;
         let progress = &mut *call.progress;
         let first = region
-            .instructions
+            .instructions()
             .first()
             .ok_or_else(|| InvocationFailure::Semantic(OperatingError::NotRun))?;
         let needs = region
-            .needs
+            .needs()
             .as_ref()
             .map_err(|error| InvocationFailure::Semantic(error.clone()))?;
         let permit = KernelPermit::admitted(
@@ -159,13 +159,13 @@ impl ProgramExecution {
             // Schema and scope admission above established valid source geometry;
             // no PreparedWalk class or submission result selects this inventory.
             if tracing::enabled!(target: crate::application::file_dag::program::constants::WALK_TARGET, tracing::Level::TRACE)
-                && region.phase == ryo_values::domain::plan_parts::types::StepScope::PerFile
+                && region.phase() == ryo_values::domain::plan_parts::types::StepScope::PerFile
             {
                 use ryo_values::domain::{
                     plan_parts::types::{Input, RepeatedRows},
                     plans::types::Operation,
                 };
-                let relation = match &first.operation {
+                let relation = match &first.operation() {
                     Operation::Select {
                         from: Input::Relation(relation),
                         ..
@@ -186,8 +186,8 @@ impl ProgramExecution {
                     // disappear from diagnostics or change execution error ordering.
                     tracing::trace!(target: crate::application::file_dag::program::constants::WALK_TARGET,
                         event = crate::application::file_dag::program::constants::WALK_READY,
-                        logical = first.logical.0, region = id.0, relation = ?relation,
-                        phase = ?region.phase, file = file.file().0,
+                        logical = first.logical().0, region = id.0, relation = ?relation,
+                        phase = ?region.phase(), file = file.file().0,
                         generation = ?Arc::as_ptr(&self.generation), population = ?population);
                 }
             }
@@ -204,12 +204,12 @@ impl ProgramExecution {
             .as_mut()
             .ok_or_else(|| InvocationFailure::Semantic(OperatingError::NotRun))?;
         let last = region
-            .instructions
+            .instructions()
             .last()
             .ok_or_else(|| InvocationFailure::Semantic(OperatingError::NotRun))?;
         // The region's one route decides which kernel is offered the instruction; a decline
         // happens before observable work and the generic evaluation below then runs once.
-        match &region.route {
+        match &region.route() {
             Route::NativePositions(_)
                 if completion.row_retention()
                     == crate::domain::completion::types::RowRetention::Unnecessary =>
@@ -259,7 +259,7 @@ impl ProgramExecution {
             | Route::Column(_) => {}
         }
         let mut rows = ryo_values::domain::rows::types::Table::default();
-        let output_kinds = &last.contract.output_kinds;
+        let output_kinds = &last.contract().output_kinds;
         if let Ok(kinds) = output_kinds {
             ryo_values::domain::rows::service::reset(&mut rows, kinds);
         }

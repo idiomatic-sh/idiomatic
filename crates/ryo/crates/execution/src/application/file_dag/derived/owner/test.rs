@@ -49,7 +49,7 @@ fn owner(entries: EntryLimit) -> RelationOwner {
         crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
         crate::application::file_dag::testing::program_derived_port(),
     );
-    owner.derived().max_entries = entries;
+    owner.derived_mut().max_entries = entries;
     owner
 }
 fn population(owner: &RelationOwner, publication: &PublishedInput) -> PopulationId {

@@ -47,8 +47,8 @@ impl ProgramExecution {
             .regions()
             .get(id.0)
             .ok_or(OperatingError::NotRun)?;
-        inputs.bind_rule(region.producer);
-        let producer_policy = completion.for_rule(region.producer);
+        inputs.bind_rule(region.producer());
+        let producer_policy = completion.for_rule(region.producer());
         let completion = &producer_policy;
         // A scope borrow never crosses admission, kernels or downstream callbacks.
         let started;
@@ -73,12 +73,12 @@ impl ProgramExecution {
             slot.state = State::Running;
             if slot.scratch.is_empty() {
                 slot.scratch
-                    .resize_with(region.instructions.len(), KernelScratch::default);
+                    .resize_with(region.instructions().len(), KernelScratch::default);
             }
-            for (frame, instruction) in slot.scratch.iter_mut().zip(region.instructions.iter()) {
+            for (frame, instruction) in slot.scratch.iter_mut().zip(region.instructions().iter()) {
                 if let Some(workspace) = frame.workspace.as_mut().filter(|_| fresh) {
                     crate::domain::operator::contract::workspace::begin(
-                        &instruction.contract.workspace,
+                        &instruction.contract().workspace,
                         crate::domain::operator::contract::types::WorkspaceLifetime::Invocation,
                         &mut workspace.primitive,
                     );
@@ -100,7 +100,7 @@ impl ProgramExecution {
             started,
             prepare_only,
         };
-        let first = region.instructions.first();
+        let first = region.instructions().first();
         let mut admitted = progress.inputs.clone();
         let result: Result<InvocationOutcome, InvocationFailure> = (|| {
             let mut call = Poll {
@@ -151,7 +151,7 @@ impl ProgramExecution {
             }
             Err(InvocationFailure::Semantic(error) | InvocationFailure::Delivery(error)) => {
                 if let Some(admission) = cleanup.admission.as_ref() {
-                    tracing::trace!(target: EXECUTION_TARGET, event = REGION_FAILURE, region = id.0, producer = region.producer.0, phase = ?region.phase, logical = ?first.map(|first| first.logical.0), action = admission.action.0, ?error);
+                    tracing::trace!(target: EXECUTION_TARGET, event = REGION_FAILURE, region = id.0, producer = region.producer().0, phase = ?region.phase(), logical = ?first.map(|first| first.logical().0), action = admission.action.0, ?error);
                 }
                 cleanup.terminal = Terminal::Failed(error.clone());
                 let _cleanup = self.release_inputs(state, id);
@@ -179,7 +179,7 @@ pub(in crate::application::file_dag::program::runtime::service) fn continuation(
     output: &mut dyn Emit,
 ) -> Result<(), InvocationFailure> {
     let instruction = region
-        .instructions
+        .instructions()
         .get(at.0)
         .ok_or_else(|| InvocationFailure::Semantic(OperatingError::NotRun))?;
     let permit = invocation
@@ -188,7 +188,7 @@ pub(in crate::application::file_dag::program::runtime::service) fn continuation(
     let (frame, rest) = scratch
         .split_first_mut()
         .ok_or_else(|| InvocationFailure::Semantic(OperatingError::NotRun))?;
-    if at.0 + 1 == region.instructions.len() {
+    if at.0 + 1 == region.instructions().len() {
         return kernels.evaluate(instruction, &permit, input, context, frame, output);
     }
     let mut next = Continue {
@@ -285,10 +285,10 @@ impl Drop for Invocation<'_> {
             // Each segment excludes scheduler wait and cached publication reads.
             // The committed slot outcome is not a claim about the caller's final result.
             tracing::trace!(target: EXECUTION_TARGET, event = REGION_POLL, region = self.id.0,
-                producer = region.producer.0, phase = ?region.phase,
-                logical = ?region.instructions.first().map(|instruction| instruction.logical.0),
-                operation = ?region.instructions.first().map(|instruction| ryo_values::domain::plans::service::kind_of(&instruction.operation)),
-                instructions = region.instructions.len(), prepare_only = ?self.prepare_only,
+                producer = region.producer().0, phase = ?region.phase(),
+                logical = ?region.instructions().first().map(|instruction| instruction.logical().0),
+                operation = ?region.instructions().first().map(|instruction| ryo_values::domain::plans::service::kind_of(&instruction.operation())),
+                instructions = region.instructions().len(), prepare_only = ?self.prepare_only,
                 committed_outcome, elapsed_ns = started.elapsed().as_nanos() as u64);
         }
     }

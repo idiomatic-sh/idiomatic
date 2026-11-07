@@ -11,10 +11,10 @@ fn publication_constructor_rejects_same_owner_proof_substitution_even_for_canoni
     let CompiledCase { execution, roots } = compiled();
     let owner = Rc::clone(&execution.owner);
     let kinds = execution.program.regions()[roots[0].0]
-        .instructions
+        .instructions()
         .last()
         .unwrap()
-        .contract
+        .contract()
         .output_kinds
         .clone()
         .unwrap();

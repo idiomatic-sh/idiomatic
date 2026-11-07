@@ -36,7 +36,9 @@ fn subject(candidate: Input) -> Result<Value, Failure> {
         maximum: LineWidth(candidate.maximum),
         tab_width: TabStop(candidate.tab_width),
     }) {
-        Ok(OperatorAnswer::Selected(fits)) => Ok(fits),
+        Ok(OperatorAnswer::Selected(selection)) => Ok(
+            selection == ryo_operators::domain::select::types::RowSelection::Kept,
+        ),
         Ok(_) => Err(OperatingError::WrongOperation),
         Err(fault) => Err(crate::domain::operator::contract::types::portable_fault(fault)),
     }

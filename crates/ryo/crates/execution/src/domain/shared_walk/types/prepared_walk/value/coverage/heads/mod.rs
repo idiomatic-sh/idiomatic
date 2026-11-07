@@ -17,7 +17,7 @@ use std::collections::HashSet;
 // Every catalog relation has a typed borrowed-row representation. Source loading
 // and demand availability are runtime obligations, not static head eligibility.
 pub(super) fn supported_head(instruction: &Instruction) -> Option<Relation> {
-    let (source, projected, predicates) = match &instruction.operation {
+    let (source, projected, predicates) = match &instruction.operation() {
         Operation::Select {
             from: Source::Relation(source),
             kept,
@@ -54,9 +54,9 @@ pub(super) fn expected(program: &ExecutableProgram) -> HashSet<LogicalInstructio
     program
         .regions()
         .iter()
-        .filter_map(|region| region.instructions.first())
+        .filter_map(|region| region.instructions().first())
         .filter(|instruction| supported_head(instruction).is_some())
-        .map(|instruction| instruction.logical)
+        .map(|instruction| instruction.logical())
         .collect()
 }
 #[cfg(test)]

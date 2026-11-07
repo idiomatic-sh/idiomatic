@@ -169,7 +169,7 @@ impl DigestValues for Resolved {
             (false, 8) | (true, 80) => "other",
             _ => "changed",
         };
-        DigestDatum::Text(text)
+        DigestDatum::Text(ryo_values::domain::row_texts::types::CellText(text))
     }
 }
 fn digest(table: &Table, resolved: &Resolved) -> Output {

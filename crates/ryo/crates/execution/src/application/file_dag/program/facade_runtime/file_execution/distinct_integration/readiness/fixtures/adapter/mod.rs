@@ -23,7 +23,7 @@ impl KernelInvocation for ReadyAdapter<'_> {
         inputs: &[AdmittedInput],
         context: &mut OperatorContext<'_>,
     ) -> Result<(), OperatingError> {
-        let logical = ready.permit().descriptor().logical;
+        let logical = ready.permit().descriptor().logical();
         {
             let events = self.events.0.lock().unwrap();
             assert!(
@@ -33,7 +33,7 @@ impl KernelInvocation for ReadyAdapter<'_> {
                         == Some(crate::application::file_dag::program::constants::WALK_READY)
                         && event.get("logical") == Some(&logical.0.to_string())),
                 "actual runtime obligation must exist before this callback, even when it will be skipped; head={logical:?}; operation={:?}; captured={events:?}",
-                ready.permit().descriptor().operation
+                ready.permit().descriptor().operation()
             );
         }
         if self.omitted == Some(logical) {

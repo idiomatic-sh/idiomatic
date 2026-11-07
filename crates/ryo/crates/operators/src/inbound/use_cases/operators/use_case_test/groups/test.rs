@@ -2,6 +2,7 @@
 use crate::inbound::use_cases::operators::{fixtures, interface::OperatorsUseCase};
 use crate::domain::capture::types::*;
 use crate::domain::contract::types::*;
+use ryo_values::domain::row_texts::types::CellText;
 use crate::inbound::use_cases::operators::types::*;
 use crate::domain::equality_join::types::*;
 use crate::domain::ordered_existence::types::*;
@@ -125,11 +126,11 @@ impl DigestValues for Resolved {
         let Cell::Number(Integer(id)) = value else {
             panic!("fixture handles are numeric")
         };
-        DigestDatum::Text(match (self.renamed, id) {
+        DigestDatum::Text(CellText(match (self.renamed, id) {
             (false, 7) | (true, 70) => "same",
             (false, 8) | (true, 80) => "other",
             _ => "changed",
-        })
+        }))
     }
 }
 fn digest(rows: &[[i64; 2]], renamed: bool) -> Result<Groups, Failure> {
@@ -203,10 +204,10 @@ fn subject(input: Input) -> Result<Value, Failure> {
         Scenario::HashValue => {
             let same = String::from("same");
             let literal = fixtures::operators().operators(OperatorCall::HashValue {
-                datum: DigestDatum::Text("same"),
+                datum: DigestDatum::Text(CellText("same")),
             })?;
             let borrowed = fixtures::operators().operators(OperatorCall::HashValue {
-                datum: DigestDatum::Text(&same),
+                datum: DigestDatum::Text(CellText(&same)),
             })?;
             let first = fixtures::operators().operators(OperatorCall::HashValue {
                 datum: DigestDatum::Number(WholeNumber(7)),

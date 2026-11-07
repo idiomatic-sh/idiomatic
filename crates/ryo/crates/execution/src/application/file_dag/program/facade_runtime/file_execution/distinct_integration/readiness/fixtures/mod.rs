@@ -203,11 +203,11 @@ pub(crate) fn observe(omit: bool) -> Coverage {
                 .clone()
                 .unwrap();
             let region = &prepared.program().regions()[root.0];
-            assert_eq!(region.phase, StepScope::PerFile);
-            assert_eq!(region.instructions.len(), 1);
-            let head = &region.instructions[0];
+            assert_eq!(region.phase(), StepScope::PerFile);
+            assert_eq!(region.instructions().len(), 1);
+            let head = &region.instructions()[0];
             assert!(matches!(
-                &head.operation,
+                &head.operation(),
                 Operation::Select {
                     from: PlanInput::Relation(_),
                     ..
@@ -217,8 +217,8 @@ pub(crate) fn observe(omit: bool) -> Coverage {
                     ..
                 }
             ));
-            assert_eq!(head.contract.output_kinds.as_ref().unwrap().len(), 1);
-            assert!(required_heads.insert(u64::try_from(head.logical.0).unwrap()));
+            assert_eq!(head.contract().output_kinds.as_ref().unwrap().len(), 1);
+            assert!(required_heads.insert(u64::try_from(head.logical().0).unwrap()));
         }
         let services = Arc::new(ProgramServices::new(
             Arc::new(CommonOperatorEngine::new(Arc::new(
@@ -269,7 +269,7 @@ pub(crate) fn observe(omit: bool) -> Coverage {
                 .emit_root
                 .clone()
                 .unwrap();
-            Some(prepared.program().regions()[root.0].instructions[0].logical)
+            Some(prepared.program().regions()[root.0].instructions()[0].logical())
         } else {
             None
         };

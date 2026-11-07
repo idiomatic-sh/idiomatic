@@ -68,9 +68,9 @@ fn verify(
     let mut kinds_seen = HashSet::new();
     let mut routes_seen = HashSet::new();
     for region in program.regions() {
-        for (at, instruction) in region.instructions.iter().enumerate() {
-            let kind = kind_of(&instruction.operation);
-            let class = lookup(instruction.logical).ok_or(Refusal::Unclassified)?;
+        for (at, instruction) in region.instructions().iter().enumerate() {
+            let kind = kind_of(&instruction.operation());
+            let class = lookup(instruction.logical()).ok_or(Refusal::Unclassified)?;
             if let Some(why) = excluded(kind)
                 && class != Fusibility::Excluded(why)
             {
@@ -81,7 +81,7 @@ fn verify(
                 return Err(Refusal::Mismatch);
             }
             kinds_seen.insert(kind);
-            if let Some(Some(route)) = corpus.walk.physical.get(instruction.logical.0) {
+            if let Some(Some(route)) = corpus.walk.physical.get(instruction.logical().0) {
                 routes_seen.insert((kind, label(*route)));
             }
         }
@@ -125,10 +125,10 @@ fn an_unclassified_instruction_is_refused() {
         .program
         .regions()
         .iter()
-        .flat_map(|region| region.instructions.iter())
-        .find(|instruction| kind_of(&instruction.operation) == OperationKind::Join)
+        .flat_map(|region| region.instructions().iter())
+        .find(|instruction| kind_of(&instruction.operation()) == OperationKind::Join)
         .unwrap()
-        .logical;
+        .logical();
     let lookup = |logical| {
         (logical != victim)
             .then(|| corpus.program.fusibility(logical))
@@ -144,10 +144,10 @@ fn a_kind_relabelled_as_fusable_is_refused() {
         .program
         .regions()
         .iter()
-        .flat_map(|region| region.instructions.iter())
-        .find(|instruction| kind_of(&instruction.operation) == OperationKind::Rows)
+        .flat_map(|region| region.instructions().iter())
+        .find(|instruction| kind_of(&instruction.operation()) == OperationKind::Rows)
         .unwrap()
-        .logical;
+        .logical();
     let lookup = |logical| {
         if logical == rows {
             Some(Fusibility::Fusable)
@@ -165,10 +165,10 @@ fn a_fused_continuation_relabelled_as_a_barrier_is_refused() {
         .program
         .regions()
         .iter()
-        .find(|region| region.instructions.len() > 1)
+        .find(|region| region.instructions().len() > 1)
         .expect("the corpus fuses one continuation")
-        .instructions[1]
-        .logical;
+        .instructions()[1]
+        .logical();
     let lookup = |logical| {
         if logical == fused {
             Some(Fusibility::Barrier(Barrier::SharedConsumer))

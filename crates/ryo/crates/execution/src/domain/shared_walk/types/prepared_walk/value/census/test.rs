@@ -28,7 +28,7 @@ fn the_census_includes_every_synthetic_observation_union() -> Result<(), Operati
         operators,
     } = fixture(FrontierSlots::Declared);
     let slots = graph.observations.as_ref().unwrap().slots.clone();
-    let program = compile(&plans, graph, &DeclaredFileProducers, &operators).unwrap();
+    let program = compile(&plans, graph, &DeclaredFileProducers, &operators, crate::domain::executable_program::types::RoutePolicy::default()).unwrap();
     use ryo_values::domain::{
         plan_parts::types::{Input as PlanInput, StepId},
         plans::types::Operation,
@@ -44,33 +44,33 @@ fn the_census_includes_every_synthetic_observation_union() -> Result<(), Operati
             .unwrap();
         let region = &program.regions()[program.logical_regions()[origin.logical.0].0];
         // These consumers remain individual heads, not fused continuations.
-        assert_eq!(region.instructions.len(), 1);
-        let head = &region.instructions[0];
-        assert_eq!(head.logical, origin.logical);
+        assert_eq!(region.instructions().len(), 1);
+        let head = &region.instructions()[0];
+        assert_eq!(head.logical(), origin.logical);
         assert!(matches!(
-            head.operation,
+            head.operation(),
             Operation::Select {
                 from: PlanInput::Step(StepId(0)),
                 ..
             }
         ));
-        assert_eq!(&*region.inputs, &[InputSource::Observation(slot)]);
+        assert_eq!(&*region.inputs(), &[InputSource::Observation(slot)]);
         observation_consumers.push(head);
     }
     assert_eq!(observation_consumers.len(), 2);
     for region in program
         .regions()
         .iter()
-        .filter(|region| region.instructions[0].logical.0 >= program.logical_regions().len())
+        .filter(|region| region.instructions()[0].logical().0 >= program.logical_regions().len())
     {
-        assert_eq!(region.instructions.len(), 1);
+        assert_eq!(region.instructions().len(), 1);
         assert!(matches!(
-            region.instructions[0].operation,
+            region.instructions()[0].operation(),
             Operation::Union { .. }
         ));
         assert!(
             region
-                .inputs
+                .inputs()
                 .iter()
                 .all(|source| matches!(source, InputSource::ObservationMember { .. }))
         );
@@ -78,10 +78,10 @@ fn the_census_includes_every_synthetic_observation_union() -> Result<(), Operati
     let instructions = program
         .regions()
         .iter()
-        .flat_map(|region| region.instructions.iter());
+        .flat_map(|region| region.instructions().iter());
     let total = instructions.clone().count();
     let unions = instructions
-        .filter(|instruction| instruction.logical.0 >= program.logical_regions().len())
+        .filter(|instruction| instruction.logical().0 >= program.logical_regions().len())
         .count();
     assert_eq!(unions, 2, "both named observation inputs compile a union");
     assert!(total > program.logical_regions().len());

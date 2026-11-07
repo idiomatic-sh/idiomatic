@@ -135,16 +135,16 @@ impl PreparedWalk {
         program: &crate::domain::executable_program::types::ExecutableProgram,
         instruction: &crate::domain::executable_program::types::Instruction,
     ) -> Option<ClassPlace> {
-        let region = program.logical_regions().get(instruction.logical.0)?;
+        let region = program.logical_regions().get(instruction.logical().0)?;
         let first = program
             .regions()
             .get(region.0)
-            .and_then(|region| region.instructions.first())?;
-        if first.logical != instruction.logical {
+            .and_then(|region| region.instructions().first())?;
+        if first.logical() != instruction.logical() {
             return None;
         }
         use ryo_values::domain::{plan_parts::types::RepeatedRows, plans::types::Operation};
-        let (relation, comparisons, kept) = match &instruction.operation {
+        let (relation, comparisons, kept) = match &instruction.operation() {
             Operation::Select {
                 from: Input::Relation(relation),
                 comparisons,
@@ -162,7 +162,7 @@ impl PreparedWalk {
         }) {
             return None;
         }
-        let rule = program.rules().get(instruction.producer.0)?;
+        let rule = program.rules().get(instruction.producer().0)?;
         if rule.original_steps.iter().any(Result::is_err) {
             return None;
         }
@@ -170,9 +170,9 @@ impl PreparedWalk {
             .original_steps
             .iter()
             .flatten()
-            .find(|origin| origin.logical == instruction.logical)?;
+            .find(|origin| origin.logical == instruction.logical())?;
         let class = self
-            .class_of(instruction.producer)
+            .class_of(instruction.producer())
             .and_then(|classes| classes.get(original.step.0 as usize))
             .copied()
             .flatten()?;
@@ -211,9 +211,9 @@ impl PreparedWalk {
                     continue;
                 };
                 let Some(head) = region
-                    .instructions
+                    .instructions()
                     .iter()
-                    .find(|instruction| instruction.logical == origin.logical)
+                    .find(|instruction| instruction.logical() == origin.logical)
                 else {
                     continue;
                 };
@@ -269,21 +269,21 @@ impl PreparedWalk {
         let slots = program
             .regions()
             .iter()
-            .flat_map(|region| region.instructions.iter())
-            .map(|instruction| instruction.logical.0)
+            .flat_map(|region| region.instructions().iter())
+            .map(|instruction| instruction.logical().0)
             .max()
             .map_or(0, |last| last + 1);
         self.physical = vec![None; slots];
         for region in program.regions() {
-            for (at, instruction) in region.instructions.iter().enumerate() {
+            for (at, instruction) in region.instructions().iter().enumerate() {
                 let route = self
                     .physical
-                    .get_mut(instruction.logical.0)
+                    .get_mut(instruction.logical().0)
                     .ok_or(OperatingError::NotRun)?;
-                let barrier = if instruction.logical.0 >= program.logical_regions().len() {
+                let barrier = if instruction.logical().0 >= program.logical_regions().len() {
                     WalkBarrier::Observation
                 } else if at == 0 {
-                    source_barrier(&instruction.operation, &region.inputs)
+                    source_barrier(&instruction.operation(), &region.inputs())
                 } else {
                     WalkBarrier::Continuation
                 };
@@ -291,13 +291,13 @@ impl PreparedWalk {
                     return Err(OperatingError::NotRun);
                 }
             }
-            let Some(head) = region.instructions.first() else {
+            let Some(head) = region.instructions().first() else {
                 continue;
             };
             if let Some(class) = self.resolve_class(program, head) {
                 *self
                     .physical
-                    .get_mut(head.logical.0)
+                    .get_mut(head.logical().0)
                     .ok_or(OperatingError::NotRun)? = Some(WalkRoute::Shared(class));
             }
         }
@@ -324,7 +324,7 @@ impl PreparedWalk {
         &self,
         instruction: &crate::domain::executable_program::types::Instruction,
     ) -> Option<ClassPlace> {
-        match self.physical.get(instruction.logical.0)?.as_ref()? {
+        match self.physical.get(instruction.logical().0)?.as_ref()? {
             WalkRoute::Shared(class) => Some(*class),
             WalkRoute::Barrier(_barrier) => None,
         }
@@ -335,7 +335,7 @@ impl PreparedWalk {
         &self,
         instruction: &crate::domain::executable_program::types::Instruction,
     ) -> Option<WalkRoute> {
-        *self.physical.get(instruction.logical.0)?
+        *self.physical.get(instruction.logical().0)?
     }
 
     pub(crate) fn classes(&self) -> &[StepClass] {

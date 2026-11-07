@@ -70,6 +70,12 @@ impl RelationOwner {
     pub(in crate::application::file_dag) fn derived(&self) -> &super::derived::owner::DerivedOwner {
         &self.derived
     }
+    #[cfg(test)]
+    pub(in crate::application::file_dag) fn derived_mut(
+        &mut self,
+    ) -> &mut super::derived::owner::DerivedOwner {
+        &mut self.derived
+    }
     pub(in crate::application::file_dag) fn generation_guard(&self) -> Arc<()> {
         Arc::clone(&self.generation.borrow())
     }

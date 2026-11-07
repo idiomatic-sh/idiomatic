@@ -305,12 +305,14 @@ impl Instruction {
     pub(crate) fn demand(&self) -> &DemandProgram {
         &self.demand
     }
+    #[cfg(test)]
     pub(crate) fn partition(&self) -> PartitionRequirement {
         self.partition
     }
 }
 
 impl Region {
+    #[cfg(test)]
     pub(crate) fn id(&self) -> RegionId {
         self.id
     }
@@ -331,6 +333,7 @@ impl Region {
     pub(crate) fn inputs(&self) -> &[InputSource] {
         &self.inputs
     }
+    #[cfg(test)]
     pub(crate) fn source_partitions(&self) -> &[SourcePartition] {
         &self.source_partitions
     }

@@ -10,11 +10,11 @@ use std::sync::{Arc, Mutex};
 /// has been kept longest is dropped, whatever the request in progress names: a run holds the plans it compiled or found, so
 /// dropping one never changes an answer.
 #[derive(Clone, Debug, Default)]
-pub struct CompiledPlans(pub Arc<Mutex<PlanCache>>);
+pub struct CompiledPlans(pub(crate) Arc<Mutex<PlanCache>>);
 
 /// The plans compiled so far, and the order they were first kept in.
 #[derive(Debug, Default)]
-pub struct PlanCache {
+pub(crate) struct PlanCache {
     /// The plan of each rule id.
     pub plans: std::collections::HashMap<RuleId, CachedPlan>,
     /// The rule ids of `plans`, the one kept longest first, each once.
@@ -23,7 +23,7 @@ pub struct PlanCache {
 
 /// The plan a rule's query compiled to, kept with the query it was compiled from: a rule whose query changed is compiled again.
 #[derive(Clone, Debug)]
-pub struct CachedPlan {
+pub(crate) struct CachedPlan {
     /// The RyoQL text the plan was compiled from.
     pub query: QueryBundle,
     /// The relations the host declared when it was: a plan that names one is another plan when they are others.

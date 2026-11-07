@@ -52,20 +52,20 @@ fn verify_program(corpus: &Corpus) -> Result<(), RouteRefusal> {
     let mut kinds = HashSet::new();
     let mut routes = HashSet::new();
     for region in corpus.program.regions() {
-        for (at, instruction) in region.instructions.iter().enumerate() {
+        for (at, instruction) in region.instructions().iter().enumerate() {
             let place = if at > 0 {
                 Place::Later
-            } else if shared.contains(&instruction.logical) {
+            } else if shared.contains(&instruction.logical()) {
                 Place::Head(Eligibility::Eligible)
             } else {
                 Place::Head(Eligibility::Ineligible)
             };
             let want = route(&corpus.program, region, instruction, place);
-            if engine(corpus.walk.physical[instruction.logical.0]) != Some(want) {
+            if engine(corpus.walk.physical[instruction.logical().0]) != Some(want) {
                 return Err(RouteRefusal::RouteMismatch);
             }
             if at == 0 {
-                kinds.extend([kind_of(&instruction.operation)]);
+                kinds.extend([kind_of(&instruction.operation())]);
             }
             routes.extend([want]);
         }
@@ -232,10 +232,10 @@ fn head_of(corpus: &Corpus, kind: OperationKind) -> LogicalInstruction {
         .program
         .regions()
         .iter()
-        .filter_map(|region| region.instructions.first())
-        .find(|instruction| kind_of(&instruction.operation) == kind)
+        .filter_map(|region| region.instructions().first())
+        .find(|instruction| kind_of(&instruction.operation()) == kind)
         .expect("a head of every kind")
-        .logical
+        .logical()
 }
 fn route_subject(scenario: RouteScenario) -> Result<(), RouteRefusal> {
     match scenario {

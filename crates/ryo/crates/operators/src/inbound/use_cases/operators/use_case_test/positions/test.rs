@@ -1,4 +1,5 @@
 //! Public acceptance of deferred position rows and bag order.
+use crate::domain::equality_join::errors::EqualityJoinError;
 use crate::inbound::use_cases::operators::{fixtures, interface::OperatorsUseCase};
 use crate::domain::capture::types::*;
 use crate::domain::contract::types::*;

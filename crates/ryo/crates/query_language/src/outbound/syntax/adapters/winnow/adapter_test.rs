@@ -208,7 +208,7 @@ fn grouped_read(program: &WrittenProgram) {
 
 /// The parameter and the `where` filter of `LONG_FILES` are read as written.
 fn parameter_and_filter_read(program: &WrittenProgram) {
-    assert_eq!(&*program.parameters[0].name.0, "max-lines");
+    assert_eq!(&*program.parameters[0].parameter.0, "max-lines");
     assert_eq!(&*program.parameters[0].kind.0, "integer");
     let Expression::Select(select) = &program.steps[0].expression else {
         panic!("the step is a select");

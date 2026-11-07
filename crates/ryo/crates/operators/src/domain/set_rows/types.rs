@@ -1,4 +1,5 @@
 //! Borrowed set rows contracts; no engine authority.
+use super::errors::SetRowsError;
 /// The four set and antijoin meanings; input acquisition and delivery stay with the engine.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SetKind {

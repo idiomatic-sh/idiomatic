@@ -68,7 +68,7 @@ pub(crate) fn subject(scenario: Input) -> Result<Value, Failure> {
     if expects_native {
         assert!(
             crate::domain::executable_program::service::native_positions(
-                &prepared.program().regions()[target_region.0].route
+                &prepared.program().regions()[target_region.0].route()
             )
             .is_some(),
             "this case requires the compiled native-position strategy to be installed"
@@ -77,7 +77,7 @@ pub(crate) fn subject(scenario: Input) -> Result<Value, Failure> {
     if matches!(scenario, Scenario::OrdinaryFunctionJoin) {
         assert!(
             crate::domain::executable_program::service::native_positions(
-                &prepared.program().regions()[target_region.0].route
+                &prepared.program().regions()[target_region.0].route()
             )
             .is_none(),
             "the non-tree RHS must decline native-position installation"

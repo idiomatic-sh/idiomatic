@@ -26,7 +26,7 @@ fn a_named_capture_root_is_not_fused_into() {
             "a named observation output keeps its owner-issued publication"
         );
         let region = compiled.logical_regions()[projection.0];
-        assert_eq!(compiled.regions()[region.0].instructions.len(), 1);
+        assert_eq!(compiled.regions()[region.0].instructions().len(), 1);
     }
     // Its consumer reads a named observation: a source, never a continuation.
     let consumer = compiled.rules()[2].original_steps[0]

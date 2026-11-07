@@ -124,7 +124,7 @@ fn records() -> RetainedBytes {
     let Handing::Made(handed) = &ran.handed else {
         panic!("fresh handover")
     };
-    let RecordWords::Inline(words) = &handed.buckets[0].words else {
+    let RecordWords::Inline(words) = &handed.buckets[0].handed else {
         panic!("inline first bucket")
     };
     assert_eq!(words.0.as_ptr(), packed_pointer);

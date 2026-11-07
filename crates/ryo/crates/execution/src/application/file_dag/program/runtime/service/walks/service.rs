@@ -46,7 +46,7 @@ impl KernelPermit<'_> {
             plan_parts::types::{Input, RepeatedRows},
             plans::types::Operation,
         };
-        let authored = match &self.descriptor().operation {
+        let authored = match &self.descriptor().operation() {
             Operation::Select {
                 from: Input::Relation(authored),
                 ..
@@ -77,10 +77,10 @@ impl KernelPermit<'_> {
     ) -> Result<&'a AdmittedInput, OperatingError> {
         self.validate_live()?;
         let region = &self.program.regions()[self.region.0];
-        let declared = crate::domain::executable_program::service::selection(&region.route)
+        let declared = crate::domain::executable_program::service::selection(&region.route())
             .ok_or(OperatingError::WrongOperation)?;
         if shape.target() != self.region
-            || shape.logical() != region.instructions[self.instruction.0].logical
+            || shape.logical() != region.instructions()[self.instruction.0].logical()
             || !Arc::ptr_eq(shape.selector(), declared.selector())
         {
             return Err(OperatingError::NotRead);
@@ -103,13 +103,13 @@ impl KernelPermit<'_> {
             return Err(OperatingError::WrongOperation);
         }
         let region = &self.program.regions()[self.region.0];
-        if region.instructions.len() != 1 || region.inputs.len() != 2 {
+        if region.instructions().len() != 1 || region.inputs().len() != 2 {
             return Err(OperatingError::WrongOperation);
         }
         let left_input = self.bound_input(InputId(0))?;
         let right_input = self.bound_input(InputId(1))?;
-        let expected = region.instructions[self.instruction.0]
-            .contract
+        let expected = region.instructions()[self.instruction.0]
+            .contract()
             .derived
             .slots[ryo_derived::domain::contract::types::DerivedKind::NativeLookup.ordinal()]
         .as_ref()
@@ -133,17 +133,17 @@ impl KernelPermit<'_> {
     ) -> crate::application::file_dag::program::runtime::types::NativeJoinEligibility {
         let region = &self.program.regions()[self.region.0];
         if self.program.routes().tree_join == crate::domain::executable_program::types::RouteWiring::Wired
-            && region.instructions.len() == 1
+            && region.instructions().len() == 1
             && matches!(
                 self.operation(),
                 ryo_values::domain::plans::types::Operation::Join { reach: None, filter, .. } if filter.is_empty()
             )
-            && region.instructions[self.instruction.0]
-                .contract
+            && region.instructions()[self.instruction.0]
+                .contract()
                 .schema
                 .is_ok()
-            && region.instructions[self.instruction.0]
-                .contract
+            && region.instructions()[self.instruction.0]
+                .contract()
                 .row_error
                 .is_none()
         {

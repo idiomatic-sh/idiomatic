@@ -41,6 +41,7 @@ fn program() -> ExecutableProgram {
         rules,
         logical_regions: Box::new([]),
         observation_regions: Box::new([]),
+        routes: super::super::types::RoutePolicy::default(),
         fusibility: Box::new([]),
     }
 }

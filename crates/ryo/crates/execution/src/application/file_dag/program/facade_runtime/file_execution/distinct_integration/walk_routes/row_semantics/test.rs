@@ -38,10 +38,10 @@ fn exercise(route: RowRoute) -> Result<(), OperatingError> {
         .logical;
     let region = compiled.logical_regions()[logical.0];
     let instruction = compiled.regions()[region.0]
-        .instructions
+        .instructions()
         .first()
         .ok_or(OperatingError::NotRun)?;
-    assert_eq!(kind_of(&instruction.operation), route.kind(), "{route:?}");
+    assert_eq!(kind_of(&instruction.operation()), route.kind(), "{route:?}");
     assert!(
         program.prepared.walk_class(instruction).is_none(),
         "{route:?} is a barrier of the source walk, not a class member"
@@ -56,7 +56,7 @@ fn exercise(route: RowRoute) -> Result<(), OperatingError> {
         "{route:?}"
     );
     assert_eq!(
-        compiled.regions()[region.0].instructions.len(),
+        compiled.regions()[region.0].instructions().len(),
         1,
         "{route:?}"
     );

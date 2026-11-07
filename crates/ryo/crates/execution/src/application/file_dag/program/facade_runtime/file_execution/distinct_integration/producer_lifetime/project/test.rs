@@ -34,9 +34,9 @@ fn exercise(exit: PhaseExit, delivery: Delivery) -> Result<(), OperatingError> {
             let region = prepared.program().logical_regions()[origin.logical.0];
             assert!(
                 prepared.program().regions()[region.0]
-                    .instructions
+                    .instructions()
                     .iter()
-                    .any(|instruction| { instruction.logical == origin.logical }),
+                    .any(|instruction| { instruction.logical() == origin.logical }),
                 "{exit:?}: compiled rule {rule} step {step} must retain its actual instruction"
             );
         }

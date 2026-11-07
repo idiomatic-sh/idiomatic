@@ -13,8 +13,8 @@ pub mod contract;
 pub mod ordered_existence;
 pub mod ordered_match;
 pub(crate) mod rank;
-pub(crate) mod replace;
-pub(crate) mod select;
+pub mod replace;
+pub mod select;
 pub mod source_matches;
 pub mod words;
 

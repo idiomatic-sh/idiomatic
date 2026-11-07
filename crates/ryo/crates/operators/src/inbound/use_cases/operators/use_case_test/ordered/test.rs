@@ -1,4 +1,5 @@
 //! The public ordered-pair call observes prepared inputs and immediately honors downstream refusal.
+use crate::domain::contract::errors::ContractError;
 use crate::inbound::use_cases::operators::{fixtures, interface::OperatorsUseCase};
 use crate::domain::capture::types::*;
 use crate::domain::contract::types::*;

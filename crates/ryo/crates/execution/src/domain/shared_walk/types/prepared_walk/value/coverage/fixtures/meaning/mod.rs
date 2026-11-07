@@ -115,12 +115,12 @@ pub(in super::super) fn route(
     instruction: &crate::domain::executable_program::types::Instruction,
     place: Place,
 ) -> Route {
-    if instruction.logical.0 >= program.logical_regions().len() {
+    if instruction.logical().0 >= program.logical_regions().len() {
         Route::Observation
     } else if let Place::Head(head) = place {
         head_route(
-            &instruction.operation,
-            if matches!(region.inputs.first(), Some(InputSource::Observation(_))) {
+            &instruction.operation(),
+            if matches!(region.inputs().first(), Some(InputSource::Observation(_))) {
                 FirstInput::Observation
             } else {
                 FirstInput::Ordinary

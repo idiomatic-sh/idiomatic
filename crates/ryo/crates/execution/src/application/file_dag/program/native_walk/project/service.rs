@@ -3,7 +3,7 @@ use super::super::lease::service::PermittedWalk;
 use super::super::{Deliveries, Fate, FileWalk, Owed, SourceWork, Submission, WalkSourceIdentity};
 use crate::application::file_dag::executor::{
     KernelCall, PrimitiveExecutor,
-    response::types::{KernelAnswer, KernelFault},
+    KernelAnswer, KernelFault,
 };
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use crate::application::file_dag::program::runtime::service::{KernelPermit, ReadySelection};

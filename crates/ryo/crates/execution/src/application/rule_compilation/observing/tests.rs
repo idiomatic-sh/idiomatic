@@ -125,7 +125,7 @@ fn observer_stops_at_distinct_and_invalid_inputs_and_distinguishes_empty_project
             }
         )
         .is_none(),
-        DISTINCT_IS_BARRIER
+        "{DISTINCT_IS_BARRIER}"
     );
     assert!(
         prefix(

@@ -138,7 +138,7 @@ impl ProgramExecution {
             .regions()
             .get(id.0)
             .ok_or(OperatingError::NotRun)?
-            .producer;
+            .producer();
         if state
             .slots
             .borrow()

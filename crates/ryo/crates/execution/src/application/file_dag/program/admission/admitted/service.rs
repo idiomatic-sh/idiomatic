@@ -24,7 +24,7 @@ impl ReadProof {
         use crate::domain::completion::types::CoverageState;
         let readiness = match coverage {
             CoverageState::Complete => Readiness::Complete,
-            CoverageState::Partial { files } => Readiness::Partial { files },
+            CoverageState::Partial { files, lacks } => Readiness::Partial { files, lacks },
             CoverageState::Inapplicable { files } => Readiness::Inapplicable { files },
         };
         Self {

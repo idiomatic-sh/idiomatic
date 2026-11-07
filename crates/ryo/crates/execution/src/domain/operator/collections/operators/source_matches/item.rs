@@ -24,11 +24,11 @@ struct Delivery<'a, 'engine> {
     error: FailureLatch,
 }
 impl TextRowDriver for Delivery<'_, '_> {
-    fn intern(&mut self, text: &str) -> Value {
+    fn intern(&mut self, text: ryo_values::domain::row_texts::types::CellText<'_>) -> Value {
         Value::Symbol(query_intern_derived(
             &mut self.lease.derived,
             ByteSlice(self.lease.views.source.0),
-            NameText(text),
+            NameText(text.0),
         ))
     }
     fn emit(&mut self, row: &[Value]) -> Result<(), ContractError> {
@@ -88,16 +88,28 @@ impl OperatorsItem for SourceMatchesItem {
         let answer = semantics.operators(OperatorCall::SourceMatches {
             input: SourceMatchesInput {
                 row,
-                source,
-                base: checked.base,
-                text: checked.text,
-                line: checked.line,
+                source: ryo_operators::domain::source_matches::types::LineBytes(source),
+                base: ryo_operators::domain::source_matches::types::SourceBase(checked.base),
+                text: ryo_values::domain::row_texts::types::CellText(checked.text),
+                line: checked.line.map_or(
+                    ryo_operators::domain::source_matches::types::BaseLine::Unnumbered,
+                    |line| {
+                        ryo_operators::domain::source_matches::types::BaseLine::Starts(
+                            ryo_relations::domain::relations::types::Integer(line),
+                        )
+                    },
+                ),
                 regex,
-                capture: capture.as_ref().map(|name| name.0.as_ref()),
-                capture_text: *capture_text
-                    == ryo_values::domain::query_operators::types::TextOutput::Appended,
-                capture_line: *capture_line
-                    == ryo_values::domain::query_operators::types::LineOutput::Appended,
+                capture: capture.as_ref().map_or(
+                    ryo_operators::domain::source_matches::types::CaptureRequest::Whole,
+                    |name| {
+                        ryo_operators::domain::source_matches::types::CaptureRequest::Group(
+                            ryo_values::domain::row_texts::types::CellText(name.0.as_ref()),
+                        )
+                    },
+                ),
+                capture_text: *capture_text,
+                capture_line: *capture_line,
             },
             driver: &mut driver,
             target: &mut joined,

@@ -1,4 +1,5 @@
 //! Restore demanded file roots through the same request owner, once per physical bucket.
+use crate::application::file_dag::observations::types::CrossRoot;
 use crate::application::file_dag::observations::cross::incomplete;
 use crate::application::file_dag::observations::types::{
     FrontierCompatibility, CrossPublications, FileFrontiers, FrontierPopulation, FrontierSlot,
@@ -54,7 +55,7 @@ impl CrossPublications<'_> {
         })
     }
     /// Each logical output retains its own readiness even when names share one physical bucket.
-    pub(crate) fn install_frontier(
+    pub(in crate::application::file_dag::observations) fn install_frontier(
         &mut self,
         slot: FrontierSlot,
         prepared: &PreparedFrontier,

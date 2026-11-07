@@ -15,7 +15,7 @@ impl DerivedUseCase for DerivedUseCaseImpl {
         request: ViewRequest,
         schemas: Vec<Vec<ryo_relations::domain::relations::types::CellKind>>,
     ) -> std::sync::Arc<PreparedDerived> {
-        std::sync::Arc::new(crate::domain::preparation::prepare(request, schemas))
+        std::sync::Arc::new(crate::domain::preparation::service::prepare(request, schemas))
     }
     fn build(
         &self,
@@ -24,13 +24,13 @@ impl DerivedUseCase for DerivedUseCaseImpl {
         room: &mut BuildWorkspace,
         recycled: Option<DerivedPayload>,
     ) -> Result<BuildOutcome, DerivedFault> {
-        crate::domain::dispatch::build(prepared, inputs, room, recycled)
+        crate::domain::dispatch::service::build(prepared, inputs, room, recycled)
     }
     fn view<'a>(
         &self,
         prepared: &PreparedDerived,
         payload: &'a DerivedPayload,
     ) -> Result<DerivedView<'a>, DerivedFault> {
-        crate::domain::dispatch::view(prepared, payload)
+        crate::domain::dispatch::service::view(prepared, payload)
     }
 }

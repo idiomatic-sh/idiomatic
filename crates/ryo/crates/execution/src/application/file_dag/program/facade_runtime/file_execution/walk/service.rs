@@ -209,7 +209,7 @@ impl FileRun<'_> {
             self.walk_prepared = WalkPreparation::Prepared;
             return Ok(());
         };
-        let rule = self.program.program().regions()[first.0].producer;
+        let rule = self.program.program().regions()[first.0].producer();
         let completion = match &self.partials {
             ScopePartials::File {
                 evaluation,

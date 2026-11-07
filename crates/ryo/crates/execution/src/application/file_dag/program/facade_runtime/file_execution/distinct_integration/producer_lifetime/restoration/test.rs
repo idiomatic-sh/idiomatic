@@ -27,7 +27,7 @@ fn exercise(exit: Exit) -> Result<(), OperatingError> {
             .as_ref()
             .expect("valid compiled named union");
         assert_eq!(
-            captured.prepared.program().regions()[union.0].phase,
+            captured.prepared.program().regions()[union.0].phase(),
             StepScope::CrossFile,
             "restored project fixture must demand project-scoped unions, not unresolved file frontiers"
         );
@@ -70,7 +70,7 @@ fn exercise(exit: Exit) -> Result<(), OperatingError> {
     );
     assert!(
         captured.prepared.program().regions()[consumer.0]
-            .dependencies
+            .dependencies()
             .contains(&producer),
         "the observed Join really consumes this compiled Union"
     );
@@ -80,12 +80,12 @@ fn exercise(exit: Exit) -> Result<(), OperatingError> {
         .logical;
     let region = &captured.prepared.program().regions()[consumer.0];
     let join = region
-        .instructions
+        .instructions()
         .iter()
-        .find(|instruction| instruction.logical == join_logical)
+        .find(|instruction| instruction.logical() == join_logical)
         .expect("actual compiled Join");
     let equality = join
-        .contract
+        .contract()
         .derived
         .slots
         .iter()
@@ -96,12 +96,12 @@ fn exercise(exit: Exit) -> Result<(), OperatingError> {
         .expect("actual Join declares Equality");
     assert_eq!(equality.primary.len, 1);
     let crate::domain::executable_program::types::OperandSource::Boundary(input) =
-        join.inputs[equality.primary.inputs[0]]
+        join.inputs()[equality.primary.inputs[0]]
     else {
         panic!("observed Equality must have a real upstream publication")
     };
     assert_eq!(
-        region.inputs[input.0],
+        region.inputs()[input.0],
         crate::domain::executable_program::types::InputSource::Region(producer),
         "observe the precise population demanded by the compiled Equality contract"
     );

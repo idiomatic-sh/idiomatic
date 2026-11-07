@@ -69,7 +69,7 @@ impl RetainedBytes {
                 + capacity(&handed.governing.0).0
                 + capacity(&handed.partials).0;
             for bucket in &handed.buckets {
-                match &bucket.words {
+                match &bucket.handed {
                     RecordWords::Inline(words) => {
                         bytes.packed_live.0 += words.0.len();
                         bytes.packed_capacity.0 += words.0.capacity();

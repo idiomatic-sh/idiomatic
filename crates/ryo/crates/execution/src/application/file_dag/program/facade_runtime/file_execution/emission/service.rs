@@ -52,7 +52,7 @@ impl FileRun<'_> {
             .emit
             .as_ref()
             .map_err(Clone::clone)?;
-        let phase = self.program.program().regions()[id.0].phase;
+        let phase = self.program.program().regions()[id.0].phase();
         if phase != ryo_values::domain::plan_parts::types::StepScope::PerFile {
             return Ok(
                 crate::application::file_dag::program::protocol::types::RowEmission::Deferred {

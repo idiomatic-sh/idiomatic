@@ -281,6 +281,12 @@ pub(crate) fn authorize(
                 }
             },
         ),
+        // The width check, cycle marking, table rows and render batches run through the ordinary operator
+        // call of their registered items; a physical permit authorizes none of them.
+        OperatorCall::FitsRendered { .. }
+        | OperatorCall::Cycles { .. }
+        | OperatorCall::TableRows { .. }
+        | OperatorCall::RenderBatch { .. } => (0, false),
     };
     if allowed & family == 0 || !exact {
         return Err(OperatingError::WrongOperation);

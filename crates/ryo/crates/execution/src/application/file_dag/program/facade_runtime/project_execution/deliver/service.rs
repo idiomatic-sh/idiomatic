@@ -76,11 +76,11 @@ impl ProjectRun<'_> {
             EmitDemand::Disabled => RootOutcome::NoQuery,
             EmitDemand::Enabled => match &metadata.emit_root {
                 Ok(id)
-                    if self.program.program().regions()[id.0].phase
+                    if self.program.program().regions()[id.0].phase()
                         != ryo_values::domain::plan_parts::types::StepScope::CrossFile =>
                 {
                     RootOutcome::Deferred {
-                        phase: self.program.program().regions()[id.0].phase,
+                        phase: self.program.program().regions()[id.0].phase(),
                     }
                 }
                 Ok(id) => outcome_of(

@@ -62,21 +62,21 @@ impl RequestDerived {
                     .regions()
                     .get(region_id.0)
                     .ok_or(OperatingError::NotRun)?;
-                if region.phase != ryo_values::domain::plan_parts::types::StepScope::PerFile {
+                if region.phase() != ryo_values::domain::plan_parts::types::StepScope::PerFile {
                     continue;
                 }
 
-                for source in region.inputs.iter() {
+                for source in region.inputs().iter() {
                     if let InputSource::Relation(relation) = source {
                         note_read(&mut reads, *relation);
                     }
                 }
                 let instruction = region
-                    .instructions
+                    .instructions()
                     .iter()
-                    .find(|instruction| instruction.logical == origin.logical)
+                    .find(|instruction| instruction.logical() == origin.logical)
                     .ok_or(OperatingError::NotRun)?;
-                for group in instruction.contract.derived.slots.iter().flatten() {
+                for group in instruction.contract().derived.slots.iter().flatten() {
                     for use_ in std::iter::once(&group.primary).chain(group.secondary.iter()) {
                         for relation in use_.relations.iter().flatten() {
                             note_read(&mut reads, *relation);
@@ -84,7 +84,7 @@ impl RequestDerived {
                     }
                 }
                 graph |= matches!(
-                    instruction.operation,
+                    instruction.operation(),
                     ryo_values::domain::plans::types::Operation::Axis { .. }
                         | ryo_values::domain::plans::types::Operation::Join { reach: Some(_), .. }
                 );

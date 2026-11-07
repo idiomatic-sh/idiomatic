@@ -21,22 +21,28 @@ enum Operand {
     Step,
 }
 type Input = Operand;
-type Value = CoverageState;
+/// Where the rows a join places missing from one file lie.
+#[derive(Debug, PartialEq, Eq)]
+enum Placement {
+    /// In the one file that was missing them, any row of it.
+    MissingFile(u32),
+    /// In the whole repository.
+    Anywhere,
+}
+type Value = Placement;
 type Failure = OperatingError;
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_node_key_of_a_relation_places_the_missing_rows_in_the_missing_file"),
         word: Word::Succeeds,
         input: || Operand::Relation,
-        expect: Expect::Value(CoverageState::Partial {
-            files: vec![Some(FileId(1))],
-        }),
+        expect: Expect::Value(Placement::MissingFile(1)),
     },
     Case {
         name: CaseName("a_node_key_of_a_step_cannot_place_the_missing_rows"),
         word: Word::Succeeds,
         input: || Operand::Step,
-        expect: Expect::Value(CoverageState::Partial { files: vec![None] }),
+        expect: Expect::Value(Placement::Anywhere),
     },
 ];
 fn subject(operand: Input) -> Result<Value, Failure> {
@@ -68,7 +74,7 @@ fn subject(operand: Input) -> Result<Value, Failure> {
         reach: None,
     };
     let kinds = [CellKind::Node, CellKind::File];
-    output_coverage(
+    let coverage = output_coverage(
         &join,
         &kinds,
         &[
@@ -80,12 +86,19 @@ fn subject(operand: Input) -> Result<Value, Failure> {
             InputCoverage {
                 ordinal: 1,
                 kinds: &kinds,
-                coverage: CoverageState::Partial {
-                    files: vec![Some(FileId(1))],
-                },
+                coverage: crate::domain::completion::service::partial_any(vec![Some(FileId(1))]),
             },
         ],
-    )
+    )?;
+    match coverage {
+        CoverageState::Partial { files, .. } if files == [Some(FileId(1))] => {
+            Ok(Placement::MissingFile(1))
+        }
+        CoverageState::Partial { files, .. } if files == [None] => Ok(Placement::Anywhere),
+        CoverageState::Complete
+        | CoverageState::Partial { .. }
+        | CoverageState::Inapplicable { .. } => Err(OperatingError::WrongOperation),
+    }
 }
 #[test]
 fn succeeds() {

@@ -56,7 +56,7 @@ pub(in crate::application) fn validate_restored_frontier(
         }
     }
     let coverage = crate::application::file_dag::frontiers::service::validate_bucket(
-        prepared, producer, input.0, first, bucket, required, &payload,
+        prepared, producer, input, first, bucket, required, &payload,
     )?;
     let source = *prepared
         .program()
@@ -71,9 +71,9 @@ pub(in crate::application) fn validate_restored_frontier(
             .program()
             .regions()
             .get(region.0)
-            .and_then(|region| region.instructions.last())
+            .and_then(|region| region.instructions().last())
             .ok_or(OperatingError::NotRun)?
-            .contract
+            .contract()
             .output_kinds
             .as_ref()
             .map_err(Clone::clone)?
@@ -93,9 +93,9 @@ pub(in crate::application) fn validate_restored_frontier(
                 .program()
                 .regions()
                 .get(region.0)
-                .and_then(|region| region.instructions.last())
+                .and_then(|region| region.instructions().last())
                 .ok_or(OperatingError::NotRun)?
-                .contract
+                .contract()
                 .output_kinds
                 .as_ref()
                 .map_err(Clone::clone)?

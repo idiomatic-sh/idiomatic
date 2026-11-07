@@ -186,7 +186,9 @@ impl RelationOwner {
                         .views
                         .retain(|_, view| !std::ptr::eq(view.as_ref(), result));
                     self.views
-                        .set(self.views.get().saturating_sub(before - entry.views.len()));
+                        .set(crate::application::file_dag::relations::types::PinnedViewCount(
+                            self.views.get().0.saturating_sub(before - entry.views.len()),
+                        ));
                 }
             }
         }

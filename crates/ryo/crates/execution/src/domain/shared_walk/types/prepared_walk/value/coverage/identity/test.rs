@@ -78,7 +78,7 @@ fn class(program: &ExecutableProgram, step: usize) -> Fusibility {
 }
 fn region_len(program: &ExecutableProgram, step: usize) -> usize {
     let region = program.logical_regions()[logical(program, 0, step).0];
-    program.regions()[region.0].instructions.len()
+    program.regions()[region.0].instructions().len()
 }
 fn compile(plan: Plan) -> ExecutableProgram {
     compile_program(&[plan], &[vec![]])
@@ -215,19 +215,19 @@ fn equivalent_extends_of_two_rules_share_one_region() {
     );
     assert_eq!(emit_region(&program, 0), emit_region(&program, 1));
     let shared = &program.regions()[emit_region(&program, 0)];
-    assert_eq!(shared.consumers, 2, "both rules read the one publication");
+    assert_eq!(shared.consumers(), 2, "both rules read the one publication");
     assert_eq!(program.regions().len(), 2, "one producer, one extend");
     let producer = program.logical_regions()[logical(&program, 0, 0).0];
-    assert_eq!(program.regions()[producer.0].consumers, 1);
+    assert_eq!(program.regions()[producer.0].consumers(), 1);
     // Each rule still names an instruction its region contains.
     for rule in 0..2 {
         let at = logical(&program, rule, 1);
         let region = program.logical_regions()[at.0];
         assert!(
             program.regions()[region.0]
-                .instructions
+                .instructions()
                 .iter()
-                .any(|instruction| instruction.logical == at)
+                .any(|instruction| instruction.logical() == at)
         );
     }
 }

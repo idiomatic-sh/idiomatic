@@ -132,7 +132,7 @@ impl KernelInvocation for RuntimeProbe {
         self.calls.set(EvaluationCount(self.calls.get().0 + 1));
         scratch
             .ordered_row
-            .push(Value::Number(Integer(100 + instruction.producer.0 as i64)));
+            .push(Value::Number(Integer(100 + instruction.producer().0 as i64)));
         let policy = CompletionPolicy::file(RuleIndex(0), FileId(0), &[]);
         match self.mode {
             RuntimeProbeMode::SemanticAndCleanupFailure { completed } => {
@@ -151,7 +151,7 @@ impl KernelInvocation for RuntimeProbe {
                 return Err(InvocationFailure::Semantic(OperatingError::WrongBinding));
             }
             RuntimeProbeMode::NestedFailure { outer, inner }
-                if instruction.producer == RuleIndex(0) =>
+                if instruction.producer() == RuleIndex(0) =>
             {
                 assert_eq!(
                     self.execution.program.rules()[0].emit.as_ref().copied(),
@@ -173,7 +173,7 @@ impl KernelInvocation for RuntimeProbe {
                 );
                 return Err(InvocationFailure::Semantic(OperatingError::WrongBinding));
             }
-            RuntimeProbeMode::NestedFailure { .. } if instruction.producer == RuleIndex(1) => {
+            RuntimeProbeMode::NestedFailure { .. } if instruction.producer() == RuleIndex(1) => {
                 return Err(InvocationFailure::Semantic(OperatingError::WrongBinding));
             }
             RuntimeProbeMode::Reenter { root } => {
@@ -195,7 +195,7 @@ impl KernelInvocation for RuntimeProbe {
             _ => {}
         }
         let kinds = instruction
-            .contract
+            .contract()
             .schema
             .as_ref()
             .map_err(|error| InvocationFailure::Semantic(error.clone()))?;

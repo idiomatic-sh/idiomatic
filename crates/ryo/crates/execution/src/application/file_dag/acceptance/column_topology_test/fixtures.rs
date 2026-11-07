@@ -199,13 +199,13 @@ pub(super) fn node(graph: &RequestGraph, rule: usize, step: usize) -> NodeId {
 }
 
 pub(super) fn program(plans: &[Plan], operators: &RequestOperators, graph: RequestGraph) -> ExecutableProgram {
-    compile(plans, graph, &FileProducers, operators).unwrap()
+    compile(plans, graph, &FileProducers, operators, crate::domain::executable_program::types::RoutePolicy::default()).unwrap()
 }
 
 /// An instruction has exactly one route: the accessors agree with the kind, and at most one is set.
 pub(super) fn assert_one_route(program: &ExecutableProgram) {
     for region in program.regions() {
-        let route = &region.route;
+        let route = &region.route();
         let named = [
             service::ordered_existence(route).is_some(),
             service::column(route).is_some(),
@@ -225,6 +225,6 @@ pub(super) fn column_count(program: &ExecutableProgram) -> usize {
     program
         .regions()
         .iter()
-        .filter(|region| service::column(&region.route).is_some())
+        .filter(|region| service::column(&region.route()).is_some())
         .count()
 }

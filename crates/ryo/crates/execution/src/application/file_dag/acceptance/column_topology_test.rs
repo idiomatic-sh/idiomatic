@@ -34,7 +34,7 @@ fn exclusive_chain_lowers_once_and_duplicate_rule_shares_one_physical_owner() ->
     let compiled = program(&single, &operators, request);
     assert_eq!(column_count(&compiled), 1);
     assert!(
-        service::column(&compiled.regions()[compiled.rules()[0].emit.as_ref().unwrap().0].route)
+        service::column(&compiled.regions()[compiled.rules()[0].emit.as_ref().unwrap().0].route())
             .is_some()
     );
 
@@ -55,8 +55,8 @@ fn exclusive_chain_lowers_once_and_duplicate_rule_shares_one_physical_owner() ->
     let left = compiled.logical_regions()[left_node.0];
     let ordinary_left = ordinary.logical_regions()[left_node.0];
     assert_eq!(
-        compiled.regions()[left.0].consumers,
-        ordinary.regions()[ordinary_left.0].consumers + 1,
+        compiled.regions()[left.0].consumers(),
+        ordinary.regions()[ordinary_left.0].consumers() + 1,
         "one physical alternative owns one extra source reader, never one per duplicate rule"
     );
     column_count(&compiled)
@@ -79,7 +79,7 @@ fn distinct_targets_with_shared_join_and_filter_keep_both_ordinary_in_either_rul
         assert_eq!(column_count(&compiled), 0);
         assert_ne!(compiled.rules()[0].emit, compiled.rules()[1].emit);
         let filter = compiled.logical_regions()[filter_node.0];
-        assert_eq!(compiled.regions()[filter.0].consumers, 2);
+        assert_eq!(compiled.regions()[filter.0].consumers(), 2);
     }
     0
 }
@@ -192,7 +192,7 @@ fn native_join_read_by_rows_keeps_no_native_positions() -> usize {
         let join = node(&request, 0, 1);
         let compiled = program(&plans, &operators, request);
         assert_one_route(&compiled);
-        service::native_positions(&compiled.regions()[compiled.logical_regions()[join.0].0].route)
+        service::native_positions(&compiled.regions()[compiled.logical_regions()[join.0].0].route())
             .is_some()
     };
     assert!(

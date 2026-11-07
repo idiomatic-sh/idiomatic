@@ -52,7 +52,7 @@ impl RelationOwner {
             entry
                 .views
                 .insert(identity::describe(relation, raw), result.clone());
-            self.views.set(ViewCount(self.views.get().0 + 1));
+            self.views.set(crate::application::file_dag::relations::types::PinnedViewCount(self.views.get().0 + 1));
         }
         Ok(result)
     }

@@ -65,7 +65,7 @@ impl FileRun<'_> {
         let metadata = self.program.rule_metadata(rule)?;
         let owns_file_root = (demand.emit == EmitDemand::Enabled
             && metadata.emit_root.as_ref().is_ok_and(|id| {
-                self.program.program().regions()[id.0].phase
+                self.program.program().regions()[id.0].phase()
                     == ryo_values::domain::plan_parts::types::StepScope::PerFile
             }))
             || (demand.observations == ObservationDemand::Required
@@ -114,11 +114,11 @@ impl FileRun<'_> {
             EmitDemand::Disabled => RootOutcome::NoQuery,
             EmitDemand::Enabled => match &metadata.emit_root {
                 Ok(id)
-                    if self.program.program().regions()[id.0].phase
+                    if self.program.program().regions()[id.0].phase()
                         != ryo_values::domain::plan_parts::types::StepScope::PerFile =>
                 {
                     RootOutcome::Deferred {
-                        phase: self.program.program().regions()[id.0].phase,
+                        phase: self.program.program().regions()[id.0].phase(),
                     }
                 }
                 Ok(id) => outcome_of(

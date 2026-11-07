@@ -151,7 +151,7 @@ impl<'a> SelectionProgram<'a> {
             Operand::Column(index) => Operand::Column(*column_in(&selector.columns, *index)?),
             Operand::Literal(value) => Operand::Literal(value.clone()),
             Operand::Parameter(id) => {
-                let value = parameter_in(&self.bindings, id)?;
+                let value = parameter_in(&self.bindings, *id)?;
                 if matches!(
                     value,
                     ParameterBinding::Tables(_) | ParameterBinding::TextSets(_)

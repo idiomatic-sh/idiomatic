@@ -30,9 +30,9 @@ fn verify(program: &ExecutableProgram, walk: &PreparedWalk) -> Result<(), Refusa
     let actual = program
         .regions()
         .iter()
-        .flat_map(|region| &region.instructions)
+        .flat_map(|region| region.instructions())
         .filter(|instruction| walk.class_for(instruction).is_some())
-        .map(|instruction| instruction.logical)
+        .map(|instruction| instruction.logical())
         .collect::<HashSet<_>>();
     if !expected.is_subset(&actual) {
         return Err(Refusal::EligibleHeadMissing);
@@ -159,7 +159,7 @@ fn errored_origin_refuses_its_rule() -> Result<Value, Failure> {
         .next()
         .and_then(|origin| program.logical_regions().get(origin.logical.0))
         .and_then(|region| program.regions().get(region.0))
-        .and_then(|region| region.instructions.first());
+        .and_then(|region| region.instructions().first());
     match sibling_head {
         Some(head) if shared(0) && walk.class_for(head).is_some() => Ok(()),
         _ => Err(Refusal::SiblingRefused),
@@ -177,8 +177,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             program
                 .regions()
                 .iter()
-                .filter(|region| region.phase == StepScope::PerFile)
-                .filter_map(|region| region.instructions.first())
+                .filter(|region| region.phase() == StepScope::PerFile)
+                .filter_map(|region| region.instructions().first())
                 .any(|head| supported_head(head) == Some(*relation)),
             "catalog source absent: {relation:?}"
         );
@@ -188,32 +188,32 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             program
                 .regions()
                 .iter()
-                .filter(|region| region.phase == StepScope::PerFile)
-                .filter_map(|region| region.instructions.first())
+                .filter(|region| region.phase() == StepScope::PerFile)
+                .filter_map(|region| region.instructions().first())
         };
-        assert!(heads().any(|head| matches!(&head.operation, Operation::Select { from: Source::Relation(source), .. } if source == relation)));
-        assert!(heads().any(|head| matches!(&head.operation, Operation::Project { from: Source::Relation(source), distinct: RepeatedRows::Kept, columns } if source == relation && columns.iter().all(|column| (column.0 as usize) < ryo_relations::domain::relations::service::columns(*source).len()))));
-        assert!(heads().any(|head| matches!(&head.operation, Operation::Project { from: Source::Relation(source), distinct: RepeatedRows::Dropped, .. } if source == relation)));
+        assert!(heads().any(|head| matches!(&head.operation(), Operation::Select { from: Source::Relation(source), .. } if source == relation)));
+        assert!(heads().any(|head| matches!(&head.operation(), Operation::Project { from: Source::Relation(source), distinct: RepeatedRows::Kept, columns } if source == relation && columns.iter().all(|column| (column.0 as usize) < ryo_relations::domain::relations::service::columns(*source).len()))));
+        assert!(heads().any(|head| matches!(&head.operation(), Operation::Project { from: Source::Relation(source), distinct: RepeatedRows::Dropped, .. } if source == relation)));
     }
     assert!(
         program
             .regions()
             .iter()
-            .any(|region| region.phase == StepScope::CrossFile)
+            .any(|region| region.phase() == StepScope::CrossFile)
     );
     assert!(
         program
             .regions()
             .iter()
-            .any(|region| region.instructions.len() > 1)
+            .any(|region| region.instructions().len() > 1)
     );
     assert!(
         program
             .regions()
             .iter()
-            .filter_map(|region| region.instructions.first())
+            .filter_map(|region| region.instructions().first())
             .any(|head| matches!(
-                &head.operation,
+                &head.operation(),
                 Operation::Select {
                     from: Source::Step(_),
                     ..
@@ -236,12 +236,12 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             let project = program
                 .regions()
                 .iter()
-                .find(|region| region.phase == StepScope::CrossFile)
+                .find(|region| region.phase() == StepScope::CrossFile)
                 .unwrap()
-                .instructions
+                .instructions()
                 .first()
                 .unwrap();
-            walk.physical[project.logical.0] =
+            walk.physical[project.logical().0] =
                 Some(WalkRoute::Barrier(WalkBarrier::Representation));
         }
     }

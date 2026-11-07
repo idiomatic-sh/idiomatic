@@ -190,7 +190,7 @@ impl ProjectRun<'_> {
         let mut roots = Vec::new();
         if demand.emit == EmitDemand::Enabled {
             if let Ok(id) = &metadata.emit_root {
-                if self.program.program().regions()[id.0].phase
+                if self.program.program().regions()[id.0].phase()
                     == ryo_values::domain::plan_parts::types::StepScope::CrossFile
                 {
                     roots.push(*id);

@@ -111,13 +111,13 @@ pub(crate) fn execute(
         .unwrap()
         .logical;
     let region = program.logical_regions()[logical.0];
-    let instructions = program.regions()[region.0].instructions.len();
+    let instructions = program.regions()[region.0].instructions().len();
     let native_prepared = crate::domain::executable_program::service::native_positions(
-        &program.regions()[region.0].route,
+        &program.regions()[region.0].route(),
     )
     .is_some();
     let column_prepared =
-        crate::domain::executable_program::service::column(&program.regions()[region.0].route)
+        crate::domain::executable_program::service::column(&program.regions()[region.0].route())
             .is_some();
     let services = Arc::new(ProgramServices::new(
         Arc::new(CommonOperatorEngine::new(port)),

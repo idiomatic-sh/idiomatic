@@ -2,8 +2,8 @@
 
 use std::sync::Arc;
 
-use crate::outbound::matching::{errors::MatchingError, interface::MatchingPort};
-use ryo_matching::inbound::use_cases::matching::errors::MatchingError as SemanticError;
+use crate::outbound::matching::interface::MatchingPort;
+use ryo_matching::inbound::use_cases::matching::errors::MatchingError;
 use ryo_matching::inbound::use_cases::matching::interface::MatchingUseCase;
 use ryo_matching::inbound::use_cases::matching::types::{GlobHits, GlobPattern};
 use ryo_values::domain::files::types::{Glob, GlobsMatcher, Hits, MatchCandidate};

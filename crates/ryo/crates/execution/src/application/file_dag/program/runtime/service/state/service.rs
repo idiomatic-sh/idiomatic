@@ -49,7 +49,7 @@ impl Slot {
             admission: Default::default(),
             fed: vec![
                 crate::domain::operator::types::RowsFed::default();
-                region.instructions.len()
+                region.instructions().len()
             ]
             .into_boxed_slice(),
             remaining,
@@ -99,7 +99,7 @@ impl RuntimeState {
             RootReaders::Declared => program
                 .regions()
                 .get(id.0)
-                .map(|region| ReaderCount(region.consumers))
+                .map(|region| ReaderCount(region.consumers()))
                 .ok_or(OperatingError::NotRun),
             RootReaders::Selected(selected) => {
                 crate::domain::executable_program::file_demand::service::remaining(

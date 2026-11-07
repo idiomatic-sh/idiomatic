@@ -43,10 +43,11 @@ fn actual_column_join_counts_matching_visits_not_population_size_even_on_refusal
                                 .expect("the actual prepared left key exists")
                         })
                         .collect::<Vec<_>>();
-                    assert!(
+                    assert_eq!(
                         driver
                             .next(&key)
-                            .expect("the actual indexed candidate is readable")
+                            .expect("the actual indexed candidate is readable"),
+                        ryo_operators::domain::equality_join::types::Advance::Admitted
                     );
                     Err(PortableOperatorFault::ShapeMismatch)
                 }

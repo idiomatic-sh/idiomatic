@@ -183,7 +183,7 @@ impl Program {
             .logical;
         let region = program.logical_regions()[head.0];
         let instruction = program.regions()[region.0]
-            .instructions
+            .instructions()
             .first()
             .ok_or(OperatingError::NotRun)?;
         self.prepared

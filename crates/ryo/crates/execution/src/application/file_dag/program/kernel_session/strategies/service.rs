@@ -38,7 +38,7 @@ impl super::super::KernelSession<'_, '_> {
             prepared_kinds: context.prepared_kinds,
             bindings: self
                 .prepared
-                .bindings(permit.descriptor().producer)
+                .bindings(permit.descriptor().producer())
                 .map_err(InvocationFailure::Semantic)?,
             symbols: ryo_language::domain::symbols::service::query_reborrow(&mut context.symbols),
             source: context.source,
@@ -71,7 +71,7 @@ impl super::super::KernelSession<'_, '_> {
         let workspace = scratch.workspace.get_or_insert_with(|| {
             InvocationWorkspace::for_contract(
                 Rc::clone(&self.owner),
-                permit.descriptor().contract.as_ref(),
+                permit.descriptor().contract().as_ref(),
             )
         });
         let failure = std::sync::OnceLock::new();
@@ -125,7 +125,7 @@ impl super::super::KernelSession<'_, '_> {
             prepared_kinds: context.prepared_kinds,
             bindings: self
                 .prepared
-                .bindings(permit.descriptor().producer)
+                .bindings(permit.descriptor().producer())
                 .map_err(InvocationFailure::Semantic)?,
             symbols: ryo_language::domain::symbols::service::query_reborrow(&mut context.symbols),
             source: context.source,
@@ -144,7 +144,7 @@ impl super::super::KernelSession<'_, '_> {
         let workspace = scratch.workspace.get_or_insert_with(|| {
             InvocationWorkspace::for_contract(
                 Rc::clone(&self.owner),
-                permit.descriptor().contract.as_ref(),
+                permit.descriptor().contract().as_ref(),
             )
         });
         crate::application::file_dag::program::selection::acquire(
@@ -190,7 +190,7 @@ impl super::super::KernelSession<'_, '_> {
             prepared_kinds: context.prepared_kinds,
             bindings: self
                 .prepared
-                .bindings(permit.descriptor().producer)
+                .bindings(permit.descriptor().producer())
                 .map_err(InvocationFailure::Semantic)?,
             symbols: ryo_language::domain::symbols::service::query_reborrow(&mut context.symbols),
             source: context.source,

@@ -2,7 +2,7 @@
 
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::selects;
-use crate::outbound::matching::errors::MatchingError;
+use ryo_matching::inbound::use_cases::matching::errors::MatchingError;
 use crate::outbound::matching::interface::MatchingPort;
 use ryo_values::domain::files::types::Glob;
 use ryo_values::domain::files::types::{Hits, MatchCandidate};

@@ -317,4 +317,3 @@ pub(crate) fn matching<'o, 'k>(
 
 use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
 
-use ryo_values::domain::rows::service::column_in;

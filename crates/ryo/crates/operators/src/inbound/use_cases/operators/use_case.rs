@@ -276,7 +276,13 @@ impl OperatorsUseCase for OperatorsUseCaseImpl {
                 tab_width,
             } => crate::domain::fits_rendered::service::fits(rendered, prefix, maximum, tab_width)
                 .map(|fit| {
-                    OperatorAnswer::Selected(fit == crate::domain::fits_rendered::types::Fit::Within)
+                    OperatorAnswer::Selected(
+                        if fit == crate::domain::fits_rendered::types::Fit::Within {
+                            crate::domain::select::types::RowSelection::Kept
+                        } else {
+                            crate::domain::select::types::RowSelection::Dropped
+                        },
+                    )
                 }),
             OperatorCall::Cycles { graph, scratch } => {
                 crate::domain::cycles::service::cycles(graph, scratch);

@@ -20,7 +20,7 @@ fn named_population_barrier_cannot_reuse_a_direct_relation_class_or_erase_replay
     let region = &program.prepared.program().regions()[root.0];
     assert!(
         matches!(
-            region.inputs.first(),
+            region.inputs().first(),
             Some(crate::domain::executable_program::types::InputSource::Observation(_))
         ),
         "this consumer must have the real resolved observation boundary"
@@ -28,14 +28,14 @@ fn named_population_barrier_cannot_reuse_a_direct_relation_class_or_erase_replay
     assert!(
         program
             .prepared
-            .walk_class(&region.instructions[0])
+            .walk_class(&region.instructions()[0])
             .is_none()
     );
     let direct = *program.prepared.program().rules()[3].emit.as_ref().unwrap();
     assert!(
         program
             .prepared
-            .walk_class(&program.prepared.program().regions()[direct.0].instructions[0])
+            .walk_class(&program.prepared.program().regions()[direct.0].instructions()[0])
             .is_some()
     );
     let mut symbols = Symbols::default();

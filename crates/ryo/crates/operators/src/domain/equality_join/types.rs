@@ -1,4 +1,5 @@
 //! Borrowed equality join contracts; no engine authority.
+use super::errors::EqualityJoinError;
 
 /// Finite borrowed access to already acquired matching rows, in their original bag order.
 /// Implementations cannot be selected or retained by the semantic kernel. One object

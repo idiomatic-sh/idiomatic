@@ -83,6 +83,7 @@ fn an_errored_rule_answers_its_error_while_its_sibling_delivers_rows() {
         observations: ObservationDemand::NotRequired,
         capture: CaptureIntent::Disabled,
     };
+    let intents = [run, run];
     let mut file = request
         .open_file(
             FileInput {
@@ -91,7 +92,7 @@ fn an_errored_rule_answers_its_error_while_its_sibling_delivers_rows() {
                 file: FileId(0),
                 evaluation: &[],
                 publication: &[],
-                intents: &[run, run],
+                intents: &intents,
                 source: b"",
                 elements: &elements,
                 read: &read,

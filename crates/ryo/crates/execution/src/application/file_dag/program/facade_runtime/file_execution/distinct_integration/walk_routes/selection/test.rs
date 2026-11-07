@@ -30,13 +30,13 @@ fn exercise(scenario: Scenario) -> Result<(), OperatingError> {
     let root = *program.prepared.program().rules()[0].emit.as_ref().unwrap();
     let region = &program.prepared.program().regions()[root.0];
     assert!(
-        crate::domain::executable_program::service::selection(&region.route).is_some(),
+        crate::domain::executable_program::service::selection(&region.route()).is_some(),
         "actual compiler must install the distinct selected alternative"
     );
     assert!(
         program
             .prepared
-            .walk_class(&region.instructions[0])
+            .walk_class(&region.instructions()[0])
             .is_none(),
         "distinct row semantics are not a pure source-walk head"
     );

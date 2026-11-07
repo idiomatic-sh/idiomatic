@@ -312,9 +312,9 @@ pub(crate) fn prepare(
         crate::domain::matching::types::prepared::value::PreparedMatchers::from_operations(
             program.regions().iter().flat_map(|region| {
                 region
-                    .instructions
+                    .instructions()
                     .iter()
-                    .map(|instruction| &instruction.operation)
+                    .map(|instruction| instruction.operation())
             }),
         ),
     );

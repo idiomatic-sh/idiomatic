@@ -49,7 +49,7 @@ impl ProgramExecution {
         }
         work.pending.extend(
             self.program.regions()[consumer.0]
-                .dependencies
+                .dependencies()
                 .iter()
                 .copied(),
         );
@@ -85,7 +85,7 @@ impl ProgramExecution {
                         .is_some_and(|slot| slot.dependencies_consumed == Dependencies::Consumed)
                 {
                     work.pending
-                        .extend(self.program.regions()[id.0].dependencies.iter().copied());
+                        .extend(self.program.regions()[id.0].dependencies().iter().copied());
                 }
             }
             Ok(None)

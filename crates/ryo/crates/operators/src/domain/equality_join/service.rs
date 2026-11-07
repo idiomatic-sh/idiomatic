@@ -26,7 +26,7 @@ pub(crate) fn join_row(
     key.clear();
     for column in left_on {
         key.push(
-            read_left(*column).ok_or(PortableOperatorFault::NoSuchColumn { index: column })?,
+            read_left(*column).ok_or(PortableOperatorFault::NoSuchColumn { index: *column })?,
         );
     }
     while driver

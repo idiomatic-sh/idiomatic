@@ -29,9 +29,9 @@ fn derived_group_count_barrier_follows_a_shared_head_without_a_second_pass() {
         .logical;
     let region = program.prepared.program().logical_regions()[tail.0];
     let instruction = program.prepared.program().regions()[region.0]
-        .instructions
+        .instructions()
         .iter()
-        .find(|instruction| instruction.logical == tail)
+        .find(|instruction| instruction.logical() == tail)
         .unwrap();
     assert!(
         program.prepared.walk_class(instruction).is_none(),

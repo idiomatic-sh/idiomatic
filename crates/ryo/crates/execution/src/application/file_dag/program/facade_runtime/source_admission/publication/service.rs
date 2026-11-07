@@ -38,10 +38,10 @@ impl SourceInputs<'_, '_> {
                 .regions()
                 .get(region.0)
                 .ok_or(OperatingError::NotRun)?;
-            let column = crate::domain::executable_program::service::column(&code.route)
+            let column = crate::domain::executable_program::service::column(&code.route())
                 .filter(|_| inputs.len() == 2);
             let ordered = crate::domain::executable_program::service::ordered_existence(
-                &code.route,
+                &code.route(),
             )
             .filter(|shape| {
                 inputs.len() == 1
@@ -60,7 +60,7 @@ impl SourceInputs<'_, '_> {
                 code
             };
             let instruction = semantic
-                .instructions
+                .instructions()
                 .first()
                 .ok_or(OperatingError::NotRun)?;
             let contributions = inputs
@@ -72,15 +72,15 @@ impl SourceInputs<'_, '_> {
                             .program()
                             .regions()
                             .get(shape.source.0)
-                            .and_then(|source| source.instructions.last())
+                            .and_then(|source| source.instructions().last())
                             .ok_or(OperatingError::NotRun)?
-                            .contract
+                            .contract()
                             .output_kinds
                             .as_ref()
                             .map_err(Clone::clone)?
                     } else {
                         instruction
-                            .contract
+                            .contract()
                             .input_kinds
                             .get(ordinal)
                             .ok_or(OperatingError::NotRun)?
@@ -93,12 +93,12 @@ impl SourceInputs<'_, '_> {
                 })
                 .collect::<Result<Vec<_>, OperatingError>>()?;
             crate::domain::completion::service::filter_contributor_rows(
-                &instruction.operation,
-                instruction.contract.absence_inputs,
+                &instruction.operation(),
+                instruction.contract().absence_inputs,
                 &contributions,
                 rows,
             );
-            let coverage = match &instruction.contract.output_kinds {
+            let coverage = match &instruction.contract().output_kinds {
                 Ok(kinds) => {
                     if let Some(shape) = ordered {
                         crate::domain::completion::service::ordered_output_coverage(
@@ -108,7 +108,7 @@ impl SourceInputs<'_, '_> {
                         )
                     } else {
                         crate::domain::completion::service::output_coverage(
-                            &instruction.operation,
+                            &instruction.operation(),
                             kinds,
                             &contributions,
                         )?
@@ -118,22 +118,10 @@ impl SourceInputs<'_, '_> {
                 // No precise lineage can be certified from a refused schema.
                 Err(_) => crate::domain::completion::service::partial_any(vec![None]),
             };
-            readiness = match coverage {
-                crate::domain::completion::types::CoverageState::Complete => {
-                    crate::application::file_dag::program::admission::Readiness::Complete
-                }
-                crate::domain::completion::types::CoverageState::Partial { files, lacks } => {
-                    crate::application::file_dag::program::admission::Readiness::Partial {
-                        files,
-                        lacks,
-                    }
-                }
-                crate::domain::completion::types::CoverageState::Inapplicable { files } => {
-                    crate::application::file_dag::program::admission::Readiness::Inapplicable {
-                        files,
-                    }
-                }
-            };
+            read = crate::application::file_dag::program::admission::ReadProof::covered(
+                actual_partition.clone(),
+                coverage,
+            );
         }
         let publication = match representation {
             Representation::Computed(rows) => self.owner.computed(rows)?,

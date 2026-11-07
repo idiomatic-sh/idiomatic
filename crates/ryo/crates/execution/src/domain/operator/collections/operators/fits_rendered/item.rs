@@ -102,10 +102,10 @@ impl OperatorsItem for FitsRenderedItem {
         lease.workspace.text = rendered;
         match answer {
             Ok(ryo_operators::inbound::use_cases::operators::types::OperatorAnswer::Selected(
-                true,
+                ryo_operators::domain::select::types::RowSelection::Kept,
             )) => emit.row(lease, row),
             Ok(ryo_operators::inbound::use_cases::operators::types::OperatorAnswer::Selected(
-                false,
+                ryo_operators::domain::select::types::RowSelection::Dropped,
             )) => Ok(()),
             Ok(_) => Err(OperatingError::WrongOperation),
             Err(error) => Err(crate::domain::operator::contract::types::portable_fault(error)),

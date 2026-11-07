@@ -32,7 +32,7 @@ fn tail_selection(program: &Program, rule: RuleIndex) -> Selection {
         .logical;
     let region = program.prepared.program().logical_regions()[tail.0];
     if crate::domain::executable_program::service::selection(
-        &program.prepared.program().regions()[region.0].route,
+        &program.prepared.program().regions()[region.0].route(),
     )
     .is_some()
     {
@@ -65,7 +65,7 @@ fn a_distinct_project_region_gets_a_selection_alternative() {
     let root = *program.prepared.program().rules()[0].emit.as_ref().unwrap();
     assert!(
         crate::domain::executable_program::service::selection(
-            &program.prepared.program().regions()[root.0].route
+            &program.prepared.program().regions()[root.0].route()
         )
         .is_some()
     );

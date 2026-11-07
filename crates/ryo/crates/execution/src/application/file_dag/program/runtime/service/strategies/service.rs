@@ -17,18 +17,18 @@ impl ProgramExecution {
         let completion = call.completion;
         let inputs = &mut *call.inputs;
         region
-            .instructions
+            .instructions()
             .first()
             .ok_or_else(|| InvocationFailure::Semantic(OperatingError::NotRun))?;
         let needs = region
-            .needs
+            .needs()
             .as_ref()
             .map_err(|error| InvocationFailure::Semantic(error.clone()))?;
         if completion.region_admission(needs)
             == crate::domain::completion::types::RegionAdmission::Blocked
         {
             let last = region
-                .instructions
+                .instructions()
                 .last()
                 .ok_or_else(|| InvocationFailure::Semantic(OperatingError::NotRun))?;
             let input = inputs
@@ -37,7 +37,7 @@ impl ProgramExecution {
                     &self.partition,
                     &[],
                     crate::application::file_dag::program::admission::Representation::empty(
-                        last.contract.output_kinds.clone(),
+                        last.contract().output_kinds.clone(),
                     )
                     .map_err(InvocationFailure::Semantic)?,
                 )
@@ -60,11 +60,11 @@ impl ProgramExecution {
         let context = &mut *call.context;
         let progress = &mut *call.progress;
         let needs = region
-            .needs
+            .needs()
             .as_ref()
             .map_err(|error| InvocationFailure::Semantic(error.clone()))?;
         if let Some(shape) =
-            crate::domain::executable_program::service::ordered_existence(&region.route)
+            crate::domain::executable_program::service::ordered_existence(&region.route())
                 .filter(|_| progress.ordered_done == StageProgress::Pending)
         {
             progress
@@ -95,13 +95,13 @@ impl ProgramExecution {
             )
             .map_err(InvocationFailure::Semantic)?;
             let last = region
-                .instructions
+                .instructions()
                 .last()
                 .ok_or_else(|| InvocationFailure::Semantic(OperatingError::NotRun))?;
             let mut rows = ryo_values::domain::rows::types::Table::default();
             ryo_values::domain::rows::service::reset(
                 &mut rows,
-                last.contract
+                last.contract()
                     .output_kinds
                     .as_ref()
                     .map_err(|error| InvocationFailure::Semantic(error.clone()))?,
@@ -162,10 +162,10 @@ impl ProgramExecution {
         let context = &mut *call.context;
         let progress = &mut *call.progress;
         let needs = region
-            .needs
+            .needs()
             .as_ref()
             .map_err(|error| InvocationFailure::Semantic(error.clone()))?;
-        if let Some(shape) = crate::domain::executable_program::service::column(&region.route)
+        if let Some(shape) = crate::domain::executable_program::service::column(&region.route())
             .filter(|_| progress.column_done == StageProgress::Pending)
         {
             use crate::domain::executable_program::types::InputSource;

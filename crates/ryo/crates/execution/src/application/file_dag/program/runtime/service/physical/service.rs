@@ -7,7 +7,7 @@ impl<'scope> SemanticPermit<'scope> {
     pub(in crate::application::file_dag::program::runtime::service) fn operation(
         &self,
     ) -> &ryo_values::domain::plans::types::Operation {
-        &self.program.regions()[self.region.0].instructions[self.instruction.0].operation
+        &self.program.regions()[self.region.0].instructions()[self.instruction.0].operation()
     }
     pub(in crate::application::file_dag::program::runtime::service) fn validate_live(
         &self,
@@ -29,19 +29,19 @@ impl<'scope> SemanticPermit<'scope> {
             RouteKind::Generic => PhysicalRoute::Registered,
             RouteKind::NativePositions => PhysicalRoute::Positions(
                 crate::domain::executable_program::service::native_positions(
-                    &self.program.regions()[self.region.0].route,
+                    &self.program.regions()[self.region.0].route(),
                 )
                 .ok_or(OperatingError::WrongOperation)?,
             ),
             RouteKind::OrderedExistence => PhysicalRoute::Ordered(
                 crate::domain::executable_program::service::ordered_existence(
-                    &self.program.regions()[self.region.0].route,
+                    &self.program.regions()[self.region.0].route(),
                 )
                 .ok_or(OperatingError::WrongOperation)?,
             ),
             RouteKind::Column => PhysicalRoute::Column(
                 crate::domain::executable_program::service::column(
-                    &self.program.regions()[self.region.0].route,
+                    &self.program.regions()[self.region.0].route(),
                 )
                 .ok_or(OperatingError::WrongOperation)?,
             ),

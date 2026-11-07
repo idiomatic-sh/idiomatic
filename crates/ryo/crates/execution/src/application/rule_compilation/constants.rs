@@ -30,17 +30,24 @@ pub(crate) const EVERY_RULE_BOUND: &str = "each prepared rule has its own checke
 /// The domain a rule's producer identities are digested under.
 pub(crate) const OBSERVATION_PRODUCERS_DOMAIN: &[u8] = b"ryo-observation-producers-v1";
 /// Why a relation-rooted filter has a prefix.
+#[cfg(test)]
 pub(crate) const RELATION_ROOTED_FILTER: &str = "relation-rooted filter";
 /// Why a bag-preserving projection has a prefix.
+#[cfg(test)]
 pub(crate) const BAG_PRESERVING_PROJECTION: &str = "bag-preserving projection";
 /// Why a composed prefix has a prefix.
+#[cfg(test)]
 pub(crate) const COMPOSED_PREFIX: &str = "composed prefix";
 /// Why an identity select has a prefix.
+#[cfg(test)]
 pub(crate) const IDENTITY_SELECT: &str = "identity select";
 /// Why a zero-width bag projection has a prefix.
+#[cfg(test)]
 pub(crate) const ZERO_WIDTH_PROJECTION: &str = "zero-width bag projection";
 /// Why distinct is not an identity projection.
+#[cfg(test)]
 pub(crate) const DISTINCT_IS_BARRIER: &str =
     "distinct is a semantic barrier, not an identity projection";
 /// The literal text the observer tests compare against.
+#[cfg(test)]
 pub(crate) const CALL_TEXT: &str = "call";

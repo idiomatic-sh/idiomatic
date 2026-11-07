@@ -102,7 +102,7 @@ pub(super) fn prepare(
         let bucket =
             ryo_values::domain::stored_facts::service::frontier_bucket(first, InputNumber(place));
         let words = facts.kept(bucket)?;
-        let coverage = validate_bucket(program, rule, place, first, bucket, required, &words)?;
+        let coverage = validate_bucket(program, rule, InputNumber(place), first, bucket, required, &words)?;
         if words.sources.is_empty() && !required.files().is_empty() {
             refused.push(RefusedFrontier {
                 input,

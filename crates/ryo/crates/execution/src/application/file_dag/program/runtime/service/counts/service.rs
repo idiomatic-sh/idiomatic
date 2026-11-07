@@ -73,9 +73,9 @@ impl ProgramExecution {
                 .get(region_id.0)
                 .ok_or(OperatingError::NotRun)?;
             let at = code
-                .instructions
+                .instructions()
                 .iter()
-                .position(|instruction| instruction.logical == origin.logical)
+                .position(|instruction| instruction.logical() == origin.logical)
                 .ok_or(OperatingError::NotRun)?;
             let Some(slot) = slots.get(&region_id) else {
                 fed.push(crate::domain::operator::types::RowsFed::default());

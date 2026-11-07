@@ -75,7 +75,7 @@ impl WalkPartition<'_> {
         if submitted == Submission::Declined {
             tracing::trace!(target: super::constants::WALK_TARGET,
                 event = super::constants::WALK_REFUSED,
-                logical = permit.descriptor().logical.0, relation = ?relation,
+                logical = permit.descriptor().logical().0, relation = ?relation,
                 generation = ?permit.diagnostic_generation(), population = ?input.population(owner),
                 classes = ?[class.0],
                 reason = ?crate::domain::shared_walk::types::WalkRefusal::Representation);

@@ -189,7 +189,7 @@ fn language_columns(file: FileId, major: Integer) -> Vec<FactColumn> {
     .map(|cell| FactColumn(vec![to_bits(cell).0]))
     .collect()
 }
-fn run(
+fn run_rule(
     file: &mut FileRun<'_>,
     rule: RuleIndex,
     storage: &[FactColumn],
@@ -226,7 +226,7 @@ fn run(
         reads: Reads(reads.get()),
     }
 }
-fn identical_binding_dependent_operations_do_not_share_rule_graph_results() -> Result<Value, Failure> {
+fn identical_binding_dependent_operations_do_not_share_rule_graph_results() -> Result<Answer, Failure> {
     let Prepared { prepared, services } = prepare(vec![
         vec![ParameterBinding::Number(WholeNumber(3))],
         vec![ParameterBinding::Number(WholeNumber(2))],
@@ -273,13 +273,13 @@ fn identical_binding_dependent_operations_do_not_share_rule_graph_results() -> R
     )
     .unwrap();
     let storage = language_columns(FileId(7), Integer(3));
-    let RuleRun { table: first, reads: first_reads } = run(&mut file, RuleIndex(0), &storage, &mut symbols);
+    let RuleRun { table: first, reads: first_reads } = run_rule(&mut file, RuleIndex(0), &storage, &mut symbols);
     assert!(
         first_reads.0 > 0,
         "{FIRST_ROOT_READS}"
     );
     let prepared_work = file.readiness_counts();
-    let RuleRun { table: second, reads: second_reads } = run(&mut file, RuleIndex(1), &storage, &mut symbols);
+    let RuleRun { table: second, reads: second_reads } = run_rule(&mut file, RuleIndex(1), &storage, &mut symbols);
     assert_eq!(first.cells, vec![Value::File(FileId(7))]);
     assert_eq!(second.count.0, 0);
     assert_eq!(
@@ -291,7 +291,7 @@ fn identical_binding_dependent_operations_do_not_share_rule_graph_results() -> R
     file.finish().unwrap();
     Ok(1)
 }
-fn two_file_generation_owners_cannot_reuse_the_other_files_results() -> Result<Value, Failure> {
+fn two_file_generation_owners_cannot_reuse_the_other_files_results() -> Result<Answer, Failure> {
     let Prepared { prepared, services } = prepare(vec![vec![ParameterBinding::Number(WholeNumber(3))]]);
     let mut first_symbols = Symbols::default();
     let mut first = open_file(
@@ -314,7 +314,7 @@ fn two_file_generation_owners_cannot_reuse_the_other_files_results() -> Result<V
         None,
     )
     .unwrap();
-    let RuleRun { table: left, reads: first_reads } = run(&mut first, RuleIndex(0), &language_columns(FileId(1), Integer(3)), &mut first_symbols);
+    let RuleRun { table: left, reads: first_reads } = run_rule(&mut first, RuleIndex(0), &language_columns(FileId(1), Integer(3)), &mut first_symbols);
     let mut second_symbols = Symbols::default();
     let mut second = open_file(
         &prepared,
@@ -336,7 +336,7 @@ fn two_file_generation_owners_cannot_reuse_the_other_files_results() -> Result<V
         None,
     )
     .unwrap();
-    let RuleRun { table: right, reads: second_reads } = run(&mut second, RuleIndex(0), &language_columns(FileId(9), Integer(3)), &mut second_symbols);
+    let RuleRun { table: right, reads: second_reads } = run_rule(&mut second, RuleIndex(0), &language_columns(FileId(9), Integer(3)), &mut second_symbols);
     assert!(first_reads.0 > 0);
     assert!(
         second_reads.0 > 0,
@@ -355,14 +355,14 @@ fn two_file_generation_owners_cannot_reuse_the_other_files_results() -> Result<V
 }
 
 /// A scenario: what a row asks of the generation owner.
-type Input = fn() -> Result<Value, Failure>;
+type Scenario = fn() -> Result<Answer, Failure>;
 /// What a scenario answers: a yes as one.
-type Value = usize;
+type Answer = usize;
 /// This part has no failure of its own.
 type Failure = ();
 
 /// The rows of this part's cases.
-const CASES: &[Case<Input, Value, Failure>] = &[
+const CASES: &[Case<Scenario, Answer, Failure>] = &[
     Case {
         name: CaseName("identical_binding_dependent_operations_do_not_share_rule_graph_results"),
         word: Word::Succeeds,
@@ -377,7 +377,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 
-fn subject(scenario: Input) -> Result<Value, Failure> {
+fn subject(scenario: Scenario) -> Result<Answer, Failure> {
     scenario()
 }
 
