@@ -12,6 +12,7 @@ use std::sync::Arc;
 pub(crate) fn publication_owner(
     program: &Arc<PreparedProgram>,
     services: &ProgramServices,
+    digest: Arc<dyn crate::outbound::digest::interface::DigestPort>,
 ) -> Result<PublicationScope, OperatingError> {
     Ok(PublicationScope {
         request: Arc::clone(&services.request),
@@ -28,7 +29,7 @@ pub(crate) fn publication_owner(
             crate::application::file_dag::program::native_walk::project::service::ProjectWalk::new(),
         populations: std::cell::RefCell::new(Default::default()),
         symbols: std::cell::OnceCell::new(),
-        decodes: crate::application::file_dag::frontiers::types::FrontierDecodes::new(),
+        decodes: crate::application::file_dag::frontiers::types::FrontierDecodes::new(digest),
     })
 }
 

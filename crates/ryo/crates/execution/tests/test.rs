@@ -87,6 +87,7 @@ fn public_group_reduction_and_emission_use_the_admitted_semantic_path() {
     let engine = PrepareUseCaseImpl::new(
         semantics.clone(),
         Arc::new(ryo_execution::outbound::derived::factory::semantics()),
+        Arc::new(ryo_execution::outbound::digest::factory::blake3()),
     );
     let mut input = authored_request(1);
     crate::boundary_fixture::plans(&mut input)[0].steps.push(PlanStep {

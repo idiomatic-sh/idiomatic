@@ -45,7 +45,7 @@ fn subject(_: Input) -> Result<Value, Failure> {
             .map(|name| HostRow(vec![HostCell::File(name.into())]))
             .to_vec(),
     };
-    let (engine, prepared) = fixtures::prepared(
+    let (engine, prepared) = fixtures::requests::prepared(
         inputs::plan(vec![
             Operation::Hosted {
                 relation: HostedNumber(0),
@@ -67,7 +67,7 @@ fn subject(_: Input) -> Result<Value, Failure> {
             executable: ExecutablePermission::Unknown,
         })
     });
-    let request = fixtures::execution().execution(&prepared, &corpus);
+    let request = fixtures::requests::execution().execution(&prepared, &corpus);
     let elements = Elements::default();
     let mut symbols = Symbols::default();
     // Hosted File data never invokes a catalog provider: were it called, the run would fail with the read refusal.

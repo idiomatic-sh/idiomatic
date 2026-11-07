@@ -55,7 +55,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             .collect();
         let actual = schema_of(&operation, &schemas, &bindings);
         let input_rows: Vec<_> = tables.iter().collect();
-        let (output, _) = fixtures::table_request_context(
+        let (output, _) = fixtures::requests::table_request_context(
             operation.clone(),
             &input_rows,
             bindings.clone(),
@@ -77,7 +77,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
 /// The prepared request has no source partition for the hosted relation.
 fn hosted_without_source() -> Result<Value, Failure> {
     let mut symbols = Symbols::default();
-    let result = fixtures::published(
+    let result = fixtures::requests::published(
         inputs::plan(vec![Operation::Hosted {
             relation: ryo_values::domain::plan_parts::types::HostedNumber(0),
         }]),

@@ -79,7 +79,7 @@ fn finds_the_elements_of_a_named_kind() -> Result<Value, OperatingError> {
             comparisons,
             kept: vec![column(0)],
         }]);
-        Ok(fixtures::published_file(plan, vec![], vec![], source, &elements, &mut symbols)?.cells)
+        Ok(fixtures::requests::published_file(plan, vec![], vec![], source, &elements, &mut symbols)?.cells)
     };
     let id = |at: u32| Cell::Node(node_id(FileId(0), Position(at)));
     let words = found(vec![kind_is("word")])?;
@@ -121,9 +121,9 @@ fn a_file_with_no_names_teaches_nothing_about_kinds() -> Result<Value, Operating
         comparisons: vec![compared(Test::Equal, 1, "word")],
         kept: vec![column(0)],
     };
-    let (engine, prepared) = fixtures::prepared(inputs::plan(vec![operation]), vec![], vec![])?;
+    let (engine, prepared) = fixtures::requests::prepared(inputs::plan(vec![operation]), vec![], vec![])?;
     let never = |_| Err(crate::domain::operating::errors::OperatingError::NotRead);
-    let empty = fixtures::run_prepared(
+    let empty = fixtures::requests::run_prepared(
         &engine,
         &prepared,
         b"",
@@ -134,7 +134,7 @@ fn a_file_with_no_names_teaches_nothing_about_kinds() -> Result<Value, Operating
     .0;
     let (elements, mut symbols) = tree_of(&[(1, "file"), (2, "word")], 2);
     let later =
-        fixtures::run_prepared(&engine, &prepared, b"abcd", &elements, &mut symbols, &never)?.0;
+        fixtures::requests::run_prepared(&engine, &prepared, b"abcd", &elements, &mut symbols, &never)?.0;
     Ok(empty.count.0 * 10 + later.count.0)
 }
 
@@ -170,12 +170,12 @@ fn another_language_does_not_inherit_the_sets_of_the_first() -> Result<Value, Op
         }],
         kept: vec![column(0)],
     };
-    let (engine, prepared) = fixtures::prepared(inputs::plan(vec![operation]), vec![], vec![])?;
+    let (engine, prepared) = fixtures::requests::prepared(inputs::plan(vec![operation]), vec![], vec![])?;
     let found = |names: &[(u16, &str)], token_kind: u16| -> Result<Vec<Cell>, OperatingError> {
         let (elements, mut symbols) = tree_of(names, token_kind);
         let never = |_| Err(OperatingError::NotRead);
         Ok(
-            fixtures::run_prepared(&engine, &prepared, b"abcd", &elements, &mut symbols, &never)?
+            fixtures::requests::run_prepared(&engine, &prepared, b"abcd", &elements, &mut symbols, &never)?
                 .0
                 .cells,
         )
@@ -223,7 +223,7 @@ fn prepared_masks_keep_exact_projected_rows() -> Result<Value, OperatingError> {
             comparisons: vec![compared(test, 1, text)],
             kept: vec![column(0), column(1), column(0)],
         };
-        let out = fixtures::published_file(
+        let out = fixtures::requests::published_file(
             inputs::plan(vec![operation]),
             vec![],
             vec![],

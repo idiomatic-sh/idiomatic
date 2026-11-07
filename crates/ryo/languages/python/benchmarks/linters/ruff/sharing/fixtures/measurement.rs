@@ -12,7 +12,7 @@ use std::time::Instant;
 
 /// The Django canary request the runbook names: the sealed corpus and the cold request that lists its files.
 pub(crate) const DJANGO_REQUEST: &str = "/tmp/ryo-event-ready-django213-20261105/cold-request.json";
-/// The one rule of the Django canary (112 diagnostics at the runbook baseline).
+/// The one rule of the Django canary (110 N999 and 2 invalid-syntax diagnostics at the runbook baseline).
 pub(crate) const DJANGO_RULE: &str = "N999";
 
 /// What the one path did with one workload.
@@ -146,19 +146,14 @@ pub(crate) fn recorded_django_diagnostics() -> Result<u64, Box<dyn std::error::E
         .ok_or_else(|| "the checkpoint measurement records no diagnostics".into())
 }
 
-/// How many diagnostics of `rule` a worker report holds, wherever the report nests them.
-pub(crate) fn diagnostics_of(report: &str, rule: &str) -> Result<u64, Box<dyn std::error::Error>> {
-    fn count(value: &serde_json::Value, rule: &str) -> u64 {
-        match value {
-            serde_json::Value::Object(fields) => {
-                u64::from(fields.get("rule").and_then(serde_json::Value::as_str) == Some(rule))
-                    + fields.values().map(|each| count(each, rule)).sum::<u64>()
-            }
-            serde_json::Value::Array(items) => items.iter().map(|each| count(each, rule)).sum(),
-            _ => 0,
-        }
-    }
-    Ok(count(&serde_json::from_str(report)?, rule))
+/// How many diagnostics a worker report holds: every entry of its `diagnostics` list, the rule's and the frontend's
+/// `invalid-syntax` alike, which is what the checkpoint measurement counted (110 N999 and 2 invalid-syntax over Django).
+pub(crate) fn diagnostics(report: &str) -> Result<u64, Box<dyn std::error::Error>> {
+    let report: serde_json::Value = serde_json::from_str(report)?;
+    let entries = report["diagnostics"]
+        .as_array()
+        .ok_or("the worker report holds no diagnostics list")?;
+    Ok(u64::try_from(entries.len())?)
 }
 
 /// Writes the one path's row into the results directory beside its README.

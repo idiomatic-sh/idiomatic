@@ -48,7 +48,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
         operations.push(Operation::Hosted {
             relation: HostedNumber(0),
         });
-        vec![fixtures::texts("texts", originals)]
+        vec![fixtures::requests::texts("texts", originals)]
     };
     let from = if missing {
         PlanInput::Relation(Relation::Function)
@@ -71,7 +71,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
         }
     });
     let mut symbols = Symbols::default();
-    let output = fixtures::published(inputs::plan(operations), vec![], hosted, &mut symbols)?;
+    let output = fixtures::requests::published(inputs::plan(operations), vec![], hosted, &mut symbols)?;
     let width = output.kinds.len();
     let mut appended = Vec::new();
     for row in output.cells.chunks(width) {

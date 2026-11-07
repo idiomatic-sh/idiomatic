@@ -81,7 +81,7 @@ pub(in crate::inbound::use_cases::execution::use_case_test) fn over_the_tree(
         service::kinds,
         types::{Flag, Span},
     };
-    let (elements, mut symbols) = fixtures::tree_with_names();
+    let (elements, mut symbols) = fixtures::requests::tree_with_names();
     let word = ryo_language::domain::symbols::service::intern_derived(
         &mut symbols,
         ByteSlice(b"abcd"),
@@ -151,7 +151,7 @@ pub(in crate::inbound::use_cases::execution::use_case_test) fn over_the_tree(
         )),
         _ => Err(OperatingError::NotRead),
     };
-    fixtures::published_from(
+    fixtures::requests::published_from(
         inputs::plan(operations),
         vec![],
         vec![],

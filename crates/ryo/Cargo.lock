@@ -1410,6 +1410,7 @@ dependencies = [
  "hashbrown 0.17.1",
  "heck",
  "idiomatic-sh-ryo-derived",
+ "idiomatic-sh-ryo-execution",
  "idiomatic-sh-ryo-language",
  "idiomatic-sh-ryo-matching",
  "idiomatic-sh-ryo-operators",

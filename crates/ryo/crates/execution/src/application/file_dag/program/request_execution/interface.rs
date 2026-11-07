@@ -2,9 +2,11 @@
 use crate::application::file_dag::frontiers::errors::PreparationError;
 use crate::application::file_dag::frontiers::types::PreparedFrontiers;
 use crate::application::file_dag::program::file_session::types::CaptureContext;
+#[cfg(any(test, feature = "fixtures"))]
 use crate::application::file_dag::program::file_session::types::FileInput;
 use crate::application::file_dag::program::file_session::types::FileRules;
 use crate::application::file_dag::program::file_session::types::FileRunInput;
+#[cfg(any(test, feature = "fixtures"))]
 use crate::application::file_dag::program::file_session::types::FileSession;
 use crate::application::file_dag::program::observation_stage::types::ObservationStage;
 use crate::application::file_dag::program::project_phase::types::ProjectPhase;
@@ -25,6 +27,9 @@ pub trait ExecutionRequest {
     fn finish(self)
     where
         Self: Sized;
+    /// Opens one file's session for a caller that drives its rules itself: the engine's own tests and harnesses only.
+    /// Outside the engine a file runs through `run_file`, its one per-file route.
+    #[cfg(any(test, feature = "fixtures"))]
     fn open_file<'a, 'facts: 'a>(
         &'a self,
         input: FileInput<'a, 'facts>,

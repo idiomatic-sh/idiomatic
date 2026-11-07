@@ -70,7 +70,7 @@ fn input_of(
 fn content_equal_words_are_decoded_once_and_relabelled_for_each_root() {
     use ryo_relations::domain::relations::types::Relation;
     use ryo_values::domain::plan_parts::types::Input;
-    let decodes = super::types::FrontierDecodes::new();
+    let decodes = super::types::FrontierDecodes::new(std::sync::Arc::new(crate::outbound::digest::fixtures::fake::DigestFake));
     let mut symbols = ryo_language::domain::symbols::types::Symbols::default();
     let first = decodes.admit(packed(Input::Relation(Relation::Function), number_words(&[1, 2])), &mut symbols, super::service::admit);
     let second = decodes.admit(packed(Input::Relation(Relation::Identifier), number_words(&[1, 2])), &mut symbols, super::service::admit);
@@ -89,7 +89,7 @@ fn content_equal_words_are_decoded_once_and_relabelled_for_each_root() {
 fn other_words_another_shape_or_another_symbol_generation_decode_again() {
     use ryo_relations::domain::relations::types::Relation;
     use ryo_values::domain::plan_parts::types::{Input, StepId};
-    let decodes = super::types::FrontierDecodes::new();
+    let decodes = super::types::FrontierDecodes::new(std::sync::Arc::new(crate::outbound::digest::fixtures::fake::DigestFake));
     let mut symbols = ryo_language::domain::symbols::types::Symbols::default();
     let _ = decodes.admit(packed(Input::Relation(Relation::Function), number_words(&[1, 2])), &mut symbols, super::service::admit);
     let _ = decodes.admit(packed(Input::Relation(Relation::Function), number_words(&[3])), &mut symbols, super::service::admit);
@@ -99,4 +99,20 @@ fn other_words_another_shape_or_another_symbol_generation_decode_again() {
     let mut other = ryo_language::domain::symbols::types::Symbols::default();
     let _ = decodes.admit(packed(Input::Relation(Relation::Function), number_words(&[1, 2])), &mut other, super::service::admit);
     assert_eq!(decodes.count(), super::types::DecodeCount(4), "names decoded in one symbol generation are never handed to another");
+}
+
+#[test]
+fn a_decode_releases_its_packed_words_and_an_equal_second_root_decodes_nothing() {
+    use ryo_relations::domain::relations::types::Relation;
+    use ryo_values::domain::plan_parts::types::Input;
+    let decodes = super::types::FrontierDecodes::new(std::sync::Arc::new(crate::outbound::digest::fixtures::fake::DigestFake));
+    let mut symbols = ryo_language::domain::symbols::types::Symbols::default();
+    let words = number_words(&[1, 2]);
+    let held = std::sync::Arc::downgrade(&words);
+    let first = decodes.admit(packed(Input::Relation(Relation::Function), words), &mut symbols, super::service::admit);
+    assert!(held.upgrade().is_none(), "once decoded, neither the scope nor the rows hold the packed words");
+    let second = decodes.admit(packed(Input::Relation(Relation::Identifier), number_words(&[1, 2])), &mut symbols, super::service::admit);
+    assert_eq!(decodes.count(), super::types::DecodeCount(1), "a second root with equal words decodes nothing");
+    assert_eq!(input_of(&first), Some(Input::Relation(Relation::Function)));
+    assert_eq!(input_of(&second), Some(Input::Relation(Relation::Identifier)));
 }

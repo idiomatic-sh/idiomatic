@@ -7,8 +7,8 @@ use ryo_values::cases::CaseName;
 use ryo_values::cases::Expect;
 use ryo_values::cases::Word;
 use ryo_values::cases::run;
-use super::super::super::fixtures::Authored;
-use super::super::super::fixtures::Preparation;
+use super::super::super::fixtures::requests::Authored;
+use super::super::super::fixtures::requests::Preparation;
 use crate::outbound::facts::types::ResidentStability;
 use crate::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
 use super::super::super::fixtures as owner_fixtures;
@@ -236,7 +236,7 @@ pub(in super::super) fn compare_delivery_with_port(
             .map(|(_, table)| SourceRows::Computed(table))
             .ok_or(OperatingError::NotRead)
     };
-    let request = owner_fixtures::execution().execution(&program, &corpus);
+    let request = owner_fixtures::requests::execution().execution(&program, &corpus);
     let elements = Elements::default();
     let input = |diagnostic| FileInput {
         language: SourceLanguage::Recognized,

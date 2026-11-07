@@ -229,8 +229,8 @@ fn selected_join_shares_work_preserves_counts_and_exports_owned_frontiers() {
                 assert_eq!(captures.len(), 1);
                 assert_eq!(
                     reads.get(),
-                    before_delivery + usize::from(stored),
-                    "capture reborrows Stored selection backing once; Computed backing is already owned"
+                    before_delivery,
+                    "a captured selection is owned rows over either backing: capture borrows no provider"
                 );
                 assert_eq!(
                     file.readiness_counts(),
@@ -249,7 +249,8 @@ fn selected_join_shares_work_preserves_counts_and_exports_owned_frontiers() {
             assert_eq!(file.walk_counts(), walks);
             assert_eq!(
                 reads.get(),
-                reads_after_run + escaped.len() * usize::from(stored)
+                reads_after_run,
+                "no capture of either backing reads its provider again"
             );
             file.finish().unwrap();
             // The actual encoded publication must survive its file execution owner.

@@ -26,6 +26,27 @@ pub(crate) fn one_file(kinds: &[CellKind]) -> Lineage {
     )
 }
 
+/// The lineage of a hosted relation's rows, of these kinds. A hosted row is read from no file, so the file it is taken to come
+/// from is the one its file column names: with exactly one file column, that column lies in its row's file and nothing else does
+/// (a node may lie in any file). With no file column, or more than one, no column says which file a row comes from.
+fn hosted(kinds: &[CellKind]) -> Lineage {
+    if kinds.iter().filter(|kind| **kind == CellKind::File).count() != 1 {
+        return Lineage::Mixed;
+    }
+    Lineage::OneFile(
+        kinds
+            .iter()
+            .map(|kind| {
+                if *kind == CellKind::File {
+                    ColumnAnchor::InFile
+                } else {
+                    ColumnAnchor::Elsewhere
+                }
+            })
+            .collect(),
+    )
+}
+
 /// Whether the column `column` lies in the file its row comes from: a column the lineage does not name proves nothing.
 #[must_use]
 pub(crate) fn anchor_at(lineage: &Lineage, column: ColumnIndex) -> ColumnAnchor {
@@ -216,7 +237,7 @@ pub(crate) fn of_step(operation: &Operation, operands: &[Lineage], kinds: &[Cell
         | Operation::Axis { .. }
         | Operation::OrderedDfs { .. }
         | Operation::Cycles { .. }
-        | Operation::Rows { .. }
-        | Operation::Hosted { .. } => Lineage::Mixed,
+        | Operation::Rows { .. } => Lineage::Mixed,
+        Operation::Hosted { .. } => hosted(kinds),
     }
 }

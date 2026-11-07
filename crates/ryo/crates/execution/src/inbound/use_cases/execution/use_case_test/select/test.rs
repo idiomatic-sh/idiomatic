@@ -76,7 +76,7 @@ fn services(test: Test, left: Operand, right: Operand) -> Result<usize, Failure>
         },
     ]);
     Ok(
-        fixtures::published(plan, vec![], vec![hosted], &mut Symbols::default())?
+        fixtures::requests::published(plan, vec![], vec![hosted], &mut Symbols::default())?
             .count
             .0,
     )
@@ -139,10 +139,10 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             } else {
                 &[&[1], &[2], &[3]]
             };
-            let out = fixtures::published(
+            let out = fixtures::requests::published(
                 plan,
                 vec![],
-                vec![fixtures::numbers("numbers", if kept { 2 } else { 1 }, rows)],
+                vec![fixtures::requests::numbers("numbers", if kept { 2 } else { 1 }, rows)],
                 &mut Symbols::default(),
             )?;
             Ok(if kept {

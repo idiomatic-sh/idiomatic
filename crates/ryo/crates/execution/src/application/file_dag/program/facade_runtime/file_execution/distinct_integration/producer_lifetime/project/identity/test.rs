@@ -19,7 +19,7 @@ fn project_rules_with_different_inapplicable_files_share_one_phase_execution() {
         corpus,
     } = prepare_case(PhaseExit::Complete).expect("prepared case");
     let phase = crate::application::file_dag::program::facade_runtime::service::publication_owner(
-        &prepared, &services,
+        &prepared, &services, std::sync::Arc::new(crate::outbound::digest::fixtures::fake::DigestFake),
     )
     .expect("publication owner");
     let required = |inapplicable: &[FileId]| {

@@ -69,6 +69,7 @@ fn shared_tree_positions_keep_native_join_projection_refusal_and_replay() {
                 Arc::new(
                     ryo_execution::outbound::derived::factory::semantics(),
                 ),
+                Arc::new(ryo_execution::outbound::digest::factory::blake3()),
             );
             let mut authored = authored_request(1);
             let comparisons = if empty {

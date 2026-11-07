@@ -77,3 +77,57 @@ why = "added by the call-argument relation; no recorded rule reads it yet."
 
 [feature."relation:Resolves"]
 why = "added by the resolves relation; no recorded rule reads it yet."
+
+# Added by the Python rules of the benchmark (the ruff linter's queries, not the recorded rules of the ruff repository): no recorded
+# rule's query names any of these, so over ruff they are fed what the recorded rules feed them, nothing or almost nothing.
+
+[feature."family:NaturalLessThan"]
+why = "no recorded rule uses `natural_lt`; the Python I001 query does."
+
+[feature."operation:FitsRendered"]
+why = "no recorded rule uses `fits-rendered`; the Python I001 query does."
+
+[feature."operation:GroupDigest"]
+why = "no recorded rule uses `group-digest`."
+
+[feature."operation:OrderedDfs"]
+why = "no recorded rule uses `ordered-dfs`; only the operator feature contracts do."
+
+[feature."operation:OrderedMatch"]
+why = "no recorded rule uses `ordered-match`; the Python suppression fragments do."
+
+[feature."operation:RenderSyntax"]
+why = "no recorded rule uses `render-syntax`."
+
+[feature."operation:SourceMatches"]
+why = "no recorded rule uses `source-matches`; the Python I001 query does."
+
+[feature."operation:SpanBounds"]
+why = "no recorded rule uses `span-bounds`; the Python suppression fragments do."
+
+[feature."relation:AnalyzedSource"]
+why = "read only by `orphan-rust-files` (undecided on ruff, so it feeds nothing) and `crate-dependency-depth` (recorded as pending)."
+
+[feature."relation:BytesLiteral"]
+why = "2 rows; no recorded rule reads it."
+
+[feature."relation:FilesystemExecutable"]
+why = "no recorded rule reads it; the Python EXE rules do."
+
+[feature."relation:FilesystemReadFailure"]
+why = "no recorded rule reads it."
+
+[feature."relation:FormatSpecification"]
+why = "29 rows; no recorded rule reads it."
+
+[feature."relation:ManifestDiagnostic"]
+why = "no recorded rule reads it."
+
+[feature."relation:ProjectNamespaceMembership"]
+why = "no recorded rule reads it; the Python I001 query does."
+
+[feature."relation:StandardLibraryImport"]
+why = "no recorded rule reads it; the Python I001 query does."
+
+[feature."relation:TokenLink"]
+why = "no recorded rule reads it."

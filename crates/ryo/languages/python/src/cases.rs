@@ -73,6 +73,8 @@ pub struct Case<I, V, E> {
 /// the other kind is a failure of the table, reported with the row's name. An `Error` is compared by value, in full. A word no row has
 /// is a failure too: a runner with nothing to run proves nothing.
 ///
+/// Every row runs: a row that fails (or whose subject panics) does not hide the rows after it, and the one panic names every failed row.
+///
 /// # Panics
 ///
 /// When a row's expectation is not met, or its kind does not match its word.
@@ -85,6 +87,7 @@ where
         cases.iter().any(|case| case.word == word),
         "no row has the case word {word:?}: a runner with nothing to run proves nothing"
     );
+    let mut failed: Vec<String> = Vec::new();
     for case in cases.iter().filter(|case| case.word == word) {
         let kind_matches = matches!(
             (case.word, &case.expect),
@@ -94,12 +97,22 @@ where
                     Expect::Error(_) | Expect::Refusal(_)
                 )
         );
-        assert!(
-            kind_matches,
-            "{}: a {:?} row expects the wrong kind",
-            case.name.0, case.word
-        );
-        let answer = subject((case.input)());
+        if !kind_matches {
+            failed.push(format!(
+                "{}: a {:?} row expects the wrong kind\n",
+                case.name.0, case.word
+            ));
+            continue;
+        }
+        let answer = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            subject((case.input)())
+        })) {
+            Ok(answer) => answer,
+            Err(_) => {
+                failed.push(format!("{}: the subject panicked\n", case.name.0));
+                continue;
+            }
+        };
         let met = match (&case.expect, &answer) {
             (Expect::Value(expected), Ok(actual)) => expected == actual,
             (Expect::Refusal(select), Err(actual)) => select(actual) == Selection::Matches,
@@ -113,10 +126,17 @@ where
             Expect::Error(error) => error,
             Expect::Refusal(_) => &case.word,
         };
-        assert!(
-            met,
-            "{}: expected {expected:?}, answered {answer:?}",
-            case.name.0
-        );
+        if !met {
+            failed.push(format!(
+                "{}: expected {expected:?}, answered {answer:?}\n",
+                case.name.0
+            ));
+        }
     }
+    assert!(
+        failed.is_empty(),
+        "{} row(s) of {word:?} failed:\n{}",
+        failed.len(),
+        failed.concat()
+    );
 }

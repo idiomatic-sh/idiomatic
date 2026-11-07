@@ -6,3 +6,6 @@ pub mod metadata;
 /// Prepares a request's program for execution.
 pub mod prepare;
 
+/// Publishes a producer's names as portable values.
+pub mod publication;
+

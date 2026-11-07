@@ -39,7 +39,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
         operations.push(Operation::Hosted {
             relation: HostedNumber(0),
         });
-        vec![fixtures::numbers("groups", 2, rows)]
+        vec![fixtures::requests::numbers("groups", 2, rows)]
     };
     operations.push(Operation::GroupDigest {
         from: if matches!(input, Scenario::Missing) {
@@ -54,7 +54,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
             1
         }),
     });
-    let output = fixtures::published(
+    let output = fixtures::requests::published(
         inputs::plan(operations),
         vec![],
         hosted,

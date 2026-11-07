@@ -58,7 +58,7 @@ fn execution_boundary(scenario: Scenario) -> Result<Value, Failure> {
         kinds: kinds.to_vec(),
         ..Table::default()
     };
-    let answer = fixtures::table_request(
+    let answer = fixtures::requests::table_request(
         operation.clone(),
         &[&empty],
         bindings.to_vec(),
@@ -76,7 +76,7 @@ fn execution_boundary(scenario: Scenario) -> Result<Value, Failure> {
         },
     };
     let reached =
-        fixtures::table_request(operation, &[&populated], bindings.to_vec(), &mut symbols);
+        fixtures::requests::table_request(operation, &[&populated], bindings.to_vec(), &mut symbols);
     assert!(matches!(reached, Err(OperatingError::InvalidRegex { .. })));
     Ok(2)
 }

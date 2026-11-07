@@ -160,9 +160,9 @@ pub(in crate::inbound::use_cases::execution::use_case_test) fn execute(
         }
         _ => Err(OperatingError::NotRead),
     };
-    let (engine, prepared) = fixtures::prepared(plan, vec![], vec![])
+    let (engine, prepared) = fixtures::requests::prepared(plan, vec![], vec![])
         .expect("static faults stay deferred in a structurally valid request");
-    let result = fixtures::run_prepared(
+    let result = fixtures::requests::run_prepared(
         &engine,
         &prepared,
         b"",

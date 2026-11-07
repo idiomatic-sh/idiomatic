@@ -2,7 +2,7 @@
 use crate::application::file_dag::program::file_session::interface::FileExecution as _;
 use crate::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
 use crate::outbound::operators::interface::OperatorsPort as _;
-use super::super::super::fixtures::{Authored, Preparation};
+use super::super::super::fixtures::requests::{Authored, Preparation};
 use crate::outbound::facts::types::ResidentStability;
 use crate::inbound::use_cases::execution::interface::ExecutionUseCase;
 use super::super::super::fixtures;
@@ -154,8 +154,8 @@ fn subject(refusal: Input) -> Result<Value, Failure> {
             include: vec![],
             exclude: vec![],
         }], digests: vec![Digest([0; 16])], hosted: vec![
-            fixtures::numbers("left", 1, &[&[1], &[1], &[2]]),
-            fixtures::numbers("right", 1, &[&[2], &[3]]),
+            fixtures::requests::numbers("left", 1, &[&[1], &[1], &[2]]),
+            fixtures::requests::numbers("right", 1, &[&[2], &[3]]),
         ], observations: ObservationIdentity::Independent })?;
     let corpus = [CorpusInput::Available(CorpusEntry {
         path: ryo_language::domain::files::types::FilePath("injected.py".into()),
@@ -163,7 +163,7 @@ fn subject(refusal: Input) -> Result<Value, Failure> {
         size: FileSize(0),
         modified: Nanoseconds(0),
     })];
-    let request = fixtures::execution().execution(&prepared, &corpus);
+    let request = fixtures::requests::execution().execution(&prepared, &corpus);
     let elements = Elements::default();
     let mut symbols = Symbols::default();
     let no_provider = |_| Err(OperatingError::NotRead);

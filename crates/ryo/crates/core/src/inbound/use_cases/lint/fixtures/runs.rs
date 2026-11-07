@@ -129,7 +129,7 @@ pub(super) fn use_case_over(
                 Arc::clone(&analysis_digest),
                 Arc::clone(&analysis_memory),
             ),
-            crate::application::cross_file::service::CrossFile::new(Arc::clone(&analysis_corpus), std::sync::Arc::new(ryo_execution::outbound::publication::factory::execution())),
+            crate::application::cross_file::service::CrossFile::new(Arc::clone(&analysis_corpus), std::sync::Arc::new(ryo_execution::inbound::use_cases::publication::use_case::PublicationUseCaseImpl::new())),
             Arc::clone(&analysis_corpus),
             facts,
             Arc::clone(&analysis_language),

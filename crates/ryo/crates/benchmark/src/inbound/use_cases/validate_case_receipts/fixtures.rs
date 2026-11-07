@@ -66,7 +66,8 @@ pub fn exercise(
             assert_eq!(audit.metadata_verified.len(), 1);
             Ok(audit.case_count.0)
         }
-        Err(ReportsError::Invalid(message)) => {
+        Err(error @ (ReportsError::Invalid(_) | ReportsError::Json(_))) => {
+            let message = error.to_string();
             let key = missing.expect("complete fixture must decode and verify");
             assert!(
                 message.contains(&format!("missing field `{key}`")),

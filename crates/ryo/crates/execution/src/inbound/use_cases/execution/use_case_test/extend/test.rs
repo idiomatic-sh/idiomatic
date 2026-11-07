@@ -61,10 +61,10 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     };
     let mut symbols = Symbols::default();
     let rows: &[&[i64]] = if text { &[&[1], &[2]] } else { &[&[1]] };
-    let out = fixtures::published(
+    let out = fixtures::requests::published(
         plan,
         bindings,
-        vec![fixtures::numbers("input", 1, rows)],
+        vec![fixtures::requests::numbers("input", 1, rows)],
         &mut symbols,
     )?;
     if text {

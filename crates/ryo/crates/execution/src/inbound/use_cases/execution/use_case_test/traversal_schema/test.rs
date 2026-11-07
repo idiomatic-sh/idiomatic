@@ -196,7 +196,7 @@ fn native(scenario: Scenario) -> Result<Value, Failure> {
             _ => unreachable!(),
         }
         let plan = inputs::plan(vec![first, operation]);
-        let output = fixtures::published_file(plan, vec![], vec![], b"x", &elements, &mut symbols)?;
+        let output = fixtures::requests::published_file(plan, vec![], vec![], b"x", &elements, &mut symbols)?;
         assert_eq!(answer, output.kinds);
         if !empty {
             assert!(output.count.0 > 0);

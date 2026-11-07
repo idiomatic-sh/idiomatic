@@ -95,7 +95,37 @@ impl ExecutionRequest for RequestExecution {
         drop(self);
     }
 
+    #[cfg(any(test, feature = "fixtures"))]
     fn open_file<'a, 'facts: 'a>(
+        &'a self,
+        input: FileInput<'a, 'facts>,
+        symbols: &mut Symbols,
+    ) -> Result<FileSession<'a, 'facts>, OperatingError> {
+        self.open_session(input, symbols)
+    }
+    fn run_file(
+        &self,
+        input: FileRunInput<'_>,
+        symbols: &mut Symbols,
+        capture: CaptureContext<'_>,
+        facts: &dyn FactsWorker,
+    ) -> FileRules {
+        run_file(self, input, symbols, capture, facts)
+    }
+    fn project_phase(&self) -> Result<ProjectPhase<'_>, OperatingError> {
+        Ok(ProjectPhase {
+            request: self,
+            publication: std::rc::Rc::new(facade_runtime::service::publication_owner(
+                &self.program,
+                &self.services,
+                Arc::clone(&self.digest),
+            )?),
+        })
+    }
+}
+impl RequestExecution {
+    /// Opens one file's session: the engine's own route under `run_file`, sealed to the crate.
+    pub(crate) fn open_session<'a, 'facts: 'a>(
         &'a self,
         input: FileInput<'a, 'facts>,
         symbols: &mut Symbols,
@@ -142,26 +172,6 @@ impl ExecutionRequest for RequestExecution {
             file: input.file,
         })
     }
-    fn run_file(
-        &self,
-        input: FileRunInput<'_>,
-        symbols: &mut Symbols,
-        capture: CaptureContext<'_>,
-        facts: &dyn FactsWorker,
-    ) -> FileRules {
-        run_file(self, input, symbols, capture, facts)
-    }
-    fn project_phase(&self) -> Result<ProjectPhase<'_>, OperatingError> {
-        Ok(ProjectPhase {
-            request: self,
-            publication: std::rc::Rc::new(facade_runtime::service::publication_owner(
-                &self.program,
-                &self.services,
-            )?),
-        })
-    }
-}
-impl RequestExecution {
     /// Sessions exist only inside `ProjectRootExecution::evaluate`, one per declared root.
     pub(in crate::application::file_dag::program) fn open_project<'a>(
         &'a self,
@@ -228,7 +238,7 @@ fn run_file(
         words,
     } = capture;
     let mut rules = Vec::new();
-    let opened = request.open_file(
+    let opened = request.open_session(
         FileInput {
             language,
             resident_stability: facts.resident_stability(),
@@ -374,5 +384,6 @@ pub(crate) fn begin(program: &PreparedExecutionProgram, corpus: &[CorpusInput]) 
             corpus,
         )),
         frontiers: crate::application::file_dag::frontiers::types::FrontierCache::new(),
+        digest: Arc::clone(&program.digest),
     }
 }

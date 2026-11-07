@@ -86,7 +86,7 @@ pub(crate) fn build(
                     Arc::clone(&digests),
                     Arc::clone(&machine),
                 ),
-                ryo_core::application::cross_file::service::CrossFile::new(Arc::clone(&files), std::sync::Arc::new(ryo_execution::outbound::publication::factory::execution())),
+                ryo_core::application::cross_file::service::CrossFile::new(Arc::clone(&files), std::sync::Arc::new(ryo_execution::inbound::use_cases::publication::use_case::PublicationUseCaseImpl::new())),
                 Arc::clone(&files),
                 Arc::new(facts::factory::memory()),
                 port,

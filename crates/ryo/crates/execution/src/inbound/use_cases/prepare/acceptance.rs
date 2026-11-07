@@ -20,6 +20,7 @@ fn runs(world: &mut Behavior) {
             ))),
         ),
         Arc::new(ryo_execution::outbound::derived::factory::semantics()),
+        Arc::new(ryo_execution::outbound::digest::factory::blake3()),
     );
     let bindings = if world.input == "mismatched bindings" {
         vec![vec![]]

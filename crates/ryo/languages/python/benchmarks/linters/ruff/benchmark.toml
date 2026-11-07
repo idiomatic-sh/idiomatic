@@ -448,11 +448,11 @@ defaults = [
 supporting-rules = ["E501", "W191", "SIM300", "S307", "ERA001"]
 
 [rule-applicability]
-E501 = "accepted-syntax"
-W191 = "accepted-syntax"
+E501 = "always"
+W191 = "always"
 SIM300 = "accepted-syntax"
 S307 = "accepted-syntax"
-ERA001 = "accepted-syntax"
+ERA001 = "always"
 ASYNC100 = "accepted-syntax"
 ASYNC105 = "accepted-syntax"
 ASYNC115 = "accepted-syntax"
