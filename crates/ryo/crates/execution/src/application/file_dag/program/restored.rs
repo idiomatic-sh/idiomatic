@@ -3,7 +3,7 @@
 use super::admission::AdmittedInput;
 use super::admission::Partition;
 use super::admission::ProducerRoot;
-use super::admission::Readiness;
+use super::admission::ReadProof;
 use super::admission::RequiredPartitions;
 use super::facade_runtime::types::PublicationScope;
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
@@ -172,8 +172,7 @@ impl ValidatedFrontier {
                 publication.clone(),
                 &proof,
                 self.root,
-                Partition::Project(self.partition.clone()),
-                Readiness::Complete,
+                ReadProof::complete(Partition::Project(self.partition.clone())),
             )
             .map(|admitted| admitted.with_coverage(self.coverage.clone()))
         })();

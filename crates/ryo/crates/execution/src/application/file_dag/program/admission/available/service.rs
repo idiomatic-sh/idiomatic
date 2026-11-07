@@ -1,6 +1,6 @@
 //! Source availability: a published input or a first-borrow source inspected once.
 use super::super::{
-    AdmittedInput, AvailableBody, AvailableInput, Partition, ProducerRoot, Readiness,
+    AdmittedInput, AvailableBody, AvailableInput, Partition, ProducerRoot, ReadProof,
 };
 use crate::application::file_dag::relations::{RelationOwner, handle::service::PublishedInput};
 use crate::domain::operating::errors::OperatingError;
@@ -61,11 +61,11 @@ impl AvailableInput {
                     owner.normalize(&publication, rows).and_then(|normalized| {
                         owner.admit(publication.as_ref(), crate::domain::operator::contract::views::BorrowedRows::from(&normalized))
                             .and_then(|proof| AdmittedInput::from_publication(Rc::clone(&owner), publication.clone(), &proof,
-                                root, partition.clone(), Readiness::Complete))
+                                root, ReadProof::complete(partition.clone())))
                     })
                 } else {
                     AdmittedInput::from_publication(Rc::clone(&owner), publication.clone(), &physical,
-                        root, partition.clone(), Readiness::Complete)
+                        root, ReadProof::complete(partition.clone()))
                 };
                 physical.map(|input| input.with_coverage(coverage))
             }

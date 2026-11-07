@@ -5,7 +5,7 @@ use crate::application::file_dag::program::admission::AvailableInput;
 use crate::application::file_dag::program::admission::Inputs;
 use crate::application::file_dag::program::admission::Partition;
 use crate::application::file_dag::program::admission::ProducerRoot;
-use crate::application::file_dag::program::admission::Readiness;
+use crate::application::file_dag::program::admission::ReadProof;
 use crate::application::file_dag::program::constants::{
     OBSERVATION_UNAVAILABLE, PRODUCER_COVERAGE_INCOMPLETE, PRODUCER_ROOT_INCOMPLETE,
     PRODUCER_WITHOUT_QUERY, SOURCE_FACTS_INCOMPLETE,
@@ -258,7 +258,6 @@ pub(in crate::application::file_dag::program::facade_runtime::source_admission) 
             }
             _ => ProducerRoot::Input(source),
         },
-        partition.clone(),
-        Readiness::Complete,
+        ReadProof::complete(partition.clone()),
     )
 }

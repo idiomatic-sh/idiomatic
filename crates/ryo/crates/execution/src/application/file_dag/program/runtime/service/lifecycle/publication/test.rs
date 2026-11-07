@@ -5,7 +5,7 @@ use std::rc::Rc;
 
 #[test]
 fn publication_constructor_rejects_same_owner_proof_substitution_even_for_canonical_aliases() {
-    use crate::application::file_dag::program::admission::{ProducerRoot, Readiness};
+    use crate::application::file_dag::program::admission::{ProducerRoot, ReadProof};
     use crate::domain::operator::contract::views::BorrowedRows;
     use ryo_values::domain::rows::types::{RowCount, Table};
     let CompiledCase { execution, roots } = compiled();
@@ -68,8 +68,7 @@ fn publication_constructor_rejects_same_owner_proof_substitution_even_for_canoni
                     publication.clone(),
                     proof,
                     ProducerRoot::Region(roots[0]),
-                    execution.partition().clone(),
-                    Readiness::Complete,
+                    ReadProof::complete(execution.partition().clone()),
                 )
                 .unwrap();
             assert!(
@@ -86,8 +85,7 @@ fn publication_constructor_rejects_same_owner_proof_substitution_even_for_canoni
                     publication.clone(),
                     proof,
                     ProducerRoot::Region(roots[0]),
-                    execution.partition().clone(),
-                    Readiness::Complete
+                    ReadProof::complete(execution.partition().clone())
                 ),
                 Err(OperatingError::NotRead)
             ));
