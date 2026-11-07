@@ -31,11 +31,3 @@ pub enum PortableOperatorFault {
 /// An engine-retained error interrupted a finite semantic callback.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct SemanticInterrupted;
-
-impl std::fmt::Display for SemanticInterrupted {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("an engine-retained error interrupted a finite semantic callback")
-    }
-}
-
-impl std::error::Error for SemanticInterrupted {}

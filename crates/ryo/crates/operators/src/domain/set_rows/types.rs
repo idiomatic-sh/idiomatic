@@ -16,14 +16,6 @@ pub enum SetKind {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct SetInterrupted;
 
-impl std::fmt::Display for SetInterrupted {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("the engine interrupted a set operation; its own error is retained with the driver")
-    }
-}
-
-impl std::error::Error for SetInterrupted {}
-
 /// Finite access to acquired typed membership, invocation distinct state and delivery.
 /// The semantic capability cannot select an index, retain a row or publish independently.
 pub trait SetRowDriver {

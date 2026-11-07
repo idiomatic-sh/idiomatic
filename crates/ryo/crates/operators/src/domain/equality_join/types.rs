@@ -3,14 +3,6 @@
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct JoinInterrupted;
 
-impl std::fmt::Display for JoinInterrupted {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("the engine interrupted an equality join; its own error is retained outside the capability")
-    }
-}
-
-impl std::error::Error for JoinInterrupted {}
-
 /// Finite borrowed access to already acquired matching rows, in their original bag order.
 /// Implementations cannot be selected or retained by the semantic kernel. One object
 /// owns the exclusive borrow used for admission and downstream delivery.
