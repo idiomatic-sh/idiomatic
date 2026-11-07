@@ -59,7 +59,9 @@ def render(v):
  table=['| Check | Result |','|---|---|']+['| '+k+' | '+fmt(x).replace('|','\\|')+' |' for k,x in rows]
  head='### Current ownership checkpoint — source `'+v['source'][:10]+'`, validation'+str(v['validation'])
  return '\n'.join([head,'','Written by `evidence/checkpoint/run.py` from [validation.json](evidence/checkpoint/validation.json); do not edit by hand. Review: [checkpoint](audits/2026-11-06-derived/ownership/checkpoint.json).','']+table)+'\n\n'
-TICKED=re.compile(r'^(- \[x\]|\|[^|]*\|\s*\[x\]|\|\s*☑\s*\|)',re.I)
+TICKED=re.compile(r'^(- \[x\]|\|[^|]*\|\s*\[x\]|\|\s*☑\s*\||\|.*\|\s*☑\s*\|)',re.I)
+CHECKED_CELL=re.compile(r'(?<=\|)(\s*)☑(?=\s*\|)')
+PENDING=re.compile(r'pending (?:independent )?(?:re-?)?review|PENDING-REVIEW|review[^.|]{0,80} has not run',re.I)
 CITED=re.compile(r'(?:validation|proof|review|reviewed|pass|runtime|reuse|reused)\s?(\d{3})\b|\b(?:in|at)(\d{3})\b',re.I)
 def ticked_rows_without_proof(text,produced):
  """Ticked rows citing no validation, or one newer than the validation produced."""
@@ -192,16 +194,22 @@ def verdict(cited,tests):
     if found: return row_verdict(cited,found)
  if any(f and cited in f['rows'] for f in tests.values()): return 'red'
  return 'absent'
+def untick(line):
+ """The row with its `[x]` box, or every `☑` cell of a table row, unchecked."""
+ if re.search(r'\[x\]',line,re.I) and not CHECKED_CELL.search(line): return re.sub(r'\[x\]','[ ]',line,count=1,flags=re.I)
+ return CHECKED_CELL.sub(lambda m: m.group(1)+'☐',line)
 def untick_unproven(text,v):
- """The text with every ticked row un-ticked that cites a test or case row red, not run or absent in the validation's recorded tests, and one line per such row."""
+ """The text with every ticked row (a `[x]` box or a `☑` cell, in the README, matrix.md or checklist.md) un-ticked that cites no test, says its own review is pending, or cites a test or case row red, not run or absent in the validation's recorded tests, and one line per such row."""
  tests=all_tests(v); bad=[]; lines=text.splitlines(keepends=True)
  for n,line in enumerate(lines):
   if not TICKED.match(line): continue
   cited=cited_tests(line); found={c:verdict(c,tests) for c in cited}
   unproven={c:x for c,x in found.items() if x!='passed'}
-  if not unproven: continue
-  bad.append(str(n+1)+': '+str(len(cited)-len(unproven))+' of '+str(len(cited))+' cited tests passed; '+'; '.join(x+' `'+c+'`' for c,x in unproven.items())+': '+line[:80])
-  lines[n]=re.sub(r'\[x\]','[ ]',line,count=1,flags=re.I)
+  pending=PENDING.search(line)
+  if cited and not unproven and not pending: continue
+  said='cites no test' if not cited else 'says its review is pending (`'+pending.group(0)+'`)' if not unproven else str(len(cited)-len(unproven))+' of '+str(len(cited))+' cited tests passed; '+'; '.join(x+' `'+c+'`' for c,x in unproven.items())
+  bad.append(str(n+1)+': '+said+': '+line[:80])
+  lines[n]=untick(line)
  return ''.join(lines),bad
 RERUN=re.compile(r'\b(?:narrow(?:ed)? run|re-?run)\b',re.I)
 def reruns_without_log(texts,v):
@@ -219,7 +227,7 @@ def write_block(text,v):
  end=next(i for i in range(start+1,len(lines)) if lines[i].startswith('- ['))
  return ''.join(lines[:start])+render(v)+''.join(lines[end:])
 def finish(v):
- """Write the matrix numbers block from validation.json, print the scope delta, un-tick each ticked row a cited test does not prove, check each ticked row cites a validation and each rerun result names its raw log. Returns the exit code."""
+ """Write the matrix numbers block from validation.json, print the scope delta, un-tick each ticked row that cites no test or a test the recorded logs do not prove, check each ticked row cites a validation and each rerun result names its raw log. Returns the exit code."""
  old=readme.read_text(); text=write_block(old,v)
  for line in scope_delta(v): print(line)
  bad=[]; texts=[]; changed=[]

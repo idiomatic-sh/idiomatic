@@ -1,4 +1,4 @@
-"""Fixture cases of `run.py --check`: a ticked row stays ticked only when every test it cites passed in the recorded logs."""
+"""Fixture cases of `run.py --check`: a ticked row (a `[x]` box or a `☑` cell) stays ticked only when it cites a test, every test it cites passed in the recorded logs, and it does not say its review is pending."""
 import importlib.util,tempfile,unittest
 from pathlib import Path
 spec=importlib.util.spec_from_file_location('run',Path(__file__).resolve().parent/'run.py'); run=importlib.util.module_from_spec(spec); spec.loader.exec_module(run)
@@ -54,6 +54,18 @@ class Check(unittest.TestCase):
   self.assertEqual(self.untick('- [x] Rows. (validation321: `domain::rows::service_test`)')[1],[])
  def test_type_paths_and_short_names_are_not_cited_tests(self):
   self.assertEqual(run.cited_tests('`Fusibility::{Fusable, Barrier}` `executable_program::service::choose` `boundary_contract` `raw_scope`'),[])
+ def test_a_ticked_row_citing_no_test_is_unticked(self):
+  text,bad=self.untick('| 2 VERIFIED | [x] Seal. | validation321: all controls pass. |')
+  self.assertTrue(text.startswith('| 2 VERIFIED | [ ] Seal.')); self.assertIn('cites no test',bad[0])
+ def test_every_checked_cell_of_a_matrix_row_citing_no_test_is_unchecked(self):
+  text,bad=self.untick('| 16. Stored selections | `ryo-execution` | ☑ | — | ☑ | Controls pass307. |')
+  self.assertEqual(text,'| 16. Stored selections | `ryo-execution` | ☐ | — | ☐ | Controls pass307. |\n'); self.assertIn('cites no test',bad[0])
+ def test_a_checklist_row_stays_checked_only_while_its_cited_test_passed(self):
+  self.assertEqual(self.untick('| ☑ | A1 | Rows. | Proof321: `rows::service_test::succeeds`. |')[1],[])
+  self.assertTrue(self.untick('| ☑ | A2 | Tables. | Proof321: `table::service_test::succeeds`. |')[0].startswith('| ☐ | A2 |'))
+ def test_a_ticked_row_saying_its_review_is_pending_is_unticked_though_its_tests_passed(self):
+  text,bad=self.untick('| 2 VERIFIED-PENDING-REVIEW | [x] Rows. | validation321: `rows::service_test::succeeds` |')
+  self.assertTrue(text.startswith('| 2 VERIFIED-PENDING-REVIEW | [ ] Rows.')); self.assertIn('review is pending',bad[0])
  def test_a_rerun_result_without_its_raw_log_fails(self):
   self.assertEqual(len(run.reruns_without_log([('note','the row passes in its narrow run')],self.v)),1)
   self.assertEqual(len(run.reruns_without_log([('note','the row passes in its narrow run (libraries.log)')],self.v)),0)
