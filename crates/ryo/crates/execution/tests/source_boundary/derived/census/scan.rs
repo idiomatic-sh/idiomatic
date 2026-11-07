@@ -1,4 +1,4 @@
-//! Source-derived inventories: the owner's consumer-visible surface, the production files outside
+//! Source-derived inventories: the consumer-visible surface of the derived module, the production files outside
 //! the owner, and the test-only module trees that are not production.
 use std::{
     collections::BTreeSet,

@@ -43,7 +43,7 @@ impl<'a> SelectionProgram<'a> {
         match from {
             Input::BoundObservation(_) => None,
             Input::Step(id) => steps
-                .get(usize::try_from(id.0).ok()?)?
+                .get(id.0 as usize)?
                 .as_deref()
                 .filter(|selector| !selector.distinct)
                 .cloned(),

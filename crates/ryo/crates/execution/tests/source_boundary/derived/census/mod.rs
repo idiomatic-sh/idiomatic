@@ -1,4 +1,4 @@
-//! The census of derived consumers. The owner's consumer-visible surface is read from source and
+//! The census of derived consumers. The consumer-visible surface of the derived module is read from source and
 //! must equal the exhaustive `Entry` table; every acquiring entry has a positive and a negative
 //! compile control; the production files outside the owner that call each entry, and those that
 //! hold a leased view or handle, must equal the declared lists; every `DerivedKind` names its

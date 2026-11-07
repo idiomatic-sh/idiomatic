@@ -24,7 +24,7 @@ fn declaration(source: &str, marker: &str) -> String {
 fn compile(directory: &Path, name: &str, source: &str) -> std::process::Output {
     let input = directory.join(format!("{name}.rs"));
     fs::write(&input, source).unwrap();
-    Command::new(std::env::var_os("RUSTC").unwrap_or_else(|| "rustc".into()))
+    Command::new("rustc")
         .args(["--edition=2024", "--crate-type=lib", "--emit=metadata"])
         .arg(&input)
         .arg("-o")

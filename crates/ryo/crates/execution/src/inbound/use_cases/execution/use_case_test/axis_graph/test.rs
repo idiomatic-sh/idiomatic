@@ -19,6 +19,7 @@ use ryo_values::{
     },
 };
 use std::sync::Arc;
+const AXES: [&str; 5] = ["axis-0", "axis-1", "axis-2", "axis-3", "axis-4"];
 const DIRECTIONS: [Direction; 5] = [
     Direction::Parent,
     Direction::Child,
@@ -92,12 +93,13 @@ fn execute(stored: bool, projected: bool) -> Result<Vec<Table>, OperatingError> 
             fixtures::numbers("domain", 1, &[&[1], &[2], &[9], &[9], &[4], &[91]]),
             fixtures::numbers("edges", 2, EDGES),
         ],
-        rules: (0..5)
-            .map(|i| RuleSpec {
-                id: RuleId(format!("axis-{i}").into()),
+        rules: AXES
+            .iter()
+            .map(|axis| RuleSpec {
+                id: RuleId((*axis).into()),
                 query: QueryBundle {
                     root: QueryDocumentSource {
-                        id: QuerySourceId(format!("axis-{i}").into()),
+                        id: QuerySourceId((*axis).into()),
                         text: "".into(),
                     },
                     modules: Default::default(),

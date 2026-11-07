@@ -4,7 +4,7 @@ use super::types::{Decimal, Numeric};
 use num_bigint::{BigInt, BigUint};
 use std::cmp::Ordering;
 
-/// Read canonical signed decimal integer text. Python spelling and whitespace are not accepted.
+/// Read canonical signed decimal integer text. Spellings of any source language and whitespace are not accepted.
 fn decimal(text: &str) -> Option<Decimal<'_>> {
     let (negative, digits) = text
         .strip_prefix('-')
