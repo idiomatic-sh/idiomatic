@@ -6,14 +6,16 @@ use ryo_benchmark::inbound::use_cases::certify::{
 };
 use ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
 #[then("the complete certified inventory publishes its observed samples")]
-fn complete(_: &mut crate::Behavior) {
+fn complete(world: &mut crate::Behavior) {
+    let _: &mut crate::Behavior = world;
     assert_eq!(
         exercise(Change::InventoryFull, CertifyUseCaseImpl::new),
         Ok(CaseCount(2))
     );
 }
 #[then("the diagnostic certified subset refuses metric publication")]
-fn diagnostic(_: &mut crate::Behavior) {
+fn diagnostic(world: &mut crate::Behavior) {
+    let _: &mut crate::Behavior = world;
     assert_eq!(
         exercise(Change::None, CertifyUseCaseImpl::new),
         Ok(CaseCount(2))

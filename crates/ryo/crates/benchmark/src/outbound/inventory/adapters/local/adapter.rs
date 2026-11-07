@@ -42,7 +42,7 @@ fn result(directory: &Path, row: &Row) -> Result<(), String> {
 
 /// Refuse stale result reuse while allowing the provider's already staged reproductions.
 fn begin(output: &Path) -> Result<(), String> {
-    if output.join(constants::SUMMARY_JSON).exists() {
+    if std::fs::metadata(output.join(constants::SUMMARY_JSON)).is_ok() {
         return Err(constants::INVENTORY_OUTPUT_ALREADY_CONTAINS_A_SUMMARY.into());
     }
     std::fs::create_dir_all(output).map_err(|e| e.to_string())
@@ -56,7 +56,7 @@ fn prepare(directory: &Path) -> Result<(), String> {
         constants::RESULT_JSON,
     ]
     .iter()
-    .any(|name| directory.join(name).exists())
+    .any(|name| std::fs::metadata(directory.join(name)).is_ok())
     {
         return Err(constants::INVENTORY_RULE_OUTPUT_ALREADY_CONTAINS_RECEI.into());
     }

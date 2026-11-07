@@ -282,8 +282,10 @@ pub(crate) fn materialize(
         source_files: BTreeMap::new(),
         missing: context.missing.clone(),
     };
-    if manifest.boundary.exists() {
-        std::fs::remove_dir_all(&manifest.boundary)?;
+    match std::fs::remove_dir_all(&manifest.boundary) {
+        Ok(()) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(error.into()),
     }
     std::fs::create_dir_all(manifest.boundary.join(&manifest.logical_root))?;
     for (path, bytes) in &context.auxiliary_files {

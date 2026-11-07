@@ -38,14 +38,13 @@ fn source_identity_uses_utf8_name_order_on_every_platform() {
 
 #[cfg(unix)]
 fn artifact_binding_recomputes_actual_metadata_in_both_directions() {
-    use std::os::unix::fs::PermissionsExt as _;
     for expected in [false, true] {
         let root = tempfile::tempdir().unwrap();
         let files = vec![std::path::PathBuf::from("case.py")];
         let file = root.path().join(&files[0]);
         std::fs::write(&file, b"same bytes").unwrap();
         let mode = if expected { 0o744 } else { 0o644 };
-        std::fs::set_permissions(&file, std::fs::Permissions::from_mode(mode)).unwrap();
+        set_mode(&file, mode);
         let source = source_digest(root.path(), &files).unwrap();
         let metadata = crate::outbound::suite::adapters::local::input_metadata::actual_digest(
             root.path(),
@@ -64,20 +63,15 @@ fn artifact_binding_recomputes_actual_metadata_in_both_directions() {
             })
         };
         check().unwrap();
-        std::fs::set_permissions(
-            &file,
-            std::fs::Permissions::from_mode(if expected { 0o644 } else { 0o744 }),
-        )
-        .unwrap();
+        set_mode(&file, if expected { 0o644 } else { 0o744 });
         assert!(invalid(check()));
-        std::fs::set_permissions(&file, std::fs::Permissions::from_mode(mode)).unwrap();
+        set_mode(&file, mode);
         check().unwrap();
     }
 }
 
 #[cfg(unix)]
 fn optional_partial_observation_scope_tracks_only_declared_files_without_losing_source_identity() {
-    use std::os::unix::fs::PermissionsExt as _;
     for before in [false, true] {
         let root = tempfile::tempdir().unwrap();
         let files = vec![
@@ -88,11 +82,7 @@ fn optional_partial_observation_scope_tracks_only_declared_files_without_losing_
             std::fs::write(root.path().join(file), b"same bytes").unwrap();
         }
         let mode = if before { 0o744 } else { 0o644 };
-        std::fs::set_permissions(
-            root.path().join(&files[0]),
-            std::fs::Permissions::from_mode(mode),
-        )
-        .unwrap();
+        set_mode(&root.path().join(&files[0]), mode);
         let scope = vec![files[0].clone()];
         let source = source_digest(root.path(), &files).unwrap();
         let metadata = crate::outbound::suite::adapters::local::input_metadata::actual_digest(
@@ -113,24 +103,12 @@ fn optional_partial_observation_scope_tracks_only_declared_files_without_losing_
         };
         check(&scope).unwrap();
         for other in [0o644, 0o744] {
-            std::fs::set_permissions(
-                root.path().join(&files[1]),
-                std::fs::Permissions::from_mode(other),
-            )
-            .unwrap();
+            set_mode(&root.path().join(&files[1]), other);
             check(&scope).unwrap();
         }
-        std::fs::set_permissions(
-            root.path().join(&files[0]),
-            std::fs::Permissions::from_mode(if before { 0o644 } else { 0o744 }),
-        )
-        .unwrap();
+        set_mode(&root.path().join(&files[0]), if before { 0o644 } else { 0o744 });
         assert!(invalid(check(&scope)));
-        std::fs::set_permissions(
-            root.path().join(&files[0]),
-            std::fs::Permissions::from_mode(mode),
-        )
-        .unwrap();
+        set_mode(&root.path().join(&files[0]), mode);
         check(&scope).unwrap();
         assert!(invalid(check(&[])), "the declared subset cannot disappear");
         assert!(invalid(check(&[files[0].clone(), files[0].clone()])));
@@ -326,3 +304,14 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
 }
+
+/// Set the permission bits of a file.
+#[cfg(unix)]
+fn set_mode(path: &std::path::Path, mode: u32) {
+    use std::os::unix::fs::PermissionsExt as _;
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode)).unwrap();
+}
+
+/// Platforms without permission bits keep the file as written.
+#[cfg(not(unix))]
+fn set_mode(_path: &std::path::Path, _mode: u32) {}

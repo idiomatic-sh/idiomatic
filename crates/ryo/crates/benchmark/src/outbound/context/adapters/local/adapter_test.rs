@@ -19,6 +19,17 @@ fn fixture(root: &Path) -> Result<ContextManifest, Error> {
         )]),
     )
 }
+/// Make `at` a symbolic link to `target`.
+#[cfg(unix)]
+fn link(target: &Path, at: &Path) -> std::io::Result<()> {
+    std::os::unix::fs::symlink(target, at)
+}
+
+/// Platforms without symbolic links cannot build this fixture.
+#[cfg(not(unix))]
+fn link(_target: &Path, _at: &Path) -> std::io::Result<()> {
+    Err(std::io::ErrorKind::Unsupported.into())
+}
 fn seal_binds_bytes_absences_logical_root_and_observed_dependencies() -> Result<(), Error> {
     let scratch = tempfile::tempdir()?;
     let manifest = fixture(scratch.path())?;
@@ -140,14 +151,11 @@ fn observed_missing_cannot_hide_present_untracked_or_symlinked_paths() -> Result
     assert!(matches!(receipt(&manifest, root, missing("absent/../new.py")), Err(_refused)));
     assert!(matches!(receipt(&manifest, root, missing("../escape.py")), Err(_refused)));
     assert!(matches!(receipt(&manifest, root, missing("untracked.py/child")), Err(_refused)));
-    #[cfg(unix)]
-    {
-        std::os::unix::fs::symlink(root, root.join("linked"))?;
-        assert!(matches!(receipt(&manifest, root, missing("linked/absent.py")), Err(_refused)));
-        assert!(matches!(receipt(&manifest, root, missing("linked/../new.py")), Err(_refused)));
-        std::os::unix::fs::symlink(root.join("absent-target"), root.join("dangling"))?;
-        assert!(matches!(receipt(&manifest, root, missing("dangling")), Err(_refused)));
-    }
+    link(root, &root.join("linked"))?;
+    assert!(matches!(receipt(&manifest, root, missing("linked/absent.py")), Err(_refused)));
+    assert!(matches!(receipt(&manifest, root, missing("linked/../new.py")), Err(_refused)));
+    link(&root.join("absent-target"), &root.join("dangling"))?;
+    assert!(matches!(receipt(&manifest, root, missing("dangling")), Err(_refused)));
     Ok(())
 }
 fn path_roles_and_symlinked_context_are_not_accepted() -> Result<(), Error> {
@@ -162,12 +170,9 @@ fn path_roles_and_symlinked_context_are_not_accepted() -> Result<(), Error> {
         .insert("pkg/mod.py".into(), artifact(b"import pkg.mod\n"));
     let _verified_6 = validate(&manifest, &root).expect_err("expected refusal");
     let _removed_auxiliary = manifest.auxiliary_files.remove(Path::new("pkg/mod.py"));
-    #[cfg(unix)]
-    {
-        std::fs::remove_file(root.join("__init__.py"))?;
-        std::os::unix::fs::symlink(root.join("mod.py"), root.join("__init__.py"))?;
-        let _verified_7 = validate(&manifest, &root).expect_err("expected refusal");
-    }
+    std::fs::remove_file(root.join("__init__.py"))?;
+    link(&root.join("mod.py"), &root.join("__init__.py"))?;
+    let _verified_7 = validate(&manifest, &root).expect_err("expected refusal");
     Ok(())
 }
 

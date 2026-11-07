@@ -9,14 +9,26 @@ pub(super) fn decode(
     if let Some(code) = status.code() {
         return Ok((ProcessExitCode(code), None));
     }
-    #[cfg(unix)]
-    {
-        use std::os::unix::process::ExitStatusExt as _;
-        if let Some(signal) = status.signal() {
-            return Ok((ProcessExitCode(-signal), Some(signal)));
-        }
+    if let Some(Signal(signal)) = terminating_signal(status) {
+        return Ok((ProcessExitCode(-signal), Some(signal)));
     }
     Err(Error::Invalid(
         constants::CHILD_STATUS_HAS_NEITHER_AN_EXIT.into(),
     ))
+}
+
+/// A signal number the platform reports for a child it ended.
+struct Signal(i32);
+
+/// The signal that ended the child, where the platform reports one.
+#[cfg(unix)]
+fn terminating_signal(status: std::process::ExitStatus) -> Option<Signal> {
+    use std::os::unix::process::ExitStatusExt as _;
+    status.signal().map(Signal)
+}
+
+/// Platforms without signals never report one.
+#[cfg(not(unix))]
+fn terminating_signal(_status: std::process::ExitStatus) -> Option<Signal> {
+    None
 }

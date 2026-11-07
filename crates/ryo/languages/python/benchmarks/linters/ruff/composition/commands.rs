@@ -1,5 +1,6 @@
 //! Independent worker and fixture commands at the Cargo executable boundary.
 use super::super::{adapter::LinterRuffAdapter, settings::LinterRuffSettings};
+use super::certification::scratch;
 use super::constants;
 use super::constants::{
     CASE_RECEIPT_DESTINATION_MUST_BE_N, CASE_SELECTION, CASE_SELECTION_MUST_BE_NONEMPTY_AN,
@@ -176,7 +177,7 @@ pub(super) fn verify_cases(
     let candidate_observations = tool.rule_observations.clone();
     let candidate_observation_selection = tool.rule_observation_selection;
     let reference = Arc::new(reference(executable, tool)?);
-    let scratch = suite_source.scratch(ArtifactPath(std::path::Path::new("")), "verify-cases-")?;
+    let scratch = scratch(suite_source.as_ref(), constants::VERIFY_CASES_SCRATCH)?;
     let root = suite_source.ensure_directory(ArtifactPath(&scratch))?;
     let profile = root.join(constants::PROFILE_DIRECTORY);
     ryo_benchmark::inbound::use_cases::stage_suite::use_case::StageSuiteUseCaseImpl::new(
@@ -264,7 +265,7 @@ pub(super) fn verify_reference_cases(
     let tool = suite_source.profile(ArtifactPath(&source))?;
     suite_source.verify_tool(ArtifactPath(&executable), &tool)?;
     let reference = reference(executable, tool)?;
-    let scratch = suite_source.scratch(ArtifactPath(std::path::Path::new("")), "verify-reference-")?;
+    let scratch = scratch(&suite_source, constants::VERIFY_REFERENCE_SCRATCH)?;
     let root = suite_source.ensure_directory(ArtifactPath(&scratch))?;
     let count = ryo_benchmark::inbound::use_cases::verify_reference_cases::use_case::VerifyReferenceCasesUseCaseImpl::new(&suite_source, &reference, &execution, &ryo_benchmark::outbound::inventory::factory::local()).verify_reference_cases(
         &source.join(crate::constants::RULES_DIRECTORY),
