@@ -154,7 +154,7 @@ pub(super) fn a_rejected_file_leaves_pt020_pt025_and_pt026_answering_the_valid_f
 /// The rules whose plans cross files by design (I001 reads `project-namespace-membership`, PLW0406 `module-identity`) and RUF100,
 /// which consumes their `noqa_matches`, beside a syntax-rejected file: the lineage of their cross-file steps keeps the rejected
 /// file's missing input in that file, so the valid file answers Ruff 0.16.5's findings (I001 and PLW0406 on the import of the
-/// module itself, RUF100 on the unused `noqa`), I001 and PLW0406 skip the rejected file and are undecided nowhere. Before the
+/// module itself, RUF100 on the unused `noqa`), and all three skip the rejected file and are undecided nowhere. Before the
 /// lineage, the one rejected file left all three Unknown at every file.
 pub(super) fn a_rejected_file_leaves_i001_plw0406_and_ruf100_answering_the_valid_file() {
     use super::constants::{
@@ -315,7 +315,8 @@ pub(super) fn a_rejected_file_leaves_i001_plw0406_and_ruf100_answering_the_valid
                 rule(
                     "test/RUF100",
                     &read(RULES_RUF100_QUERY_RYOQL),
-                    RuleApplicability::Always,
+                    // RUF100 takes its producers' pin: it cannot answer where they skip.
+                    RuleApplicability::AcceptedSyntax,
                     consumed,
                 ),
             ),
@@ -351,25 +352,17 @@ pub(super) fn a_rejected_file_leaves_i001_plw0406_and_ruf100_answering_the_valid
         );
     }
     assert!(
-        !report
-            .unknowns
-            .iter()
-            .any(|unknown| unknown.path != RelativePath(BROKEN.into())),
-        "the rejected file leaves no rule undecided at the valid files: {:?}",
+        report.unknowns.is_empty(),
+        "the rejected file leaves no rule undecided anywhere: {:?}",
         report.unknowns
     );
-    for rule in [&i001, &plw0406] {
+    for rule in [&i001, &plw0406, &ruf100] {
         assert!(
             report
                 .skipped
                 .iter()
                 .any(|skip| &skip.rule == rule && skip.path == RelativePath(BROKEN.into())),
             "{rule:?} skips the rejected file"
-        );
-        assert!(
-            !report.unknowns.iter().any(|unknown| &unknown.rule == rule),
-            "{rule:?} is skipped at the rejected file, not undecided: {:?}",
-            report.unknowns
         );
     }
 }

@@ -67,7 +67,8 @@ pub(super) fn i001_hidden_match_and_ruf100_output_follow_first_import_and_unknow
     let rule = |name: &str, query: &str, observations| Rule {
         query: ryo::query::RyoQlQuery::with_modules(name, query, &modules).unwrap(),
         observations,
-        applicability: RuleApplicability::Always,
+        // I001 is pinned accepted-syntax, and its consumers (RUF100 and the hidden reader) take their producer's pin.
+        applicability: RuleApplicability::AcceptedSyntax,
         parameters: BTreeMap::new(),
         include: Vec::new(),
         exclude: Vec::new(),
@@ -234,11 +235,19 @@ pub(super) fn i001_hidden_match_and_ruf100_output_follow_first_import_and_unknow
                     );
                     assert!(
                         warm_mixed
+                            .skipped
+                            .iter()
+                            .any(|skip| &skip.rule == rule
+                                && skip.path == RelativePath(BROKEN_PY.into())),
+                        "the rejected file is skipped by the consumer, as by its producer"
+                    );
+                    assert!(
+                        !warm_mixed
                             .unknowns
                             .iter()
                             .any(|unknown| &unknown.rule == rule
                                 && unknown.path == RelativePath(BROKEN_PY.into())),
-                        "the incomplete partition remains explicitly Unknown"
+                        "a skipped file is not undecided"
                     );
                 }
             }
