@@ -69,7 +69,7 @@ fn literal_fanout_routes_aliases_once_and_refuses_incomplete_inputs() -> Result<
                 bindings: Vec::new(),
             }),
             columns: vec![ColumnIndex(0), ColumnIndex(0)],
-            distinct: false,
+            distinct: ryo_values::domain::plan_parts::types::RepeatedRows::Kept,
         })
     };
     let mut selectors = vec![selector(LiteralText("class".into()))];

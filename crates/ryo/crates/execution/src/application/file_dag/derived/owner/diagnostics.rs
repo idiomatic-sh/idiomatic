@@ -108,7 +108,7 @@ impl DerivedOwner {
                         selector_id = std::ptr::from_ref(entry.selector.as_ref()).addr(),
                         relation = ?entry.selector.relation, comparisons = ?entry.selector.identity.comparisons,
                         bindings = ?entry.selector.identity.bindings, columns = ?entry.selector.columns,
-                        distinct = entry.selector.distinct, calls = entry.calls.0, builds = entry.builds.0,
+                        distinct = ?entry.selector.distinct, calls = entry.calls.0, builds = entry.builds.0,
                         reuses = entry.reuses.0, errors = entry.errors.0, matched_rows = entry.matched_rows.0,
                         full_scan_rows = entry.full_scan_rows.0, index_build_rows = entry.index_build_rows.0,
                         indexed_candidates = entry.indexed_candidates.0, predicate_cells = entry.predicate_cells.0,

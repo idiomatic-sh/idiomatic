@@ -23,7 +23,7 @@ pub(super) fn request(kind: DerivedKind) -> ViewRequest {
                 bindings: vec![],
             }),
             columns: vec![zero],
-            distinct: false,
+            distinct: ryo_values::domain::plan_parts::types::RepeatedRows::Kept,
         })),
         DerivedKind::CandidatePostings => ViewRequest::CandidatePostings {
             column: zero,

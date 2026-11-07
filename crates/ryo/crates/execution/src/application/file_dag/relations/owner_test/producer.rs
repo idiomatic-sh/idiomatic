@@ -52,7 +52,7 @@ fn exercise_real_selector(limit: Retention) {
             bindings: vec![ParameterBinding::Number(WholeNumber(101))],
         }),
         columns: vec![ColumnIndex(1), ColumnIndex(0), ColumnIndex(1)],
-        distinct: false,
+        distinct: ryo_values::domain::plan_parts::types::RepeatedRows::Kept,
     });
     let active = vec![Arc::clone(&program), Arc::clone(&program)];
     let fixture =

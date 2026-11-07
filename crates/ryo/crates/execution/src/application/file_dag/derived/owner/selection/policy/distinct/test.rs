@@ -30,13 +30,13 @@ fn distinct_projections_preserve_rows_and_predicate_cache() -> Result<(), Failur
     };
     let mut first = (*program(7)).clone();
     first.columns = vec![ColumnIndex(2), ColumnIndex(1), ColumnIndex(2)];
-    first.distinct = true;
+    first.distinct = ryo_values::domain::plan_parts::types::RepeatedRows::Dropped;
     let first = Arc::new(first);
     let mut second = (*first).clone();
     second.columns = vec![ColumnIndex(1)];
     let second = Arc::new(second);
     let mut bag = (*first).clone();
-    bag.distinct = false;
+    bag.distinct = ryo_values::domain::plan_parts::types::RepeatedRows::Kept;
     let bag = Arc::new(bag);
     let mut zero = (*first).clone();
     zero.columns.clear();

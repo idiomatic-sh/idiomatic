@@ -45,7 +45,7 @@ impl<'a> SelectionProgram<'a> {
             Input::BoundObservation(_) => None,
             Input::Step(id) => step_in(steps, id)?
                 .as_deref()
-                .filter(|selector| !selector.distinct)
+                .filter(|selector| selector.distinct == RepeatedRows::Kept)
                 .cloned(),
             // A relation name does not determine its physical representation.
             // The owner admits this alternative only for actual Stored rows.
@@ -55,7 +55,7 @@ impl<'a> SelectionProgram<'a> {
                 columns: (0..kinds(relation).len())
                     .map(|index| ColumnIndex(u32::try_from(index).unwrap_or(u32::MAX)))
                     .collect(),
-                distinct: false,
+                distinct: RepeatedRows::Kept,
             }),
         }
     }
@@ -115,7 +115,7 @@ impl<'a> SelectionProgram<'a> {
                     .iter()
                     .map(|index| column_in(&selector.columns, *index).copied())
                     .collect::<Option<_>>()?;
-                selector.distinct = *distinct == RepeatedRows::Dropped;
+                selector.distinct = *distinct;
                 Some(selector)
             }
             Operation::Extend { .. }

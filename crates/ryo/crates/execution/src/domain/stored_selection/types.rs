@@ -1,7 +1,7 @@
 //! Plain selector program and cache data, independent of borrowed provider storage.
 
 use ryo_relations::domain::relations::types::{CellKind, Relation};
-use ryo_values::domain::plan_parts::types::{ColumnIndex, PlanComparison};
+use ryo_values::domain::plan_parts::types::{ColumnIndex, PlanComparison, RepeatedRows};
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use std::sync::Arc;
 
@@ -26,7 +26,7 @@ pub(crate) struct Selector {
     /// Physical columns corresponding to the step's output.
     pub columns: Vec<ColumnIndex>,
     /// Drop duplicate projected tuples at this terminal step only.
-    pub distinct: bool,
+    pub distinct: RepeatedRows,
 }
 
 /// Immutable selector descriptors for one plan and its request bindings.

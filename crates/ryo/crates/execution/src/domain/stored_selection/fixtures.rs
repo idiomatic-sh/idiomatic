@@ -20,7 +20,7 @@ pub(crate) fn program(value: i64) -> Arc<Selector> {
             bindings: vec![ParameterBinding::Number(WholeNumber(value))],
         }),
         columns: vec![ColumnIndex(1), ColumnIndex(0), ColumnIndex(1)],
-        distinct: false,
+        distinct: ryo_values::domain::plan_parts::types::RepeatedRows::Kept,
     })
 }
 

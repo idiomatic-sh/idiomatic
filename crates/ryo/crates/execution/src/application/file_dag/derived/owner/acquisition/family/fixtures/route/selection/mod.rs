@@ -55,10 +55,10 @@ pub(super) fn selection(kind: DerivedKind, exit: Exit) -> Result<DerivedKind, Op
     };
     let mut distinct = (*program(7)).clone();
     distinct.columns = vec![ColumnIndex(2), ColumnIndex(1), ColumnIndex(2)];
-    distinct.distinct = true;
+    distinct.distinct = ryo_values::domain::plan_parts::types::RepeatedRows::Dropped;
     let distinct = Arc::new(distinct);
     let mut bag = (*distinct).clone();
-    bag.distinct = false;
+    bag.distinct = ryo_values::domain::plan_parts::types::RepeatedRows::Kept;
     let bag = Arc::new(bag);
     let chosen = if kind == DerivedKind::DistinctRepresentatives {
         &distinct
@@ -114,7 +114,7 @@ fn fanout(exit: Exit) -> Result<DerivedKind, OperatingError> {
                 bindings: Vec::new(),
             }),
             columns: vec![ColumnIndex(0), ColumnIndex(0)],
-            distinct: false,
+            distinct: ryo_values::domain::plan_parts::types::RepeatedRows::Kept,
         })
     };
     let mut selectors = vec![selector("class".into())];

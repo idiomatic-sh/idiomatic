@@ -148,7 +148,7 @@ fn oversized_selection_refuses_retention_without_charging_the_cache() -> Result<
             bindings: vec![],
         }),
         columns: vec![],
-        distinct: false,
+        distinct: ryo_values::domain::plan_parts::types::RepeatedRows::Kept,
     });
     let fixture = SelectionFixture::new(
         &[Relation::Function],

@@ -100,7 +100,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         let terminal = compiled.steps[1]
             .as_ref()
             .expect("terminal distinct selector");
-        assert!(terminal.distinct);
+        assert_eq!(terminal.distinct, RepeatedRows::Dropped);
         assert_eq!(terminal.columns, [ColumnIndex(1), ColumnIndex(1)]);
         let mut projected = plan.clone();
         projected.steps.last_mut().unwrap().operation = Operation::Project {
@@ -124,7 +124,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         };
         let zero = SelectionProgram::new(&projected, &bindings).prepare();
         let zero = zero.steps[1].as_ref().unwrap();
-        assert!(zero.distinct && zero.columns.is_empty());
+        assert!(zero.distinct == RepeatedRows::Dropped && zero.columns.is_empty());
         projected.steps[1].operation = Operation::Project {
             from: Source::Step(StepId(0)),
             columns: vec![ColumnIndex(u32::MAX)],

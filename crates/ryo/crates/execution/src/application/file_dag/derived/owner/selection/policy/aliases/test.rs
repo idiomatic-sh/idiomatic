@@ -66,7 +66,7 @@ fn symbol_discriminator_preserves_text_equality_with_term_aliases() -> Result<()
                 bindings: Vec::new(),
             }),
             columns: vec![ColumnIndex(1), ColumnIndex(0), ColumnIndex(1)],
-            distinct: false,
+            distinct: ryo_values::domain::plan_parts::types::RepeatedRows::Kept,
         })
     };
     let rare_selector = selector(LiteralText("rare".into()));
@@ -160,7 +160,7 @@ fn absent_symbol_literal_preserves_ordered_errors() -> Result<(), Failure> {
                 bindings: vec![ParameterBinding::Tables(Vec::new())],
             }),
             columns: vec![ColumnIndex(0), ColumnIndex(0)],
-            distinct: false,
+            distinct: ryo_values::domain::plan_parts::types::RepeatedRows::Kept,
         })
     };
     let first = selector(vec![absent.clone(), bad.clone()]);
@@ -269,7 +269,7 @@ fn empty_literal_preserves_malformed_symbol_fallback() -> Result<(), Failure> {
             bindings: Vec::new(),
         }),
         columns: vec![ColumnIndex(0), ColumnIndex(0)],
-        distinct: false,
+        distinct: ryo_values::domain::plan_parts::types::RepeatedRows::Kept,
     });
     let fixture = SelectionFixture::new(
         &[Relation::Defines],

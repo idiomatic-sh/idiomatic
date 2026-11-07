@@ -90,7 +90,7 @@ fn make<'a>(
     let mut dependencies = [Some(predicate), None];
     // The shared result above always contains predicate matches, never distinct representatives.
     // Each terminal projection owns its representative IDs independently of other output maps.
-    let rows = if program.distinct {
+    let rows = if program.distinct == ryo_values::domain::plan_parts::types::RepeatedRows::Dropped {
         let acquired = resources.acquire(
             crate::application::file_dag::route_counts::types::BuildRoute::SelectorDistinct,
             cache,
