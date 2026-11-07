@@ -1,4 +1,4 @@
-//! Synchronous JSONL event output used only by explicit diagnostic worker runs.
+//! Synchronous JSONL event writer used only by explicit diagnostic worker runs.
 use crate::outbound::engine::adapters::local::constants;
 use std::fs::{File, OpenOptions};
 use std::io::{self, Write};
@@ -7,49 +7,53 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use tracing_subscriber::fmt::writer::MakeWriter;
 
 /// Events describing one selected rule's work on a source file.
-const RULE_FILE_TARGET: &str = constants::RYO_DIAGNOSTIC_RULE_FILE;
+pub(super) const RULE_FILE_TARGET: &str = constants::RYO_DIAGNOSTIC_RULE_FILE;
 /// Compile-time source and normalized prefix evidence for explicit attribution.
-const COMPILED_PREFIX_TARGET: &str = constants::RYO_DIAGNOSTIC_COMPILED_PREFIX;
+pub(super) const COMPILED_PREFIX_TARGET: &str = constants::RYO_DIAGNOSTIC_COMPILED_PREFIX;
 /// Complete compiled operations and file-specific physical layouts for an offline census.
-const COMPILED_SUBPLAN_TARGET: &str = constants::RYO_DIAGNOSTIC_COMPILED_SUBPLAN;
+pub(super) const COMPILED_SUBPLAN_TARGET: &str = constants::RYO_DIAGNOSTIC_COMPILED_SUBPLAN;
 /// Completed kept-cut sizes and partial state for the same explicitly scoped census.
-const SUBPLAN_CUT_TARGET: &str = constants::RYO_DIAGNOSTIC_SUBPLAN_CUT;
+pub(super) const SUBPLAN_CUT_TARGET: &str = constants::RYO_DIAGNOSTIC_SUBPLAN_CUT;
 /// Aggregate counters for an explicitly diagnosed generic stored join.
-const STORED_JOIN_TARGET: &str = constants::RYO_DIAGNOSTIC_STORED_JOIN;
+pub(super) const STORED_JOIN_TARGET: &str = constants::RYO_DIAGNOSTIC_STORED_JOIN;
 /// Events describing one operator step within a selected rule.
-const RULE_STEP_TARGET: &str = constants::RYO_DIAGNOSTIC_RULE_STEP;
+pub(super) const RULE_STEP_TARGET: &str = constants::RYO_DIAGNOSTIC_RULE_STEP;
 /// Aggregate phase timings for the explicitly requested execution profile.
-const EXECUTION_TARGET: &str = constants::RYO_DIAGNOSTIC_EXECUTION;
+pub(super) const EXECUTION_TARGET: &str = constants::RYO_DIAGNOSTIC_EXECUTION;
 /// Aggregate stored selection and materialization work.
-const SELECTION_TARGET: &str = constants::RYO_DIAGNOSTIC_SELECTION;
+pub(super) const SELECTION_TARGET: &str = constants::RYO_DIAGNOSTIC_SELECTION;
 /// Per-prepared-selector counts, enabled only by an explicit diagnostic opt-in.
-const SELECTION_DETAIL_TARGET: &str = constants::RYO_DIAGNOSTIC_SELECTION_DETAIL;
+pub(super) const SELECTION_DETAIL_TARGET: &str = constants::RYO_DIAGNOSTIC_SELECTION_DETAIL;
 /// Logical release and retained-capacity accounting.
-const WORKING_SET_TARGET: &str = constants::RYO_DIAGNOSTIC_WORKING_SET;
+pub(super) const WORKING_SET_TARGET: &str = constants::RYO_DIAGNOSTIC_WORKING_SET;
 /// Metadata-only layout accounting.
-const LAYOUT_TARGET: &str = constants::RYO_DIAGNOSTIC_LAYOUT;
+pub(super) const LAYOUT_TARGET: &str = constants::RYO_DIAGNOSTIC_LAYOUT;
 /// Demand-reach and shared graph work in explicit diagnostic runs.
-const GRAPH_TARGET: &str = constants::RYO_DIAGNOSTIC_GRAPH;
+pub(super) const GRAPH_TARGET: &str = constants::RYO_DIAGNOSTIC_GRAPH;
 /// Request-wide file-program sharing and retained cells in explicit diagnostic runs.
-const FILE_PROGRAM_TARGET: &str = constants::RYO_DIAGNOSTIC_FILE_PROGRAM;
+pub(super) const FILE_PROGRAM_TARGET: &str = constants::RYO_DIAGNOSTIC_FILE_PROGRAM;
 /// Coarse retention/decoding/store phases for an explicit lifecycle diagnostic.
-const RESOURCE_ROUTES_TARGET: &str = constants::RYO_DIAGNOSTIC_RESOURCE_ROUTES;
-const LIFECYCLE_TARGET: &str = constants::RYO_DIAGNOSTIC_LIFECYCLE_MEMORY;
+pub(super) const RESOURCE_ROUTES_TARGET: &str = constants::RYO_DIAGNOSTIC_RESOURCE_ROUTES;
+pub(super) const LIFECYCLE_TARGET: &str = constants::RYO_DIAGNOSTIC_LIFECYCLE_MEMORY;
 
 /// Shared append-only file writer; each event holds the lock until its JSON line is complete.
 #[derive(Clone)]
 pub(super) struct DiagnosticEventWriter(Arc<Mutex<File>>);
 
 impl DiagnosticEventWriter {
-    /// Create or truncate the explicit diagnostic stream before the worker begins.
-    pub(super) fn create(path: &Path) -> io::Result<Self> {
-        let file = OpenOptions::new()
-            .create(true)
-            .truncate(true)
-            .write(true)
-            .open(path)?;
-        Ok(Self(Arc::new(Mutex::new(file))))
+    /// Share the already opened diagnostic stream with every event of the worker.
+    pub(super) fn new(file: File) -> Self {
+        Self(Arc::new(Mutex::new(file)))
     }
+}
+
+/// Create or truncate the explicit diagnostic stream before the worker begins.
+pub(super) fn open(path: &Path) -> io::Result<File> {
+    OpenOptions::new()
+        .create(true)
+        .truncate(true)
+        .write(true)
+        .open(path)
 }
 
 /// Build the filtered JSONL subscriber used by an explicit diagnostic worker.
@@ -69,7 +73,7 @@ pub(super) fn subscriber(
     } else {
         aggregate_level
     };
-    let writer = DiagnosticEventWriter::create(path)?;
+    let writer = DiagnosticEventWriter::new(open(path)?);
     let progress_only = options.row_progress;
     let include_steps = options.steps && !lifecycle_only && !progress_only;
     let include_joins = options.joins && !lifecycle_only;
@@ -202,6 +206,3 @@ impl Drop for LockedDiagnosticEventWriter<'_> {
     }
 }
 
-#[cfg(test)]
-#[path = "diagnostic_events_test.rs"]
-mod tests;

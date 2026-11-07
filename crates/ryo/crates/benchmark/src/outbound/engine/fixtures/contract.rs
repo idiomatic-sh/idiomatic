@@ -102,7 +102,7 @@ pub fn check(adapter: &impl EnginePort) {
             let inputs = crate::outbound::engine::types::EngineConfiguration {
                 selected_missing: request.files.iter().cloned().collect(),
                 selected_rules: [id.clone()].into_iter().collect(),
-                selected_pairs: 1,
+                selected_pairs: crate::outbound::engine::types::SelectedPairs(1),
                 hosted: Vec::new(),
             };
             let report = session.execute(inputs).map_err(|_| Failure::Unexpected)?;

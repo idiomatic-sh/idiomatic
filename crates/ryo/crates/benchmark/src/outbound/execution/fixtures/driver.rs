@@ -9,6 +9,9 @@ pub(super) fn python() -> &'static str {
 const STREAMS: &str =
     "import os,sys;sys.stdout.write(os.environ['RYO_BENCH_FIXTURE']);sys.stderr.write('issue')";
 
+/// A native child reports the search path it inherited.
+pub(super) const PATH: &str = "import os,sys;sys.stdout.write(os.environ['PATH'])";
+
 /// A native child writes more than one pipe buffer to each binary stream.
 pub(super) const LARGE_STREAMS: &str = "import sys;sys.stdout.buffer.write(b'\\0' * 131_072);sys.stdout.buffer.flush();sys.stderr.buffer.write(b'\\0' * 131_072);sys.stderr.buffer.flush();sys.exit(0)";
 

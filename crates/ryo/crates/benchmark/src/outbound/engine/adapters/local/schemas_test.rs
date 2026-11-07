@@ -1,5 +1,6 @@
 //! Query registry and exact skip-accounting contracts.
-use super::{EngineLocalAdapter, RuleApplicability, RuleId, linter};
+use super::{load_rules, validate_skips};
+use ryo::linter::{self, RuleApplicability, RuleId};
 use crate::outbound::engine::adapters::local::constants;
 use std::{collections::BTreeMap, path::PathBuf};
 
@@ -27,7 +28,7 @@ fn worker_reads_explicit_module_text_from_the_frozen_profile() {
         PathBuf::from("fragments/suppress.ryoql"),
     )]);
     let queries =
-        EngineLocalAdapter::load_rules(&rules, &registry, &BTreeMap::default(), None, None)
+        load_rules(&rules, &registry, &BTreeMap::default(), None, None)
             .expect("module bundle is loaded in the worker");
     assert_eq!(queries.len(), 1);
     assert_eq!(
@@ -46,7 +47,7 @@ fn selected_rules_receive_the_pinned_syntax_applicability() {
     let applicability =
         BTreeMap::from([("F401".to_owned(), constants::ACCEPTED_SYNTAX.to_owned())]);
     let queries =
-        EngineLocalAdapter::load_rules(&rules, &BTreeMap::default(), &applicability, None, None)
+        load_rules(&rules, &BTreeMap::default(), &applicability, None, None)
             .expect("complete applicability map loads");
     assert_eq!(
         queries.values().next().expect("rule").applicability,
@@ -62,7 +63,7 @@ fn explicit_applicability_must_match_every_loaded_rule() {
         ("F402".to_owned(), constants::ALWAYS.to_owned()),
     ]);
     let error =
-        EngineLocalAdapter::load_rules(&rules, &BTreeMap::default(), &applicability, None, None)
+        load_rules(&rules, &BTreeMap::default(), &applicability, None, None)
             .expect_err("extra applicability entry is refused");
     assert!(error.to_string().contains("does not exactly match"));
 }
@@ -72,7 +73,7 @@ fn explicit_applicability_rejects_unknown_policy_values() {
     let (_root, rules) = profile();
     let applicability = BTreeMap::from([("F401".to_owned(), "parse-only".to_owned())]);
     let error =
-        EngineLocalAdapter::load_rules(&rules, &BTreeMap::default(), &applicability, None, None)
+        load_rules(&rules, &BTreeMap::default(), &applicability, None, None)
             .expect_err("unknown applicability is refused");
     assert!(error.to_string().contains("unsupported applicability"));
 }
@@ -91,7 +92,7 @@ fn typed_syntax_skips_require_matching_policy_input_and_projection() -> Result<(
     let selected = std::collections::BTreeSet::from([
         RuleId::try_from("F401").map_err(|error| error.to_string())?
     ]);
-    EngineLocalAdapter::validate_skips(
+    validate_skips(
         std::slice::from_ref(&skipped),
         &selected,
         &policy,
@@ -99,7 +100,7 @@ fn typed_syntax_skips_require_matching_policy_input_and_projection() -> Result<(
         true,
     )
     .expect("expected success");
-    let _verified_2 = EngineLocalAdapter::validate_skips(
+    let _verified_2 = validate_skips(
         std::slice::from_ref(&skipped),
         &selected,
         &policy,
@@ -107,7 +108,7 @@ fn typed_syntax_skips_require_matching_policy_input_and_projection() -> Result<(
         false,
     )
     .expect_err("expected refusal");
-    let _verified_3 = EngineLocalAdapter::validate_skips(
+    let _verified_3 = validate_skips(
         &[skipped.clone(), skipped.clone()],
         &selected,
         &policy,
@@ -116,7 +117,7 @@ fn typed_syntax_skips_require_matching_policy_input_and_projection() -> Result<(
     )
     .expect_err("expected refusal");
 
-    let _verified_4 = EngineLocalAdapter::validate_skips(
+    let _verified_4 = validate_skips(
         std::slice::from_ref(&skipped),
         &selected,
         &BTreeMap::new(),
@@ -126,7 +127,7 @@ fn typed_syntax_skips_require_matching_policy_input_and_projection() -> Result<(
     .expect_err("expected refusal");
     let other_file = std::collections::BTreeSet::from([linter::RelativePath("else.py".into())]);
     let _verified_5 =
-        EngineLocalAdapter::validate_skips(&[skipped], &selected, &policy, &other_file, true)
+        validate_skips(&[skipped], &selected, &policy, &other_file, true)
             .expect_err("expected refusal");
     Ok(())
 }
@@ -138,7 +139,7 @@ fn worker_refuses_module_paths_outside_the_profile() {
         "python/ruff/suppress".to_owned(),
         PathBuf::from("../outside.ryoql"),
     )]);
-    let error = EngineLocalAdapter::load_rules(&rules, &registry, &BTreeMap::default(), None, None)
+    let error = load_rules(&rules, &registry, &BTreeMap::default(), None, None)
         .expect_err("traversal is refused");
     assert!(error.to_string().contains("unsafe corpus path"));
 }
@@ -156,7 +157,7 @@ fn worker_refuses_symlinked_module_paths() {
         "python/ruff/suppress".to_owned(),
         PathBuf::from("fragments/suppress.ryoql"),
     )]);
-    let error = EngineLocalAdapter::load_rules(&rules, &registry, &BTreeMap::default(), None, None)
+    let error = load_rules(&rules, &registry, &BTreeMap::default(), None, None)
         .expect_err("symlink is refused");
     assert!(error.to_string().contains("query module is a symlink"));
 }
@@ -181,7 +182,7 @@ fn named_input_declarations_attach_to_registered_definitions_and_reject_unknown_
         }],
     };
     let mut declarations = ryo_benchmark_contracts::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations::from(BTreeMap::from([(consumer.clone(), vec![binding.clone()])]));
-    let queries = EngineLocalAdapter::load_rules(
+    let queries = load_rules(
         &rules,
         &BTreeMap::new(),
         &BTreeMap::new(),
@@ -191,7 +192,7 @@ fn named_input_declarations_attach_to_registered_definitions_and_reject_unknown_
     .unwrap();
     assert_eq!(queries[&consumer].observations, vec![binding.clone()]);
     declarations.insert(RuleId::try_from("typo").unwrap(), vec![binding]);
-    let error = EngineLocalAdapter::load_rules(
+    let error = load_rules(
         &rules,
         &BTreeMap::new(),
         &BTreeMap::new(),

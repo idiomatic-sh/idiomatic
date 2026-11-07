@@ -55,8 +55,8 @@ impl EngineExecution for FakeSession<'_> {
             skipped: Vec::new(),
             coverage: Some(
                 ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
-                    selected: prepared.selected_pairs,
-                    evaluated: prepared.selected_pairs,
+                    selected: prepared.selected_pairs.0,
+                    evaluated: prepared.selected_pairs.0,
                     skipped: 0,
                     unknown_or_unread: 0,
                 },

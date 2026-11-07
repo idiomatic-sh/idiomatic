@@ -1,9 +1,10 @@
 //! Every evidence destination accepts complete samples and refuses incomplete publication.
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use super::sample::SampleInput;
 use crate::outbound::evidence::interface::EvidencePort;
 use ryo_benchmark_contracts::domain::measurements::types::Measurement;
 use ryo_benchmark_contracts::domain::measurements::types::Resources;
-use ryo_benchmark_contracts::domain::measurements::types::{PublicationSample, SampleName};
+use ryo_benchmark_contracts::domain::measurements::types::SampleName;
 use ryo_benchmark_contracts::domain::reports::types::RunReport;
 use std::time::Duration;
 
@@ -121,21 +122,4 @@ pub fn check(adapter: &impl EvidencePort) {
     };
     run(CASES, Word::Succeeds, subject);
     run(CASES, Word::Refuses, subject);
-}
-
-/// Owned test data, not a certification or measurement proof.
-#[derive(Clone)]
-pub struct SampleInput {
-    complete_inventory: bool,
-    name: SampleName,
-    measurement: Measurement,
-}
-impl SampleInput {
-    fn publication(&self) -> PublicationSample<'_> {
-        PublicationSample {
-            complete_inventory: self.complete_inventory,
-            name: &self.name,
-            measurement: &self.measurement,
-        }
-    }
 }

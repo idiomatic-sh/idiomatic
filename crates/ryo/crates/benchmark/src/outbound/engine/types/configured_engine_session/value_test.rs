@@ -30,7 +30,7 @@ fn subject((): Input) -> Result<Value, Failure> {
                 .expect("selected rules")
                 .into_iter()
                 .collect(),
-            selected_pairs: 1,
+            selected_pairs: crate::outbound::engine::types::SelectedPairs(1),
             hosted: Vec::new(),
         },
     );

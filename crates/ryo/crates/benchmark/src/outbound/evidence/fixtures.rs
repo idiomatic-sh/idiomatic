@@ -3,3 +3,5 @@
 #[cfg(test)]
 pub mod contract;
 pub mod fake;
+#[cfg(test)]
+pub mod sample;

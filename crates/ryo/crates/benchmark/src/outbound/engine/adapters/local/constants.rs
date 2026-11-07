@@ -70,3 +70,5 @@ pub(super) const RYO_DIAGNOSTIC_RESOURCE_ROUTES: &str = "ryo::diagnostic::resour
 pub(super) const RYO_DIAGNOSTIC_LIFECYCLE_MEMORY: &str = "ryo::diagnostic::lifecycle_memory";
 /// Text of the ryo diagnostic row progress in this part.
 pub(super) const RYO_DIAGNOSTIC_ROW_PROGRESS: &str = "ryo::diagnostic::row_progress";
+/// Refuse a requested path repeated in the source inventory.
+pub(super) const DUPLICATE_SOURCE: &str = "duplicate input path";
