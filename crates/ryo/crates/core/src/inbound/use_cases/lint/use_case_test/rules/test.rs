@@ -22,6 +22,7 @@ use ryo_values::domain::row_texts::types::RowTotal;
 use ryo_values::domain::runs::types::AnswerShape;
 use ryo_values::domain::runs::types::Budget;
 use std::sync::Arc;
+use crate::inbound::use_cases::lint::fixtures::given::violations;
 
 type Input = Scenario;
 type Value = (usize, usize);

@@ -21,6 +21,7 @@ use ryo_execution::outbound::query_language::fixtures::fake::QueryLanguageFake;
 use std::sync::Arc;
 use super::fixtures::contract::check;
 use super::use_case::LintUseCaseImpl;
+use crate::inbound::use_cases::lint::fixtures::given::violations;
 
 mod inapplicable_identity;
 mod lifecycle;

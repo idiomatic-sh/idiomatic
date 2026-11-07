@@ -29,6 +29,7 @@ use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
 use super::super::service::FileAnalysis;
 use super::visit_test::visited_inputs;
+use ryo_execution::outbound::facts::interface::FactsPort;
 pub(super) fn discovery_failure_runs_without_parser_bytes_or_permission_invention() -> Result<usize, FileAnalysisError> {
     use crate::domain::{render::types::Answering, visit::types::Keeping};
     use ryo_values::domain::files::types::{CorpusInput, InputReadFailure};

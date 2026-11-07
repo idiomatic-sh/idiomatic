@@ -64,7 +64,7 @@ fn fixture_parameters(query: &str) -> Vec<RuleParameter> {
 }
 
 /// A rule of this id and query over the files these globs name.
-fn rule(id: &str, query: &str, include: Vec<Glob>) -> Rule {
+pub(super) fn rule(id: &str, query: &str, include: Vec<Glob>) -> Rule {
     Rule {
         observations: Vec::new(),
         id: ryo_values::domain::runs::types::RuleId(id.into()),
@@ -77,7 +77,7 @@ fn rule(id: &str, query: &str, include: Vec<Glob>) -> Rule {
 }
 
 /// A request to lint the repository at the working directory with rules of these ids, whose queries are never run.
-fn asking(ids: &[&str]) -> LintRequest {
+pub(super) fn asking(ids: &[&str]) -> LintRequest {
     LintRequest {
         source_language: crate::inbound::use_cases::lint::types::SourceProvider::Recognized,
         answer: AnswerShape::Findings,

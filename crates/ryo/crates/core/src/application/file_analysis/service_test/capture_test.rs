@@ -44,6 +44,8 @@ use super::program_test::prepared_test_program;
 use super::super::errors::FileAnalysisError;
 use super::super::service::FileAnalysis;
 use super::super::types::RequestVisitSetting;
+use ryo_execution::outbound::facts::interface::FactsPort;
+use ryo_execution::outbound::matching::interface::MatchingPort;
 pub(super) fn a_bad_last_captured_bucket_calls_no_digest_even_after_a_valid_rule_bucket() -> Result<usize, FileAnalysisError> {
     use super::super::types::{FileVisit, Worker};
 

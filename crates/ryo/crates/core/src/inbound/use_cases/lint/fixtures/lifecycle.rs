@@ -1,5 +1,6 @@
 //! The lifecycle cases of a lint: unchanged, edited, deleted, failed and many runs over one store, and where a finding is placed.
 use super::super::interface::LintUseCase as _;
+type Failure = LintError;
 use crate::outbound::language::fixtures::fake::LanguageFake;
 use crate::outbound::lint_store::fixtures::fake::LintStoreFake;
 use crate::outbound::row_sink::fixtures::fake::Ends;

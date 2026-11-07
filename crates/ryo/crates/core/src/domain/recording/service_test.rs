@@ -14,7 +14,8 @@ use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::records::types::Kept;
 use ryo_values::domain::stored_facts::types::{ArenaBase, Bucket, Digest, KeptWords};
 
-use crate::domain::recording::service::{cover, frontier_flat, made_ran, moved_words, stored_of};
+use crate::domain::handing::service::stored_of;
+use crate::domain::recording::service::{cover, frontier_flat, made_ran, moved_words};
 use crate::domain::recording::types::{BucketWords, Flat, WordCount};
 use crate::domain::workers::types::VisitSetting;
 use ryo_execution::inbound::use_cases::metadata::interface::{

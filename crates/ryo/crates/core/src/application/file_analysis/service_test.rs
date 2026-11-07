@@ -21,6 +21,7 @@ use std::sync::Arc;
 use std::sync::atomic::Ordering;
 use super::errors::FileAnalysisError;
 use super::service::FileAnalysis;
+use ryo_execution::outbound::facts::interface::FactsPort;
 #[cfg(test)]
 mod capture_test;
 #[cfg(test)]

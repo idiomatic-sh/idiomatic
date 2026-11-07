@@ -1,6 +1,14 @@
 //! Actual lint dependencies; memory changes only after successful semantic reduction.
 use ryo_execution::outbound::operators::interface::OperatorsPort as _;
 use super::super::*;
+use crate::inbound::use_cases::lint::interface::LintUseCase as _;
+use ryo_language::domain::files::types::FilePath;
+use ryo_relations::domain::relations::types::Relation;
+use ryo_values::domain::plan_parts::types::StepScope;
+use ryo_values::domain::plan_parts::types::{ColumnIndex, Input as PlanInput, StepId};
+use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
+use ryo_values::domain::runs::types::{AnswerShape, RuleId};
+use std::sync::atomic::Ordering;
 use crate::outbound::memory::{errors::MemoryError, interface::MemoryPort};
 use ryo_execution::outbound::query_language::errors::QueryLanguageError;
 use ryo_execution::outbound::query_language::interface::QueryLanguagePort;
@@ -20,6 +28,9 @@ use ryo_values::domain::{
     runs::types::MemoryBytes,
 };
 use std::sync::atomic::AtomicUsize;
+use crate::inbound::use_cases::lint::fixtures::given::request;
+use crate::inbound::use_cases::lint::fixtures::given::violations;
+use crate::inbound::use_cases::lint::fixtures::worlds::scheduled_world_with_query_resources;
 
 #[derive(Debug)]
 struct ProjectPressure {

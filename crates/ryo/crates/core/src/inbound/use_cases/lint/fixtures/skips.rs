@@ -18,6 +18,7 @@ use super::stores::store_of;
 use super::super::errors::LintError;
 use super::worlds::lint;
 use super::worlds::world;
+use crate::inbound::use_cases::lint::fixtures::given::violations;
 
 pub(crate) fn consulted_equal_byte_files_revalidate_on_each_executable_metadata_change() -> Result<(usize, usize), LintError> {
     use ryo_values::domain::files::types::ExecutablePermission;

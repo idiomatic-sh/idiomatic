@@ -1,6 +1,7 @@
 //! The cases of `made_again` over a changed frontier and held findings, the store's round trip, and the executable and
 //! availability routes of what the store kept.
 use super::*;
+use crate::domain::storing::service;
 
 /// What a row of these cases does.
 #[derive(Clone, Copy)]
@@ -156,7 +157,7 @@ fn executable_changes_invalidate_early_store_and_equal_digest_routes_in_both_dir
         kept.files[0].executable = posix(before);
         files[0].executable = posix(before);
         assert_eq!(
-            super::service::as_kept(&kept.files[0], &files[0]),
+            service::as_kept(&kept.files[0], &files[0]),
             ryo_values::domain::records::types::Freshness::AsItWas
         );
         assert_eq!(decide(&kept, &rules(true), &files), Decision::Again);
@@ -171,7 +172,7 @@ fn executable_changes_invalidate_early_store_and_equal_digest_routes_in_both_dir
         files[0].executable = posix(after);
         fresh.executable = posix(after);
         assert_eq!(
-            super::service::as_kept(&kept.files[0], &files[0]),
+            service::as_kept(&kept.files[0], &files[0]),
             ryo_values::domain::records::types::Freshness::Changed
         );
         assert_eq!(
@@ -201,7 +202,7 @@ fn unavailable_primary_cannot_reuse_a_cached_cross_file_interface() -> Value {
     ] {
         let inputs = [failed, CorpusInput::Available(entry("b.rs", 2, 6))];
         assert_eq!(
-            super::service::decide(&stored(), &rules(true), &inputs),
+            service::decide(&stored(), &rules(true), &inputs),
             Decision::Whole
         );
     }

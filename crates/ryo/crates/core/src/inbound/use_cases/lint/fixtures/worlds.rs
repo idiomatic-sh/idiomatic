@@ -25,6 +25,7 @@ use super::given::World;
 use super::given::request;
 use super::super::errors::LintError;
 use super::super::use_case::LintUseCaseImpl;
+use crate::inbound::use_cases::lint::fixtures::given::violations;
 
 /// The use case over the fakes `given` stands for.
 pub(crate) fn world(mut given: Given) -> World {

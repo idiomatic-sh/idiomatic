@@ -35,6 +35,8 @@ use super::program_test::replay_under_capture;
 use super::super::errors::FileAnalysisError;
 use super::super::service::FileAnalysis;
 use super::super::types::RequestVisitSetting;
+use ryo_execution::outbound::facts::interface::FactsPort;
+use ryo_execution::outbound::matching::interface::MatchingPort;
 pub(super) fn a_selected_bucket_under_a_stale_proof_is_refused_and_an_unselected_one_is_not_read() -> Result<usize, FileAnalysisError> {
     use ryo_values::domain::records::types::FrontierCoverage;
     use ryo_values::domain::stored_facts::types::{Bucket, Digest};

@@ -10,6 +10,7 @@ use std::sync::Arc;
 use std::sync::atomic::Ordering;
 use super::visit_test::visited_as;
 use super::visit_test::visited_as_with_facts;
+use ryo_execution::outbound::facts::interface::FactsPort;
 /// A legal unaudited worker whose immutable resident alternatives change between reads.
 pub(super) struct UnstableResidentFacts {
     /// Delegate mutation/retained-word operations without promising resident identity.

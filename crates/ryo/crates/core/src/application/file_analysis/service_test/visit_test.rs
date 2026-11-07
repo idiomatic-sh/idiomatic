@@ -25,6 +25,8 @@ use super::program_test::NOTHING_WANTED;
 use super::program_test::prepared_test_program;
 use super::super::service::FileAnalysis;
 use super::super::types::RequestVisitSetting;
+use ryo_execution::outbound::facts::interface::FactsPort;
+use ryo_execution::outbound::matching::interface::MatchingPort;
 /// Visits each file at `paths` of a fake corpus, the way a lint does, with the language `language`: the worker that visited them, and
 /// the language to ask what it was given.
 pub(super) fn visited(
@@ -240,7 +242,7 @@ pub(super) fn visited_inputs_with_rule_demands(
 
 /// Visit a real fake file whose injected language emits an invalid node reference.
 pub(super) fn invalid_provider() -> Result<usize, FileAnalysisError> {
-    let (worker, language) = visit_test::visited(
+    let (worker, language) = visited(
         &["invalid-provider.rs"],
         LanguageFake {
             out_of_range: true,
@@ -253,7 +255,7 @@ pub(super) fn invalid_provider() -> Result<usize, FileAnalysisError> {
 
 /// Visit a source file, a manifest the language reads and a stray file no language reads: whether the one file left unread is the stray one.
 pub(super) fn manifest_and_stray() -> Result<usize, FileAnalysisError> {
-    let (worker, _) = visit_test::visited(
+    let (worker, _) = visited(
         &["a.rs", "project.manifest.fake", "stray.xyz"],
         LanguageFake::default(),
     )?;
@@ -277,7 +279,7 @@ pub(super) fn digested() -> Result<usize, FileAnalysisError> {
         crate::domain::visit::types::Keeping::Keeps,
     ] {
         let digest = Arc::new(ryo_execution::outbound::digest::fixtures::fake::DigestCounting::default());
-        let (worker, _) = visit_test::visited_as(
+        let (worker, _) = visited_as(
             &["a.rs", "b.rs"],
             LanguageFake::default(),
             &crate::domain::render::types::Answering::Findings,

@@ -37,6 +37,8 @@ use super::super::errors::FileAnalysisError;
 use super::super::service::FileAnalysis;
 use super::super::parsing::service::recovery_of;
 use super::super::types::RequestVisitSetting;
+use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
+use ryo_execution::outbound::matching::interface::MatchingPort;
 pub(super) fn syntax_applicability_skips_only_gated_rules_and_names_the_reason() -> Result<usize, FileAnalysisError> {
     let plan = Plan {
         observation_inputs: Vec::new(),

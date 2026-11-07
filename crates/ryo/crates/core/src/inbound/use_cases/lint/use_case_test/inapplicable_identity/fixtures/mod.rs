@@ -1,5 +1,13 @@
 //! Two rules of one request, one producing a named observation and one consuming it, of which one skips the file the language rejects.
 use super::super::*;
+use crate::inbound::use_cases::lint::interface::LintUseCase as _;
+use ryo_language::domain::files::types::FilePath;
+use ryo_relations::domain::relations::types::Relation;
+use ryo_values::domain::plan_parts::types::StepScope;
+use ryo_values::domain::plan_parts::types::{ColumnIndex, Input as PlanInput, StepId};
+use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
+use ryo_values::domain::runs::types::{AnswerShape, RuleId};
+use std::sync::atomic::Ordering;
 use ryo_execution::outbound::query_language::errors::QueryLanguageError;
 use ryo_execution::outbound::query_language::interface::QueryLanguagePort;
 use ryo_relations::domain::relations::types::CellKind;
@@ -14,6 +22,12 @@ use ryo_values::domain::{
     row_texts::types::RowTotal,
     runs::types::RuleApplicability,
 };
+use crate::inbound::use_cases::lint::fixtures::given::World;
+use crate::inbound::use_cases::lint::fixtures::given::request;
+use crate::inbound::use_cases::lint::fixtures::given::violations;
+use crate::inbound::use_cases::lint::fixtures::stores::THREE;
+use crate::inbound::use_cases::lint::fixtures::stores::store_of;
+use crate::inbound::use_cases::lint::fixtures::worlds::scheduled_world_with_query_resources;
 
 /// Which rule skips the file the language rejects.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

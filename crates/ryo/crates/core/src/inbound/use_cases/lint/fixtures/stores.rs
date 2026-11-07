@@ -15,6 +15,7 @@ use super::lifecycle::counted_lint;
 use super::lifecycle::reading_the_project;
 use super::super::errors::LintError;
 use super::worlds::world;
+use crate::inbound::use_cases::lint::fixtures::given::violations;
 
 /// What one whole lint answered: the rows written, what the rules could not decide, the files a rule skipped, and how many files the
 /// language parsed.

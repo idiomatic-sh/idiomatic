@@ -309,7 +309,8 @@ impl LintUseCase for LintUseCaseImpl {
             skipped: alone_skipped,
             read_again,
         } = reused(
-            (self.corpus.as_ref(), self.digest.as_ref()),
+            self.corpus.as_ref(),
+            self.digest.as_ref(),
             &self.visits,
             &setting,
             &listing,

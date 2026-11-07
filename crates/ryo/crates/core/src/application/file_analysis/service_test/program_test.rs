@@ -41,6 +41,10 @@ use super::super::errors::FileAnalysisError;
 use super::super::service::FileAnalysis;
 use super::super::types::RequestVisitSetting;
 use super::super::types::RuleGate;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
+use ryo_execution::outbound::facts::interface::FactsPort;
+use ryo_execution::outbound::matching::interface::MatchingPort;
 pub(super) fn prepared_test_program(
     plans: &[Plan],
     ids: &[RuleId],
