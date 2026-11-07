@@ -130,7 +130,9 @@ fn compact_publications_share_backing_accounting_and_expire_with_generation() {
 }
 #[cfg(test)]
 mod fixtures;
+#[cfg(test)]
 mod producer_test;
+#[cfg(test)]
 mod projection;
 use fixtures::{columns, group, read, row, selected};
 

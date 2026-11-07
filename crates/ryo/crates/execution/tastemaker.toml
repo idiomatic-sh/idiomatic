@@ -277,7 +277,7 @@ templates = [
   { template = "idiomatic.ryo/application-part", file = "src/application/file_dag/relations/identity.rs", description = "One explicitly placed nested part of a cohesive application operation." },
   { template = "idiomatic.ryo/application-part", file = "src/application/file_dag/relations/owner_test.rs", description = "One explicitly placed nested part of a cohesive application operation." },
   { template = "idiomatic.ryo/application-part", file = "src/application/file_dag/relations/owner_test/fixtures.rs", description = "One explicitly placed nested part of a cohesive application operation." },
-  { template = "idiomatic.ryo/application-part", file = "src/application/file_dag/relations/owner_test/producer.rs", description = "One explicitly placed nested part of a cohesive application operation." },
+  { template = "idiomatic.ryo/application-part", file = "src/application/file_dag/relations/owner_test/producer_test.rs", description = "One explicitly placed nested part of a cohesive application operation." },
   { template = "idiomatic.ryo/application-part", file = "src/application/file_dag/relations/owner_test/reuse.rs", description = "One explicitly placed nested part of a cohesive application operation." },
   { template = "idiomatic.ryo/application-part", file = "src/application/file_dag/relations/selected_access.rs", description = "One explicitly placed nested part of a cohesive application operation." },
   { template = "idiomatic.ryo/application-part", file = "src/application/file_dag/request.rs", description = "One explicitly placed nested part of a cohesive application operation." },
