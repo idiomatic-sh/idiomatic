@@ -72,7 +72,7 @@ fn chained_registered_evaluations_reuse_downstream_invocation_state() {
     .unwrap();
     let services = Arc::new(ProgramServices::new(
         Arc::new(CommonOperatorEngine::new(std::sync::Arc::new(
-            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
+            crate::outbound::operators::fixtures::fake::OperatorsFake::default(),
         ))),
         derived,
         &[CorpusInput::Available(CorpusEntry {

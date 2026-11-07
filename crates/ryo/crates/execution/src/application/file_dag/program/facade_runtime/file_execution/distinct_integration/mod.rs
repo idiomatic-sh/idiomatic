@@ -229,7 +229,7 @@ fn exercise(scenario: Scenario) -> Result<Vec<u64>, OperatingError> {
         ObservationIdentity::Independent, crate::domain::executable_program::types::RoutePolicy::default(),
     )?;
     let engine = Arc::new(CommonOperatorEngine::new(std::sync::Arc::new(
-        ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
+        crate::outbound::operators::fixtures::fake::OperatorsFake::default(),
     )));
     let services = Arc::new(ProgramServices::new(
         engine,

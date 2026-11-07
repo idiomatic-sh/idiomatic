@@ -4,7 +4,6 @@ use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
 use ryo_operators::domain::contract::types::PortableOperatorFault;
-use ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl;
 use ryo_values::domain::observations::types::{
     BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn,
     ObservationColumnName, ObservationName, ObservationProducer, PlanObservation,
@@ -26,7 +25,7 @@ impl OperatorsUseCase for RefuseCount {
         ) {
             return Err(PortableOperatorFault::WrongOperation);
         }
-        OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())).operators(call)
+        crate::outbound::operators::fixtures::fake::OperatorsFake::default().operators(call)
     }
 }
 fn columns(failed_emit: bool) -> Vec<ObservationColumn> {

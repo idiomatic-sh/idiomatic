@@ -43,7 +43,7 @@ impl OperatorsUseCase for Witness {
                 return Err(PortableOperatorFault::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(REFUSAL) });
             }
         }
-        ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case()))
+        crate::outbound::operators::fixtures::fake::OperatorsFake::default()
             .operators(call)
     }
 }

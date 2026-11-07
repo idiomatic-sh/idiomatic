@@ -1,5 +1,4 @@
 //! A project root cannot reconstruct an unhanded per-file step from a provider.
-use super::super::super::use_case::ExecutionUseCaseImpl;
 use crate::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::facts::types::ColumnsMut;
@@ -90,7 +89,7 @@ fn project_step_without_a_declared_handover_cannot_read_a_per_file_source() -> R
         size: FileSize(0),
         modified: Nanoseconds(0),
     })];
-    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
+    let request = fixtures::execution().execution(&program, &corpus);
     let covered = [Covered {
         file: FileId(0),
         rules: vec![RuleIndex(0)],

@@ -2,7 +2,6 @@
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use super::super::super::fixtures::{Authored, Preparation};
 use crate::outbound::facts::types::ResidentStability;
-use super::super::super::use_case::ExecutionUseCaseImpl;
 use crate::inbound::use_cases::execution::interface::ExecutionUseCase;
 use super::super::super::fixtures as owner_fixtures;
 use crate::application::file_dag::program::file_session::types::FileInput;
@@ -234,7 +233,7 @@ pub(in super::super) fn compare_delivery_with_port(
             .map(|(_, table)| SourceRows::Computed(table))
             .ok_or(OperatingError::NotRead)
     };
-    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
+    let request = owner_fixtures::execution().execution(&program, &corpus);
     let elements = Elements::default();
     let input = |diagnostic| FileInput {
         language: SourceLanguage::Recognized,

@@ -5,7 +5,6 @@ use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
 use ryo_operators::domain::contract::types::PortableOperatorFault;
-use ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl;
 use ryo_relations::domain::relations::{
     service::to_bits,
     types::{ColumnsView, FactColumn},
@@ -33,7 +32,7 @@ impl OperatorsUseCase for MeaningCalls {
             }
             _ => {}
         }
-        OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())).operators(call)
+        crate::outbound::operators::fixtures::fake::OperatorsFake::default().operators(call)
     }
 }
 fn run(

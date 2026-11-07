@@ -1,5 +1,4 @@
 //! Binary operators must demand the refusing RHS after a real nonempty successful LHS.
-use super::super::super::use_case::ExecutionUseCaseImpl;
 use crate::inbound::use_cases::execution::interface::ExecutionUseCase;
 use crate::outbound::facts::types::ResidentStability;
 use super::super::super::fixtures;
@@ -119,7 +118,7 @@ fn subject((operator, missing, delivery): Input) -> Result<Value, Failure> {
                 modified: Nanoseconds(0),
                 executable: ExecutablePermission::Unknown,
             })];
-            let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
+            let request = fixtures::execution().execution(&prepared, &corpus);
             let mut file = request.open_file(
                 FileInput {
                     language: SourceLanguage::Recognized,

@@ -1,7 +1,6 @@
 //! Recursive producers and roots use the actual injected semantic capability, with terminal refusal.
 use super::super::super::fixtures::{Authored, Preparation};
 use crate::outbound::facts::types::ResidentStability;
-use super::super::super::use_case::ExecutionUseCaseImpl;
 use crate::inbound::use_cases::execution::interface::ExecutionUseCase;
 use super::super::super::fixtures;
 use crate::application::file_dag::program::file_session::types::FileInput;
@@ -143,7 +142,7 @@ fn subject(refusal: Input) -> Result<Value, Failure> {
         size: FileSize(0),
         modified: Nanoseconds(0),
     })];
-    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
+    let request = fixtures::execution().execution(&prepared, &corpus);
     let elements = Elements::default();
     let mut symbols = Symbols::default();
     let no_provider = |_| Err(OperatingError::NotRead);

@@ -1,5 +1,4 @@
 //! File-valued dispatch uses a real hosted schema and both declared corpus entries.
-use super::super::super::use_case::ExecutionUseCaseImpl;
 use crate::inbound::use_cases::execution::interface::ExecutionUseCase;
 use crate::outbound::facts::types::ResidentStability;
 use super::super::super::fixtures;
@@ -65,7 +64,7 @@ fn subject(_: Input) -> Result<Value, Failure> {
             executable: ExecutablePermission::Unknown,
         })
     });
-    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
+    let request = fixtures::execution().execution(&prepared, &corpus);
     let elements = Elements::default();
     let mut symbols = Symbols::default();
     // Hosted File data never invokes a catalog provider: were it called, the run would fail with the read refusal.

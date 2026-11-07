@@ -95,7 +95,7 @@ fn subject(case: Input) -> Result<Value, Failure> {
     let engine: Arc<dyn crate::application::file_dag::executor::PrimitiveExecutor + Send> =
         Arc::new(CommonOperatorEngine::new(
             (std::sync::Arc::new(
-                ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
+                crate::outbound::operators::fixtures::fake::OperatorsFake::default(),
             )
                 as std::sync::Arc<dyn crate::outbound::operators::interface::OperatorsPort>),
         ));

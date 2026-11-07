@@ -155,6 +155,10 @@ impl Preparation {
         )
     }
 }
+/// The execution use case that begins the requests of the proofs.
+pub(super) fn execution() -> ExecutionUseCaseImpl {
+    ExecutionUseCaseImpl::new()
+}
 pub(super) fn prepared(
     plan: Plan,
     bindings: Vec<ParameterBinding>,

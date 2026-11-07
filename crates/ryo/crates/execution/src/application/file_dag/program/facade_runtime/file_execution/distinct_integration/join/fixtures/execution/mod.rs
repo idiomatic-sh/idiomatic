@@ -302,7 +302,7 @@ pub(crate) fn execute(
     })
 }
 pub(crate) fn real_port() -> Arc<dyn crate::outbound::operators::interface::OperatorsPort> {
-    Arc::new(ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())))
+    Arc::new(crate::outbound::operators::fixtures::fake::OperatorsFake::default())
 }
 pub(crate) fn made(
     op: &Operation,
