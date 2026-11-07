@@ -145,24 +145,23 @@ fn metadata_drift_blocks_each_attempt() {
         );
         assert_eq!(reference.0.get(), 1);
         set_mode(&path, if expected { 0o644 } else { 0o744 });
-        let candidate = ObservedPrepare(Cell::new(0));
-        assert!(
-            candidate(
-                &crate::outbound::suite::factory::local(),
+        let observed = ObservedPrepare(Cell::new(0));
+        let blocked = candidate(
+            &crate::outbound::suite::factory::local(),
             &crate::outbound::context::factory::local(),
-                &candidate,
-                &execution,
-                &case.request
-            )
-            .is_err()
-        );
-        assert_eq!(candidate.0.get(), 0);
+            &observed,
+            &execution,
+            &case.request,
+        )
+        .unwrap_err();
+        assert!(!blocked.to_string().contains("preparation reached"));
+        assert_eq!(observed.0.get(), 0);
         set_mode(&path, mode);
         assert!(
             candidate(
                 &crate::outbound::suite::factory::local(),
             &crate::outbound::context::factory::local(),
-                &candidate,
+                &observed,
                 &execution,
                 &case.request
             )
@@ -170,7 +169,7 @@ fn metadata_drift_blocks_each_attempt() {
             .to_string()
             .contains("preparation reached")
         );
-        assert_eq!(candidate.0.get(), 1);
+        assert_eq!(observed.0.get(), 1);
         assert!(execution.history.lock().unwrap().is_empty());
     }
 }

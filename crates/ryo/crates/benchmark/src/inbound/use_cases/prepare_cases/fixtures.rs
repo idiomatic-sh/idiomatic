@@ -164,7 +164,7 @@ pub fn with_verification_sources<R>(
         toml::to_string(&case_document()).expect(constants::FIXTURE_PRECONDITION),
     )
     .expect(constants::FIXTURE_PRECONDITION);
-    let suite = crate::outbound::suite::factory::local(crate::outbound::suite::types::CaseReceipts::Unrecorded);
+    let suite = crate::outbound::suite::factory::local();
     let reference = Contestant {
         executable: executable.clone(),
         arguments: Vec::new(),
@@ -254,3 +254,48 @@ pub fn executable_permissions(path: &std::path::Path) {
 /// Windows launches the fixed `.cmd` fixture without Unix executable mode bits.
 #[cfg(not(unix))]
 pub fn executable_permissions(_path: &std::path::Path) {}
+
+/// The frozen workload snapshot keeps the exact patch bytes even when its source or itself is edited.
+pub fn workload_snapshot_preserves_exact_patch() {
+    use crate::outbound::suite::{factory::local, interface::SuitePort as _, types::{ArtifactPath, ArtifactSet}};
+    let seal = |path: &std::path::Path| {
+        local()
+            .fingerprint(ArtifactSet(std::slice::from_ref(&path.to_path_buf())))
+            .expect("seal")
+    };
+    let directory_guard = tempfile::tempdir().unwrap();
+    let destination_guard = tempfile::tempdir().unwrap();
+    let (directory, destination) = (directory_guard.path(), destination_guard.path());
+    let shared = directory.join("shared");
+    std::fs::create_dir_all(shared.join("patches")).expect("patch directory");
+    std::fs::write(
+        shared.join("benchmark.toml"),
+        r#"language = "fixture"
+[[projects]]
+name = "project"
+repository = "https://example.invalid/project.git"
+revision = "revision"
+patch = "patches/project.patch"
+"#,
+    )
+    .expect("shared manifest");
+    std::fs::write(shared.join("patches/project.patch"), "original patch").expect("patch");
+    let frozen = destination.join("workload");
+    local()
+        .stage_projects(ArtifactPath(&shared), ArtifactPath(&frozen))
+        .expect("freeze workload");
+    let sealed = seal(&frozen);
+    std::fs::write(shared.join("patches/project.patch"), "concurrent edit").expect("source edit");
+    assert_eq!(
+        std::fs::read_to_string(frozen.join("patches/project.patch")).unwrap(),
+        "original patch"
+    );
+    assert_eq!(
+        sealed,
+        seal(&frozen)
+    );
+    std::fs::write(frozen.join("patches/project.patch"), "tampered snapshot")
+        .expect("snapshot edit");
+    assert_ne!(sealed, seal(&frozen));
+}
+

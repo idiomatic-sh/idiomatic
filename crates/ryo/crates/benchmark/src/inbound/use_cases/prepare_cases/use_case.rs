@@ -5,12 +5,16 @@ use std::path::Path;
 /// prepare_cases with required borrowed boundaries.
 pub struct PrepareCasesUseCaseImpl<'a> {
     suite: &'a dyn crate::outbound::suite::interface::SuitePort,
+    context: &'a dyn crate::outbound::context::interface::ContextPort,
 }
 impl<'a> PrepareCasesUseCaseImpl<'a> {
     /// Borrow the boundaries already composed by the caller.
     #[must_use]
-    pub fn new(suite: &'a dyn crate::outbound::suite::interface::SuitePort) -> Self {
-        Self { suite }
+    pub fn new(
+        suite: &'a dyn crate::outbound::suite::interface::SuitePort,
+        context: &'a dyn crate::outbound::context::interface::ContextPort,
+    ) -> Self {
+        Self { suite, context }
     }
 }
 impl PrepareCasesUseCase for PrepareCasesUseCaseImpl<'_> {
@@ -20,6 +24,6 @@ impl PrepareCasesUseCase for PrepareCasesUseCaseImpl<'_> {
         scratch: &Path,
     ) -> Result<Vec<ryo_benchmark_contracts::domain::workloads::types::PreparedCase>, ReportsError>
     {
-        crate::application::case_preparation::service::cases(self.suite, rules, scratch)
+        crate::application::case_preparation::service::cases(self.suite, self.context, rules, scratch)
     }
 }

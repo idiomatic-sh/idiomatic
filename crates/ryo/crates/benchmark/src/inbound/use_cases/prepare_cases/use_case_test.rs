@@ -23,7 +23,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 fn prepare(suite: &dyn SuitePort, rules: &Path, scratch: &Path) -> Result<usize, ReportsError> {
-    PrepareCasesUseCaseImpl::new(suite)
+    PrepareCasesUseCaseImpl::new(suite, &crate::outbound::context::factory::local())
         .prepare_cases(rules, scratch)
         .map(|cases| {
             assert_eq!(

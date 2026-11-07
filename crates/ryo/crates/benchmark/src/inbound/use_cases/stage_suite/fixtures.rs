@@ -1,10 +1,18 @@
 //! The original exact snapshot/source/evidence assertions through the actual public operation.
 use super::interface::StageSuiteUseCase as _;
+use crate::inbound::use_cases::prepare_cases::fixtures::workload_snapshot_preserves_exact_patch;
 use crate::outbound::suite::{
     factory::local,
     interface::SuitePort as _,
-    types::{ArtifactPath, ArtifactSet, CaseReceipts},
+    types::{ArtifactPath, ArtifactSet},
 };
+/// The seal of one staged tree.
+fn seal(path: &std::path::Path) -> ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest {
+    local()
+        .fingerprint(ArtifactSet(std::slice::from_ref(&path.to_path_buf())))
+        .expect("seal")
+}
+
 fn selected_snapshot(directory: &std::path::Path, destination: &std::path::Path) {
     std::fs::create_dir_all(directory.join("fragments")).expect("fragment directory");
     std::fs::write(
@@ -25,7 +33,7 @@ fn selected_snapshot(directory: &std::path::Path, destination: &std::path::Path)
     }
     let selected = vec![ryo::linter::RuleId::try_from("E722").expect("rule identifier")];
     let snapshot = destination.join("profile");
-    crate::inbound::use_cases::stage_suite::use_case::StageSuiteUseCaseImpl::new(&local(CaseReceipts::Unrecorded))
+    crate::inbound::use_cases::stage_suite::use_case::StageSuiteUseCaseImpl::new(&local())
         .stage_suite(
             directory,
             &snapshot,
@@ -38,9 +46,7 @@ fn selected_snapshot(directory: &std::path::Path, destination: &std::path::Path)
         .map(|entry| entry.expect("entry").file_name())
         .collect();
     assert_eq!(children, [std::ffi::OsString::from("E722")]);
-    let fingerprint = local(CaseReceipts::Unrecorded)
-        .fingerprint(ArtifactSet(std::slice::from_ref(&snapshot)))
-        .expect("seal");
+    let fingerprint = seal(&snapshot);
     assert_eq!(
         std::fs::read_to_string(snapshot.join("fragments/suppress.ryoql")).expect("staged module"),
         "fragment source"
@@ -52,9 +58,7 @@ fn selected_snapshot(directory: &std::path::Path, destination: &std::path::Path)
     .expect("source module edit");
     assert_eq!(
         fingerprint,
-        local(CaseReceipts::Unrecorded)
-            .fingerprint(ArtifactSet(std::slice::from_ref(&snapshot)))
-            .expect("unchanged staged module seal")
+        seal(&snapshot)
     );
     std::fs::write(
         snapshot.join("fragments/suppress.ryoql"),
@@ -63,20 +67,14 @@ fn selected_snapshot(directory: &std::path::Path, destination: &std::path::Path)
     .expect("staged module edit");
     assert_ne!(
         fingerprint,
-        local(CaseReceipts::Unrecorded)
-            .fingerprint(ArtifactSet(std::slice::from_ref(&snapshot)))
-            .expect("changed staged module seal")
+        seal(&snapshot)
     );
-    let changed_module_fingerprint = local(CaseReceipts::Unrecorded)
-        .fingerprint(ArtifactSet(std::slice::from_ref(&snapshot)))
-        .expect("seal after staged module edit");
+    let changed_module_fingerprint = seal(&snapshot);
     std::fs::write(directory.join("rules/F704/query.ryoql"), "concurrent work")
         .expect("unselected edit");
     assert_eq!(
         changed_module_fingerprint,
-        local(CaseReceipts::Unrecorded)
-            .fingerprint(ArtifactSet(std::slice::from_ref(&snapshot)))
-            .expect("unchanged seal")
+        seal(&snapshot)
     );
     std::fs::write(
         snapshot.join("rules/E722/query.ryoql"),
@@ -85,52 +83,12 @@ fn selected_snapshot(directory: &std::path::Path, destination: &std::path::Path)
     .expect("selected edit");
     assert_ne!(
         fingerprint,
-        local(CaseReceipts::Unrecorded)
-            .fingerprint(ArtifactSet(&[snapshot]))
-            .expect("changed seal")
+        seal(&snapshot)
     );
-}
-
-fn workload_snapshot(directory: &std::path::Path, destination: &std::path::Path) {
-    let shared = directory.join("shared");
-    std::fs::create_dir_all(shared.join("patches")).expect("patch directory");
-    std::fs::write(
-        shared.join("benchmark.toml"),
-        r#"language = "fixture"
-[[projects]]
-name = "project"
-repository = "https://example.invalid/project.git"
-revision = "revision"
-patch = "patches/project.patch"
-"#,
-    )
-    .expect("shared manifest");
-    std::fs::write(shared.join("patches/project.patch"), "original patch").expect("patch");
-    let frozen = destination.join("workload");
-    local(CaseReceipts::Unrecorded)
-        .stage_projects(ArtifactPath(&shared), ArtifactPath(&frozen))
-        .expect("freeze workload");
-    let seal = local(CaseReceipts::Unrecorded)
-        .fingerprint(ArtifactSet(std::slice::from_ref(&frozen)))
-        .expect("workload seal");
-    std::fs::write(shared.join("patches/project.patch"), "concurrent edit").expect("source edit");
-    assert_eq!(
-        std::fs::read_to_string(frozen.join("patches/project.patch")).unwrap(),
-        "original patch"
-    );
-    assert_eq!(
-        seal,
-        local(CaseReceipts::Unrecorded)
-            .fingerprint(ArtifactSet(std::slice::from_ref(&frozen)))
-            .unwrap()
-    );
-    std::fs::write(frozen.join("patches/project.patch"), "tampered snapshot")
-        .expect("snapshot edit");
-    assert_ne!(seal, local(CaseReceipts::Unrecorded).fingerprint(ArtifactSet(&[frozen])).unwrap());
 }
 
 fn supporting_queries_are_staged_but_never_receive_default_or_case_owner_credit() {
-    let suite = local(CaseReceipts::Unrecorded);
+    let suite = local();
     let source = tempfile::tempdir().unwrap();
     let destination = tempfile::tempdir().unwrap();
     let root = source.path();
@@ -153,13 +111,13 @@ expected = []
 "#,
     )
     .unwrap();
-    let tool = local(CaseReceipts::Unrecorded).profile(ArtifactPath(root)).unwrap();
+    let tool = local().profile(ArtifactPath(root)).unwrap();
     let audited =
-        crate::application::suite_auditing::service::audit(&local(CaseReceipts::Unrecorded), root, &tool).unwrap();
+        crate::application::suite_auditing::service::audit(&local(), root, &tool).unwrap();
     assert_eq!(audited.implemented, vec!["A001".try_into().unwrap()]);
     assert!(audited.missing.is_empty());
     let snapshot = destination.path().join("profile");
-    crate::inbound::use_cases::stage_suite::use_case::StageSuiteUseCaseImpl::new(&local(CaseReceipts::Unrecorded))
+    crate::inbound::use_cases::stage_suite::use_case::StageSuiteUseCaseImpl::new(&local())
         .stage_suite(
             root,
             &snapshot,
@@ -172,7 +130,8 @@ expected = []
         "actual support query"
     );
     let cases = crate::application::case_preparation::service::cases(
-        &local(CaseReceipts::Unrecorded),
+        &local(),
+        &crate::outbound::context::factory::local(),
         &snapshot.join("rules"),
         &destination.path().join("scratch"),
     )
@@ -181,7 +140,7 @@ expected = []
     assert!(cases.iter().all(|case| case.rule.as_ref() == "A001"));
     assert!(
         suite
-            .case_reference_wires(
+            .case_claims(
                 ArtifactPath(&snapshot),
                 &suite.profile(ArtifactPath(&snapshot)).unwrap().defaults
             )
@@ -196,7 +155,7 @@ expected = []
     .unwrap();
     assert!(
         suite
-            .case_reference_wires(
+            .case_claims(
                 ArtifactPath(&snapshot),
                 &suite.profile(ArtifactPath(&snapshot)).unwrap().defaults
             )
@@ -207,14 +166,14 @@ expected = []
     std::fs::remove_file(snapshot.join("rules/A001/cases.toml")).unwrap();
     assert!(
         suite
-            .case_reference_wires(
+            .case_claims(
                 ArtifactPath(&snapshot),
                 &suite.profile(ArtifactPath(&snapshot)).unwrap().defaults
             )
             .is_err()
     );
     std::fs::remove_file(root.join("rules/B002/query.ryoql")).unwrap();
-    assert!(crate::application::suite_auditing::service::audit(&local(CaseReceipts::Unrecorded), root, &tool).is_err());
+    assert!(crate::application::suite_auditing::service::audit(&local(), root, &tool).is_err());
 }
 fn discrepancy_artifacts_survive_staging_and_refuse_source_or_evidence_edits() {
     use sha2::{Digest as _, Sha256};
@@ -255,7 +214,7 @@ expected = [{{ rule = "T001", file = "positive.txt", start = 0, end = 1 }}]
     );
     std::fs::write(source.join("rules/T001/cases.toml"), cases).unwrap();
     let staged = parent.path().join("staged");
-    let adapter = local(CaseReceipts::Unrecorded);
+    let adapter = local();
     let tool = adapter
         .profile(ArtifactPath(&source))
         .expect("neutral profile");
@@ -271,12 +230,13 @@ expected = [{{ rule = "T001", file = "positive.txt", start = 0, end = 1 }}]
         .expect("evidence staged");
     let materialized = crate::application::case_preparation::service::cases(
         &adapter,
+        &crate::outbound::context::factory::local(),
         &staged.join("rules"),
         &parent.path().join("cases"),
     )
     .expect("typed case");
     let wires = adapter
-        .case_reference_wires(
+        .case_claims(
             ArtifactPath(&staged),
             &adapter
                 .profile(ArtifactPath(&staged))
@@ -288,7 +248,7 @@ expected = [{{ rule = "T001", file = "positive.txt", start = 0, end = 1 }}]
     let wire = &wires[0];
     let case = materialized
         .iter()
-        .find(|case| case.name.to_string() == wire.name)
+        .find(|case| case.name.to_string() == wire.name.0)
         .expect("materialized discrepancy case");
     let verify_selected = || {
         verify_discrepancy_fixture(
@@ -314,32 +274,81 @@ fn verify_discrepancy_fixture(
     profile: &std::path::Path,
     root: &std::path::Path,
     input_files: &[ryo::linter::RelativePath],
-    wire: &crate::outbound::suite::types::discrepancy::CaseReferenceWire,
-) -> Result<(), crate::outbound::suite::types::discrepancy::ArtifactError> {
+    wire: &crate::outbound::suite::types::CaseClaim,
+) -> Result<(), crate::outbound::suite::errors::SuiteError> {
     let files = input_files
         .iter()
         .map(|file| std::path::PathBuf::from(file.0.as_ref()))
         .collect::<Vec<_>>();
+    use crate::outbound::suite::types::{ArtifactMetadata, ClaimedEvidence, ClaimedMetadata, EvidenceRequirement};
+    use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+    let digest = |text: &ryo_benchmark_contracts::domain::documents::types::text::value::Sha256Text| {
+        ArtifactDigest(text.0.clone())
+    };
     let evidence = wire
         .discrepancy
         .evidence
         .iter()
-        .map(
-            |item| crate::outbound::suite::types::discrepancy::EvidenceArtifact {
-                path: item.artifact().0.to_path_buf(),
-                sha256: item.artifact().1.to_owned(),
-                requirement: item.requirement(),
+        .map(|item| match item {
+            ClaimedEvidence::LanguageSpec { path, sha256, .. }
+            | ClaimedEvidence::IndependentLanguageRun { path, sha256, .. } => {
+                crate::outbound::suite::types::EvidenceArtifact {
+                    path: path.clone(),
+                    sha256: digest(sha256),
+                    requirement: EvidenceRequirement::Language,
+                }
+            }
+            ClaimedEvidence::PublicToolContract {
+                path,
+                sha256,
+                source_revision,
+                source_path,
+                ..
+            } => crate::outbound::suite::types::EvidenceArtifact {
+                path: path.clone(),
+                sha256: digest(sha256),
+                requirement: EvidenceRequirement::PublicToolContract {
+                    source_revision: source_revision.clone(),
+                    source_path: source_path.clone(),
+                },
             },
-        )
+            ClaimedEvidence::PriorWorkerRun {
+                path,
+                sha256,
+                worker_sha256,
+                control_source_sha256,
+                control_query_sha256,
+                control_profile_sha256,
+                witness_case,
+                ..
+            } => crate::outbound::suite::types::EvidenceArtifact {
+                path: path.clone(),
+                sha256: digest(sha256),
+                requirement: EvidenceRequirement::PriorWorkerRun {
+                    worker_sha256: digest(worker_sha256),
+                    control_source_sha256: digest(control_source_sha256),
+                    control_query_sha256: digest(control_query_sha256),
+                    control_profile_sha256: digest(control_profile_sha256),
+                    witness_case: witness_case.clone(),
+                },
+            },
+        })
         .collect::<Vec<_>>();
+    let source = digest(&wire.discrepancy.identity.source_sha256);
+    let metadata = match &wire.discrepancy.identity.file_metadata_sha256 {
+        ClaimedMetadata::Declared(text) => Some(digest(text)),
+        ClaimedMetadata::Undeclared => None,
+    };
     adapter.verify_discrepancy_artifacts(
-        crate::outbound::suite::types::discrepancy::CaseArtifacts {
+        crate::outbound::suite::types::CaseArtifacts {
             profile,
             root,
             files: &files,
-            source_sha256: &wire.discrepancy.identity.source_sha256,
+            source_sha256: &source,
             file_metadata_files: &[],
-            file_metadata_sha256: wire.discrepancy.identity.file_metadata_sha256.as_deref(),
+            file_metadata: metadata
+                .as_ref()
+                .map_or(ArtifactMetadata::Undeclared, ArtifactMetadata::Declared),
             evidence: &evidence,
         },
     )
@@ -350,12 +359,6 @@ fn selected_snapshot_preserves_exact_sources() {
     let destination = tempfile::tempdir().unwrap();
     selected_snapshot(source.path(), destination.path());
 }
-fn workload_snapshot_preserves_exact_patch() {
-    let source = tempfile::tempdir().unwrap();
-    let destination = tempfile::tempdir().unwrap();
-    workload_snapshot(source.path(), destination.path());
-}
-
 #[derive(Clone, Copy, Debug)]
 pub enum Scenario {
     Subset,
