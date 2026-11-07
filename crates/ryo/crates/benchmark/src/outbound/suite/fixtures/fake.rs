@@ -1,8 +1,8 @@
 //! Empty in-memory suite preserves the distinction between defaults and implementations.
-use crate::outbound::suite::interface::SuitePort;
+use crate::outbound::suite::interface::{ScopedDirectory, SuitePort};
 use crate::outbound::suite::types::{
     ArtifactBytes, ArtifactPath, ArtifactSet, ArtifactSize, ArtifactText, CaseReceipts,
-    MaterializedCase, MaterializedContext, RuleQuery, ScratchDirectory, SelectedName, SourceDigest,
+    MaterializedCase, MaterializedContext, RetainedDirectory, RuleQuery, SelectedName, SourceDigest,
 };
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
@@ -113,14 +113,14 @@ impl SuitePort for SuiteFake {
         &self,
         parent: ArtifactPath<'_>,
         prefix: ArtifactText<'_>,
-    ) -> Result<ScratchDirectory, Error> {
+    ) -> Result<Box<dyn ScopedDirectory>, Error> {
         local().scoped_directory(parent, prefix)
     }
     fn retained_directory(
         &self,
         parent: ArtifactPath<'_>,
         prefix: ArtifactText<'_>,
-    ) -> Result<std::path::PathBuf, Error> {
+    ) -> Result<RetainedDirectory, Error> {
         local().retained_directory(parent, prefix)
     }
     fn copy_file(&self, from: ArtifactPath<'_>, to: ArtifactPath<'_>) -> Result<(), Error> {

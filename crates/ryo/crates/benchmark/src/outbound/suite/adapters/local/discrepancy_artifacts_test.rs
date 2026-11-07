@@ -1,6 +1,10 @@
 //! Cross-language source identities remain portable across native platforms.
 use super::*;
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use ryo_benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::{
+    ContractSourcePath, SourceRevision, WitnessCase,
+};
 
 /// Whether the artifacts were refused as not matching their declared identity.
 fn invalid(result: Result<(), SuiteError>) -> bool {
@@ -26,11 +30,14 @@ fn source_identity_uses_utf8_name_order_on_every_platform() {
         profile: root.path(),
         root: root.path(),
         files: &files,
-        source_sha256: fixture["source_sha256"]
-            .as_str()
-            .expect("Python source digest"),
+        source_sha256: &ArtifactDigest(
+            fixture["source_sha256"]
+                .as_str()
+                .expect("Python source digest")
+                .to_owned(),
+        ),
         file_metadata_files: &[],
-        file_metadata_sha256: None,
+        file_metadata: ArtifactMetadata::Undeclared,
         evidence: &[],
     })
     .expect("identical UTF8 digest with BMP and supplementary-plane filenames");
@@ -45,12 +52,14 @@ fn artifact_binding_recomputes_actual_metadata_in_both_directions() {
         std::fs::write(&file, b"same bytes").unwrap();
         let mode = if expected { 0o744 } else { 0o644 };
         set_mode(&file, mode);
-        let source = source_digest(root.path(), &files).unwrap();
-        let metadata = crate::outbound::suite::adapters::local::input_metadata::actual_digest(
-            root.path(),
-            &files,
-        )
-        .unwrap();
+        let source = ArtifactDigest(source_digest(root.path(), &files).unwrap());
+        let metadata = ArtifactDigest(
+            crate::outbound::suite::adapters::local::input_metadata::actual_digest(
+                root.path(),
+                &files,
+            )
+            .unwrap(),
+        );
         let check = || {
             verify(CaseArtifacts {
                 profile: root.path(),
@@ -58,7 +67,7 @@ fn artifact_binding_recomputes_actual_metadata_in_both_directions() {
                 files: &files,
                 source_sha256: &source,
                 file_metadata_files: &files,
-                file_metadata_sha256: Some(&metadata),
+                file_metadata: ArtifactMetadata::Declared(&metadata),
                 evidence: &[],
             })
         };
@@ -84,12 +93,14 @@ fn optional_partial_observation_scope_tracks_only_declared_files_without_losing_
         let mode = if before { 0o744 } else { 0o644 };
         set_mode(&root.path().join(&files[0]), mode);
         let scope = vec![files[0].clone()];
-        let source = source_digest(root.path(), &files).unwrap();
-        let metadata = crate::outbound::suite::adapters::local::input_metadata::actual_digest(
-            root.path(),
-            &scope,
-        )
-        .unwrap();
+        let source = ArtifactDigest(source_digest(root.path(), &files).unwrap());
+        let metadata = ArtifactDigest(
+            crate::outbound::suite::adapters::local::input_metadata::actual_digest(
+                root.path(),
+                &scope,
+            )
+            .unwrap(),
+        );
         let check = |scope: &[std::path::PathBuf]| {
             verify(CaseArtifacts {
                 profile: root.path(),
@@ -97,7 +108,7 @@ fn optional_partial_observation_scope_tracks_only_declared_files_without_losing_
                 files: &files,
                 source_sha256: &source,
                 file_metadata_files: scope,
-                file_metadata_sha256: Some(&metadata),
+                file_metadata: ArtifactMetadata::Declared(&metadata),
                 evidence: &[],
             })
         };
@@ -163,11 +174,11 @@ fn toy_prior_control() -> (serde_json::Value, EvidenceRequirement) {
         "execution_manifest_sha256":hash(execution.as_bytes())
     });
     let requirement = EvidenceRequirement::PriorWorkerRun {
-        worker_sha256: worker,
-        control_source_sha256: source_sha,
-        control_query_sha256: query_sha,
-        control_profile_sha256: profile_sha,
-        witness_case: "positive".into(),
+        worker_sha256: ArtifactDigest(worker),
+        control_source_sha256: ArtifactDigest(source_sha),
+        control_query_sha256: ArtifactDigest(query_sha),
+        control_profile_sha256: ArtifactDigest(profile_sha),
+        witness_case: WitnessCase("positive".into()),
     };
     (evidence, requirement)
 }
@@ -195,7 +206,7 @@ fn prior_control_requires_exact_execution_identity_and_completed_positive_witnes
                 "worker_sha256" => worker_sha256,
                 "control_query_sha256" => control_query_sha256,
                 _ => control_profile_sha256,
-            } = "b".repeat(64);
+            } = ArtifactDigest("b".repeat(64));
         }
         assert!(
             invalid(check(&evidence, &requirement)),
@@ -243,8 +254,8 @@ fn public_contract_requires_pinned_source_and_declared_assertion() {
         "source_text":source
     });
     let requirement = EvidenceRequirement::PublicToolContract {
-        source_revision: "c".repeat(40),
-        source_path: "crates/tool/src/api.rs".into(),
+        source_revision: SourceRevision("c".repeat(40)),
+        source_path: ContractSourcePath("crates/tool/src/api.rs".into()),
     };
     let check = |value: &serde_json::Value| {
         verify_requirement(&serde_json::to_vec(value).unwrap(), &requirement)

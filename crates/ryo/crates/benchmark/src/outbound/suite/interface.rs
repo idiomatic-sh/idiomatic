@@ -1,12 +1,17 @@
 //! Load and validate the suite's external artifacts.
 use super::types::{
     ArtifactBytes, ArtifactPath, ArtifactSet, ArtifactSize, ArtifactText, RuleQuery,
-    ScratchDirectory, SelectedName, SourceDigest,
+    RetainedDirectory, SelectedName, SourceDigest,
 };
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::workloads::types::Suite;
 use ryo_benchmark_contracts::domain::workloads::types::Tool;
+/// A directory the adapter made and removes, with everything beneath it, when this handle drops.
+pub trait ScopedDirectory: Send + Sync {
+    /// Where the directory lives while the handle is held.
+    fn path(&self) -> &std::path::Path;
+}
 /// Read external suite artifacts and audit their authored default coverage.
 pub trait SuitePort {
     /// Reverify declared physical observations before each contestant prepares its input.
@@ -135,7 +140,7 @@ pub trait SuitePort {
         &self,
         parent: ArtifactPath<'_>,
         prefix: ArtifactText<'_>,
-    ) -> Result<ScratchDirectory, Error>;
+    ) -> Result<Box<dyn ScopedDirectory>, Error>;
     /// Create a fresh directory beneath `parent` that stays after the run, for the caller to
     /// inspect, and answer its path.
     ///
@@ -145,7 +150,7 @@ pub trait SuitePort {
         &self,
         parent: ArtifactPath<'_>,
         prefix: ArtifactText<'_>,
-    ) -> Result<std::path::PathBuf, Error>;
+    ) -> Result<RetainedDirectory, Error>;
     /// Copy one executable's exact bytes to another path.
     ///
     /// # Errors

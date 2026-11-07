@@ -1,10 +1,10 @@
 //! Validate pins, cases and rule coverage before running contestants.
 use super::writer::{fingerprint_path, rule_directory, validate_query_modules};
 use super::{constants, discrepancy_artifacts};
-use crate::outbound::suite::interface::SuitePort;
+use crate::outbound::suite::interface::{ScopedDirectory, SuitePort};
 use crate::outbound::suite::types::{
     ArtifactBytes, ArtifactPath, ArtifactSet, ArtifactSize, ArtifactText, CaseReceipts,
-    MaterializedCase, MaterializedContext, RuleQuery, ScratchDirectory, ScratchRemoval, SelectedName,
+    MaterializedCase, MaterializedContext, RetainedDirectory, RuleQuery, SelectedName,
     SourceDigest,
 };
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
@@ -42,6 +42,14 @@ fn verify_executable(path: &Path, tool: &Tool) -> Result<(), Error> {
         return Err(Error::Invalid(constants::TOOL_VERSION_MISMATCH.into()));
     }
     Ok(())
+}
+
+/// The scratch directory a temporary directory handle removes when it drops.
+struct LocalScopedDirectory(tempfile::TempDir);
+impl ScopedDirectory for LocalScopedDirectory {
+    fn path(&self) -> &Path {
+        self.0.path()
+    }
 }
 
 #[derive(Debug)]
@@ -147,19 +155,15 @@ impl SuitePort for SuiteLocalAdapter {
         &self,
         parent: ArtifactPath<'_>,
         prefix: ArtifactText<'_>,
-    ) -> Result<ScratchDirectory, Error> {
-        let directory = scratch_builder(parent, prefix)?;
-        Ok(ScratchDirectory {
-            path: directory.path().to_owned(),
-            removal: ScratchRemoval(Box::new(directory)),
-        })
+    ) -> Result<Box<dyn ScopedDirectory>, Error> {
+        Ok(Box::new(LocalScopedDirectory(scratch_builder(parent, prefix)?)))
     }
     fn retained_directory(
         &self,
         parent: ArtifactPath<'_>,
         prefix: ArtifactText<'_>,
-    ) -> Result<std::path::PathBuf, Error> {
-        Ok(scratch_builder(parent, prefix)?.keep())
+    ) -> Result<RetainedDirectory, Error> {
+        Ok(RetainedDirectory(scratch_builder(parent, prefix)?.keep()))
     }
     fn copy_file(&self, ArtifactPath(from): ArtifactPath<'_>, ArtifactPath(to): ArtifactPath<'_>) -> Result<(), Error> {
         std::fs::copy(from, to).map(|_bytes| ()).map_err(Into::into)

@@ -36,24 +36,9 @@ pub struct RuleQuery(pub String);
 /// The total size in bytes of a set of artifacts.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ArtifactSize(pub u64);
-/// A directory the adapter made and removes, with everything beneath it, when this value drops.
-pub struct ScratchDirectory {
-    /// Where the directory lives while the value is held.
-    pub path: std::path::PathBuf,
-    /// What the adapter holds to remove the directory.
-    pub removal: ScratchRemoval,
-}
-
-/// The adapter's own handle on a directory's removal; it is opaque to every caller.
-pub struct ScratchRemoval(pub Box<dyn Send + Sync>);
-
-impl std::fmt::Debug for ScratchDirectory {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct(std::any::type_name::<Self>())
-            .field("path", &self.path)
-            .finish_non_exhaustive()
-    }
-}
+/// A directory the adapter made and keeps after the run, for the caller to inspect.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RetainedDirectory(pub std::path::PathBuf);
 
 /// Where a run appends its raw case receipts, as the edge chose.
 #[derive(Clone, Debug, PartialEq, Eq)]

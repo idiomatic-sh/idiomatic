@@ -34,6 +34,7 @@ pub enum Operation {
     RecordAndRead,
     ReadMissingReceipt,
     ScratchAndDiscard,
+    RetainedDirectory,
     CopyMissing,
     EnsureDirectory,
     WriteAndSelect,
@@ -166,6 +167,12 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a scratch directory exists until it is discarded"),
         word: Word::Succeeds,
         input: || Operation::ScratchAndDiscard,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("a retained directory stays after its handle is gone"),
+        word: Word::Succeeds,
+        input: || Operation::RetainedDirectory,
         expect: Expect::Value(1),
     },
     Case {
@@ -342,11 +349,15 @@ pub fn check(adapter: &impl SuitePort) {
             Operation::ScratchAndDiscard => adapter
                 .scoped_directory(ArtifactPath(temporary.path()), ArtifactText("contract-"))
                 .map(|scratch| {
-                    let path = scratch.path.clone();
+                    let path = scratch.path().to_owned();
                     let existed = usize::from(path.is_dir());
                     drop(scratch);
                     existed * usize::from(!path.exists())
                 })
+                .map_err(classify),
+            Operation::RetainedDirectory => adapter
+                .retained_directory(ArtifactPath(temporary.path()), ArtifactText("kept-"))
+                .map(|kept| usize::from(kept.0.is_dir()))
                 .map_err(classify),
             Operation::CopyMissing => adapter
                 .copy_file(ArtifactPath(&missing), ArtifactPath(&destination))
