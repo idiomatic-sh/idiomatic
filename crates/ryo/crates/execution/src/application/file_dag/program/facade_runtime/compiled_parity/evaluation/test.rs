@@ -116,16 +116,25 @@ pub(crate) fn subject(scenario: Input) -> Result<Value, Failure> {
         &mut symbols,
     )?;
     let routes = file.route_observation(crate::domain::coverage::types::RuleIndex(0), target)?;
-    // Every target, tree-backed or not, is evaluated by its registered operators: the one path.
-    assert!(
-        routes.registered_calls > 0,
-        "the target must execute its registered operator"
-    );
     let table = match outcome.emit {
         RootOutcome::Complete(table) => table,
         RootOutcome::Unknown(error) | RootOutcome::Failed(error) => return Err(error),
         _ => return Err(OperatingError::NotRun),
     };
+    // A completed target is answered by its registered operator, or, only when it is a select of a source relation,
+    // by the shared walk's one source pass (the Phase 6 cohort walk, whose comparisons are the `comparing` concept's
+    // one implementation). A refused target ran nothing, so the error above returns first.
+    let reads_a_source = matches!(
+        plan(scenario).steps[target.0 as usize].operation,
+        ryo_values::domain::plans::types::Operation::Select {
+            from: ryo_values::domain::plan_parts::types::Input::Relation(_),
+            ..
+        }
+    );
+    assert!(
+        routes.registered_calls > 0 || (reads_a_source && file.walk_counts().passes.0 > 0),
+        "a completed target is answered by its registered operator or, for a select of a source, the shared walk"
+    );
     let shown = table
         .cells
         .iter()

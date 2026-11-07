@@ -1,4 +1,4 @@
-//! Canonical stored graph acquisition and hosted ordinary traversal publish identical ordered bags.
+//! The canonical stored graph, selected stored edges and hosted ordinary traversal publish identical ordered bags.
 use crate::application::file_dag::program::file_session::interface::FileExecution as _;
 use crate::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
 use super::super::super::fixtures::{Authored, Preparation};
@@ -55,42 +55,56 @@ const EDGES: &[&[i64]] = &[
     &[4, 1],
     &[90, 91],
 ];
+/// The edges of `stored` and not `projected` are the stored relation itself, the population the canonical retained
+/// graph is built over; `projected` selects the stored relation with duplicated and reordered columns (owned rows,
+/// traversed as ordinary rows); otherwise the edges are hosted.
 fn plan(direction: Direction, stored: bool, projected: bool) -> Plan {
+    let axis = |edges, domain, parent, child| Operation::Axis {
+        from: Source::Step(StepId(0)),
+        edges,
+        domain: Source::Step(domain),
+        direction,
+        id: ColumnIndex(0),
+        parent: ColumnIndex(parent),
+        child: ColumnIndex(child),
+        domain_id: ColumnIndex(0),
+        domain_filter: vec![],
+        domain_view: vec![],
+        output: vec![],
+    };
+    let starts = Operation::Hosted {
+        relation: HostedNumber(0),
+    };
+    let domain = Operation::Hosted {
+        relation: HostedNumber(1),
+    };
+    if stored && !projected {
+        return inputs::plan(vec![
+            starts,
+            domain,
+            axis(Source::Relation(Relation::LanguageTarget), StepId(1), 1, 2),
+        ]);
+    }
     inputs::plan(vec![
-        Operation::Hosted {
-            relation: HostedNumber(0),
-        },
+        starts,
         if stored {
             Operation::Select {
                 from: Source::Relation(Relation::LanguageTarget),
                 comparisons: vec![],
-                kept: if projected {
-                    vec![ColumnIndex(2), ColumnIndex(1), ColumnIndex(2)]
-                } else {
-                    vec![ColumnIndex(1), ColumnIndex(2)]
-                },
+                kept: vec![ColumnIndex(2), ColumnIndex(1), ColumnIndex(2)],
             }
         } else {
             Operation::Hosted {
                 relation: HostedNumber(2),
             }
         },
-        Operation::Hosted {
-            relation: HostedNumber(1),
-        },
-        Operation::Axis {
-            from: Source::Step(StepId(0)),
-            edges: Source::Step(StepId(1)),
-            domain: Source::Step(StepId(2)),
-            direction,
-            id: ColumnIndex(0),
-            parent: ColumnIndex(u32::from(projected)),
-            child: ColumnIndex(u32::from(!projected)),
-            domain_id: ColumnIndex(0),
-            domain_filter: vec![],
-            domain_view: vec![],
-            output: vec![],
-        },
+        domain,
+        axis(
+            Source::Step(StepId(1)),
+            StepId(2),
+            u32::from(projected),
+            u32::from(!projected),
+        ),
     ])
 }
 fn execute(stored: bool, projected: bool) -> Result<Vec<Table>, OperatingError> {
@@ -197,24 +211,30 @@ fn execute(stored: bool, projected: bool) -> Result<Vec<Table>, OperatingError> 
         answers.push(table);
     }
     let counts = file.inner.resource_fixture_counts();
-    if stored {
-        assert_eq!(counts.graph_builds, 1);
-        assert_eq!(counts.graph_reuses, 4);
+    let walks = file.walk_counts();
+    if stored && !projected {
+        // The derived Adjacency route through the owner: one canonical graph for the five consumers.
+        assert_eq!(counts.graph_builds, 1, "the stored edges build one canonical retained graph");
+        assert_eq!(counts.graph_reuses, 4, "the other four consumers reuse it");
         assert!(
             counts.graph_early_stops > 0,
             "cyclic nearest preserves early stop"
         );
+        assert_eq!(
+            walks.passes.0, 0,
+            "the axis reads the stored relation itself: there is no select head to walk"
+        );
     } else {
         assert_eq!(
-            counts.graph_builds, 0,
-            "hosted ordinary reference has no canonical retained graph"
+            (counts.graph_builds, counts.graph_reuses),
+            (0, 0),
+            "selected (owned) and hosted edges are traversed as ordinary rows, with no canonical retained graph"
         );
     }
-    let walks = file.walk_counts();
-    if stored {
+    if stored && projected {
         assert_eq!(
             walks.passes.0, 1,
-            "all five stored consumers share one actual walk"
+            "all five selecting consumers share one actual walk"
         );
         assert_eq!(
             walks.source_rows.0, 7,
@@ -224,7 +244,7 @@ fn execute(stored: bool, projected: bool) -> Result<Vec<Table>, OperatingError> 
             walks.predicate_rows.0, 7,
             "one shared predicate class visits every source row once"
         );
-    } else {
+    } else if !stored {
         assert_eq!(
             walks.passes.0, 0,
             "the hosted reference performs no resident shared walk"
