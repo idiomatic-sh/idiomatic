@@ -189,19 +189,6 @@ pub struct Summary {
     pub rules: Vec<Row>,
 }
 
-/// Native observations actually present after one child invocation.
-#[derive(Clone, Debug, PartialEq)]
-pub struct CapturedObservation {
-    /// Exact receipt-scoped raw process artifacts, keyed by safe relative path.
-    pub artifacts: BTreeMap<PathBuf, CapturedBytes>,
-    /// Absent receipts are not fabricated as successful records.
-    pub records: Vec<ObservationDocument>,
-    /// The raw invocation record of every captured process, keyed like its artifact.
-    pub invocations: BTreeMap<PathBuf, InvocationDocument>,
-    /// Absent until a native case receipt exists.
-    pub sha256: ReceiptDigest,
-}
-
 /// Receipt interpretation cannot authorize execution or benchmark certification.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum RegistrationAuthority {
