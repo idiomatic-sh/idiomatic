@@ -1,6 +1,8 @@
 # language 0.4.2
 
-Places `benchmark` 0.2.1 (and through it `benchmark-linter` 0.2.1). Nothing else changes.
+Places `benchmark` 0.2.1 (and through it `benchmark-linter` 0.2.1).
+
+Edited in place: the `language-cases` template's `run` runs every row of a word (a red or panicking row is collected with its name; one panic after the loop names every red row), as the crates' runners do; the `runner-compares-discriminants` scenario's two expected lines move from 80 to 93 with the longer body.
 
 # language 0.4.1
 

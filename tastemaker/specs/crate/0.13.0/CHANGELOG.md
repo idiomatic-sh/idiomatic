@@ -2,6 +2,8 @@
 
 ## 0.13.0
 
+Edited in place: the `cases` template's `run` runs every row of a word, as the crates' runners do: a red row, or a subject that panics, is collected with its row's name, and one panic after the loop names every red row, so a red row no longer hides the rows after it. The rendered scenarios carry the new body.
+
 Edited in place: `crate-readme` shows Usage, with its one line and runnable example, only for an SDK crate (the crate that places `entries`), the only crate a program calls; every other crate is internal and its README has no Usage section, in place of a hollow `use <crate> as _;`.
 
 Edited in place: `crate-root` declares a command line's `pub mod edge;` beside `pub mod resources;`, the module of the `cli` spec's `edge` template (`src/edge.rs`).
