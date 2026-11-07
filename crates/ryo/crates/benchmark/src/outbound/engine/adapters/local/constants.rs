@@ -52,8 +52,6 @@ pub(super) const RYO_DIAGNOSTIC_SUBPLAN_CUT: &str = "ryo::diagnostic::subplan_cu
 pub(super) const RYO_DIAGNOSTIC_STORED_JOIN: &str = "ryo::diagnostic::stored_join";
 /// Text of the ryo diagnostic rule step in this part.
 pub(super) const RYO_DIAGNOSTIC_RULE_STEP: &str = "ryo::diagnostic::rule_step";
-/// Text of the ryo diagnostic execution in this part.
-pub(super) const RYO_DIAGNOSTIC_EXECUTION: &str = "ryo::diagnostic::execution";
 /// Text of the ryo diagnostic selection in this part.
 pub(super) const RYO_DIAGNOSTIC_SELECTION: &str = "ryo::diagnostic::selection";
 /// Text of the ryo diagnostic selection detail in this part.
@@ -66,8 +64,6 @@ pub(super) const RYO_DIAGNOSTIC_LAYOUT: &str = "ryo::diagnostic::layout";
 pub(super) const RYO_DIAGNOSTIC_GRAPH: &str = "ryo::diagnostic::graph";
 /// Text of the ryo diagnostic file program in this part.
 pub(super) const RYO_DIAGNOSTIC_FILE_PROGRAM: &str = "ryo::diagnostic::file_program";
-/// Text of the ryo diagnostic resource routes in this part.
-pub(super) const RYO_DIAGNOSTIC_RESOURCE_ROUTES: &str = "ryo::diagnostic::resource_routes";
 /// Text of the ryo diagnostic lifecycle memory in this part.
 pub(super) const RYO_DIAGNOSTIC_LIFECYCLE_MEMORY: &str = "ryo::diagnostic::lifecycle_memory";
 /// Text of the ryo diagnostic row progress in this part.

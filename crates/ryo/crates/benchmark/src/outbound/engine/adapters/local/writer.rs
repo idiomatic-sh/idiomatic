@@ -19,7 +19,8 @@ pub(super) const STORED_JOIN_TARGET: &str = constants::RYO_DIAGNOSTIC_STORED_JOI
 /// Events describing one operator step within a selected rule.
 pub(super) const RULE_STEP_TARGET: &str = constants::RYO_DIAGNOSTIC_RULE_STEP;
 /// Aggregate phase timings for the explicitly requested execution profile.
-pub(super) const EXECUTION_TARGET: &str = constants::RYO_DIAGNOSTIC_EXECUTION;
+pub(super) const EXECUTION_TARGET: &str =
+    ryo_values::domain::table_words::constants::EXECUTION_TARGET;
 /// Aggregate stored selection and materialization work.
 pub(super) const SELECTION_TARGET: &str = constants::RYO_DIAGNOSTIC_SELECTION;
 /// Per-prepared-selector counts, enabled only by an explicit diagnostic opt-in.
@@ -33,7 +34,8 @@ pub(super) const GRAPH_TARGET: &str = constants::RYO_DIAGNOSTIC_GRAPH;
 /// Request-wide file-program sharing and retained cells in explicit diagnostic runs.
 pub(super) const FILE_PROGRAM_TARGET: &str = constants::RYO_DIAGNOSTIC_FILE_PROGRAM;
 /// Coarse retention/decoding/store phases for an explicit lifecycle diagnostic.
-pub(super) const RESOURCE_ROUTES_TARGET: &str = constants::RYO_DIAGNOSTIC_RESOURCE_ROUTES;
+pub(super) const RESOURCE_ROUTES_TARGET: &str =
+    ryo_values::domain::table_words::constants::RESOURCE_ROUTES_TARGET;
 pub(super) const LIFECYCLE_TARGET: &str = constants::RYO_DIAGNOSTIC_LIFECYCLE_MEMORY;
 
 /// Shared append-only file writer; each event holds the lock until its JSON line is complete.
