@@ -1,0 +1,261 @@
+[
+  {
+    "path": "crates/ryo/crates/core/src/application/file_analysis/service.rs",
+    "line": 231,
+    "text": "crate::domain::column_kernel::types::KernelStrategy::Column",
+    "coverage_row": "metadata_or_resource_preparation",
+    "source_proof": "No Join row emission here: kind/schema/needed relation/filter/graph/resource/liveness/configuration preparation; execution delegates registered/common engine"
+  },
+  {
+    "path": "crates/ryo/crates/core/src/application/file_analysis/service.rs",
+    "line": 233,
+    "text": "crate::domain::column_kernel::types::KernelStrategy::Existing",
+    "coverage_row": "metadata_or_resource_preparation",
+    "source_proof": "No Join row emission here: kind/schema/needed relation/filter/graph/resource/liveness/configuration preparation; execution delegates registered/common engine"
+  },
+  {
+    "path": "crates/ryo/crates/core/src/application/file_dag/cached_graph.rs",
+    "line": 74,
+    "text": "ResourceProgram::Join(join) => {",
+    "coverage_row": "reach_only",
+    "source_proof": "Join.reach None returns Ok(None); no ordinary result emitted"
+  },
+  {
+    "path": "crates/ryo/crates/core/src/application/file_dag/cross_execution.rs",
+    "line": 103,
+    "text": "| Operation::Join { .. }",
+    "coverage_row": "metadata_or_resource_preparation",
+    "source_proof": "No Join row emission here: kind/schema/needed relation/filter/graph/resource/liveness/configuration preparation; execution delegates registered/common engine"
+  },
+  {
+    "path": "crates/ryo/crates/core/src/application/file_dag/derived/graph_cache/service.rs",
+    "line": 30,
+    "text": "Operation::Join {",
+    "coverage_row": "metadata_or_resource_preparation",
+    "source_proof": "No Join row emission here: kind/schema/needed relation/filter/graph/resource/liveness/configuration preparation; execution delegates registered/common engine"
+  },
+  {
+    "path": "crates/ryo/crates/core/src/application/file_dag/derived/graph_cache/service.rs",
+    "line": 39,
+    "text": "| Operation::Join { .. }",
+    "coverage_row": "metadata_or_resource_preparation",
+    "source_proof": "No Join row emission here: kind/schema/needed relation/filter/graph/resource/liveness/configuration preparation; execution delegates registered/common engine"
+  },
+  {
+    "path": "crates/ryo/crates/core/src/application/file_dag/derived/owner/graph.rs",
+    "line": 27,
+    "text": "&& !matches!(program, ResourceProgram::Join(join) if join.reach.is_some())",
+    "coverage_row": "reach_only",
+    "source_proof": "prepare_graph rejects ordinary Join; traversal engine ownership remains open"
+  },
+  {
+    "path": "crates/ryo/crates/core/src/application/file_dag/derived/request.rs",
+    "line": 67,
+    "text": "ResourceProgram::Join(join) => {",
+    "coverage_row": "metadata_or_resource_preparation",
+    "source_proof": "No Join row emission here: kind/schema/needed relation/filter/graph/resource/liveness/configuration preparation; execution delegates registered/common engine"
+  },
+  {
+    "path": "crates/ryo/crates/core/src/application/file_dag/execution/lease.rs",
+    "line": 96,
+    "text": "if let (Some(row), crate::domain::operator::contract::resources::ResourceProgram::Join(join)) =",
+    "coverage_row": "typed_rows",
+    "source_proof": "Selected and generic indexed finite reborrow; native/reach split"
+  },
+  {
+    "path": "crates/ryo/crates/core/src/application/file_dag/execution/lease.rs",
+    "line": 114,
+    "text": "if let (Some(row), crate::domain::operator::contract::resources::ResourceProgram::Join(join)) =",
+    "coverage_row": "typed_rows",
+    "source_proof": "Selected and generic indexed finite reborrow; native/reach split"
+  },
+  {
+    "path": "crates/ryo/crates/core/src/application/file_dag/execution/transport.rs",
+    "line": 35,
+    "text": "let result = if contract.kind == ryo_values::domain::plans::types::OperationKind::Join {",
+    "coverage_row": "typed_rows",
+    "source_proof": "Shared invocation output guard, all streamed Join paths"
+  },
+  {
+    "path": "crates/ryo/crates/core/src/application/file_dag/invocation.rs",
+    "line": 150,
+    "text": "ResourceProgram::Join(JoinResources {",
+    "coverage_row": "metadata_or_resource_preparation",
+    "source_proof": "No Join row emission here: kind/schema/needed relation/filter/graph/resource/liveness/configuration preparation; execution delegates registered/common engine"
+  },
+  {
+    "path": "crates/ryo/crates/core/src/application/file_dag/optimized/join/diagnostic.rs",
+    "line": 92,
+    "text": "let ResourceProgram::Join(join) = &contract.resources else {",
+    "coverage_row": "metadata_or_resource_preparation",
+    "source_proof": "No Join row emission here: kind/schema/needed relation/filter/graph/resource/liveness/configuration preparation; execution delegates registered/common engine"
+  },
+  {
+    "path": "crates/ryo/crates/core/src/application/file_dag/optimized/join.rs",
+    "line": 277,
+    "text": "let ResourceProgram::Join(join) = program else {",
+    "coverage_row": "collected_lookup",
+    "source_proof": "Sparse pairs/ordinary indexed views all call EqualityJoin; no view-specific emission loop"
+  },
+  {
+    "path": "crates/ryo/crates/core/src/application/file_dag/optimized/join.rs",
+    "line": 305,
+    "text": "let ResourceProgram::Join(join) = program else {",
+    "coverage_row": "collected_lookup",
+    "source_proof": "Sparse pairs/ordinary indexed views all call EqualityJoin; no view-specific emission loop"
+  },
+  {
+    "path": "crates/ryo/crates/core/src/application/file_dag/optimized/ready.rs",
+    "line": 23,
+    "text": "ResourceProgram::Join(join) if join.reach.is_none() => {",
+    "coverage_row": "native_rows",
+    "source_proof": "reach=None guard; native finders only choose candidates; single Join port call"
+  },
+  {
+    "path": "crates/ryo/crates/core/src/application/file_dag/optimized.rs",
+    "line": 50,
+    "text": "if contract.kind == ryo_values::domain::plans::types::OperationKind::Join {",
+    "coverage_row": "strategy_dispatch",
+    "source_proof": "KernelStrategy Existing/Column and LoweredTree Tree/Other: typed private bridges; Column fixed65fc"
+  },
+  {
+    "path": "crates/ryo/crates/core/src/application/file_dag/optimized.rs",
+    "line": 137,
+    "text": "if stepper.kernel_strategy == KernelStrategy::Column",
+    "coverage_row": "strategy_dispatch",
+    "source_proof": "KernelStrategy Existing/Column and LoweredTree Tree/Other: typed private bridges; Column fixed65fc"
+  },
+  {
+    "path": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs",
+    "line": 236,
+    "text": "Operation::Join { .. } => \"join\",",
+    "coverage_row": "metadata_or_resource_preparation",
+    "source_proof": "No Join row emission here: kind/schema/needed relation/filter/graph/resource/liveness/configuration preparation; execution delegates registered/common engine"
+  },
+  {
+    "path": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs",
+    "line": 693,
+    "text": "if prepared.kernel_strategy == KernelStrategy::Column {",
+    "coverage_row": "metadata_or_resource_preparation",
+    "source_proof": "No Join row emission here: kind/schema/needed relation/filter/graph/resource/liveness/configuration preparation; execution delegates registered/common engine"
+  },
+  {
+    "path": "crates/ryo/crates/core/src/application/file_dag/pipeline/service.rs",
+    "line": 753,
+    "text": "Some(each) if *unlowered == TreeSteps::Lowered => LoweredTree::Tree(TreeRows {",
+    "coverage_row": "metadata_or_resource_preparation",
+    "source_proof": "No Join row emission here: kind/schema/needed relation/filter/graph/resource/liveness/configuration preparation; execution delegates registered/common engine"
+  },
+  {
+    "path": "crates/ryo/crates/core/src/application/rule_compilation/observing.rs",
+    "line": 34,
+    "text": "| Operation::Join { .. }",
+    "coverage_row": "metadata_or_resource_preparation",
+    "source_proof": "No Join row emission here: kind/schema/needed relation/filter/graph/resource/liveness/configuration preparation; execution delegates registered/common engine"
+  },
+  {
+    "path": "crates/ryo/crates/core/src/domain/column_kernel/service.rs",
+    "line": 87,
+    "text": "let Operation::Join {",
+    "coverage_row": "fused_column",
+    "source_proof": "compile guards metadata; runtime execute_with_index calls same injected Join with lazy columnar row"
+  },
+  {
+    "path": "crates/ryo/crates/core/src/domain/coverage/service.rs",
+    "line": 97,
+    "text": "| Operation::Join { .. }",
+    "coverage_row": "metadata_or_resource_preparation",
+    "source_proof": "No Join row emission here: kind/schema/needed relation/filter/graph/resource/liveness/configuration preparation; execution delegates registered/common engine"
+  },
+  {
+    "path": "crates/ryo/crates/core/src/domain/features/service.rs",
+    "line": 27,
+    "text": "Operation::Join { .. } => OperationKind::Join,",
+    "coverage_row": "metadata_or_resource_preparation",
+    "source_proof": "No Join row emission here: kind/schema/needed relation/filter/graph/resource/liveness/configuration preparation; execution delegates registered/common engine"
+  },
+  {
+    "path": "crates/ryo/crates/core/src/domain/features/service.rs",
+    "line": 52,
+    "text": "Operation::Join { filter, .. } => filter,",
+    "coverage_row": "metadata_or_resource_preparation",
+    "source_proof": "No Join row emission here: kind/schema/needed relation/filter/graph/resource/liveness/configuration preparation; execution delegates registered/common engine"
+  },
+  {
+    "path": "crates/ryo/crates/core/src/domain/features/service.rs",
+    "line": 87,
+    "text": "OperationKind::Join,",
+    "coverage_row": "metadata_or_resource_preparation",
+    "source_proof": "No Join row emission here: kind/schema/needed relation/filter/graph/resource/liveness/configuration preparation; execution delegates registered/common engine"
+  },
+  {
+    "path": "crates/ryo/crates/core/src/domain/file_program/service.rs",
+    "line": 83,
+    "text": "Operation::Join { left, right, .. }",
+    "coverage_row": "metadata_or_resource_preparation",
+    "source_proof": "No Join row emission here: kind/schema/needed relation/filter/graph/resource/liveness/configuration preparation; execution delegates registered/common engine"
+  },
+  {
+    "path": "crates/ryo/crates/core/src/domain/fragment/service/join.rs",
+    "line": 182,
+    "text": "let Operation::Join {",
+    "coverage_row": "lowered_slots",
+    "source_proof": "three RHS branches SyntaxTree/SyntaxChild/Step call Positions; other Relation=>NotAStep"
+  },
+  {
+    "path": "crates/ryo/crates/core/src/domain/fragment/service.rs",
+    "line": 42,
+    "text": "Operation::Join { left, right, .. }",
+    "coverage_row": "lowered_slots",
+    "source_proof": "recursive dependency/skip gates and private injected Join dispatch"
+  },
+  {
+    "path": "crates/ryo/crates/core/src/domain/fragment/service.rs",
+    "line": 133,
+    "text": "Operation::Join { .. }",
+    "coverage_row": "lowered_slots",
+    "source_proof": "recursive dependency/skip gates and private injected Join dispatch"
+  },
+  {
+    "path": "crates/ryo/crates/core/src/domain/fragment/service.rs",
+    "line": 211,
+    "text": "Operation::Join { .. } => join::run(semantics, &tree, lowering, operation, work, out),",
+    "coverage_row": "lowered_slots",
+    "source_proof": "recursive dependency/skip gates and private injected Join dispatch"
+  },
+  {
+    "path": "crates/ryo/crates/core/src/domain/kind_check/service.rs",
+    "line": 40,
+    "text": "if let Operation::Join { right, filter, .. } = &step.operation",
+    "coverage_row": "metadata_or_resource_preparation",
+    "source_proof": "No Join row emission here: kind/schema/needed relation/filter/graph/resource/liveness/configuration preparation; execution delegates registered/common engine"
+  },
+  {
+    "path": "crates/ryo/crates/core/src/domain/lowering/service.rs",
+    "line": 113,
+    "text": "let Operation::Join {",
+    "coverage_row": "metadata_or_resource_preparation",
+    "source_proof": "No Join row emission here: kind/schema/needed relation/filter/graph/resource/liveness/configuration preparation; execution delegates registered/common engine"
+  },
+  {
+    "path": "crates/ryo/crates/core/src/domain/lowering/service.rs",
+    "line": 284,
+    "text": "Operation::Join { .. } => join_shape(operation, shapes),",
+    "coverage_row": "metadata_or_resource_preparation",
+    "source_proof": "No Join row emission here: kind/schema/needed relation/filter/graph/resource/liveness/configuration preparation; execution delegates registered/common engine"
+  },
+  {
+    "path": "crates/ryo/crates/core/src/domain/matching/types/prepared/value.rs",
+    "line": 38,
+    "text": "Operation::Join { filter, .. } => filter.as_slice(),",
+    "coverage_row": "metadata_or_resource_preparation",
+    "source_proof": "No Join row emission here: kind/schema/needed relation/filter/graph/resource/liveness/configuration preparation; execution delegates registered/common engine"
+  },
+  {
+    "path": "crates/ryo/crates/core/src/domain/operation_schema/service.rs",
+    "line": 101,
+    "text": "Operation::Join { .. } => join_schema(operation, inputs, bindings),",
+    "coverage_row": "metadata_or_resource_preparation",
+    "source_proof": "No Join row emission here: kind/schema/needed relation/filter/graph/resource/liveness/configuration preparation; execution delegates registered/common engine"
+  }
+]

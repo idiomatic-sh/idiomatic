@@ -1,0 +1,272 @@
+[
+  {
+    "variant": "PackageDependency",
+    "module": "package_dependency",
+    "group": "manifest",
+    "class": "Manifest",
+    "name": "A package that depends on another, with how, and the versions it admits.",
+    "optional": false,
+    "schema": {
+      "path": "crates/ryo/crates/relations/src/domain/relations/collections/relations/package_dependency/item.rs",
+      "line": 33,
+      "blob_sha256": "b1bc4b5b918efd073f2af2e710da4230b4c1b4a5ff2d8ad99e1545a95f66b110"
+    },
+    "providers": {
+      "css": {
+        "declaration": "absence:NoManifests",
+        "reader": null,
+        "capability_promised": "mandatory",
+        "effective": "absence:NoManifests",
+        "anchor": {
+          "path": "crates/ryo/languages/css/src/inbound/contracts/project/contract.rs",
+          "line": 43,
+          "blob_sha256": "f383f9cd60be8574aec447177de4bfb8fe19387b2daab819fae8e6f1491d5854"
+        },
+        "declared_semantic_na": "NoManifests"
+      },
+      "go": {
+        "declaration": "reader",
+        "reader": "PackageDependencyItem",
+        "capability_promised": "mandatory",
+        "effective": "reader",
+        "anchor": {
+          "path": "crates/ryo/languages/go/src/inbound/contracts/project/contract.rs",
+          "line": 131,
+          "blob_sha256": "422c1537f4d3c3724bab9fef4c7dc54f2cd697b8beb2f9d7869a941b9254c30a"
+        },
+        "declared_semantic_na": null
+      },
+      "html": {
+        "declaration": "absence:NoManifests",
+        "reader": null,
+        "capability_promised": "mandatory",
+        "effective": "absence:NoManifests",
+        "anchor": {
+          "path": "crates/ryo/languages/html/src/inbound/contracts/project/contract.rs",
+          "line": 37,
+          "blob_sha256": "b0f18af61690df01f80d5387ba524a15e301a6cc75b17a023be0bfd97d083095"
+        },
+        "declared_semantic_na": "NoManifests"
+      },
+      "javascript": {
+        "declaration": "reader",
+        "reader": "PackageDependencyItem",
+        "capability_promised": "mandatory",
+        "effective": "reader",
+        "anchor": {
+          "path": "crates/ryo/languages/javascript/src/inbound/contracts/project/contract.rs",
+          "line": 141,
+          "blob_sha256": "a1a13b3f7b95d3ad68fb42ca68b4e61cb788801e540634a64304b9add4f82568"
+        },
+        "declared_semantic_na": null
+      },
+      "json": {
+        "declaration": "absence:NoManifests",
+        "reader": null,
+        "capability_promised": "mandatory",
+        "effective": "absence:NoManifests",
+        "anchor": {
+          "path": "crates/ryo/languages/json/src/inbound/contracts/project/contract.rs",
+          "line": 37,
+          "blob_sha256": "71ac39ee7fcb656529d30bba4ca0613037426ea836a8ecc37131c18fd3ca3b89"
+        },
+        "declared_semantic_na": "NoManifests"
+      },
+      "markdown": {
+        "declaration": "absence:NoManifests",
+        "reader": null,
+        "capability_promised": "mandatory",
+        "effective": "absence:NoManifests",
+        "anchor": {
+          "path": "crates/ryo/languages/markdown/src/inbound/contracts/project/contract.rs",
+          "line": 43,
+          "blob_sha256": "44e92e6d9dc603597c975c461fd86290a6d4c4a8984e0a26ae53b75b76862d72"
+        },
+        "declared_semantic_na": "NoManifests"
+      },
+      "python": {
+        "declaration": "reader",
+        "reader": "PackageDependencyItem",
+        "capability_promised": "mandatory",
+        "effective": "reader",
+        "anchor": {
+          "path": "crates/ryo/languages/python/src/inbound/contracts/project/contract.rs",
+          "line": 155,
+          "blob_sha256": "df6f24267bcdf67e88dd321ea94a04fbe2d77bdfbea48bfc374d57c40f3529f0"
+        },
+        "declared_semantic_na": null
+      },
+      "rust": {
+        "declaration": "reader",
+        "reader": "PackageDependencyItem",
+        "capability_promised": "mandatory",
+        "effective": "reader",
+        "anchor": {
+          "path": "crates/ryo/languages/rust/src/inbound/contracts/project/contract.rs",
+          "line": 381,
+          "blob_sha256": "74c59a8b988bddb94caef4f72ec0716946a5d7b451994bfc5c99846185838eb8"
+        },
+        "declared_semantic_na": null
+      },
+      "toml": {
+        "declaration": "absence:NoManifests",
+        "reader": null,
+        "capability_promised": "mandatory",
+        "effective": "absence:NoManifests",
+        "anchor": {
+          "path": "crates/ryo/languages/toml/src/inbound/contracts/project/contract.rs",
+          "line": 44,
+          "blob_sha256": "1112ebb5497e16ff3ebd577a109bc176958f65eb6cc554fa21edec0fc96fb631"
+        },
+        "declared_semantic_na": "NoManifests"
+      },
+      "typescript": {
+        "declaration": "reader",
+        "reader": "PackageDependencyItem",
+        "capability_promised": "mandatory",
+        "effective": "reader",
+        "anchor": {
+          "path": "crates/ryo/languages/typescript/src/inbound/contracts/project/contract.rs",
+          "line": 142,
+          "blob_sha256": "9933a61636537a4443bef2e59ea465f582568e1ab05cc2583e30001a71f43889"
+        },
+        "declared_semantic_na": null
+      }
+    }
+  },
+  {
+    "variant": "WorkspaceMember",
+    "module": "workspace_member",
+    "group": "manifest",
+    "class": "Manifest",
+    "name": "workspace-member",
+    "optional": false,
+    "schema": {
+      "path": "crates/ryo/crates/relations/src/domain/relations/collections/relations/workspace_member/item.rs",
+      "line": 31,
+      "blob_sha256": "0e6e2466461597981a1fff6cffb11cd45621612fedd4f91a0f0a641edf92b4d3"
+    },
+    "providers": {
+      "css": {
+        "declaration": "absence:NoManifests",
+        "reader": null,
+        "capability_promised": "mandatory",
+        "effective": "absence:NoManifests",
+        "anchor": {
+          "path": "crates/ryo/languages/css/src/inbound/contracts/project/contract.rs",
+          "line": 48,
+          "blob_sha256": "f383f9cd60be8574aec447177de4bfb8fe19387b2daab819fae8e6f1491d5854"
+        },
+        "declared_semantic_na": "NoManifests"
+      },
+      "go": {
+        "declaration": "reader",
+        "reader": "WorkspaceMemberItem",
+        "capability_promised": "mandatory",
+        "effective": "reader",
+        "anchor": {
+          "path": "crates/ryo/languages/go/src/inbound/contracts/project/contract.rs",
+          "line": 135,
+          "blob_sha256": "422c1537f4d3c3724bab9fef4c7dc54f2cd697b8beb2f9d7869a941b9254c30a"
+        },
+        "declared_semantic_na": null
+      },
+      "html": {
+        "declaration": "absence:NoManifests",
+        "reader": null,
+        "capability_promised": "mandatory",
+        "effective": "absence:NoManifests",
+        "anchor": {
+          "path": "crates/ryo/languages/html/src/inbound/contracts/project/contract.rs",
+          "line": 42,
+          "blob_sha256": "b0f18af61690df01f80d5387ba524a15e301a6cc75b17a023be0bfd97d083095"
+        },
+        "declared_semantic_na": "NoManifests"
+      },
+      "javascript": {
+        "declaration": "reader",
+        "reader": "WorkspaceMemberItem",
+        "capability_promised": "mandatory",
+        "effective": "reader",
+        "anchor": {
+          "path": "crates/ryo/languages/javascript/src/inbound/contracts/project/contract.rs",
+          "line": 145,
+          "blob_sha256": "a1a13b3f7b95d3ad68fb42ca68b4e61cb788801e540634a64304b9add4f82568"
+        },
+        "declared_semantic_na": null
+      },
+      "json": {
+        "declaration": "absence:NoManifests",
+        "reader": null,
+        "capability_promised": "mandatory",
+        "effective": "absence:NoManifests",
+        "anchor": {
+          "path": "crates/ryo/languages/json/src/inbound/contracts/project/contract.rs",
+          "line": 42,
+          "blob_sha256": "71ac39ee7fcb656529d30bba4ca0613037426ea836a8ecc37131c18fd3ca3b89"
+        },
+        "declared_semantic_na": "NoManifests"
+      },
+      "markdown": {
+        "declaration": "absence:NoManifests",
+        "reader": null,
+        "capability_promised": "mandatory",
+        "effective": "absence:NoManifests",
+        "anchor": {
+          "path": "crates/ryo/languages/markdown/src/inbound/contracts/project/contract.rs",
+          "line": 48,
+          "blob_sha256": "44e92e6d9dc603597c975c461fd86290a6d4c4a8984e0a26ae53b75b76862d72"
+        },
+        "declared_semantic_na": "NoManifests"
+      },
+      "python": {
+        "declaration": "reader",
+        "reader": "WorkspaceMemberItem",
+        "capability_promised": "mandatory",
+        "effective": "reader",
+        "anchor": {
+          "path": "crates/ryo/languages/python/src/inbound/contracts/project/contract.rs",
+          "line": 159,
+          "blob_sha256": "df6f24267bcdf67e88dd321ea94a04fbe2d77bdfbea48bfc374d57c40f3529f0"
+        },
+        "declared_semantic_na": null
+      },
+      "rust": {
+        "declaration": "reader",
+        "reader": "WorkspaceMemberItem",
+        "capability_promised": "mandatory",
+        "effective": "reader",
+        "anchor": {
+          "path": "crates/ryo/languages/rust/src/inbound/contracts/project/contract.rs",
+          "line": 385,
+          "blob_sha256": "74c59a8b988bddb94caef4f72ec0716946a5d7b451994bfc5c99846185838eb8"
+        },
+        "declared_semantic_na": null
+      },
+      "toml": {
+        "declaration": "absence:NoManifests",
+        "reader": null,
+        "capability_promised": "mandatory",
+        "effective": "absence:NoManifests",
+        "anchor": {
+          "path": "crates/ryo/languages/toml/src/inbound/contracts/project/contract.rs",
+          "line": 49,
+          "blob_sha256": "1112ebb5497e16ff3ebd577a109bc176958f65eb6cc554fa21edec0fc96fb631"
+        },
+        "declared_semantic_na": "NoManifests"
+      },
+      "typescript": {
+        "declaration": "reader",
+        "reader": "WorkspaceMemberItem",
+        "capability_promised": "mandatory",
+        "effective": "reader",
+        "anchor": {
+          "path": "crates/ryo/languages/typescript/src/inbound/contracts/project/contract.rs",
+          "line": 145,
+          "blob_sha256": "9933a61636537a4443bef2e59ea465f582568e1ab05cc2583e30001a71f43889"
+        },
+        "declared_semantic_na": null
+      }
+    }
+  }
+]

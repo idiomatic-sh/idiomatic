@@ -1,0 +1,272 @@
+[
+  {
+    "variant": "SyntaxTree",
+    "module": "syntax_tree",
+    "group": "syntax",
+    "class": "Structure",
+    "name": "syntax-tree",
+    "optional": false,
+    "schema": {
+      "path": "crates/ryo/crates/relations/src/domain/relations/collections/relations/syntax_tree/item.rs",
+      "line": 32,
+      "blob_sha256": "f5fac192b57d6c456c3e166a368ad13841a3ac67f69778b158bc39244e247f66"
+    },
+    "providers": {
+      "css": {
+        "declaration": "reader",
+        "reader": "SyntaxTreeItem",
+        "capability_promised": "mandatory",
+        "effective": "reader",
+        "anchor": {
+          "path": "crates/ryo/languages/css/src/inbound/contracts/parse/contract.rs",
+          "line": 135,
+          "blob_sha256": "b54658cae65a4e331e6a25d6752ba25669542e0f9a93bb756ee58e36207b63f3"
+        },
+        "declared_semantic_na": null
+      },
+      "go": {
+        "declaration": "reader",
+        "reader": "SyntaxTreeItem",
+        "capability_promised": "mandatory",
+        "effective": "reader",
+        "anchor": {
+          "path": "crates/ryo/languages/go/src/inbound/contracts/parse/contract.rs",
+          "line": 138,
+          "blob_sha256": "a2318c2b8acffc0f31bd35e70ac6396d97a6aa37cabbbd53549c903214e8bf7e"
+        },
+        "declared_semantic_na": null
+      },
+      "html": {
+        "declaration": "reader",
+        "reader": "SyntaxTreeItem",
+        "capability_promised": "mandatory",
+        "effective": "reader",
+        "anchor": {
+          "path": "crates/ryo/languages/html/src/inbound/contracts/parse/contract.rs",
+          "line": 112,
+          "blob_sha256": "a6e047134d7340c4ff22f357ff4fd1961036126697e4d946aa082c38a18abf54"
+        },
+        "declared_semantic_na": null
+      },
+      "javascript": {
+        "declaration": "reader",
+        "reader": "SyntaxTreeItem",
+        "capability_promised": "mandatory",
+        "effective": "reader",
+        "anchor": {
+          "path": "crates/ryo/languages/javascript/src/inbound/contracts/parse/contract.rs",
+          "line": 176,
+          "blob_sha256": "1226c83e2f2ca5013fa69691e3d4df66ba95e60f0383da53c26ba64659348edf"
+        },
+        "declared_semantic_na": null
+      },
+      "json": {
+        "declaration": "reader",
+        "reader": "SyntaxTreeItem",
+        "capability_promised": "mandatory",
+        "effective": "reader",
+        "anchor": {
+          "path": "crates/ryo/languages/json/src/inbound/contracts/parse/contract.rs",
+          "line": 115,
+          "blob_sha256": "9a4003c76f14d78a7f5362e85b1c34fa4b902f8ad837245bcacd2402543b8c0c"
+        },
+        "declared_semantic_na": null
+      },
+      "markdown": {
+        "declaration": "reader",
+        "reader": "SyntaxTreeItem",
+        "capability_promised": "mandatory",
+        "effective": "reader",
+        "anchor": {
+          "path": "crates/ryo/languages/markdown/src/inbound/contracts/parse/contract.rs",
+          "line": 140,
+          "blob_sha256": "30a175317abe4c1703c7ba28dc8fcafbc200d8bb998c110a14fe151213f263ad"
+        },
+        "declared_semantic_na": null
+      },
+      "python": {
+        "declaration": "reader",
+        "reader": "SyntaxTreeItem",
+        "capability_promised": "mandatory",
+        "effective": "reader",
+        "anchor": {
+          "path": "crates/ryo/languages/python/src/inbound/contracts/parse/contract.rs",
+          "line": 477,
+          "blob_sha256": "50a2071ce341a0b495260df5542b2807bd8b6f87755e2f510cd4a8dbfe8b80cc"
+        },
+        "declared_semantic_na": null
+      },
+      "rust": {
+        "declaration": "reader",
+        "reader": "SyntaxTreeItem",
+        "capability_promised": "mandatory",
+        "effective": "reader",
+        "anchor": {
+          "path": "crates/ryo/languages/rust/src/inbound/contracts/parse/contract.rs",
+          "line": 352,
+          "blob_sha256": "57577e2c7111b99f67530f7c68c66bc522c2b76511f0cf587b775398e2db588a"
+        },
+        "declared_semantic_na": null
+      },
+      "toml": {
+        "declaration": "reader",
+        "reader": "SyntaxTreeItem",
+        "capability_promised": "mandatory",
+        "effective": "reader",
+        "anchor": {
+          "path": "crates/ryo/languages/toml/src/inbound/contracts/parse/contract.rs",
+          "line": 140,
+          "blob_sha256": "da8a2b64f487ec0e844263fe15905e1626a445500efe31db2d4926feb85d21ba"
+        },
+        "declared_semantic_na": null
+      },
+      "typescript": {
+        "declaration": "reader",
+        "reader": "SyntaxTreeItem",
+        "capability_promised": "mandatory",
+        "effective": "reader",
+        "anchor": {
+          "path": "crates/ryo/languages/typescript/src/inbound/contracts/parse/contract.rs",
+          "line": 199,
+          "blob_sha256": "ad1521ee525b534ceb8d853c7b888dc9d327f395f5719d3de210ba0231dfa2de"
+        },
+        "declared_semantic_na": null
+      }
+    }
+  },
+  {
+    "variant": "SemanticSyntax",
+    "module": "semantic_syntax",
+    "group": "syntax",
+    "class": "Structure",
+    "name": "semantic-syntax",
+    "optional": false,
+    "schema": {
+      "path": "crates/ryo/crates/relations/src/domain/relations/collections/relations/semantic_syntax/item.rs",
+      "line": 32,
+      "blob_sha256": "a2a6494b00e82c4fe726b01e836cb56ad132d9ab5d044f678de881c07b2a3257"
+    },
+    "providers": {
+      "css": {
+        "declaration": "shared-reader",
+        "reader": "native_semantic_syntax",
+        "capability_promised": "mandatory",
+        "effective": "shared-reader",
+        "anchor": {
+          "path": "crates/ryo/languages/css/src/inbound/contracts/parse/contract.rs",
+          "line": 229,
+          "blob_sha256": "b54658cae65a4e331e6a25d6752ba25669542e0f9a93bb756ee58e36207b63f3"
+        },
+        "declared_semantic_na": null
+      },
+      "go": {
+        "declaration": "shared-reader",
+        "reader": "native_semantic_syntax",
+        "capability_promised": "mandatory",
+        "effective": "shared-reader",
+        "anchor": {
+          "path": "crates/ryo/languages/go/src/inbound/contracts/parse/contract.rs",
+          "line": 244,
+          "blob_sha256": "a2318c2b8acffc0f31bd35e70ac6396d97a6aa37cabbbd53549c903214e8bf7e"
+        },
+        "declared_semantic_na": null
+      },
+      "html": {
+        "declaration": "shared-reader",
+        "reader": "native_semantic_syntax",
+        "capability_promised": "mandatory",
+        "effective": "shared-reader",
+        "anchor": {
+          "path": "crates/ryo/languages/html/src/inbound/contracts/parse/contract.rs",
+          "line": 224,
+          "blob_sha256": "a6e047134d7340c4ff22f357ff4fd1961036126697e4d946aa082c38a18abf54"
+        },
+        "declared_semantic_na": null
+      },
+      "javascript": {
+        "declaration": "shared-reader",
+        "reader": "native_semantic_syntax",
+        "capability_promised": "mandatory",
+        "effective": "shared-reader",
+        "anchor": {
+          "path": "crates/ryo/languages/javascript/src/inbound/contracts/parse/contract.rs",
+          "line": 308,
+          "blob_sha256": "1226c83e2f2ca5013fa69691e3d4df66ba95e60f0383da53c26ba64659348edf"
+        },
+        "declared_semantic_na": null
+      },
+      "json": {
+        "declaration": "shared-reader",
+        "reader": "native_semantic_syntax",
+        "capability_promised": "mandatory",
+        "effective": "shared-reader",
+        "anchor": {
+          "path": "crates/ryo/languages/json/src/inbound/contracts/parse/contract.rs",
+          "line": 214,
+          "blob_sha256": "9a4003c76f14d78a7f5362e85b1c34fa4b902f8ad837245bcacd2402543b8c0c"
+        },
+        "declared_semantic_na": null
+      },
+      "markdown": {
+        "declaration": "shared-reader",
+        "reader": "native_semantic_syntax",
+        "capability_promised": "mandatory",
+        "effective": "shared-reader",
+        "anchor": {
+          "path": "crates/ryo/languages/markdown/src/inbound/contracts/parse/contract.rs",
+          "line": 231,
+          "blob_sha256": "30a175317abe4c1703c7ba28dc8fcafbc200d8bb998c110a14fe151213f263ad"
+        },
+        "declared_semantic_na": null
+      },
+      "python": {
+        "declaration": "reader",
+        "reader": "crate::domain::relations::collections::relations::semantic_syntax::item::SemanticSyntaxItem",
+        "capability_promised": "mandatory",
+        "effective": "reader",
+        "anchor": {
+          "path": "crates/ryo/languages/python/src/inbound/contracts/parse/contract.rs",
+          "line": 303,
+          "blob_sha256": "50a2071ce341a0b495260df5542b2807bd8b6f87755e2f510cd4a8dbfe8b80cc"
+        },
+        "declared_semantic_na": null
+      },
+      "rust": {
+        "declaration": "shared-reader",
+        "reader": "native_semantic_syntax",
+        "capability_promised": "mandatory",
+        "effective": "shared-reader",
+        "anchor": {
+          "path": "crates/ryo/languages/rust/src/inbound/contracts/parse/contract.rs",
+          "line": 188,
+          "blob_sha256": "57577e2c7111b99f67530f7c68c66bc522c2b76511f0cf587b775398e2db588a"
+        },
+        "declared_semantic_na": null
+      },
+      "toml": {
+        "declaration": "shared-reader",
+        "reader": "native_semantic_syntax",
+        "capability_promised": "mandatory",
+        "effective": "shared-reader",
+        "anchor": {
+          "path": "crates/ryo/languages/toml/src/inbound/contracts/parse/contract.rs",
+          "line": 214,
+          "blob_sha256": "da8a2b64f487ec0e844263fe15905e1626a445500efe31db2d4926feb85d21ba"
+        },
+        "declared_semantic_na": null
+      },
+      "typescript": {
+        "declaration": "shared-reader",
+        "reader": "native_semantic_syntax",
+        "capability_promised": "mandatory",
+        "effective": "shared-reader",
+        "anchor": {
+          "path": "crates/ryo/languages/typescript/src/inbound/contracts/parse/contract.rs",
+          "line": 306,
+          "blob_sha256": "ad1521ee525b534ceb8d853c7b888dc9d327f395f5719d3de210ba0231dfa2de"
+        },
+        "declared_semantic_na": null
+      }
+    }
+  }
+]

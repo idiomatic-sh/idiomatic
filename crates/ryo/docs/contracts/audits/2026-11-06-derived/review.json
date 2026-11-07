@@ -52,170 +52,17 @@
       "Independent static walk eligibility, physical census, actual413 proof limits"
     ],
     "excluded": [
-      "Performance: explicitly deferred through phases2\u20136",
+      "Performance: explicitly deferred through phases2–6",
       "Whole-phase/category approval",
       "Known deferred Core output/persistence failures are retained but not re-investigated",
       "No claim that dormant configured classes must execute"
     ]
   },
-  "findings": [
-    {
-      "id": "D4-RAW",
-      "also": "Opus DG-1",
-      "severity": "blocking",
-      "family": "Detached payload and forgeable graph-consumption authority",
-      "matrix_rows": [
-        "D2",
-        "D3",
-        "D4",
-        "D7",
-        "14a",
-        "14b",
-        "17"
-      ],
-      "anchors": [
-        "crates/ryo/crates/execution/src/application/file_dag/derived/owner/acquisition/admission/service.rs:90",
-        "crates/ryo/crates/execution/src/application/file_dag/derived/owner/acquisition/semantics/service.rs:495",
-        "crates/ryo/crates/execution/src/application/file_dag/derived/owner/acquisition/semantics/service.rs:500",
-        "crates/ryo/crates/execution/src/application/file_dag/derived/graph_cache/types/handles.rs:11",
-        "crates/ryo/crates/execution/src/application/file_dag/derived/graph_cache/types/handles.rs:20",
-        "crates/ryo/crates/execution/src/application/file_dag/derived/graph_cache/types/handles.rs:32",
-        "crates/ryo/crates/execution/src/application/file_dag/derived/graph_cache/types/roots/value.rs:32",
-        "crates/ryo/crates/execution/src/application/file_dag/derived/graph_cache/types/roots/value.rs:40"
-      ],
-      "failure": "AcquiredView exposes a cloneable raw storage Arc throughout derived; raw storage view and payload sharing bypass the required-lease carrier. GraphAccess is freely constructible, GraphHandle fields are replaceable in derived, DomainHandle derefs a cloneable Arc, and DemandAnswers accepts raw GraphAccess instead of an issued owner-bound handle.",
-      "falsifier": "In a derived sibling acquire a real view, clone view.storage() or its share_adjacency/share_positions payload, drop the AcquiredView, and retain/read the allocation with no required lease. For graphs construct GraphAccess{graph,orientation,shared:true} and call DemandAnswers::new(owner,None).reach. A forged GraphHandle may pair an unrelated acquired view with arbitrary generation/access; DomainHandle Arc clone similarly outlives its lease.",
-      "required_proof": "Seal the entire storage/payload/graph/domain accessor and consumer family. Real sibling compiler negatives must reject detachment and raw consumer construction; authorized borrowed/leased use must pass. Runtime controls must cover required accounting through drop, refusal, retirement, and real graph/selector routes. Add appropriate resolved-source TM guards with bad/good validation; constructor-only controls are insufficient.",
-      "owner": "core_contract_tests_light; isolated repair assigned, absent from36b"
-    },
-    {
-      "id": "D4-LIFE",
-      "severity": "blocking",
-      "family": "Held immutable read versus new-generation admission",
-      "matrix_rows": [
-        "D2",
-        "D4",
-        "D7",
-        "14a",
-        "17",
-        "B5.8"
-      ],
-      "anchors": [
-        "crates/ryo/crates/execution/src/application/file_dag/derived/owner/acquisition/admission/service.rs:82",
-        "crates/ryo/crates/execution/src/application/file_dag/derived/owner/index_lifetime_test.rs:130",
-        "crates/ryo/crates/execution/src/application/file_dag/derived/owner/index_lifetime_test.rs:148"
-      ],
-      "failure": "AcquiredView::view rejects a retired generation even though the held view owns the storage and required lease. Generation retirement must reject new admissions while preserving already leased immutable reads until the last consumer drops.",
-      "falsifier": "Existing backend_clear_preserves_one_required_backing_until_last_consumer_drops retains an equality view, releases the population, checks live backing/required accounting, then held.view() fails NotRead on297.",
-      "related_evidence": "Seven execution graph/index/Axis-family tests and one public Axis projection test fail; this exact held-view failure is independently located. The remaining graph failures require separate source diagnosis and are not assumed to share this cause.",
-      "required_proof": "Preserve the existing held-view positive; keep stale/foreign new admission negatives. Pass the real graph/axis/index integration cohort, including dense membership and parent graph identity, without weakening expected results or release assertions.",
-      "owner": "core_contract_tests_light; isolated repair assigned"
-    },
-    {
-      "id": "ISSUER-PROOF",
-      "severity": "blocking",
-      "family": "Compiler-negative family is incomplete because harness aborts",
-      "matrix_rows": [
-        "B5.2",
-        "B5.4",
-        "P3.6",
-        "P3.11",
-        "D2",
-        "D5",
-        "D7"
-      ],
-      "anchors": [
-        "crates/ryo/crates/execution/tests/source_boundary/test.rs:255",
-        "crates/ryo/crates/execution/tests/source_boundary/test.rs:373",
-        "crates/ryo/crates/execution/tests/source_boundary/derived/mod.rs:106"
-      ],
-      "failure": "The first new alias KernelAdmission probe fails the diagnostic contract on dead_code instead of the expected privacy diagnostic. Execution stops there; no subsequent owner-family probe is assessed.",
-      "inventory": {
-        "total": 56,
-        "runtime_admission": 46,
-        "derived": 10,
-        "positive": 12,
-        "negative": 44,
-        "completed_before_failure": 9,
-        "completed_positive": 1,
-        "completed_negative": 8,
-        "failed_probe": 1,
-        "not_reached": 46
-      },
-      "falsifier": "Validation297 boundary.log reports source_boundary::actual_runtime_authority_is_private_to_its_owner failed at test.rs373: Some(dead_code) != Some(E0451).",
-      "required_proof": "Make every inserted probe a used item without suppressing the intended boundary diagnostic, run all56 plus new raw/graph escape probes, retain precise diagnostic and source attribution. Do not count unrelated compiler/lint failures as negative proof.",
-      "lead_disposition": "Current capability fields are private in runtime/service.rs. This diagnostic does not demonstrate that unauthorized construction compiled; reject that raw Opus inference. Source sealing is promising, full executable privacy proof remains FAIL.",
-      "owner": "root/source-probe author"
-    },
-    {
-      "id": "P3-CENSUS",
-      "severity": "blocking",
-      "family": "Observation source barrier classification",
-      "matrix_rows": [
-        "P3.2",
-        "P3.7",
-        "B4d.4",
-        "B4d.6"
-      ],
-      "anchors": [
-        "crates/ryo/crates/execution/src/domain/shared_walk/types/prepared_walk/value.rs:269",
-        "crates/ryo/crates/execution/src/domain/shared_walk/types/prepared_walk/value.rs:276",
-        "crates/ryo/crates/execution/src/domain/executable_program/observations/test.rs:179"
-      ],
-      "failure": "Actual physical IDs now include synthetic union instructions and the independent total assertion passes, but the real two-input observation fixture counts only2Observation barriers where2unions+2observation consumers require4. The source operation has normalized BoundObservation to Step; barrier classification needs resolved producer metadata.",
-      "falsifier": "Validation297 domain::executable_program::observations::test::succeeds fails expected4 actual2 at observations/test.rs179.",
-      "required_proof": "Classify observation consumers using the compiled resolved input, retain independent total and explicit expected2+2 assertions, then pass real named-observation and class eligibility controls.",
-      "owner": "root; isolated pending0adcf repair is not in reviewed source"
-    },
-    {
-      "id": "P3-RUNTIME-PROOF",
-      "severity": "blocking",
-      "family": "Actual413 proof and independent expected admissions",
-      "matrix_rows": [
-        "P3.12",
-        "P3.6",
-        "P3.11",
-        "20b"
-      ],
-      "anchors": [
-        "crates/ryo/crates/execution/src/application/file_dag/program/native_walk.rs:148",
-        "crates/ryo/crates/execution/src/application/file_dag/program/native_walk.rs:172",
-        "crates/ryo/languages/python/benchmarks/linters/ruff/sharing/test.rs:84",
-        "crates/ryo/languages/python/benchmarks/linters/ruff/sharing/fixtures/mod.rs:92"
-      ],
-      "failure": "Actual413 test fails before engine execution because selected rule E501 lacks explicit applicability. Independently, current expected admitted set comes from a trace emitted inside FileWalk::submit after class/source admission, so omitted submit/class admission can disappear from both expected and actual sets.",
-      "falsifier": "Existing297 ruff_sharing 0/1 fails before the engine. Once setup works, omit an eligible ready submission before FileWalk::submit: its ready trace and dispatch both disappear, preserving current set equality. The current negative removes a dispatch event after submit only.",
-      "required_proof": "Repair production-faithful selected/supporting-rule applicability setup. Establish independent runtime-required accepted head/population membership before the tested submission/classification boundary, account for explicit representation refusal, and falsify omitted submission as well as omitted dispatch. Couple with the independent static physical-head oracle; dormant classes need not execute.",
-      "limit": "No runtime-ready trace relocation is integrated in36b. Pending0adcf only repairs barrier metadata. After source review root assigned a separate bounded omitted-submit repair to phase3_shared_walk_consolidation; it has no successor execution evidence in this verdict.",
-      "owner": "root/proof owner"
-    },
-    {
-      "id": "MATRIX-EVIDENCE",
-      "severity": "blocking",
-      "family": "Stale source/evidence and unresolved structural acceptance",
-      "matrix_rows": [
-        "D2",
-        "D3",
-        "D4",
-        "D7",
-        "14a",
-        "17",
-        "B5.2",
-        "B4d.6",
-        "P3.2",
-        "P3.12"
-      ],
-      "anchors": [
-        "crates/ryo/docs/contracts/README.md:75",
-        "crates/ryo/docs/contracts/README.md:183",
-        "crates/ryo/docs/contracts/README.md:218",
-        "crates/ryo/docs/contracts/README.md:319"
-      ],
-      "failure": "README still names8c9/validation294, old issuer placement, skipped-synthetic-census cause, unrun repaired project proof, and retired paths derived/view.rs and graph/build.rs. Newly contradicted lifetime claims must be reopened. Source-specific TM receipts do not establish a current combined TM pass; known residual structural findings/cycles remain open.",
-      "required_proof": "Update granular rows to exact36b/297 outcomes and this review; distinguish fixed narrow controls from open family claims. Record successor TM validation/check at its actual scope; do not reuse predecessor green snippets as current whole-source success.",
-      "owner": "root/integrator"
-    }
-  ],
+  "findings": {
+    "split": [
+      "review/findings/000.json"
+    ]
+  },
   "dispositions": [
     {
       "id": "OI-2/SP-1",
