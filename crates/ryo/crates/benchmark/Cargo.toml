@@ -47,7 +47,7 @@ path = "benches/performance.rs"
 harness = false
 
 [features]
-fixtures = []
+fixtures = ["ryo/fixtures"]
 
 [lints]
 workspace = true

@@ -162,11 +162,12 @@ fn prepare(
         &[],
         Arc::clone(&derived),
         ObservationIdentity::Independent,
+        crate::domain::executable_program::types::RoutePolicy::default(),
     )
     .unwrap();
     let services = Arc::new(ProgramServices::new(
         Arc::new(CommonOperatorEngine::new(std::sync::Arc::new(
-            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
+            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
         ))),
         derived,
         &[CorpusInput::Available(CorpusEntry {

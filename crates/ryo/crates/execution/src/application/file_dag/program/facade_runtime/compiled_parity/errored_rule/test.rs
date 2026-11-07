@@ -51,6 +51,7 @@ fn only_the_rule_with_an_errored_step_is_refused_on_its_roots() {
         &[],
         Arc::clone(&derived),
         ObservationIdentity::Independent,
+        crate::domain::executable_program::types::RoutePolicy::default(),
     )
     .expect("an errored rule does not refuse the request: it is refused on its own roots");
     let sibling = prepared

@@ -114,5 +114,6 @@ pub(super) fn prepared(
         &[],
         crate::application::file_dag::testing::program_derived_port(),
         ObservationIdentity::Independent,
+        crate::domain::executable_program::types::RoutePolicy::default(),
     )
 }

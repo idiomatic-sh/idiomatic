@@ -233,7 +233,7 @@ pub(crate) struct PrimitiveWorkspace {
     pub axis: Option<super::axis::AxisWorkspace>,
     pub positions: Vec<ryo_relations::domain::relations::types::Position>,
     pub dfs: Option<super::graph::DfsWorkspace>,
-    pub cycles: Option<ryo_operators::inbound::use_cases::operators::interface::CycleScratch>,
+    pub cycles: Option<ryo_operators::domain::cycles::types::CycleScratch>,
     pub closure_walk: Option<crate::domain::table_reach::types::Walk>,
     pub distinct: Option<DistinctWorkspace>,
 }

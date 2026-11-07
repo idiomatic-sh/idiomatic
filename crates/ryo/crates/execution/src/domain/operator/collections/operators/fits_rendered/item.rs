@@ -92,7 +92,7 @@ impl OperatorsItem for FitsRenderedItem {
             return Err(OperatingError::WrongBinding);
         }
         let answer = lease.semantics().operators(
-            ryo_operators::inbound::use_cases::operators::interface::OperatorCall::FitsRendered {
+            ryo_operators::inbound::use_cases::operators::types::OperatorCall::FitsRendered {
                 rendered: ryo_operators::domain::fits_rendered::types::CandidateText(&rendered),
                 prefix: ryo_operators::domain::fits_rendered::types::LinePrefix(prefix),
                 maximum: ryo_operators::domain::fits_rendered::types::LineWidth(maximum),
@@ -101,10 +101,10 @@ impl OperatorsItem for FitsRenderedItem {
         );
         lease.workspace.text = rendered;
         match answer {
-            Ok(ryo_operators::inbound::use_cases::operators::interface::OperatorAnswer::Selected(
+            Ok(ryo_operators::inbound::use_cases::operators::types::OperatorAnswer::Selected(
                 true,
             )) => emit.row(lease, row),
-            Ok(ryo_operators::inbound::use_cases::operators::interface::OperatorAnswer::Selected(
+            Ok(ryo_operators::inbound::use_cases::operators::types::OperatorAnswer::Selected(
                 false,
             )) => Ok(()),
             Ok(_) => Err(OperatingError::WrongOperation),

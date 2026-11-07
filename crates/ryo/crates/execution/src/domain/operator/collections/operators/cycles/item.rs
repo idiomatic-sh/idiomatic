@@ -65,7 +65,7 @@ impl OperatorsItem for CyclesItem {
             .take()
             .ok_or(OperatingError::WrongBinding)?;
         let answer = lease.semantics().operators(
-            ryo_operators::inbound::use_cases::operators::interface::OperatorCall::Cycles {
+            ryo_operators::inbound::use_cases::operators::types::OperatorCall::Cycles {
                 graph: &Adjacency(graph),
                 scratch: &mut marks,
             },

@@ -40,6 +40,7 @@ pub fn local_with_diagnostic_events(
 }
 
 /// Construct the SDK engine wiring only the execution strategies `routes` names, for a differential run.
+#[cfg(feature = "fixtures")]
 #[must_use]
 pub fn local_with_routes(
     languages: ryo::linter::Languages,

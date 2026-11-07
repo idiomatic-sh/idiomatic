@@ -1,13 +1,14 @@
 //! Unsupported refuses the whole batch before a row; not-applicable skips only its own.
 use super::service::deliver;
 use super::types::{RenderAnswer, RenderedOutput};
-use crate::domain::contract::types::{PortableOperatorFault, SemanticInterrupted};
+use crate::domain::contract::errors::ContractError;
+use crate::domain::contract::types::PortableOperatorFault;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::row_texts::types::CellText;
 use ryo_values::domain::rows::types::RowIndex;
 struct Collect(Vec<String>);
 impl RenderedOutput for Collect {
-    fn text(&mut self, position: RowIndex, text: CellText<'_>) -> Result<(), SemanticInterrupted> {
+    fn text(&mut self, position: RowIndex, text: CellText<'_>) -> Result<(), ContractError> {
         self.0.push(format!("{}:{}", position.0, text.0));
         Ok(())
     }

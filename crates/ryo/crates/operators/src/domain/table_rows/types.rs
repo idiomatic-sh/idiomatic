@@ -1,5 +1,5 @@
 //! The engine-owned delivery of each row's texts.
-use crate::domain::contract::types::SemanticInterrupted;
+use crate::domain::contract::errors::ContractError;
 use ryo_values::domain::row_texts::types::CellText;
 
 /// The texts of one row, in the order of the requested keys.
@@ -13,5 +13,5 @@ pub trait TableRowOutput {
     /// # Errors
     ///
     /// The engine retained an error that stops the delivery.
-    fn row(&mut self, texts: RowTexts<'_>) -> Result<(), SemanticInterrupted>;
+    fn row(&mut self, texts: RowTexts<'_>) -> Result<(), ContractError>;
 }

@@ -8,7 +8,6 @@ use ryo_core::inbound::use_cases::open::types::OpenRequest;
 use super::errors::LintError;
 use super::schemas;
 use super::types::{Cache, LintReport, LintRequest, Linter, Workers};
-use ryo_execution::inbound::use_cases::execution::types::RoutePolicy;
 use crate::domain::capacity::types::{MemoryBudget, WorkerPool};
 use crate::domain::language::types::Languages;
 
@@ -54,8 +53,12 @@ impl Linter {
 
     /// The same linter whose runs use only the execution strategies `routes` wires, every one by default: a differential
     /// run compares the engine with a strategy to the same engine without it.
+    #[cfg(feature = "fixtures")]
     #[must_use]
-    pub fn routing(mut self, routes: RoutePolicy) -> Self {
+    pub fn routing(
+        mut self,
+        routes: ryo_execution::inbound::use_cases::execution::types::RoutePolicy,
+    ) -> Self {
         self.engine_mut().routes = routes;
         self
     }

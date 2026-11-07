@@ -569,6 +569,14 @@
   ]
  ],
  [
+  "harness_hooks",
+  [
+   "sh",
+   "-c",
+   "cd .claude/hooks && python3 -I -m unittest -v"
+  ]
+ ],
+ [
   "tm_validate_no_heap_accounting",
   [
    "tm",

@@ -1,14 +1,15 @@
 //! A row is the texts under the keys, in key order; a missing key refuses.
 use super::service::rows;
 use super::types::{RowTexts, TableRowOutput};
-use crate::domain::contract::types::{PortableOperatorFault, SemanticInterrupted};
+use crate::domain::contract::errors::ContractError;
+use crate::domain::contract::types::PortableOperatorFault;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::TableKey;
 use ryo_values::domain::query_bindings::types::{BindingCell, BindingTable};
 use ryo_values::domain::plan_parts::types::LiteralText;
 struct Collect(Vec<String>);
 impl TableRowOutput for Collect {
-    fn row(&mut self, texts: RowTexts<'_>) -> Result<(), SemanticInterrupted> {
+    fn row(&mut self, texts: RowTexts<'_>) -> Result<(), ContractError> {
         self.0.push(
             texts
                 .0

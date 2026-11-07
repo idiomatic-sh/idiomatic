@@ -39,7 +39,7 @@ fn tables_rows(
     let after = lease.views.phase;
     let mut failure: Option<OperatingError> = None;
     let delivered = lease.semantics().operators(
-        ryo_operators::inbound::use_cases::operators::interface::OperatorCall::TableRows {
+        ryo_operators::inbound::use_cases::operators::types::OperatorCall::TableRows {
             tables,
             keys,
             each: &mut |each: ryo_operators::domain::table_rows::types::RowTexts<'_>| {
@@ -57,7 +57,7 @@ fn tables_rows(
                 })();
                 step.map_err(|error| {
                     failure = Some(error);
-                    ryo_operators::inbound::use_cases::operators::interface::SemanticInterrupted
+                    ryo_operators::domain::contract::errors::ContractError::Interrupted
                 })
             },
         },
@@ -66,7 +66,7 @@ fn tables_rows(
         return Err(error);
     }
     match delivered {
-        Err(ryo_operators::inbound::use_cases::operators::interface::PortableOperatorFault::UnboundKey) => {
+        Err(ryo_operators::domain::contract::types::PortableOperatorFault::UnboundKey) => {
             Err(OperatingError::WrongBinding)
         }
         other => crate::domain::operator::contract::types::written_result(other, None),

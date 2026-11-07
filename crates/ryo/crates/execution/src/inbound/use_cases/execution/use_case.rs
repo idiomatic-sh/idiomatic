@@ -23,6 +23,7 @@ impl ExecutionUseCaseImpl {
         }
     }
     /// The same engine wiring only the strategies `routes` names, for a differential run.
+    #[cfg(any(test, feature = "fixtures"))]
     #[must_use]
     pub const fn routing(mut self, routes: RoutePolicy) -> Self {
         self.routes = routes;

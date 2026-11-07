@@ -1,5 +1,5 @@
 //! One provider answer per request and the engine-owned delivery of the known ones.
-use crate::domain::contract::types::SemanticInterrupted;
+use crate::domain::contract::errors::ContractError;
 use ryo_values::domain::rows::types::RowIndex;
 use ryo_values::domain::row_texts::types::CellText;
 
@@ -21,5 +21,5 @@ pub trait RenderedOutput {
     /// # Errors
     ///
     /// The engine retained an error that stops the delivery.
-    fn text(&mut self, position: RowIndex, text: CellText<'_>) -> Result<(), SemanticInterrupted>;
+    fn text(&mut self, position: RowIndex, text: CellText<'_>) -> Result<(), ContractError>;
 }

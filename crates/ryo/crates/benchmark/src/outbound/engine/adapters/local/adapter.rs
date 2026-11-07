@@ -34,6 +34,7 @@ pub(crate) struct EngineLocalAdapter {
     /// Optional explicit query mapping provider diagnostics to benchmark findings.
     frontend_diagnostic: Option<FrontendDiagnosticProjection>,
     /// The execution strategies every run wires, every one unless a differential run unwires some.
+    #[cfg(feature = "fixtures")]
     routes: ryo::linter::RoutePolicy,
 }
 impl EngineLocalAdapter {
@@ -48,10 +49,12 @@ impl EngineLocalAdapter {
             trace,
             diagnostic_events: None,
             frontend_diagnostic,
+            #[cfg(feature = "fixtures")]
             routes: ryo::linter::RoutePolicy::default(),
         }
     }
     /// The same adapter whose runs wire only the strategies `routes` names.
+    #[cfg(feature = "fixtures")]
     pub(crate) const fn routing(mut self, routes: ryo::linter::RoutePolicy) -> Self {
         self.routes = routes;
         self
@@ -67,6 +70,7 @@ impl EngineLocalAdapter {
             trace: None,
             diagnostic_events: Some(path),
             frontend_diagnostic,
+            #[cfg(feature = "fixtures")]
             routes: ryo::linter::RoutePolicy::default(),
         }
     }
@@ -304,8 +308,9 @@ impl EngineExecution for LocalEngineSession<'_> {
             pool,
             MemoryBudget::Machine,
             cache,
-        )
-        .routing(adapter.routes);
+        );
+        #[cfg(feature = "fixtures")]
+        let engine = engine.routing(adapter.routes);
         let report = linter::lint_with(
             &engine,
             LintRequest {

@@ -101,7 +101,7 @@ impl OperatorsItem for RenderSyntaxItem {
                 .collect();
             let mut failure: Option<OperatingError> = None;
             let delivered = lease.semantics().operators(
-                ryo_operators::inbound::use_cases::operators::interface::OperatorCall::RenderBatch {
+                ryo_operators::inbound::use_cases::operators::types::OperatorCall::RenderBatch {
                     answers: &mapped,
                     each: &mut |position: RowIndex, text: ryo_values::domain::row_texts::types::CellText<'_>| {
                         let step = (|| {
@@ -120,7 +120,7 @@ impl OperatorsItem for RenderSyntaxItem {
                         })();
                         step.map_err(|error| {
                             failure = Some(error);
-                            ryo_operators::inbound::use_cases::operators::interface::SemanticInterrupted
+                            ryo_operators::domain::contract::errors::ContractError::Interrupted
                         })
                     },
                 },
@@ -129,7 +129,7 @@ impl OperatorsItem for RenderSyntaxItem {
                 return Err(error);
             }
             match delivered {
-                Err(ryo_operators::inbound::use_cases::operators::interface::PortableOperatorFault::UnsupportedRender) => {
+                Err(ryo_operators::domain::contract::types::PortableOperatorFault::UnsupportedRender) => {
                     let reason = answers
                         .iter()
                         .find_map(|answer| match answer {

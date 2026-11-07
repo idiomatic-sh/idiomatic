@@ -319,27 +319,27 @@ impl<
     F: FnMut(
         ryo_values::domain::rows::types::RowIndex,
         ryo_values::domain::row_texts::types::CellText<'_>,
-    ) -> Result<(), crate::domain::contract::types::SemanticInterrupted>,
+    ) -> Result<(), crate::domain::contract::errors::ContractError>,
 > crate::domain::render_batch::types::RenderedOutput for F
 {
     fn text(
         &mut self,
         position: ryo_values::domain::rows::types::RowIndex,
         text: ryo_values::domain::row_texts::types::CellText<'_>,
-    ) -> Result<(), crate::domain::contract::types::SemanticInterrupted> {
+    ) -> Result<(), crate::domain::contract::errors::ContractError> {
         self(position, text)
     }
 }
 impl<
     F: FnMut(
         crate::domain::table_rows::types::RowTexts<'_>,
-    ) -> Result<(), crate::domain::contract::types::SemanticInterrupted>,
+    ) -> Result<(), crate::domain::contract::errors::ContractError>,
 > crate::domain::table_rows::types::TableRowOutput for F
 {
     fn row(
         &mut self,
         texts: crate::domain::table_rows::types::RowTexts<'_>,
-    ) -> Result<(), crate::domain::contract::types::SemanticInterrupted> {
+    ) -> Result<(), crate::domain::contract::errors::ContractError> {
         self(texts)
     }
 }

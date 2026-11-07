@@ -1,9 +1,8 @@
 //! One required semantic invocation contract for ordinary and physical kernels.
 //! It has no owner, dependency resolver, publication or cache acquisition API.
 use crate::domain::operating::errors::OperatingError;
-use ryo_operators::inbound::use_cases::operators::interface::{
-    OperatorAnswer, PortableOperatorFault,
-};
+use ryo_operators::domain::contract::types::PortableOperatorFault;
+use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
 
 /// Plain semantic responses of a kernel call.
 pub(crate) enum KernelAnswer {

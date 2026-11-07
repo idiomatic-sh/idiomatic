@@ -165,6 +165,7 @@ pub struct LintUseCaseImpl {
     /// Whether the rows each step is fed are counted, for the report's `features`: a count that costs a call for every row.
     counting: Counting,
     /// Which execution strategies the programs this use case prepares may use.
+    #[cfg(feature = "fixtures")]
     routes: ryo_execution::inbound::use_cases::execution::types::RoutePolicy,
 }
 
@@ -215,6 +216,7 @@ impl LintUseCaseImpl {
             digest,
             store,
             counting: Counting::DoesNotCount,
+            #[cfg(feature = "fixtures")]
             routes: ryo_execution::inbound::use_cases::execution::types::RoutePolicy::default(),
         }
     }
@@ -227,6 +229,7 @@ impl LintUseCaseImpl {
     }
 
     /// The same, preparing its programs with only the strategies `routes` wires, for a differential run.
+    #[cfg(feature = "fixtures")]
     #[must_use]
     pub const fn routing(
         mut self,
@@ -1438,8 +1441,9 @@ impl LintUseCase for LintUseCaseImpl {
         );
         let unknown = self.language.unknown_reasons();
         let execution =
-            ExecutionUseCaseImpl::new(Arc::clone(&self.operators), Arc::clone(&self.derived))
-                .routing(self.routes);
+            ExecutionUseCaseImpl::new(Arc::clone(&self.operators), Arc::clone(&self.derived));
+        #[cfg(feature = "fixtures")]
+        let execution = execution.routing(self.routes);
         let rule_digests: Vec<_> = stored_rules.iter().map(|rule| rule.digest).collect();
         let program = Arc::new(
             execution

@@ -12,7 +12,8 @@ LOCK = "flock /workspaces/.cargo-build.lock "
 
 def run_hook(name, payload, env=None):
     return subprocess.run(["python3", "-I", os.path.join(HERE, name)], input=json.dumps(payload),
-                          capture_output=True, text=True, env=env, check=False)
+                          capture_output=True, text=True, env=env, check=False,
+                          cwd=tempfile.gettempdir())
 
 
 def shell(command, cwd=None):
