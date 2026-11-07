@@ -14,13 +14,29 @@ use ryo_relations::domain::terms::types::NameText;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plans::types::Operation;
 
+/// What a row of the cases asks of the schemas.
+#[derive(Clone, Copy)]
+enum Scenario {
+    /// Every operator's schema against its evaluator over empty tables.
+    Empty,
+    /// Every operator's schema against its evaluator over populated tables.
+    Populated,
+    /// A hosted relation published without its request source.
+    HostedWithoutSource,
+}
+
 /// A genuine populated/empty evaluator comparison across every current operator.
-type Input = bool;
+type Input = Scenario;
 /// The number of distinct operator variants whose shapes were compared.
 type Value = usize;
 type Failure = OperatingError;
 
-fn subject(populated: Input) -> Result<Value, Failure> {
+fn subject(scenario: Input) -> Result<Value, Failure> {
+    let populated = match scenario {
+        Scenario::Empty => false,
+        Scenario::Populated => true,
+        Scenario::HostedWithoutSource => return hosted_without_source(),
+    };
     let semantic = KnownSyntax;
     let mut symbols = Symbols::default();
     let symbol = intern_derived(&mut symbols, ByteSlice(b""), NameText("alpha/beta"));
@@ -57,29 +73,8 @@ fn subject(populated: Input) -> Result<Value, Failure> {
     Ok(variants.len())
 }
 
-/// Both input cardinalities exercise every registered concrete operation fixture.
-const CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: CaseName("all_empty_operator_shapes_match_evaluation"),
-        word: Word::Succeeds,
-        input: || false,
-        expect: Expect::Value(26),
-    },
-    Case {
-        name: CaseName("all_populated_operator_shapes_match_evaluation"),
-        word: Word::Succeeds,
-        input: || true,
-        expect: Expect::Value(26),
-    },
-];
-
-#[test]
-fn succeeds() {
-    run(CASES, Word::Succeeds, subject);
-}
-
-#[test]
-fn hosted_without_its_request_source_refuses_at_the_real_owner() {
+/// The prepared request has no source partition for the hosted relation.
+fn hosted_without_source() -> Result<Value, Failure> {
     let mut symbols = Symbols::default();
     let result = fixtures::published(
         fixtures::plan(vec![Operation::Hosted {
@@ -92,5 +87,37 @@ fn hosted_without_its_request_source_refuses_at_the_real_owner() {
     // The prepared request has no source partition for Hosted(0), so admission
     // refuses before schema evaluation. MissingInput belongs to the pure schema
     // contract, independently covered by operation_schema::service_test.
-    assert_eq!(result, Err(OperatingError::NotRead));
+    result.map(|_| 0)
+}
+
+/// Both input cardinalities exercise every registered concrete operation fixture.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("all_empty_operator_shapes_match_evaluation"),
+        word: Word::Succeeds,
+        input: || Scenario::Empty,
+        expect: Expect::Value(26),
+    },
+    Case {
+        name: CaseName("all_populated_operator_shapes_match_evaluation"),
+        word: Word::Succeeds,
+        input: || Scenario::Populated,
+        expect: Expect::Value(26),
+    },
+    Case {
+        name: CaseName("hosted_without_its_request_source_refuses_at_the_real_owner"),
+        word: Word::Refuses,
+        input: || Scenario::HostedWithoutSource,
+        expect: Expect::Error(OperatingError::NotRead),
+    },
+];
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
 }

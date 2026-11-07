@@ -18,6 +18,8 @@ enum Scenario {
     Lines,
     /// How many rows the table has, the host having named a file that the run lists and one that it does not.
     Rows,
+    /// Whether two relations whose texts collide through the separator keep distinct identities.
+    Identity,
 }
 
 /// What a row of the cases asks of the relation.
@@ -65,6 +67,49 @@ fn subject(scenario: Input) -> Value {
             .count
             .0
         }
+        Scenario::Identity => {
+            let relation = |first: &str, second: &str| HostRelation {
+                name: HostName("host.values".into()),
+                columns: ["first", "second"]
+                    .into_iter()
+                    .map(|name| HostColumn {
+                        name: HostColumnName(name.into()),
+                        kind: HostKind::Text,
+                    })
+                    .collect(),
+                rows: vec![HostRow(vec![
+                    Cell::Text(first.into()),
+                    Cell::Text(second.into()),
+                ])],
+            };
+            let left = relation("x\ttext:y", "z");
+            let right = relation("x", "y\ttext:z");
+            assert_eq!(
+                lines(&[left.clone()]),
+                lines(&[right.clone()]),
+                "preserve the historical readable representation"
+            );
+            assert_ne!(
+                ryo_values::domain::hosted::service::identity(&[left.clone()]),
+                ryo_values::domain::hosted::service::identity(&[right])
+            );
+            assert_eq!(
+                ryo_values::domain::hosted::service::identity(&[left.clone()]),
+                ryo_values::domain::hosted::service::identity(&[left])
+            );
+            for (first, second) in [
+                ("é\ntext:y", "z"),
+                ("é", "y\ntext:z"),
+                ("file:x", "number:1"),
+                ("", "\t\n"),
+            ] {
+                assert_ne!(
+                    ryo_values::domain::hosted::service::identity(&[relation(first, second)]),
+                    ryo_values::domain::hosted::service::identity(&[relation(second, first)])
+                );
+            }
+            1
+        }
     }
 }
 
@@ -81,53 +126,17 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Scenario::Rows,
         expect: Expect::Value(1),
     },
+    Case {
+        name: CaseName(
+            "typed_identity_distinguishes_text_separator_collisions_without_changing_presentation",
+        ),
+        word: Word::Succeeds,
+        input: || Scenario::Identity,
+        expect: Expect::Value(1),
+    },
 ];
 
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, |input| Ok(subject(input)));
-}
-
-#[test]
-fn typed_identity_distinguishes_text_separator_collisions_without_changing_presentation() {
-    let relation = |first: &str, second: &str| HostRelation {
-        name: HostName("host.values".into()),
-        columns: ["first", "second"]
-            .into_iter()
-            .map(|name| HostColumn {
-                name: HostColumnName(name.into()),
-                kind: HostKind::Text,
-            })
-            .collect(),
-        rows: vec![HostRow(vec![
-            Cell::Text(first.into()),
-            Cell::Text(second.into()),
-        ])],
-    };
-    let left = relation("x\ttext:y", "z");
-    let right = relation("x", "y\ttext:z");
-    assert_eq!(
-        lines(&[left.clone()]),
-        lines(&[right.clone()]),
-        "preserve the historical readable representation"
-    );
-    assert_ne!(
-        ryo_values::domain::hosted::service::identity(&[left.clone()]),
-        ryo_values::domain::hosted::service::identity(&[right])
-    );
-    assert_eq!(
-        ryo_values::domain::hosted::service::identity(&[left.clone()]),
-        ryo_values::domain::hosted::service::identity(&[left])
-    );
-    for (first, second) in [
-        ("é\ntext:y", "z"),
-        ("é", "y\ntext:z"),
-        ("file:x", "number:1"),
-        ("", "\t\n"),
-    ] {
-        assert_ne!(
-            ryo_values::domain::hosted::service::identity(&[relation(first, second)]),
-            ryo_values::domain::hosted::service::identity(&[relation(second, first)])
-        );
-    }
 }
