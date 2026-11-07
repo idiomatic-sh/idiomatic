@@ -46,6 +46,7 @@ All frozen branches of checkpoint 318 are merged into one tree and compiled once
 ### Checkpoint 320 integration record
 
 - **Dependency depth:** a package may reach twelve local packages (`idiomatic-project` 0.3.1, placed by ryo only), not nine: ryo's decomposition into the store and runtime crates adds two internal packages behind the sdk, and every language provider reaches the sdk's packages plus the sdk.
+- **Owner-visible:** winnow grammar adapter 1075 lines (and its 733-line test): ignore under the rule's own admission; a per-area adapter module role is an owner decision. The sdk `entry_test.rs` and `schemas.rs` carry the same admitted ignore.
 - **Entry fixtures:** the `entry` spec 0.1.1 places an optional `fixtures/` directory of test-data files beside `fixtures.rs`; the sdk lint fixtures are split into it by what they fix. `list-matches-source` 0.1.1 leaves a `pub use` under the `fixtures` feature out of the reexports list.
 
 ### Current ownership checkpoint — source `da1fe3eff3`, validation319
