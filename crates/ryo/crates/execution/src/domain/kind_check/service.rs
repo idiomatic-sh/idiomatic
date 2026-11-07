@@ -9,7 +9,7 @@ use crate::domain::kind_check::types::{
     UnknownKind,
 };
 use crate::domain::kind_sets::service::satisfies;
-use crate::domain::matching::types::Matcher;
+use crate::domain::matching::types::PatternMatcher;
 use crate::domain::table_model::types::Verdict;
 use crate::domain::table_texts::types::TextView;
 use ryo_relations::domain::relations::types::Relation;
@@ -134,7 +134,7 @@ fn constant_text(operand: &Operand, bound: &[ParameterBinding]) -> Option<MadeTe
 pub(crate) fn names_a_kind(
     asked: &AskedKind,
     vocabularies: &KindVocabularies,
-    matcher: Matcher<'_>,
+    matcher: PatternMatcher<'_>,
 ) -> KindMatch {
     // A pattern, a prefix and a suffix are checked as the query compares them: against the kinds, not as an exact kind.
     let test = match asked.test {
@@ -187,7 +187,7 @@ pub(crate) fn first_unknown(
     plans: &[Plan],
     bindings: &[Vec<ParameterBinding>],
     vocabularies: &KindVocabularies,
-    matcher: Matcher<'_>,
+    matcher: PatternMatcher<'_>,
 ) -> Option<UnknownKind> {
     plans.iter().enumerate().find_map(|(at, plan)| {
         let bound = bindings.get(at).map_or(&[][..], Vec::as_slice);
@@ -224,7 +224,7 @@ pub(crate) fn unknown_message(word: &KindWord, vocabularies: &KindVocabularies) 
 pub fn refusal(
     plan: &Plan,
     vocabularies: &KindVocabularies,
-    matcher: Matcher<'_>,
+    matcher: PatternMatcher<'_>,
 ) -> Option<KindRefusal> {
     first_unknown(std::slice::from_ref(plan), &[Vec::new()], vocabularies, matcher).map(|unknown| {
         let mut refusal = unknown_message(&unknown.word, vocabularies);

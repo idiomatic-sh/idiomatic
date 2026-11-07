@@ -59,7 +59,7 @@ pub(crate) struct OperatorContext<'a> {
     /// The current file's application-owned semantic session, when available.
     pub semantic: Option<&'a dyn SemanticLookup>,
     /// The matching semantics the parent supplies for regular expressions and globs.
-    pub matcher: crate::domain::matching::types::Matcher<'a>,
+    pub matcher: crate::domain::matching::types::PatternMatcher<'a>,
     /// Finite authored literal matchers owned by this worker's prepared request.
     pub prepared_matchers:
         Option<&'a crate::domain::matching::types::prepared::value::PreparedMatchers>,

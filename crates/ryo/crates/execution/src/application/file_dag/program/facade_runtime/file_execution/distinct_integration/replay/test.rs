@@ -25,7 +25,7 @@ fn context<T>(run: impl FnOnce(&mut OperatorContext<'_>) -> T) -> T {
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
-        matcher: crate::domain::matching::types::Matcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl),
+        matcher: crate::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl),
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: ryo_values::domain::files::types::SourceView(SOURCE),

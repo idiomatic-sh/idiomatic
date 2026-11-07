@@ -8,7 +8,7 @@ use ryo_relations::domain::relations::constants::NO_SYMBOL;
 use ryo_relations::domain::relations::types::KindBits;
 
 use super::constants::{NO_NAME, SET_OF_TEST};
-use crate::domain::matching::types::Matcher;
+use crate::domain::matching::types::PatternMatcher;
 use super::types::vocabulary::value::{PreparedKindTest, PreparedVocabulary};
 use super::types::{ComparisonOrdinal, KindScratch, ListAddress};
 use crate::domain::comparing::collections::comparisons::affix::item::AffixItem;
@@ -74,7 +74,7 @@ pub(crate) fn satisfies(
     test: Test,
     name: TextView<'_>,
     wanted: TextView<'_>,
-    matcher: Matcher<'_>,
+    matcher: PatternMatcher<'_>,
 ) -> Verdict {
     let (left, right) = (Datum::Text(name), Datum::Text(wanted));
     match test {
@@ -297,7 +297,7 @@ fn make_set(
     names: &[Option<KindWord>],
     test: Test,
     literal: &LiteralText,
-    matcher: Matcher<'_>,
+    matcher: PatternMatcher<'_>,
 ) -> KindSet {
     let mut made = KindSet::default();
     made.bits.0.resize(names.len().div_ceil(64), 0);

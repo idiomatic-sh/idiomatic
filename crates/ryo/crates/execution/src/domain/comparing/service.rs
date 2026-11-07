@@ -13,7 +13,7 @@ use crate::domain::comparing::collections::comparisons::membership::item::Member
 use crate::domain::comparing::collections::comparisons::ordering::item::OrderingItem;
 use crate::domain::comparing::types::{DecisionWorkspace, NumberedComparison, RowShape};
 use crate::domain::functions::types::MadeText;
-use crate::domain::matching::types::Matcher;
+use crate::domain::matching::types::PatternMatcher;
 use crate::domain::matching::types::prepared::value::PreparedMatchers;
 use crate::domain::operands::service::resolve;
 use crate::domain::operating::errors::OperatingError;
@@ -80,7 +80,7 @@ pub(crate) fn evaluate_comparison(
     prepared: Option<&PreparedMatchers>,
     compiled: &mut hashbrown::HashMap<ComparisonSlot, CompiledTextGlobs>,
     regexes: &mut crate::domain::table_scratch::types::Patterns,
-    matcher: Matcher<'_>,
+    matcher: PatternMatcher<'_>,
 ) -> Result<Verdict, OperatingError> {
     let (mut left_made, mut right_made) = (MadeText::default(), MadeText::default());
     let left = resolve(&comparison.left, row, bindings, texts, &mut left_made)?;
@@ -178,7 +178,7 @@ fn holds_one_bound(
     texts: &Texts<'_>,
     bindings: &[ParameterBinding],
     prepared: Option<&PreparedMatchers>,
-    matcher: Matcher<'_>,
+    matcher: PatternMatcher<'_>,
     work: DecisionWorkspace<'_>,
 ) -> Result<Verdict, OperatingError> {
     let NumberedComparison { number, comparison } = numbered;
@@ -281,7 +281,7 @@ pub(crate) fn holds_bound(
     texts: &Texts<'_>,
     bindings: &[ParameterBinding],
     prepared: Option<&PreparedMatchers>,
-    matcher: Matcher<'_>,
+    matcher: PatternMatcher<'_>,
     work: DecisionWorkspace<'_>,
 ) -> Result<Verdict, OperatingError> {
     let DecisionWorkspace { select, memo } = work;

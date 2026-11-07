@@ -2,7 +2,7 @@
 //! concept.
 
 use super::super::interface::ComparisonsItem;
-use crate::domain::matching::types::Matcher;
+use crate::domain::matching::types::PatternMatcher;
 use crate::domain::matching::types::prepared::value::PreparedMatchers;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_model::types::Verdict;
@@ -16,7 +16,7 @@ use ryo_values::domain::plan_parts::service::columns_of;
 use ryo_values::domain::plan_parts::types::{Operand, PlanComparison, QueryLiteral, Test};
 
 /// `glob`, one item of the `comparisons` collection, matching through the semantics its parent hands it.
-pub(crate) struct GlobItem<'a>(pub Matcher<'a>);
+pub(crate) struct GlobItem<'a>(pub PatternMatcher<'a>);
 
 /// Uses a fixed operand's compiled matcher; a column operand remains row-dependent.
 pub(crate) fn compiled_glob(
@@ -25,7 +25,7 @@ pub(crate) fn compiled_glob(
     right: &Datum<'_>,
     prepared: Option<&PreparedMatchers>,
     compiled: &mut hashbrown::HashMap<ComparisonSlot, CompiledTextGlobs>,
-    matcher: Matcher<'_>,
+    matcher: PatternMatcher<'_>,
 ) -> Option<Verdict> {
     let Datum::Text(text) = left else {
         return None;
@@ -71,7 +71,7 @@ pub(crate) fn compiled_glob(
 }
 
 /// Whether the text matches any of the globs, given as one text or as several: it holds when one does.
-fn any(text: &Datum<'_>, globs: &Datum<'_>, matcher: Matcher<'_>) -> Verdict {
+fn any(text: &Datum<'_>, globs: &Datum<'_>, matcher: PatternMatcher<'_>) -> Verdict {
     let Datum::Text(text) = text else {
         return Verdict::Fails;
     };

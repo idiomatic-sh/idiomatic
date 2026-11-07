@@ -154,17 +154,17 @@ fn an_unknown_kind_keeps_the_origin_from_its_own_plan_table() -> Value {
     );
 
     assert_eq!(
-        refusal(&plan, &KindVocabularies(Vec::new()), crate::domain::matching::types::Matcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl)).unwrap().origin,
+        refusal(&plan, &KindVocabularies(Vec::new()), crate::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl)).unwrap().origin,
         KindOrigin::Recorded(origin)
     );
     assert_eq!(
-        refusal(&other_plan, &KindVocabularies(Vec::new()), crate::domain::matching::types::Matcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl))
+        refusal(&other_plan, &KindVocabularies(Vec::new()), crate::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl))
             .unwrap()
             .origin,
         KindOrigin::Recorded(other_origin)
     );
     Box::leak(
-        refusal(&other_plan, &KindVocabularies(Vec::new()), crate::domain::matching::types::Matcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl))
+        refusal(&other_plan, &KindVocabularies(Vec::new()), crate::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl))
             .unwrap()
             .message
             .0,
@@ -326,7 +326,7 @@ fn message(given: fn() -> Given, relation: Relation, site: KindSite) -> Value {
     let (test, right, bound) = given();
     let plan = plan_comparing_kind(test, right, relation, site);
     let vocabularies = vocabularies();
-    let message = first_unknown(&[plan], &[bound], &vocabularies, crate::domain::matching::types::Matcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl))
+    let message = first_unknown(&[plan], &[bound], &vocabularies, crate::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl))
         .map(|unknown| unknown_message(&unknown.word, &vocabularies).message.0)
         .unwrap_or_default();
     Box::leak(message)

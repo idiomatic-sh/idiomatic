@@ -1,6 +1,6 @@
 //! Regular-expression matching with bounded, reusable compilation storage.
 
-use super::types::Matcher;
+use super::types::PatternMatcher;
 use super::types::prepared::value::{PreparedMatchers, compile_regex};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_model::types::Verdict;
@@ -17,7 +17,7 @@ pub(crate) fn matches(
     left: &Datum<'_>,
     right: &Datum<'_>,
     compiled: &mut Patterns,
-    matcher: Matcher<'_>,
+    matcher: PatternMatcher<'_>,
 ) -> Result<Verdict, OperatingError> {
     matches_prepared(left, right, None, compiled, matcher)
 }
@@ -29,7 +29,7 @@ pub(crate) fn matches_prepared(
     right: &Datum<'_>,
     prepared: Option<&PreparedMatchers>,
     compiled: &mut Patterns,
-    matcher: Matcher<'_>,
+    matcher: PatternMatcher<'_>,
 ) -> Result<Verdict, OperatingError> {
     let (Datum::Text(text), Datum::Text(pattern)) = (left, right) else {
         return Ok(Verdict::Fails);
@@ -52,7 +52,7 @@ fn regex<'a>(
     pattern: TextView<'_>,
     prepared: Option<&'a PreparedMatchers>,
     compiled: &'a mut Patterns,
-    matcher: Matcher<'_>,
+    matcher: PatternMatcher<'_>,
 ) -> Result<&'a CompiledRegex, OperatingError> {
     if let Some(ready) = prepared.and_then(|prepared| prepared.regex(pattern, matcher)) {
         return ready;
@@ -68,7 +68,7 @@ fn regex<'a>(
 fn compile(
     pattern: TextView<'_>,
     compiled: &mut Patterns,
-    matcher: Matcher<'_>,
+    matcher: PatternMatcher<'_>,
 ) -> Result<(), OperatingError> {
     if !compiled.0.contains_key(pattern.0) {
         let regex = compile_regex(pattern, matcher)?;

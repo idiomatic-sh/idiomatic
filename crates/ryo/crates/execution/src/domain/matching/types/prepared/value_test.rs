@@ -26,8 +26,8 @@ use ryo_values::{
 use std::sync::atomic::Ordering;
 
 /// The matching semantics the cases run through.
-fn matcher() -> crate::domain::matching::types::Matcher<'static> {
-    crate::domain::matching::types::Matcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl)
+fn matcher() -> crate::domain::matching::types::PatternMatcher<'static> {
+    crate::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl)
 }
 #[derive(Clone, Copy)]
 enum Scenario {

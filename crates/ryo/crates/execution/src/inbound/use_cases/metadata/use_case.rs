@@ -30,7 +30,7 @@ impl MetadataUseCase for MetadataUseCaseImpl {
         crate::domain::kind_check::service::refusal(
             plan,
             vocabularies,
-            crate::domain::matching::types::Matcher(matching),
+            crate::domain::matching::types::PatternMatcher(matching),
         )
     }
     fn kinds_asked(&self, plan: &Plan, bound: &[ParameterBinding]) -> Vec<AskedKind> {
@@ -47,7 +47,7 @@ impl MetadataUseCase for MetadataUseCaseImpl {
             plans,
             bindings,
             vocabularies,
-            crate::domain::matching::types::Matcher(matching),
+            crate::domain::matching::types::PatternMatcher(matching),
         )
     }
     fn unknown_kind_message(

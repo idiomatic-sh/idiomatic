@@ -7,7 +7,7 @@ use ryo_matching::inbound::use_cases::matching::{
     errors::MatchingError,
     types::{GlobPattern, RegexSource as AuthoredRegex},
 };
-use crate::domain::matching::types::Matcher;
+use crate::domain::matching::types::PatternMatcher;
 use ryo_values::domain::plan_parts::types::{Operand, QueryLiteral, Test};
 use ryo_values::domain::plans::types::Operation;
 #[cfg(test)]
@@ -86,7 +86,7 @@ impl PreparedMatchers {
     pub(crate) fn regex(
         &self,
         pattern: TextView<'_>,
-        matcher: Matcher<'_>,
+        matcher: PatternMatcher<'_>,
     ) -> Option<Result<&CompiledRegex, OperatingError>> {
         let PreparedPattern::Regex(slot) = self.slots.get(&Test::Matches)?.get(pattern.0)? else {
             return None;
@@ -109,7 +109,7 @@ impl PreparedMatchers {
         &self,
         test: Test,
         pattern: TextView<'_>,
-        matcher: Matcher<'_>,
+        matcher: PatternMatcher<'_>,
     ) -> Option<&CompiledTextGlobs> {
         let PreparedPattern::Glob(slot) = self.slots.get(&test)?.get(pattern.0)? else {
             return None;
@@ -127,7 +127,7 @@ impl PreparedMatchers {
 /// Adapt semantic compilation refusal without changing the engine's cache or error meaning.
 pub(crate) fn compile_regex(
     pattern: TextView<'_>,
-    matcher: Matcher<'_>,
+    matcher: PatternMatcher<'_>,
 ) -> Result<CompiledRegex, OperatingError> {
     matcher
         .0

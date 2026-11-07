@@ -45,7 +45,7 @@ impl<'a> Headers<'a> {
             phase: self.phase,
             semantic: self.semantic,
             prepared_matchers: self.prepared_matchers,
-            matcher: crate::domain::matching::types::Matcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl),
+            matcher: crate::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl),
             prepared_kinds: self.prepared_kinds,
             bindings: self.bindings,
             symbols: query_reborrow(symbols),

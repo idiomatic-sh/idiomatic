@@ -21,7 +21,7 @@ use ryo_values::domain::{
 #[derive(Debug)]
 pub(crate) struct PreparedWalk {
     classes: Merge,
-    physical: Vec<Option<WalkRoute>>,
+    pub(crate) physical: Vec<Option<WalkRoute>>,
     prefixes: Vec<Vec<PredicatePlace>>,
     predicates: Vec<PreparedPredicate>,
     needed: Vec<crate::domain::table_cells::types::ColumnPlaces>,
@@ -358,5 +358,3 @@ struct PreparedPredicate {
 
 #[cfg(test)]
 mod census;
-#[cfg(test)]
-mod coverage;
