@@ -32,3 +32,4 @@ A builder stops in exactly two states, and `.claude/hooks/acceptance_on_stop.py`
 - The bead's notes carry an `ACCEPTANCE:` ... `END ACCEPTANCE` block of shell lines that must exit 0 in the worktree.
 - The report starts with `DONE:` (the acceptance output pasted, each R-number answered) or `BLOCKED:` (exactly one question the Decisions table does not answer). No other stop state exists.
 - The integrator runs the acceptance block before merging.
+- Builders run tm and the acceptance block; they never run cargo. The integrator compiles once per checkpoint.

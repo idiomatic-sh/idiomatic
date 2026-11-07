@@ -15,11 +15,53 @@ def run_hook(name, payload, env=None):
                           capture_output=True, text=True, env=env, check=False)
 
 
-def shell(command):
-    return run_hook("guard_shell.py", {"tool_name": "Bash", "tool_input": {"command": command}}).returncode
+def shell(command, cwd=None):
+    payload = {"tool_name": "Bash", "tool_input": {"command": command}}
+    if cwd:
+        payload["cwd"] = cwd
+    return run_hook("guard_shell.py", payload).returncode
+
+
+def repo(parent, name, branch):
+    path = os.path.join(parent, name)
+    os.mkdir(path)
+    subprocess.run(["git", "-C", path, "init", "-q", "-b", branch], check=True)
+    return path
 
 
 class GuardShell(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.dir = tempfile.TemporaryDirectory()
+        cls.integration = repo(cls.dir.name, "integration", "claude/checkpoint-7")
+        cls.builder = repo(cls.dir.name, "builder", "claude/p1-coverage-kinds")
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.dir.cleanup()
+
+    def test_cargo_only_in_integration_trees(self):
+        self.assertEqual(shell(LOCK + "cargo test -p x", self.integration), 0)
+        self.assertEqual(shell(LOCK + "cargo test -p x", self.builder), 2)
+        self.assertEqual(shell(LOCK + "cargo test -p x"), 2)
+        self.assertEqual(shell("cd " + self.builder + " && " + LOCK + "cargo build", self.integration), 2)
+        self.assertEqual(shell(LOCK + "cargo build --manifest-path " + self.builder + "/Cargo.toml", self.integration), 2)
+        self.assertEqual(shell(LOCK + "cargo build -C " + self.integration, self.builder), 2)
+        self.assertEqual(shell(LOCK + "cargo build", "/workspaces/ryo-perf-x"), 0)
+
+    def test_hidden_cargo_is_blocked_in_a_builder_tree(self):
+        for command in ['bash -c "cargo test"', "echo hi; cargo build", "sh -c 'flock x cargo clippy'"]:
+            with self.subTest(command=command):
+                self.assertEqual(shell(command, self.builder), 2)
+
+    def test_hidden_cargo_is_allowed_in_an_integration_tree(self):
+        self.assertEqual(shell(LOCK + 'bash -c "cargo test"', self.integration), 0)
+
+    def test_metadata_tree_version_and_tm_are_allowed_everywhere(self):
+        for command in ["cargo metadata", "cargo tree", "cargo --version", "tm check"]:
+            with self.subTest(command=command):
+                self.assertEqual(shell(command, self.builder), 0)
+
     def test_blocks(self):
         blocked = [
             "git stash", "git stash pop", "cd x && git stash",
@@ -35,18 +77,19 @@ class GuardShell(unittest.TestCase):
                 self.assertEqual(shell(command), 2)
 
     def test_allows(self):
+        cwd = self.integration
         allowed = [
             "git stash list", "git stash push -u -m wip", "git stash apply abc123", "git stash drop", "git stash show",
             "while pgrep -x cargo; do sleep 1; done", "pgrep -f cargo", "# git stash",
             "rm -rf /tmp/ryo-exact-dir", "rm -rf /workspaces/ryo-hooks/build", "rm file*.txt",
             "cargo metadata", "cargo --version", "cargo tree",
-            LOCK + "cargo test -p x", "cd a && " + LOCK + "cargo build",
+            LOCK + "cargo test -p x", "cd . && " + LOCK + "cargo build",
             LOCK + "cargo test --target-dir /workspaces/idiomatic-benchmark-guards/target",
             "tm check", "tm check --fix cli/tests/replay/imports.rs", "ls",
         ]
         for command in allowed:
             with self.subTest(command=command):
-                self.assertEqual(shell(command), 0)
+                self.assertEqual(shell(command, cwd), 0)
 
 
 class Acceptance(unittest.TestCase):

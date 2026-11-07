@@ -1,8 +1,10 @@
 """PreToolUse hook for Bash: blocks the shell habits that have cost this repository work."""
 
 import json
+import os
 import re
 import shlex
+import subprocess
 import sys
 
 LOCK = "/workspaces/.cargo-build.lock"
@@ -10,6 +12,10 @@ TARGET = "/workspaces/idiomatic-benchmark-guards/target"
 FIXTURE_FIX = "cli/tests/replay/imports.rs"
 CARGO_BUILDS = {"build", "test", "bench", "clippy", "run", "check", "doc"}
 SPLIT = re.compile(r"\n|;|&&|\|\||\||(?<![>&])&(?![>&])")
+CARGO_ANYWHERE = re.compile(r"\bcargo\s+(\+\S+\s+)?(" + "|".join(sorted(CARGO_BUILDS)) + r")\b")
+INTEGRATION = re.compile(r"claude/(checkpoint-\d+|ryo-consolidation)")
+MEASUREMENT = "/workspaces/ryo-perf-"
+BUILDERS_AUTHOR = "Builders author; the integrator compiles. cargo is allowed only in an integration worktree (branch claude/checkpoint-N)"
 COMMENT = re.compile(r"(^|\s)#.*$", re.MULTILINE)
 
 
@@ -82,10 +88,36 @@ def tm_fix(words, command):
     return None
 
 
-def reason(command):
+def integration_tree(directory):
+    if os.path.abspath(directory).startswith(MEASUREMENT):
+        return True
+    done = subprocess.run(["git", "-C", directory, "symbolic-ref", "--short", "HEAD"],
+                          capture_output=True, text=True, check=False)
+    return done.returncode == 0 and INTEGRATION.fullmatch(done.stdout.strip()) is not None
+
+
+def working_dirs(clean, cwd):
+    """The directory the command runs in, plus any -C or --manifest-path directory it names."""
+    here = cwd or os.getcwd()
+    for segment in SPLIT.split(clean):
+        words = tokens(segment)
+        if len(words) > 1 and words[0] == "cd":
+            here = os.path.join(here, os.path.expanduser(words[1]))
+    found = [here]
+    for match in re.finditer(r"(?:^|\s)-C\s+(\S+)|--manifest-path[= ](\S+)", clean):
+        if match.group(1):
+            found.append(os.path.join(here, match.group(1).strip("'\"")))
+        else:
+            found.append(os.path.dirname(os.path.join(here, match.group(2).strip("'\""))))
+    return found
+
+
+def reason(command, cwd=None):
     clean = COMMENT.sub("", command)
     if re.search(r"\b(while|until|for)\b", clean) and re.search(r"\b(pgrep|pkill)\b[^;&|\n]*\s-[A-Za-z]*f", clean):
         return "self-matching wait loop (pgrep/pkill -f in a loop); use pid files or pgrep -x"
+    if CARGO_ANYWHERE.search(clean) and not all(integration_tree(d) for d in working_dirs(clean, cwd)):
+        return BUILDERS_AUTHOR
     before = ""
     for segment in SPLIT.split(clean):
         words = tokens(segment)
@@ -102,7 +134,7 @@ def main():
     except ValueError:
         return 0
     command = (data.get("tool_input") or {}).get("command") or ""
-    found = reason(command)
+    found = reason(command, data.get("cwd"))
     if found:
         print("Blocked: " + found, file=sys.stderr)
         return 2
