@@ -4,8 +4,10 @@ use crate::domain::contract::types::{PortableOperatorFault};
 use crate::domain::contract::errors::ContractError;
 use crate::domain::reduction::types::{
     AggregationCheckOrder, AggregationHash, AggregationPlan, DigestDatum, DigestValues, Finishing,
-    GroupColumns, GroupCounts, GroupOutput, HashScratch, StreamingReduction,
+    GroupColumns, GroupCoordinate, GroupCounts, GroupDigest, GroupOutput, HashScratch,
+    StreamingReduction, ValueHash,
 };
+use crate::domain::set_rows::types::Occurrence;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::{
@@ -82,8 +84,8 @@ impl GroupOutput for Output {
     fn clear(&mut self) {
         self.0.clear();
     }
-    fn push(&mut self, first: RowIndex, counted: RowCount, digest: i64) {
-        self.0.push((first, counted, digest));
+    fn push(&mut self, first: RowIndex, counted: RowCount, digest: GroupDigest) {
+        self.0.push((first, counted, digest.0));
     }
     fn sort_first(&mut self) {
         self.0.sort_unstable_by_key(|group| group.0);
@@ -119,7 +121,7 @@ fn table(rows: &[[i64; 2]]) -> Table {
 struct State {
     first: Vec<Vec<Cell>>,
     keys: Vec<Vec<Cell>>,
-    counts: Vec<usize>,
+    counts: Vec<RowCount>,
     pairs: std::collections::HashSet<(usize, Cell)>,
     hashes: Vec<AggregationHash>,
     group_calls: usize,
@@ -133,15 +135,15 @@ impl StreamingReduction for State {
             let at = self.keys.len();
             self.keys.push(key.to_vec());
             self.first.push(row.to_vec());
-            self.counts.push(0);
+            self.counts.push(RowCount(0));
             at
         };
         Ok(RowIndex(at))
     }
-    fn insert_value(&mut self, group: RowIndex, value: Cell) -> bool {
-        self.pairs.insert((group.0, value))
+    fn insert_value(&mut self, group: RowIndex, value: Cell) -> Occurrence {
+        Occurrence::from(self.pairs.insert((group.0, value)))
     }
-    fn count(&mut self, group: RowIndex) -> Option<&mut usize> {
+    fn count(&mut self, group: RowIndex) -> Option<&mut RowCount> {
         self.counts.get_mut(group.0)
     }
     fn datum(&self, value: Cell) -> DigestDatum<'_> {
@@ -213,8 +215,9 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             for row in [[2, 7], [1, 7], [2, 7], [2, 8]] {
                 reduction::push(program, &row.map(number), &mut Vec::new(), &mut state)?;
             }
+            let counts: Vec<usize> = state.counts.iter().map(|count| count.0).collect();
             reduction::finish(
-                GroupCounts(&state.counts),
+                GroupCounts(&counts),
                 &mut state.hashes,
                 Finishing::Counted,
                 &mut output,

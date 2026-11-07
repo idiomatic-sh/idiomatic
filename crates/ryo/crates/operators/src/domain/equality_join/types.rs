@@ -10,7 +10,7 @@ pub trait JoinDriver {
     fn next(
         &mut self,
         key: &[ryo_relations::domain::relations::types::Value],
-    ) -> Result<bool, EqualityJoinError>;
+    ) -> Result<Advance, EqualityJoinError>;
     /// Decode one current right cell; no full-width row is required.
     fn right_cell(
         &self,
@@ -45,19 +45,19 @@ pub enum JoinInput<'a> {
     /// Deferred tree rows, concatenated without decoding their logical cells.
     Positions {
         /// File-local positions belonging to the scheduled left row.
-        left: &'a [u32],
+        left: PositionSlots<'a>,
         /// One finite ordered source of already matching position rows.
         driver: &'a mut dyn PositionJoinDriver,
         /// Caller-owned flat position destination; publication remains engine-owned.
-        target: &'a mut Vec<u32>,
+        target: PositionTarget<'a>,
     },
 }
 /// Borrowed matching position rows. No semantic cell is decoded by this interface.
 pub trait PositionJoinDriver {
     /// Advance in the original bag order. The first error is sticky.
-    fn next(&mut self) -> Result<bool, EqualityJoinError>;
+    fn next(&mut self) -> Result<Advance, EqualityJoinError>;
     /// File-local position slots of the current already matching RHS row.
-    fn right_positions(&self) -> &[u32];
+    fn right_positions(&self) -> PositionSlots<'_>;
 }
 
 /// One immutable left row: values already at hand, or a finite columnar reader.
@@ -78,7 +78,23 @@ pub trait JoinCells {
 
 /// The file-local position slots of the scheduled left row.
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PositionSlots<'a>(pub &'a [u32]);
+pub struct PositionSlots<'a>(pub &'a [u32]);
 
 /// The engine-owned flat position destination.
-pub(crate) struct PositionTarget<'a>(pub &'a mut Vec<u32>);
+pub struct PositionTarget<'a>(pub &'a mut Vec<u32>);
+
+/// Whether a driver advanced to another candidate.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Advance {
+    /// A candidate is current.
+    Admitted,
+    /// No candidate remains.
+    Exhausted,
+}
+
+impl From<bool> for Advance {
+    /// An advance that found a candidate is `Admitted`.
+    fn from(found: bool) -> Self {
+        if found { Self::Admitted } else { Self::Exhausted }
+    }
+}

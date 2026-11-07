@@ -2,19 +2,37 @@
 /// The engine lends exactly one checked source interval and its acquired matcher.
 pub struct SourceMatchesInput<'a> {
     pub row: &'a [ryo_relations::domain::relations::types::Value],
-    pub source: &'a [u8],
-    pub base: usize,
-    pub text: &'a str,
-    pub line: Option<i64>,
+    pub source: LineBytes<'a>,
+    pub base: SourceBase,
+    pub text: ryo_values::domain::row_texts::types::CellText<'a>,
+    pub line: BaseLine,
     pub regex: &'a ryo_matching::inbound::use_cases::matching::compiled::CompiledRegex,
-    pub capture: Option<&'a str>,
-    pub capture_text: bool,
-    pub capture_line: bool,
+    pub capture: CaptureRequest<'a>,
+    pub capture_text: ryo_values::domain::query_operators::types::TextOutput,
+    pub capture_line: ryo_values::domain::query_operators::types::LineOutput,
+}
+
+/// The line number of the searched text's first byte.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum BaseLine {
+    /// Lines are not numbered.
+    Unnumbered,
+    /// The first byte sits on this line.
+    Starts(ryo_relations::domain::relations::types::Integer),
+}
+
+/// The named capture group the occurrences are narrowed to.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CaptureRequest<'a> {
+    /// Only the whole occurrence is emitted.
+    Whole,
+    /// The occurrence's named group is emitted too.
+    Group(ryo_values::domain::row_texts::types::CellText<'a>),
 }
 
 /// Engine-owned symbol storage and row delivery. No acquisition or publication API is exposed.
 pub trait TextRowDriver {
-    fn intern(&mut self, text: &str) -> ryo_relations::domain::relations::types::Value;
+    fn intern(&mut self, text: ryo_values::domain::row_texts::types::CellText<'_>) -> ryo_relations::domain::relations::types::Value;
     fn emit(
         &mut self,
         row: &[ryo_relations::domain::relations::types::Value],
@@ -25,11 +43,11 @@ use crate::domain::contract::errors::ContractError;
 
 /// Bytes of the searched text or of the physical source it was cut from.
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct LineBytes<'a>(pub &'a [u8]);
+pub struct LineBytes<'a>(pub &'a [u8]);
 
 /// Where the searched text starts inside the physical source, in bytes.
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct SourceBase(pub usize);
+pub struct SourceBase(pub usize);
 
 /// A byte position inside the searched text.
 #[derive(Clone, Copy, Debug)]

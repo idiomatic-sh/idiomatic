@@ -2,7 +2,7 @@
 
 /// What the already evaluated predicate decided about the row.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum PredicateOutcome {
+pub enum PredicateOutcome {
     /// The predicate holds: the row is kept.
     Holds,
     /// The predicate fails: the row is dropped.
@@ -11,7 +11,7 @@ pub(crate) enum PredicateOutcome {
 
 /// Whether the row was kept.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum RowSelection {
+pub enum RowSelection {
     /// The row is kept.
     Kept,
     /// The row is dropped.

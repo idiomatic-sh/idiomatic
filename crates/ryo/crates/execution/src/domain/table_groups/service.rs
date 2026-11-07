@@ -12,7 +12,8 @@ use ryo_derived::domain::contract::types::On;
 use ryo_operators::domain::reduction::types::DigestDatum;
 use ryo_operators::domain::reduction::types::DigestValues;
 use ryo_operators::domain::reduction::types::GroupColumns;
-use ryo_operators::domain::reduction::types::GroupOutput;
+use ryo_operators::domain::reduction::types::{GroupDigest, GroupOutput, HashScratch};
+use ryo_values::domain::row_texts::types::CellText;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::{
@@ -25,11 +26,11 @@ impl GroupOutput for GroupTarget<'_> {
     fn clear(&mut self) {
         self.0.clear();
     }
-    fn push(&mut self, first: RowIndex, counted: RowCount, digest: i64) {
+    fn push(&mut self, first: RowIndex, counted: RowCount, digest: GroupDigest) {
         self.0.push(Group {
             first,
             counted,
-            digest: SetDigest(digest),
+            digest: SetDigest(digest.0),
         });
     }
     fn sort_first(&mut self) {
@@ -60,7 +61,7 @@ pub(crate) fn count_groups(
 pub(crate) fn resolved<'a>(value: Value, texts: &'a Texts<'_>) -> DigestDatum<'a> {
     match datum(value, texts) {
         Datum::Unlocated => DigestDatum::Unlocated,
-        Datum::Text(text) => DigestDatum::Text(text.0),
+        Datum::Text(text) => DigestDatum::Text(CellText(text.0)),
         Datum::Number(number) => DigestDatum::Number(number),
         Datum::Flag(flag) => DigestDatum::Flag(flag),
         Datum::Numbers(numbers) => DigestDatum::Numbers(numbers),
@@ -88,7 +89,7 @@ pub(crate) fn digest_groups(
         keys,
         over,
         order: room.order,
-        hashes: &mut hashes.0,
+        hashes: HashScratch(&mut hashes.0),
         hasher: &hasher,
         target: &mut GroupTarget(room.groups),
     });

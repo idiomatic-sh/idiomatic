@@ -59,9 +59,9 @@ impl OperatorsItem for ReplaceItem {
         let answer = lease.semantics().operators(
             ryo_operators::inbound::use_cases::operators::types::OperatorCall::Replace {
                 regex,
-                text: value.0,
-                replacement: &replacement.0,
-                target: &mut changed,
+                text: ryo_values::domain::row_texts::types::CellText(value.0),
+                replacement: ryo_operators::domain::replace::types::ReplacementText(&replacement.0),
+                target: ryo_operators::domain::replace::types::ReplacedText(&mut changed),
             },
         );
         let replacement_result =

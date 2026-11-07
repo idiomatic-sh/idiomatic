@@ -10,7 +10,8 @@ use crate::domain::reduction::types::*;
 use crate::domain::set_rows::types::*;
 use crate::domain::source_matches::types::*;
 use crate::domain::words::types::*;
-use ryo_relations::domain::relations::types::{Integer, Value as Cell};
+use crate::domain::select::types::{PredicateOutcome, RowSelection};
+use ryo_relations::domain::relations::types::{Count, Integer, Value as Cell};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::borrow::Cow;
@@ -170,7 +171,11 @@ fn subject(input: Input) -> Result<Value, Failure> {
             let answer = OperatorsUseCaseImpl::new(std::sync::Arc::new(crate::outbound::matching::factory::use_case())).operators(OperatorCall::Select {
                 row: &ROW,
                 kept,
-                holds: !matches!(input, Scenario::SelectRejected),
+                holds: if matches!(input, Scenario::SelectRejected) {
+                    PredicateOutcome::Fails
+                } else {
+                    PredicateOutcome::Holds
+                },
                 target: &mut target,
             })?;
             let OperatorAnswer::Selected(accepted) = answer else {
@@ -181,15 +186,18 @@ fn subject(input: Input) -> Result<Value, Failure> {
                 original,
                 "selection borrows caller-owned scratch"
             );
-            return Ok(Observation::Selected(accepted, Cow::Owned(target)));
+            return Ok(Observation::Selected(
+                accepted == RowSelection::Kept,
+                Cow::Owned(target),
+            ));
         }
         Scenario::CountOutput | Scenario::DigestOutput | Scenario::AggregateMissing => {
             let (keys, count, digest): (&[ColumnIndex], _, _) = match input {
                 Scenario::CountOutput => {
-                    (&[ColumnIndex(1), ColumnIndex(0), ColumnIndex(1)], 4, None)
+                    (&[ColumnIndex(1), ColumnIndex(0), ColumnIndex(1)], Count(4), None)
                 }
-                Scenario::DigestOutput => (&[], 3, Some(-5)),
-                _ => (&[ColumnIndex(4), ColumnIndex(3)], 0, None),
+                Scenario::DigestOutput => (&[], Count(3), Some(Integer(-5))),
+                _ => (&[ColumnIndex(4), ColumnIndex(3)], Count(0), None),
             };
             written(OperatorCall::Aggregate {
                 row: &ROW,

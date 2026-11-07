@@ -1,6 +1,8 @@
 //! Enumerate path captures without allocating or splitting UTF-8 characters.
 use crate::domain::capture::constants::CROSSING_OPEN;
-use crate::domain::capture::types::{CaptureOutput, CaptureSlots, SlotPattern, SlotSubject};
+use crate::domain::capture::types::{
+    CaptureOutput, CaptureSlots, CaptureSpans, SlotPattern, SlotSubject,
+};
 
 pub(crate) fn matches(
     pattern: SlotPattern<'_>,
@@ -12,7 +14,7 @@ pub(crate) fn matches(
     let (pattern, whole, tail, slots) = (pattern.0, whole.0, tail.0, slots.0);
     let Some(open) = pattern.find('{') else {
         if pattern == tail {
-            each.captures(slots);
+            each.captures(CaptureSpans(slots));
         }
         return;
     };
@@ -39,7 +41,7 @@ pub(crate) fn matches(
         {
             let mark = slots.len();
             slots.push(start..start + end);
-            each.captures(slots);
+            each.captures(CaptureSpans(slots));
             slots.truncate(mark);
         }
         return;

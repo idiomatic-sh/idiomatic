@@ -6,10 +6,15 @@ use crate::domain::ordered_existence::types::{
     OrderedExistenceDriver, OrderedExistenceScratch, PartitionExtremum,
 };
 use crate::domain::ordered_match::types::OrderedMatchDriver;
-use crate::domain::capture::types::CaptureOutput;
+use crate::domain::capture::types::{CaptureOutput, CaptureSlots, SlotPattern, SlotSubject};
+use crate::domain::replace::types::{ReplacedText, ReplacementText};
+use crate::domain::select::types::{PredicateOutcome, RowSelection};
+use crate::domain::words::types::WordScratch;
+use ryo_relations::domain::relations::types::{Count, Integer};
+use ryo_values::domain::row_texts::types::CellText;
 use crate::domain::reduction::types::{
     AggregationCheckOrder, AggregationHash, AggregationPlan, DigestDatum, DigestValues,
-    GroupColumns, GroupOutput, StreamingReduction,
+    Finishing, GroupColumns, GroupCounts, GroupOutput, HashScratch, StreamingReduction, ValueHash,
 };
 use crate::domain::set_rows::types::SetInput;
 use crate::domain::source_matches::types::{SourceMatchesInput, TextRowDriver};
@@ -21,11 +26,11 @@ pub enum OperatorAnswer {
     /// Caller-owned scratch was filled.
     Written,
     /// A predicate accepted this row; an empty projection keeps the original row.
-    Selected(bool),
+    Selected(RowSelection),
     /// The first matching resolved rank, or no matching layer.
     Rank(Option<ryo_relations::domain::relations::types::Integer>),
     /// Stable text-aware digest hash.
-    ValueHash(u64),
+    ValueHash(ValueHash),
     /// Checked half-open span endpoints.
     SpanBounds([ryo_relations::domain::relations::types::Value; 2]),
     /// A composed half-open span, including a declared absent span.
@@ -49,7 +54,7 @@ pub enum OperatorCall<'a> {
         keys: &'a [ryo_values::domain::plan_parts::types::ColumnIndex],
         over: ryo_values::domain::plan_parts::types::ColumnIndex,
         order: &'a [ryo_values::domain::rows::types::RowIndex],
-        hashes: &'a mut Vec<u64>,
+        hashes: HashScratch<'a>,
         hasher: &'a dyn DigestValues,
         target: &'a mut dyn GroupOutput,
     },
@@ -71,9 +76,9 @@ pub enum OperatorCall<'a> {
     },
     /// Finish an engine-owned streaming reduction without retaining its state.
     FinishAggregation {
-        counts: &'a [usize],
+        counts: GroupCounts<'a>,
         hashes: &'a mut Vec<AggregationHash>,
-        digest: bool,
+        digest: Finishing,
         target: &'a mut dyn GroupOutput,
     },
 
@@ -81,40 +86,40 @@ pub enum OperatorCall<'a> {
     Select {
         row: &'a [ryo_relations::domain::relations::types::Value],
         kept: &'a [ryo_values::domain::plan_parts::types::ColumnIndex],
-        holds: bool,
+        holds: PredicateOutcome,
         target: &'a mut Vec<ryo_relations::domain::relations::types::Value>,
     },
     /// Split a resolved text using the language-independent word policy.
     Words {
-        text: &'a str,
-        word: &'a mut String,
+        text: CellText<'a>,
+        word: WordScratch<'a>,
         each: &'a mut dyn WordOutput,
     },
     /// Enumerate nonempty path-slot captures as UTF-8 byte ranges in encounter order.
     Capture {
-        pattern: &'a str,
-        text: &'a str,
-        slots: &'a mut Vec<std::ops::Range<usize>>,
+        pattern: SlotPattern<'a>,
+        text: SlotSubject<'a>,
+        slots: CaptureSlots<'a>,
         each: &'a mut dyn CaptureOutput,
     },
     /// Return the first matching resolved text-set layer.
     Rank {
-        text: &'a str,
+        text: CellText<'a>,
         layers: &'a [Vec<ryo_values::domain::plan_parts::types::LiteralText>],
     },
     /// Replace all matches literally; matcher acquisition and storage belong to the engine.
     Replace {
         regex: &'a ryo_matching::inbound::use_cases::matching::compiled::CompiledRegex,
-        text: &'a str,
-        replacement: &'a str,
-        target: &'a mut String,
+        text: CellText<'a>,
+        replacement: ReplacementText<'a>,
+        target: ReplacedText<'a>,
     },
     /// Format an already reduced group; reduction storage belongs to the engine.
     Aggregate {
         row: &'a [ryo_relations::domain::relations::types::Value],
         keys: &'a [ryo_values::domain::plan_parts::types::ColumnIndex],
-        count: usize,
-        digest: Option<i64>,
+        count: Count,
+        digest: Option<Integer>,
         target: &'a mut Vec<ryo_relations::domain::relations::types::Value>,
     },
     /// Pair each prepared open key with the first later close key in FIFO order.

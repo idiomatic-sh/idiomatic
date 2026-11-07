@@ -51,7 +51,7 @@ impl OperatorsItem for GroupDigestItem {
                     .ok_or(OperatingError::NotRun)?;
                 let semantic = lease.semantics().operators(
                     ryo_operators::inbound::use_cases::operators::types::OperatorCall::Aggregate {
-                        row: first, keys, count: group.counted.0, digest: Some(group.digest.0), target: &mut answer,
+                        row: first, keys, count: ryo_relations::domain::relations::types::Count(group.counted.0), digest: Some(ryo_relations::domain::relations::types::Integer(group.digest.0)), target: &mut answer,
                     },
                 );
                 crate::domain::operator::contract::types::written_result(semantic, None)?;

@@ -55,7 +55,7 @@ impl OperatorsItem for RankItem {
         };
         let answer = lease.semantics().operators(
             ryo_operators::inbound::use_cases::operators::types::OperatorCall::Rank {
-                text: named.0,
+                text: ryo_values::domain::row_texts::types::CellText(named.0),
                 layers,
             },
         );

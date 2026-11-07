@@ -1,6 +1,6 @@
 //! Ordered Join meaning: bag order, view mapping, refusal order and the prefix a downstream refusal keeps.
 use super::service::join_row;
-use super::types::{JoinCells, JoinDriver, JoinRow};
+use super::types::{Advance, JoinCells, JoinDriver, JoinRow};
 use super::errors::EqualityJoinError;
 use crate::domain::contract::types::PortableOperatorFault;
 use ryo_relations::domain::relations::types::{Integer, Value as Cell};
@@ -84,14 +84,14 @@ struct Driver {
     stopped: bool,
 }
 impl JoinDriver for Driver {
-    fn next(&mut self, key: &[Cell]) -> Result<bool, EqualityJoinError> {
+    fn next(&mut self, key: &[Cell]) -> Result<Advance, EqualityJoinError> {
         if self.stopped {
             return Err(EqualityJoinError::Interrupted);
         }
         assert_eq!(key, &[number(7)]);
         self.next_calls += 1;
         self.at += 1;
-        Ok(self.at <= self.rows.len())
+        Ok(Advance::from(self.at <= self.rows.len()))
     }
     fn right_cell(&self, column: ColumnIndex) -> Option<Cell> {
         self.reads.set(self.reads.get() + 1);
@@ -208,6 +208,10 @@ fn subject(input: Input) -> Result<Value, Failure> {
             let result = join(&[number(7)], &[ColumnIndex(0)], &[right(1)], &[], &mut d);
             assert_eq!(d.outputs, vec![vec![number(1)]]);
             assert_eq!(d.next_calls, 2);
+            assert!(
+                matches!(d.emit(&[]), Err(EqualityJoinError::Interrupted)),
+                "an interrupted driver keeps refusing"
+            );
             result?;
         }
         Scenario::ColumnarLeft => {

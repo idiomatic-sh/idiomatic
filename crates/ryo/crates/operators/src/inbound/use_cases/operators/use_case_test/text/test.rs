@@ -10,6 +10,8 @@ use crate::domain::reduction::types::*;
 use crate::domain::set_rows::types::*;
 use crate::domain::source_matches::types::*;
 use crate::domain::words::types::*;
+use crate::domain::replace::types::{ReplacedText, ReplacementText};
+use ryo_values::domain::row_texts::types::CellText;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::LiteralText;
 use std::borrow::Cow;
@@ -98,8 +100,8 @@ fn subject(input: Input) -> Result<Value, Failure> {
             let original = word.as_ptr();
             let mut words = Vec::new();
             written(OperatorCall::Words {
-                text,
-                word: &mut word,
+                text: CellText(text),
+                word: WordScratch(&mut word),
                 each: &mut |word: &str| words.push(word.to_owned()),
             })?;
             assert!(
@@ -123,9 +125,9 @@ fn subject(input: Input) -> Result<Value, Failure> {
             let original = slots.as_ptr();
             let mut captures: Vec<Vec<String>> = Vec::new();
             written(OperatorCall::Capture {
-                pattern,
-                text,
-                slots: &mut slots,
+                pattern: SlotPattern(pattern),
+                text: SlotSubject(text),
+                slots: CaptureSlots(&mut slots),
                 each: &mut |ranges: &[std::ops::Range<usize>]| {
                     captures.push(
                         ranges
@@ -163,7 +165,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
                 "absent"
             };
             let answer = fixtures::operators().operators(OperatorCall::Rank {
-                text,
+                text: CellText(text),
                 layers: &layers,
             })?;
             let OperatorAnswer::Rank(rank) = answer else {
@@ -178,9 +180,9 @@ fn subject(input: Input) -> Result<Value, Failure> {
             let original = output.as_ptr();
             written(OperatorCall::Replace {
                 regex: &regex,
-                text: "aaé",
-                replacement: "$1",
-                target: &mut output,
+                text: CellText("aaé"),
+                replacement: ReplacementText("$1"),
+                target: ReplacedText(&mut output),
             })?;
             assert_eq!(output.as_ptr(), original);
             Ok(Observation::Text(Cow::Owned(output)))

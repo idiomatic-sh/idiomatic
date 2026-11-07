@@ -7,7 +7,7 @@ use crate::domain::table_model::types::Rows;
 use ryo_language::domain::symbols::service::{hash_in, hash_of, text_of};
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
 use ryo_operators::domain::equality_join::types::JoinCells;
-use ryo_operators::domain::equality_join::types::JoinDriver;
+use ryo_operators::domain::equality_join::types::{Advance, JoinDriver};
 use ryo_operators::domain::equality_join::errors::EqualityJoinError;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::{JoinColumn, Side};
@@ -42,7 +42,7 @@ pub(super) struct Driver<'a, 'f> {
     pub(super) error: Option<OperatingError>,
 }
 impl JoinDriver for Driver<'_, '_> {
-    fn next(&mut self, key: &[Value]) -> Result<bool, EqualityJoinError> {
+    fn next(&mut self, key: &[Value]) -> Result<Advance, EqualityJoinError> {
         if self.error.is_some() {
             return Err(EqualityJoinError::Interrupted);
         }
@@ -78,7 +78,7 @@ impl JoinDriver for Driver<'_, '_> {
             break;
         }
         self.probe = Some(probe);
-        Ok(self.current.is_some())
+        Ok(Advance::from(self.current.is_some()))
     }
     fn right_cell(
         &self,

@@ -16,12 +16,12 @@ struct Positions {
     rows: Vec<Vec<u32>>,
 }
 impl PositionJoinDriver for Positions {
-    fn next(&mut self) -> Result<bool, EqualityJoinError> {
+    fn next(&mut self) -> Result<Advance, EqualityJoinError> {
         self.at += 1;
-        Ok(self.at <= self.rows.len())
+        Ok(Advance::from(self.at <= self.rows.len()))
     }
-    fn right_positions(&self) -> &[u32] {
-        &self.rows[self.at - 1]
+    fn right_positions(&self) -> PositionSlots<'_> {
+        PositionSlots(&self.rows[self.at - 1])
     }
 }
 fn position_representation_keeps_slots_deferred_ordered_and_duplicate() {
@@ -33,9 +33,9 @@ fn position_representation_keeps_slots_deferred_ordered_and_duplicate() {
     assert_eq!(
         fixtures::operators().operators(OperatorCall::EqualityJoin {
             input: JoinInput::Positions {
-                left: &[4, 2],
+                left: PositionSlots(&[4, 2]),
                 driver: &mut driver,
-                target: &mut target
+                target: PositionTarget(&mut target)
             }
         }),
         Ok(OperatorAnswer::Written)

@@ -69,9 +69,9 @@ impl OperatorsItem for CaptureItem {
         slots.0.clear();
         let answer = lease.semantics().operators(
             ryo_operators::inbound::use_cases::operators::types::OperatorCall::Capture {
-                pattern: &pattern.0,
-                text: &text,
-                slots: &mut slots.0,
+                pattern: ryo_operators::domain::capture::types::SlotPattern(&pattern.0),
+                text: ryo_operators::domain::capture::types::SlotSubject(&text),
+                slots: ryo_operators::domain::capture::types::CaptureSlots(&mut slots.0),
                 each: &mut |places: &[std::ops::Range<usize>]| {
                     for place in places {
                         let made = query_intern_derived(

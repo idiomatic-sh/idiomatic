@@ -1,6 +1,6 @@
 //! The engine chooses the physical probe; this kernel owns ordered Join row semantics.
 use crate::domain::contract::types::PortableOperatorFault;
-use crate::domain::equality_join::types::{JoinDriver, JoinRow, PositionSlots, PositionTarget};
+use crate::domain::equality_join::types::{Advance, JoinDriver, JoinRow, PositionSlots, PositionTarget};
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn, Side};
 
@@ -32,6 +32,7 @@ pub(crate) fn join_row(
     while driver
         .next(key)
         .map_err(|_| PortableOperatorFault::Interrupted)?
+        == Advance::Admitted
     {
         target.clear();
         for column in output {
@@ -67,9 +68,10 @@ pub(crate) fn positions(
     while driver
         .next()
         .map_err(|_| PortableOperatorFault::Interrupted)?
+        == Advance::Admitted
     {
         target.extend_from_slice(left);
-        target.extend_from_slice(driver.right_positions());
+        target.extend_from_slice(driver.right_positions().0);
     }
     Ok(())
 }

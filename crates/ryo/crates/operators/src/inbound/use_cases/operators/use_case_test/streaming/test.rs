@@ -123,8 +123,8 @@ impl GroupOutput for Groups {
         self.clears += 1;
         self.rows.clear();
     }
-    fn push(&mut self, first: RowIndex, counted: RowCount, digest: i64) {
-        self.rows.push((first, counted, digest));
+    fn push(&mut self, first: RowIndex, counted: RowCount, digest: GroupDigest) {
+        self.rows.push((first, counted, digest.0));
     }
     fn sort_first(&mut self) {
         self.rows.sort_unstable_by_key(|group| group.0);
@@ -143,7 +143,7 @@ fn observation(groups: Groups) -> Observation {
 struct State {
     keys: Vec<Vec<Cell>>,
     first_rows: Vec<Vec<Cell>>,
-    counts: Vec<usize>,
+    counts: Vec<RowCount>,
     values: std::collections::HashSet<(usize, Cell)>,
     hashes: Vec<AggregationHash>,
     group_calls: usize,
@@ -161,7 +161,7 @@ impl StreamingReduction for State {
             let group = self.keys.len();
             self.keys.push(key.to_vec());
             self.first_rows.push(row.to_vec());
-            self.counts.push(0);
+            self.counts.push(RowCount(0));
             group
         };
         Ok(RowIndex(group))
@@ -169,7 +169,7 @@ impl StreamingReduction for State {
     fn insert_value(&mut self, group: RowIndex, value: Cell) -> bool {
         self.values.insert((group.0, value))
     }
-    fn count(&mut self, group: RowIndex) -> Option<&mut usize> {
+    fn count(&mut self, group: RowIndex) -> Option<&mut RowCount> {
         self.counts.get_mut(group.0)
     }
     fn datum(&self, value: Cell) -> DigestDatum<'_> {
@@ -263,10 +263,15 @@ fn stream(input: Input) -> Result<Value, Failure> {
         "original columns survive representative retention"
     );
     let mut output = Groups::default();
+    let counts: Vec<usize> = state.counts.iter().map(|count| count.0).collect();
     written(OperatorCall::FinishAggregation {
-        counts: &state.counts,
+        counts: GroupCounts(&counts),
         hashes: &mut state.hashes,
-        digest,
+        digest: if digest {
+            Finishing::Digested
+        } else {
+            Finishing::Counted
+        },
         target: &mut output,
     })?;
     Ok(observation(output))
@@ -333,36 +338,36 @@ fn subject(input: Input) -> Result<Value, Failure> {
         | Scenario::StreamStorageFailure => stream(input),
         Scenario::FinishDigest => {
             let mut hashes = vec![
-                AggregationHash { group: 1, hash: 9 },
-                AggregationHash { group: 0, hash: 5 },
-                AggregationHash { group: 0, hash: 3 },
-                AggregationHash { group: 0, hash: 5 },
+                AggregationHash { group: GroupCoordinate(1), hash: ValueHash(9) },
+                AggregationHash { group: GroupCoordinate(0), hash: ValueHash(5) },
+                AggregationHash { group: GroupCoordinate(0), hash: ValueHash(3) },
+                AggregationHash { group: GroupCoordinate(0), hash: ValueHash(5) },
             ];
             let mut output = Groups::default();
             written(OperatorCall::FinishAggregation {
-                counts: &[0, 0],
+                counts: GroupCounts(&[0, 0]),
                 hashes: &mut hashes,
-                digest: true,
+                digest: Finishing::Digested,
                 target: &mut output,
             })?;
             assert_eq!(
                 hashes,
                 vec![
-                    AggregationHash { group: 0, hash: 3 },
-                    AggregationHash { group: 0, hash: 5 },
-                    AggregationHash { group: 1, hash: 9 }
+                    AggregationHash { group: GroupCoordinate(0), hash: ValueHash(3) },
+                    AggregationHash { group: GroupCoordinate(0), hash: ValueHash(5) },
+                    AggregationHash { group: GroupCoordinate(1), hash: ValueHash(9) }
                 ]
             );
             let mut reordered = vec![
-                AggregationHash { group: 0, hash: 5 },
-                AggregationHash { group: 1, hash: 9 },
-                AggregationHash { group: 0, hash: 3 },
+                AggregationHash { group: GroupCoordinate(0), hash: ValueHash(5) },
+                AggregationHash { group: GroupCoordinate(1), hash: ValueHash(9) },
+                AggregationHash { group: GroupCoordinate(0), hash: ValueHash(3) },
             ];
             let mut repeated = Groups::default();
             written(OperatorCall::FinishAggregation {
-                counts: &[0, 0],
+                counts: GroupCounts(&[0, 0]),
                 hashes: &mut reordered,
-                digest: true,
+                digest: Finishing::Digested,
                 target: &mut repeated,
             })?;
             assert_eq!(

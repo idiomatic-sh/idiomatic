@@ -12,22 +12,21 @@ pub enum SetKind {
     Antijoin,
 }
 
-
 /// Finite access to acquired typed membership, invocation distinct state and delivery.
 /// The semantic capability cannot select an index, retain a row or publish independently.
 pub trait SetRowDriver {
     /// Whether the acquired right population has no rows.
-    fn right_empty(&mut self) -> Result<bool, SetRowsError>;
+    fn right_empty(&mut self) -> Result<Population, SetRowsError>;
     /// Test a full row or projected left key against the acquired right index.
     fn contains_right(
         &mut self,
         key: &[ryo_relations::domain::relations::types::Value],
-    ) -> Result<bool, SetRowsError>;
+    ) -> Result<Membership, SetRowsError>;
     /// Record an invocation-scoped first occurrence of a full row.
     fn first_time(
         &mut self,
         row: &[ryo_relations::domain::relations::types::Value],
-    ) -> Result<bool, SetRowsError>;
+    ) -> Result<Occurrence, SetRowsError>;
     /// Deliver one retained row in original encounter order.
     fn emit(
         &mut self,
@@ -62,13 +61,63 @@ pub enum SetInput<'a> {
 /// Finite deferred rows; the engine owns raw ordering, decoding and output slots.
 pub trait SetPositionsDriver {
     /// Advance to the next candidate in encounter order.
-    fn next(&mut self) -> Result<bool, SetRowsError>;
+    fn next(&mut self) -> Result<Advance, SetRowsError>;
     /// Whether the acquired right population has no rows.
-    fn right_empty(&mut self) -> Result<bool, SetRowsError>;
+    fn right_empty(&mut self) -> Result<Population, SetRowsError>;
     /// Probe the current left row's key only when semantic policy asks.
-    fn contains_right(&mut self) -> Result<bool, SetRowsError>;
+    fn contains_right(&mut self) -> Result<Membership, SetRowsError>;
     /// Whether the current row is the first occurrence in this invocation.
-    fn first_time(&mut self) -> Result<bool, SetRowsError>;
+    fn first_time(&mut self) -> Result<Occurrence, SetRowsError>;
     /// Deliver current positions without decoding unused cells.
     fn emit(&mut self) -> Result<(), SetRowsError>;
+}
+
+use crate::domain::equality_join::types::Advance;
+
+/// Whether the acquired right population has rows.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Population {
+    /// The right population has no rows.
+    Empty,
+    /// The right population has at least one row.
+    Populated,
+}
+
+impl From<bool> for Population {
+    /// A right population reported empty is `Empty`.
+    fn from(empty: bool) -> Self {
+        if empty { Self::Empty } else { Self::Populated }
+    }
+}
+
+/// Whether a probed key is in the acquired right index.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Membership {
+    /// The key is in the index.
+    Present,
+    /// The key is not in the index.
+    Absent,
+}
+
+impl From<bool> for Membership {
+    /// A key reported contained is `Present`.
+    fn from(contained: bool) -> Self {
+        if contained { Self::Present } else { Self::Absent }
+    }
+}
+
+/// Whether a row or value was seen before in this invocation.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Occurrence {
+    /// This is the first time it is seen.
+    First,
+    /// It was seen before.
+    Repeat,
+}
+
+impl From<bool> for Occurrence {
+    /// A row reported first-time is `First`.
+    fn from(first: bool) -> Self {
+        if first { Self::First } else { Self::Repeat }
+    }
 }

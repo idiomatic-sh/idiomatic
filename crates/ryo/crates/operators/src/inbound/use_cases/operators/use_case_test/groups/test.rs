@@ -91,8 +91,8 @@ impl GroupOutput for Groups {
         self.clears += 1;
         self.rows.clear();
     }
-    fn push(&mut self, first: RowIndex, counted: RowCount, digest: i64) {
-        self.rows.push((first, counted, digest));
+    fn push(&mut self, first: RowIndex, counted: RowCount, digest: GroupDigest) {
+        self.rows.push((first, counted, digest.0));
     }
     fn sort_first(&mut self) {
         self.rows.sort_unstable_by_key(|group| group.0);
@@ -141,7 +141,7 @@ fn digest(rows: &[[i64; 2]], renamed: bool) -> Result<Groups, Failure> {
         keys: &[ColumnIndex(0)],
         over: ColumnIndex(1),
         order: &order,
-        hashes: &mut Vec::new(),
+        hashes: HashScratch(&mut Vec::new()),
         hasher: &Resolved { renamed },
         target: &mut output,
     })?;

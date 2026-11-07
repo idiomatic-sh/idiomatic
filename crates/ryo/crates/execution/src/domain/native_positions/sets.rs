@@ -19,7 +19,9 @@ use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_operators::domain::set_rows::types::SetInput;
 use ryo_operators::domain::set_rows::errors::SetRowsError;
 use ryo_operators::domain::set_rows::types::SetKind;
+use ryo_operators::domain::equality_join::types::Advance;
 use ryo_operators::domain::set_rows::types::SetPositionsDriver;
+use ryo_operators::domain::set_rows::types::{Membership, Occurrence, Population};
 use ryo_relations::domain::relations::{service::to_bits, types::Position};
 use ryo_values::domain::{
     plans::types::Operation,
@@ -36,31 +38,32 @@ struct UnionDriver<'a> {
     failure: FailureLatch,
 }
 impl SetPositionsDriver for UnionDriver<'_> {
-    fn next(&mut self) -> Result<bool, SetRowsError> {
+    fn next(&mut self) -> Result<Advance, SetRowsError> {
         self.failure
             .run(|| {
                 self.current = (self.next.0 < self.keep.0.len()).then_some(self.next);
                 self.next.0 += usize::from(self.current.is_some());
-                Ok(self.current.is_some())
+                Ok(Advance::from(self.current.is_some()))
             })
             .map_err(|()| SetRowsError::Interrupted)
     }
-    fn right_empty(&mut self) -> Result<bool, SetRowsError> {
+    fn right_empty(&mut self) -> Result<Population, SetRowsError> {
         self.failure
             .run(|| Err(OperatingError::WrongOperation))
             .map_err(|()| SetRowsError::Interrupted)
     }
-    fn contains_right(&mut self) -> Result<bool, SetRowsError> {
+    fn contains_right(&mut self) -> Result<Membership, SetRowsError> {
         self.failure
             .run(|| Err(OperatingError::WrongOperation))
             .map_err(|()| SetRowsError::Interrupted)
     }
-    fn first_time(&mut self) -> Result<bool, SetRowsError> {
+    fn first_time(&mut self) -> Result<Occurrence, SetRowsError> {
         self.failure
             .run(|| {
                 self.current
                     .and_then(|at| self.keep.0.get(at.0))
                     .copied()
+                    .map(Occurrence::from)
                     .ok_or(OperatingError::ShapeMismatch)
             })
             .map_err(|()| SetRowsError::Interrupted)
@@ -190,7 +193,7 @@ struct AntiDriver<'a, 't> {
     counts: &'a WorkCounters,
 }
 impl SetPositionsDriver for AntiDriver<'_, '_> {
-    fn next(&mut self) -> Result<bool, SetRowsError> {
+    fn next(&mut self) -> Result<Advance, SetRowsError> {
         self.failure
             .run(|| {
                 self.current = (self.next.0 < count(self.left).0).then_some(self.next);
@@ -198,16 +201,16 @@ impl SetPositionsDriver for AntiDriver<'_, '_> {
                     self.counts.found(0, 1);
                     self.next.0 += 1;
                 }
-                Ok(self.current.is_some())
+                Ok(Advance::from(self.current.is_some()))
             })
             .map_err(|()| SetRowsError::Interrupted)
     }
-    fn right_empty(&mut self) -> Result<bool, SetRowsError> {
+    fn right_empty(&mut self) -> Result<Population, SetRowsError> {
         self.failure
-            .run(|| Ok(self.right_count.0 == 0))
+            .run(|| Ok(Population::from(self.right_count.0 == 0)))
             .map_err(|()| SetRowsError::Interrupted)
     }
-    fn contains_right(&mut self) -> Result<bool, SetRowsError> {
+    fn contains_right(&mut self) -> Result<Membership, SetRowsError> {
         self.failure
             .run(|| {
                 let at = self.current.ok_or(OperatingError::WrongOperation)?;
@@ -219,11 +222,11 @@ impl SetPositionsDriver for AntiDriver<'_, '_> {
                     self.left_on,
                     self.probe,
                 );
-                Ok(!self.order.hits(&self.probe.0).is_empty())
+                Ok(Membership::from(!self.order.hits(&self.probe.0).is_empty()))
             })
             .map_err(|()| SetRowsError::Interrupted)
     }
-    fn first_time(&mut self) -> Result<bool, SetRowsError> {
+    fn first_time(&mut self) -> Result<Occurrence, SetRowsError> {
         self.failure
             .run(|| Err(OperatingError::WrongOperation))
             .map_err(|()| SetRowsError::Interrupted)

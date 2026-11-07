@@ -2,9 +2,10 @@
 use crate::domain::contract::types::PortableOperatorFault as Fault;
 use crate::domain::reduction::types::{
     AggregationCheckOrder, AggregationHash, AggregationPlan, DigestDatum, DigestValues, Finishing,
-    GroupColumns, GroupCounts, GroupMembership, GroupOutput, HashScratch, StreamingReduction,
+    GroupColumns, GroupCoordinate, GroupCounts, GroupDigest, GroupMembership, GroupOutput, HashScratch, StreamingReduction,
     ValueHash,
 };
+use crate::domain::set_rows::types::Occurrence;
 use ryo_relations::domain::relations::types::{CellKind, Value};
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, FlagState},
@@ -81,7 +82,7 @@ pub(crate) fn count_groups(
         } else {
             run.len()
         };
-        groups.push(first, RowCount(counted), 0);
+        groups.push(first, RowCount(counted), GroupDigest(0));
     }
     groups.sort_first();
     Ok(())
@@ -118,7 +119,11 @@ pub(crate) fn digest_groups(
         for hash in hashes.iter() {
             folded.write_u64(*hash);
         }
-        groups.push(first, RowCount(hashes.len()), folded.finish().cast_signed());
+        groups.push(
+            first,
+            RowCount(hashes.len()),
+            GroupDigest(folded.finish().cast_signed()),
+        );
     }
     groups.sort_first();
     Ok(())
@@ -129,7 +134,7 @@ pub(crate) fn hash_of(datum: DigestDatum<'_>) -> ValueHash {
         DigestDatum::Unlocated => {
             hasher.write(ryo_relations::domain::relations::constants::UNLOCATED.as_bytes())
         }
-        DigestDatum::Text(text) => hasher.write(text.as_bytes()),
+        DigestDatum::Text(text) => hasher.write(text.0.as_bytes()),
         DigestDatum::Number(number) => hasher.write_i64(number.0),
         DigestDatum::Flag(flag) => hasher.write_u8(u8::from(flag == FlagState::Raised)),
         DigestDatum::Numbers(numbers) => {
@@ -184,18 +189,18 @@ pub(crate) fn push(
     match program {
         AggregationPlan::Count { distinct, .. } => {
             let counted = match distinct {
-                None => true,
+                None => Occurrence::First,
                 Some(column) => driver.insert_value(group, cell(row, column)?),
             };
-            if counted {
-                *driver.count(group).ok_or(Fault::ShapeMismatch)? += 1;
+            if counted == Occurrence::First {
+                driver.count(group).ok_or(Fault::ShapeMismatch)?.0 += 1;
             }
         }
         AggregationPlan::Digest { over, .. } => {
             let hash = hash_of(driver.datum(cell(row, over)?));
             driver.append_hash(AggregationHash {
-                group: u32::try_from(group.0).unwrap_or(u32::MAX),
-                hash: hash.0,
+                group: GroupCoordinate(u32::try_from(group.0).unwrap_or(u32::MAX)),
+                hash,
             });
         }
     }
@@ -211,7 +216,7 @@ pub(crate) fn finish(
     groups.clear();
     if finishing == Finishing::Counted {
         for (group, count) in counts.iter().copied().enumerate() {
-            groups.push(RowIndex(group), RowCount(count), 0);
+            groups.push(RowIndex(group), RowCount(count), GroupDigest(0));
         }
     } else {
         hashes.sort_unstable();
@@ -221,16 +226,16 @@ pub(crate) fn finish(
             let mut hasher = rustc_hash::FxHasher::default();
             let mut counted = 0;
             while let Some(each) = hashes.get(at)
-                && usize::try_from(each.group).unwrap_or(usize::MAX) == group
+                && usize::try_from(each.group.0).unwrap_or(usize::MAX) == group
             {
-                hasher.write_u64(each.hash);
+                hasher.write_u64(each.hash.0);
                 counted += 1;
                 at += 1;
             }
             groups.push(
                 RowIndex(group),
                 RowCount(counted),
-                hasher.finish().cast_signed(),
+                GroupDigest(hasher.finish().cast_signed()),
             );
         }
     }

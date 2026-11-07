@@ -11,7 +11,7 @@ use ryo_operators::domain::ordered_existence::types::PartitionExtremum;
 use ryo_relations::domain::relations::types::{Integer, Value};
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, Side},
-    rows::types::RowIndex,
+    rows::types::{RowCount, RowIndex},
 };
 
 struct Driver<'a, 'c> {
@@ -24,28 +24,28 @@ struct Driver<'a, 'c> {
     work: &'a crate::domain::operator::contract::types::WorkCounters,
 }
 impl OrderedExistenceDriver for Driver<'_, '_> {
-    fn len(&self) -> usize {
-        self.rows.count()
+    fn len(&self) -> RowCount {
+        RowCount(self.rows.count())
     }
-    fn key_cell(&mut self, row: usize, column: ColumnIndex) -> Result<Value, EqualityJoinError> {
+    fn key_cell(&mut self, row: RowIndex, column: ColumnIndex) -> Result<Value, EqualityJoinError> {
         let rows = self.rows;
         self.failure
             .run(|| {
-                rows.cell(RowIndex(row), column)
+                rows.cell(row, column)
                     .ok_or(OperatingError::ShapeMismatch)
             })
             .map_err(|_| EqualityJoinError::Interrupted)
     }
-    fn number(&mut self, row: usize, column: ColumnIndex) -> Result<Integer, EqualityJoinError> {
+    fn number(&mut self, row: RowIndex, column: ColumnIndex) -> Result<Integer, EqualityJoinError> {
         let rows = self.rows;
         self.failure
-            .run(|| match rows.cell(RowIndex(row), column) {
+            .run(|| match rows.cell(row, column) {
                 Some(Value::Number(value)) => Ok(value),
                 _ => Err(OperatingError::ShapeMismatch),
             })
             .map_err(|_| EqualityJoinError::Interrupted)
     }
-    fn emit_dominated(&mut self, row: usize, witness: usize) -> Result<(), EqualityJoinError> {
+    fn emit_dominated(&mut self, row: RowIndex, witness: RowIndex) -> Result<(), EqualityJoinError> {
         self.work.found(0, 1);
         let rows = self.rows;
         let logical = &mut self.row;
@@ -64,7 +64,7 @@ impl OrderedExistenceDriver for Driver<'_, '_> {
                         witness
                     };
                     logical.push(
-                        rows.cell(RowIndex(at), column.column)
+                        rows.cell(at, column.column)
                             .ok_or(OperatingError::ShapeMismatch)?,
                     );
                 }

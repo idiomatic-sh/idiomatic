@@ -29,7 +29,7 @@ use crate::domain::{
 use ryo_derived::domain::contract::types::RawOrder;
 use ryo_language::domain::elements::service::children;
 use ryo_language::domain::names::service::name_count;
-use ryo_operators::domain::equality_join::types::JoinInput;
+use ryo_operators::domain::equality_join::types::{Advance, JoinInput, PositionSlots, PositionTarget};
 use ryo_operators::domain::equality_join::errors::EqualityJoinError;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_operators::domain::equality_join::types::PositionJoinDriver;
@@ -49,21 +49,21 @@ struct StepMatches<'a> {
     counts: &'a WorkCounters,
 }
 impl PositionJoinDriver for StepMatches<'_> {
-    fn next(&mut self) -> Result<bool, EqualityJoinError> {
+    fn next(&mut self) -> Result<Advance, EqualityJoinError> {
         while self.place.0 < self.end.0 {
             let place = self.place;
             self.place.0 += 1;
             if let Some(right) = self.order.rows().get(place.0) {
                 self.current = Some(RowIndex(*right));
                 self.counts.found(1, 1);
-                return Ok(true);
+                return Ok(Advance::Admitted);
             }
         }
         self.current = None;
-        Ok(false)
+        Ok(Advance::Exhausted)
     }
-    fn right_positions(&self) -> &[u32] {
-        self.current.map_or(&[], |at| row(self.right, at).0)
+    fn right_positions(&self) -> PositionSlots<'_> {
+        PositionSlots(self.current.map_or(&[], |at| row(self.right, at).0))
     }
 }
 
@@ -89,13 +89,13 @@ struct TreeMatch<'a, 't, 'c, 'f> {
     counts: &'a WorkCounters,
 }
 impl PositionJoinDriver for TreeMatch<'_, '_, '_, '_> {
-    fn next(&mut self) -> Result<bool, EqualityJoinError> {
+    fn next(&mut self) -> Result<Advance, EqualityJoinError> {
         if self.error.is_some() {
             return Err(EqualityJoinError::Interrupted);
         }
         self.ready = TreeAdmission::Unchecked;
         if matches!(self.pending, TreeCandidate::Exhausted) {
-            return Ok(false);
+            return Ok(Advance::Exhausted);
         }
         self.pending = TreeCandidate::Exhausted;
         self.counts.found(1, 1);
@@ -106,7 +106,7 @@ impl PositionJoinDriver for TreeMatch<'_, '_, '_, '_> {
                 } else {
                     TreeAdmission::Unchecked
                 };
-                Ok(matches!(self.ready, TreeAdmission::Admitted))
+                Ok(Advance::from(matches!(self.ready, TreeAdmission::Admitted)))
             }
             Err(error) => {
                 self.error = Some(error);
@@ -114,12 +114,14 @@ impl PositionJoinDriver for TreeMatch<'_, '_, '_, '_> {
             }
         }
     }
-    fn right_positions(&self) -> &[u32] {
-        if matches!(self.ready, TreeAdmission::Admitted) && self.error.is_none() {
-            self.hit.0
-        } else {
-            &[]
-        }
+    fn right_positions(&self) -> PositionSlots<'_> {
+        PositionSlots(
+            if matches!(self.ready, TreeAdmission::Admitted) && self.error.is_none() {
+                self.hit.0
+            } else {
+                &[]
+            },
+        )
     }
 }
 
@@ -135,7 +137,7 @@ struct EdgeMatches<'a, 't, 'c> {
     counts: &'a WorkCounters,
 }
 impl PositionJoinDriver for EdgeMatches<'_, '_, '_> {
-    fn next(&mut self) -> Result<bool, EqualityJoinError> {
+    fn next(&mut self) -> Result<Advance, EqualityJoinError> {
         if self.error.is_some() {
             return Err(EqualityJoinError::Interrupted);
         }
@@ -146,7 +148,7 @@ impl PositionJoinDriver for EdgeMatches<'_, '_, '_> {
             self.counts.found(1, 1);
             if self.filter.is_empty() {
                 self.current = Some(at);
-                return Ok(true);
+                return Ok(Advance::Admitted);
             }
             self.cells.clear();
             for field in EDGE {
@@ -157,7 +159,7 @@ impl PositionJoinDriver for EdgeMatches<'_, '_, '_> {
             match holds_all(self.filter, self.cells, &kinds, names, self.context) {
                 Ok(Verdict::Holds) => {
                     self.current = Some(at);
-                    return Ok(true);
+                    return Ok(Advance::Admitted);
                 }
                 Ok(Verdict::Fails) => {}
                 Err(error) => {
@@ -166,15 +168,17 @@ impl PositionJoinDriver for EdgeMatches<'_, '_, '_> {
                 }
             }
         }
-        Ok(false)
+        Ok(Advance::Exhausted)
     }
-    fn right_positions(&self) -> &[u32] {
+    fn right_positions(&self) -> PositionSlots<'_> {
         if self.error.is_some() {
-            return &[];
+            return PositionSlots(&[]);
         }
-        self.current
-            .and_then(|at| self.found.0.get(at.0..at.0 + 1))
-            .unwrap_or(&[])
+        PositionSlots(
+            self.current
+                .and_then(|at| self.found.0.get(at.0..at.0 + 1))
+                .unwrap_or(&[]),
+        )
     }
 }
 
@@ -239,9 +243,9 @@ pub(super) fn join(
                 join_result(
                     semantics.operators(OperatorCall::EqualityJoin {
                         input: JoinInput::Positions {
-                            left: each.0,
+                            left: PositionSlots(each.0),
                             driver: &mut driver,
-                            target: &mut slots.0,
+                            target: PositionTarget(&mut slots.0),
                         },
                     }),
                     None,
@@ -276,9 +280,9 @@ pub(super) fn join(
                 if let Err(error) = join_result(
                     semantics.operators(OperatorCall::EqualityJoin {
                         input: JoinInput::Positions {
-                            left: each.0,
+                            left: PositionSlots(each.0),
                             driver: &mut driver,
-                            target: &mut slots.0,
+                            target: PositionTarget(&mut slots.0),
                         },
                     }),
                     driver.error.take(),
@@ -324,9 +328,9 @@ pub(super) fn join(
                 join_result(
                     semantics.operators(OperatorCall::EqualityJoin {
                         input: JoinInput::Positions {
-                            left: each.0,
+                            left: PositionSlots(each.0),
                             driver: &mut driver,
-                            target: &mut slots.0,
+                            target: PositionTarget(&mut slots.0),
                         },
                     }),
                     driver.error.take(),

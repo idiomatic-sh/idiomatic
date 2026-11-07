@@ -94,7 +94,7 @@ pub(crate) fn authorize(
         OperatorCall::Words { .. } => (WORDS, matches!(operation, Operation::Words { .. })),
         OperatorCall::Capture { pattern, .. } => (
             CAPTURE,
-            matches!(operation, Operation::Capture { pattern: expected, .. } if *pattern == expected.0.as_ref()),
+            matches!(operation, Operation::Capture { pattern: expected, .. } if pattern.0 == expected.0.as_ref()),
         ),
         OperatorCall::Rank { layers, .. } => (
             RANK,
@@ -109,7 +109,7 @@ pub(crate) fn authorize(
             regex, replacement, ..
         } => (
             REPLACE,
-            matches!(operation, Operation::Replace { replacement: expected, .. } if *replacement == expected.0.as_ref())
+            matches!(operation, Operation::Replace { replacement: expected, .. } if replacement.0 == expected.0.as_ref())
                 && binding.regex_identity == Some(*regex as *const _ as usize),
         ),
         OperatorCall::Aggregate { keys, digest, .. } => (
@@ -130,7 +130,7 @@ pub(crate) fn authorize(
         ),
         OperatorCall::SourceMatches { input, .. } => (
             SOURCE_MATCHES,
-            matches!(operation, Operation::SourceMatches { capture, capture_text, capture_line, .. } if input.capture == capture.as_ref().map(|name| name.0.as_ref()) && (input.capture_text == (*capture_text == ryo_values::domain::query_operators::types::TextOutput::Appended)) && (input.capture_line == (*capture_line == ryo_values::domain::query_operators::types::LineOutput::Appended)))
+            matches!(operation, Operation::SourceMatches { capture, capture_text, capture_line, .. } if input.capture == capture.as_ref().map_or(ryo_operators::domain::source_matches::types::CaptureRequest::Whole, |name| ryo_operators::domain::source_matches::types::CaptureRequest::Group(ryo_values::domain::row_texts::types::CellText(name.0.as_ref()))) && input.capture_text == *capture_text && input.capture_line == *capture_line)
                 && binding.regex_identity == Some(input.regex as *const _ as usize),
         ),
         OperatorCall::ReduceCount { keys, distinct, .. } => (
@@ -148,8 +148,8 @@ pub(crate) fn authorize(
         OperatorCall::FinishAggregation { digest, .. } => (
             REDUCTION,
             match operation {
-                Operation::GroupCount { .. } => !*digest,
-                Operation::GroupDigest { .. } => *digest,
+                Operation::GroupCount { .. } => *digest == ryo_operators::domain::reduction::types::Finishing::Counted,
+                Operation::GroupDigest { .. } => *digest == ryo_operators::domain::reduction::types::Finishing::Digested,
                 _ => false,
             },
         ),

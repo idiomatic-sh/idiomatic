@@ -12,7 +12,7 @@ pub(crate) fn split(
     for character in text.0.chars() {
         if !character.is_alphanumeric() {
             if !word.is_empty() {
-                each.word(word.as_str());
+                each.word(CellText(word.as_str()));
                 word.clear();
             }
             before = None;
@@ -22,14 +22,14 @@ pub(crate) fn split(
             && before.is_some_and(|previous| previous.is_lowercase() || previous.is_ascii_digit())
             && !word.is_empty()
         {
-            each.word(word.as_str());
+            each.word(CellText(word.as_str()));
             word.clear();
         }
         word.extend(character.to_lowercase());
         before = Some(character);
     }
     if !word.is_empty() {
-        each.word(word.as_str());
+        each.word(CellText(word.as_str()));
         word.clear();
     }
 }

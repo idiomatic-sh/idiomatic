@@ -1,8 +1,11 @@
 //! Physical occurrence span, capture and line semantics over one borrowed checked interval.
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::source_matches::types::{
-    CarriageReturn, LineBytes, LineCursor, SourceBase, SourceMatchesInput, TextRowDriver,
+    BaseLine, CaptureRequest, CarriageReturn, LineBytes, LineCursor, SourceBase,
+    SourceMatchesInput, TextRowDriver,
 };
+use ryo_values::domain::query_operators::types::{LineOutput, TextOutput};
+use ryo_values::domain::row_texts::types::CellText;
 use ryo_relations::domain::relations::types::{Integer, Offset, Span, Value};
 use std::ops::ControlFlow;
 fn advance_line(
@@ -71,9 +74,14 @@ pub(crate) fn occurrences(
         capture_text,
         capture_line,
     } = input;
-    let base = SourceBase(base);
-    let mut line = line.map(Integer);
-    if (capture_text || capture_line) && capture.is_none() {
+    let (source, text) = (source.0, text.0);
+    let capture_text = capture_text == TextOutput::Appended;
+    let capture_line = capture_line == LineOutput::Appended;
+    let mut line = match line {
+        BaseLine::Unnumbered => None,
+        BaseLine::Starts(first) => Some(first),
+    };
+    if (capture_text || capture_line) && capture == CaptureRequest::Whole {
         return Err(PortableOperatorFault::WrongOperation);
     }
     if capture_line && line.is_none() {
@@ -154,7 +162,7 @@ pub(crate) fn occurrences(
                 // Query execution follows provider fact reading. A fresh source-backed
                 // symbol would move `sources` past existing derived provider names
                 // (including comments), corrupting their text resolution.
-                joined.push(driver.intern(captured_text));
+                joined.push(driver.intern(CellText(captured_text)));
             }
             if capture_line {
                 joined.push(Value::Number(

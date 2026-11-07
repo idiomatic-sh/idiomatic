@@ -9,6 +9,7 @@ use ryo_operators::domain::set_rows::types::SetInput;
 use ryo_operators::domain::set_rows::errors::SetRowsError;
 use ryo_operators::domain::set_rows::types::SetKind;
 use ryo_operators::domain::set_rows::types::SetRowDriver;
+use ryo_operators::domain::set_rows::types::{Membership, Occurrence, Population};
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
@@ -19,7 +20,7 @@ struct EngineRows<'a, 'b> {
 }
 
 impl SetRowDriver for EngineRows<'_, '_> {
-    fn right_empty(&mut self) -> Result<bool, SetRowsError> {
+    fn right_empty(&mut self) -> Result<Population, SetRowsError> {
         self.failure
             .run(|| {
                 let index = self
@@ -28,12 +29,12 @@ impl SetRowDriver for EngineRows<'_, '_> {
                     .resources
                     .index()
                     .ok_or(OperatingError::WrongBinding)?;
-                Ok(index.rows.count() == 0)
+                Ok(Population::from(index.rows.count() == 0))
             })
             .map_err(|()| SetRowsError::Interrupted)
     }
 
-    fn contains_right(&mut self, key: &[Value]) -> Result<bool, SetRowsError> {
+    fn contains_right(&mut self, key: &[Value]) -> Result<Membership, SetRowsError> {
         self.failure
             .run(|| {
                 let index = self
@@ -42,16 +43,18 @@ impl SetRowDriver for EngineRows<'_, '_> {
                     .resources
                     .index()
                     .ok_or(OperatingError::WrongBinding)?;
-                Ok(index.contains(key))
+                Ok(Membership::from(index.contains(key)))
             })
             .map_err(|()| SetRowsError::Interrupted)
     }
 
-    fn first_time(&mut self, row: &[Value]) -> Result<bool, SetRowsError> {
+    fn first_time(&mut self, row: &[Value]) -> Result<Occurrence, SetRowsError> {
         self.failure
             .run(|| {
                 let state = self.lease.distinct()?;
-                Ok(first_time(&mut state.rows, &mut state.seen, row) == Addition::Added)
+                Ok(Occurrence::from(
+                    first_time(&mut state.rows, &mut state.seen, row) == Addition::Added,
+                ))
             })
             .map_err(|()| SetRowsError::Interrupted)
     }

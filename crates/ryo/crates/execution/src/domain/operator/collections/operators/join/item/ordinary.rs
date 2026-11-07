@@ -13,7 +13,7 @@ use crate::domain::tree_join::{
     service::driver::tree_value,
 };
 use ryo_derived::domain::contract::types::Finding;
-use ryo_operators::domain::equality_join::types::JoinDriver;
+use ryo_operators::domain::equality_join::types::{Advance, JoinDriver};
 use ryo_operators::domain::equality_join::errors::EqualityJoinError;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_relations::domain::relations::types::{Position, Value};
@@ -97,11 +97,11 @@ impl Driver<'_, '_> {
     }
 }
 impl JoinDriver for Driver<'_, '_> {
-    fn next(&mut self, key: &[Value]) -> Result<bool, EqualityJoinError> {
+    fn next(&mut self, key: &[Value]) -> Result<Advance, EqualityJoinError> {
         if self.error.is_some() {
             return Err(EqualityJoinError::Interrupted);
         }
-        self.advance(key).map_err(|error| {
+        self.advance(key).map(Advance::from).map_err(|error| {
             self.error = Some(error);
             EqualityJoinError::Interrupted
         })

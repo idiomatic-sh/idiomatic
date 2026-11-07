@@ -13,7 +13,7 @@ use crate::domain::table_scratch::types::ElementIndex;
 use crate::domain::text_gate::service::text_admitted;
 use crate::domain::tree_join::types::TreeState;
 use ryo_language::domain::elements::service::{field_name_at, kind_at, parent_at, text_at};
-use ryo_operators::domain::equality_join::types::JoinDriver;
+use ryo_operators::domain::equality_join::types::{Advance, JoinDriver};
 use ryo_operators::domain::equality_join::errors::EqualityJoinError;
 use ryo_relations::domain::relations::service::node_id;
 use ryo_relations::domain::relations::types::{Flag, Position, Value};
@@ -102,11 +102,11 @@ impl Driver<'_, '_, '_> {
     }
 }
 impl JoinDriver for Driver<'_, '_, '_> {
-    fn next(&mut self, _key: &[Value]) -> Result<bool, EqualityJoinError> {
+    fn next(&mut self, _key: &[Value]) -> Result<Advance, EqualityJoinError> {
         if self.error.is_some() {
             return Err(EqualityJoinError::Interrupted);
         }
-        self.advance().map_err(|error| {
+        self.advance().map(Advance::from).map_err(|error| {
             self.error = Some(error);
             EqualityJoinError::Interrupted
         })

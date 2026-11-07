@@ -3,17 +3,11 @@ use super::interface::OperatorsUseCase;
 use std::sync::Arc;
 use crate::outbound::matching::interface::MatchingPort;
 use ryo_matching::inbound::use_cases::matching::types::{GroupName, SearchText};
-use crate::domain::capture::types::{CaptureSlots, SlotPattern, SlotSubject};
-use crate::domain::equality_join::types::{PositionSlots, PositionTarget};
 use crate::domain::project::service;
-use crate::domain::reduction::types::{Finishing, GroupCounts, HashScratch};
-use crate::domain::replace::types::{ReplacedText, ReplacementText};
-use crate::domain::select::types::{PredicateOutcome, RowSelection};
-use crate::domain::words::types::WordScratch;
+use crate::domain::source_matches::types::CaptureRequest;
 use crate::inbound::use_cases::operators::types::OperatorAnswer;
 use crate::inbound::use_cases::operators::types::OperatorCall;
 use crate::domain::contract::types::PortableOperatorFault;
-use ryo_relations::domain::relations::types::{Count, Integer};
 use ryo_values::domain::row_texts::types::CellText;
 
 /// Capability implementation over the matching port; the edge composes it once.
@@ -69,14 +63,14 @@ impl OperatorsUseCase for OperatorsUseCaseImpl {
                     keys,
                     over,
                     order,
-                    HashScratch(hashes),
+                    hashes,
                     hasher,
                     target,
                 )?;
                 Ok(OperatorAnswer::Written)
             }
             OperatorCall::HashValue { datum } => Ok(OperatorAnswer::ValueHash(
-                crate::domain::reduction::service::hash_of(datum).0,
+                crate::domain::reduction::service::hash_of(datum),
             )),
             OperatorCall::CheckAggregation {
                 program,
@@ -102,16 +96,7 @@ impl OperatorsUseCase for OperatorsUseCaseImpl {
                 digest,
                 target,
             } => {
-                crate::domain::reduction::service::finish(
-                    GroupCounts(counts),
-                    hashes,
-                    if digest {
-                        Finishing::Digested
-                    } else {
-                        Finishing::Counted
-                    },
-                    target,
-                );
+                crate::domain::reduction::service::finish(counts, hashes, digest, target);
                 Ok(OperatorAnswer::Written)
             }
 
@@ -123,16 +108,12 @@ impl OperatorsUseCase for OperatorsUseCaseImpl {
             } => crate::domain::select::service::select(
                 row,
                 kept,
-                if holds {
-                    PredicateOutcome::Holds
-                } else {
-                    PredicateOutcome::Fails
-                },
+                holds,
                 target,
             )
-            .map(|selection| OperatorAnswer::Selected(selection == RowSelection::Kept)),
+            .map(OperatorAnswer::Selected),
             OperatorCall::Words { text, word, each } => {
-                crate::domain::words::service::split(CellText(text), WordScratch(word), each);
+                crate::domain::words::service::split(text, word, each);
                 Ok(OperatorAnswer::Written)
             }
             OperatorCall::Capture {
@@ -142,16 +123,12 @@ impl OperatorsUseCase for OperatorsUseCaseImpl {
                 each,
             } => {
                 crate::domain::capture::service::matches(
-                    SlotPattern(pattern),
-                    SlotSubject(text),
-                    SlotSubject(text),
-                    CaptureSlots(slots),
-                    each,
+                    pattern, text, text, slots, each,
                 );
                 Ok(OperatorAnswer::Written)
             }
             OperatorCall::Rank { text, layers } => Ok(OperatorAnswer::Rank(
-                crate::domain::rank::service::rank(CellText(text), layers),
+                crate::domain::rank::service::rank(text, layers),
             )),
             OperatorCall::Replace {
                 regex,
@@ -162,11 +139,11 @@ impl OperatorsUseCase for OperatorsUseCaseImpl {
                 crate::domain::replace::service::replace_compiled(
                     &|each| {
                         self.matching
-                            .visit_regex_matches(regex, SearchText(text), &mut |found| each(found.0))
+                            .visit_regex_matches(regex, SearchText(text.0), &mut |found| each(found.0))
                     },
-                    CellText(text),
-                    ReplacementText(replacement),
-                    ReplacedText(target),
+                    text,
+                    replacement,
+                    target,
                 )?;
                 Ok(OperatorAnswer::Written)
             }
@@ -180,8 +157,8 @@ impl OperatorsUseCase for OperatorsUseCaseImpl {
                 crate::domain::aggregate::service::aggregate(
                     row,
                     keys,
-                    Count(count),
-                    digest.map(Integer),
+                    count,
+                    digest,
                     target,
                 )?;
                 Ok(OperatorAnswer::Written)
@@ -199,22 +176,22 @@ impl OperatorsUseCase for OperatorsUseCaseImpl {
                 driver,
                 target,
             } => {
-                let (regex, text, capture) = (input.regex, input.text, input.capture);
+                let (regex, text, capture) = (input.regex, input.text.0, input.capture);
                 crate::domain::source_matches::service::occurrences(
                     input,
                     driver,
                     target,
                     &|each| match capture {
-                        Some(name) => self
+                        CaptureRequest::Group(name) => self
                             .matching
                             .visit_regex_captures(
                                 regex,
                                 SearchText(text),
-                                GroupName(name),
+                                GroupName(name.0),
                                 &mut |found, group| each(found.0, Some(group.0)),
                             )
                             .map_err(|_| PortableOperatorFault::MissingCapture),
-                        None => Ok(self.matching.visit_regex_matches(
+                        CaptureRequest::Whole => Ok(self.matching.visit_regex_matches(
                             regex,
                             SearchText(text),
                             &mut |found| each(found.0, None),
@@ -269,9 +246,9 @@ impl OperatorsUseCase for OperatorsUseCaseImpl {
                         driver,
                         target,
                     } => crate::domain::equality_join::service::positions(
-                        PositionSlots(left),
+    left,
                         driver,
-                        PositionTarget(target),
+                        target,
                     )?,
                 }
                 Ok(OperatorAnswer::Written)
@@ -308,12 +285,12 @@ impl OperatorsUseCase for OperatorsUseCaseImpl {
 }
 
 impl<F: FnMut(&str)> crate::domain::words::types::WordOutput for F {
-    fn word(&mut self, text: &str) {
-        self(text);
+    fn word(&mut self, text: CellText<'_>) {
+        self(text.0);
     }
 }
 impl<F: FnMut(&[std::ops::Range<usize>])> crate::domain::capture::types::CaptureOutput for F {
-    fn captures(&mut self, ranges: &[std::ops::Range<usize>]) {
-        self(ranges);
+    fn captures(&mut self, ranges: crate::domain::capture::types::CaptureSpans<'_>) {
+        self(ranges.0);
     }
 }

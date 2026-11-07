@@ -4,6 +4,7 @@ use crate::domain::ordered_existence::types::{
     ExtremumWitness, OrderedExistenceDriver, OrderedExistenceScratch, PartitionExtremum,
 };
 use ryo_values::domain::plan_parts::types::ColumnIndex;
+use ryo_values::domain::rows::types::RowIndex;
 
 pub(crate) fn flag(
     partition: &[ColumnIndex],
@@ -15,8 +16,8 @@ pub(crate) fn flag(
     scratch.groups.clear();
     scratch.key.clear();
     let result = (|| {
-        let rows = driver.len();
-        for row in 0..rows {
+        let rows = driver.len().0;
+        for row in (0..rows).map(RowIndex) {
             scratch.key.clear();
             for column in partition {
                 scratch.key.push(
@@ -42,7 +43,7 @@ pub(crate) fn flag(
                     .insert(scratch.key.clone(), ExtremumWitness { value, row });
             }
         }
-        for row in 0..rows {
+        for row in (0..rows).map(RowIndex) {
             scratch.key.clear();
             for column in partition {
                 scratch.key.push(
