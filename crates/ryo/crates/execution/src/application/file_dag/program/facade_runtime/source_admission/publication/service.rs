@@ -19,12 +19,11 @@ impl SourceInputs<'_, '_> {
     ) -> Result<AdmittedInput, OperatingError> {
         let actual_partition = self.execution.source_partition(root)?;
         actual_partition.require_supply(partition)?;
-        let mut read =
-            crate::application::file_dag::program::admission::contributed_proof(
-                &actual_partition,
-                inputs,
-                &self.owner,
-            )?;
+        let mut read = crate::application::file_dag::program::admission::contributed_proof(
+            &actual_partition,
+            inputs,
+            &self.owner,
+        )?;
         if let (ProducerRoot::Region(region), Representation::Computed(rows)) =
             (root, &mut representation)
             && read.observation()
