@@ -1,3 +1,5 @@
 //! Preparation never reads rows, emits errors early or chooses retention.
+pub mod service;
 
-pub(crate) mod service;
+#[cfg(test)]
+mod service_test;

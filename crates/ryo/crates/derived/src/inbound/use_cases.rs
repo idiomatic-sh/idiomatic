@@ -1,2 +1,4 @@
 //! Complete finite derived operations.
-pub mod derived;
+pub mod build;
+pub mod prepare;
+pub mod view;

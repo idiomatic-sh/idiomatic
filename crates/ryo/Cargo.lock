@@ -1388,10 +1388,14 @@ dependencies = [
 name = "idiomatic-sh-ryo-derived"
 version = "0.1.2"
 dependencies = [
+ "cargo_metadata",
+ "cucumber",
  "hashbrown 0.17.1",
+ "idiomatic-sh-ryo-derived",
  "idiomatic-sh-ryo-language",
  "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-values",
+ "tokio",
 ]
 
 [[package]]

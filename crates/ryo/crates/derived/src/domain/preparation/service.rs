@@ -1,33 +1,38 @@
 //! Preparation never reads rows, emits errors early or chooses retention.
-use crate::domain::contract::types::{DerivedFault, DerivedKind, PreparedDerived, ViewRequest};
+use crate::domain::contract::types::prepared_derived::value::PreparedDerived;
+use crate::domain::fault::types::{DerivedFault, InputSlot};
+use crate::domain::request::types::{DerivedKind, DerivedRequest};
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
-pub(crate) fn kind(request: &ViewRequest) -> DerivedKind {
+/// The kind of derived view a request asks for.
+#[must_use]
+pub fn kind(request: &DerivedRequest) -> DerivedKind {
     match request {
-        ViewRequest::Equality { .. } => DerivedKind::Equality,
-        ViewRequest::PredicateMatches { .. } => DerivedKind::PredicateMatches,
-        ViewRequest::CandidatePostings { .. } => DerivedKind::CandidatePostings,
-        ViewRequest::DistinctRepresentatives { .. } => DerivedKind::DistinctRepresentatives,
-        ViewRequest::Adjacency { .. } => DerivedKind::Adjacency,
-        ViewRequest::Membership { .. } => DerivedKind::Membership,
-        ViewRequest::PartitionOrder { .. } => DerivedKind::PartitionOrder,
-        ViewRequest::ClosureAdjacency { .. } => DerivedKind::ClosureAdjacency,
-        ViewRequest::CycleAdjacency { .. } => DerivedKind::CycleAdjacency,
-        ViewRequest::OrderedKeys { .. } => DerivedKind::OrderedKeys,
-        ViewRequest::OrderedDfs { .. } => DerivedKind::OrderedDfs,
-        ViewRequest::NativeLookup { .. } => DerivedKind::NativeLookup,
-        ViewRequest::RawKeyOrder { .. } => DerivedKind::RawKeyOrder,
+        DerivedRequest::Equality { .. } => DerivedKind::Equality,
+        DerivedRequest::PredicateMatches { .. } => DerivedKind::PredicateMatches,
+        DerivedRequest::CandidatePostings { .. } => DerivedKind::CandidatePostings,
+        DerivedRequest::DistinctRepresentatives { .. } => DerivedKind::DistinctRepresentatives,
+        DerivedRequest::Adjacency { .. } => DerivedKind::Adjacency,
+        DerivedRequest::Membership { .. } => DerivedKind::Membership,
+        DerivedRequest::PartitionOrder { .. } => DerivedKind::PartitionOrder,
+        DerivedRequest::ClosureAdjacency { .. } => DerivedKind::ClosureAdjacency,
+        DerivedRequest::CycleAdjacency { .. } => DerivedKind::CycleAdjacency,
+        DerivedRequest::OrderedKeys { .. } => DerivedKind::OrderedKeys,
+        DerivedRequest::OrderedDfs { .. } => DerivedKind::OrderedDfs,
+        DerivedRequest::NativeLookup { .. } => DerivedKind::NativeLookup,
+        DerivedRequest::RawKeyOrder { .. } => DerivedKind::RawKeyOrder,
     }
 }
 fn check(
     schemas: &[Vec<CellKind>],
-    at: usize,
+    slot: InputSlot,
     columns: &[ColumnIndex],
 ) -> Result<(), DerivedFault> {
+    let at = slot.0;
     let schema = schemas
         .get(at)
-        .ok_or(DerivedFault::MissingInput { position: at + 1 })?;
+        .ok_or(DerivedFault::MissingInput { position: InputSlot(at + 1) })?;
     for column in columns {
         if usize::try_from(column.0).map_or(true, |index| index >= schema.len()) {
             return Err(DerivedFault::NoSuchColumn { column: *column });
@@ -35,14 +40,16 @@ fn check(
     }
     Ok(())
 }
-pub(crate) fn prepare(mut request: ViewRequest, schemas: Vec<Vec<CellKind>>) -> PreparedDerived {
+/// Checks a request against the schemas of its inputs and keeps the verdict.
+#[must_use]
+pub fn prepare(mut request: DerivedRequest, schemas: Vec<Vec<CellKind>>) -> PreparedDerived {
     let metadata = (|| match &mut request {
-        ViewRequest::Equality { columns } | ViewRequest::DistinctRepresentatives { columns } => {
-            check(&schemas, 0, columns)
+        DerivedRequest::Equality { columns } | DerivedRequest::DistinctRepresentatives { columns } => {
+            check(&schemas, InputSlot(0), columns)
         }
-        ViewRequest::PredicateMatches { .. } => check(&schemas, 0, &[]),
-        ViewRequest::CandidatePostings { column, literals } => {
-            check(&schemas, 0, &[*column])?;
+        DerivedRequest::PredicateMatches { .. } => check(&schemas, InputSlot(0), &[]),
+        DerivedRequest::CandidatePostings { column, literals } => {
+            check(&schemas, InputSlot(0), &[*column])?;
             literals.sort_by(|left, right| left.0.cmp(&right.0));
             literals.dedup_by(|left, right| left.0 == right.0);
             if schemas
@@ -55,32 +62,32 @@ pub(crate) fn prepare(mut request: ViewRequest, schemas: Vec<Vec<CellKind>>) -> 
             }
             Ok(())
         }
-        ViewRequest::Membership { column } => check(&schemas, 0, &[*column]),
-        ViewRequest::Adjacency { endpoints, keys } => {
-            check(&schemas, 0, endpoints)?;
-            check(&schemas, 0, keys)
+        DerivedRequest::Membership { column } => check(&schemas, InputSlot(0), &[*column]),
+        DerivedRequest::Adjacency { endpoints, keys } => {
+            check(&schemas, InputSlot(0), endpoints)?;
+            check(&schemas, InputSlot(0), keys)
         }
-        ViewRequest::PartitionOrder { keys } => check(&schemas, 0, keys),
-        ViewRequest::ClosureAdjacency {
+        DerivedRequest::PartitionOrder { keys } => check(&schemas, InputSlot(0), keys),
+        DerivedRequest::ClosureAdjacency {
             source,
             destination,
         }
-        | ViewRequest::CycleAdjacency {
+        | DerivedRequest::CycleAdjacency {
             source,
             destination,
-        } => check(&schemas, 0, &[*source, *destination]),
-        ViewRequest::OrderedKeys {
+        } => check(&schemas, InputSlot(0), &[*source, *destination]),
+        DerivedRequest::OrderedKeys {
             left_on,
             right_on,
             left_order,
             right_order,
         } => {
-            check(&schemas, 0, left_on)?;
-            check(&schemas, 1, right_on)?;
-            check(&schemas, 0, &[*left_order])?;
-            check(&schemas, 1, &[*right_order])
+            check(&schemas, InputSlot(0), left_on)?;
+            check(&schemas, InputSlot(1), right_on)?;
+            check(&schemas, InputSlot(0), &[*left_order])?;
+            check(&schemas, InputSlot(1), &[*right_order])
         }
-        ViewRequest::OrderedDfs {
+        DerivedRequest::OrderedDfs {
             root,
             root_keys,
             source,
@@ -89,21 +96,21 @@ pub(crate) fn prepare(mut request: ViewRequest, schemas: Vec<Vec<CellKind>>) -> 
             edge,
             edge_keys,
         } => {
-            check(&schemas, 0, &[*root])?;
-            check(&schemas, 0, root_keys)?;
-            check(&schemas, 1, &[*source, *destination, *order, *edge])?;
-            check(&schemas, 1, edge_keys)
+            check(&schemas, InputSlot(0), &[*root])?;
+            check(&schemas, InputSlot(0), root_keys)?;
+            check(&schemas, InputSlot(1), &[*source, *destination, *order, *edge])?;
+            check(&schemas, InputSlot(1), edge_keys)
         }
-        ViewRequest::NativeLookup {
+        DerivedRequest::NativeLookup {
             left_on,
             right_on,
             view,
         } => {
-            check(&schemas, 0, left_on)?;
-            check(&schemas, 1, right_on)?;
-            check(&schemas, 1, view)
+            check(&schemas, InputSlot(0), left_on)?;
+            check(&schemas, InputSlot(1), right_on)?;
+            check(&schemas, InputSlot(1), view)
         }
-        ViewRequest::RawKeyOrder { .. } => Ok(()),
+        DerivedRequest::RawKeyOrder { .. } => Ok(()),
     })();
     PreparedDerived {
         request,
