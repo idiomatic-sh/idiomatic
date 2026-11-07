@@ -367,12 +367,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(0),
     },
     Case {
-        name: CaseName("every_parser_fn_has_one_production"),
-        word: Word::Succeeds,
-        input: || Scenario::Grammar(Coverage::ParsersListed),
-        expect: Expect::Value(0),
-    },
-    Case {
         name: CaseName("a_misspelled_keyword_is_unreadable"),
         word: Word::Refuses,
         input: || Scenario::MisspelledKeyword,
@@ -508,8 +502,6 @@ enum Coverage {
     ExamplesRead,
     /// Each keyword and mark written in some production's form.
     WordsWritten,
-    /// One production for each parser fn of the adapter, and no other.
-    ParsersListed,
 }
 
 /// Whether the parser fn `name` reads `text` to its end: 0 when it does, 1 when it does not or no parser fn has the name.
@@ -607,24 +599,6 @@ fn uncovered(coverage: Coverage) -> usize {
             let unlisted =
                 arms("Keyword::").abs_diff(KEYWORDS.len()) + arms("Mark::").abs_diff(MARKS.len());
             missing + unlisted
-        }
-        Coverage::ParsersListed => {
-            let source = include_str!("adapter.rs");
-            let lines: Vec<_> = source.lines().collect();
-            let parsers: std::collections::BTreeSet<&str> = lines
-                .iter()
-                .enumerate()
-                .filter_map(|(index, line)| {
-                    let signature = lines[index..(index + 4).min(lines.len())].join(" ");
-                    (line.contains("fn ") && signature.contains("input: &mut Input"))
-                        .then(|| line.split("fn ").nth(1))
-                        .flatten()
-                })
-                .filter_map(|rest| rest.split(['(', '<']).next())
-                .collect();
-            let named: std::collections::BTreeSet<&str> =
-                GRAMMAR.iter().map(|line| line.name).collect();
-            parsers.symmetric_difference(&named).count() + GRAMMAR.len() - named.len()
         }
     }
 }

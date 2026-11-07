@@ -8,11 +8,6 @@ macro_rules! owner {
         concat!("application/file_dag/derived/owner/", $path)
     };
 }
-macro_rules! file {
-    ($path:literal) => {
-        concat!("application/file_dag/", $path)
-    };
-}
 pub(super) enum Authority {
     AcquiredView,
     GraphHandle,
@@ -30,7 +25,7 @@ impl Authority {
         Authority::CachedGraph,
         Authority::DerivedAccess,
     ];
-    /// The identifier a holder's source names, and the forgery control of the authority.
+    /// The identifier the authority is named by, and its forgery control.
     pub(super) fn control(&self) -> (&'static str, &'static Negative) {
         match self {
             Authority::AcquiredView => ("AcquiredView", &c::authority::AUTHORITY_ACQUIRED),
@@ -58,26 +53,12 @@ pub(super) struct Row {
     pub(super) file: &'static str,
     pub(super) name: &'static str,
     pub(super) class: Class,
-    /// Production files outside the owner that call it, as read from source.
-    pub(super) sites: &'static [&'static str],
-    pub(super) call: &'static str,
-    pub(super) with: &'static str,
 }
-fn acquires(
-    file: &'static str,
-    name: &'static str,
-    control: &'static Acquire,
-    sites: &'static [&'static str],
-    call: &'static str,
-    with: &'static str,
-) -> Row {
+fn acquires(file: &'static str, name: &'static str, control: &'static Acquire) -> Row {
     Row {
         file,
         name,
         class: Class::Acquires(control),
-        sites,
-        call,
-        with,
     }
 }
 const ADMISSION: &str =
@@ -99,9 +80,6 @@ fn reads(
             owner_type,
             path,
         },
-        sites: &[],
-        call: "",
-        with: "",
     }
 }
 fn exempt(file: &'static str, name: &'static str, reason: &'static str) -> Row {
@@ -109,9 +87,6 @@ fn exempt(file: &'static str, name: &'static str, reason: &'static str) -> Row {
         file,
         name,
         class: Class::Exempt(reason),
-        sites: &[],
-        call: "",
-        with: "",
     }
 }
 

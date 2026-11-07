@@ -1,10 +1,6 @@
-//! Every public submission route, enumerated from its source inventory, refuses an
-//! incomplete or extra root set; per-rule metadata is reachable only through its counted accessor.
+//! Per-rule metadata is reachable only through its counted accessor, and the frontier preparation only
+//! through the request-owned cache.
 use super::fixtures::{Compilation, Expectation, Probe};
-mod controls;
-mod inventory;
-mod routes;
-mod witness;
 const PROGRAM: &str = "src/application/file_dag/program.rs";
 const REQUEST: &str = "src/inbound/use_cases/execution/use_case.rs";
 pub(super) fn controls() -> Vec<Probe> {

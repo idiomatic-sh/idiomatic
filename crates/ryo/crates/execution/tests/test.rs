@@ -177,6 +177,8 @@ mod scheduler;
 
 mod source_boundary;
 
+mod submission;
+
 mod file_run;
 
 mod compiled_rules;

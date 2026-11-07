@@ -1,3 +1,3 @@
-//! Every public trait of the submission surface is an entry with a control, or is named with its reason.
+//! Each entry trait method has its own variant and refusal control, and only the frontiers module builds prepared frontiers.
 #[cfg(test)]
 pub(super) mod test;

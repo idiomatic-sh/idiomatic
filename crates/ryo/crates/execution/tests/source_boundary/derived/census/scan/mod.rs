@@ -31,14 +31,6 @@ pub(super) fn relative(src: &Path, path: &Path) -> String {
         .to_string_lossy()
         .replace('\\', "/")
 }
-/// Whether `line` names `word` as a whole identifier (`DerivedPort`, not `DerivedPortFoo`).
-pub(super) fn names_word(line: &str, word: &str) -> bool {
-    line.match_indices(word).any(|(at, _)| {
-        let identifier = |c: char| c.is_alphanumeric() || c == '_';
-        !line[..at].chars().next_back().is_some_and(identifier)
-            && !line[at + word.len()..].chars().next().is_some_and(identifier)
-    })
-}
 fn is_test_gate(line: &str) -> bool {
     line.contains("cfg(test)") || line.contains("cfg(any(test")
 }
@@ -143,23 +135,6 @@ pub(super) fn owner_surface(src: &Path, production: &[String]) -> BTreeSet<(Stri
         }
     }
     found
-}
-/// Production files outside the owner that contain `call` and, when given, `with`.
-pub(super) fn callers(
-    src: &Path,
-    production: &[String],
-    call: &str,
-    with: &str,
-) -> BTreeSet<String> {
-    production
-        .iter()
-        .filter(|file| *file != OWNER_FILE && !file.starts_with(&format!("{OWNER_TREE}/")))
-        .filter(|file| {
-            let text = fs::read_to_string(src.join(file)).unwrap();
-            text.contains(call) && text.contains(with)
-        })
-        .cloned()
-        .collect()
 }
 /// The pubs with an existing `fn <name>` in `file`.
 pub(super) fn declares(src: &Path, file: &str, name: &str) -> bool {

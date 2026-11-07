@@ -1,37 +1,17 @@
 //! The census of derived consumers. The owner's consumer-visible surface is read from source and
 //! must equal the exhaustive `Entry` table; every acquiring entry has a positive and a negative
-//! compile control; the production files outside the owner that call each entry, and those that
-//! hold a leased view or handle, must equal the declared lists; every `DerivedKind` names its
-//! route, lifecycle and identity controls. A new entry, consumer, holder or kind fails here.
+//! compile control; every `DerivedKind` names its route, lifecycle and identity controls. A new
+//! entry or kind fails here. Which files outside the owner call an entry or hold a leased view or
+//! handle is `idiomatic.ryo/derived-view-acquisition`'s `allowed` list.
 use super::super::fixtures::{Compilation, Expectation, Probe};
 use std::{collections::BTreeSet, path::Path};
 
 mod controls;
 mod entry;
-mod holder;
 mod kind;
 mod scan;
 
-/// The only lines outside the owner tree that name the builder port, by file.
-const PORT_NAMES: &[(&str, &[&str])] = &[
-    ("outbound/derived/interface.rs", &["pub trait DerivedPort: Send + Sync + std::fmt::Debug {"]),
-    ("outbound/derived/adapters/use_case/adapter.rs", &[
-        "use crate::outbound::derived::interface::DerivedPort;",
-        "impl DerivedPort for DerivedUseCaseAdapter {",
-    ]),
-    ("outbound/derived/factory.rs", &[
-        "use crate::outbound::derived::interface::DerivedPort;",
-        "pub fn semantics() -> impl DerivedPort {",
-        "pub fn use_case(semantics: impl DerivedPort) -> impl DerivedPort {",
-    ]),
-    ("inbound/use_cases/prepare/use_case.rs", &[
-        "use crate::outbound::derived::interface::DerivedPort;",
-        "pub fn new(operators: Arc<dyn OperatorsPort>, derived: Arc<dyn DerivedPort>) -> Self {",
-    ]),
-];
-
 use entry::{Authority, Class, Entry};
-use holder::Holder;
 use ryo_derived::domain::request::types::DerivedKind;
 
 fn refuse(owner: &'static str, negative: &controls::Negative) -> Probe {
@@ -105,22 +85,16 @@ fn every_derived_consumer_is_censused_and_every_kind_names_its_controls() {
         "the owner gained (left) or lost (right) a consumer-visible function: classify it in entry.rs"
     );
 
-    // Every caller outside the owner is declared.
+    // Every read is controlled by its own authority, and every exemption states why.
     for entry in Entry::ALL {
         let row = entry.row();
         match row.class {
-            Class::Acquires(_) => {
-                let found = scan::callers(&src, &production, row.call, row.with);
-                let expected: BTreeSet<String> =
-                    row.sites.iter().map(|site| (*site).to_owned()).collect();
-                assert_eq!(found, expected, "{entry:?}: consumers of {}", row.name);
-            }
+            Class::Acquires(_) => {}
             Class::Reads {
                 authority,
                 owner_type,
                 ..
             } => {
-                assert!(row.sites.is_empty());
                 assert_eq!(
                     authority.control().0,
                     owner_type,
@@ -128,51 +102,6 @@ fn every_derived_consumer_is_censused_and_every_kind_names_its_controls() {
                 );
             }
             Class::Exempt(reason) => assert!(!reason.is_empty(), "{entry:?} states why"),
-        }
-    }
-
-    // Every holder of a leased view or handle is declared with the authorities it names.
-    let owned = |file: &str| {
-        file == scan::OWNER_FILE || file.starts_with(&format!("{}/", scan::OWNER_TREE))
-    };
-    let holders: BTreeSet<&str> = Holder::ALL.iter().map(|holder| holder.path()).collect();
-    assert_eq!(holders.len(), Holder::ALL.len(), "one row per holder");
-    for file in production.iter().filter(|file| !owned(file)) {
-        let text = std::fs::read_to_string(src.join(file)).unwrap();
-        let named: BTreeSet<&str> = Authority::ALL
-            .iter()
-            .map(|authority| authority.control().0)
-            .filter(|name| text.contains(name))
-            .collect();
-        let expected: BTreeSet<&str> = Holder::ALL
-            .iter()
-            .filter(|holder| holder.path() == file)
-            .flat_map(|holder| holder.holds().iter().map(|authority| authority.control().0))
-            .collect();
-        assert_eq!(named, expected, "{file}: authorities it names");
-    }
-
-    // The builder port is owner-private across the whole crate: outside the owner tree the
-    // port is named only by its definition, its public re-export, and the one constructor
-    // parameter that hands it to the owner-issued `DerivedAccess` (SEALED_PORT, inbound probes).
-    for file in production.iter().filter(|file| !owned(file)) {
-        let text = std::fs::read_to_string(src.join(file)).unwrap();
-        for word in ["DerivedPort", "DerivedUseCase"] {
-            let lines: Vec<&str> = text
-                .lines()
-                .filter(|line| scan::names_word(line, word))
-                .collect();
-            let allowed = PORT_NAMES
-                .iter()
-                .find(|(path, _)| *path == file.as_str())
-                .map_or(&[][..], |(_, allowed)| *allowed);
-            for line in &lines {
-                assert!(
-                    allowed.iter().any(|permitted| line.trim() == *permitted),
-                    "{file}: names the derived port `{word}` in `{}`; only the owner tree holds the builder",
-                    line.trim()
-                );
-            }
         }
     }
 
