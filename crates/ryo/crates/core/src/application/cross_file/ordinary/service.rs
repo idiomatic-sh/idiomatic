@@ -1,5 +1,6 @@
 //! The ordinary project phase: the shared stage opened once, each declared rule's scope and frontiers prepared within the budget,
 //! the sealed batch evaluated and completed, and the stage released.
+use ryo_execution::application::file_dag::program::project_phase::interface::ProjectStage as _;
 use super::super::constants::{CROSS_RULE_MEMORY, MISSING_FRONTIER_BUCKET};
 use ryo_values::domain::table_words::constants::LIFECYCLE_TARGET;
 use super::super::errors::CrossFileError;
@@ -12,7 +13,6 @@ use crate::domain::budget::service::within;
 use crate::outbound::memory::interface::MemoryPort;
 use ryo_execution::application::file_dag::frontiers::errors::PreparationError;
 use ryo_execution::application::file_dag::frontiers::types::PublicationSlot;
-use ryo_execution::application::file_dag::program::project_phase::interface::ProjectStage;
 use ryo_execution::application::file_dag::program::project_phase::types::{
     FrontierDemand, FrontierRequest,
 };

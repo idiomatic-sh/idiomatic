@@ -1,6 +1,7 @@
 //! The engine's compilation and execution as the use cases call them: the kernel's implementations, held here where an application
 //! service may name them, so a use case builds none.
 
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase as _;
 use super::types::KindRefused;
 use crate::outbound::language::interface::LanguagePort;
 use ryo_execution::inbound::use_cases::metadata::interface::{MetadataUseCase as _, RuleIndex};
@@ -14,7 +15,6 @@ use ryo_execution::application::rule_compilation::service::{
     CompiledPlans, CompiledQueries, ExecutionCompilation, PreparedQueries as _, QueryCompilation,
 };
 use ryo_execution::application::rule_compilation::types::PreparedRuleIdentities;
-use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::prepare::types::PrepareRequest;

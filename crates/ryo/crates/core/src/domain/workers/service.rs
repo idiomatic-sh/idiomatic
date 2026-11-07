@@ -200,3 +200,22 @@ pub(crate) fn gating_of(
         super::types::Gating::NeverGates
     }
 }
+
+/// The records the store kept, with those of `fresh` in place of the ones of the same path and among them by path: both in the order
+/// of their paths.
+#[must_use]
+pub(crate) fn with_fresh(kept: Vec<Record>, fresh: Vec<Record>) -> Vec<Record> {
+    let mut merged = Vec::with_capacity(kept.len() + fresh.len());
+    let mut fresh = fresh.into_iter().peekable();
+    for record in kept {
+        while let Some(new) = fresh.next_if(|new| new.path < record.path) {
+            merged.push(new);
+        }
+        match fresh.next_if(|new| new.path == record.path) {
+            Some(new) => merged.push(new),
+            None => merged.push(record),
+        }
+    }
+    merged.extend(fresh);
+    merged
+}

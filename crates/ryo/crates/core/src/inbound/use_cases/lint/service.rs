@@ -33,7 +33,7 @@ use crate::domain::render::types::Rendered;
 use crate::domain::reporting::service::{read_outcomes, sort_unique};
 use crate::domain::reporting::types::RowCounts;
 use crate::domain::run_rules::service::{owner_of, scopes_of};
-use crate::domain::storing::service::unknowns_from;
+use crate::domain::reporting::service::unknowns_from;
 use crate::domain::storing::types::{Decision, ReadAlone, Reused, ToKeep};
 use crate::domain::visit::service::wants;
 use crate::domain::workers::service::order;
@@ -48,7 +48,6 @@ use ryo_execution::inbound::use_cases::metadata::interface::{MetadataUseCase as 
 use ryo_execution::outbound::digest::interface::DigestPort;
 use ryo_execution::outbound::facts::interface::FactsWorker;
 use ryo_execution::outbound::matching::interface::MatchingPort;
-use ryo_language::domain::files::types::FilePath;
 use ryo_language::inbound::use_cases::project::types::ManifestFile;
 use ryo_matching::inbound::use_cases::matching::errors::MatchingError;
 use ryo_values::domain::files::types::Glob;

@@ -2,4 +2,8 @@
 //! every product's tests to call.
 
 pub mod contract;
+pub mod corpus;
 pub mod engine;
+pub mod measures;
+pub mod operators;
+pub mod runs;

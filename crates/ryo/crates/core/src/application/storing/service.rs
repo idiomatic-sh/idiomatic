@@ -9,9 +9,9 @@ use crate::domain::project::service::{project_rules, reads_project, with_consult
 use crate::domain::project::types::PlanReads;
 use crate::domain::render::types::Answering;
 use crate::domain::repository::service::{by_path, configuration};
-use crate::domain::storing::service::{
-    decide as reuse_of, made_again, records_from, skipped_from, with_fresh, with_gone,
-};
+use crate::domain::reporting::service::{skipped_from, with_gone};
+use crate::domain::storing::service::{decide as reuse_of, made_again, records_from};
+use crate::domain::workers::service::with_fresh;
 use crate::domain::storing::types::{Decision, ReadAlone, Reused};
 use crate::outbound::corpus::interface::CorpusPort;
 use crate::outbound::lint_store::interface::LintStorePort;

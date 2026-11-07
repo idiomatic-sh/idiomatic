@@ -1,32 +1,26 @@
 //! The types of the `lint` use case: plain data, public fields and derives, with no constructor and no inherent impl.
 
-use crate::application::file_analysis::types::FileVisit;
 use crate::domain::admission::errors::AdmissionError;
-use crate::domain::ordering::types::Ordered;
 use crate::domain::render::types::Answering;
 use crate::domain::visit::types::Wants;
-use crate::outbound::lint_store::interface::ReadStore;
 use ryo_execution::inbound::use_cases::metadata::interface::FeatureRows;
 use ryo_execution::inbound::use_cases::metadata::interface::Needs;
 use ryo_execution::inbound::use_cases::metadata::interface::PlacedScopes;
 use ryo_execution::inbound::use_cases::metadata::interface::Unknown;
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::inbound::use_cases::project::types::ManifestFile;
-use ryo_values::domain::files::types::{CorpusInput, Glob};
+use ryo_values::domain::files::types::Glob;
 use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::plan_parts::types::{FlagState, LiteralText, ParameterName, WholeNumber};
 use ryo_values::domain::query_tokens::types::QueryBundle;
 use ryo_values::domain::records::types::Unread;
 use ryo_values::domain::row_texts::types::RowTotal;
 use ryo_values::domain::rule_requests::types::RuleParameters;
-use ryo_values::domain::runs::types::{
-    AnswerShape, MemoryBytes, RuleApplicability, RuleId, Session, Skipped,
-};
+use ryo_values::domain::runs::types::{AnswerShape, RuleApplicability, RuleId, Session, Skipped};
 use ryo_values::domain::stored_facts::types::Bucket;
 use ryo_values::domain::stores::types::Reuse;
-use ryo_values::domain::stores::types::{BucketsWanted, ReadHanded, Stored, StoredRule};
-use std::sync::atomic::AtomicU64;
-use std::sync::{Arc, Condvar, Mutex};
+use ryo_values::domain::stores::types::{BucketsWanted, ReadHanded, StoredRule};
+use std::sync::Arc;
 
 /// Which linked provider reads the sources of a request.
 #[derive(Clone, Debug, PartialEq, Eq)]

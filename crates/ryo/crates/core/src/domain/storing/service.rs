@@ -5,14 +5,13 @@ use super::types::{Decision, ToKeep, ToStore};
 use crate::domain::handing::service::{hand_into, handed_in, rows_of_file};
 use crate::domain::keeping::service::{findings_of, rows_from};
 use crate::domain::workers::types::FileOrder;
-use ryo_execution::inbound::use_cases::metadata::interface::{Message, Unknown};
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::files::types::{CorpusEntry, CorpusInput, FileNumber, Nanoseconds};
 use ryo_values::domain::records::types::{
     FileOutcome, Freshness, Handing, Ran, Record, RuleFrontier,
 };
-use ryo_values::domain::row_texts::types::{Cell, FindingRows, PlacedRule};
-use ryo_values::domain::runs::types::{RuleId, Skipped};
+use ryo_values::domain::row_texts::types::{Cell, PlacedRule};
+use ryo_values::domain::runs::types::RuleId;
 use ryo_values::domain::stored_facts::types::{Bucket, Digest};
 use ryo_values::domain::stored_findings::types::{
     FindingMade, StoredCell, StoredFileNumber, StoredFinding, StoredUnknown, StoredUnread,
@@ -269,90 +268,6 @@ pub(crate) fn records_from(stored: &Stored, ids: &[RuleId]) -> Option<Vec<Record
             })
         })
         .collect()
-}
-
-/// The findings of the rules that read across files, as the store kept them; none when a finding's rule is not one of `ids`.
-#[must_use]
-pub(crate) fn later_from(
-    stored: &Stored,
-    ids: &[RuleId],
-    made_again: &[RuleId],
-) -> Option<FindingRows> {
-    let across: Vec<&StoredFinding> = stored
-        .findings
-        .iter()
-        .filter(|finding| {
-            finding.made == FindingMade::AcrossFiles
-                && made_again.iter().all(|rule| *rule.0 != *finding.rule.0)
-        })
-        .collect();
-    rows_from(&across, ids)
-}
-
-/// What the rules could not decide, as the store kept it, but in the files read again, whose own say now.
-#[must_use]
-pub(crate) fn unknowns_from(stored: &Stored, read_again: &[FilePath]) -> Vec<Unknown> {
-    stored
-        .unknowns
-        .iter()
-        .filter(|each| read_again.binary_search(&each.path).is_err())
-        .map(|each| Unknown {
-            rule: RuleId(each.rule.0.clone()),
-            path: each.path.clone(),
-            message: Message(each.message.0.clone()),
-        })
-        .collect()
-}
-
-/// The files read again, and with them the files the store kept that the run no longer lists: they are gone, so what the store kept
-/// of them answers nothing about this run. Sorted, once each, as `unknowns_from` and `skipped_from` search them.
-#[must_use]
-pub(crate) fn with_gone(
-    mut read_again: Vec<FilePath>,
-    stored: &Stored,
-    listed: &[&FilePath],
-) -> Vec<FilePath> {
-    let listed: std::collections::BTreeSet<&FilePath> = listed.iter().copied().collect();
-    read_again.extend(
-        stored
-            .files
-            .iter()
-            .filter(|kept| !listed.contains(&kept.path))
-            .map(|kept| kept.path.clone()),
-    );
-    read_again.sort();
-    read_again.dedup();
-    read_again
-}
-
-/// What the rules explicitly skipped, as the store kept it, but not for files read again.
-#[must_use]
-pub(crate) fn skipped_from(stored: &Stored, read_again: &[FilePath]) -> Vec<Skipped> {
-    stored
-        .skipped
-        .iter()
-        .filter(|each| read_again.binary_search(&each.path).is_err())
-        .cloned()
-        .collect()
-}
-
-/// The records the store kept, with those of `fresh` in place of the ones of the same path and among them by path: both in the order
-/// of their paths.
-#[must_use]
-pub(crate) fn with_fresh(kept: Vec<Record>, fresh: Vec<Record>) -> Vec<Record> {
-    let mut merged = Vec::with_capacity(kept.len() + fresh.len());
-    let mut fresh = fresh.into_iter().peekable();
-    for record in kept {
-        while let Some(new) = fresh.next_if(|new| new.path < record.path) {
-            merged.push(new);
-        }
-        match fresh.next_if(|new| new.path == record.path) {
-            Some(new) => merged.push(new),
-            None => merged.push(record),
-        }
-    }
-    merged.extend(fresh);
-    merged
 }
 
 /// What a run keeps in its store: its rules, a row for each file, the findings, why a file was not read, the manifests refused, what
