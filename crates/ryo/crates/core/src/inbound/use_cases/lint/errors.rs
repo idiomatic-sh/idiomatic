@@ -330,9 +330,6 @@ impl From<crate::application::cross_file::errors::CrossFileError> for LintError 
     fn from(error: crate::application::cross_file::errors::CrossFileError) -> Self {
         use crate::application::cross_file::errors::CrossFileError;
         match error {
-            CrossFileError::Preparation(error) => Self::ObservationExecution {
-                reason: error.to_string(),
-            },
             CrossFileError::Operating(error) => Self::ObservationExecution {
                 reason: error.to_string(),
             },

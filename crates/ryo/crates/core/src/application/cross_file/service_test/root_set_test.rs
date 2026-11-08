@@ -1,13 +1,12 @@
 //! A set of project roots prepares once and delivers in order.
 use super::batch_test::assert_count_findings;
 use super::batch_test::completed_batch;
-use super::batch_test::sealed_fixture_batch;
+use super::batch_test::evaluate_prepared;
 use crate::application::cross_file::fixtures::ProjectCalls;
 use crate::application::cross_file::fixtures::counting_plan;
 use crate::application::cross_file::fixtures::crossing;
 use crate::application::cross_file::fixtures::frontier_rows;
 use crate::application::cross_file::fixtures::prepared_in;
-use crate::application::cross_file::fixtures::service;
 use crate::application::cross_file::fixtures::todo;
 use crate::application::cross_file::fixtures::world_with;
 use crate::application::cross_file::fixtures::world_with_applicability;
@@ -51,10 +50,11 @@ pub(super) fn project_root_set_prepares_shared_publications_once_before_ordered_
                 id: rules.ids[rule].clone(),
             });
         }
-        let tasks = sealed_fixture_batch(&todos, scopes, frontiers);
-        let results = completed_batch(service().evaluate_batch(
+        let results = completed_batch(evaluate_prepared(
             &crossing(&rules),
-            tasks,
+            &todos,
+            scopes,
+            frontiers,
             &phase,
             &mut symbols,
             |_| Ok(()),
@@ -93,10 +93,11 @@ pub(super) fn project_root_set_prepares_shared_publications_once_before_ordered_
             again_scopes.push(scope);
             again_frontiers.push(frontier);
         }
-        let again = sealed_fixture_batch(&todos, again_scopes, again_frontiers);
-        let repeated = completed_batch(service().evaluate_batch(
+        let repeated = completed_batch(evaluate_prepared(
             &crossing(&rules),
-            again,
+            &todos,
+            again_scopes,
+            again_frontiers,
             &phase,
             &mut symbols,
             |_| Ok(()),
@@ -171,10 +172,11 @@ pub(super) fn project_root_set_preserves_distinct_actual_population_policy_in_bo
                 id: rules.ids[rule].clone(),
             });
         }
-        let tasks = sealed_fixture_batch(&todos, scopes, frontiers);
-        let results = completed_batch(service().evaluate_batch(
+        let results = completed_batch(evaluate_prepared(
             &crossing(&rules),
-            tasks,
+            &todos,
+            scopes,
+            frontiers,
             &phase,
             &mut symbols,
             |_| Ok(()),

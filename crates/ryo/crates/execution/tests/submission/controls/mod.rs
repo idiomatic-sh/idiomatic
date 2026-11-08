@@ -14,7 +14,10 @@ use crate::project_phase::negative::fixtures::{
     Entry, Held, NoFacts, foreign_phase_outcome, prepare_for, with_held,
 };
 use ryo_execution::inbound::use_cases::execution::interface::OccurrenceNumber;
-use ryo_execution::inbound::use_cases::execution::interface::OrdinaryPhase;
+use ryo_execution::inbound::use_cases::execution::interface::FrontierDemand;
+use ryo_execution::inbound::use_cases::execution::interface::PhaseOccurrence;
+use ryo_execution::inbound::use_cases::execution::interface::PhaseOccurrences;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectBatch;
 use ryo_execution::inbound::use_cases::execution::interface::Partials;
 use ryo_execution::inbound::use_cases::execution::interface::PhasePartials;
 use ryo_execution::inbound::use_cases::execution::interface::PhaseStop;
@@ -59,9 +62,9 @@ pub(super) fn control(method: Method) -> Control {
         Method::RequestRunFile => Control::Refuses(run_file_route),
         Method::RequestObservations => Control::Refuses(observations_need_a_named_program),
         Method::RequestPrepareFrontiers => Control::Refuses(frontiers_of_an_undeclared_rule),
-        Method::RequestOrdinaryPhase => Control::Refuses(ordinary_occurrence_of_an_undeclared_rule),
         Method::RequestProjectPhase => Control::Refuses(a_scope_belongs_to_its_own_phase),
         Method::RootsEvaluate => Control::Refuses(evaluate_routes),
+        Method::RootsEvaluateOccurrences => Control::Refuses(occurrence_of_an_undeclared_rule),
         Method::StageProjectScope => Control::Refuses(|| scope_of_an_undeclared_rule(Entry::Phase)),
         Method::ObservedProjectScope => {
             Control::Refuses(|| scope_of_an_undeclared_rule(Entry::Stage))
@@ -129,47 +132,62 @@ pub(super) fn frontiers_of_an_undeclared_rule() {
         },
     );
 }
-/// An ordinary phase refuses the occurrence of a rule the program did not declare, and that refusal stays with the occurrence: the
-/// declared occurrence beside it is still evaluated and completed, and the phase is released.
-pub(super) fn ordinary_occurrence_of_an_undeclared_rule() {
+/// A phase refuses the occurrence of a rule the program did not declare, and that refusal stays with the occurrence: the declared
+/// occurrences beside it, a repeated rule included, are each evaluated and completed with their slot in declaration order, and the
+/// phase is released once the call returns.
+pub(super) fn occurrence_of_an_undeclared_rule() {
     with_held(&engine(), Entry::Phase, 3, |request, _, corpus, covered| {
         let inapplicable = vec![InapplicableFiles::default(); 4];
         let project_symbols = ryo_language::domain::symbols::types::Symbols::default();
         let mut symbols = ryo_language::domain::symbols::types::Symbols::default();
-        let ran = request
-            .ordinary_phase(
-                OrdinaryPhase {
-                    occurrences: &[RuleIndex(0), RuleIndex(3)],
-                    first: &[ryo_values::domain::stored_facts::types::Bucket(0); 4],
-                    corpus,
-                    covered,
-                    skipped: &[],
-                    inapplicable: &inapplicable,
-                    facts: &NoFacts,
-                    project: &NoFacts,
-                    project_symbols: &project_symbols,
-                    arenas: &[],
-                },
-                &mut symbols,
-                |_| Ok::<_, OperatingError>(()),
-                |_| {
-                    Ok(PhasePartials {
-                        evaluation: Partials::default(),
-                        publication: Partials::default(),
-                    })
-                },
-                |_| Ok(()),
-                |occurrence: OccurrenceNumber, _, _| Ok(occurrence),
-            )
-            .expect("the phase opens");
-        assert!(matches!(ran.occurrences.first(), Some(Ok(OccurrenceNumber(0)))));
+        let occurrence = |rule| PhaseOccurrence {
+            rule,
+            bound: &[],
+            slot: PublicationSlot::Unused,
+            demand: FrontierDemand::Diagnostic,
+        };
+        let phase = request.project_phase().expect("the phase opens");
+        let ran = phase.evaluate_occurrences(
+            PhaseOccurrences {
+                occurrences: &[occurrence(RuleIndex(0)), occurrence(RuleIndex(0)), occurrence(RuleIndex(3))],
+                first: &[ryo_values::domain::stored_facts::types::Bucket(0); 4],
+                corpus,
+                covered,
+                skipped: &[],
+                inapplicable: &inapplicable,
+                facts: &NoFacts,
+                project: &NoFacts,
+                project_symbols: &project_symbols,
+                arenas: &[],
+            },
+            &mut symbols,
+            |_| Ok::<_, OperatingError>(()),
+            |_| {
+                Ok(PhasePartials {
+                    evaluation: Partials::default(),
+                    publication: Partials::default(),
+                })
+            },
+            |_| Ok(()),
+            |occurrence: OccurrenceNumber, _, slot, _| Ok((occurrence, slot)),
+        );
+        let ProjectBatch::Complete(occurrences) = ran else {
+            panic!("no guard refused the batch");
+        };
         assert!(matches!(
-            ran.occurrences.get(1),
+            occurrences.first(),
+            Some(Ok((OccurrenceNumber(0), PublicationSlot::Unused)))
+        ));
+        assert!(matches!(
+            occurrences.get(1),
+            Some(Ok((OccurrenceNumber(1), PublicationSlot::Unused)))
+        ));
+        assert!(matches!(
+            occurrences.get(2),
             Some(Err(PhaseStop::Operating(OperatingError::NotRun)))
         ));
-        assert_eq!(ran.occurrences.len(), 2);
-        assert!(ran.refused.is_none());
-        assert!(ran.finished.is_ok(), "the phase is released once its occurrences are completed");
+        assert_eq!(occurrences.len(), 3);
+        assert!(phase.finish().is_ok(), "the phase is released once its occurrences are completed");
     });
 }
 pub(super) fn a_scope_belongs_to_its_own_phase() {

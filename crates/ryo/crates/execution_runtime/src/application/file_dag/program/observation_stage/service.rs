@@ -10,6 +10,7 @@ use crate::application::file_dag::program::observation_stage::types::Observation
 use crate::application::file_dag::program::project_phase::interface::{ProjectRootExecution, ProjectStage};
 use crate::application::file_dag::program::project_phase::types::PhaseScope;
 use crate::application::file_dag::program::project_phase::types::ProjectTask;
+use crate::application::file_dag::program::project_phase::types::{OccurrenceNumber, PhaseOccurrences, PhasePartials, PhaseStop};
 use crate::application::file_dag::program::rule_outcome::types::ProjectBatch;
 use crate::application::file_dag::program::rule_outcome::types::RuleOutcome;
 use crate::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome;
@@ -33,6 +34,18 @@ impl ProjectRootExecution for ObservationStage<'_> {
         guard: impl FnMut(RuleIndex) -> Result<(), E>,
     ) -> ProjectBatch<Result<RuleOutcome<ProjectOutputOutcome>, OperatingError>, E> {
         self.phase.evaluate(tasks, symbols, guard)
+    }
+    fn evaluate_occurrences<H, T, E>(
+        &self,
+        phase: PhaseOccurrences<'_>,
+        symbols: &mut Symbols,
+        before: impl FnMut(OccurrenceNumber) -> Result<H, E>,
+        partials: impl FnMut(OccurrenceNumber) -> Result<PhasePartials, E>,
+        guard: impl FnMut(RuleIndex) -> Result<(), E>,
+        complete: impl FnMut(OccurrenceNumber, RuleOutcome<ProjectOutputOutcome>, PublicationSlot, &mut Symbols) -> Result<T, E>,
+    ) -> ProjectBatch<Result<T, PhaseStop<E>>, E> {
+        self.phase
+            .evaluate_occurrences(phase, symbols, before, partials, guard, complete)
     }
     fn readiness_counts(&self) -> ReadinessCounts {
         self.phase.readiness_counts()

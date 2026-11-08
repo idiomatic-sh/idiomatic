@@ -1,7 +1,7 @@
 //! The memory budget stops a later population, and a refused frontier keeps its compiled source.
 use ryo_execution_runtime::outbound::operators::interface::OperatorsPort as _;
 use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
-use super::batch_test::sealed_fixture_batch;
+use super::batch_test::evaluate_prepared;
 use crate::application::cross_file::fixtures::ProjectCalls;
 use crate::application::cross_file::fixtures::counting_plan;
 use crate::application::cross_file::fixtures::crossing;
@@ -89,15 +89,13 @@ pub(super) fn project_budget_stops_a_later_population_after_actual_work_and_rele
                 id: rules.ids[rule].clone(),
             });
         }
-        let tasks = sealed_fixture_batch(&todos, scopes, frontiers);
-        let guarded =
-            service().evaluate_batch(&crossing(&rules), tasks, &phase, &mut symbols, |rule| {
-                Ok(crate::domain::budget::service::within(
-                    memory.resident_bytes()?,
-                    memory.budget()?,
-                    || vec![rules.ids[rule.0].clone()],
-                )?)
-            });
+        let guarded = evaluate_prepared(&crossing(&rules), &todos, scopes, frontiers, &phase, &mut symbols, |rule| {
+            Ok(crate::domain::budget::service::within(
+                memory.resident_bytes()?,
+                memory.budget()?,
+                || vec![rules.ids[rule.0].clone()],
+            )?)
+        });
         let ProjectBatch::Refused { completed, error } = guarded else {
             panic!("later cohort must be refused")
         };
@@ -107,7 +105,6 @@ pub(super) fn project_budget_stops_a_later_population_after_actual_work_and_rele
                 .into_iter()
                 .next()
                 .unwrap()
-                .result
                 .unwrap()
                 .crossed
                 .rendered

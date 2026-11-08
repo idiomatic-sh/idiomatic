@@ -2,85 +2,131 @@
 use crate::application::cross_file::completion::types::CrossedWithPublications;
 use crate::application::cross_file::errors::CrossFileError;
 use crate::application::cross_file::fixtures::service;
-use crate::application::cross_file::preparation::service::SealedBatch;
+use crate::application::cross_file::service::phase_partials;
 use crate::application::cross_file::types::ProjectCrossing;
-use crate::application::cross_file::types::ProjectOutcome;
 use crate::domain::answering::types::Todo;
+use ryo_execution::inbound::use_cases::execution::interface::EmitDemand;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
 use ryo_execution::inbound::use_cases::execution::interface::PreparedFrontiers;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectInput;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectTask;
+use ryo_execution::inbound::use_cases::execution::interface::RuleDemand;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectBatch;
 use ryo_execution::inbound::use_cases::execution::interface::PhaseScope;
 use ryo_execution::inbound::use_cases::execution::interface::PublicationSlot;
 use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::rule_requests::errors::RuleRequestsError;
+use ryo_values::domain::rule_requests::service::failed;
 use ryo_values::domain::runs::types::RuleId;
 
 pub(super) fn completed_batch(
-    batch: ProjectBatch<ProjectOutcome, CrossFileError>,
+    batch: ProjectBatch<Result<CrossedWithPublications, CrossFileError>, CrossFileError>,
 ) -> Vec<Result<CrossedWithPublications, CrossFileError>> {
     match batch {
-        ProjectBatch::Complete(completed) => completed
-            .into_iter()
-            .map(|outcome| outcome.result)
-            .collect(),
+        ProjectBatch::Complete(completed) => completed,
         ProjectBatch::Refused { error, .. } => {
             panic!("the fixture declares no memory limit: {error}")
         }
     }
 }
 
-/// Test resources enter through the actual immutable declaration owner.
-pub(super) fn sealed_fixture_batch(
-    todo: &[Todo],
+/// Occurrences whose scopes and frontiers a case prepared over facts of its own, evaluated as one batch through the phase's
+/// `evaluate` and each outcome completed, in declaration order. The phase call prepares from one set of facts; these cases give each
+/// rule its own.
+pub(super) fn evaluate_prepared(
+    crossing: &ProjectCrossing<'_>,
+    todos: &[Todo],
     scopes: Vec<PhaseScope>,
     frontiers: Vec<PreparedFrontiers>,
-) -> SealedBatch {
-    use crate::application::cross_file::preparation::{
-        service::Preparation, types::PreparedProject,
-    };
-    let mut resources = scopes.into_iter().zip(frontiers);
-    let prepared = Preparation::ordinary(todo).prepare_all(|_, _| {
-        let (scope, frontier) = resources
-            .next()
-            .expect("fixture prepares every declared occurrence");
-        Ok(PreparedProject {
-            scope,
-            frontier,
-            bound: Vec::new(),
-            slot: PublicationSlot::Unused,
+    phase: &impl ProjectRootExecution,
+    symbols: &mut Symbols,
+    guard: impl FnMut(RuleIndex) -> Result<(), CrossFileError>,
+) -> ProjectBatch<Result<CrossedWithPublications, CrossFileError>, CrossFileError> {
+    // An occurrence whose partials are refused keeps that refusal and reaches no task.
+    let partials = todos
+        .iter()
+        .map(|todo| phase_partials(crossing, todo))
+        .collect::<Vec<_>>();
+    let tasks = todos
+        .iter()
+        .zip(&scopes)
+        .zip(frontiers)
+        .zip(&partials)
+        .filter_map(|(((todo, scope), frontier), partials)| {
+            let Ok(partials) = partials else {
+                return None;
+            };
+            Some(ProjectTask {
+                rule: todo.rule,
+                demand: RuleDemand {
+                    emit: EmitDemand::Enabled,
+                    observations: ObservationDemand::Required,
+                },
+                input: ProjectInput {
+                    scope,
+                    evaluation: &partials.evaluation,
+                    publication: &partials.publication,
+                    ordinary: frontier,
+                    bound: &[],
+                    arenas: crossing.arenas,
+                },
+            })
         })
-    });
-    assert!(
-        resources.next().is_none(),
-        "fixture has no undeclared resources"
-    );
-    prepared.seal().unwrap()
+        .collect();
+    let (evaluated, refused) = match phase.evaluate(tasks, symbols, guard) {
+        ProjectBatch::Complete(completed) => (completed, None),
+        ProjectBatch::Refused { completed, error } => (completed, Some(error)),
+    };
+    let mut evaluated = evaluated.into_iter();
+    let mut completed = Vec::with_capacity(todos.len());
+    for (todo, partials) in todos.iter().zip(partials) {
+        let result = match partials {
+            Err(error) => Err(error),
+            Ok(_) => {
+                let Some(outcome) = evaluated.next() else {
+                    break;
+                };
+                outcome
+                    .map_err(|error| CrossFileError::from(failed(&todo.id, &error)))
+                    .and_then(|outcome| service().complete_occurrence(crossing, todo, outcome, PublicationSlot::Unused, symbols))
+            }
+        };
+        completed.push(result);
+    }
+    match refused {
+        Some(error) => ProjectBatch::Refused { completed, error },
+        None => ProjectBatch::Complete(completed),
+    }
 }
 
-/// Fixture assembly only: the sole application batch operation owns admission/evaluation.
+/// One occurrence a case prepared, evaluated and completed.
 pub(super) fn evaluate_fixture(
     crossing: &ProjectCrossing<'_>,
     todo: &Todo,
     frontier: PreparedFrontiers,
     symbols: &mut Symbols,
     scope: PhaseScope,
-    phase: &impl ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution,
+    phase: &impl ProjectRootExecution,
 ) -> Result<crate::domain::answering::types::Crossed, RuleRequestsError> {
-    let batch = sealed_fixture_batch(std::slice::from_ref(todo), vec![scope], vec![frontier]);
-    let ProjectBatch::Complete(mut results) =
-        service().evaluate_batch(crossing, batch, phase, symbols, |_| Ok(()))
-    else {
-        panic!("fixture host declares no memory limit")
-    };
+    let mut results = completed_batch(evaluate_prepared(
+        crossing,
+        std::slice::from_ref(todo),
+        vec![scope],
+        vec![frontier],
+        phase,
+        symbols,
+        |_| Ok(()),
+    ));
     assert_eq!(results.len(), 1, "one authored task has one result");
     results
         .pop()
         .expect("the exact result count was checked")
-        .result
         .map(|result| result.crossed)
         .map_err(|error| match error {
             CrossFileError::Rules(error) => error,
-            error => ryo_values::domain::rule_requests::service::failed(&todo.id, &error),
+            error => failed(&todo.id, &error),
         })
 }
 

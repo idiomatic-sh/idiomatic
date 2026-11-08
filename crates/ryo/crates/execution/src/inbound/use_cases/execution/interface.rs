@@ -37,8 +37,8 @@ pub use ryo_execution_runtime::application::file_dag::program::project_phase::in
 pub use ryo_execution_runtime::application::file_dag::program::project_phase::types::FrontierDemand;
 pub use ryo_execution_runtime::application::file_dag::program::project_phase::types::FrontierRequest;
 pub use ryo_execution_runtime::application::file_dag::program::project_phase::types::OccurrenceNumber;
-pub use ryo_execution_runtime::application::file_dag::program::project_phase::types::OrdinaryPhase;
-pub use ryo_execution_runtime::application::file_dag::program::project_phase::types::OrdinaryRules;
+pub use ryo_execution_runtime::application::file_dag::program::project_phase::types::PhaseOccurrence;
+pub use ryo_execution_runtime::application::file_dag::program::project_phase::types::PhaseOccurrences;
 pub use ryo_execution_runtime::application::file_dag::program::project_phase::types::PhasePartials;
 pub use ryo_execution_runtime::application::file_dag::program::project_phase::types::PhaseStop;
 pub use ryo_execution_runtime::application::file_dag::program::project_phase::types::PhaseScope;

@@ -20,11 +20,11 @@ use ryo_values::domain::stored_facts::types::Bucket;
 use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
 impl FileExecution for FileSession<'_, '_> {
     fn readiness_counts(&self) -> ReadinessCounts {
-        self.inner.readiness_counts()
+        self.parts.inner.readiness_counts()
     }
 
     fn walk_counts(&self) -> WalkCounts {
-        self.inner.walk_counts()
+        self.parts.inner.walk_counts()
     }
 
     fn emit_rows(
@@ -35,12 +35,12 @@ impl FileExecution for FileSession<'_, '_> {
             &[ryo_relations::domain::relations::types::Value],
         ) -> Result<(), OperatingError>,
     ) -> Result<RowEmission, OperatingError> {
-        let read = |relation| source_rows(self.read, self.elements, self.file, relation);
-        self.inner.emit_rows(rule, &read, symbols, each)
+        let read = |relation| source_rows(self.parts.read, self.parts.elements, self.parts.file, relation);
+        self.parts.inner.emit_rows(rule, &read, symbols, each)
     }
     fn finish(self) -> Result<FileFinished, OperatingError> {
         Ok(FileFinished {
-            readiness: match self.inner.finish()? {
+            readiness: match self.parts.inner.finish()? {
                 Some(readiness) => FinishedReadiness::Observed(readiness),
                 None => FinishedReadiness::Unobserved,
             },
@@ -53,8 +53,8 @@ impl FileExecution for FileSession<'_, '_> {
         demand: RuleDemand,
         symbols: &mut Symbols,
     ) -> Result<RuleOutcome, OperatingError> {
-        let read = |relation| source_rows(self.read, self.elements, self.file, relation);
-        self.inner.rule(rule, demand, &read, symbols)
+        let read = |relation| source_rows(self.parts.read, self.parts.elements, self.parts.file, relation);
+        self.parts.inner.rule(rule, demand, &read, symbols)
     }
     fn capture_frontiers(
         &mut self,
@@ -63,10 +63,10 @@ impl FileExecution for FileSession<'_, '_> {
         symbols: &mut Symbols,
         capture: CaptureContext<'_>,
     ) -> Result<Vec<FrontierCapture>, OperatingError> {
-        let read = |relation| source_rows(self.read, self.elements, self.file, relation);
+        let read = |relation| source_rows(self.parts.read, self.parts.elements, self.parts.file, relation);
         let bound = ryo_execution_domain::domain::frontier_capture::types::CaptureScope {
-            file: self.file,
-            rule_digest: self.program.rule_digest(rule)?,
+            file: self.parts.file,
+            rule_digest: self.parts.program.rule_digest(rule)?,
             worker: capture.worker,
             retained: ryo_execution_domain::domain::finish::types::Retained {
                 arena: capture.arena,
@@ -74,7 +74,7 @@ impl FileExecution for FileSession<'_, '_> {
             },
             words: capture.words,
         };
-        self.inner
+        self.parts.inner
             .capture_frontiers(rule, first, &read, symbols, bound)
     }
     fn commit_frontier(
@@ -82,10 +82,10 @@ impl FileExecution for FileSession<'_, '_> {
         rule: RuleIndex,
         input: ryo_values::domain::plan_parts::types::InputNumber,
     ) -> Result<(), OperatingError> {
-        self.inner.commit_frontier(rule, input)
+        self.parts.inner.commit_frontier(rule, input)
     }
     fn counts(&self, rule: RuleIndex) -> Result<LogicalCounts, OperatingError> {
-        self.inner.counts(rule)
+        self.parts.inner.counts(rule)
     }
 }
 fn source_rows<'a, 'facts: 'a>(
@@ -120,12 +120,12 @@ impl FileSession<'_, '_> {
     /// Whether the source of this file may be reused by a later run.
     #[must_use]
     pub fn reuse_eligible(&self) -> ReuseEligibility {
-        self.inner.source_reuse_eligible()
+        self.parts.inner.source_reuse_eligible()
     }
     /// Weak lifetime observation of the file's relation owner; the caller never retains it.
     #[must_use]
     pub fn owner_lifetime(&self) -> std::rc::Weak<ryo_execution_store::application::file_dag::relations::RelationOwner> {
-        self.inner.owner_lifetime()
+        self.parts.inner.owner_lifetime()
     }
     /// Read-only telemetry of a rule's step, from actual common-program dispatch and retirement.
     ///
@@ -137,13 +137,13 @@ impl FileSession<'_, '_> {
         rule: RuleIndex,
         step: ryo_values::domain::plan_parts::types::StepId,
     ) -> Result<ryo_execution_domain::domain::operating::fixtures::ExecutionObservation, OperatingError> {
-        self.inner.route_observation(rule, step)
+        self.parts.inner.route_observation(rule, step)
     }
     /// The derived owner's resource counts of this file.
     #[must_use]
     pub fn resource_fixture_counts(
         &self,
     ) -> ryo_execution_store::application::file_dag::derived::owner::fixtures::resources::Snapshot {
-        self.inner.resource_fixture_counts()
+        self.parts.inner.resource_fixture_counts()
     }
 }
