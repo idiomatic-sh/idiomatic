@@ -1,5 +1,5 @@
 //! Hosted ordered dependencies use the same scheduler for both delivery modes.
-use ryo_execution::inbound::use_cases::execution::interface::FileExecution as _;
+use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution as _;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest as _;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;

@@ -14,7 +14,7 @@ use crate::boundary_fixture::{corpus, demand};
 use fixtures::*;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution::inbound::use_cases::execution::interface::FileExecution;
+use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
 use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityReason;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
