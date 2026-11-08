@@ -1,6 +1,8 @@
 //! The proofs of the partitioned closure cursor, and the working capacity they and the engine's observations read.
 use super::PartitionedClosure;
 use super::constants::LIVE_PARTITION_VIEW;
+#[cfg(test)]
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_derived::domain::key::types::{ChainLink, HashedRow, KeyCellsHash};
 use ryo_values::domain::rows::types::RowIndex;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
