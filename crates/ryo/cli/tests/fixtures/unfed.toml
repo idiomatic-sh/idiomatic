@@ -1,5 +1,7 @@
 # The features of the language that ruff does not feed 1,000 rows, each with why. A feature listed here that is fed 1,000 rows or more
 # fails the replay, so the list only shrinks; a feature not listed and fed fewer fails it too (plan-trace: migration row 12,).
+# A feature is fed the rows of each plan step that has it: every comparison of a step, fused selections included, is credited with
+# all the rows fed to that step, not only the rows that reach the comparison.
 
 [feature]
 
@@ -11,9 +13,6 @@ why = "read only by `macro-paths-hygienic`, which is not among the recorded rule
 
 [feature."family:EndsWith"]
 why = "no recorded rule uses it."
-
-[feature."family:FloatTextGreaterThanOrEqual"]
-why = "used by `lossy-float-literals` only; 0 rows reach the comparison over ruff."
 
 [feature."family:NotGlobAny"]
 why = "no recorded rule uses it."

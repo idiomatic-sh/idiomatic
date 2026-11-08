@@ -65,9 +65,11 @@ pub fn compile_prepared_observations(
                         == crate::domain::operator::contract::types::ReuseScope::Rule)
                         .then_some(rule_index);
                     let hash = Fingerprint::of(&operation, &inputs, scope, step.scope);
-                    // Delivery is outside semantic evaluation. Identical pure
-                    // terminals and intermediates share one canonical publication;
-                    // authored root-reader obligations remain distinct below.
+                    // Delivery is outside semantic evaluation. Equal terminals and
+                    // intermediates in one reuse scope share one canonical publication:
+                    // request-wide for any effect but a request source when nothing is
+                    // bound, else the rule's. Authored root-reader obligations remain
+                    // distinct below.
                     if let Some(found) = buckets.get(&hash).and_then(|bucket| {
                         bucket.iter().copied().find(|id| {
                             let existing = &nodes[id.0];
