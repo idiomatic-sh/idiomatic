@@ -56,7 +56,7 @@ pub struct CacheBackend {
 }
 
 impl CacheBackend {
-    pub fn observe_graph_walk(
+    pub(in crate::application::file_dag::derived::owner) fn observe_graph_walk(
         &mut self,
         expanded: ExpandedVertices,
         examined: ExaminedVertices,

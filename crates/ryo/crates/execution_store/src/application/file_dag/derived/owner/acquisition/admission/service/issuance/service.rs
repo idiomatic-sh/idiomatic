@@ -101,7 +101,7 @@ impl DerivedOwner {
             sources: AcquisitionSources::Rows(proofs.iter().map(|proof| proof.rows()).collect()),
         })
     }
-    pub fn admit_partition<'a>(
+    pub(in crate::application::file_dag) fn admit_partition<'a>(
         &self,
         plan: &Arc<DerivedContract>,
         owner: &crate::application::file_dag::relations::RelationOwner,

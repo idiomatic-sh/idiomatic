@@ -10,7 +10,7 @@ impl GenerationLease {
             live: std::sync::atomic::AtomicBool::new(true),
         }
     }
-    pub fn invalidate(&self) {
+    pub(in crate::application::file_dag::relations) fn invalidate(&self) {
         self.live.store(false, std::sync::atomic::Ordering::Release);
     }
     pub fn is_live(&self) -> crate::application::file_dag::relations::types::Liveness {

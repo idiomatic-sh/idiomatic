@@ -12,7 +12,7 @@ use crate::application::file_dag::derived::owner::acquisition::population::types
 use crate::application::file_dag::derived::owner::*;
 
 impl DerivedOwner {
-    pub fn scoped_build(
+    pub(in crate::application::file_dag) fn scoped_build(
         &self,
         route: crate::application::file_dag::route_counts::types::BuildRoute,
         plan: &Arc<DerivedContract>,

@@ -90,7 +90,7 @@ impl AcquiredView {
         self.lease.assert_required(&self.backings);
         self.storage.view()
     }
-    pub fn storage(&self) -> &Arc<DerivedStorage> {
+    pub(in crate::application::file_dag::derived::owner) fn storage(&self) -> &Arc<DerivedStorage> {
         &self.storage
     }
     pub(in crate::application::file_dag::derived::owner) fn backings(&self) -> &Arc<[Backing]> {

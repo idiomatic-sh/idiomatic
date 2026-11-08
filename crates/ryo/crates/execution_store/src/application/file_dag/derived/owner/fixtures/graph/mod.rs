@@ -258,7 +258,7 @@ impl GraphFixture {
             .acquire_graph_domain(&plan, graph, &source, &mut cache)
             .map(Some)
     }
-    pub fn reach(
+    pub(in crate::application::file_dag) fn reach(
         &self,
         access: &GraphHandle,
         partition: &[Value],

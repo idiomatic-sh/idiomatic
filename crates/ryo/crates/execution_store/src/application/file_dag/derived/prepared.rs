@@ -70,7 +70,7 @@ impl RequestDerived {
             graph_rules,
         })
     }
-    pub fn relations_for(
+    pub(in crate::application::file_dag) fn relations_for(
         &self,
         rule: RuleIndex,
     ) -> Result<&[Relation], OperatingError> {
@@ -80,7 +80,7 @@ impl RequestDerived {
             .map(AsRef::as_ref)
             .ok_or(OperatingError::NotRun)
     }
-    pub fn graph_for(
+    pub(in crate::application::file_dag) fn graph_for(
         &self,
         rule: RuleIndex,
     ) -> Result<GraphAdmission, OperatingError> {

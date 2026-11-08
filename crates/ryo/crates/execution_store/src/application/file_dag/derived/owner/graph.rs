@@ -44,7 +44,7 @@ impl DerivedOwner {
             .map_err(|_| OperatingError::NotRun)
     }
     /// Only admitted original inputs enter the physical graph adapter.
-    pub fn acquire_graph(
+    pub(in crate::application::file_dag) fn acquire_graph(
         &self,
         plan: &Arc<DerivedContract>,
         input: &crate::application::file_dag::workspace::GraphInput<'_>,
@@ -58,7 +58,7 @@ impl DerivedOwner {
         }
         super::acquisition::graph::service::acquire(plan, input, cache)
     }
-    pub fn acquire_graph_domain(
+    pub(in crate::application::file_dag) fn acquire_graph_domain(
         &self,
         plan: &Arc<DerivedContract>,
         graph: &crate::application::file_dag::derived::owner::graphs::types::handles::service::GraphHandle,

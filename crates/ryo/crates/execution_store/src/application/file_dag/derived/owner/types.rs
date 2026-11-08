@@ -22,7 +22,7 @@ impl DerivedAccess {
         Arc::new(self.port.prepare(request, schemas))
     }
     /// The builder is reachable only inside the owner tree.
-    pub fn port(&self) -> &Arc<dyn DerivedPort> {
+    pub(in crate::application::file_dag::derived::owner) fn port(&self) -> &Arc<dyn DerivedPort> {
         &self.port
     }
 }

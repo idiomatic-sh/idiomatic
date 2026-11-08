@@ -27,7 +27,7 @@ impl DerivedOwner {
             stored,
         )
     }
-    pub fn acquire_stored_with_route(
+    pub(in crate::application::file_dag) fn acquire_stored_with_route(
         &self,
         route: BuildRoute,
         plan: &Arc<DerivedContract>,
@@ -49,7 +49,7 @@ impl DerivedOwner {
             backend.as_mut(),
         )
     }
-    pub fn try_acquire_rows(
+    pub(in crate::application::file_dag) fn try_acquire_rows(
         &self,
         plan: &Arc<DerivedContract>,
         admitted: &AdmittedViewInputs<'_>,

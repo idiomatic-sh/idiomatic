@@ -42,7 +42,7 @@ impl GraphHandle {
             acquired,
         })
     }
-    pub fn graph(&self) -> &CompactGraph {
+    pub(in crate::application::file_dag) fn graph(&self) -> &CompactGraph {
         #[cfg(test)]
         self.acquired.view().expect(constants::EXPECT_GRAPH_LEASE);
         &self.graph
@@ -53,7 +53,7 @@ impl GraphHandle {
     pub(in crate::application::file_dag::derived::owner) fn sharing(&self) -> GraphSharing {
         self.sharing
     }
-    pub fn raw_graph(&self) -> &Arc<CompactGraph> {
+    pub(in crate::application::file_dag::derived::owner) fn raw_graph(&self) -> &Arc<CompactGraph> {
         &self.graph
     }
     pub fn acquired(&self) -> &AcquiredView {
@@ -104,14 +104,14 @@ impl DomainHandle {
             _lease: lease,
         })
     }
-    pub fn members(&self) -> DenseMarks<'_> {
+    pub(in crate::application::file_dag) fn members(&self) -> DenseMarks<'_> {
         #[cfg(test)]
         self.acquired
             .view()
             .expect(constants::EXPECT_MEMBERSHIP_LEASE);
         DenseMarks(self.domain.members.0.as_slice())
     }
-    pub fn raw_domain(&self) -> &Arc<GraphDomain> {
+    pub(in crate::application::file_dag::derived::owner) fn raw_domain(&self) -> &Arc<GraphDomain> {
         &self.domain
     }
     pub(in crate::application::file_dag) fn validate_owner(
