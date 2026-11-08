@@ -115,6 +115,7 @@ pub(crate) fn unknowns_from(stored: &Stored, read_again: &[FilePath]) -> Vec<Unk
             rule: RuleId(each.rule.0.clone()),
             path: each.path.clone(),
             message: Message(each.message.0.clone()),
+            cause: each.cause,
         })
         .collect()
 }

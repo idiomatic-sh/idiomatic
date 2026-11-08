@@ -82,7 +82,6 @@ pub use ryo_execution_domain::domain::readiness::types::ReadinessCounts;
 pub use ryo_execution_domain::domain::readiness::types::ReadinessEvents;
 pub use ryo_execution_domain::domain::row_emission::types::RowEmission;
 pub use ryo_execution_domain::domain::rule_intent::types::ApplicabilityReason;
-pub use ryo_execution_domain::domain::rule_intent::types::ApplicabilityRefusal;
 pub use ryo_execution_domain::domain::rule_intent::types::CaptureIntent;
 pub use ryo_execution_domain::domain::rule_intent::types::DiagnosticDelivery;
 pub use ryo_execution_domain::domain::rule_intent::types::EmitDemand;

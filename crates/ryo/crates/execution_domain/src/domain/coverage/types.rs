@@ -77,6 +77,8 @@ pub struct Unknown {
     pub path: FilePath,
     /// What is partial there and why.
     pub message: Message,
+    /// Why the rule could not decide: undecided over what it read, or refused on the file before it ran.
+    pub cause: ryo_values::domain::runs::types::UnknownCause,
 }
 
 /// Where a relation is read in part: one file, or the repository as a whole.

@@ -12,8 +12,10 @@ use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use ryo_language::domain::elements::types::SyntaxAcceptance;
 use ryo_relations::domain::relations::types::FileId;
 use ryo_relations::domain::relations::types::Relation;
+use ryo_values::domain::runs::types::ApplicabilityRefusal;
 use ryo_values::domain::runs::types::RuleApplicability;
 use ryo_values::domain::runs::types::RuleNumber;
+use ryo_values::domain::runs::types::UnknownCause;
 use std::borrow::Cow;
 use super::super::service::FileAnalysis;
 use super::super::types::{RequestVisitSetting, RuleGate};
@@ -123,7 +125,7 @@ impl FileAnalysis {
                 &mut tables.mask,
                 RuleNumber(u32::try_from(place).unwrap_or(u32::MAX)),
             );
-            let reason = match (applicability, acceptance) {
+            let (reason, refusal) = match (applicability, acceptance) {
                 (Some(RuleApplicability::AcceptedSyntax), SyntaxAcceptance::Rejected) => {
                     let (Some(rule), Some(path)) = (
                         setting.ids.get(place),
@@ -142,12 +144,16 @@ impl FileAnalysis {
                         });
                     continue;
                 }
-                (Some(RuleApplicability::AcceptedSyntax), SyntaxAcceptance::Undetermined) => {
-                    RULE_SKIPPED_SYNTAX_ACCEPTANCE_UNDETERMINED
-                }
+                (Some(RuleApplicability::AcceptedSyntax), SyntaxAcceptance::Undetermined) => (
+                    RULE_SKIPPED_SYNTAX_ACCEPTANCE_UNDETERMINED,
+                    ApplicabilityRefusal::SyntaxUndetermined,
+                ),
                 (Some(RuleApplicability::AcceptedSyntax), SyntaxAcceptance::Accepted)
                 | (Some(RuleApplicability::Always), _) => continue,
-                (None, _) => RULE_SKIPPED_APPLICABILITY_METADATA_UNAVAILABLE,
+                (None, _) => (
+                    RULE_SKIPPED_APPLICABILITY_METADATA_UNAVAILABLE,
+                    ApplicabilityRefusal::MetadataUnavailable,
+                ),
             };
             let Some(rule) = setting.ids.get(place) else {
                 continue;
@@ -165,6 +171,7 @@ impl FileAnalysis {
                     message: ryo_execution::inbound::use_cases::metadata::interface::Message(
                         reason.into(),
                     ),
+                    cause: UnknownCause::Refused(refusal),
                 },
             );
         }
@@ -179,13 +186,7 @@ pub(crate) fn refusals(
 ) -> Vec<ryo_execution::inbound::use_cases::metadata::interface::Unknown> {
     unknowns
         .iter()
-        .filter(|each| {
-            matches!(
-                &*each.message.0,
-                RULE_SKIPPED_SYNTAX_ACCEPTANCE_UNDETERMINED
-                    | RULE_SKIPPED_APPLICABILITY_METADATA_UNAVAILABLE
-            )
-        })
+        .filter(|each| matches!(each.cause, UnknownCause::Refused(_)))
         .cloned()
         .collect()
 }

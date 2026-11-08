@@ -15,7 +15,7 @@ use ryo_execution_runtime::application::file_dag::program::file_session::types::
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
-use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityRefusal;
+use ryo_values::domain::runs::types::ApplicabilityRefusal;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::EmitDemand;

@@ -1,6 +1,6 @@
 //! File-start declarations are enforced through every public execution route.
 use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
-use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityRefusal;
+use ryo_values::domain::runs::types::ApplicabilityRefusal;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;

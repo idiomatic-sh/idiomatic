@@ -74,6 +74,8 @@ pub struct StoredUnknown {
     pub path: FilePath,
     /// What is partial there and why.
     pub message: UnknownText,
+    /// Why the rule could not decide: undecided over what it read, or refused on the file before it ran.
+    pub cause: crate::domain::runs::types::UnknownCause,
 }
 
 /// What a rule could not decide, as shown.

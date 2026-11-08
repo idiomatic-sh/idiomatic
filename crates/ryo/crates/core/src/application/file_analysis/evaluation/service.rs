@@ -17,9 +17,10 @@ use ryo_execution::inbound::use_cases::execution::interface::{
 use ryo_execution::inbound::use_cases::execution::interface::Demand;
 use ryo_execution::inbound::use_cases::execution::interface::RootOutcome;
 use ryo_execution::inbound::use_cases::execution::interface::{
-    ApplicabilityReason, ApplicabilityRefusal, Arena, CaptureIntent, DiagnosticDelivery,
-    FileRuleIntent, ObservationDemand, OperatingError,
+    ApplicabilityReason, Arena, CaptureIntent, DiagnosticDelivery, FileRuleIntent,
+    ObservationDemand, OperatingError,
 };
+use ryo_values::domain::runs::types::ApplicabilityRefusal;
 use ryo_execution::inbound::use_cases::metadata::interface::{
     FileObservationReadiness, Governing, Message, RuleIndex, Unknown,
 };
@@ -99,6 +100,7 @@ impl FileAnalysis {
                                 format!("file phase frontier input {}: {error}", captured.input.0)
                                     .into(),
                             ),
+                            cause: ryo_values::domain::runs::types::UnknownCause::Undecided,
                         });
                         continue;
                     }
@@ -220,6 +222,7 @@ impl FileAnalysis {
                     rule: visit.setting.ids[rule.0].clone(),
                     path: visit.setting.paths[file.0 as usize].clone(),
                     message: Message(error.to_string().into()),
+                    cause: ryo_values::domain::runs::types::UnknownCause::Undecided,
                 });
                 if matches!(error, OperatingError::SemanticIncomplete { .. }) {
                     semantic.mark_incomplete();

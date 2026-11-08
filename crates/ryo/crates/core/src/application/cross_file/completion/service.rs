@@ -76,6 +76,7 @@ impl ProjectCompletion {
                         message: ryo_execution::inbound::use_cases::metadata::interface::Message(
                             format!("project phase diagnostic emit: {error}").into(),
                         ),
+                        cause: ryo_values::domain::runs::types::UnknownCause::Undecided,
                     },
                 )
                 .collect()
@@ -134,6 +135,7 @@ impl ProjectCompletion {
                         message: ryo_execution::inbound::use_cases::metadata::interface::Message(
                             INCOMPLETE_FACTS.into(),
                         ),
+                        cause: ryo_values::domain::runs::types::UnknownCause::Undecided,
                     },
                 );
             }
@@ -163,6 +165,7 @@ impl ProjectCompletion {
                                     ryo_execution::inbound::use_cases::metadata::interface::Message(
                                         error.to_string().into(),
                                     ),
+                                cause: ryo_values::domain::runs::types::UnknownCause::Undecided,
                             }
                         }),
                 );
