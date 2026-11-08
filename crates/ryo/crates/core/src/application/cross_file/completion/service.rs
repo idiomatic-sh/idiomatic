@@ -123,8 +123,8 @@ impl ProjectCompletion {
                 // A file the rule was refused on already gives the rule's unknown there, with why.
                 if crossing
                     .refused
-                    .iter()
-                    .any(|refusal| refusal.rule == todo.id && refusal.path == *path)
+                    .get(&todo.id)
+                    .is_some_and(|paths| paths.contains(path))
                 {
                     continue;
                 }

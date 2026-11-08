@@ -179,14 +179,26 @@ impl FileAnalysis {
     }
 }
 
-/// The unknowns a rule's refusal on a file wrote, fresh or as the store kept them: the file's syntax acceptance undetermined or
-/// the rule's applicability metadata unavailable. The rule has no frame for those files, so its cross-file steps lack their input.
+/// The files each rule was refused on, by rule, from the unknowns its refusal wrote, fresh or as the store kept them: the file's
+/// syntax acceptance undetermined or the rule's applicability metadata unavailable. The rule has no frame for those files, so its
+/// cross-file steps lack their input. Indexed once, so each lookup by rule and file is a map and a set probe.
 pub(crate) fn refusals(
     unknowns: &[ryo_execution::inbound::use_cases::metadata::interface::Unknown],
-) -> Vec<ryo_execution::inbound::use_cases::metadata::interface::Unknown> {
-    unknowns
-        .iter()
-        .filter(|each| matches!(each.cause, UnknownCause::Refused(_)))
-        .cloned()
-        .collect()
+) -> std::collections::BTreeMap<
+    ryo_values::domain::runs::types::RuleId,
+    std::collections::BTreeSet<ryo_language::domain::files::types::FilePath>,
+> {
+    let mut refused = std::collections::BTreeMap::<_, std::collections::BTreeSet<_>>::new();
+    for each in unknowns {
+        match each.cause {
+            UnknownCause::Refused(_) => {
+                let _new = refused
+                    .entry(each.rule.clone())
+                    .or_default()
+                    .insert(each.path.clone());
+            }
+            UnknownCause::Undecided => {}
+        }
+    }
+    refused
 }

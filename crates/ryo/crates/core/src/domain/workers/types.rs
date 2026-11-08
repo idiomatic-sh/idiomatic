@@ -288,8 +288,8 @@ pub(crate) struct CrossReading<'a, W> {
     pub covered: &'a [Covered],
     /// Files explicitly skipped because syntax was rejected.
     pub skipped: &'a [Skipped],
-    /// The unknowns of the rules refused on files: acceptance undetermined or applicability metadata unavailable.
-    pub refused: &'a [Unknown],
+    /// The files each rule was refused on, by rule: acceptance undetermined or applicability metadata unavailable.
+    pub refused: &'a std::collections::BTreeMap<RuleId, std::collections::BTreeSet<FilePath>>,
     /// The files no language read, and why.
     pub unread: &'a [ryo_values::domain::records::types::Unread],
     /// The store's handle of each worker.

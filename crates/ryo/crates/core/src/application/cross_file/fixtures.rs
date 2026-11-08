@@ -64,7 +64,7 @@ pub(super) struct World {
     pub(super) arenas: Vec<ArenaBytes>,
     pub(super) covered: Vec<Covered>,
     pub(super) skipped: Vec<ryo_values::domain::runs::types::Skipped>,
-    pub(super) refused: Vec<ryo_execution::inbound::use_cases::metadata::interface::Unknown>,
+    pub(super) refused: std::collections::BTreeMap<RuleId, std::collections::BTreeSet<FilePath>>,
     pub(super) project: Vec<Partial>,
 }
 
@@ -215,7 +215,7 @@ pub(super) fn world_with_applicability(
         arenas: Vec::new(),
         covered: Vec::new(),
         skipped: Vec::new(),
-        refused: Vec::new(),
+        refused: std::collections::BTreeMap::new(),
         project: Vec::new(),
     }
 }
