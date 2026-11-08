@@ -1,15 +1,23 @@
 //! Pure derived-owner fixtures; no operator evaluator or legacy transport.
 use crate::outbound::derived::interface::DerivedPort;
+#[cfg(test)]
 use crate::application::file_dag::derived::owner::*;
+#[cfg(test)]
 use crate::application::file_dag::relations::RelationOwner;
+#[cfg(test)]
 use ryo_execution_domain::domain::{
     coverage::types::Partial, operating::errors::OperatingError,
     table_model::types::Rows,
 };
+#[cfg(test)]
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
+#[cfg(test)]
 use ryo_derived::domain::equality::types::KeyIndex;
+#[cfg(test)]
 use ryo_relations::domain::relations::types::Relation;
+#[cfg(test)]
 use ryo_values::domain::plan_parts::types::ColumnIndex;
+#[cfg(test)]
 use std::rc::Rc;
 /// What a resource fixture's owner holds and counted.
 #[derive(Clone, Copy, Debug)]
@@ -19,12 +27,14 @@ pub struct Snapshot {
     pub graph_early_stops: u64,
 }
 /// A relation owner over a recording port, with the resource acquisitions a proof drives.
-pub struct ResourceFixture {
+#[cfg(test)]
+pub(crate) struct ResourceFixture {
     owner: Rc<RelationOwner>,
 }
+#[cfg(test)]
 impl ResourceFixture {
     /// A fixture over the wanted relations and partials, with the retained-byte limit; `None` when the owner declines.
-    pub fn new(wanted: &[Relation], partials: &[Partial], limit: usize) -> Option<Self> {
+    pub(crate) fn new(wanted: &[Relation], partials: &[Partial], limit: usize) -> Option<Self> {
         let owner = Rc::new(RelationOwner::new(
             crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
             crate::application::file_dag::fixtures::program_derived_port(),
@@ -59,11 +69,11 @@ impl ResourceFixture {
         Some(Self { owner })
     }
     /// The fixture's relation owner.
-    pub fn owner(&self) -> &Rc<RelationOwner> {
+    pub(crate) fn owner(&self) -> &Rc<RelationOwner> {
         &self.owner
     }
     /// Acquires the key index of `rows` over `columns`.
-    pub fn index(
+    pub(crate) fn index(
         &self,
         relation: Relation,
         rows: &Rows<'_>,
@@ -101,15 +111,15 @@ impl ResourceFixture {
         )
     }
     /// Whether no invocation holds an index handle.
-    pub fn no_invocation_index_handles(&self) -> bool {
+    pub(crate) fn no_invocation_index_handles(&self) -> bool {
         self.owner.derived().no_invocation_index_handles()
     }
     /// How many index backings are shared.
-    pub fn shared_index_backings(&self) -> usize {
+    pub(crate) fn shared_index_backings(&self) -> usize {
         self.owner.derived().shared_index_backings()
     }
     /// A weak reference to the first retained index, to observe its release.
-    pub fn first_index_weak(&self) -> Option<Weak<KeyIndex>> {
+    pub(crate) fn first_index_weak(&self) -> Option<Weak<KeyIndex>> {
         self.owner.derived().first_index_weak()
     }
 }

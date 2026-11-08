@@ -27,7 +27,7 @@ use ryo_values::domain::{
 use std::rc::Rc;
 
 /// A derived owner over a fake port, with the graph acquisitions a proof drives.
-pub struct GraphFixture {
+pub(crate) struct GraphFixture {
     pub(crate) owner: Rc<RelationOwner>,
     wanted: Vec<Relation>,
     partials: Vec<Partial>,
@@ -291,7 +291,8 @@ impl GraphFixture {
         found.map(|found| found.map(|vertex| vertex.0))
     }
     /// Acquires the key index of `rows` over `columns`.
-    pub fn index(
+    #[cfg(test)]
+    pub(crate) fn index(
         &self,
         relation: Relation,
         rows: &Rows<'_>,
@@ -329,7 +330,8 @@ impl GraphFixture {
         )
     }
     /// Sets the owner's retained-byte limit.
-    pub fn set_limit(&mut self, limit: usize) {
+    #[cfg(test)]
+    pub(crate) fn set_limit(&mut self, limit: usize) {
         self.limit = limit;
         self.owner
             .derived()
@@ -339,11 +341,13 @@ impl GraphFixture {
             .unwrap();
     }
     /// Whether a graph demand can reach the cache of the owner now.
-    pub fn cache_ready(&self) -> Result<(), OperatingError> {
+    #[cfg(test)]
+    pub(crate) fn cache_ready(&self) -> Result<(), OperatingError> {
         self.owner.derived().graph_cache().map(|_| ())
     }
     /// Retire the generation: the owner drops its cache until the file is prepared again.
-    pub fn retire(&self) {
+    #[cfg(test)]
+    pub(crate) fn retire(&self) {
         self.owner.derived().clear();
     }
     pub(crate) fn clear(&self) {
@@ -351,7 +355,8 @@ impl GraphFixture {
         self.setup();
     }
     /// Whether reclaiming `cost` bytes succeeds.
-    pub fn reclaim(&self, cost: usize) -> bool {
+    #[cfg(test)]
+    pub(crate) fn reclaim(&self, cost: usize) -> bool {
         let mut backend = self.owner.derived().backend.borrow_mut();
         self.owner
             .derived()
