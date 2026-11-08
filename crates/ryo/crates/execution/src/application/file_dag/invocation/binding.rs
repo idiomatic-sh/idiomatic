@@ -51,7 +51,7 @@ impl PrimitiveResources for InvocationInputs<'_> {
             Some(parts) => {
                 ryo_execution_domain::domain::operator::contract::views::ClosureViews::One(parts.current()?)
             }
-            None => ryo_execution_domain::domain::operator::contract::views::ClosureViews::Many(self),
+            None => ryo_execution_domain::domain::operator::contract::views::ClosureViews::Many(&self.closure),
         })
     }
     fn ordered(&self) -> Result<Option<&OrderedMatching>, OperatingError> {

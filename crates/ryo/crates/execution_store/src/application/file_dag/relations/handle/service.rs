@@ -34,7 +34,8 @@ impl PublishedInput {
             }),
         }
     }
-    pub(crate) fn as_ref(&self) -> &RelationResult {
+    /// The published record this input leases, borrowed for reading.
+    pub fn as_ref(&self) -> &RelationResult {
         &self.record
     }
     /// The published record.
