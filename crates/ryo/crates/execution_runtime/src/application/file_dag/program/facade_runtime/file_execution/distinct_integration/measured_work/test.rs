@@ -128,6 +128,10 @@ fn many_tiny_partitions_bound_the_working_graph() -> Result<Value, Failure> {
         "aggregate live Value capacity (adjacency, keys, sources and work rows), not only the last partition"
     );
     assert!(observed.closure_visited <= 4);
+    // Positive reads: the bounds above cannot pass on counters that were never written.
+    assert!(observed.closure_partition_rows > 0);
+    assert!(observed.closure_partition_capacity > 0);
+    assert!(observed.closure_visited > 0);
     Ok(())
 }
 fn node(position: u32) -> Cell {
@@ -192,13 +196,15 @@ fn sparse_axis_walk_visits_only_its_component() -> Result<Value, Failure> {
     }
     Ok(())
 }
-/// The former unary pilots keep the same row scratch when their input doubles.
+/// The former unary pilots hold the same exact row and other scratch when their input doubles.
 fn unary_pilots_keep_bounded_row_scratch() -> Result<Value, Failure> {
-    for kind in [
-        OperationKind::Select,
-        OperationKind::Project,
-        OperationKind::SourceMatches,
-        OperationKind::SpanBounds,
+    // The exact row and other scratch each pilot holds: Select streams with none, so the positive reads of the other
+    // three prove the counters are written.
+    for (kind, scratch) in [
+        (OperationKind::Select, (0, 0)),
+        (OperationKind::Project, (0, 4)),
+        (OperationKind::SourceMatches, (4, 0)),
+        (OperationKind::SpanBounds, (4, 0)),
     ] {
         let mut case = fixture(kind);
         if let Operation::Project { distinct, .. } = &mut case.operation {
@@ -213,7 +219,8 @@ fn unary_pilots_keep_bounded_row_scratch() -> Result<Value, Failure> {
         let (first_rows, first) = measured(case.operation.clone(), &[&small], SOURCE, &mut case.symbols)?;
         let (second_rows, second) = measured(case.operation.clone(), &[&large], SOURCE, &mut case.symbols)?;
         assert_eq!(second_rows.count.0, first_rows.count.0 * 2, "{kind:?}");
-        assert_eq!(second.row_capacity, first.row_capacity, "{kind:?}");
+        assert_eq!((first.row_capacity, first.other_capacity), scratch, "{kind:?}");
+        assert_eq!((second.row_capacity, second.other_capacity), scratch, "{kind:?}");
     }
     Ok(())
 }
