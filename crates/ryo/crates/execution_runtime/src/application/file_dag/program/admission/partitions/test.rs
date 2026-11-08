@@ -26,8 +26,8 @@ fn corpus() -> Vec<CorpusInput> {
 fn identities_that_differ_only_in_the_inapplicable_files_are_one_identity_and_keep_their_sets() {
     let files = corpus();
     let request = Arc::new(RequestIdentity::new(&files));
-    let without = RequiredPartitions::from_request(&request, &files, &[], &[], &[]).unwrap();
-    let with = RequiredPartitions::from_request(&request, &files, &[], &[], &[FileId(1)]).unwrap();
+    let without = RequiredPartitions::from_request(&request, &files, &[], &[], &[], &[]).unwrap();
+    let with = RequiredPartitions::from_request(&request, &files, &[], &[], &[FileId(1)], &[]).unwrap();
     assert!(
         without.inapplicable() != with.inapplicable(),
         "each identity keeps its own evidence"
@@ -52,8 +52,8 @@ fn identities_of_two_requests_are_never_one_identity() {
     let files = corpus();
     let first = Arc::new(RequestIdentity::new(&files));
     let later = Arc::new(RequestIdentity::new(&files));
-    let one = RequiredPartitions::from_request(&first, &files, &[], &[], &[FileId(1)]).unwrap();
-    let other = RequiredPartitions::from_request(&later, &files, &[], &[], &[FileId(1)]).unwrap();
+    let one = RequiredPartitions::from_request(&first, &files, &[], &[], &[FileId(1)], &[]).unwrap();
+    let other = RequiredPartitions::from_request(&later, &files, &[], &[], &[FileId(1)], &[]).unwrap();
     assert_eq!(
         one.same_request(&other),
         Agreement::Different,

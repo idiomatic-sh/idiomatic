@@ -98,6 +98,7 @@ pub(super) fn ordinary_project_rules_share_one_preparation_and_reject_another_ge
                 &changed,
                 &[],
                 &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
+                &ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(),
             )
             .unwrap();
         let (_, old_frontier) = prepared_in(
@@ -176,6 +177,7 @@ pub(super) fn ordinary_project_rules_share_one_preparation_and_reject_another_ge
                 &rules.covered,
                 &[],
                 &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
+                &ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(),
             )
             .unwrap();
         let failed = evaluate_fixture(

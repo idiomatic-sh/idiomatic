@@ -119,6 +119,14 @@ impl ProjectCompletion {
                 {
                     continue;
                 }
+                // A file the rule was refused on already gives the rule's unknown there, with why.
+                if crossing
+                    .refused
+                    .iter()
+                    .any(|refusal| refusal.rule == todo.id && refusal.path == *path)
+                {
+                    continue;
+                }
                 unknowns.push(
                     ryo_execution::inbound::use_cases::metadata::interface::Unknown {
                         rule: todo.id.clone(),

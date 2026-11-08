@@ -134,6 +134,7 @@ impl CrossFile {
             files: run.files,
             covered: handed.covered,
             skipped: handed.skipped,
+            refused: handed.refused,
             unread: handed.unread,
             project: &now.partials,
             answering: run.answering,

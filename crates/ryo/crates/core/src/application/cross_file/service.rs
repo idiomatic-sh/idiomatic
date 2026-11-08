@@ -13,6 +13,7 @@ use crate::domain::answering::service::settle;
 use crate::domain::answering::types::Answered;
 use crate::domain::answering::types::Todo;
 use crate::domain::crossing::service::inapplicable_files;
+use crate::domain::crossing::service::refused_files;
 use crate::domain::crossing::service::partials_for;
 use crate::domain::crossing::service::partials_for_reads;
 use crate::domain::render::types::Answering;
@@ -110,12 +111,14 @@ impl CrossFile {
             })
             .collect::<Vec<_>>();
         let inapplicable = inapplicable_files(&MetadataUseCaseImpl, &run.domain);
+        let refused = refused_files(&run.domain);
         stage.restore_frontiers(
             run.facts,
             run.domain.files,
             run.domain.covered,
             run.domain.skipped,
             &inapplicable,
+            &refused,
             &readiness,
             run.first_bucket,
             &selected,
@@ -176,6 +179,7 @@ impl CrossFile {
                         covered: run.domain.covered,
                         skipped: run.domain.skipped,
                         inapplicable: &inapplicable,
+                        refused: &refused,
                         facts: run.facts,
                         project: run.project,
                         project_symbols: run.project_symbols,

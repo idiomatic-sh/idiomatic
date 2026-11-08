@@ -1,4 +1,4 @@
-//! Missing transport remains an error; explicit syntax rejection remains partial.
+//! Missing transport remains an error; explicit syntax rejection and refused acceptance remain partial.
 use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityReason;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
@@ -16,6 +16,10 @@ enum Case {
     Missing,
     /// A required source absent from the frontier, while the edge names only another file inapplicable.
     MissingWhileAnotherFileIsInapplicable,
+    /// A file the language left undetermined, the rule refused on it: it has no frame and the edge names it refused.
+    UndeterminedSyntax,
+    /// The edge names refused a file that carries a frame.
+    RefusedFileWithAFrame,
     WrongRule,
     WrongPath,
     AlwaysApplicable,
@@ -31,6 +35,8 @@ fn project_frontiers_distinguish_explicit_rejection_from_missing_or_conflicting_
         Case::RejectedSyntax,
         Case::Missing,
         Case::MissingWhileAnotherFileIsInapplicable,
+        Case::UndeterminedSyntax,
+        Case::RefusedFileWithAFrame,
         Case::WrongRule,
         Case::WrongPath,
         Case::AlwaysApplicable,
@@ -191,7 +197,10 @@ fn exercise(case: Case) {
     }];
     if matches!(
         case,
-        Case::Missing | Case::MissingWhileAnotherFileIsInapplicable
+        Case::Missing
+            | Case::MissingWhileAnotherFileIsInapplicable
+            | Case::UndeterminedSyntax
+            | Case::RefusedFileWithAFrame
     ) {
         skipped.clear();
     }
@@ -212,6 +221,11 @@ fn exercise(case: Case) {
                     Vec::new()
                 },
             ),
+            &ryo_execution::inbound::use_cases::execution::interface::RefusedFiles(match case {
+                Case::UndeterminedSyntax => vec![FileId(1)],
+                Case::RefusedFileWithAFrame => vec![FileId(0)],
+                _ => Vec::new(),
+            }),
         )
         .unwrap();
     let project = ProjectFacts::new(Relation::ModuleIdentity);
@@ -228,11 +242,11 @@ fn exercise(case: Case) {
         },
         &mut symbols,
     );
-    if !matches!(case, Case::RejectedSyntax) {
+    if !matches!(case, Case::RejectedSyntax | Case::UndeterminedSyntax) {
         assert!(ordinary.is_err(), "invalid transport accepted: {case:?}");
         return;
     }
-    let ordinary = ordinary.expect("explicit rejection accounts for absent transport");
+    let ordinary = ordinary.expect("explicit rejection or refusal accounts for absent transport");
     let partials = Partials::default();
     let RootOutcome::Partial { table, affected } = crate::boundary_fixture::project_root(
         &phase,
@@ -251,12 +265,13 @@ fn exercise(case: Case) {
     .unwrap()
     .emit
     else {
-        panic!("skipped partition must not become complete empty input")
+        panic!("a skipped or refused partition must not become complete empty input: {case:?}")
     };
     assert_eq!(table.kinds, [CellKind::File]);
-    assert_eq!(table.cells, [Value::File(FileId(0))]);
+    // The accepted file's row is answered; only the skipped or refused file is uncertain.
+    assert_eq!(table.cells, [Value::File(FileId(0))], "{case:?}: the accepted file's row");
     assert_eq!(table.count, RowCount(1));
-    assert_eq!(affected, [Some(FileId(1))]);
+    assert_eq!(affected, [Some(FileId(1))], "{case:?}: only the skipped or refused file is uncertain");
 }
 
 #[test]
@@ -320,6 +335,7 @@ fn wholly_skipped_frontier_is_unavailable_without_fabricating_a_schema_or_rows()
             &[],
             &skipped,
             &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
+            &ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(),
         )
         .unwrap();
     let stored = CapturedFacts {

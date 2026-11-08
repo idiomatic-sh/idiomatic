@@ -61,6 +61,7 @@ pub use ryo_execution_domain::domain::coverage::types::Lacking;
 pub use ryo_execution_domain::domain::coverage::types::LackingKind;
 pub use ryo_execution_domain::domain::coverage::types::Partial;
 pub use ryo_execution_domain::domain::coverage::types::Partials;
+pub use ryo_execution_domain::domain::coverage::types::RefusedFiles;
 pub use ryo_execution_domain::domain::coverage::types::RuleIndex;
 pub use ryo_execution_domain::domain::rule_intent::errors::RuleIntentError;
 pub use ryo_execution_domain::domain::file_program::types::ObservedFrontierRoot;

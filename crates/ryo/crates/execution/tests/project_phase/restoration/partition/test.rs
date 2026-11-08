@@ -5,6 +5,7 @@ use ryo_execution::inbound::use_cases::execution::interface::ObservationExecutio
 use ryo_execution::inbound::use_cases::execution::interface::ObservationPublication as _;
 use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityReason;
 use ryo_execution::inbound::use_cases::execution::interface::FileObservationReadiness;
+use ryo_execution::inbound::use_cases::execution::interface::{InapplicableFiles, RefusedFiles};
 use ryo_execution::inbound::use_cases::execution::interface::Partial;
 use ryo_execution_runtime::application::file_dag::observations::types::AdmittedOutput;
 use ryo_execution_runtime::application::file_dag::observations::types::RuleSelection;
@@ -168,6 +169,7 @@ pub(super) fn exercise_with(
             &[],
             &skipped,
             &[],
+            &[],
             &readiness,
             &[Bucket(0), Bucket(10), Bucket(20)],
             &[RuleSelection::Unselected, RuleSelection::Selected, RuleSelection::Selected],
@@ -180,7 +182,8 @@ pub(super) fn exercise_with(
             &corpus,
             &[],
             &skipped,
-            &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
+            &InapplicableFiles::default(),
+            &RefusedFiles::default(),
         )
         .unwrap();
     let slot = stage.reserve(RuleIndex(1)).unwrap();
@@ -294,9 +297,8 @@ pub(super) fn exercise_with(
             &corpus,
             &[],
             &skipped,
-            &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles(
-                inapplicable.to_vec(),
-            ),
+            &InapplicableFiles(inapplicable.to_vec()),
+            &RefusedFiles::default(),
         )
         .unwrap();
     let bound = stage.bindings(RuleIndex(2)).unwrap();

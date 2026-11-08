@@ -22,6 +22,7 @@ use crate::application::file_dag::program::rule_outcome::types::RuleOutcome;
 use crate::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome;
 use ryo_execution_domain::domain::coverage::types::Covered;
 use ryo_execution_domain::domain::coverage::types::InapplicableFiles;
+use ryo_execution_domain::domain::coverage::types::RefusedFiles;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::readiness::types::InvocationStateCounts;
@@ -165,6 +166,7 @@ impl ProjectStage for ProjectPhase<'_> {
         covered: &[Covered],
         skipped: &[Skipped],
         inapplicable: &InapplicableFiles,
+        refused: &RefusedFiles,
     ) -> Result<PhaseScope, OperatingError> {
         let required = facade_runtime::service::required_partitions(
             &self.request.program,
@@ -173,6 +175,7 @@ impl ProjectStage for ProjectPhase<'_> {
             covered,
             skipped,
             &inapplicable.0,
+            &refused.0,
             &self.request.services,
         )?;
         Ok(PhaseScope {
@@ -205,8 +208,12 @@ impl ProjectPhase<'_> {
             .inapplicable
             .get(rule.0)
             .ok_or(PhaseStop::Operating(OperatingError::NotRun))?;
+        let refused = phase
+            .refused
+            .get(rule.0)
+            .ok_or(PhaseStop::Operating(OperatingError::NotRun))?;
         let scope = self
-            .project_scope(rule, phase.corpus, phase.covered, phase.skipped, inapplicable)
+            .project_scope(rule, phase.corpus, phase.covered, phase.skipped, inapplicable, refused)
             .map_err(PhaseStop::Operating)?;
         let frontier = self
             .request

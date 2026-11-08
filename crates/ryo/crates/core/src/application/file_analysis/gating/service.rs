@@ -171,3 +171,21 @@ impl FileAnalysis {
         skipped
     }
 }
+
+/// The unknowns a rule's refusal on a file wrote, fresh or as the store kept them: the file's syntax acceptance undetermined or
+/// the rule's applicability metadata unavailable. The rule has no frame for those files, so its cross-file steps lack their input.
+pub(crate) fn refusals(
+    unknowns: &[ryo_execution::inbound::use_cases::metadata::interface::Unknown],
+) -> Vec<ryo_execution::inbound::use_cases::metadata::interface::Unknown> {
+    unknowns
+        .iter()
+        .filter(|each| {
+            matches!(
+                &*each.message.0,
+                RULE_SKIPPED_SYNTAX_ACCEPTANCE_UNDETERMINED
+                    | RULE_SKIPPED_APPLICABILITY_METADATA_UNAVAILABLE
+            )
+        })
+        .cloned()
+        .collect()
+}

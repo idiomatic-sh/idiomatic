@@ -8,6 +8,7 @@ use crate::application::file_dag::program::rule_outcome::types::RuleOutcome;
 use crate::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome;
 use ryo_execution_domain::domain::coverage::types::Covered;
 use ryo_execution_domain::domain::coverage::types::InapplicableFiles;
+use ryo_execution_domain::domain::coverage::types::RefusedFiles;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::readiness::types::InvocationStateCounts;
@@ -76,6 +77,7 @@ pub trait ProjectStage: ProjectRootExecution {
         covered: &[Covered],
         skipped: &[Skipped],
         inapplicable: &InapplicableFiles,
+        refused: &RefusedFiles,
     ) -> Result<PhaseScope, OperatingError>;
     fn finish(self) -> Result<(), OperatingError>;
 }

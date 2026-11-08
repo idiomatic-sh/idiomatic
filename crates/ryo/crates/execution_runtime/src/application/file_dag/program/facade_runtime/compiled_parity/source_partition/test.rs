@@ -108,7 +108,7 @@ fn subject(case: Input) -> Result<Value, Failure> {
         })
     });
     let services = ProgramServices::new(Arc::clone(&engine), Arc::clone(&derived), &corpus);
-    let required = required_partitions(&prepared, RuleIndex(0), &corpus, &[], &[], &[], &services)?;
+    let required = required_partitions(&prepared, RuleIndex(0), &corpus, &[], &[], &[], &[], &services)?;
     if matches!(
         case,
         SourceCase::FrontierRefusal | SourceCase::FrontierScope
@@ -120,6 +120,7 @@ fn subject(case: Input) -> Result<Value, Failure> {
                 &prepared,
                 RuleIndex(0),
                 &corpus[..1],
+                &[],
                 &[],
                 &[],
                 &[],

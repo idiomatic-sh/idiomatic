@@ -258,7 +258,7 @@ impl CapturedProject {
         file.finish()?;
         let phase = publication_owner(&prepared, &services, std::sync::Arc::new(crate::outbound::digest::fixtures::fake::DigestFake))?;
         let required =
-            required_partitions(&prepared, RuleIndex(1), &corpus, &[], &[], &[], &services)?;
+            required_partitions(&prepared, RuleIndex(1), &corpus, &[], &[], &[], &[], &services)?;
         let length = capture.words.0.len();
         let token = crate::application::file_dag::program::restored::validate_restored_frontier(
             &prepared,

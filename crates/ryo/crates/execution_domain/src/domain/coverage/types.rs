@@ -135,6 +135,12 @@ pub struct FileObservationReadiness {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct InapplicableFiles(pub Vec<FileId>);
 
+/// The files of the corpus that one rule was refused on because a language left their syntax acceptance undetermined or the
+/// rule's applicability metadata is unavailable, by file number. The rule has no frame for them and its answer lacks their input:
+/// the engine discharges a missing source for these and answers the rule partial over them, never complete.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct RefusedFiles(pub Vec<FileId>);
+
 /// How many files a run declares, among which the files of a partial source are placed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct DeclaredFiles(pub usize);

@@ -64,6 +64,7 @@ pub(super) struct World {
     pub(super) arenas: Vec<ArenaBytes>,
     pub(super) covered: Vec<Covered>,
     pub(super) skipped: Vec<ryo_values::domain::runs::types::Skipped>,
+    pub(super) refused: Vec<ryo_execution::inbound::use_cases::metadata::interface::Unknown>,
     pub(super) project: Vec<Partial>,
 }
 
@@ -214,6 +215,7 @@ pub(super) fn world_with_applicability(
         arenas: Vec::new(),
         covered: Vec::new(),
         skipped: Vec::new(),
+        refused: Vec::new(),
         project: Vec::new(),
     }
 }
@@ -232,6 +234,7 @@ pub(super) fn crossing(world: &World) -> ProjectCrossing<'_> {
             files: &world.files,
             covered: &world.covered,
             skipped: &world.skipped,
+            refused: &world.refused,
             unread: &[],
             project: &world.project,
             answering: &crate::domain::render::types::Answering::Findings,
@@ -303,6 +306,7 @@ pub(super) fn prepared_in(
             covered,
             &world.skipped,
             &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
+            &ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(),
         )
         .expect("project scope");
     let frontiers = world

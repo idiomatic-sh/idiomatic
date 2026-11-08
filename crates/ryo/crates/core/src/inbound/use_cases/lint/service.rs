@@ -9,6 +9,7 @@ use crate::application::cross_file::service::CrossFile;
 use crate::application::cross_file::types::{
     OrdinaryOutcome, PhaseOutcome, PhasePorts, PhaseRun, Settling,
 };
+use crate::application::file_analysis::gating::service::refusals;
 use crate::application::file_analysis::streaming::service::FileVisits;
 use crate::application::file_analysis::types::{
     FileVisit, ProjectMaking, RequestVisitSetting, StreamRun,
@@ -207,11 +208,14 @@ pub(super) fn answer(
     if matches!(run.again, Reuse::Cross(_) | Reuse::Again) {
         skipped.extend(run.skipped.iter().cloned());
     }
+    // The rules refused on files, fresh or as the store kept them: their cross-file steps lack those files' input.
+    let refused = refusals(&unknowns);
     let handed = CrossReading {
         observations: &observations,
         arenas: &mut arenas,
         covered: &covered,
         skipped: &skipped,
+        refused: &refused,
         unread: &unread,
         workers,
     };

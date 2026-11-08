@@ -134,3 +134,30 @@ pub(crate) fn inapplicable_files(
     }
     inapplicable
 }
+
+/// For each rule, the files of the run it was refused on: the file analysis left the rule's applicability there undecided, so the
+/// rule has no frame for them and its answer lacks their input.
+#[must_use]
+pub(crate) fn refused_files(
+    crossing: &CrossingInput<'_>,
+) -> Vec<ryo_execution::inbound::use_cases::execution::interface::RefusedFiles> {
+    use ryo_execution::inbound::use_cases::execution::interface::RefusedFiles;
+    let mut refused = vec![RefusedFiles::default(); crossing.ids.len()];
+    for (id, files) in crossing.ids.iter().zip(refused.iter_mut()) {
+        for (index, path) in crossing.paths.iter().take(crossing.files.len()).enumerate() {
+            let Ok(number) = u32::try_from(index) else {
+                break;
+            };
+            if crossing
+                .refused
+                .iter()
+                .any(|each| each.rule == *id && each.path == *path)
+            {
+                files
+                    .0
+                    .push(ryo_relations::domain::relations::types::FileId(number));
+            }
+        }
+    }
+    refused
+}

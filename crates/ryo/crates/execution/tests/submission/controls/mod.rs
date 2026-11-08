@@ -43,6 +43,7 @@ use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
 use ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles;
+use ryo_execution::inbound::use_cases::execution::interface::RefusedFiles;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
@@ -138,6 +139,7 @@ pub(super) fn frontiers_of_an_undeclared_rule() {
 pub(super) fn occurrence_of_an_undeclared_rule() {
     with_held(&engine(), Entry::Phase, 3, |request, _, corpus, covered| {
         let inapplicable = vec![InapplicableFiles::default(); 4];
+        let refused = vec![RefusedFiles::default(); 4];
         let project_symbols = ryo_language::domain::symbols::types::Symbols::default();
         let mut symbols = ryo_language::domain::symbols::types::Symbols::default();
         let occurrence = |rule| PhaseOccurrence {
@@ -155,6 +157,7 @@ pub(super) fn occurrence_of_an_undeclared_rule() {
                 covered,
                 skipped: &[],
                 inapplicable: &inapplicable,
+                refused: &refused,
                 facts: &NoFacts,
                 project: &NoFacts,
                 project_symbols: &project_symbols,
@@ -319,6 +322,7 @@ pub(super) fn restore_inapplicable_per_rule() {
                 covered,
                 &[],
                 &vec![InapplicableFiles::default(); inapplicable],
+                &vec![RefusedFiles::default(); 3],
                 &[],
                 &[ryo_values::domain::stored_facts::types::Bucket(0); 3],
                 &[RuleSelection::Unselected; 3],

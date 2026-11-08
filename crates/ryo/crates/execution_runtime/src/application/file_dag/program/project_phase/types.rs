@@ -7,6 +7,7 @@ use crate::application::file_dag::frontiers::types::PublicationSlot;
 use crate::application::file_dag::program::request_execution::types::RequestExecution;
 use ryo_execution_domain::domain::coverage::types::Covered;
 use ryo_execution_domain::domain::coverage::types::InapplicableFiles;
+use ryo_execution_domain::domain::coverage::types::RefusedFiles;
 use ryo_execution_domain::domain::coverage::types::Partials;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_language::domain::symbols::types::Symbols;
@@ -93,6 +94,8 @@ pub struct PhaseOccurrences<'a> {
     pub skipped: &'a [Skipped],
     /// The files each rule does not apply to, by rule.
     pub inapplicable: &'a [InapplicableFiles],
+    /// The files each rule was refused on, by rule.
+    pub refused: &'a [RefusedFiles],
     /// Finishes the facts the frontiers are read from.
     pub facts: &'a dyn FactsFinish,
     /// The project's worker over the facts.

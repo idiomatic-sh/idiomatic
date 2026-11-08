@@ -87,7 +87,7 @@ pub(crate) fn measure_project(
             let mut frontiers = Vec::with_capacity(demanded.len());
             for &rule in demanded {
                 let scope = phase
-                    .project_scope(RuleIndex(rule), &corpus, &covered, &[], &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default())
+                    .project_scope(RuleIndex(rule), &corpus, &covered, &[], &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(), &ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default())
                     .unwrap();
                 frontiers.push(
                     request

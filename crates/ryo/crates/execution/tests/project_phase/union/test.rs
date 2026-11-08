@@ -9,10 +9,8 @@ use ryo_values::domain::observations::types::{
     ObservationColumnName, ObservationName, ObservationProducer, PlanObservation,
 };
 use ryo_values::domain::plan_parts::types::ObservationBindingId;
-use ryo_values::domain::records::types::ObservationIndex;
-use ryo_values::domain::records::types::ObservationReadinessLayout;
-use ryo_values::domain::records::types::ProducerReadiness;
-use ryo_values::domain::records::types::{CrossPublicationTransfer, PackedObservedRoot};
+use ryo_values::domain::records::types::{CrossPublicationTransfer, ObservationReadinessLayout};
+use ryo_values::domain::records::types::{ObservationIndex, PackedObservedRoot, ProducerReadiness};
 use ryo_values::domain::stored_facts::types::{ArenaBytes, Digest, KeptWords};
 use ryo_values::domain::table_words::{
     fixtures::{encode_table, pack},
@@ -183,6 +181,7 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
             &covered,
             &[],
             &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
+            &ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(),
         )
         .unwrap();
     let slot = stage.reserve(RuleIndex(0)).unwrap();
@@ -299,6 +298,7 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
             &covered,
             &[],
             &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
+            &ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(),
         )
         .unwrap();
     let bound = stage.bindings(RuleIndex(1)).unwrap();

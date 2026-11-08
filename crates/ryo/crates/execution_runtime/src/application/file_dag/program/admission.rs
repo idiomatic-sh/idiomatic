@@ -24,9 +24,9 @@ pub(crate) struct FileGeneration {
     file: FileId,
     generation: Arc<ryo_execution_store::application::file_dag::relations::generation::service::GenerationLease>,
 }
-/// The project identity is the request and its files, coverage and skips. `inapplicable` is one
-/// rule's own evidence beside that identity: equality never reads it, so every identity check
-/// (open, supplies, materialize, the frontier cache key) agrees across rules.
+/// The project identity is the request and its files, coverage and skips. `inapplicable` and
+/// `refused` are one rule's own evidence beside that identity: equality never reads them, so every
+/// identity check (open, supplies, materialize, the frontier cache key) agrees across rules.
 #[derive(Clone)]
 pub(crate) struct RequiredPartitions {
     pub(super) request: Arc<super::request_identity::RequestIdentity>,
@@ -34,6 +34,7 @@ pub(crate) struct RequiredPartitions {
     pub(super) covered: Box<[ryo_execution_domain::domain::coverage::types::Covered]>,
     pub(super) skipped: Box<[ryo_values::domain::runs::types::Skipped]>,
     pub(super) inapplicable: Box<[FileId]>,
+    pub(super) refused: Box<[FileId]>,
 }
 impl PartialEq for RequiredPartitions {
     fn eq(&self, other: &Self) -> bool {

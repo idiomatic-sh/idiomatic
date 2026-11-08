@@ -168,6 +168,7 @@ pub(crate) fn restore_frontiers(
     covered: &[ryo_execution_domain::domain::coverage::types::Covered],
     skipped: &[ryo_values::domain::runs::types::Skipped],
     inapplicable: &[ryo_execution_domain::domain::coverage::types::InapplicableFiles],
+    refused: &[ryo_execution_domain::domain::coverage::types::RefusedFiles],
     frames: &[ryo_execution_domain::domain::coverage::types::FileObservationReadiness],
     first_bucket: &[ryo_values::domain::stored_facts::types::Bucket],
     selected: &[RuleSelection],
@@ -175,8 +176,9 @@ pub(crate) fn restore_frontiers(
     use crate::application::file_dag::program::facade_runtime;
     use ryo_values::domain::stored_facts::types::Bucket;
 
-        // One set of inapplicable files per rule, or none for the whole run.
-    if !inapplicable.is_empty() && inapplicable.len() != program.program().rules().len() {
+        // One set of inapplicable files and of refused files per rule, or none for the whole run.
+    let rules = program.program().rules().len();
+    if (!inapplicable.is_empty() && inapplicable.len() != rules) || (!refused.is_empty() && refused.len() != rules) {
         return Err(OperatingError::NotRun);
     }
     let metadata = program
@@ -226,6 +228,9 @@ pub(crate) fn restore_frontiers(
                 covered,
                 skipped,
                 inapplicable
+                    .get(root.producer.0)
+                    .map_or(&[][..], |files| &files.0),
+                refused
                     .get(root.producer.0)
                     .map_or(&[][..], |files| &files.0),
                 services,

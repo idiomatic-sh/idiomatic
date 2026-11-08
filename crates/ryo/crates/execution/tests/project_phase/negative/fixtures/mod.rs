@@ -108,6 +108,7 @@ impl Held<'_> {
                 covered,
                 &[],
                 &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
+                &ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(),
             ),
             Held::Stage(stage) => stage.project_scope(
                 rule,
@@ -115,6 +116,7 @@ impl Held<'_> {
                 covered,
                 &[],
                 &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
+                &ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(),
             ),
         }
     }
@@ -349,6 +351,7 @@ pub(crate) fn foreign_phase_outcome(
             &covered,
             &[],
             &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
+            &ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(),
         )
         .unwrap();
     let ordinary = prepare_for(&request, &scope, RuleIndex(0)).unwrap();
