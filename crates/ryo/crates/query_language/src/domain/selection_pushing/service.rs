@@ -3,10 +3,12 @@
 use super::types::PushedFilter;
 use super::types::SplitComparisons;
 use crate::domain::fusing::service::source_column;
+use crate::domain::lineage::service::column_kind;
 use crate::domain::planning::service::inputs_of;
 use crate::domain::planning::service::planned_scope;
 use crate::domain::pruning::service::without_unused_roots;
 use crate::domain::rewriting::types::Planned;
+use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::plan_parts::service::column_in;
 use ryo_values::domain::plan_parts::service::columns_of;
 use ryo_values::domain::plan_parts::service::remapped;
@@ -91,10 +93,48 @@ fn filters_only(steps: &[PlanStep], place: usize, readers: Option<&Vec<usize>>) 
     let Some(readers) = readers.filter(|readers| !readers.is_empty()) else {
         return false;
     };
-    matches!(
-        made.operation,
-        Operation::Union { .. } | Operation::Join { reach: None, .. }
-    ) && readers.iter().all(|reader| {
+    // One copy for each of several filters pays where the whole would be large for the rows they keep: a union, or a join keyed on the
+    // file alone, which pairs every row of a file with every row of it on the other side.
+    let copied = match &made.operation {
+        Operation::Union { .. } => true,
+        Operation::Join {
+            left,
+            left_on,
+            reach: None,
+            ..
+        } => {
+            readers.len() == 1
+                || left_on
+                    .iter()
+                    .all(|key| column_kind(steps, *left, *key) == Some(CellKind::File))
+        }
+        Operation::Select { .. }
+        | Operation::Project { .. }
+        | Operation::Extend { .. }
+        | Operation::Intersection { .. }
+        | Operation::Difference { .. }
+        | Operation::Antijoin { .. }
+        | Operation::GroupCount { .. }
+        | Operation::GroupDigest { .. }
+        | Operation::Capture { .. }
+        | Operation::Rank { .. }
+        | Operation::Replace { .. }
+        | Operation::OrderedMatch { .. }
+        | Operation::Words { .. }
+        | Operation::Axis { .. }
+        | Operation::Join { .. }
+        | Operation::Closure { .. }
+        | Operation::OrderedDfs { .. }
+        | Operation::Cycles { .. }
+        | Operation::Rows { .. }
+        | Operation::Hosted { .. }
+        | Operation::SpanBetween { .. }
+        | Operation::SourceMatches { .. }
+        | Operation::RenderSyntax { .. }
+        | Operation::FitsRendered { .. }
+        | Operation::SpanBounds { .. } => false,
+    };
+    copied && readers.iter().all(|reader| {
         steps.get(*reader).is_some_and(|step| {
             step.scope == made.scope
                 && matches!(step.operation, Operation::Select { from: Input::Step(id), .. } if usize::try_from(id.0).ok() == Some(place))
