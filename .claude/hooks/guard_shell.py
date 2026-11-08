@@ -8,7 +8,9 @@ import subprocess
 import sys
 
 LOCK = "/workspaces/.cargo-build.lock"
-TARGET = "/workspaces/idiomatic-benchmark-guards/target"
+TARGET_ROOT = "/workspaces/idiomatic-target"
+SHARED_TARGET = "/workspaces/idiomatic-benchmark-guards/target"
+SHARED_UNTIL = "ryo-yj2e"
 CHECK_TARGET = "/workspaces/idiomatic-check-target"
 FIXTURE_FIX = "cli/tests/replay/imports.rs"
 CARGO_BUILDS = {"build", "test", "bench", "clippy", "run", "check", "doc"}
@@ -137,16 +139,38 @@ def is_check_target(target):
     return name not in ("", ".", "..") and "/" not in name
 
 
-def cargo_rules(words, before):
+def tree_name(directory):
+    """The name of the worktree a directory is in: its git top level's basename, else the directory's own."""
+    code, out = git_out(directory, "rev-parse", "--show-toplevel")
+    return os.path.basename(out.strip() if code == 0 and out.strip() else os.path.abspath(directory))
+
+
+def own_target(dirs):
+    """The one cargo target dir of the worktree the command runs in, or None when it names several trees."""
+    names = {tree_name(d) for d in dirs}
+    return TARGET_ROOT + "/" + names.pop() if len(names) == 1 else None
+
+
+def measurement_only(dirs):
+    return all(os.path.abspath(d).startswith(MEASUREMENT) for d in dirs)
+
+
+def cargo_rules(words, before, dirs):
     at = cargo_index(words)
     if at is None:
         return None
     rest = [w for w in words[at + 1:] if not w.startswith("+")]
     sub = next((w for w in rest if not w.startswith("-")), "")
     target = target_dir(rest)
+    target = os.path.normpath(target) if target else target
     checking = sub == "check" and is_check_target(target)
-    if target is not None and target != TARGET and not checking:
-        return "cargo --target-dir must be " + TARGET + " (or " + CHECK_TARGET + " or " + CHECK_TARGET + "/<worktree name> for cargo check)"
+    own = own_target(dirs)
+    shared = target == SHARED_TARGET and measurement_only(dirs)
+    if target is not None and target != own and not shared and not checking:
+        return ("cargo --target-dir must be " + TARGET_ROOT + "/<this worktree's name>" +
+                (" (here " + own + ")" if own else "") +
+                ": one target per worktree, so no build reuses another tree's units (or " + CHECK_TARGET +
+                " or " + CHECK_TARGET + "/<worktree name> for cargo check)")
     if sub in CARGO_BUILDS and not checking and LOCK not in " ".join(words[:at]) and LOCK not in before:
         return "cargo " + sub + " must run as: flock " + LOCK + " cargo " + sub
     return None
@@ -284,12 +308,12 @@ def reason(command, cwd=None):
             found = builder_check(words, here) if runs_cargo_verb(words) else None
             if found:
                 return found
-    before, here = "", cwd or os.getcwd()
+    before, here, dirs = "", cwd or os.getcwd(), working_dirs(clean, cwd)
     for segment in segments(clean):
         words = tokens(segment)
         if len(words) > 1 and words[0] == "cd":
             here = os.path.join(here, os.path.expanduser(words[1]))
-        for found in (stash(words), removal(words), cargo_rules(words, before), tm_fix(words, clean),
+        for found in (stash(words), removal(words), cargo_rules(words, before, dirs), tm_fix(words, clean),
                       rust_review(words, here)):
             if found:
                 return found
@@ -307,6 +331,9 @@ def main():
     if found:
         print("Blocked: " + found, file=sys.stderr)
         return 2
+    if SHARED_TARGET in command and has_cargo_command(COMMENT.sub("", command)):
+        print("Deprecated: " + SHARED_TARGET + " is accepted only for " + MEASUREMENT + "* trees until " +
+              SHARED_UNTIL + " is done; use " + TARGET_ROOT + "/<this worktree's name>", file=sys.stderr)
     return 0
 
 

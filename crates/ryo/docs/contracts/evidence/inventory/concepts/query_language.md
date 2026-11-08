@@ -31,18 +31,18 @@ One row per concept directory (a directory holding service.rs, types.rs, interfa
 | domain | rooting | 243 | 1 | service |
 | domain | selecting | 280 | 1 | service |
 | domain | spanning | 165 | 1 | service |
-| domain | substituting | 278 | 1 | service |
+| domain | substituting | 305 | 1 | service |
 | domain | syntax | 666 | 3 | service, types |
 | domain | traversing | 323 | 1 | service |
 | domain | validation | 507 | 3 | service, types |
 | domain | walking | 403 | 2 | service, types |
-| inbound | use_cases/compile | 320 | 6 | interface, service, types, use_case |
+| inbound | use_cases/compile | 340 | 6 | interface, service, types, use_case |
 | inbound | use_cases/describe | 106 | 5 | interface, types, use_case |
-| inbound | use_cases/typecheck | 328 | 5 | interface, service, use_case |
+| inbound | use_cases/typecheck | 329 | 5 | interface, service, use_case |
 | outbound | catalog | 52 | 6 | interface, types |
 | outbound | catalog/adapters/language | 17 | 1 | adapter |
-| outbound | syntax | 70 | 5 | interface |
-| outbound | syntax/adapters/winnow | 1447 | 2 | adapter |
+| outbound | syntax | 78 | 5 | interface |
+| outbound | syntax/adapters/winnow | 1453 | 2 | adapter |
 
 Production lines in directories with no concept ancestor:
 

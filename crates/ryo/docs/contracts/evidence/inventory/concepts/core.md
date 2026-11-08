@@ -4,13 +4,13 @@ One row per concept directory (a directory holding service.rs, types.rs, interfa
 
 | layer | concept | production lines | files | marker files |
 |---|---|---|---|---|
-| application | cross_file | 665 | 5 | service, types |
+| application | cross_file | 671 | 5 | service, types |
 | application | cross_file/completion | 321 | 4 | service, types |
 | application | cross_file/ordinary | 122 | 2 | service |
 | application | cross_file/phase | 190 | 2 | service |
 | application | cross_file/preparation | 203 | 4 | service, types |
 | application | cross_file/rendering | 330 | 2 | service |
-| application | engine | 151 | 2 | service, types |
+| application | engine | 155 | 2 | service, types |
 | application | file_analysis | 476 | 4 | service, types |
 | application | file_analysis/evaluation | 301 | 2 | service |
 | application | file_analysis/gating | 175 | 2 | service |
@@ -51,7 +51,7 @@ One row per concept directory (a directory holding service.rs, types.rs, interfa
 | domain | workers | 519 | 3 | service, types |
 | inbound | use_cases/describe_operator | 123 | 5 | interface, types, use_case |
 | inbound | use_cases/describe_relation | 182 | 5 | interface, types, use_case |
-| inbound | use_cases/lint | 1641 | 7 | interface, service, types, use_case |
+| inbound | use_cases/lint | 1645 | 7 | interface, service, types, use_case |
 | inbound | use_cases/list_operators | 104 | 5 | interface, types, use_case |
 | inbound | use_cases/list_relations | 122 | 5 | interface, types, use_case |
 | inbound | use_cases/open | 170 | 5 | interface, types, use_case |
@@ -61,7 +61,7 @@ One row per concept directory (a directory holding service.rs, types.rs, interfa
 | outbound | corpus/adapters/memory | 171 | 2 | adapter |
 | outbound | language | 303 | 5 | interface, types |
 | outbound | language/adapters | 8 | 1 | use_case |
-| outbound | language/adapters/use_case | 385 | 3 | adapter |
+| outbound | language/adapters/use_case | 386 | 3 | adapter |
 | outbound | lint_store | 214 | 8 | interface, types |
 | outbound | lint_store/adapters/discard | 79 | 2 | adapter, types |
 | outbound | lint_store/adapters/memory | 160 | 3 | adapter, types |

@@ -230,7 +230,7 @@ def untick_unproven(text,v):
   bad.append(str(n+1)+': '+said+': '+line[:80])
   lines[n]=untick(line)
  return ''.join(lines),bad
-RERUN=re.compile(r'\b(?:narrow(?:ed)? run|re-?run)\b',re.I)
+RERUN=re.compile(r'\b(?:narrow(?:ed)? runs?|re-?runs?)\b',re.I)
 def reruns_without_log(texts,v):
  """A result cited from a rerun names its raw log, and that log is in the validation directory."""
  bad=[]
@@ -240,12 +240,12 @@ def reruns_without_log(texts,v):
   if not logs or not all((Path(v['raw_identity'])/x).is_file() for x in logs): bad.append(where+': cites a rerun with no raw log in '+v['raw_identity']+': '+text[:110])
  return bad
 REPAIR='Repair every deferred output failure; rerun all 413 and full corpus.'
-PERF2='Perf iteration 2 (from checkpoint 324 `14a8352416`, branch `claude/p2-per-file-and-parallel`, head `5574e0fbcd`): the per-file executor cost, and files on every core.'
+RUST_REGRESSIONS='Measure full-Django cold/warm/edit and Rust regressions; meet final objective.'
 CLOSE='Close full TM, contracts, independent review and normal CI.'
 OWNERS={
  'core_library':REPAIR,
  'benchmark_library':CLOSE,
- 'core_allocation':PERF2,
+ 'core_allocation':RUST_REGRESSIONS,
  'cli_cost':'Acceptance: 413/413 on the current engine, full Django (2,875 files, all 413 rules) with unknown 0 and unread 0, sub-second cold wall with low peak RSS, warm and edit faster, Rust regression guards within bounds.',
  'behavior::ruff_rules_feed_every_catalog_feature_a_thousand_rows':'Consolidate the kernels: run the differential parity and the canary with and without each of the five join/select kernels and delete every kernel the evidence shows superseded.',
  'cache::every_recorded_rule_gives_over_ruff_the_rows_a_warm_run_gives_again_from_a_small_store':REPAIR,
@@ -309,15 +309,6 @@ def validate():
    for lock in locks: fcntl.flock(lock,fcntl.LOCK_UN)
  assert not subprocess.check_output(['git','status','--porcelain'],text=True).strip(), 'freeze source before validation'
  head=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()
- # The shared target directory serves several worktrees whose crates have equal build hashes; cargo
- # trusts source mtimes, so artifacts another worktree built after this tree's edits would be reused.
- # Touching the sources under the lock makes every artifact this run uses come from this tree.
- def touch_sources():
-  for d,dirs,fs in os.walk('crates/ryo'):
-   dirs[:]=[x for x in dirs if x not in ('target','.git','node_modules')]
-   for f in fs:
-    if f.endswith(('.rs','.toml')): os.utime(os.path.join(d,f))
- locked(touch_sources)
  def is_test(path):
   parts=path.split('/')
   return any(x in ('tests','test','fixtures') for x in parts[:-1]) or parts[-1] in ('test.rs','tests.rs') or parts[-1].endswith('_test.rs')
@@ -330,7 +321,10 @@ def validate():
    owner=[x for x in scoped if finding['path'].startswith('crates/ryo/'+x+'/') or finding['path']=='crates/ryo/'+x]
    by_directory[owner[0]]['test' if is_test(finding['path']) else 'production']+=1
   return {'total':len(found['findings']),'suppressed':len(found['suppressed']),'production':sum(v['production'] for v in by_directory.values()),'test':sum(v['test'] for v in by_directory.values()),'by_directory':by_directory}
- commands=json.loads((p/'commands.json').read_text())
+ # Each worktree builds into its own target directory, idiomatic-target/<worktree name> in the workspace mount: cargo judges
+ # freshness by source mtimes, so a target shared across worktrees served validation327 units another tree built.
+ tree=Path(subprocess.check_output(['git','rev-parse','--show-toplevel'],text=True).strip()).name
+ commands=[[n,[w.replace('{worktree}',tree) for w in c]] for n,c in json.loads((p/'commands.json').read_text())]
  (p/'identity.json').write_text(dumps({'source':head,'commands':commands})+'\n')
  # Raw outputs (.log/.json per command) never live in the repository: they go to the directory given as the first argument,
  # by default a directory named for the source head and the date under the system temporary directory.

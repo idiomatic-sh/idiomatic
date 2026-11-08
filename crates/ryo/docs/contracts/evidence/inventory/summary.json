@@ -1,7 +1,7 @@
 {
  "concepts": 494,
- "dup_types": 39,
- "dup_fns": 12,
+ "dup_types": 41,
+ "dup_fns": 19,
  "hollow": [],
  "nodecl": [
   "core:application/cross_file/ordinary",
@@ -12,9 +12,6 @@
   "core:application/file_analysis/project",
   "core:application/file_analysis/replaying",
   "core:outbound/language/adapters",
-  "execution:application/file_dag/derived/owner/acquisition",
-  "execution:application/file_dag/derived/owner/acquisition/admission/service/issuance",
-  "execution:application/file_dag/derived/owner/acquisition/scoped",
   "execution:application/file_dag/program/admission/admitted",
   "execution:application/file_dag/program/admission/available",
   "execution:application/file_dag/program/admission/partitions",
@@ -40,15 +37,18 @@
   "execution:application/file_dag/program/runtime/service/state",
   "execution:application/file_dag/program/runtime/service/strategies",
   "execution:application/file_dag/program/runtime/service/walks",
-  "execution:application/file_dag/relations/admission/service/issuance",
-  "execution:application/file_dag/relations/inspection",
-  "execution:application/file_dag/relations/number/service/issuance",
-  "execution:application/file_dag/relations/packed/service/issuance",
-  "execution:application/file_dag/relations/producer",
-  "execution:application/file_dag/relations/source",
-  "execution:outbound/derived/adapters",
   "execution:outbound/operators/adapters",
   "execution:outbound/query_language/adapters",
+  "execution_store:application/file_dag/derived/owner/acquisition",
+  "execution_store:application/file_dag/derived/owner/acquisition/admission/service/issuance",
+  "execution_store:application/file_dag/derived/owner/acquisition/scoped",
+  "execution_store:application/file_dag/relations/admission/service/issuance",
+  "execution_store:application/file_dag/relations/inspection",
+  "execution_store:application/file_dag/relations/number/service/issuance",
+  "execution_store:application/file_dag/relations/packed/service/issuance",
+  "execution_store:application/file_dag/relations/producer",
+  "execution_store:application/file_dag/relations/source",
+  "execution_store:outbound/derived/adapters",
   "operators:outbound/matching/adapters",
   "relations:domain/catalog",
   "relations:domain/kinds"
@@ -58,6 +58,7 @@
   "ByteOffset (sdk, values)",
   "Cell (sdk, values)",
   "ColumnName (sdk, values)",
+  "Emit (execution_domain, values)",
   "Example (sdk, values)",
   "FlagState (sdk, values)",
   "Function (relations, values)",
@@ -67,8 +68,7 @@
   "HostColumnName (sdk, values)",
   "HostKind (sdk, values)",
   "LanguageBuild (core, sdk)",
-  "LanguageName (sdk, values)",
-  "MatchingPort (execution, operators)"
+  "LanguageName (sdk, values)"
  ],
  "exec_crates": [
   "core"
@@ -76,14 +76,9 @@
  "opexec": [
   "answers",
   "runs",
-  "matches",
   "use_case",
-  "count_groups",
-  "digest_groups",
   "evaluate",
-  "finish",
-  "joined",
-  "same"
+  "finish"
  ],
- "anyfn": 112
+ "anyfn": 116
 }

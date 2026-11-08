@@ -19,6 +19,9 @@ pub(crate) enum NotAvailable {
     CorpusAbsent(PathBuf),
     /// The request has no staging receipt: `staged.json` is absent or records no staged digest.
     RequestNotStaged(PathBuf),
+    /// The receipt `staged.json` does not describe what is beside it: its staged digest is not the digest of `profile/`, or its
+    /// `request_sha256` is not the sha256 of `request.json`.
+    StagedDiffers(PathBuf),
     /// The sealed worker is not named.
     WorkerNotNamed,
     /// The sealed worker is named, and is not there.
@@ -34,6 +37,11 @@ impl std::fmt::Display for NotAvailable {
             Self::RequestNotStaged(path) => write!(
                 formatter,
                 "{} records no staged digest: stage the request with verify_profiles.py --stage-request",
+                path.display()
+            ),
+            Self::StagedDiffers(path) => write!(
+                formatter,
+                "{} does not match the staged profile/ or request.json beside it: stage the request again with verify_profiles.py --stage-request",
                 path.display()
             ),
             Self::WorkerNotNamed => write!(formatter, "{WORKER} does not name a worker"),
@@ -63,12 +71,24 @@ pub(crate) fn inputs_at(staged: &Path, worker: Option<OsString>) -> Result<Input
         return Err(NotAvailable::CorpusAbsent(staged.to_path_buf()));
     }
     let receipt = staged.join("staged.json");
-    let digest = std::fs::read_to_string(&receipt)
+    let recorded = std::fs::read_to_string(&receipt)
         .ok()
-        .and_then(|text| serde_json::from_str::<serde_json::Value>(&text).ok())
-        .and_then(|value| value["staged_digest"].as_str().map(str::to_owned));
-    if digest.is_none_or(|digest| digest.is_empty()) {
+        .and_then(|text| serde_json::from_str::<serde_json::Value>(&text).ok());
+    let Some(digest) = recorded
+        .as_ref()
+        .and_then(|value| value["staged_digest"].as_str())
+        .filter(|digest| !digest.is_empty())
+    else {
         return Err(NotAvailable::RequestNotStaged(receipt));
+    };
+    let recorded_request = recorded
+        .as_ref()
+        .and_then(|value| value["request_sha256"].as_str());
+    let request = std::fs::read(staged.join("request.json")).ok();
+    let holds = staged_digest(&staged.join("profile")).is_ok_and(|found| found == digest)
+        && request.is_some_and(|bytes| recorded_request == Some(sha256(&bytes).as_str()));
+    if !holds {
+        return Err(NotAvailable::StagedDiffers(receipt));
     }
     let named = PathBuf::from(worker.ok_or(NotAvailable::WorkerNotNamed)?);
     if !named.is_file() {
@@ -78,6 +98,41 @@ pub(crate) fn inputs_at(staged: &Path, worker: Option<OsString>) -> Result<Input
         staged: staged.to_path_buf(),
         worker: named,
     })
+}
+
+/// The sha256 of `bytes`, in lower-case hex.
+fn sha256(bytes: &[u8]) -> String {
+    use sha2::Digest as _;
+    format!("{:x}", sha2::Sha256::digest(bytes))
+}
+
+/// The digest `verify_profiles.py --stage-request` records for the staged files under `profile`: the sha256 of the lines
+/// `<sha256>  <path>` of every file, its path relative to `profile` with `/` between parts, in path order.
+///
+/// # Errors
+///
+/// A file or directory that cannot be read.
+fn staged_digest(profile: &Path) -> std::io::Result<String> {
+    let mut files = Vec::new();
+    let mut pending = vec![profile.to_path_buf()];
+    while let Some(directory) = pending.pop() {
+        for entry in std::fs::read_dir(&directory)? {
+            let path = entry?.path();
+            if path.is_dir() {
+                pending.push(path);
+            } else if path.is_file() {
+                let relative = path.strip_prefix(profile).unwrap_or(&path);
+                let parts: Vec<_> = relative.iter().map(|part| part.to_string_lossy()).collect();
+                files.push((parts.join("/"), sha256(&std::fs::read(&path)?)));
+            }
+        }
+    }
+    files.sort();
+    let lines: String = files
+        .iter()
+        .map(|(path, digest)| format!("{digest}  {path}\n"))
+        .collect();
+    Ok(sha256(lines.as_bytes()))
 }
 
 /// The inputs of this machine.

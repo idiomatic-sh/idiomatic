@@ -10,8 +10,8 @@ One row per concept directory (a directory holding service.rs, types.rs, interfa
 | domain | hosted | 185 | 3 | service, types |
 | domain | observations | 480 | 5 | service, types |
 | domain | plan_parts | 378 | 2 | service, types |
-| domain | plans | 541 | 2 | service, types |
-| domain | program | 379 | 3 | service, types |
+| domain | plans | 543 | 2 | service, types |
+| domain | program | 383 | 3 | service, types |
 | domain | query_bindings | 61 | 1 | types |
 | domain | query_operators | 155 | 1 | types |
 | domain | query_syntax | 266 | 1 | types |

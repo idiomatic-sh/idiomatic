@@ -229,14 +229,14 @@
     "benchmark_library": {
       "passed": 220,
       "failed": 2,
-      "note": "verify_cases process_capture succeeds, one red row (a metadata failure preserves the process bytes and cannot be admitted), as at validation326; and, in this run only, direct::adapter_test::succeeds (row \"missing script interpreter is a launch failure\" answered ExecutableFileBusy for NotFound, the ETXTBSY race of a script written and executed while another test thread holds its write descriptor; no file of the benchmark crate changed since 326): five reruns of the benchmark library under the lock at 142fe40a98 give 221/1, the process_capture row alone; owned by \"Close full TM, contracts, independent review and normal CI.\""
+      "note": "verify_cases process_capture succeeds, one red row (a metadata failure preserves the process bytes and cannot be admitted), as at validation326; and, in this run only, direct::adapter_test::succeeds (row \"missing script interpreter is a launch failure\" answered ExecutableFileBusy for NotFound, the ETXTBSY race of a script written and executed while another test thread holds its write descriptor; no file of the benchmark crate changed since 326): five reruns of the benchmark library under the lock at 142fe40a98 give 221/1, the process_capture row alone (benchmark_library_reruns.log); owned by \"Close full TM, contracts, independent review and normal CI.\""
     },
     "sdk_passed": 29,
     "other_libraries_passed": 187,
     "libraries_total": {
       "passed": 1078,
       "failed": 3,
-      "note": "validation326 1079/2; the same two reds and the direct adapter ETXTBSY race (green on five reruns)"
+      "note": "validation326 1079/2; the same two reds and the direct adapter ETXTBSY race (green on five reruns, benchmark_library_reruns.log)"
     },
     "execution_boundary": {
       "passed": 97,
@@ -245,7 +245,11 @@
     },
     "activation": {"passed": 11, "failed": 0, "note": "11 actual cases, the facts-finish dhat control among them"},
     "bdd": {"scenarios": 7, "failed": 0},
-    "core_bdd": {"scenarios": 18, "failed": 0},
+    "core_bdd": {
+      "scenarios": 18,
+      "failed": 0,
+      "note": "not a result for 142fe40a98: the binary took units another worktree built in the shared target; it runs again at 328 on the tree's own target"
+    },
     "ruff_sharing": {"passed": 1, "failed": 0},
     "ruff_canary": {
       "passed": 1,
@@ -276,7 +280,7 @@
     "core_allocation": {
       "exit": 101,
       "phase": 7,
-      "note": "owned by \"Perf iteration 2 (from checkpoint 324 `14a8352416`, branch `claude/p2-per-file-and-parallel`, head `5574e0fbcd`): the per-file executor cost, and files on every core.\""
+      "note": "not a result for 142fe40a98: the binary took units another worktree built in the shared target; it runs again at 328 on the tree's own target; owned by \"Measure full-Django cold/warm/edit and Rust regressions; meet final objective.\""
     },
     "cli_replay": {"passed": 75, "failed": 3},
     "cli_replay_reds": ["behavior::ruff_rules_feed_every_catalog_feature_a_thousand_rows", "cache::every_recorded_rule_gives_over_ruff_the_rows_a_warm_run_gives_again_from_a_small_store", "peak::a_warm_unchanged_run_over_ruff_peaks_within_its_bound"],
@@ -285,7 +289,7 @@
       "passed": 1,
       "failed": 3,
       "not_run": 3,
-      "note": "the ruff rows of ratchet.toml hold best 1 and are not seeded (cold 9,326 ms / CPU 54,540 ms, peak 585 MB, warm 532 ms, edit 2,617 ms measured; the new row an_absent_input_is_a_typed_reason_not_a_pass passes); the Django and one-file rows are not available without RYO_PREFLIGHT_WORKER (the staged run is the directory of the worker it names); owned by \"Acceptance: 413/413 on the current engine, full Django (2,875 files, all 413 rules) with unknown 0 and unread 0, sub-second cold wall with low peak RSS, warm and edit faster, Rust regression guards within bounds.\""
+      "note": "the ruff rows of ratchet.toml hold best 1 and are not seeded (cold 9,326 ms / CPU 54,540 ms, peak 585 MB, warm 532 ms, edit 2,617 ms measured; the new row an_absent_input_is_a_typed_reason_not_a_pass passes); the Django and one-file rows are not available without RYO_PREFLIGHT_WORKER (the staged run is the directory of the worker it names); the three staged runs with it are cli_cost_staged_an_absent_input_is_a_typed_reason_not_a_pass.log, cli_cost_staged_n999_over_django_holds_its_ratchet.log and cli_cost_staged_one_file_with_every_rule_holds_its_ratchet.log; owned by \"Acceptance: 413/413 on the current engine, full Django (2,875 files, all 413 rules) with unknown 0 and unread 0, sub-second cold wall with low peak RSS, warm and edit faster, Rust regression guards within bounds.\""
     },
     "cli_other_targets": "blocks (dhat run, no panic), call_count 1/1, command_line 7/7, command_tree 11/11, readme 1/1",
     "conformance": {"targets": 10, "exit": 0},
@@ -320,7 +324,7 @@
     "total": 18,
     "suppressed": 6,
     "at_checkpoint_318": 3676,
-    "status": "measured whole-tree state at checkpoint 327 (142fe40a98 before validation327 was written); not a baseline and not a waiver",
+    "status": "measured whole-tree state at checkpoint 327 (142fe40a98 before validation327 was written; tm_whole_tree.json and tm_whole_tree.err in the raw directory); not a baseline and not a waiver",
     "per_crate": {"crates/execution_domain": 18},
     "module_cycles_findings": 0,
     "no_domain_concept_cycles_findings": 18,

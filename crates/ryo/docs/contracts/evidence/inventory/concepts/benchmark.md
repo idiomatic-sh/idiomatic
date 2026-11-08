@@ -65,7 +65,7 @@ One row per concept directory (a directory holding service.rs, types.rs, interfa
 | outbound | discovery | 32 | 4 | interface |
 | outbound | discovery/adapters/listing | 65 | 2 | adapter |
 | outbound | engine | 250 | 9 | interface, types |
-| outbound | engine/adapters/local | 862 | 4 | adapter |
+| outbound | engine/adapters/local | 875 | 4 | adapter |
 | outbound | evidence | 93 | 7 | interface, types |
 | outbound | evidence/adapters/bmf | 299 | 4 | adapter |
 | outbound | execution | 172 | 10 | interface, types |
@@ -75,7 +75,7 @@ One row per concept directory (a directory holding service.rs, types.rs, interfa
 | outbound | inventory | 349 | 5 | interface, types |
 | outbound | inventory/adapters/local | 1397 | 13 | adapter, types |
 | outbound | linter | 114 | 5 | interface, types |
-| outbound | linter/adapters/ryo | 967 | 9 | adapter, types |
+| outbound | linter/adapters/ryo | 973 | 9 | adapter, types |
 | outbound | receipts | 100 | 6 | interface, types |
 | outbound | receipts/adapters/local | 1177 | 11 | adapter |
 | outbound | suite | 527 | 6 | interface, types |
