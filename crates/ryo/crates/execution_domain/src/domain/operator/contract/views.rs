@@ -13,27 +13,34 @@ use crate::domain::table_model::types::RepresentationInput;
 
 /// Profile-only semantic observations. No execution or ownership policy is reachable.
 #[cfg(feature = "diagnostic-row-progress")]
-#[derive(Clone, Copy)]
-pub(crate) enum ProgressCounter {
+#[derive(Clone, Copy, Debug)]
+pub enum ProgressCounter {
+    /// Rows read from an input.
     InputRows,
+    /// Predicate evaluations.
     PredicateEvaluations,
+    /// Probes of a key index.
     IndexProbes,
+    /// Rows an index probe examined.
     IndexRowsExamined,
+    /// Rows an equality matched.
     EqualityMatches,
+    /// Candidate pairs a join considered.
     JoinCandidatePairs,
 }
 /// How much one profile observation adds to its counter: the bare count inside is named here.
 #[cfg(feature = "diagnostic-row-progress")]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct ProgressAmount(pub u64);
+pub struct ProgressAmount(pub u64);
 #[cfg(feature = "diagnostic-row-progress")]
-pub(crate) trait ProgressObserver: Sync {
+pub trait ProgressObserver: Sync {
     /// Adds `amount` to what `counter` has counted.
     fn observe(&self, counter: ProgressCounter, amount: ProgressAmount);
 }
 /// The observer of a run that profiles nothing.
 #[cfg(feature = "diagnostic-row-progress")]
-pub(crate) struct IgnoredProgress;
+#[derive(Debug)]
+pub struct IgnoredProgress;
 #[cfg(feature = "diagnostic-row-progress")]
 impl ProgressObserver for IgnoredProgress {
     fn observe(&self, _counter: ProgressCounter, _amount: ProgressAmount) {}
@@ -42,6 +49,7 @@ impl ProgressObserver for IgnoredProgress {
 /// Exact typed key lookup prepared by the engine; primitives only probe it.
 #[derive(Clone, Copy)]
 pub struct IndexedRows<'a> {
+    /// The observer the probes report their work to.
     #[cfg(feature = "diagnostic-row-progress")]
     pub progress: &'a dyn ProgressObserver,
     /// The rows indexed.

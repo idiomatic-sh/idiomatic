@@ -1,5 +1,5 @@
 //! Physical row semantics; policy and allocation ownership remain in the engine.
-use crate::domain::table_model::types::{PhysicalShape, RepresentationKind};
+use crate::domain::table_model::types::{PhysicalShape, RelationContract, RepresentationKind};
 use super::super::{interface::RepresentationsItem, types::*};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_model::types::RepresentationInput;

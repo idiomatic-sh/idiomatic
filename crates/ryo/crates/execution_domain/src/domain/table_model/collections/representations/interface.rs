@@ -1,7 +1,7 @@
 //! Representation semantics expose no input scheduler or cache owner.
-use crate::domain::table_model::types::PhysicalShape;
+use crate::domain::table_model::types::{PhysicalShape, RelationContract};
 use super::types::{
-    CellRead, RelationContract, RowRead,
+    CellRead, RowRead,
 };
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_model::types::RepresentationInput;

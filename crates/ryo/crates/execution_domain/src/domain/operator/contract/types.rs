@@ -64,7 +64,7 @@ pub(crate) enum ResourceNeeds {
 
 /// The kind of symbolic mutation that is observable in a successful invocation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Effects {
+pub enum Effects {
     /// The result changes no symbolic state.
     Pure,
     /// The result writes derived text.

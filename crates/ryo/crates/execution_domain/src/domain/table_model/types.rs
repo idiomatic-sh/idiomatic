@@ -143,3 +143,17 @@ pub enum PhysicalShape {
     /// Only its readable physical rows can be read.
     ReadablePhysicalFallback,
 }
+
+/// What a representation declares of its rows: the input, its kind, its cell kinds and its row count.
+pub struct RelationContract<'a> {
+    /// The rows' representation.
+    pub input: RepresentationInput<'a>,
+    /// The kind of the representation.
+    pub kind: RepresentationKind,
+    /// The cell kinds of its columns.
+    pub kinds: &'a [ryo_relations::domain::relations::types::CellKind],
+    /// How many rows it holds.
+    pub rows: ryo_values::domain::rows::types::RowCount,
+    /// Captured metadata refusals are interpreted only at the existing demand gate.
+    pub metadata: Result<(), crate::domain::operating::errors::OperatingError>,
+}

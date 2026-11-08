@@ -272,11 +272,13 @@ pub enum SchemaValidity {
 
 /// Prepared metadata belongs to the request; workers only borrow this immutable value.
 #[derive(Debug)]
-pub(crate) struct RequestOperators {
+pub struct RequestOperators {
     /// Original-plan shape metadata owned by this exact immutable request, never file state:
     /// one slot per rule, compiled when the request graph first resolves that rule's regions.
     pub ordered_existence:
         Vec<std::sync::OnceLock<crate::domain::self_join_recogniser::types::Program>>,
+    /// The prepared operator contracts of each rule, one per compiled operation.
     pub rules: Vec<Vec<std::sync::Arc<crate::domain::operator::contract::types::OperatorContract>>>,
+    /// How many contracts were prepared.
     pub preparations: crate::domain::operator::contract::types::PreparationCount,
 }
