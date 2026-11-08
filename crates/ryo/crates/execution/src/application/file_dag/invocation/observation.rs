@@ -8,9 +8,9 @@ impl InvocationResources<'_> {
             .inputs
             .index
             .as_ref()
-            .map(|index| index.view(&self.inputs.progress));
+            .and_then(|index| index.view(&self.inputs.progress));
         #[cfg(not(feature = "diagnostic-row-progress"))]
-        let view = self.inputs.index.as_ref().map(IndexResource::view);
+        let view = self.inputs.index.as_ref().and_then(IndexResource::view);
         let observed = &mut workspace.observation;
         observed.owners_initialized = usize::from(self.inputs.index.is_some())
             + usize::from(self.inputs.groups.is_some())
@@ -43,7 +43,7 @@ impl InvocationResources<'_> {
                     part.view()
                         .expect(super::constants::VALIDATED_CLOSURE_PARTITION)
                 else {
-                    unreachable!("closure partition family")
+                    panic!("closure partition family")
                 };
                 view.table.count.0
             })
@@ -57,7 +57,7 @@ impl InvocationResources<'_> {
                     part.view()
                         .expect(super::constants::VALIDATED_CLOSURE_PARTITION)
                 else {
-                    unreachable!("closure partition family")
+                    panic!("closure partition family")
                 };
                 let capacities = ryo_derived::domain::closure_adjacency::service::capacities(view);
                 view.table.cells.capacity() + capacities.key.0 + capacities.sources.0
