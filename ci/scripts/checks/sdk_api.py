@@ -7,6 +7,7 @@ the product's directory.
     uv run ../../ci/scripts/checks/sdk_api.py
 
 The SDK is named by `[workspace.metadata.api]` of the `Cargo.toml` in the current directory; a product that names none passes.
+The SDK is read with its default features, its published surface; the test-support `fixtures` feature is not, see `check`.
 The rustdoc JSON (written by the pinned nightly, `doc(hidden)` items included) must reach no type of an internal crate, `cargo public-api` must print the listing
 the product records, and `cargo semver-checks` must find nothing broken against the SDK's baseline. The baseline is its published
 crates.io version; until the first publish there is none, and the workspace at `baseline-rev` stands in for it.
@@ -143,6 +144,11 @@ def check(directory: Path) -> None:
     root = toplevel(directory)
     workspace = directory.resolve().relative_to(root.resolve()).as_posix()
     package, nightly = api["package"], api["nightly"]
+    # Default features only: they are the published surface. `fixtures` is left out on purpose: it is test support (tokio's
+    # `test-util` is the same practice), not a public API, and may change without notice. Tastemaker's `fixtures-feature` rules
+    # (the crate spec's and the language spec's) refuse it on a normal or build dependency and from any feature but a crate's own
+    # `fixtures`, so only a dev-dependency switches it on and no shipped build compiles it. cargo-deny's feature bans cannot hold
+    # this: the resolver unifies a dev-dependency's features into the package.
     subprocess.run(
         ["cargo", f"+{nightly}", "rustdoc", "--lib", "-p", package, "--", "-Z", "unstable-options", "--output-format", "json", "--document-hidden-items"],
         cwd=directory,

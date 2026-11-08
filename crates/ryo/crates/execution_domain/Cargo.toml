@@ -33,6 +33,7 @@ ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations",
 ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.1.2", features = ["fixtures"] }
 
 [features]
+# Test support, not a public API: it may change without notice. Only a dev-dependency or this crate's own `fixtures` switches it on (`fixtures-feature`).
 fixtures = ["ryo_values/fixtures", "ryo_relations/fixtures", "ryo_language/fixtures"]
 diagnostic-row-progress = []
 

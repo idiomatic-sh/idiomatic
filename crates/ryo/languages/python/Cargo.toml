@@ -69,6 +69,7 @@ harness = false
 
 [features]
 diagnostic-row-progress = ["ryo/diagnostic-row-progress"]
+# Test support, not a public API: it may change without notice. Only a dev-dependency or this crate's own `fixtures` switches it on (`fixtures-feature`).
 fixtures = ["ryo/fixtures", "dep:serde_json"]
 # jemalloc built with its heap profiler (`--enable-prof`), for the benchmark worker's heap profile (method.md "Heap profile"); it
 # names only this crate's dev-dependency allocator, so no release build takes it, and it samples nothing until `_RJEM_MALLOC_CONF` turns it on.

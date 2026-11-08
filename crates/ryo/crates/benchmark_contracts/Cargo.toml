@@ -25,6 +25,7 @@ ryo = { package = "idiomatic-sh-ryo-sdk", path = "../sdk", version = "0.1.2", fe
 serde_json.workspace = true
 
 [features]
+# Test support, not a public API: it may change without notice. Only a dev-dependency or this crate's own `fixtures` switches it on (`fixtures-feature`).
 fixtures = []
 
 [lints]
