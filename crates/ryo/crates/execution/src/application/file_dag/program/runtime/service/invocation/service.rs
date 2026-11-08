@@ -47,7 +47,7 @@ impl ProgramExecution {
             .program
             .regions()
             .get(id.0)
-            .ok_or(OperatingError::NotRun)?;
+            .ok_or_else(|| OperatingError::NotRun)?;
         inputs.bind_rule(region.producer());
         let producer_policy = completion.for_rule(region.producer());
         let completion = &producer_policy;

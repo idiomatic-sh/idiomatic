@@ -105,7 +105,7 @@ impl Inputs for SourceInputs<'_, '_> {
                     .program()
                     .observation_regions()
                     .get(slot)
-                    .ok_or(OperatingError::NotRun)?
+                    .ok_or_else(|| OperatingError::NotRun)?
                     .as_ref()
                     .map_err(Clone::clone)?,
             ),
@@ -116,8 +116,8 @@ impl Inputs for SourceInputs<'_, '_> {
                 let named = self
                     .program
                     .observation_metadata()
-                    .ok_or(OperatingError::NotRun)?;
-                let declaration = named.slots.get(slot).ok_or(OperatingError::NotRun)?;
+                    .ok_or_else(|| OperatingError::NotRun)?;
+                let declaration = named.slots.get(slot).ok_or_else(|| OperatingError::NotRun)?;
                 if declaration.rule != self.rule {
                     return Err(OperatingError::NotRead);
                 }
@@ -126,7 +126,7 @@ impl Inputs for SourceInputs<'_, '_> {
                     .get(declaration.rule.0)
                     .and_then(|bindings| bindings.get(declaration.input.0 as usize))
                     .and_then(|binding| binding.producers.get(member))
-                    .ok_or(OperatingError::NotRun)?;
+                    .ok_or_else(|| OperatingError::NotRun)?;
                 match producer {
                     ryo_execution_domain::domain::file_program::types::ResolvedObservationProducer::Output {
                         rule,
@@ -146,7 +146,7 @@ impl Inputs for SourceInputs<'_, '_> {
                         let root = metadata
                             .observations
                             .get(output.0 as usize)
-                            .ok_or(OperatingError::NotRun)?;
+                            .ok_or_else(|| OperatingError::NotRun)?;
                         if self
                             .completion
                             .for_rule(*rule)
@@ -158,7 +158,7 @@ impl Inputs for SourceInputs<'_, '_> {
                         match metadata
                             .observations
                             .get(output.0 as usize)
-                            .ok_or(OperatingError::NotRun)?
+                            .ok_or_else(|| OperatingError::NotRun)?
                             .source
                             .as_ref()
                             .map_err(Clone::clone)?
@@ -170,7 +170,7 @@ impl Inputs for SourceInputs<'_, '_> {
                                     .program()
                                     .observation_regions()
                                     .get(*slot)
-                                    .ok_or(OperatingError::NotRun)?
+                                    .ok_or_else(|| OperatingError::NotRun)?
                                     .as_ref()
                                     .map_err(Clone::clone)?,
                             ),
@@ -272,13 +272,13 @@ pub(super) fn observation_slot(
 ) -> Result<ObservationKey, OperatingError> {
     let slots = &program
         .observation_metadata()
-        .ok_or(OperatingError::NotRun)?
+        .ok_or_else(|| OperatingError::NotRun)?
         .slots;
     let mut matching = slots
         .iter()
         .enumerate()
         .filter(|(_, slot)| slot.rule == rule && slot.input == input);
-    let (index, _) = matching.next().ok_or(OperatingError::NotRun)?;
+    let (index, _) = matching.next().ok_or_else(|| OperatingError::NotRun)?;
     if matching.next().is_some() {
         return Err(OperatingError::WrongOperation);
     }

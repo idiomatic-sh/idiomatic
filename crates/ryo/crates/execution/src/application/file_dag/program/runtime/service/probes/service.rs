@@ -108,14 +108,14 @@ impl ProgramExecution {
             .rules()
             .get(rule.0)
             .and_then(|rule| rule.original_steps.get(step.0 as usize))
-            .ok_or(OperatingError::NotRun)?
+            .ok_or_else(|| OperatingError::NotRun)?
             .as_ref()
             .map_err(Clone::clone)?;
         let region = self
             .program
             .logical_regions()
             .get(origin.logical.0)
-            .ok_or(OperatingError::NotRun)?;
+            .ok_or_else(|| OperatingError::NotRun)?;
         self.region_observation(state, *region)
     }
     #[cfg(test)]
@@ -130,7 +130,7 @@ impl ProgramExecution {
             self.program
                 .regions()
                 .get(region.0)
-                .ok_or(OperatingError::NotRun)?;
+                .ok_or_else(|| OperatingError::NotRun)?;
             return Ok(Default::default());
         };
         Ok(ryo_execution_domain::domain::operating::fixtures::ExecutionObservation {
@@ -150,7 +150,7 @@ impl ProgramExecution {
             self.program
                 .regions()
                 .get(id.0)
-                .ok_or(OperatingError::NotRun)?;
+                .ok_or_else(|| OperatingError::NotRun)?;
             let remaining = match state.dormant.borrow().get(&id).copied() {
                 Some(remaining) => remaining,
                 None => state.initial_remaining(&self.program, id)?,

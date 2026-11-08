@@ -22,7 +22,7 @@ impl<'scope> KernelPermit<'scope> {
             .program
             .regions()
             .get(region.0)
-            .ok_or(OperatingError::NotRun)?;
+            .ok_or_else(|| OperatingError::NotRun)?;
         if code.instructions().is_empty() {
             return Err(OperatingError::NotRun);
         }
@@ -69,7 +69,7 @@ impl<'scope> KernelPermit<'scope> {
         let region = authority.region();
         let code = Self::code(execution, region)?;
         let shape = ryo_execution_domain::domain::executable_program::service::ordered_existence(&code.route())
-            .ok_or(OperatingError::WrongOperation)?;
+            .ok_or_else(|| OperatingError::WrongOperation)?;
         input.validate_for(
             &execution.owner,
             &execution.generation,
@@ -96,7 +96,7 @@ impl<'scope> KernelPermit<'scope> {
         self.program.regions()[self.region.0]
             .instructions()
             .get(at.0)
-            .ok_or(OperatingError::NotRun)?;
+            .ok_or_else(|| OperatingError::NotRun)?;
         Ok(Self {
             program: self.program,
             region: self.region,
@@ -148,7 +148,7 @@ impl<'scope> KernelPermit<'scope> {
             BoundInputs::Ordinary(inputs) => inputs.get(at.0),
             BoundInputs::Ordered(input) => (at.0 == 0).then_some(input),
         }
-        .ok_or(OperatingError::MissingInput { position: at.0 + 1 })
+        .ok_or_else(|| OperatingError::MissingInput { position: at.0 + 1 })
     }
     pub(crate) fn validate_live(
         &self,

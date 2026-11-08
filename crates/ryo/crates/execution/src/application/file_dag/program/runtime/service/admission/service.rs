@@ -124,7 +124,7 @@ impl AdmissionProgress {
             .acquired
             .iter_mut()
             .find(|acquired| acquired.source == source)
-            .ok_or(OperatingError::NotRun)?;
+            .ok_or_else(|| OperatingError::NotRun)?;
         let stage = &mut acquired.stage;
         match stage {
             InputStage::Admitted(input) => Ok(input.clone()),

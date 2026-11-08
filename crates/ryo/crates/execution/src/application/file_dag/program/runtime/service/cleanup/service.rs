@@ -43,7 +43,7 @@ impl ProgramExecution {
         let mut work = state.retirement.borrow_mut();
         work.reset();
         let mut slots = state.slots.borrow_mut();
-        let slot = slots.get(&consumer).ok_or(OperatingError::NotRun)?;
+        let slot = slots.get(&consumer).ok_or_else(|| OperatingError::NotRun)?;
         if slot.dependencies_consumed == Dependencies::Consumed {
             return Err(OperatingError::NotRun);
         }
@@ -58,7 +58,7 @@ impl ProgramExecution {
                 self.program
                     .regions()
                     .get(id.0)
-                    .ok_or(OperatingError::NotRun)?;
+                    .ok_or_else(|| OperatingError::NotRun)?;
                 let slot = slots.get(&id);
                 let current = if let Some(current) = work.simulated.get(&id) {
                     *current

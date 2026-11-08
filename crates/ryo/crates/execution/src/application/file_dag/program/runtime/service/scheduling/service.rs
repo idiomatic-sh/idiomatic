@@ -32,7 +32,7 @@ impl ProgramExecution {
             self.program
                 .regions()
                 .get(root.0)
-                .ok_or(OperatingError::NotRun)?;
+                .ok_or_else(|| OperatingError::NotRun)?;
             let terminal = state.slots.borrow().get(&root).is_some_and(|slot| {
                 matches!(
                     slot.state,
@@ -95,7 +95,7 @@ impl ProgramExecution {
             self.program
                 .regions()
                 .get(id.0)
-                .ok_or(OperatingError::NotRun)?;
+                .ok_or_else(|| OperatingError::NotRun)?;
             return if state.dormant.borrow().get(&id) == Some(&ReaderCount(0)) {
                 Err(OperatingError::NotRun)
             } else {
@@ -147,7 +147,7 @@ impl ProgramExecution {
             .program
             .regions()
             .get(id.0)
-            .ok_or(OperatingError::NotRun)?
+            .ok_or_else(|| OperatingError::NotRun)?
             .producer();
         if state
             .slots
@@ -178,6 +178,6 @@ impl ProgramExecution {
         self.cleanup_status()?;
         published
             .map(InvocationOutcome::Published)
-            .ok_or(OperatingError::NotRun)
+            .ok_or_else(|| OperatingError::NotRun)
     }
 }

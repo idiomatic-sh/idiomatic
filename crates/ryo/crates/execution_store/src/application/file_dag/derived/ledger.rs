@@ -65,13 +65,13 @@ impl Ledger {
                 Some(entry) if entry.optional == HoldCount(0) => {
                     additional = additional
                         .checked_add(each.bytes)
-                        .ok_or(OperatingError::ShapeMismatch)?
+                        .ok_or_else(|| OperatingError::ShapeMismatch)?
                 }
                 Some(_) => {}
                 None => {
                     additional = additional
                         .checked_add(each.bytes)
-                        .ok_or(OperatingError::ShapeMismatch)?
+                        .ok_or_else(|| OperatingError::ShapeMismatch)?
                 }
             }
         }
@@ -94,7 +94,7 @@ impl Ledger {
                 _ => {
                     additional = additional
                         .checked_add(each.units)
-                        .ok_or(OperatingError::ShapeMismatch)?;
+                        .ok_or_else(|| OperatingError::ShapeMismatch)?;
                 }
             }
         }
@@ -130,36 +130,36 @@ impl Ledger {
                 LeaseClass::Required => {
                     required
                         .checked_add(HoldCount(1))
-                        .ok_or(OperatingError::ShapeMismatch)?;
+                        .ok_or_else(|| OperatingError::ShapeMismatch)?;
                     if required == HoldCount(0) {
                         next_required = next_required
                             .checked_add(each.bytes)
-                            .ok_or(OperatingError::ShapeMismatch)?;
+                            .ok_or_else(|| OperatingError::ShapeMismatch)?;
                         if optional != HoldCount(0) {
                             next_overlap = next_overlap
                                 .checked_add(each.bytes)
-                                .ok_or(OperatingError::ShapeMismatch)?;
+                                .ok_or_else(|| OperatingError::ShapeMismatch)?;
                         }
                     }
                 }
                 LeaseClass::Optional => {
                     optional
                         .checked_add(HoldCount(1))
-                        .ok_or(OperatingError::ShapeMismatch)?;
+                        .ok_or_else(|| OperatingError::ShapeMismatch)?;
                     if optional == HoldCount(0) {
                         next_view_optional = next_view_optional
                             .checked_add(each.bytes)
-                            .ok_or(OperatingError::ShapeMismatch)?;
+                            .ok_or_else(|| OperatingError::ShapeMismatch)?;
                         next_optional_units = next_optional_units
                             .checked_add(each.units)
-                            .ok_or(OperatingError::ShapeMismatch)?;
+                            .ok_or_else(|| OperatingError::ShapeMismatch)?;
                         next_optional = next_optional
                             .checked_add(each.bytes)
-                            .ok_or(OperatingError::ShapeMismatch)?;
+                            .ok_or_else(|| OperatingError::ShapeMismatch)?;
                         if required != HoldCount(0) {
                             next_overlap = next_overlap
                                 .checked_add(each.bytes)
-                                .ok_or(OperatingError::ShapeMismatch)?;
+                                .ok_or_else(|| OperatingError::ShapeMismatch)?;
                         }
                     }
                 }
@@ -167,7 +167,7 @@ impl Ledger {
             if old.is_none() {
                 next_unique = next_unique
                     .checked_add(each.bytes)
-                    .ok_or(OperatingError::ShapeMismatch)?;
+                    .ok_or_else(|| OperatingError::ShapeMismatch)?;
             }
             keys.push(each.key);
         }
@@ -175,7 +175,7 @@ impl Ledger {
         let next_lease_metadata = state
             .lease_metadata
             .checked_add(lease_bytes)
-            .ok_or(OperatingError::ShapeMismatch)?;
+            .ok_or_else(|| OperatingError::ShapeMismatch)?;
         for each in unique {
             let entry = state.entries.entry(each.key).or_insert(LedgerEntry {
                 bytes: each.bytes,

@@ -66,7 +66,7 @@ impl SourceInputs<'_, '_> {
                     .program
                     .hosted()
                     .get(relation.0 as usize)
-                    .ok_or(OperatingError::NotRun)?;
+                    .ok_or_else(|| OperatingError::NotRun)?;
                 let table = ryo_execution_domain::domain::hosted::service::table_of_query(
                     hosted,
                     ryo_execution_domain::domain::hosted::types::NumberedFiles(context.paths),
@@ -79,7 +79,7 @@ impl SourceInputs<'_, '_> {
             InputSource::Region(id) => self
                 .execution
                 .published(self.state, id)?
-                .ok_or(OperatingError::NotRun),
+                .ok_or_else(|| OperatingError::NotRun),
             InputSource::Observation(ryo_execution_domain::domain::executable_program::types::ObservationPlace(slot)) => {
                 if let Some(input) = self.observations.get(&ObservationKey(slot)) {
                     return Ok(AvailableInput::published(input.clone()));
@@ -89,13 +89,13 @@ impl SourceInputs<'_, '_> {
                     .program()
                     .observation_regions()
                     .get(slot)
-                    .ok_or(OperatingError::NotRun)?
+                    .ok_or_else(|| OperatingError::NotRun)?
                     .as_ref()
                     .map_err(Clone::clone)?;
                 let input = self
                     .execution
                     .published(self.state, union)?
-                    .ok_or(OperatingError::NotRun)?;
+                    .ok_or_else(|| OperatingError::NotRun)?;
                 let admitted = crate::application::file_dag::program::admission::alias_observation(
                     self.program.program(),
                     crate::application::file_dag::program::admission::AliasSlot(slot),
@@ -110,8 +110,8 @@ impl SourceInputs<'_, '_> {
                 let named = self
                     .program
                     .observation_metadata()
-                    .ok_or(OperatingError::NotRun)?;
-                let declaration = named.slots.get(slot).ok_or(OperatingError::NotRun)?;
+                    .ok_or_else(|| OperatingError::NotRun)?;
+                let declaration = named.slots.get(slot).ok_or_else(|| OperatingError::NotRun)?;
                 if declaration.rule != self.rule {
                     return Err(OperatingError::NotRead);
                 }
@@ -119,7 +119,7 @@ impl SourceInputs<'_, '_> {
                     .bindings
                     .get(declaration.rule.0)
                     .and_then(|bindings| bindings.get(declaration.input.0 as usize))
-                    .ok_or(OperatingError::NotRun)?;
+                    .ok_or_else(|| OperatingError::NotRun)?;
                 if !binding.producers.is_empty() {
                     return Err(OperatingError::NotRead);
                 }
@@ -153,8 +153,8 @@ impl SourceInputs<'_, '_> {
                 let named = self
                     .program
                     .observation_metadata()
-                    .ok_or(OperatingError::NotRun)?;
-                let declaration = named.slots.get(slot).ok_or(OperatingError::NotRun)?;
+                    .ok_or_else(|| OperatingError::NotRun)?;
+                let declaration = named.slots.get(slot).ok_or_else(|| OperatingError::NotRun)?;
                 if declaration.rule != self.rule {
                     return Err(OperatingError::NotRead);
                 }
@@ -163,7 +163,7 @@ impl SourceInputs<'_, '_> {
                     .get(declaration.rule.0)
                     .and_then(|bindings| bindings.get(declaration.input.0 as usize))
                     .and_then(|binding| binding.producers.get(member))
-                    .ok_or(OperatingError::NotRun)?;
+                    .ok_or_else(|| OperatingError::NotRun)?;
                 let ryo_execution_domain::domain::file_program::types::ResolvedObservationProducer::Output {
                     rule,
                     output,
@@ -194,7 +194,7 @@ impl SourceInputs<'_, '_> {
                         let root = metadata
                             .observations
                             .get(output.0 as usize)
-                            .ok_or(OperatingError::NotRun)?;
+                            .ok_or_else(|| OperatingError::NotRun)?;
                         if self
                             .completion
                             .for_rule(*rule)

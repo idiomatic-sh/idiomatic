@@ -32,7 +32,7 @@ impl<'scope> SemanticPermit<'scope> {
                 ryo_execution_domain::domain::executable_program::service::ordered_existence(
                     &self.program.regions()[self.region.0].route(),
                 )
-                .ok_or(OperatingError::WrongOperation)?,
+                .ok_or_else(|| OperatingError::WrongOperation)?,
             ),
         };
         let authority = physical::authorize(self.operation(), route, binding, &meaning)?;

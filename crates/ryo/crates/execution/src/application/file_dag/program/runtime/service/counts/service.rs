@@ -36,7 +36,7 @@ impl ProgramExecution {
             .program
             .rules()
             .get(rule.0)
-            .ok_or(OperatingError::NotRun)?;
+            .ok_or_else(|| OperatingError::NotRun)?;
         let slots = state.slots.borrow();
         let mut fed = Vec::with_capacity(rule.original_steps.len());
         for origin in rule.original_steps.iter() {
@@ -45,17 +45,17 @@ impl ProgramExecution {
                 .program
                 .logical_regions()
                 .get(origin.logical.0)
-                .ok_or(OperatingError::NotRun)?;
+                .ok_or_else(|| OperatingError::NotRun)?;
             let code = self
                 .program
                 .regions()
                 .get(region_id.0)
-                .ok_or(OperatingError::NotRun)?;
+                .ok_or_else(|| OperatingError::NotRun)?;
             let at = code
                 .instructions()
                 .iter()
                 .position(|instruction| instruction.logical() == origin.logical)
-                .ok_or(OperatingError::NotRun)?;
+                .ok_or_else(|| OperatingError::NotRun)?;
             let Some(slot) = slots.get(&region_id) else {
                 fed.push(ryo_execution_domain::domain::operator::types::RowsFed::default());
                 continue;
@@ -63,7 +63,7 @@ impl ProgramExecution {
             if matches!(slot.state, State::Running | State::Suspended | State::Ready) {
                 return Err(OperatingError::NotRun);
             }
-            let total = *slot.fed.get(at).ok_or(OperatingError::NotRun)?;
+            let total = *slot.fed.get(at).ok_or_else(|| OperatingError::NotRun)?;
             fed.push(total);
         }
         Ok(

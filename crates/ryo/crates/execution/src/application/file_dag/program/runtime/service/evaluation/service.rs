@@ -47,7 +47,7 @@ impl ProgramExecution {
             {
                 match *action {
                     DemandAction::Admit(InputId(at)) => {
-                        let source = *region.inputs().get(at).ok_or(InvocationFailure::Semantic(
+                        let source = *region.inputs().get(at).ok_or_else(|| InvocationFailure::Semantic(
                             OperatingError::MissingInput { position: at + 1 },
                         ))?;
                         progress
@@ -80,7 +80,7 @@ impl ProgramExecution {
         }
         if progress.preflight_done == StageProgress::Pending {
             for gate in &first.contract().empty_results {
-                let input = admitted.get(gate.input.0).ok_or(InvocationFailure::Semantic(
+                let input = admitted.get(gate.input.0).ok_or_else(|| InvocationFailure::Semantic(
                     OperatingError::MissingInput {
                         position: gate.input.0 + 1,
                     },
@@ -91,7 +91,7 @@ impl ProgramExecution {
                         *region
                             .inputs()
                             .get(gate.input.0)
-                            .ok_or(InvocationFailure::Semantic(OperatingError::MissingInput {
+                            .ok_or_else(|| InvocationFailure::Semantic(OperatingError::MissingInput {
                                 position: gate.input.0 + 1,
                             }))?,
                         input,
@@ -178,7 +178,7 @@ impl ProgramExecution {
                 if let (Partition::File(file), Some(relation)) = (&self.partition, relation) {
                     let population = admitted
                         .first()
-                        .ok_or(OperatingError::MissingInput { position: 1 })
+                        .ok_or_else(|| OperatingError::MissingInput { position: 1 })
                         .and_then(|input| input.population(&self.owner));
                     // Log the complete proof result: an invalid proof cannot silently
                     // disappear from diagnostics or change execution error ordering.
