@@ -35,7 +35,7 @@ pub(crate) fn from_prepared<'f>(
     owner
         .derived()
         .admit_partition(&closure_plan, &owner, &proof, &ordered)?;
-    #[cfg(any(test, feature = "fixtures"))]
+    #[cfg(test)]
     let ordering_capacity = ordered.partition_order_capacity()?;
     Ok(PartitionedClosure {
         input,
@@ -44,7 +44,7 @@ pub(crate) fn from_prepared<'f>(
         partition_plan,
         closure_plan,
         ordered,
-        #[cfg(any(test, feature = "fixtures"))]
+        #[cfg(test)]
         ordering_capacity,
         cursor: OrderCursor(0),
         key: Vec::new(),

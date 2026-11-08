@@ -9,7 +9,7 @@ use ryo_derived::domain::vertices::types::VertexId;
 use std::sync::Arc;
 /// The dense vertices a completed closure reached, in typed value order: the bare numbers inside are named here.
 #[derive(Debug)]
-pub(crate) struct ReachedVertices(pub Vec<u32>);
+pub struct ReachedVertices(pub Vec<u32>);
 
 /// The index of one nearest memo among the retained memos: the bare index inside is named here.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

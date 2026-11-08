@@ -121,6 +121,6 @@ pub(crate) fn prepare_view(
 }
 
 pub mod graph;
-mod graph_snapshot;
-mod observations;
+pub mod graph_snapshot;
+pub mod observations;
 pub mod resources;

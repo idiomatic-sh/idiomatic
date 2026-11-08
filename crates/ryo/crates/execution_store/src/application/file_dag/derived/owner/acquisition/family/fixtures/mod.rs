@@ -57,7 +57,7 @@ fn numbers() -> Table {
 }
 /// A production exit that returned with its lease still charged.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct Leaked {
+pub struct Leaked {
     /// Required bytes before the view was acquired.
     pub(crate) before: usize,
     /// Required bytes after the exit ran, before any fixture-side release.

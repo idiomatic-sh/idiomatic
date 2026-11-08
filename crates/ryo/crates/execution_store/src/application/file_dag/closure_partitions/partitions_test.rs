@@ -8,6 +8,7 @@ use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::service::push_row;
 
+#[cfg(test)]
 /// All live Value payload cells owned by this cursor, not only adjacency rows.
 fn working_cells(closure: &PartitionedClosure<'_>) -> usize {
     closure.current.as_ref().map_or(0, |_| {
@@ -27,6 +28,7 @@ pub fn working_capacity(closure: &PartitionedClosure<'_>) -> usize {
         + closure.scratch.row.capacity()
 }
 
+#[cfg(test)]
 fn ordering_bytes(closure: &PartitionedClosure<'_>) -> usize {
     let mut bytes = closure
         .ordering_capacity
@@ -56,6 +58,7 @@ fn ordering_bytes(closure: &PartitionedClosure<'_>) -> usize {
     bytes
 }
 
+#[cfg(test)]
 fn scope() -> std::rc::Rc<crate::application::file_dag::relations::RelationOwner> {
     std::rc::Rc::new(crate::application::file_dag::relations::RelationOwner::new(
         crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
@@ -63,6 +66,7 @@ fn scope() -> std::rc::Rc<crate::application::file_dag::relations::RelationOwner
     ))
 }
 
+#[cfg(test)]
 fn number(value: i64) -> Value {
     Value::Number(Integer(value))
 }

@@ -1,8 +1,9 @@
 //! Test-only observations of actual owner backing and selection state.
 use crate::application::file_dag::derived::owner::*;
 use ryo_relations::domain::relations::types::Relation;
+/// What a proof observes of the owner's invocation indexes.
 #[derive(Clone, Copy, Debug, Default)]
-pub(crate) struct IndexObservation {
+pub struct IndexObservation {
     pub available: bool,
 }
 impl DerivedOwner {
@@ -37,14 +38,14 @@ impl DerivedOwner {
                 available: true,
             })
     }
-    pub(crate) fn relation_eligible(&self, relation: Relation) -> bool {
+    pub fn relation_eligible(&self, relation: Relation) -> bool {
         self.backend
             .borrow()
             .as_ref()
             .is_some_and(|cache| cache.eligible.contains(&relation))
     }
 
-    pub(crate) fn no_invocation_index_handles(&self) -> bool {
+    pub fn no_invocation_index_handles(&self) -> bool {
         self.state.borrow().entries.values().all(|entry| {
             if entry._plan.kind != DerivedKind::Equality {
                 return true;
@@ -55,7 +56,7 @@ impl DerivedOwner {
         })
     }
 
-    pub(crate) fn first_index_weak(
+    pub fn first_index_weak(
         &self,
     ) -> Option<Weak<ryo_derived::domain::equality::types::KeyIndex>> {
         self.state.borrow().entries.values().find_map(|entry| {
@@ -69,7 +70,7 @@ impl DerivedOwner {
                 .map(|index| Arc::downgrade(&index.0))
         })
     }
-    pub(crate) fn shared_index_backings(&self) -> usize {
+    pub fn shared_index_backings(&self) -> usize {
         self.ledger
             .borrow()
             .backing_count(crate::application::file_dag::derived::ledger::types::BackingTag(11))
@@ -88,7 +89,7 @@ impl DerivedOwner {
     }
     /// The observation follows one qualified producer's admitted populations.
     /// Ambiguous matching requirements are refused rather than picking a view.
-    pub(crate) fn population_view_witness(
+    pub fn population_view_witness(
         &self,
         populations: &[PopulationId],
         kind: DerivedKind,

@@ -60,7 +60,7 @@ pub enum ProducerScope {
 
 /// Only this application module can construct or mutate proof state.
 #[derive(Debug)]
-pub(crate) struct RelationResult {
+pub struct RelationResult {
     pub(crate) population: PopulationId,
     pub(crate) producer: OnceLock<PopulationId>,
     pub(crate) producer_scope: OnceLock<ProducerScope>,

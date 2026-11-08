@@ -4,7 +4,7 @@ use crate::application::file_dag::derived::owner::*;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 /// What the owner counted, as plain numbers for a test to compare.
-pub(crate) struct SnapshotCounts {
+pub struct SnapshotCounts {
     pub reclaimed_indexes: u64,
     pub reclaimed_bytes: u64,
     pub pinned_refusals: u64,
@@ -17,7 +17,7 @@ pub(crate) struct SnapshotCounts {
     pub forest_hits: u64,
 }
 
-pub(crate) struct Snapshot {
+pub struct Snapshot {
     pub counts: SnapshotCounts,
     pub bytes: usize,
     pub limit: usize,

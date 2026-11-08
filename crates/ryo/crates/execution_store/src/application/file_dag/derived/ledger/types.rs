@@ -4,7 +4,7 @@ use rustc_hash::FxHashMap;
 
 /// Physical bytes.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub(crate) struct ByteCount(pub usize);
+pub struct ByteCount(pub usize);
 
 /// Immutable row-position capacity.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -101,7 +101,7 @@ pub(crate) struct Ledger {
 
 /// One physical handle, shared by consumers through an outer `Arc`.
 #[derive(Debug)]
-pub(crate) struct ResourceLease {
+pub struct ResourceLease {
     pub(super) ledger: Rc<RefCell<Ledger>>,
     pub(super) keys: Vec<BackingKey>,
     pub(super) class: LeaseClass,

@@ -23,7 +23,7 @@ pub struct ResourceFixture {
     owner: Rc<RelationOwner>,
 }
 impl ResourceFixture {
-    pub(crate) fn new(wanted: &[Relation], partials: &[Partial], limit: usize) -> Option<Self> {
+    pub fn new(wanted: &[Relation], partials: &[Partial], limit: usize) -> Option<Self> {
         let owner = Rc::new(RelationOwner::new(
             crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
             crate::application::file_dag::fixtures::program_derived_port(),
@@ -99,18 +99,18 @@ impl ResourceFixture {
             }),
         )
     }
-    pub(crate) fn no_invocation_index_handles(&self) -> bool {
+    pub fn no_invocation_index_handles(&self) -> bool {
         self.owner.derived().no_invocation_index_handles()
     }
-    pub(crate) fn shared_index_backings(&self) -> usize {
+    pub fn shared_index_backings(&self) -> usize {
         self.owner.derived().shared_index_backings()
     }
-    pub(crate) fn first_index_weak(&self) -> Option<Weak<KeyIndex>> {
+    pub fn first_index_weak(&self) -> Option<Weak<KeyIndex>> {
         self.owner.derived().first_index_weak()
     }
 }
 /// Observe backing lifetime without retaining a lease or exposing mutable storage.
-pub(crate) fn weak_storage(
+pub fn weak_storage(
     view: &crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView,
 ) -> Weak<
     crate::application::file_dag::derived::owner::acquisition::semantics::storage::DerivedStorage,

@@ -21,7 +21,8 @@ pub(super) struct PartitionWidth(pub(super) usize);
 #[derive(Clone, Copy, Debug)]
 pub(super) struct KeyPosition(pub(super) usize);
 
-pub(crate) struct ReachGraph {
+/// A cached reachability graph.
+pub struct ReachGraph {
     pub(super) access: GraphHandle,
     pub(super) left_on: Vec<ColumnIndex>,
     pub(super) bindings: Vec<KeyPosition>,
@@ -32,7 +33,8 @@ pub(crate) struct ReachGraph {
     pub(super) walk: GraphWalk,
 }
 
-pub(crate) struct AxisGraph {
+/// A cached axis graph.
+pub struct AxisGraph {
     pub(super) access: GraphHandle,
     pub(super) domain: DomainHandle,
     pub(super) id: ColumnIndex,

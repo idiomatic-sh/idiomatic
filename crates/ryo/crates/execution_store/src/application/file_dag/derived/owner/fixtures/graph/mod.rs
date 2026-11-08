@@ -260,7 +260,7 @@ impl GraphFixture {
             .acquire_graph_domain(&plan, graph, &source, &mut cache)
             .map(Some)
     }
-    pub(crate) fn reach(
+    pub fn reach(
         &self,
         access: &GraphHandle,
         partition: &[Value],
@@ -325,7 +325,7 @@ impl GraphFixture {
             }),
         )
     }
-    pub(crate) fn set_limit(&mut self, limit: usize) {
+    pub fn set_limit(&mut self, limit: usize) {
         self.limit = limit;
         self.owner
             .derived()
@@ -335,7 +335,7 @@ impl GraphFixture {
             .unwrap();
     }
     /// Whether a graph demand can reach the cache of the owner now.
-    pub(crate) fn cache_ready(&self) -> Result<(), OperatingError> {
+    pub fn cache_ready(&self) -> Result<(), OperatingError> {
         self.owner.derived().graph_cache().map(|_| ())
     }
     /// Retire the generation: the owner drops its cache until the file is prepared again.
@@ -346,7 +346,7 @@ impl GraphFixture {
         self.owner.release_population();
         self.setup();
     }
-    pub(crate) fn reclaim(&self, cost: usize) -> bool {
+    pub fn reclaim(&self, cost: usize) -> bool {
         let mut backend = self.owner.derived().backend.borrow_mut();
         self.owner
             .derived()
@@ -358,7 +358,7 @@ impl GraphFixture {
             .unwrap()
             == Room::Fits
     }
-    pub(crate) fn graph_cost(&self, graph: &GraphHandle) -> usize {
+    pub fn graph_cost(&self, graph: &GraphHandle) -> usize {
         let backend = self.owner.derived().backend.borrow();
         let cache = backend.as_ref().unwrap();
         let metadata = slot(&cache.graphs).unwrap().metadata.0;

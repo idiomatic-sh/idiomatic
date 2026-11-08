@@ -10,7 +10,7 @@ use ryo_derived::domain::request::types::DerivedKind;
 use ryo_derived::domain::contract::types::DerivedView;
 use std::sync::Arc;
 
-#[cfg(any(test, feature = "fixtures"))]
+#[cfg(test)]
 use super::types::PartitionCapacity;
 #[cfg(test)]
 use super::types::StorageIdentity;
@@ -57,7 +57,7 @@ impl AcquiredView {
             Err(_) => None,
         }
     }
-    #[cfg(any(test, feature = "fixtures"))]
+    #[cfg(test)]
     pub(crate) fn partition_order_capacity(
         &self,
     ) -> Result<PartitionCapacity, OperatingError> {
@@ -122,7 +122,7 @@ pub(crate) struct AcquisitionOrigin {
     lifetime: AcquisitionLifetime,
 }
 /// Only acquisition admission binds actual immutable sources to their owner and descriptor.
-pub(crate) struct AdmittedViewInputs<'a> {
+pub struct AdmittedViewInputs<'a> {
     origin: AcquisitionOrigin,
     sources: AcquisitionSources<'a>,
 }
