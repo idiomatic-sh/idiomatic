@@ -1,5 +1,5 @@
 {
-  "source": "f160ef885b103d9dd5b7f2931b48a0aac423e52e",
+  "source": "316497ef75b40051da0366c06f7f2c0f9bcba3dc",
   "commands": [
     [
       "libraries",
@@ -87,7 +87,7 @@
     ],
     [
       "no_print",
-      ["cargo", "clippy", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-benchmark-guards/target", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-execution", "-p", "idiomatic-sh-ryo-core", "--lib", "--no-deps", "--", "-A", "clippy::all", "-A", "clippy::pedantic", "-A", "clippy::nursery", "-A", "clippy::restriction", "-A", "clippy::cargo", "-A", "dead_code", "-A", "unused", "-D", "clippy::print_stderr", "-D", "clippy::print_stdout"]
+      ["cargo", "clippy", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-benchmark-guards/target", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-execution", "-p", "idiomatic-sh-ryo-execution-domain", "-p", "idiomatic-sh-ryo-execution-store", "-p", "idiomatic-sh-ryo-core", "--lib", "--no-deps", "--", "-A", "clippy::all", "-A", "clippy::pedantic", "-A", "clippy::nursery", "-A", "clippy::restriction", "-A", "clippy::cargo", "-A", "dead_code", "-A", "unused", "-D", "clippy::print_stderr", "-D", "clippy::print_stdout"]
     ],
     [
       "tm_source",
