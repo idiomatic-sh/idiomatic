@@ -82,6 +82,17 @@ The pass is the workspace check with all features and all targets, `--keep-going
 | Contract review | pending |
 | Rust gate review | PASS on all seven items, first pass (diff `f3a9a7e95c..dc9af4d4be`) |
 
+### Review repairs XII
+
+Branch `claude/w10-review-repairs-xii` from checkpoint 327 `e49dc1dfc5`, for the contract review of 327 (Phase 7 BLOCKING: two validation327 binaries carried code from no tree). Checked: the hook tests (48/0), `run.py --check`, `run_test.py` (16/0) and `tm` over `docs/contracts` and the changed cost files at 0 findings, 0 suppressed; no Rust test was run, `cargo check -p idiomatic-sh-ryo --tests` compiled the cost rows.
+
+- **R1, one cargo target per worktree (`255133cead`, `8ba71711d8`):** `.claude/hooks/guard_shell.py` accepts `--target-dir` only as `idiomatic-target/<this worktree's name>` in the workspace mount (the check-only target rules unchanged) and refuses another tree's name, the bare root, a deeper path and the shared target; the shared `idiomatic-benchmark-guards/target` is accepted with a deprecation message only for the `ryo-perf-*` measurement trees already using it, until the heap-profiling measurement on it is done. `commands.json` names `idiomatic-target/{worktree}` and `run.py` expands it to the tree's name, so every validation command builds only this tree's units; the source touch the shared target needed is gone. method.md "Build targets" and AGENTS.md state it, and that deleting a worktree deletes its target directory. The live hooks run this head.
+- **R2, the 327 erratum (`8ba71711d8`):** `core_bdd` 18 / 0 and `core_allocation` exit 101 are not results for `142fe40a98` (the 327 record and validation.json say so); both run again at 328 on the tree's own target.
+- **R3, `core_allocation` owner (`8ba71711d8`):** red at every validation from 318, it is owned by "Measure full-Django cold/warm/edit and Rust regressions; meet final objective.", which decides its block limit, not by perf iteration 2.
+- **R4, the staged request is checked (`16f97e9d59`):** `cli_cost`'s `inputs_at` recomputes the staged digest of `profile/` and the sha256 of `request.json` and refuses a `staged.json` that records either otherwise (`NotAvailable::StagedDiffers`); `an_absent_input_is_a_typed_reason_not_a_pass` covers both mismatches with the digest `--stage-request` gives its files. No flag or variable added.
+- **R5, stale text (`0fa87fec2f`):** README:20 cites the 327 receipt; the per-kind row cites the inventory regenerated on the 327 source (10 kinds; `registries.py` now reads the kinds and routes in `execution_domain` and `execution_store`); the review README branch table runs to 327; rows rebound to validation327 or marked unverified; `items/execution.md` lists `pub(crate) enum Submission` under `program/runtime`; the benchmark reruns, the three staged `cli_cost` runs and the whole-tree TM are in the validation327 raw directory, and `run.py`'s rerun check now also reads "reruns".
+- **Not here:** the engine items of review 327 (the `Declined` double count and its test, the exhaustive `Effects` match with a `RequestSource` negative row, the stale `file_program` comment) are program code, after landing 2.
+
 ### Review repairs XI
 
 Branch `claude/w9-review-repairs-xi` from checkpoint 326 `f3a9a7e95c`, for the contract review of 326 (NOTE on all seven phases). Checked: `run.py --check`, `run_test.py` and the profile guards `--self-test`; no Rust test was run, `cargo check -p idiomatic-sh-ryo --tests` compiled the cost rows.
