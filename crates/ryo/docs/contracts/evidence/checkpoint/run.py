@@ -324,8 +324,11 @@ def validate():
  # Each worktree builds into its own target directory, idiomatic-target/<worktree name> in the workspace mount: cargo judges
  # freshness by source mtimes, so a target shared across worktrees served validation327 units another tree built.
  tree=Path(subprocess.check_output(['git','rev-parse','--show-toplevel'],text=True).strip()).name
- commands=[[n,[w.replace('{worktree}',tree) for w in c]] for n,c in json.loads((p/'commands.json').read_text())]
- (p/'identity.json').write_text(dumps({'source':head,'commands':commands})+'\n')
+ # What is committed names the commands as commands.json lists them: the expanded worktree name is a machine path, and a
+ # worktree named for its checkpoint reads as tracker text in the committed identity and checks.
+ listed=dict(json.loads((p/'commands.json').read_text()))
+ commands=[[n,[w.replace('{worktree}',tree) for w in c]] for n,c in listed.items()]
+ (p/'identity.json').write_text(dumps({'source':head,'commands':[[n,c] for n,c in listed.items()]})+'\n')
  # Raw outputs (.log/.json per command) never live in the repository: they go to the directory given as the first argument,
  # by default a directory named for the source head and the date under the system temporary directory.
  out_dir=Path(sys.argv[1]) if len(sys.argv)>1 else Path('/tmp/ryo-contract-validation-'+head[:10]+'-'+date.today().strftime('%Y%m%d'))
@@ -334,7 +337,7 @@ def validate():
   print('START '+name,flush=True)
   started=time.time()
   with (out_dir/(name+'.log')).open('w') as out: r=locked(lambda: subprocess.run(cmd,stdout=out,stderr=subprocess.STDOUT))
-  result={'source':head,'command':cmd,'exit':r.returncode,'elapsed_seconds':time.time()-started}
+  result={'source':head,'command':listed[name],'exit':r.returncode,'elapsed_seconds':time.time()-started}
   if name=='tm_source': result['findings']=finding_split(cmd,out_dir/(name+'.log'))
   (out_dir/(name+'.json')).write_text(json.dumps(result,indent=2))
   print('END '+name+' exit='+str(r.returncode),flush=True)
