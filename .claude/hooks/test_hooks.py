@@ -264,6 +264,80 @@ class RustReviewPush(unittest.TestCase):
                 self.assertEqual(self.push(command).returncode, 0)
 
 
+class PreviousReviewsPush(unittest.TestCase):
+    EVIDENCE = "crates/ryo/docs/contracts/evidence/checkpoint/"
+    NAMES = ["contract-review.json", "leak-review.json", "tm-steward.json"]
+
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.dir.cleanup)
+        self.remote = os.path.join(self.dir.name, "remote.git")
+        subprocess.run(["git", "init", "-q", "--bare", "-b", "claude/ryo-consolidation", self.remote], check=True)
+        self.tree = repo(self.dir.name, "tree", "claude/checkpoint-9")
+        git(self.tree, "commit", "-q", "--allow-empty", "-m", "previous landed head")
+        self.previous = git(self.tree, "rev-parse", "HEAD")
+        git(self.tree, "remote", "add", "origin", self.remote)
+        git(self.tree, "push", "-q", "origin", "HEAD:claude/ryo-consolidation")
+        git(self.tree, "commit", "-q", "--allow-empty", "-m", "checkpoint work")
+        self.write("rust-review.json", {"verdict": "PASS", "source": git(self.tree, "rev-parse", "HEAD")})
+
+    def write(self, name, body):
+        path = os.path.join(self.tree, self.EVIDENCE, name)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump(body, handle)
+        git(self.tree, "add", path)
+        git(self.tree, "commit", "-q", "-m", "evidence " + name)
+
+    def all_reviews(self, source=None, skip=()):
+        for name in self.NAMES:
+            if name not in skip:
+                self.write(name, {"verdict": "BLOCKING", "source": source or self.previous})
+
+    def push(self):
+        return run_hook("guard_shell.py", {"tool_input": {"command": "git push origin claude/ryo-consolidation"},
+                                           "cwd": self.tree})
+
+    def test_allowed_with_all_three_even_when_blocking(self):
+        self.all_reviews()
+        self.assertEqual(self.push().returncode, 0)
+
+    def test_each_missing_review_is_refused_by_name(self):
+        for name in self.NAMES:
+            with self.subTest(name=name):
+                self.setUp()
+                self.all_reviews(skip=(name,))
+                result = self.push()
+                self.assertEqual(result.returncode, 2)
+                self.assertIn("carries no " + self.EVIDENCE + name, result.stderr)
+                self.assertIn(".agents/agents/", result.stderr)
+
+    def test_stale_source_is_refused(self):
+        git(self.tree, "commit", "-q", "--allow-empty", "-m", "elsewhere")
+        stale = git(self.tree, "rev-parse", "HEAD")
+        self.all_reviews(source=stale)
+        result = self.push()
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("is not the previous landed head", result.stderr)
+
+    def test_missing_verdict_is_refused(self):
+        self.all_reviews()
+        self.write("leak-review.json", {"source": self.previous})
+        self.assertIn('no "verdict"', self.push().stderr)
+
+    def test_bootstrap_head_needs_only_the_contract_review(self):
+        # the bootstrap sha cannot be forged, so point the constant at this remote head
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("guard_shell", os.path.join(HERE, "guard_shell.py"))
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        module.BOOTSTRAP_HEAD = self.previous[:10]
+        words = ["git", "push", "origin", "claude/ryo-consolidation"]
+        self.assertIn("contract-review.json", module.previous_reviews(words, self.tree))
+        self.write("contract-review.json", {"verdict": "PASS", "source": self.previous})
+        self.assertIsNone(module.previous_reviews(words, self.tree))
+
+
 class Acceptance(unittest.TestCase):
     def setUp(self):
         self.dir = tempfile.TemporaryDirectory()

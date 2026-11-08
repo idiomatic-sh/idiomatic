@@ -19,7 +19,11 @@ BUILDERS_AUTHOR = ("Builders author; the integrator compiles. cargo builds only 
                    "(branch claude/checkpoint-N); builders may run " + CHECK_FORM)
 COMMENT = re.compile(r"(^|\s)#.*$", re.MULTILINE)
 CONSOLIDATION = "claude/ryo-consolidation"
-RUST_REVIEW = "crates/ryo/docs/contracts/evidence/checkpoint/rust-review.json"
+EVIDENCE = "crates/ryo/docs/contracts/evidence/checkpoint/"
+RUST_REVIEW = EVIDENCE + "rust-review.json"
+BOOTSTRAP_HEAD = "171789169e"  # checkpoint 329: landed before the leak and TM agents existed
+PREVIOUS_REVIEWS = (("contract-review.json", "contract-review"), ("leak-review.json", "leak-review"),
+                    ("tm-steward.json", "tm-specialist"))
 
 
 def segments(text):
@@ -266,6 +270,59 @@ def rust_review(words, here):
     return None
 
 
+def previous_head(tree, remote):
+    """The remote claude/ryo-consolidation head before this push, or None when it cannot be read."""
+    code, out = git_out(tree, "ls-remote", remote, "refs/heads/" + CONSOLIDATION)
+    if code != 0 or not out.strip():
+        code, out = git_out(tree, "rev-parse", "--verify", "-q", "refs/remotes/" + remote + "/" + CONSOLIDATION)
+    words = out.split()
+    return words[0] if code == 0 and words else None
+
+
+def stands_for(tree, source, head):
+    """True when source is head, or an ancestor of head with only evidence files changed since."""
+    if source == head:
+        return True
+    if git_out(tree, "merge-base", "--is-ancestor", source, head)[0] != 0:
+        return False
+    code, out = git_out(tree, "diff", "--name-only", source, head)
+    return code == 0 and all(line.startswith(EVIDENCE) for line in out.split())
+
+
+def previous_reviews(words, here):
+    """A push landing a checkpoint needs the previous landed head's contract, leak and TM steward reviews in HEAD.
+
+    Verdicts never block (a BLOCKING or FAIL is repaired in this checkpoint); absence or a stale source does.
+    At the bootstrap head only contract-review.json is required: the leak and TM agents did not exist then.
+    """
+    push = git_push(words)
+    if push is None or not names_consolidation(push[1]):
+        return None
+    tree = os.path.join(here, push[0]) if push[0] else here
+    operands = [a for a in push[1] if not a.startswith("-")]
+    head = previous_head(tree, operands[0]) if operands else None
+    if head is None:
+        return None
+    refused = "push of " + CONSOLIDATION + " refused: "
+    needed = PREVIOUS_REVIEWS[:1] if head.startswith(BOOTSTRAP_HEAD) else PREVIOUS_REVIEWS
+    for name, agent in needed:
+        run = "run the " + agent + " agent (.agents/agents/" + agent + ".md) on " + head
+        code, text = git_out(tree, "show", "HEAD:" + EVIDENCE + name)
+        if code != 0:
+            return refused + "HEAD carries no " + EVIDENCE + name + " for the previous landed head " + head + "; " + run
+        try:
+            review = json.loads(text)
+        except ValueError:
+            return refused + EVIDENCE + name + " at HEAD is not JSON; " + run
+        if not isinstance(review, dict) or "verdict" not in review:
+            return refused + EVIDENCE + name + " at HEAD has no \"verdict\"; " + run
+        source = review.get("source")
+        if not isinstance(source, str) or not source or source.startswith("-") or not stands_for(tree, source, head):
+            return (refused + "the source " + repr(source) + " in " + EVIDENCE + name + " is not the previous landed head " +
+                    head + " (or an ancestor with only evidence changed since); " + run)
+    return None
+
+
 def integration_tree(directory):
     if os.path.abspath(directory).startswith(MEASUREMENT):
         return True
@@ -307,7 +364,7 @@ def reason(command, cwd=None):
         if len(words) > 1 and words[0] == "cd":
             here = os.path.join(here, os.path.expanduser(words[1]))
         for found in (stash(words), removal(words), cargo_rules(words, before, dirs), tm_fix(words, clean),
-                      rust_review(words, here)):
+                      rust_review(words, here), previous_reviews(words, here)):
             if found:
                 return found
         before += segment + " "
@@ -327,4 +384,5 @@ def main():
     return 0
 
 
-sys.exit(main())
+if __name__ == "__main__":
+    sys.exit(main())
