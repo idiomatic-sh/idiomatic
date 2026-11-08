@@ -117,12 +117,18 @@ pub(crate) fn cycles(graph: &dyn CycleDriver, scratch: &mut CycleScratch) {
 }
 
 /// Marks the nodes on a cycle of the engine's prepared adjacency and emits each, ascending, as both the
-/// source and the destination of its row.
+/// source and the destination of its row. The step is fed every edge row: the adjacency holds them all.
 pub(crate) fn evaluate(
     driver: &mut dyn crate::domain::cycles::types::CyclesEvaluation,
     scratch: &mut CycleScratch,
 ) -> Result<(), crate::domain::contract::types::PortableOperatorFault> {
+    use ryo_values::domain::plan_parts::types::InputNumber;
     cycles(driver.cycles()?, scratch);
+    let edges = driver.population(InputNumber(0))?;
+    driver.found(
+        InputNumber(0),
+        ryo_relations::domain::relations::types::Count(edges.0),
+    );
     for value in &scratch.ordered {
         driver.emit(&[*value, *value])?;
     }

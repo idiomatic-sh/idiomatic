@@ -4,9 +4,11 @@ use crate::domain::closure::types::PartitionPlace;
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::contract::types::RowScratch;
 use crate::domain::contract::types::VertexPlace;
+use ryo_relations::domain::relations::types::Count;
+use ryo_values::domain::plan_parts::types::InputNumber;
 
 /// Emits, for each partition of the engine's closure and each of its sources, the partition's key, the
-/// source and each vertex the source reaches.
+/// source and each vertex the source reaches. The step is fed every edge row: the walk reads them all.
 pub(crate) fn evaluate(
     driver: &mut dyn ClosureEvaluation,
     scratch: &mut RowScratch,
@@ -17,6 +19,8 @@ pub(crate) fn evaluate(
         ..
     } = scratch;
     let partitions = driver.closure().partitions()?;
+    let edges = driver.population(InputNumber(0))?;
+    driver.found(InputNumber(0), Count(edges.0));
     for place in (0..partitions.0).map(PartitionPlace) {
         driver.closure().partition_key(place, key)?;
         let sources = driver.closure().sources(place);
