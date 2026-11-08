@@ -1,7 +1,7 @@
 //! Measurements read actual engine-owned resources, never shadow scratch.
 use super::*;
 impl InvocationResources<'_> {
-    #[cfg(test)]
+    #[cfg(any(test, feature = "fixtures"))]
     pub(crate) fn observe(&self, workspace: &mut ryo_execution_store::application::file_dag::workspace::InvocationWorkspace) {
         #[cfg(feature = "diagnostic-row-progress")]
         let view = self

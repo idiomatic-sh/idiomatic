@@ -9,7 +9,7 @@ pub(crate) mod service;
 mod views;
 use index::IndexResource;
 use prepared_use::service::prepared;
-#[cfg(test)]
+#[cfg(any(test, feature = "fixtures"))]
 mod observation;
 use ryo_execution_domain::domain::operating::{errors::OperatingError, types::OperatorContext};
 use ryo_execution_domain::domain::operator::contract::{
@@ -142,7 +142,7 @@ impl AcquiredPartitions {
         self.0.push(view);
     }
     /// The acquired views, in partition order.
-    #[cfg(test)]
+    #[cfg(any(test, feature = "fixtures"))]
     pub(crate) fn iter(&self) -> std::slice::Iter<'_, AcquiredView> {
         self.0.iter()
     }
