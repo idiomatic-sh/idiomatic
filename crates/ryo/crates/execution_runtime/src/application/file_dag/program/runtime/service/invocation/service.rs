@@ -245,7 +245,7 @@ impl Drop for Invocation<'_> {
             };
             for (fed, scratch) in slot.fed.iter_mut().zip(&mut slot.scratch) {
                 if let Some(workspace) = &mut scratch.workspace {
-                    #[cfg(test)]
+                    #[cfg(any(test, feature = "fixtures"))]
                     {
                         slot.observed = workspace.measured();
                         slot.registered_calls.0 +=

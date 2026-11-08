@@ -22,12 +22,14 @@ use ryo_values::domain::query_bindings::types::BindingCell;
 use ryo_values::domain::query_bindings::types::BindingTable;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::query_operators::types::OperationKind;
-pub(crate) mod expectations;
-pub(crate) mod inputs;
-pub(crate) mod values;
+pub mod expectations;
+pub mod inputs;
+pub mod values;
 use values::{FROM, RIGHT, DOMAIN, n, span, node, table, numbers, matrix, text};
 
-pub(crate) fn fixture(kind: OperationKind) -> Fixture {
+/// The authored rows, bindings and expected answer of one operation kind.
+#[must_use]
+pub fn fixture(kind: OperationKind) -> Fixture {
     let mut symbols = Symbols::default();
     let mut bindings = vec![];
     let (operation, inputs, expected) = match kind {

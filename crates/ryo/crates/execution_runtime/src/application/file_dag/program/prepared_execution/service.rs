@@ -79,6 +79,16 @@ impl PreparedExecution for PreparedExecutionProgram {
         self.inner.frontier_dependencies(rule)
     }
 }
+/// The prepared program's matchers, for the execution crate's use-case proofs of lazy matcher compilation.
+#[cfg(any(test, feature = "fixtures"))]
+impl PreparedExecutionProgram {
+    /// The matchers the program prepared, compiled on first use.
+    #[must_use]
+    pub fn matchers(&self) -> &Arc<ryo_execution_domain::domain::matching::types::prepared::value::PreparedMatchers> {
+        self.inner.matchers()
+    }
+}
+
 impl PreparedReporting for PreparedExecutionProgram {
     fn metadata(&self) -> &[ryo_values::domain::run_metadata::types::RuleRunMetadata] {
         self.inner.metadata()

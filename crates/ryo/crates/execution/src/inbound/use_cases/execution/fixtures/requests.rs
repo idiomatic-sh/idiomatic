@@ -255,13 +255,13 @@ pub(crate) fn run_prepared_context<'facts>(
     );
     let mut observed = match &outcome {
         Ok(result) if matches!(result.emit, RootOutcome::Complete(_)) => {
-            file.inner.route_observation(RuleIndex(0), last)?
+            file.route_observation(RuleIndex(0), last)?
         }
         _ => Default::default(),
     };
     // Every actual invocation workspace retains this required owner Rc. A
     // surviving workspace would therefore keep this weak owner live.
-    let owner = file.inner.owner_lifetime();
+    let owner = file.owner_lifetime();
     assert!(owner.upgrade().is_some());
     let finished = file.finish();
     observed.file_owner_released = owner.upgrade().is_none();

@@ -11,8 +11,8 @@ pub(crate) mod operator_collections_operators_source_matches_item_test;
 pub(crate) mod operator_collections_operators_span_between_item_test;
 #[cfg(test)]
 pub(crate) mod operator_collections_operators_span_bounds_item_test;
-#[cfg(test)]
-pub(crate) mod operator_contract_test;
+#[cfg(any(test, feature = "fixtures"))]
+pub mod operator_contract_test;
 #[cfg(test)]
 pub(crate) mod request_graph_test;
 #[cfg(test)]

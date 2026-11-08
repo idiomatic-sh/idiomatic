@@ -1,9 +1,10 @@
 //! Pure borrowed-value and preparation fixtures; no executor or admission alternative.
 use ryo_relations::domain::relations::types::{CellKind, Value};
 /// Complete computed fixture rows for portable derived semantics controls.
-#[cfg(test)]
-pub(crate) struct CompleteTableRows<'a>(pub &'a ryo_values::domain::rows::types::Table);
-#[cfg(test)]
+#[cfg(any(test, feature = "fixtures"))]
+#[derive(Clone, Copy, Debug)]
+pub struct CompleteTableRows<'a>(pub &'a ryo_values::domain::rows::types::Table);
+#[cfg(any(test, feature = "fixtures"))]
 impl ryo_derived::domain::row_cells::types::RowCells for CompleteTableRows<'_> {
     fn bulk(&self) -> Option<ryo_derived::domain::row_cells::types::BulkRows<'_>> {
         Some(ryo_derived::domain::row_cells::types::BulkRows::Computed(

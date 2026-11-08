@@ -271,7 +271,7 @@ pub(crate) fn compare_delivery_with_port(
     let (collected, observation) = match outcome.emit {
         RootOutcome::Complete(table) => (
             Ok(table),
-            collected_file.inner.route_observation(RuleIndex(0), emit)?,
+            collected_file.route_observation(RuleIndex(0), emit)?,
         ),
         RootOutcome::Failed(error) => {
             assert_eq!(

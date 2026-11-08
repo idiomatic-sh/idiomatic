@@ -101,7 +101,7 @@ fn evaluate(
     Ok((table, observed.regexes, observed.globs))
 }
 fn builds(program: &PreparedExecutionProgram) -> usize {
-    program.inner.matchers().builds.load(Ordering::Relaxed)
+    program.matchers().builds.load(Ordering::Relaxed)
 }
 fn subject(scenario: Input) -> Result<Value, Failure> {
     match scenario {
@@ -204,7 +204,6 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 let (engine, program, mut symbols, _) =
                     prepare(parameter.clone(), Some("alpha"), &bindings, &shadow)?;
                 program
-                    .inner
                     .matchers()
                     .regex(ryo_execution_domain::domain::table_texts::types::TextView("a.*"), ryo_execution_runtime::application::file_dag::fixtures::pattern_matcher())
                     .unwrap()
@@ -236,7 +235,6 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 let (engine, program, mut symbols, _) =
                     prepare(operation, Some(text), &[], &shadow)?;
                 program
-                    .inner
                     .matchers()
                     .regex(ryo_execution_domain::domain::table_texts::types::TextView("a.*"), ryo_execution_runtime::application::file_dag::fixtures::pattern_matcher())
                     .unwrap()
@@ -260,7 +258,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 )];
                 let (engine, program, mut symbols, _) =
                     prepare(lists.clone(), Some("alpha"), &bindings, &shadow)?;
-                assert!(program.inner.matchers().glob(Test::GlobAny, ryo_execution_domain::domain::table_texts::types::TextView("a*"), ryo_execution_runtime::application::file_dag::fixtures::pattern_matcher()).is_some());
+                assert!(program.matchers().glob(Test::GlobAny, ryo_execution_domain::domain::table_texts::types::TextView("a*"), ryo_execution_runtime::application::file_dag::fixtures::pattern_matcher()).is_some());
                 let actual = evaluate(&engine, &program, &mut symbols)?;
                 assert_eq!((actual.0.count.0, actual.2), (expected, 1));
                 assert_eq!(builds(&program), 1);

@@ -16,7 +16,7 @@ use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
 use ryo_execution_domain::domain::shared_walk::types::WalkCounts;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::stored_facts::types::Bucket;
-#[cfg(test)]
+#[cfg(any(test, feature = "fixtures"))]
 use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
 impl FileExecution for FileSession<'_, '_> {
     fn readiness_counts(&self) -> ReadinessCounts {
@@ -113,10 +113,37 @@ fn source_rows<'a, 'facts: 'a>(
     })
 }
 
+/// The run's own observations, for the execution crate's use-case proofs: they read the owner a file session holds, which
+/// no caller can name.
+#[cfg(any(test, feature = "fixtures"))]
 impl FileSession<'_, '_> {
     /// Whether the source of this file may be reused by a later run.
-    #[cfg(test)]
-    pub(crate) fn reuse_eligible(&self) -> ReuseEligibility {
+    #[must_use]
+    pub fn reuse_eligible(&self) -> ReuseEligibility {
         self.inner.source_reuse_eligible()
+    }
+    /// Weak lifetime observation of the file's relation owner; the caller never retains it.
+    #[must_use]
+    pub fn owner_lifetime(&self) -> std::rc::Weak<ryo_execution_store::application::file_dag::relations::RelationOwner> {
+        self.inner.owner_lifetime()
+    }
+    /// Read-only telemetry of a rule's step, from actual common-program dispatch and retirement.
+    ///
+    /// # Errors
+    ///
+    /// Refuses a rule or step the program never ran.
+    pub fn route_observation(
+        &self,
+        rule: RuleIndex,
+        step: ryo_values::domain::plan_parts::types::StepId,
+    ) -> Result<ryo_execution_domain::domain::operating::fixtures::ExecutionObservation, OperatingError> {
+        self.inner.route_observation(rule, step)
+    }
+    /// The derived owner's resource counts of this file.
+    #[must_use]
+    pub fn resource_fixture_counts(
+        &self,
+    ) -> ryo_execution_store::application::file_dag::derived::owner::fixtures::resources::Snapshot {
+        self.inner.resource_fixture_counts()
     }
 }

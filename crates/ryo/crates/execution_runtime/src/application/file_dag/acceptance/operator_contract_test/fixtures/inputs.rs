@@ -12,7 +12,7 @@ use ryo_values::domain::rows::types::Table;
 use std::cell::Cell;
 
 /// Assemble explicit step data; the production compiler owns dependencies and schemas.
-pub(crate) fn plan(operations: Vec<ryo_values::domain::plans::types::Operation>) -> Plan {
+pub fn plan(operations: Vec<ryo_values::domain::plans::types::Operation>) -> Plan {
     use ryo_values::domain::{
         plan_parts::types::{ColumnIndex, StepId, StepScope},
         plans::types::{Emit, PlanStep},
@@ -40,7 +40,7 @@ pub(crate) fn plan(operations: Vec<ryo_values::domain::plans::types::Operation>)
     }
 }
 /// Resolve published physical vocabulary; this does not evaluate an operation.
-pub(crate) fn text<'a>(
+pub fn text<'a>(
     cell: ryo_relations::domain::relations::types::Value,
     symbols: &'a Symbols,
 ) -> &'a str {
@@ -59,13 +59,18 @@ pub(crate) fn text<'a>(
         _ => panic!("published text cell required"),
     }
 }
-pub(crate) struct AuthoredRows {
+/// An authored plan with the hosted relations and the facts it reads.
+#[derive(Debug)]
+pub struct AuthoredRows {
+    /// The plan of the operation under proof.
     pub plan: Plan,
+    /// The hosted relations the plan reads.
     pub hosted: Vec<HostRelation>,
+    /// The fact tables the plan reads, by relation.
     pub facts: Vec<(Relation, Table)>,
 }
 /// Only fixture input and plan assembly; callers execute through the real inbound API.
-pub(crate) fn table_inputs(
+pub fn table_inputs(
     mut operation: ryo_values::domain::plans::types::Operation,
     inputs: &[&Table],
     bindings: &[ParameterBinding],

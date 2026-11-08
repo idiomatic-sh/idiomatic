@@ -8,18 +8,18 @@ pub(crate) mod predicates;
 pub(crate) mod resources;
 pub mod service;
 #[cfg(any(test, feature = "fixtures"))]
-pub(crate) mod testing;
+pub mod testing;
 
-#[cfg(test)]
-pub(crate) mod fixtures;
+#[cfg(any(test, feature = "fixtures"))]
+pub mod fixtures;
 
 #[cfg(test)]
 mod service_test;
 
 pub(crate) mod executor;
 
-#[cfg(test)]
-pub(crate) mod acceptance;
+#[cfg(any(test, feature = "fixtures"))]
+pub mod acceptance;
 
 pub mod observations;
 mod ordered_existence;

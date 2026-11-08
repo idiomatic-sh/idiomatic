@@ -168,12 +168,12 @@ impl FileRun<'_> {
         Ok(readiness)
     }
     /// Weak lifetime observation only; the test never retains a workspace or owner.
-    #[cfg(test)]
+    #[cfg(any(test, feature = "fixtures"))]
     pub(crate) fn owner_lifetime(&self) -> std::rc::Weak<RelationOwner> {
         Rc::downgrade(&self.owner)
     }
     /// Read-only test telemetry from actual common-program dispatch and retirement.
-    #[cfg(test)]
+    #[cfg(any(test, feature = "fixtures"))]
     pub(crate) fn route_observation(
         &self,
         rule: RuleIndex,
@@ -182,7 +182,7 @@ impl FileRun<'_> {
         self.execution
             .route_observation(self.execution.file_state(), rule, step)
     }
-    #[cfg(test)]
+    #[cfg(any(test, feature = "fixtures"))]
     pub(crate) fn resource_fixture_counts(
         &self,
     ) -> ryo_execution_store::application::file_dag::derived::owner::fixtures::resources::Snapshot {
@@ -318,7 +318,7 @@ pub(super) fn outcome_of<'facts>(
 #[cfg(test)]
 mod distinct_integration;
 
-#[cfg(test)]
+#[cfg(any(test, feature = "fixtures"))]
 impl FileRun<'_> {
     pub(crate) fn source_reuse_eligible(&self) -> ReuseEligibility {
         self.owner.stable()

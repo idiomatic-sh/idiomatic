@@ -20,8 +20,9 @@ use ryo_values::domain::rows::types::Table;
 use std::sync::Arc;
 use super::expectations::SOURCE;
 
-#[derive(Debug)]
-pub(crate) struct KnownSyntax;
+/// A semantic lookup that knows every node it is asked to render.
+#[derive(Clone, Copy, Debug)]
+pub struct KnownSyntax;
 impl ryo_execution_domain::domain::operating::types::SemanticLookup for KnownSyntax {
     fn render_batch(
         &self,
@@ -34,13 +35,20 @@ impl ryo_execution_domain::domain::operating::types::SemanticLookup for KnownSyn
             .collect())
     }
 }
-pub(crate) const FROM: Input = Input::Relation(Relation::Function);
-pub(crate) const RIGHT: Input = Input::Relation(Relation::Scope);
-pub(crate) const DOMAIN: Input = Input::Relation(Relation::SyntaxTree);
-pub(crate) fn n(value: i64) -> Value {
+/// The left input every binary fixture reads.
+pub const FROM: Input = Input::Relation(Relation::Function);
+/// The right input every binary fixture reads.
+pub const RIGHT: Input = Input::Relation(Relation::Scope);
+/// The domain input of the axis fixtures.
+pub const DOMAIN: Input = Input::Relation(Relation::SyntaxTree);
+/// A number cell.
+#[must_use]
+pub fn n(value: i64) -> Value {
     Value::Number(Integer(value))
 }
-pub(crate) fn span(start: u32, end: u32) -> Value {
+/// A span cell from its two offsets.
+#[must_use]
+pub fn span(start: u32, end: u32) -> Value {
     Value::Span(Span {
         start: Offset(start),
         end: Offset(end),
@@ -59,7 +67,9 @@ pub(super) fn table(kinds: &[CellKind], rows: &[Vec<Value>]) -> Table {
     }
     table
 }
-pub(crate) fn numbers(values: &[i64]) -> Table {
+/// A one-column table of numbers.
+#[must_use]
+pub fn numbers(values: &[i64]) -> Table {
     table(
         &[CellKind::Number],
         &values
@@ -68,7 +78,9 @@ pub(crate) fn numbers(values: &[i64]) -> Table {
             .collect::<Vec<_>>(),
     )
 }
-pub(crate) fn matrix(rows: &[&[i64]]) -> Table {
+/// A table of number rows, as wide as its first row.
+#[must_use]
+pub fn matrix(rows: &[&[i64]]) -> Table {
     table(
         &vec![CellKind::Number; rows.first().map_or(0, |row| row.len())],
         &rows

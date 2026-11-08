@@ -210,7 +210,7 @@ fn execute(stored: bool, projected: bool) -> Result<Vec<Table>, OperatingError> 
         };
         answers.push(table);
     }
-    let counts = file.inner.resource_fixture_counts();
+    let counts = file.resource_fixture_counts();
     let walks = file.walk_counts();
     if stored && !projected {
         // The derived Adjacency route through the owner: one canonical graph for the five consumers.
@@ -269,7 +269,7 @@ fn execute(stored: bool, projected: bool) -> Result<Vec<Table>, OperatingError> 
         walks,
         "delivery retries do no source or predicate work"
     );
-    let repeated = file.inner.resource_fixture_counts();
+    let repeated = file.resource_fixture_counts();
     assert_eq!(repeated.graph_builds, counts.graph_builds);
     assert_eq!(repeated.graph_reuses, counts.graph_reuses);
     assert_eq!(repeated.graph_early_stops, counts.graph_early_stops);

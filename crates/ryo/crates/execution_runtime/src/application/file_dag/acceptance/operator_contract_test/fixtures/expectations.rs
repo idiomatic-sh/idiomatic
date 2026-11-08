@@ -8,26 +8,38 @@ use {
     ryo_execution_domain::domain::table_texts::types::Texts, ryo_values::domain::files::types::SourceView,
 };
 /// The source text every conformance fixture reads its names from.
-pub(crate) const SOURCE: &[u8] = b"a a";
-#[derive(Clone)]
-pub(crate) enum Expected {
+pub const SOURCE: &[u8] = b"a a";
+/// One expected cell of an operation's answer.
+#[derive(Clone, Copy, Debug)]
+pub enum Expected {
+    /// The cell's value.
     Cell(Value),
+    /// A text cell, compared by its text.
     Text(&'static str),
+    /// A digest cell, compared by the byte its fixture digest repeats.
     Digest(u8),
 }
-pub(crate) struct Fixture {
-    pub(crate) operation: Operation,
-    pub(crate) inputs: Vec<Table>,
-    pub(crate) bindings: Vec<ParameterBinding>,
-    pub(crate) symbols: Symbols,
-    pub(crate) expected: Vec<Vec<Expected>>,
+/// One operation with its authored inputs and its expected answer.
+#[derive(Debug)]
+pub struct Fixture {
+    /// The operation under proof.
+    pub operation: Operation,
+    /// Its input tables, in input order.
+    pub inputs: Vec<Table>,
+    /// The parameter bindings the operation reads.
+    pub bindings: Vec<ParameterBinding>,
+    /// The symbols the inputs' texts are interned in.
+    pub symbols: Symbols,
+    /// The expected rows of the answer.
+    pub expected: Vec<Vec<Expected>>,
 }
 pub(super) fn cells(rows: Vec<Vec<Value>>) -> Vec<Vec<Expected>> {
     rows.into_iter()
         .map(|row| row.into_iter().map(Expected::Cell).collect())
         .collect()
 }
-pub(crate) fn assert_expected(
+/// Asserts an answer's rows against the expected rows, cell by cell.
+pub fn assert_expected(
     expected: &[Vec<Expected>],
     actual: &[Vec<Value>],
     symbols: &Symbols,

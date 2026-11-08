@@ -1,11 +1,14 @@
 //! Test-only observation of producer lease release, route work and retry checkpoints.
 #[cfg(test)]
 use super::super::ProducerLeaseProbe;
-use super::super::{ProgramExecution, RuntimeState, State};
+use super::super::{ProgramExecution, RuntimeState};
+#[cfg(test)]
+use super::super::State;
 #[cfg(test)]
 use crate::application::file_dag::program::constants::LIFECYCLE_OBSERVER;
 #[cfg(test)]
 use crate::application::file_dag::program::constants::OBSERVED_PRODUCER;
+#[cfg(test)]
 use crate::application::file_dag::program::runtime::types::{
     AttemptCheckpoint, ConsumerReleasePoint, Dependencies, DependencyCheckpoint, IndexLiveness,
     ProducerLeaseEvent, ReaderCount, RetryCheckpoint, WorkingBytes,
@@ -96,7 +99,7 @@ impl ProgramExecution {
         probe.events
     }
     /// Observes completed dispatches even after the real retirement drops invocation scratch.
-    #[cfg(test)]
+    #[cfg(any(test, feature = "fixtures"))]
     pub(crate) fn route_observation(
         &self,
         state: &RuntimeState,
@@ -118,7 +121,7 @@ impl ProgramExecution {
             .ok_or_else(|| OperatingError::NotRun)?;
         self.region_observation(state, *region)
     }
-    #[cfg(test)]
+    #[cfg(any(test, feature = "fixtures"))]
     pub(crate) fn region_observation(
         &self,
         state: &RuntimeState,
