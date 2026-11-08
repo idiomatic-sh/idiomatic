@@ -16,6 +16,7 @@ pub(crate) mod joining;
 pub(crate) mod lineage;
 pub(crate) mod linking;
 pub(crate) mod lowering;
+pub(crate) mod narrowing;
 pub(crate) mod planning;
 pub(crate) mod pruning;
 pub(crate) mod pushing;

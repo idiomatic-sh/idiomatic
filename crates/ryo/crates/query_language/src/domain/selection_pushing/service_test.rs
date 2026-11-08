@@ -29,13 +29,17 @@ type Input = Scenario;
 
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName("a_filter_of_a_union_of_a_join_keyed_on_the_file_is_made_on_both_its_inputs_and_into_the_join"),
+        name: CaseName(
+            "a_filter_of_a_union_of_a_join_keyed_on_the_file_is_made_on_both_its_inputs_and_into_the_join",
+        ),
         word: Word::Succeeds,
         input: || Scenario::AFilteredUnion,
         expect: Expect::Value(true),
     },
     Case {
-        name: CaseName("a_filter_of_a_join_keyed_on_the_file_on_a_column_of_its_right_input_is_made_on_that_input"),
+        name: CaseName(
+            "a_filter_of_a_join_keyed_on_the_file_on_a_column_of_its_right_input_is_made_on_that_input",
+        ),
         word: Word::Succeeds,
         input: || Scenario::AFilteredJoin,
         expect: Expect::Value(true),
