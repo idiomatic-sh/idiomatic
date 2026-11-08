@@ -3,7 +3,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use super::service::{draw, examine, gaps_in, merged};
-use super::types::{SourceDependencyLink, Linked, Run};
+use super::types::{ExternCrate, Externs, SourceDependencyLink, Linked, Run};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::module_tree::types::{
     Body, Cleanliness, Facts, ModDeclaration, Segment, Spelling, Written,
@@ -21,11 +21,14 @@ type Value = &'static str;
 type Failure = ();
 
 /// The files of a repository, the crate roots Cargo declares by package directory, the outputs, and the facts of each source file.
+/// `externs` are the libraries each package depends on, as `(package directory, name its code writes, library's package directory,
+/// library root)`.
 struct Repository {
     files: Vec<&'static str>,
     roots: Vec<(&'static str, &'static str)>,
     outputs: Vec<&'static str>,
     facts: Vec<(&'static str, Facts)>,
+    externs: Vec<(&'static str, &'static str, &'static str, &'static str)>,
 }
 
 fn declares(names: &[&str]) -> Vec<ModDeclaration> {
@@ -68,6 +71,7 @@ fn package(files: Vec<&'static str>, facts: Vec<(&'static str, Facts)>) -> Repos
         roots: vec![("p", "p/src/lib.rs")],
         outputs: Vec::new(),
         facts,
+        externs: Vec::new(),
     }
 }
 
@@ -198,6 +202,24 @@ fn an_external_target_with_parent_segments() -> Repository {
             ),
             ("distribution/child.rs", facts(Vec::new(), Vec::new())),
         ],
+        externs: Vec::new(),
+    }
+}
+
+/// Two crates: `a` depends on `b` and writes `bee` for it. Its path resolves from `b`'s crate root; `b` depends on nothing, so the
+/// same path written in `b` names nothing.
+fn a_path_into_a_library_the_package_depends_on() -> Repository {
+    let path = || writes(&["bee", "inner", "f"]);
+    Repository {
+        files: vec!["a/Cargo.toml", "a/src/lib.rs", "b/Cargo.toml", "b/src/inner.rs", "b/src/lib.rs"],
+        roots: vec![("a", "a/src/lib.rs"), ("b", "b/src/lib.rs")],
+        outputs: Vec::new(),
+        facts: vec![
+            ("a/src/lib.rs", facts(Vec::new(), vec![path()])),
+            ("b/src/inner.rs", facts(Vec::new(), Vec::new())),
+            ("b/src/lib.rs", facts(declares(&["inner"]), vec![path()])),
+        ],
+        externs: vec![("a", "bee", "b", "b/src/lib.rs")],
     }
 }
 
@@ -256,6 +278,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value("p/src/b.rs -> p/src/c.rs | p/src/b.rs p/src/c.rs p/src/lib.rs"),
     },
     Case {
+        name: CaseName("a_path_into_a_library_the_package_depends_on_names_the_file_in_that_crate"),
+        word: Word::Succeeds,
+        input: || a_path_into_a_library_the_package_depends_on,
+        expect: Expect::Value("a/src/lib.rs -> b/src/inner.rs | a/src/lib.rs b/src/inner.rs b/src/lib.rs"),
+    },
+    Case {
         name: CaseName("a_path_to_an_external_crate_names_nothing_of_the_repository"),
         word: Word::Succeeds,
         input: || a_path_to_an_external_crate_names_nothing_of_the_repository,
@@ -288,7 +316,14 @@ fn subject(made: Input) -> Value {
             known[place] = Some(each);
         }
     }
-    let linked = link(&files, &roots, &outputs, &known);
+    let mut externs = Externs::default();
+    for (package, name, directory, root) in made.externs {
+        drop(externs.by_package.entry(RepoPath(package.into())).or_default().insert(
+            Segment(name.into()),
+            ExternCrate { directory: RepoPath(directory.into()), root: RepoPath(root.into()) },
+        ));
+    }
+    let linked = link(&files, &roots, &outputs, &known, &externs);
     let links: Vec<String> = linked
         .dependencies
         .iter()
@@ -327,6 +362,7 @@ fn link(
     roots: &BTreeMap<RepoPath, BTreeSet<RepoPath>>,
     outputs: &[RepoPath],
     facts: &[Option<Facts>],
+    externs: &Externs,
 ) -> Linked {
     let kept = kept_files(files, outputs);
     let packages = index(&kept, roots);
@@ -346,7 +382,7 @@ fn link(
     let examined = files
         .iter()
         .enumerate()
-        .map(|(place, file)| examine(run, &packages, &trees, ListIndex(place), file))
+        .map(|(place, file)| examine(run, &packages, &trees, externs, ListIndex(place), file))
         .collect();
     merged(run, gaps_in(&trees), examined)
 }

@@ -1,10 +1,10 @@
 //! The types of the `links` concept: plain data, public fields and derives, with no constructor and no inherent impl.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use ryo::languages::{FilePath, Offset};
 
-use crate::domain::module_tree::types::{Facts, Spelling, Unfollowed};
+use crate::domain::module_tree::types::{Facts, Segment, Spelling, Unfollowed};
 use crate::domain::package_index::types::ListIndex;
 use crate::domain::packages::types::Refusal;
 use crate::domain::paths::types::RepoPath;
@@ -100,4 +100,22 @@ pub(crate) struct Run<'a> {
     pub files: &'a [FilePath],
     /// The facts of each source file, by its place.
     pub facts: &'a [Option<Facts>],
+}
+
+/// The library of another package of the repository that a package depends on: the directory of that package and the library's root
+/// file.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct ExternCrate {
+    /// The directory of the package depended on.
+    pub directory: RepoPath,
+    /// The root file of its library.
+    pub root: RepoPath,
+}
+
+/// The libraries of the repository each package's code can name, by the directory of the package, then by the name its code writes
+/// for each.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct Externs {
+    /// The libraries, by the depending package's directory, then by name.
+    pub by_package: BTreeMap<RepoPath, BTreeMap<Segment, ExternCrate>>,
 }

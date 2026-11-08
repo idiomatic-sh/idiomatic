@@ -43,6 +43,7 @@ fn declared() -> Packages {
             RepoPath("a".into()),
             BTreeSet::from([RepoPath("a/src/lib.rs".into())]),
         )]),
+        libraries: std::collections::BTreeMap::new(),
         outputs: vec![RepoPath("target".into())],
         refused: Vec::new(),
     }

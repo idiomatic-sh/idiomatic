@@ -54,6 +54,15 @@ pub(crate) struct Dependency {
     pub replacement: Section<Replacement>,
 }
 
+/// The library of a package: its root file, and the name the code of a dependent that does not rename it writes for it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct Library {
+    /// The library's root file, relative to the repository root.
+    pub root: RepoPath,
+    /// The name its dependents' code writes for it.
+    pub name: crate::domain::targets::types::TargetName,
+}
+
 /// A manifest that cannot be read as Cargo reads it.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct Refusal {
@@ -92,6 +101,8 @@ pub(crate) struct Packages {
     pub dependencies: Vec<Dependency>,
     /// The source file of every target Cargo declares for each package, by the directory of the package.
     pub roots: BTreeMap<RepoPath, BTreeSet<RepoPath>>,
+    /// The library of each package that has one, by the package's manifest.
+    pub libraries: BTreeMap<RepoPath, Library>,
     /// The directories the workspaces write their outputs to: no package holds what lies in them.
     pub outputs: Vec<RepoPath>,
     /// The manifests that could not be read, with why: the others were read.

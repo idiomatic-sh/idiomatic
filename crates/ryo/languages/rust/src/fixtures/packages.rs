@@ -142,6 +142,12 @@ pub(super) fn expected() -> ManifestExpected {
             target: file("app/src/util.rs"),
             span: span((4, 5), (4, 17)),
             written: name("util::double"),
+        },
+        SourceDependencyExpectedRow {
+            source: file("app/src/lib.rs"),
+            target: file("support/src/lib.rs"),
+            span: span((7, 17), (7, 30)),
+            written: name("helper::ready"),
         }])
         .rows(&[
             FilePackageExpectedRow {

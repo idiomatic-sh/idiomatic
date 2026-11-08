@@ -4,10 +4,10 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use super::types::{Drawn, Examination, SourceDependencyLink, Linked, Packaged, Placed, Run, UnplacedLink};
+use super::types::{Drawn, Examination, ExternCrate, Externs, SourceDependencyLink, Linked, Packaged, Placed, Run, UnplacedLink};
 use crate::domain::fact_notes::service::facts_of;
 use crate::domain::fact_notes::types::{Naming, Note};
-use crate::domain::module_tree::constants::SOURCE;
+use crate::domain::module_tree::constants::{CRATE, SOURCE};
 use crate::domain::module_tree::service::{resolve, tree};
 use crate::domain::module_tree::types::{
     Cleanliness, Facts, ModulePath, ModuleTree, Segment, Unfollowed,
@@ -15,7 +15,10 @@ use crate::domain::module_tree::types::{
 use crate::domain::package_index::constants::MANIFEST;
 use crate::domain::package_index::service::{index, kept_files, package_of};
 use crate::domain::package_index::types::{Index, ListIndex, Package};
-use crate::domain::paths::service::lexical_join;
+use crate::domain::packages::types::Packages;
+use crate::domain::targets::service::crate_name;
+use crate::domain::targets::types::PackageName;
+use crate::domain::paths::service::{directory_of, lexical_join};
 use crate::domain::paths::types::Relative;
 use crate::domain::paths::types::RepoPath;
 use ryo::languages::{self, FilePath};
@@ -120,6 +123,54 @@ pub(crate) fn merged(run: Run<'_>, gaps: Vec<Unfollowed>, examined: Vec<Examinat
     linked
 }
 
+/// The libraries of the repository each package depends on, by the name its code writes for each: the binding when the manifest
+/// renames the package, and the library's own name when it does not. A package's dependency on itself names nothing new.
+#[must_use]
+pub(crate) fn externs_in(packages: &Packages) -> Externs {
+    let mut externs = Externs::default();
+    for dependency in &packages.dependencies {
+        let Some(target) = dependency.target.as_ref().filter(|target| **target != dependency.source) else {
+            continue;
+        };
+        let Some(library) = packages.libraries.get(target) else {
+            continue;
+        };
+        let name = if dependency.binding.0 == dependency.package.0 {
+            library.name.0.clone()
+        } else {
+            crate_name(&PackageName(dependency.binding.0.clone())).0
+        };
+        drop(externs.by_package.entry(directory_of(&dependency.source)).or_default().insert(
+            Segment(name),
+            ExternCrate {
+                directory: directory_of(target),
+                root: library.root.clone(),
+            },
+        ));
+    }
+    externs
+}
+
+/// The files a path written in a package names in the library of another package of the repository it depends on: the path's first
+/// segment is the name the package's code writes for that library, and the rest is resolved from the library's crate root.
+fn resolve_extern<'a>(
+    externs: Option<&BTreeMap<Segment, ExternCrate>>,
+    trees: &'a BTreeMap<RepoPath, Vec<ModuleTree>>,
+    written: &[Segment],
+) -> Option<&'a [RepoPath]> {
+    let (first, rest) = written.split_first()?;
+    let library = externs?.get(first)?;
+    let tree = trees.get(&library.directory)?.iter().find(|tree| {
+        tree.modules
+            .get(&ModulePath::default())
+            .is_some_and(|roots| roots.contains(&library.root))
+    })?;
+    let mut from_root = Vec::with_capacity(written.len());
+    from_root.push(Segment(CRATE.into()));
+    from_root.extend(rest.iter().cloned());
+    resolve(tree, &[], &from_root)
+}
+
 /// The names the modules declared in one file bear, from the notes the parse left of it.
 #[must_use]
 pub(crate) fn declared_in(note: &Note<'_>) -> Vec<Segment> {
@@ -142,12 +193,14 @@ pub(crate) fn facts_in(note: Note<'_>, names: &BTreeSet<Segment>) -> Facts {
 }
 
 /// The dependencies of one file and whether it was analyzed. `files` are in the order of their places, and `facts` are the facts of
-/// each source file, by its place.
+/// each source file, by its place. A path resolves in the file's own crate first, then in the library of a package of the repository
+/// its package depends on (`externs`).
 #[must_use]
 pub(crate) fn examine(
     run: Run<'_>,
     packages: &Index,
     trees: &BTreeMap<RepoPath, Vec<ModuleTree>>,
+    externs: &Externs,
     place: ListIndex,
     file: &FilePath,
 ) -> Examination {
@@ -188,7 +241,9 @@ pub(crate) fn examine(
         for written in &known.written {
             let mut current = module.0.clone();
             current.extend(written.enclosing.iter().cloned());
-            let Some(targets) = resolve(each, &current, &written.segments) else {
+            let Some(targets) = resolve(each, &current, &written.segments)
+                .or_else(|| resolve_extern(externs.by_package.get(own), trees, &written.segments))
+            else {
                 continue;
             };
             for target in targets.iter().filter(|target| *target != &file) {

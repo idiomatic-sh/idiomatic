@@ -281,7 +281,7 @@
     },
     "cli_replay": {"passed": 77, "failed": 1},
     "cli_replay_reds": ["peak::a_warm_unchanged_run_over_ruff_peaks_within_its_bound"],
-    "cli_replay_note": "the red of validation329 is the warm peak; the feed row ruff_rules_feed_every_catalog_feature_a_thousand_rows passes (its stale entry is removed; it failed at validation328 on the shared walk per-step count); the cache row passes (store of ruff 72,522,094 bytes at the Phase 1 tail, under 75,000,000: each proof's rule digest kept once); warm peak 114,536,448 bytes against 100,000,000 (114,192,384 at validation327); peak owned by \"Decode lazy packed frontiers once per population, not once per root, and compile ordered existence without the eager request-level pass.\"",
+    "cli_replay_note": "the red of validation329 is the warm peak; the feed row ruff_rules_feed_every_catalog_feature_a_thousand_rows passes (its stale entry is removed; it failed at validation328 on the shared walk per-step count); the cache row passes (store of ruff 72,522,094 bytes at the Phase 1 tail, under 75,000,000: each proof's rule digest kept once); warm peak 114,876,416 bytes against 100,000,000 (`cli_tests.log:9484`; 114,536,448 at validation328); peak owned by \"Decode lazy packed frontiers once per population, not once per root, and compile ordered existence without the eager request-level pass.\"",
     "cli_cost": {
       "passed": 4,
       "failed": 3,
