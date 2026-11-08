@@ -22,6 +22,7 @@ use crate::domain::regrouping::service::{regroup_joins, regroup_joins_roots};
 use crate::domain::resolving::service::{position, read_source, step_named, step_of};
 use crate::domain::rewriting::types::Planned;
 use crate::domain::selecting::service::lower_select;
+use crate::domain::selection_pushing::service::{push_selections, push_selections_roots};
 use crate::domain::syntax::constants::{parameter_kind_named, relation_cell_kind_named};
 use crate::domain::walking::service::{fuse_descents, fuse_neighbours};
 use ryo_values::domain::hosted::types as hosted;
@@ -169,6 +170,7 @@ pub(crate) fn lower_with_observations(
         );
         let Planned { steps, emitted } = without_unused(pushed, named);
         let Planned { steps, emitted } = push_below_captures(steps, emitted);
+        let Planned { steps, emitted } = push_selections(steps, emitted);
         let Planned { steps, emitted } = regroup_joins(steps, emitted);
         let Planned { steps, emitted } = reduced_frontier(steps, emitted);
         let Planned { steps, emitted } = cut_relations(steps, emitted);
@@ -186,6 +188,7 @@ pub(crate) fn lower_with_observations(
         let steps = push_lookups_roots(steps, &mut roots);
         let steps = without_unused_roots(steps, &mut roots);
         let steps = push_below_captures_roots(steps, &mut roots);
+        let steps = push_selections_roots(steps, &mut roots);
         let steps = regroup_joins_roots(steps, &mut roots);
         let steps = reduced_frontier_roots(steps, &mut roots);
         let steps = cut_relations_roots(steps, &mut roots);

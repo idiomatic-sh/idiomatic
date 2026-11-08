@@ -199,6 +199,25 @@ pub(crate) fn frontier_of(steps: &[plans::PlanStep]) -> Vec<parts::Input> {
     frontier
 }
 
+/// Where the rows of `input` of a planned step are made: a relation's in each file, unless the project's manifests make it; a step's
+/// where it runs; none for a bound input, whose scope the plan does not hold.
+pub(crate) fn planned_scope(
+    steps: &[plans::PlanStep],
+    input: parts::Input,
+) -> Option<ryo_values::domain::plan_parts::types::StepScope> {
+    match input {
+        parts::Input::Relation(relation) => Some(if provenance_of(relation) == Provenance::Manifests {
+            ryo_values::domain::plan_parts::types::StepScope::CrossFile
+        } else {
+            ryo_values::domain::plan_parts::types::StepScope::PerFile
+        }),
+        parts::Input::BoundObservation(_) => None,
+        parts::Input::Step(id) => {
+            ryo_values::domain::plan_parts::service::step_in(steps, id).map(|step| step.scope)
+        }
+    }
+}
+
 /// Where an input's rows are produced, and the columns they have: a relation's rows are one
 /// file's, a step's are wherever the step runs.
 pub(crate) fn scoped(builder: &Builder<'_>, input: parts::Input) -> ScopedInput {

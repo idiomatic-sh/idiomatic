@@ -27,6 +27,7 @@ pub(crate) mod resolving;
 pub(crate) mod rewriting;
 pub(crate) mod rooting;
 pub(crate) mod selecting;
+pub(crate) mod selection_pushing;
 pub(crate) mod spanning;
 pub(crate) mod syntax;
 pub(crate) mod traversing;

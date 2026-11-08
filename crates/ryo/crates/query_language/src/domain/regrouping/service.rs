@@ -6,11 +6,10 @@ use super::types::SplitJoin;
 use crate::domain::fusing::service::source_column;
 use crate::domain::lineage::service::column_kind;
 use crate::domain::lowering::types::FileOrigin;
+use crate::domain::planning::service::planned_scope;
 use crate::domain::planning::service::stated_by;
 use crate::domain::rewriting::types::Planned;
 use crate::domain::rewriting::types::StepIndex;
-use ryo_relations::domain::relations::service::provenance_of;
-use ryo_relations::domain::relations::types::Provenance;
 use ryo_values::domain::plan_parts::service::column_in;
 use ryo_values::domain::plan_parts::service::step_in;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -73,19 +72,6 @@ pub(crate) fn regroup_joins_roots(mut steps: Vec<PlanStep>, roots: &mut [StepId]
     steps
 }
 
-/// Where the rows of `input` are made: a relation's in each file, unless the project's manifests make it; a step's where it runs.
-fn input_scope(steps: &[PlanStep], input: Input) -> Option<StepScope> {
-    match input {
-        Input::Relation(relation) => Some(if provenance_of(relation) == Provenance::Manifests {
-            StepScope::CrossFile
-        } else {
-            StepScope::PerFile
-        }),
-        Input::BoundObservation(_) => None,
-        Input::Step(id) => step_in(steps, id).map(|step| step.scope),
-    }
-}
-
 /// The other side.
 fn opposite(side: Side) -> Side {
     match side {
@@ -123,7 +109,7 @@ fn split_join<'a>(steps: &[PlanStep], operation: &'a Operation) -> Option<SplitJ
     if !filter.is_empty() {
         return None;
     }
-    match (input_scope(steps, *left)?, input_scope(steps, *right)?) {
+    match (planned_scope(steps, *left)?, planned_scope(steps, *right)?) {
         (StepScope::CrossFile, StepScope::PerFile) => Some(SplitJoin {
             crossing: *left,
             local: *right,
@@ -229,11 +215,11 @@ fn regrouped_on(steps: &[PlanStep], outer: &Operation, side: Side, at: Input) ->
         return None;
     };
     let first = step_in(steps, joined_id)?;
-    if first.scope != StepScope::CrossFile || input_scope(steps, other)? != StepScope::PerFile {
+    if first.scope != StepScope::CrossFile || planned_scope(steps, other)? != StepScope::PerFile {
         return None;
     }
     let split = split_join(steps, &first.operation)?;
-    if input_scope(steps, split.local)? != StepScope::PerFile {
+    if planned_scope(steps, split.local)? != StepScope::PerFile {
         return None;
     }
     // A column of the first join, as the outer join names it.
