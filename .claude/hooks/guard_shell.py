@@ -23,7 +23,8 @@ EVIDENCE = "crates/ryo/docs/contracts/evidence/checkpoint/"
 RUST_REVIEW = EVIDENCE + "rust-review.json"
 BOOTSTRAP_HEAD = "171789169e"  # checkpoint 329: landed before the leak and TM agents existed
 PREVIOUS_REVIEWS = (("contract-review.json", "contract-review"), ("leak-review.json", "leak-review"),
-                    ("tm-steward.json", "tm-specialist"))
+                    ("tm-steward.json", "tm-steward"))
+MERGE_BRANCHES = "crates/ryo/docs/contracts/evidence/branches/"
 
 
 def segments(text):
@@ -245,45 +246,76 @@ def git_push(words):
     return directory, words[i + 1:]
 
 
-def names_consolidation(args):
-    """True when a refspec argument's destination is claude/ryo-consolidation."""
-    for arg in (a for a in args if not a.startswith("-")):
-        destination = arg.lstrip("+").rsplit(":", 1)[-1]
-        if destination in (CONSOLIDATION, "refs/heads/" + CONSOLIDATION):
-            return True
-    return False
-
-
 def git_out(directory, *args):
     done = subprocess.run(["git", "-C", directory, *args], capture_output=True, text=True, check=False)
     return done.returncode, done.stdout
 
 
+def rev(tree, ref):
+    """The commit sha a ref resolves to, or None."""
+    if not ref or ref.startswith("-"):
+        return None
+    code, out = git_out(tree, "rev-parse", "--verify", "-q", ref + "^{commit}")
+    return out.strip() if code == 0 and out.strip() else None
+
+
+def current_branch(tree):
+    return git_out(tree, "symbolic-ref", "--short", "HEAD")[1].strip()
+
+
+def push_targets(tree, push):
+    """(remote, source, destination) for each refspec a push names; no refspec pushes HEAD to the current branch."""
+    operands = [a for a in push[1] if not a.startswith("-")]
+    remote = operands[0] if operands else "origin"
+    current = current_branch(tree)
+    if len(operands) < 2:
+        return [(remote, "HEAD", current)]
+    found = []
+    for spec in operands[1:]:
+        spec = spec.lstrip("+")
+        source, colon, destination = spec.partition(":")
+        if not source:
+            continue
+        if not colon:
+            destination = current if source == "HEAD" else source
+        found.append((remote, source, destination.replace("refs/heads/", "", 1)))
+    return found
+
+
+def consolidation_targets(tree, push):
+    return [t for t in push_targets(tree, push) if t[2] == CONSOLIDATION]
+
+
 def rust_review(words, here):
-    """A push of claude/ryo-consolidation needs HEAD's rust-review.json at PASS with a source HEAD contains."""
+    """A push of claude/ryo-consolidation needs the pushed ref's rust-review.json at PASS with a source it contains."""
     push = git_push(words)
-    if push is None or not names_consolidation(push[1]):
+    if push is None:
         return None
     tree = os.path.join(here, push[0]) if push[0] else here
-    refused = "push of " + CONSOLIDATION + " refused: "
-    code, text = git_out(tree, "show", "HEAD:" + RUST_REVIEW)
-    if code != 0:
-        return (refused + "HEAD carries no " + RUST_REVIEW + "; run the rust-principal-review agent "
-                "(.agents/agents/rust-principal-review.md) on this tree and commit its PASS")
-    try:
-        review = json.loads(text)
-    except ValueError:
-        return refused + RUST_REVIEW + " at HEAD is not JSON"
-    if not isinstance(review, dict) or review.get("verdict") != "PASS":
-        verdict = review.get("verdict") if isinstance(review, dict) else None
-        return (refused + RUST_REVIEW + " at HEAD has verdict " + repr(verdict) +
-                ", not \"PASS\"; repair its findings and review again, or the owner overrules and pushes")
-    source = review.get("source")
-    if not isinstance(source, str) or not source or source.startswith("-"):
-        return refused + RUST_REVIEW + " at HEAD names no reviewed \"source\" sha"
-    if git_out(tree, "merge-base", "--is-ancestor", source, "HEAD")[0] != 0:
-        return (refused + "the reviewed source " + source + " in " + RUST_REVIEW +
-                " is not an ancestor of HEAD; review the tree being pushed")
+    for _, source, _ in consolidation_targets(tree, push):
+        refused = "push of " + CONSOLIDATION + " refused: "
+        sha = rev(tree, source)
+        if sha is None:
+            return refused + "the pushed ref " + source + " does not resolve to a commit"
+        code, text = git_out(tree, "show", sha + ":" + RUST_REVIEW)
+        if code != 0:
+            return (refused + source + " carries no " + RUST_REVIEW + "; run the rust-review subagent "
+                    "on this tree and commit its PASS")
+        try:
+            review = json.loads(text)
+        except ValueError:
+            return refused + RUST_REVIEW + " at " + source + " is not JSON"
+        if not isinstance(review, dict) or review.get("verdict") != "PASS":
+            verdict = review.get("verdict") if isinstance(review, dict) else None
+            return (refused + RUST_REVIEW + " at " + source + " has verdict " + repr(verdict) +
+                    ", not \"PASS\"; repair its findings and run the rust-review subagent again, or the owner "
+                    "overrules and pushes")
+        reviewed = review.get("source")
+        if not isinstance(reviewed, str) or not reviewed or reviewed.startswith("-"):
+            return refused + RUST_REVIEW + " at " + source + " names no reviewed \"source\" sha"
+        if git_out(tree, "merge-base", "--is-ancestor", reviewed, sha)[0] != 0:
+            return (refused + "the reviewed source " + reviewed + " in " + RUST_REVIEW +
+                    " is not an ancestor of " + source + "; run the rust-review subagent on the tree being pushed")
     return None
 
 
@@ -307,154 +339,68 @@ def stands_for(tree, source, head):
 
 
 def previous_reviews(words, here):
-    """A push landing a checkpoint needs the previous landed head's contract, leak and TM steward reviews in HEAD.
+    """A push landing a checkpoint needs the previous landed head's contract, leak and TM steward reviews.
 
     Verdicts never block (a BLOCKING or FAIL is repaired in this checkpoint); absence or a stale source does.
     At the bootstrap head only contract-review.json is required: the leak and TM agents did not exist then.
+    The reviews are read from the pushed ref.
     """
     push = git_push(words)
-    if push is None or not names_consolidation(push[1]):
+    if push is None:
         return None
     tree = os.path.join(here, push[0]) if push[0] else here
-    operands = [a for a in push[1] if not a.startswith("-")]
-    head = previous_head(tree, operands[0]) if operands else None
-    if head is None:
-        return None
-    refused = "push of " + CONSOLIDATION + " refused: "
-    needed = PREVIOUS_REVIEWS[:1] if head.startswith(BOOTSTRAP_HEAD) else PREVIOUS_REVIEWS
-    for name, agent in needed:
-        run = "run the " + agent + " agent (.agents/agents/" + agent + ".md) on " + head
-        code, text = git_out(tree, "show", "HEAD:" + EVIDENCE + name)
-        if code != 0:
-            return refused + "HEAD carries no " + EVIDENCE + name + " for the previous landed head " + head + "; " + run
-        try:
-            review = json.loads(text)
-        except ValueError:
-            return refused + EVIDENCE + name + " at HEAD is not JSON; " + run
-        if not isinstance(review, dict) or "verdict" not in review:
-            return refused + EVIDENCE + name + " at HEAD has no \"verdict\"; " + run
-        source = review.get("source")
-        if not isinstance(source, str) or not source or source.startswith("-") or not stands_for(tree, source, head):
-            return (refused + "the source " + repr(source) + " in " + EVIDENCE + name + " is not the previous landed head " +
-                    head + " (or an ancestor with only evidence changed since); " + run)
-    return None
-
-
-MERGE_BRANCHES = "crates/ryo/docs/contracts/evidence/branches/"
-MERGE_VALUE_OPTIONS = {"-m", "-F", "-s", "-X", "--into-name", "--file", "--strategy", "--strategy-option"}
-CHECKPOINT = re.compile(r"claude/checkpoint-\d+")
-
-
-def git_merge(words):
-    """The -C directory and the ref operands of a `git merge`, or None when the words are not one."""
-    if len(words) < 2 or words[0] != "git":
-        return None
-    directory, i = None, 1
-    while i < len(words) and words[i].startswith("-"):
-        if words[i] == "-C" and i + 1 < len(words):
-            directory = words[i + 1]
-            i += 2
-        elif words[i] in ("-c", "--git-dir", "--work-tree") and i + 1 < len(words):
-            i += 2
-        else:
-            i += 1
-    if i >= len(words) or words[i] != "merge":
-        return None
-    refs, rest = [], words[i + 1:]
-    skip = False
-    for w in rest:
-        if skip:
-            skip = False
-        elif w in MERGE_VALUE_OPTIONS:
-            skip = True
-        elif not w.startswith("-"):
-            refs.append(w)
-    return directory, refs
-
-
-def branch_names(tree, ref, sha):
-    """The claude/* branch names the merged ref stands for: its own spelling, else any branch at that sha."""
-    plain = re.sub(r"^(refs/(heads|remotes/[^/]+)/|[^/]+/(?=claude/))", "", ref)
-    if plain.startswith("claude/"):
-        return [plain]
-    names = []
-    for line in git_out(tree, "for-each-ref", "--points-at", sha, "--format=%(refname)", "refs/heads/claude",
-                        "refs/remotes")[1].split():
-        name = re.sub(r"^refs/(heads|remotes/[^/]+)/", "", line)
-        if name.startswith("claude/") and name not in names:
-            names.append(name)
-    return names
-
-
-def branch_review(words, here):
-    """A merge of a claude/* builder branch into a checkpoint tree needs the leak-review PASS for that head in HEAD."""
-    merge = git_merge(words)
-    if merge is None:
-        return None
-    tree = os.path.join(here, merge[0]) if merge[0] else here
-    code, current = git_out(tree, "symbolic-ref", "--short", "HEAD")
-    if code != 0 or not CHECKPOINT.fullmatch(current.strip()):
-        return None
-    for ref in merge[1]:
-        code, out = git_out(tree, "rev-parse", "--verify", "-q", ref + "^{commit}")
-        sha = out.strip()
-        if code != 0 or not sha:
+    for remote, source, _ in consolidation_targets(tree, push):
+        sha = rev(tree, source)
+        head = previous_head(tree, remote)
+        if sha is None or head is None:
             continue
-        for name in branch_names(tree, ref, sha):
-            if INTEGRATION.fullmatch(name) or git_out(tree, "merge-base", "--is-ancestor", sha, "HEAD")[0] == 0:
-                continue
-            path = MERGE_BRANCHES + name.replace("/", "-") + ".json"
-            refused = "merge of " + name + " refused: "
-            run = "; run the leak-review agent (.agents/agents/leak-review.md) on " + sha + " diff-scoped and commit its PASS"
-            code, text = git_out(tree, "show", "HEAD:" + path)
+        refused = "push of " + CONSOLIDATION + " refused: "
+        needed = PREVIOUS_REVIEWS[:1] if head.startswith(BOOTSTRAP_HEAD) else PREVIOUS_REVIEWS
+        for name, agent in needed:
+            run = "run the " + agent + " subagent on " + head
+            code, text = git_out(tree, "show", sha + ":" + EVIDENCE + name)
             if code != 0:
-                return refused + "HEAD carries no " + path + run
+                return (refused + source + " carries no " + EVIDENCE + name + " for the previous landed head " + head +
+                        "; " + run)
             try:
                 review = json.loads(text)
             except ValueError:
-                return refused + path + " at HEAD is not JSON" + run
-            if not isinstance(review, dict) or review.get("source") != sha:
-                return refused + "the source in " + path + " is not the branch head " + sha + run
-            if review.get("reviewer") != "leak-review" or "verdict" not in review:
-                return refused + path + " lacks \"reviewer\": \"leak-review\" or a \"verdict\"" + run
-            if review["verdict"] != "PASS":
-                return (refused + path + " has verdict " + repr(review["verdict"]) +
-                        "; repair the findings on the branch, then re-run the leak-review agent on its new head")
+                return refused + EVIDENCE + name + " at " + source + " is not JSON; " + run
+            if not isinstance(review, dict) or "verdict" not in review:
+                return refused + EVIDENCE + name + " at " + source + " has no \"verdict\"; " + run
+            reviewed = review.get("source")
+            if not isinstance(reviewed, str) or not reviewed or reviewed.startswith("-") or \
+                    not stands_for(tree, reviewed, head):
+                return (refused + "the source " + repr(reviewed) + " in " + EVIDENCE + name +
+                        " is not the previous landed head " + head +
+                        " (or an ancestor with only evidence changed since); " + run)
     return None
 
 
 PERF_DIR = "crates/ryo/docs/contracts/evidence/perf/"
 PERF_SUBJECT = re.compile(r"perf(\([^)]*\))?!?:")
 PERF_NUMBER = re.compile(r"\d\s?(ms|s|MB|GB|%)(?!\w)")
-PERF_AGENT = ".agents/agents/perf-diagnosis.md"
 
 
-def pushed_branch(tree, push):
-    """The remote and destination branch of a push: its operands, or the current branch when it names none."""
-    operands = [a for a in push[1] if not a.startswith("-")]
-    remote = operands[0] if operands else "origin"
-    if len(operands) > 1:
-        return remote, operands[-1].lstrip("+").rsplit(":", 1)[-1].replace("refs/heads/", "", 1)
-    return remote, git_out(tree, "symbolic-ref", "--short", "HEAD")[1].strip()
+def excluded_refs(tree, remote):
+    return [ref for ref in ("refs/heads/" + CONSOLIDATION, "refs/remotes/" + remote + "/" + CONSOLIDATION)
+            if git_out(tree, "rev-parse", "--verify", "-q", ref)[0] == 0]
 
 
-def pushed_commits(tree, remote, branch):
+def pushed_commits(tree, remote, branch, sha):
     """(sha, message) of the commits a push adds, oldest first; commits in claude/ryo-consolidation are never included."""
     base = None
     code, out = git_out(tree, "rev-parse", "--verify", "-q", "refs/remotes/" + remote + "/" + branch)
     if code == 0 and out.strip():
         base = out.strip()
-    exclude = []
-    for ref in ("refs/heads/" + CONSOLIDATION, "refs/remotes/" + remote + "/" + CONSOLIDATION):
-        if git_out(tree, "rev-parse", "--verify", "-q", ref)[0] == 0:
-            exclude.append(ref)
+    exclude = excluded_refs(tree, remote)
     if base is None:
         if not exclude:
             return []
-        base = git_out(tree, "merge-base", "HEAD", exclude[0])[1].strip()
+        base = git_out(tree, "merge-base", sha, exclude[0])[1].strip()
         if not base:
             return []
-    args = ["log", "--reverse", "--format=%H%x1f%B%x1e", base + "..HEAD"]
+    args = ["log", "--reverse", "--format=%H%x1f%B%x1e", base + ".." + sha]
     if exclude:
         args += ["--not", *exclude]
     code, out = git_out(tree, *args)
@@ -462,26 +408,45 @@ def pushed_commits(tree, remote, branch):
     return [(row[0].strip(), row[1] if len(row) > 1 else "") for row in rows]
 
 
+def branch_range(tree, remote, sha):
+    """(commits, added files) of the pushed branch's own range: everything the ref has that consolidation lacks."""
+    tail = ["--not", *excluded_refs(tree, remote)] if excluded_refs(tree, remote) else []
+    commits = set(git_out(tree, "rev-list", sha, *tail)[1].split())
+    added = set(git_out(tree, "log", "--diff-filter=A", "--name-only", "--format=", sha, *tail)[1].split("\n"))
+    return commits, added
+
+
 def perf_gate(words, here):
-    """A push with a `perf` commit needs a perf diagnosis (and, for claimed numbers, an after.json) in the pushed tree."""
+    """A push with a `perf` commit needs a diagnosis added in the pushed range (and, for claimed numbers, an after.json)."""
     push = git_push(words)
     if push is None:
         return None
     tree = os.path.join(here, push[0]) if push[0] else here
-    remote, branch = pushed_branch(tree, push)
-    perf = [(sha, msg) for sha, msg in pushed_commits(tree, remote, branch)
-            if PERF_SUBJECT.match(msg.lstrip().split("\n", 1)[0])]
-    if not perf:
-        return None
+    for remote, source, branch in push_targets(tree, push):
+        sha = rev(tree, source)
+        if sha is None:
+            continue
+        perf = [(c, msg) for c, msg in pushed_commits(tree, remote, branch, sha)
+                if PERF_SUBJECT.match(msg.lstrip().split("\n", 1)[0])]
+        if not perf:
+            continue
+        found = perf_problem(tree, remote, sha, branch, perf)
+        if found:
+            return found
+    return None
+
+
+def perf_problem(tree, remote, sha, branch, perf):
     first = perf[0][0]
     refused = "push of " + branch + " refused: perf commit " + first[:10] + " "
-    point = "; run the perf-diagnosis agent (" + PERF_AGENT + ")"
-    code, listing = git_out(tree, "ls-tree", "-r", "--name-only", "HEAD", PERF_DIR)
-    diagnoses = [f for f in listing.split("\n") if re.fullmatch(re.escape(PERF_DIR) + r"[^/]+/diagnosis\.json", f)]
+    point = "; run the perf-diagnosis subagent"
+    commits, added = branch_range(tree, remote, sha)
+    diagnoses = sorted(f for f in added if re.fullmatch(re.escape(PERF_DIR) + r"[^/]+/diagnosis\.json", f))
     problems = []
     for path in diagnoses:
+        code, text = git_out(tree, "show", sha + ":" + path)
         try:
-            doc = json.loads(git_out(tree, "show", "HEAD:" + path)[1])
+            doc = json.loads(text) if code == 0 else None
         except ValueError:
             problems.append(path + " is not JSON")
             continue
@@ -500,17 +465,168 @@ def perf_gate(words, here):
             if not PERF_NUMBER.search("\n".join(msg for _, msg in perf)):
                 return None
             after = path.rsplit("/", 1)[0] + "/after.json"
-            code, text = git_out(tree, "show", "HEAD:" + after)
+            code, text = git_out(tree, "show", sha + ":" + after)
             try:
                 record = json.loads(text) if code == 0 else None
             except ValueError:
                 record = None
-            if isinstance(record, dict) and all(k in record for k in ("before", "after", "identical_output")):
+            if not isinstance(record, dict) or not all(k in record for k in ("before", "after", "identical_output")):
+                problems.append("a perf commit claims a number but " + after + " lacks before, after and identical_output")
+            elif record["identical_output"] is not True:
+                problems.append(after + " has identical_output other than true")
+            elif rev(tree, record.get("source") if isinstance(record.get("source"), str) else "") not in commits:
+                problems.append(after + " has no \"source\" naming a commit in the pushed range")
+            else:
                 return None
-            problems.append("a perf commit claims a number but " + after + " lacks before, after and identical_output")
     if not diagnoses:
-        return refused + "has no " + PERF_DIR + "<iteration>/diagnosis.json in the pushed tree" + point
+        return refused + "has no " + PERF_DIR + "<iteration>/diagnosis.json added in the pushed range" + point
     return refused + "; ".join(problems) + point
+
+
+MERGE_VALUE_OPTIONS = {"-m", "-F", "-s", "-X", "--into-name", "--file", "--strategy", "--strategy-option"}
+MERGE_CONTROL = {"--abort", "--continue", "--quit"}
+CHECKPOINT = re.compile(r"claude/checkpoint-\d+")
+SHELL_EXPANDED = re.compile(r"[$`*?{}\\]")
+
+
+def git_verb(words, verb):
+    """The -C directory and the operands of `git <verb>`, or None when the words are not one."""
+    if len(words) < 2 or words[0] != "git":
+        return None
+    directory, i = None, 1
+    while i < len(words) and words[i].startswith("-"):
+        if words[i] == "-C" and i + 1 < len(words):
+            directory = words[i + 1]
+            i += 2
+        elif words[i] in ("-c", "--git-dir", "--work-tree") and i + 1 < len(words):
+            i += 2
+        else:
+            i += 1
+    if i >= len(words) or words[i] != verb:
+        return None
+    return directory, words[i + 1:]
+
+
+def git_merge(words):
+    """The -C directory, operand refs and option words of a `git merge`, or None."""
+    found = git_verb(words, "merge")
+    if found is None:
+        return None
+    refs, options, skip = [], [], False
+    for w in found[1]:
+        if skip:
+            skip = False
+        elif w in MERGE_VALUE_OPTIONS:
+            skip = True
+        elif w.startswith("-"):
+            options.append(w)
+        else:
+            refs.append(w)
+    return found[0], refs, options
+
+
+def checkpoint_tree(tree):
+    """True on a claude/checkpoint-N branch, or on a detached HEAD sitting at the tip of one."""
+    code, current = git_out(tree, "symbolic-ref", "--short", "HEAD")
+    if code == 0:
+        return CHECKPOINT.fullmatch(current.strip()) is not None
+    head = rev(tree, "HEAD")
+    if head is None:
+        return False
+    names = git_out(tree, "for-each-ref", "--points-at", head, "--format=%(refname)", "refs/heads", "refs/remotes")[1]
+    return any(CHECKPOINT.fullmatch(re.sub(r"^refs/(heads|remotes/[^/]+)/", "", n)) for n in names.split())
+
+
+def branch_names(tree, ref, sha):
+    """The claude/* branch names whose current head is sha: the ref's own spelling, else every branch there."""
+    plain = re.sub(r"^(refs/(heads|remotes/[^/]+)/|[^/]+/(?=claude/))", "", ref)
+    if re.fullmatch(r"claude/[^~^@:]+", plain):
+        return [plain]
+    names = []
+    for line in git_out(tree, "for-each-ref", "--points-at", sha, "--format=%(refname)", "refs/heads/claude",
+                        "refs/remotes")[1].split():
+        name = re.sub(r"^refs/(heads|remotes/[^/]+)/", "", line)
+        if name.startswith("claude/") and name not in names:
+            names.append(name)
+    return names
+
+
+def branch_review(words, here):
+    """In a checkpoint tree a merge needs the leak-review PASS for the branch head merged; pull is refused."""
+    pull = git_verb(words, "pull")
+    merge = git_merge(words)
+    if pull is None and merge is None:
+        return None
+    tree = os.path.join(here, (pull or merge)[0]) if (pull or merge)[0] else here
+    if not checkpoint_tree(tree):
+        return None
+    if pull is not None:
+        return ("git pull is refused in a checkpoint tree: it merges refs this hook cannot check; fetch, then "
+                "git merge a claude/* branch that carries its leak-review PASS")
+    if any(o in MERGE_CONTROL for o in merge[2]):
+        return None
+    if not merge[1]:
+        return "git merge in a checkpoint tree must name the branch to merge; a bare merge takes its upstream unchecked"
+    for ref in merge[1]:
+        refused = "merge of " + ref + " refused: "
+        if SHELL_EXPANDED.search(ref):
+            return refused + "the ref is shell-expanded or a pattern; write the branch name"
+        sha = rev(tree, ref)
+        if sha is None:
+            return refused + "the ref does not resolve to a commit"
+        if git_out(tree, "merge-base", "--is-ancestor", sha, "HEAD")[0] == 0:
+            continue
+        names = branch_names(tree, ref, sha)
+        if not names:
+            return refused + sha + " is not the current head of any claude/* branch (a moved branch's old sha is stale)"
+        if any(INTEGRATION.fullmatch(n) for n in names):
+            continue
+        name = names[0]
+        path = MERGE_BRANCHES + name.replace("/", "-") + ".json"
+        run = "; run the leak-review subagent on " + sha + " diff-scoped and commit its PASS"
+        refused = "merge of " + name + " refused: "
+        code, text = git_out(tree, "show", "HEAD:" + path)
+        if code != 0:
+            return refused + "HEAD carries no " + path + run
+        try:
+            review = json.loads(text)
+        except ValueError:
+            return refused + path + " at HEAD is not JSON" + run
+        if not isinstance(review, dict) or review.get("source") != sha:
+            return refused + "the source in " + path + " is not the branch head " + sha + run
+        if review.get("reviewer") != "leak-review" or "verdict" not in review:
+            return refused + path + " lacks \"reviewer\": \"leak-review\" or a \"verdict\"" + run
+        if review["verdict"] != "PASS":
+            return (refused + path + " has verdict " + repr(review["verdict"]) +
+                    "; repair the findings on the branch, then run the leak-review subagent on its new head")
+    return None
+
+
+OPTION_VALUES = {"-u", "-n", "-C", "-S", "--unset", "--chdir"}
+
+
+def unwrapped(words, depth=0):
+    """The command word lists behind env, command, time, nohup, nice, exec, flock and bash/sh/zsh -c wrappers."""
+    while True:
+        while words and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*=.*", words[0]):
+            words = words[1:]
+        if words and words[0] in WRAPPERS:
+            words = words[1:]
+            while words and (words[0].startswith("-") or re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*=.*", words[0])):
+                words = words[2:] if words[0] in OPTION_VALUES else words[1:]
+        elif words and words[0] == "flock":
+            rest = words[1:]
+            while rest and rest[0].startswith("-"):
+                rest = rest[2:] if rest[0] in ("-w", "-E", "--timeout", "--conflict-exit-code") else rest[1:]
+            words = rest[1:]
+        else:
+            break
+    if words and words[0] in ("bash", "sh", "zsh") and "-c" in words and words.index("-c") + 1 < len(words) and depth < 4:
+        found = []
+        for segment in segments(words[words.index("-c") + 1]):
+            found += unwrapped(tokens(segment), depth + 1)
+        return found
+    return [words]
 
 
 def integration_tree(directory):
@@ -553,10 +669,14 @@ def reason(command, cwd=None):
         words = tokens(segment)
         if len(words) > 1 and words[0] == "cd":
             here = os.path.join(here, os.path.expanduser(words[1]))
-        for found in (stash(words), removal(words), cargo_rules(words, before, dirs), tm_fix(words, clean),
-                      rust_review(words, here), previous_reviews(words, here), perf_gate(words, here), branch_review(words, here)):
+        for found in (stash(words), removal(words), cargo_rules(words, before, dirs), tm_fix(words, clean)):
             if found:
                 return found
+        for inner in unwrapped(words):
+            for found in (rust_review(inner, here), previous_reviews(inner, here), perf_gate(inner, here),
+                          branch_review(inner, here)):
+                if found:
+                    return found
         before += segment + " "
     return None
 
