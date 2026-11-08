@@ -77,7 +77,7 @@ Every pass is the workspace check with all features and all targets, `--keep-goi
 - **Whole-tree TM:** 18 findings, 6 suppressed (the six admitted ignores), all `no-domain-concept-cycles` in `crates/execution_domain` (the ring row); every other crate 0 (24 at 323). File-level ownership cycles 0 over 4,861 edge occurrences in the three engine crates (edges resolve within a crate, so the count is not comparable to 323's 6,888).
 - **Acceptance blocks on the merged tree** (each builder's block without its worktree-state and branch-head lines, run in the integration tree): review repairs VIII and harness 324 exit 0; the domain crate, store crate and ownership blocks pass every count (`tm` over the landing's changed `.rs` files 0, `pub(in ` 30 over execution and its domain, `Arc<()>` 19 → 3, `unreachable!` 34 → 0, source-reading test files 39 → 12, ring 18) and fail one line each: the added `#![allow(dead_code)]` the diff grep finds is fixture text in crate 0.13.1's `bdd-runner` scenarios, copied verbatim from 0.13.0 with the version.
 - **Follow-ups from the gate review (no verdict impact):** `missing_debug_implementations` 87 → 108 across the workspace (manual `Debug` with `finish_non_exhaustive` for the holders of `dyn` ports and owners); never-used items 33 → 65 (the store fixtures only the engine's tests use, reported by the store's own test binary); `error-variants-reached`'s `internal-crates` mode should count the dependent engine crates' tests instead of skipping the internal crate's variants.
-- **Principal Rust review:** pending; the report card row below is filled when it returns.
+- **Principal Rust review:** PASS on all seven items on the second pass (diff `7d93840b19..d82b98cbcb`, `evidence/checkpoint/rust-review.json`); the first pass, of `afd1f9e45d`, was FAIL on item 6 (the `compile_fail` probe of the moved domain compiler held only because its path no longer exists), repaired in `d82b98cbcb`.
 
 **Cycle metrics:**
 
@@ -91,7 +91,7 @@ Every pass is the workspace check with all features and all targets, `--keep-goi
 | Rows ticked by machine | 0 (`run.py --check` un-ticks no row) |
 | Lines under `crates/ryo` | +7,017 / -9,854 (Rust +5,922 / -9,020) |
 | Contract review | pending |
-| Rust gate review | pending |
+| Rust gate review | PASS on the second pass (first pass FAIL on item 6; diff `7d93840b19..d82b98cbcb`) |
 
 ### Review repairs VIII
 
@@ -328,7 +328,7 @@ One row per checkpoint, landing and perf branch, copied from its `rust-review.js
 |---|---|---|---|---|---|---|---|---|---|
 | Checkpoint 322 | `05d5c56a83` | FAIL | FAIL | FAIL | FAIL | FAIL | FAIL | FAIL | FAIL |
 | Checkpoint 323 | diff `d13686afb5..aa54b1472a` | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
-| Checkpoint 324 (landing 1) | pending | | | | | | | | pending |
+| Checkpoint 324 (landing 1) | diff `7d93840b19..d82b98cbcb` | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS (second pass; the first, of `afd1f9e45d`, was FAIL on item 6: a vacuous `compile_fail` doctest) |
 
 Earlier `36b0cdbea`/validation297 and300 findings remain source-bound in the [initial](audits/2026-11-06-derived/review.json) and [successor](audits/2026-11-06-derived/successor.json) reviews. The current checkpoint supersedes their repaired functional blockers without approving a whole phase or category.
 
