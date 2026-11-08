@@ -3,6 +3,7 @@
 use super::types::PushedFilter;
 use super::types::SplitComparisons;
 use crate::domain::fusing::service::source_column;
+use crate::domain::planning::service::inputs_of;
 use crate::domain::planning::service::planned_scope;
 use crate::domain::pruning::service::without_unused_roots;
 use crate::domain::rewriting::types::Planned;
@@ -11,7 +12,6 @@ use ryo_values::domain::plan_parts::service::columns_of;
 use ryo_values::domain::plan_parts::service::remapped;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input;
-use ryo_values::domain::plan_parts::types::Operand;
 use ryo_values::domain::plan_parts::types::PlanComparison;
 use ryo_values::domain::plan_parts::types::Side;
 use ryo_values::domain::plan_parts::types::StepId;
@@ -36,28 +36,27 @@ pub(crate) fn push_selections_roots(
 ) -> Vec<PlanStep> {
     loop {
         let mut moved = false;
+        let mut readers = readers_of(&steps);
         for place in (0..steps.len()).rev() {
             let id = StepId(u32::try_from(place).unwrap_or(u32::MAX));
-            if roots.contains(&id) {
+            if roots.contains(&id) || !filters_only(&steps, place, readers.get(place)) {
                 continue;
             }
-            let Some(readers) = filtering_readers(&steps, id) else {
+            let Some(reading) = readers.get(place) else {
                 continue;
             };
-            let mut pushed = Vec::new();
-            for reader in &readers {
-                let Some(each) = pushed_filter(&steps, id, *reader) else {
-                    break;
-                };
-                pushed.push((*reader, each));
-            }
-            if pushed.len() != readers.len() {
+            let Some(pushed) = reading
+                .iter()
+                .map(|reader| pushed_filter(&steps, id, *reader).map(|each| (*reader, each)))
+                .collect::<Option<Vec<_>>>()
+            else {
                 continue;
-            }
+            };
             // The last reader first, so the places of the ones before it stay as they are.
             for (reader, PushedFilter { before, filter }) in pushed.into_iter().rev() {
                 insert_before(&mut steps, roots, reader, before, filter);
             }
+            readers = readers_of(&steps);
             moved = true;
         }
         if !moved {
@@ -67,32 +66,40 @@ pub(crate) fn push_selections_roots(
     }
 }
 
-/// The steps that read `id`, when there is one and each is a filter of it, made where it is.
-fn filtering_readers(steps: &[PlanStep], id: StepId) -> Option<Vec<usize>> {
-    let made = steps.get(usize::try_from(id.0).ok()?)?;
-    if !matches!(
+/// For each step, the places of the steps that read it.
+fn readers_of(steps: &[PlanStep]) -> Vec<Vec<usize>> {
+    let mut readers = vec![Vec::new(); steps.len()];
+    for (place, step) in steps.iter().enumerate() {
+        for input in inputs_of(&step.operation) {
+            if let Input::Step(id) = input
+                && let Some(reading) = readers.get_mut(usize::try_from(id.0).unwrap_or(usize::MAX))
+                && reading.last() != Some(&place)
+            {
+                reading.push(place);
+            }
+        }
+    }
+    readers
+}
+
+/// Whether the step at `place` is a union or a join, and `readers`, the steps that read it, are some, each a filter of it made where it
+/// is.
+fn filters_only(steps: &[PlanStep], place: usize, readers: Option<&Vec<usize>>) -> bool {
+    let Some(made) = steps.get(place) else {
+        return false;
+    };
+    let Some(readers) = readers.filter(|readers| !readers.is_empty()) else {
+        return false;
+    };
+    matches!(
         made.operation,
         Operation::Union { .. } | Operation::Join { reach: None, .. }
-    ) {
-        return None;
-    }
-    let mut readers = Vec::new();
-    for (place, step) in steps.iter().enumerate() {
-        let mut reads = false;
-        let mut copy = step.operation.clone();
-        each_input(&mut copy, &mut |input| reads |= *input == Input::Step(id));
-        if !reads {
-            continue;
-        }
-        let Operation::Select { from, .. } = &step.operation else {
-            return None;
-        };
-        if *from != Input::Step(id) || step.scope != made.scope {
-            return None;
-        }
-        readers.push(place);
-    }
-    (!readers.is_empty()).then_some(readers)
+    ) && readers.iter().all(|reader| {
+        steps.get(*reader).is_some_and(|step| {
+            step.scope == made.scope
+                && matches!(step.operation, Operation::Select { from: Input::Step(id), .. } if usize::try_from(id.0).ok() == Some(place))
+        })
+    })
 }
 
 /// Whether a comparison tests a column.
