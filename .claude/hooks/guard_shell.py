@@ -78,11 +78,28 @@ def has_cargo_command(text):
     return any(runs_cargo_verb(tokens(segment)) for segment in segments(text))
 
 
+REDIRECT = re.compile(r"^\d*[<>]")
+
+
+def without_redirections(words):
+    """Drop shell redirections (2>&1, >file, 2>/dev/null, and a bare operator with its target)."""
+    out, i = [], 0
+    while i < len(words):
+        if REDIRECT.match(words[i]):
+            bare = re.fullmatch(r"\d*(>>|>|<)", words[i]) is not None
+            i += 2 if bare else 1
+        else:
+            out.append(words[i])
+            i += 1
+    return out
+
+
 def tokens(segment):
     try:
         found = shlex.split(segment)
     except ValueError:
         found = segment.split()
+    found = without_redirections(found)
     while found and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*=.*", found[0]):
         found = found[1:]
     return found

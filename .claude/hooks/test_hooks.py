@@ -367,6 +367,15 @@ class PerfGate(unittest.TestCase):
     def push(self):
         return run_hook("guard_shell.py", {"tool_input": {"command": "git push origin claude/p6-speed"}, "cwd": self.tree})
 
+    def test_redirections_are_not_push_operands(self):
+        self.perf()
+        for tail in (" 2>&1", " 2>/dev/null", " >out.log", " > out.log 2>&1", " >> out.log"):
+            with self.subTest(tail=tail):
+                done = run_hook("guard_shell.py", {"tool_input": {"command": "git push origin claude/p6-speed" + tail},
+                                                   "cwd": self.tree})
+                self.assertEqual(done.returncode, 2)
+                self.assertIn("push of claude/p6-speed refused", done.stderr)
+
     def test_no_perf_commit_passes(self):
         git(self.tree, "commit", "-q", "--allow-empty", "-m", "fix: 3s typo")
         self.assertEqual(self.push().returncode, 0)
