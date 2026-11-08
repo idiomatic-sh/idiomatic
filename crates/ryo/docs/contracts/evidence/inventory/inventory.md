@@ -51,11 +51,11 @@ Kinds come from RyoQL rows; the two macro-declared lists are read by grep. An im
 
 | kind | implementations | locations | port |
 |---|---|---|---|
-| Project | 5 | execution:application/file_dag/program/facade_runtime; execution_domain:domain/frontiers; execution_domain:domain/operation_schema; execution_domain:domain/trust; operators:domain/project | direct |
-| Rows | 5 | execution:application/file_dag/program/facade_runtime; execution:application/file_dag/program/file_session; execution_domain:domain/contributor_rows; execution_store:application/file_dag; operators:domain/table_rows | RowSink |
+| Project | 5 | execution_domain:domain/frontiers; execution_domain:domain/operation_schema; execution_domain:domain/trust; execution_runtime:application/file_dag/program/facade_runtime; operators:domain/project | direct |
+| Rows | 5 | execution_domain:domain/contributor_rows; execution_runtime:application/file_dag/program/facade_runtime; execution_runtime:application/file_dag/program/file_session; execution_store:application/file_dag; operators:domain/table_rows | RowSink |
 | Replace | 3 | execution_domain:domain/describing; execution_store:application/file_dag/derived/owner/graphs; operators:domain/replace | direct |
 | Select | 3 | execution_domain:domain/completion; execution_domain:domain/operation_schema; operators:domain/select | direct |
-| Axis | 2 | execution:application/file_dag; execution_domain:domain/operation_schema | direct |
+| Axis | 2 | execution_domain:domain/operation_schema; execution_runtime:application/file_dag | direct |
 | Capture | 2 | execution_domain:domain/operator/contract; execution_store:application/file_dag/route_counts | RowDriver, TextRowsEvaluation |
 | Hosted | 2 | execution_domain:domain/lineage; operators:domain/evaluation | direct |
 | Join | 2 | execution_domain:domain/operation_schema; operators:domain/equality_join | direct |
@@ -100,7 +100,7 @@ Kinds come from RyoQL rows; the two macro-declared lists are read by grep. An im
 
 | kind | implementations | locations | port |
 |---|---|---|---|
-| Function | 2 | core:inbound/use_cases/lint; execution:application/file_dag/program/facade_runtime | RowSink |
+| Function | 2 | core:inbound/use_cases/lint; execution_runtime:application/file_dag/program/facade_runtime | RowSink |
 | Scope | 1 | execution_store:application/file_dag/route_counts | direct |
 | SemanticChild | 1 | language:domain/answers | direct |
 | SemanticSyntax | 1 | language:domain/answers | direct |
@@ -111,8 +111,8 @@ Kinds come from RyoQL rows; the two macro-declared lists are read by grep. An im
 
 | kind | implementations | locations | port |
 |---|---|---|---|
-| Continuation | 3 | execution:application/file_dag/invocation; execution:application/file_dag/program/runtime/service/invocation; execution_domain:domain/operation_schema | Emit |
-| Observation | 3 | execution:application/file_dag; execution:application/file_dag/program/facade_runtime; execution_domain:domain/source_partitions | direct |
+| Continuation | 3 | execution_domain:domain/operation_schema; execution_runtime:application/file_dag/invocation; execution_runtime:application/file_dag/program/runtime/service/invocation | Emit |
+| Observation | 3 | execution_domain:domain/source_partitions; execution_runtime:application/file_dag; execution_runtime:application/file_dag/program/facade_runtime | direct |
 | Barrier | 1 | execution_domain:domain/shared_walk | direct |
 | OrderedExistence | 1 | execution_domain:domain/executable_program | direct |
 | Representation | 1 | execution_store:application/file_dag/route_counts | direct |
@@ -140,8 +140,8 @@ Free functions whose name starts with decode, finish, render, fits, gate, escape
 | escape | execution_domain:domain/finish | service.rs |
 | escape_cross_publication | execution_domain:domain/finish | publication.rs |
 | escape_frame | execution_domain:domain/finish | service.rs |
-| finish | execution:outbound/digest/adapters/blake3 | adapter.rs |
 | finish | execution_domain:domain/shared_walk | service.rs |
+| finish | execution_runtime:outbound/digest/adapters/blake3 | adapter.rs |
 | finish_file | core:domain/recording | service.rs |
 | fits_rendered | execution_domain:domain/describing | constants.rs |
 | render_finding | core:domain/render | service.rs |

@@ -4,7 +4,7 @@ Crates other than execution that import a path in execution's domain, applicatio
 
 | importing crate | imports | execution concepts imported |
 |---|---|---|
-| core | 37 | execution:outbound/digest (12); execution:outbound/facts (13); execution:outbound/matching (3); execution:outbound/operators (2); execution:outbound/query_language (7) |
+| core | 10 | execution:outbound/matching (3); execution:outbound/query_language (7) |
 
 ## Imports of execution's inbound layer
 
