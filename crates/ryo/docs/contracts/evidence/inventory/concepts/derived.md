@@ -11,10 +11,10 @@ One row per concept directory (a directory holding service.rs, types.rs, interfa
 | domain | cycle_adjacency | 102 | 2 | service, types |
 | domain | dfs | 260 | 2 | service, types |
 | domain | dispatch | 220 | 1 | service |
-| domain | equality | 134 | 2 | service, types |
+| domain | equality | 133 | 2 | service, types |
 | domain | fault | 33 | 1 | types |
 | domain | footprint | 249 | 2 | service, types |
-| domain | key | 73 | 2 | service, types |
+| domain | key | 76 | 2 | service, types |
 | domain | membership | 90 | 2 | service, types |
 | domain | native | 67 | 2 | service, types |
 | domain | ordered | 129 | 2 | service, types |

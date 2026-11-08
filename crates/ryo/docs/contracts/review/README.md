@@ -7,7 +7,7 @@ red except for the known-red list below.
 
 ## Branch
 
-Checkpoints 310-318 are evidence commits on the branch; each names the batches
+Checkpoints 310-327 are evidence commits on the branch; each names the batches
 it merged and the validation it ran.
 
 | Checkpoint | Sha | Landed |
@@ -21,6 +21,15 @@ it merged and the validation it ran.
 | 316 | `1e3eba5c90` | Phase 6 reuse and invalidation, Phase 4 census and bypasses |
 | 317 | `d3f16fcd11` | Phase 7 TM batches (whole-tree TM 8,060 to 4,251) |
 | 318 | `80f473c67d` | Phase 1 conformance and syntax poisoning, Phase 2 to 6 review repairs III, blow-up replay repairs, Phase 7 operators/core TM (validated source `c043a6dc68`; whole-tree TM 3,676) |
+| 319 | `f2d8aaf1db` | the frozen 318 branches (whole-tree TM 3,676 to 2,762) |
+| 320 | `61cb444739` | wave 2 (whole-tree TM 2,762 to 1,223) |
+| 321 | `0015475b6e` | wave 3 and the benchmark branch (whole-tree TM 1,223 to 34) |
+| 322 | `d13686afb5` | wave 4 (whole-tree TM 34 to 24) |
+| 323 | `7d93840b19` | perf iteration 1, enforcement rules, ratchet 321, live hooks, review repairs VII |
+| 324 | `14a8352416` | landing 1 (execution_domain and execution_store crates), review repairs VIII, harness 324 |
+| 325 | `dcd94840fc` | review repairs IX, Django unknowns second pass, ratchet 323 |
+| 326 | `f3a9a7e95c` | review repairs X, perf iteration 2 |
+| 327 | `e49dc1dfc5` | review repairs XI, perf iteration 3 (validated source `142fe40a98`) |
 
 ## How work lands
 

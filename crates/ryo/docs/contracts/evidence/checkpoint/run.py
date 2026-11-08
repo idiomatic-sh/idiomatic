@@ -230,7 +230,7 @@ def untick_unproven(text,v):
   bad.append(str(n+1)+': '+said+': '+line[:80])
   lines[n]=untick(line)
  return ''.join(lines),bad
-RERUN=re.compile(r'\b(?:narrow(?:ed)? run|re-?run)\b',re.I)
+RERUN=re.compile(r'\b(?:narrow(?:ed)? runs?|re-?runs?)\b',re.I)
 def reruns_without_log(texts,v):
  """A result cited from a rerun names its raw log, and that log is in the validation directory."""
  bad=[]
