@@ -102,7 +102,6 @@ struct State {
     required_backend_bytes: ByteCount,
 }
 /// The file-local owner of derived views: it acquires, retains, accounts for and releases them.
-#[derive(Debug)]
 pub struct DerivedOwner {
     identity: Arc<()>,
     semantic: types::DerivedAccess,
