@@ -309,15 +309,6 @@ def validate():
    for lock in locks: fcntl.flock(lock,fcntl.LOCK_UN)
  assert not subprocess.check_output(['git','status','--porcelain'],text=True).strip(), 'freeze source before validation'
  head=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()
- # The shared target directory serves several worktrees whose crates have equal build hashes; cargo
- # trusts source mtimes, so artifacts another worktree built after this tree's edits would be reused.
- # Touching the sources under the lock makes every artifact this run uses come from this tree.
- def touch_sources():
-  for d,dirs,fs in os.walk('crates/ryo'):
-   dirs[:]=[x for x in dirs if x not in ('target','.git','node_modules')]
-   for f in fs:
-    if f.endswith(('.rs','.toml')): os.utime(os.path.join(d,f))
- locked(touch_sources)
  def is_test(path):
   parts=path.split('/')
   return any(x in ('tests','test','fixtures') for x in parts[:-1]) or parts[-1] in ('test.rs','tests.rs') or parts[-1].endswith('_test.rs')
@@ -330,7 +321,10 @@ def validate():
    owner=[x for x in scoped if finding['path'].startswith('crates/ryo/'+x+'/') or finding['path']=='crates/ryo/'+x]
    by_directory[owner[0]]['test' if is_test(finding['path']) else 'production']+=1
   return {'total':len(found['findings']),'suppressed':len(found['suppressed']),'production':sum(v['production'] for v in by_directory.values()),'test':sum(v['test'] for v in by_directory.values()),'by_directory':by_directory}
- commands=json.loads((p/'commands.json').read_text())
+ # Each worktree builds into its own target directory, /workspaces/idiomatic-target/<worktree name>: cargo judges
+ # freshness by source mtimes, so a target shared across worktrees served validation327 units another tree built.
+ tree=Path(subprocess.check_output(['git','rev-parse','--show-toplevel'],text=True).strip()).name
+ commands=[[n,[w.replace('{worktree}',tree) for w in c]] for n,c in json.loads((p/'commands.json').read_text())]
  (p/'identity.json').write_text(dumps({'source':head,'commands':commands})+'\n')
  # Raw outputs (.log/.json per command) never live in the repository: they go to the directory given as the first argument,
  # by default a directory named for the source head and the date under the system temporary directory.

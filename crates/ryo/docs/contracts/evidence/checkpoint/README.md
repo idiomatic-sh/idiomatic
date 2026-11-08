@@ -25,8 +25,11 @@ holds the same for the validation318 run. The whole-tree `tm check --root crates
 count and the file-level ownership cycle count (computed from
 `ownership_edges.log`) are recorded in `validation.json` beside the commands.
 
-`run.py` takes the build locks, refuses a dirty tree, writes `identity.json`
-(source revision plus the command list) beside itself, runs each command in
+`run.py` takes the build locks, refuses a dirty tree, replaces `{worktree}` in
+each command's `--target-dir /workspaces/idiomatic-target/{worktree}` with the
+worktree's name (one cargo target per worktree, so no command runs units another
+tree built), writes `identity.json`
+(source revision plus the expanded command list) beside itself, runs each command in
 order, and writes `<name>.log` and `<name>.json` (exit code, elapsed seconds) to
 the output directory. That directory is the first argument; the default is a
 directory named for the source head and the date under the system temporary directory. Raw outputs are never

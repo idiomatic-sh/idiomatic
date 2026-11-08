@@ -122,6 +122,32 @@ class GuardShell(unittest.TestCase):
             with self.subTest(command=command):
                 self.assertEqual(shell(command, self.integration), code)
 
+    def test_each_tree_builds_into_its_own_target(self):
+        for command in [LOCK + "cargo test -p x --target-dir /workspaces/idiomatic-target/integration",
+                        LOCK + "cargo build --target-dir=/workspaces/idiomatic-target/integration/"]:
+            with self.subTest(command=command):
+                self.assertEqual(shell(command, self.integration), 0)
+
+    def test_another_trees_target_and_the_shared_target_are_refused(self):
+        for target in ["/workspaces/idiomatic-target/builder", "/workspaces/idiomatic-target",
+                       "/workspaces/idiomatic-target/integration/x", "/workspaces/idiomatic-benchmark-guards/target"]:
+            with self.subTest(target=target):
+                result = run_hook("guard_shell.py", {"tool_input": {"command": LOCK + "cargo test --target-dir " + target},
+                                                     "cwd": self.integration})
+                self.assertEqual(result.returncode, 2)
+                self.assertIn("(here /workspaces/idiomatic-target/integration)", result.stderr)
+
+    def test_shared_target_is_deprecated_only_for_measurement_trees(self):
+        command = LOCK + "cargo build --target-dir /workspaces/idiomatic-benchmark-guards/target"
+        result = run_hook("guard_shell.py", {"tool_input": {"command": command}, "cwd": "/workspaces/ryo-perf-x"})
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("Deprecated:", result.stderr)
+        self.assertIn("ryo-yj2e", result.stderr)
+        self.assertEqual(shell(LOCK + "cargo build --target-dir /workspaces/idiomatic-target/ryo-perf-x",
+                               "/workspaces/ryo-perf-x"), 0)
+        self.assertEqual(shell(LOCK + "cargo build --target-dir /workspaces/idiomatic-target/ryo-perf-y",
+                               "/workspaces/ryo-perf-x"), 2)
+
     def test_hidden_cargo_is_allowed_in_an_integration_tree(self):
         self.assertEqual(shell(LOCK + 'bash -c "cargo test"', self.integration), 0)
 
@@ -152,7 +178,7 @@ class GuardShell(unittest.TestCase):
             "rm -rf /tmp/ryo-exact-dir", "rm -rf /workspaces/ryo-hooks/build", "rm file*.txt",
             "cargo metadata", "cargo --version", "cargo tree",
             LOCK + "cargo test -p x", "cd . && " + LOCK + "cargo build",
-            LOCK + "cargo test --target-dir /workspaces/idiomatic-benchmark-guards/target",
+            LOCK + "cargo test --target-dir /workspaces/idiomatic-target/integration",
             "tm check", "tm check --fix cli/tests/replay/imports.rs", "ls",
         ]
         for command in allowed:
