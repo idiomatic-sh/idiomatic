@@ -161,7 +161,7 @@ pub(crate) fn fixture(frontier: FrontierSlots, names: Names) -> Fixture {
             }],
         }],
     ];
-    let operators = ryo_execution_store::application::file_dag::service::prepare(
+    let operators = crate::application::file_dag::service::prepare(
         &plans,
         &[vec![], vec![], vec![], vec![]],
         &[],

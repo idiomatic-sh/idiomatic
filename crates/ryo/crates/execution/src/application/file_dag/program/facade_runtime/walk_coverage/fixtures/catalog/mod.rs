@@ -165,7 +165,7 @@ pub(in super::super) fn prepare(
     operated: &[ryo_values::domain::plans::types::Plan],
 ) -> (ExecutableProgram, crate::domain::shared_walk::types::prepared_walk::value::PreparedWalk) {
     let bindings = vec![vec![]; plans.len()];
-    let operators = ryo_execution_store::application::file_dag::service::prepare_with_schemas(
+    let operators = crate::application::file_dag::service::prepare_with_schemas(
         operated,
         &bindings,
         &[],

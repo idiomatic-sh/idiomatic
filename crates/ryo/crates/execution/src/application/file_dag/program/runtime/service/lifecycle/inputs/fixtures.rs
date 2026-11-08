@@ -90,7 +90,7 @@ pub(in super::super) fn compiled() -> CompiledCase {
     let plans = [plan(Relation::Function), plan(Relation::Identifier)];
     let semantic = ryo_execution_store::application::file_dag::fixtures::program_derived_port();
     let prepared =
-        ryo_execution_store::application::file_dag::service::prepare(&plans, &[vec![], vec![]], &[], Arc::clone(&semantic)).unwrap();
+        crate::application::file_dag::service::prepare(&plans, &[vec![], vec![]], &[], Arc::clone(&semantic)).unwrap();
     let graph = crate::domain::file_program::service::compile_prepared(&plans, &prepared);
     let program = Arc::new(
         crate::domain::executable_program::service::compile(

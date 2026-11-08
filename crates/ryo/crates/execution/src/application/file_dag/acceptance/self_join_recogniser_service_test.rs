@@ -102,7 +102,7 @@ fn a_second_rules_bag_sensitive_terminal_select_declines_the_shape() -> Result<V
     second.steps.truncate(3);
     second.emit.step = StepId(2); // Direct observation of the pair-multiplicity bag.
     let plans = [first, second];
-    let request = ryo_execution_store::application::file_dag::service::prepare(
+    let request = crate::application::file_dag::service::prepare(
         &plans,
         &[vec![], vec![]],
         &[],

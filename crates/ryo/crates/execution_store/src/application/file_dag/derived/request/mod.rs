@@ -26,7 +26,8 @@ pub struct RequestViews {
     logical: Vec<ryo_values::domain::plan_parts::types::Input>,
 }
 impl RequestViews {
-    pub(in crate::application::file_dag) fn new(
+    /// The views of one request, prepared through `semantic`.
+    pub fn new(
         semantic: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
     ) -> Self {
         Self {

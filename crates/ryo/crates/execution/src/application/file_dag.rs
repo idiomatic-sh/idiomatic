@@ -6,6 +6,7 @@ mod graph_resources;
 pub(crate) mod invocation;
 pub(crate) mod predicates;
 pub(crate) mod resources;
+pub mod service;
 #[cfg(any(test, feature = "fixtures"))]
 pub(crate) mod testing;
 

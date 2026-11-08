@@ -57,7 +57,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 use ryo_values::domain::plan_parts::types::Input as InputSource;
 /// The request graph of `plans` over the operators the application prepares for them.
 fn graph(plans: &[Plan], bindings: &[Vec<ParameterBinding>]) -> Result<RequestGraph, OperatingError> {
-    let operators = ryo_execution_store::application::file_dag::service::prepare_with_schemas(
+    let operators = crate::application::file_dag::service::prepare_with_schemas(
         plans,
         bindings,
         &[],

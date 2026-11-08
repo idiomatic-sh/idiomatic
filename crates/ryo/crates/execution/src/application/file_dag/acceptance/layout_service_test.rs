@@ -27,7 +27,7 @@ use fixtures::{plan, step, select, native_plan, prepared};
 #[test]
 fn each_native_step_answers_its_output_kinds() {
     let plans = [native_plan(false)];
-    let operators = ryo_execution_store::application::file_dag::service::prepare(
+    let operators = crate::application::file_dag::service::prepare(
         &plans,
         &[vec![]],
         &[],
@@ -55,7 +55,7 @@ fn each_native_step_answers_its_output_kinds() {
 #[test]
 fn the_step_handed_to_cross_file_steps_is_its_frontier() {
     let plans = [native_plan(true)];
-    let operators = ryo_execution_store::application::file_dag::service::prepare(
+    let operators = crate::application::file_dag::service::prepare(
         &plans,
         &[vec![]],
         &[],
@@ -111,7 +111,7 @@ fn metadata_preparation_propagates_select_extend_and_graph_schemas_without_rows(
         ],
         vec![],
     )];
-    let operators = ryo_execution_store::application::file_dag::service::prepare_with_schemas(
+    let operators = crate::application::file_dag::service::prepare_with_schemas(
         &plans,
         &[vec![]],
         &[],
@@ -164,7 +164,7 @@ fn preparation_keeps_ordered_relation_dependencies_without_probing_availability(
         probes.borrow_mut().push(relation);
         &[CellKind::Symbol, CellKind::File][..]
     };
-    let operators = ryo_execution_store::application::file_dag::service::prepare_with_schemas(
+    let operators = crate::application::file_dag::service::prepare_with_schemas(
         &plans,
         &[vec![]],
         &[],
@@ -205,7 +205,7 @@ fn empty_native_frontier_has_the_deep_walk_schema_before_any_file_is_read() {
         })],
         vec![Input::Step(StepId(0))],
     )];
-    let operators = ryo_execution_store::application::file_dag::service::prepare(
+    let operators = crate::application::file_dag::service::prepare(
         &plans,
         &[vec![]],
         &[],
@@ -263,7 +263,7 @@ fn preparing_from_borrowed_schemas_preserves_cell_allocations_and_prepared_metad
         Relation::SyntaxTree => native.kinds.as_slice(),
         _ => kinds(relation),
     };
-    let operators = ryo_execution_store::application::file_dag::service::prepare_with_schemas(
+    let operators = crate::application::file_dag::service::prepare_with_schemas(
         &plans,
         &[vec![]],
         &[],

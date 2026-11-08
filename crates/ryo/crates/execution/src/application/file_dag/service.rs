@@ -1,9 +1,9 @@
 //! Prepare every operation once for one request, shared by all file workers.
-use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_domain::domain::operation_schema::types::InputShape;
-use ryo_execution_domain::domain::operator::contract::types::OperatorContract;
-use ryo_execution_domain::domain::operator::service::prepare_operator;
-use ryo_execution_domain::domain::table_cells::types::TreeForm;
+use crate::domain::operating::errors::OperatingError;
+use crate::domain::operation_schema::types::InputShape;
+use crate::domain::operator::contract::types::OperatorContract;
+use crate::domain::operator::service::prepare_operator;
+use crate::domain::table_cells::types::TreeForm;
 use ryo_relations::domain::relations::{
     service::kinds,
     types::{CellKind, Relation},
@@ -18,26 +18,26 @@ use ryo_values::domain::plans::{
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use std::sync::Arc;
 
-use ryo_execution_domain::domain::file_program::types::RequestOperators;
+use crate::domain::file_program::types::RequestOperators;
 
 /// Prepares every operation of the request once, against the catalog's relation schemas, shared by all file workers.
-pub fn prepare(
+pub(crate) fn prepare(
     plans: &[Plan],
     bindings: &[Vec<ParameterBinding>],
     hosted: &[HostRelation],
-    semantic: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
+    semantic: impl Into<ryo_execution_store::application::file_dag::derived::owner::types::DerivedAccess>,
 ) -> Result<RequestOperators, OperatingError> {
     prepare_with_schemas(plans, bindings, hosted, &kinds, semantic)
 }
 /// Prepares every operation of the request once, against the schemas `relation_kinds` answers.
-pub fn prepare_with_schemas<'s>(
+pub(crate) fn prepare_with_schemas<'s>(
     plans: &[Plan],
     bindings: &[Vec<ParameterBinding>],
     hosted: &[HostRelation],
     relation_kinds: &dyn Fn(Relation) -> &'s [CellKind],
-    semantic: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
+    semantic: impl Into<ryo_execution_store::application::file_dag::derived::owner::types::DerivedAccess>,
 ) -> Result<RequestOperators, OperatingError> {
-    let semantic: crate::application::file_dag::derived::owner::types::DerivedAccess = semantic.into();
+    let semantic: ryo_execution_store::application::file_dag::derived::owner::types::DerivedAccess = semantic.into();
     let host_kinds = hosted
         .iter()
         .map(|relation| {
@@ -52,7 +52,7 @@ pub fn prepare_with_schemas<'s>(
                 .collect::<Vec<_>>()
         })
         .collect::<Vec<_>>();
-    let mut views = crate::application::file_dag::derived::request::RequestViews::new(semantic.clone());
+    let mut views = ryo_execution_store::application::file_dag::derived::request::RequestViews::new(semantic.clone());
     let mut rules = Vec::with_capacity(plans.len());
     let mut preparations = 0;
     for (rule, plan) in plans.iter().enumerate() {
@@ -71,7 +71,7 @@ pub fn prepare_with_schemas<'s>(
                     Ok(match input {
                         Input::Relation(relation) => InputShape {
                             kinds: relation_kinds(*relation),
-                            tree: ryo_execution_domain::domain::table_cells::service::native_form(*relation),
+                            tree: crate::domain::table_cells::service::native_form(*relation),
                         },
                         Input::BoundObservation(id) => InputShape {
                             kinds: observed_kinds
@@ -141,7 +141,7 @@ pub fn prepare_with_schemas<'s>(
     let request = RequestOperators {
         ordered_existence: plans.iter().map(|_| std::sync::OnceLock::new()).collect(),
         rules,
-        preparations: ryo_execution_domain::domain::operator::contract::types::PreparationCount(preparations),
+        preparations: crate::domain::operator::contract::types::PreparationCount(preparations),
     };
     debug_assert_eq!(
         request.preparations.0,
