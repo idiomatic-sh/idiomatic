@@ -84,6 +84,8 @@ Every other crate is unchanged. Under `crates/ryo` (renames detected) the checkp
   Coverage: selected 1,187,375, evaluated 1,186,980, skipped 395 (syntax-rejected). The output bytes are byte-identical to the 327 receipt (sha256 `53b163f4bda83afa...`, 992,711 bytes): the store format change touches no diagnostic. Store 1,757,210,648 bytes (1,778,454,983 at 327: each proof's rule digest kept once). Against 327 (322.7 s, 2,564.4 s CPU, 6.79 GB): wall +1.7%, CPU +3.0%, peak -0.01 GB; the fixtures-gated observation per lease is in this worker and not in 327's.
 - **The staged cost rows** (`RYO_PREFLIGHT_WORKER` naming the receipt worker; the staged digest and the request's sha256 recomputed on the real staged directory, XII's check, hold): `an_absent_input_is_a_typed_reason_not_a_pass` passes (its `StagedDiffers` cases also passed in validation328); N999 over Django wall 10,393 ms and CPU 10,360 ms hold (best 10,297 / 10,294), peak 1,062 MB against best 979 (red; 1,056 at 327); one file x 413 wall 3,334 ms and peak 889 MB beat best 6,871 ms / 1,139 MB by more than 5% (3,429 ms / 860 MB at 327). `ratchet.toml` is not changed here. The full-Django cold-and-warm row was not run.
 
+- **Principal Rust review:** PASS on all seven items, first pass, no findings (diff `e49dc1dfc5..490bc0f3c2`, `evidence/checkpoint/rust-review.json`). Its five advisories (not failures): A1, perf evidence: the invocation observation is now compiled into the fixtures-on ruff bench worker behind every 328 perf number, so the +1.7% wall and +3.0% CPU against 327 cannot be split between the observation and the engine; the fix is to move the execution use-case proofs that read these counters into the runtime crate as `cfg(test)` tests and return the gate to `cfg(test)`, or until then to record each receipt's worker features and A/B one Django receipt with the observation compiled out. It is step 0 of perf iteration 4. A2, surface: `program::admission` and `file_dag::service` are `pub` modules with no consumer outside the runtime; narrow to `pub(crate) mod`. A3, store: `rest/schemas.rs:160` maps a digest-table index overflow to `u32::MAX`, which past 2^32 entries would alias a real entry; return an encode error. A4, fixture: `workload.rs:120` `is_dir()` follows symlinks where the Python staged-hash walk may not; state or match it. A5, docs: the evidence inventory and `visualization/evidence.json` still name the pre-move `file_dag` paths; regenerate. A2 to A5 go to the Rust gate notes row.
+
 **Cycle metrics:**
 
 | Metric | Checkpoint 328 |
@@ -98,7 +100,7 @@ Every other crate is unchanged. Under `crates/ryo` (renames detected) the checkp
 | Full Django 413 cold | exit 0, unknown 0; default threads 328.3 s, 6.78 GB (322.7 s, 6.79 GB at 327), output bytes identical |
 | 413 inventory | 413 PASS / 0 FAIL |
 | Contract review | pending |
-| Rust gate review | pending |
+| Rust gate review | PASS on all seven items, first pass (diff `e49dc1dfc5..490bc0f3c2`), no findings, five advisories |
 
 ### Review repairs XII
 
@@ -326,6 +328,7 @@ One row per checkpoint, landing and perf branch, copied from its `rust-review.js
 | Checkpoint 325 | diff `14a8352416..0a02582a09` | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS (first pass) |
 | Checkpoint 326 | diff `dcd94840fc..57f25dd99b` | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS (first pass) |
 | Checkpoint 327 | diff `f3a9a7e95c..dc9af4d4be` | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS (first pass) |
+| Checkpoint 328 (landing 2) | diff `e49dc1dfc5..490bc0f3c2` | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS (first pass) |
 
 Earlier `36b0cdbea`/validation297 and300 findings remain source-bound in the [initial](audits/2026-11-06-derived/review.json) and [successor](audits/2026-11-06-derived/successor.json) reviews. The current checkpoint supersedes their repaired functional blockers without approving a whole phase or category.
 
