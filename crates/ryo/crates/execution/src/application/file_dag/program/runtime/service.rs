@@ -34,12 +34,14 @@ pub(crate) struct ReadySelection<'call, 'scope> {
 /// Application-owned preparation/acquisition supplies the borrowed semantic call.
 /// All implementations are required; no missing-capability or fallback path.
 pub(crate) trait KernelInvocation {
+    /// Whether the ready region joined a shared walk: a joined region is evaluated with its cohort,
+    /// after every reachable admission; any other region is evaluated in the poll that found it ready.
     fn ready(
         &self,
         _ready: &ReadySelection<'_, '_>,
         _inputs: &[AdmittedInput],
         _context: &mut OperatorContext<'_>,
-    ) -> Result<(), OperatingError>;
+    ) -> Result<crate::application::file_dag::program::runtime::types::Submission, OperatingError>;
 
     fn ordered(
         &self,

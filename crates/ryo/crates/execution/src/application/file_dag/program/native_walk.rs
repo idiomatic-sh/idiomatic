@@ -8,12 +8,7 @@ use ryo_execution_domain::domain::{operating::{errors::OperatingError, types::Op
 use ryo_execution_store::application::file_dag::derived::population::types::PopulationId;
 use lease::service::PermittedWalk;
 
-/// Whether the admitted source joined the shared walk.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) enum Submission {
-    Submitted,
-    Declined,
-}
+use super::runtime::types::Submission;
 use ryo_relations::domain::relations::types::Relation;
 use std::{
     cell::{Cell, Ref, RefCell},

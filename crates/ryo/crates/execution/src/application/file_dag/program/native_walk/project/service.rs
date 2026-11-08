@@ -1,9 +1,10 @@
 //! One admitted project-stage source population is scanned once for every rule of its cohort.
 use super::super::lease::service::PermittedWalk;
 use super::super::{
-    Deliveries, Fate, FileWalk, Owed, SourceWork, Submission, WalkDelivery, WalkResult,
+    Deliveries, Fate, FileWalk, Owed, SourceWork, WalkDelivery, WalkResult,
     WalkSourceIdentity,
 };
+use crate::application::file_dag::program::runtime::types::Submission;
 use crate::application::file_dag::program::admission::AdmittedInput;
 use ryo_execution_store::application::file_dag::relations::RelationOwner;
 use std::rc::Rc;
