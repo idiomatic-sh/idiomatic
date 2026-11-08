@@ -205,10 +205,7 @@ impl ProgramExecution {
             // The queue counts the evaluations it dispatches; this one ran in its preparation poll.
             self.readiness_counts.borrow_mut().evaluations.0 += 1;
         }
-        let frames = call
-            .frames
-            .as_mut()
-            .ok_or_else(|| InvocationFailure::Semantic(OperatingError::NotRun))?;
+        let frames = super::super::invocation::service::frames(call.frames, region)?;
         let last = region
             .instructions()
             .last()
