@@ -29,7 +29,7 @@ impl InvocationResources<'_> {
         observed.owners_initialized = usize::from(self.inputs.index.is_some())
             + usize::from(self.inputs.groups.is_some())
             + usize::from(
-                self.inputs.closure.iter().next().is_some() || self.inputs.partitioned_closure.is_some(),
+                self.inputs.closure.0.iter().next().is_some() || self.inputs.partitioned_closure.is_some(),
             )
             + usize::from(self.inputs.cycles.is_some())
             + usize::from(self.inputs.dfs.is_some())
@@ -45,11 +45,12 @@ impl InvocationResources<'_> {
         let mut rows = self
             .inputs
             .closure
+            .0
             .iter()
             .map(|part| {
                 let ryo_derived::domain::contract::types::DerivedView::ClosureAdjacency(view) =
                     part.view()
-                        .expect(super::constants::VALIDATED_CLOSURE_PARTITION)
+                        .expect(constants::VALIDATED_CLOSURE_PARTITION)
                 else {
                     panic!("closure partition family")
                 };
@@ -59,11 +60,12 @@ impl InvocationResources<'_> {
         let mut capacity = self
             .inputs
             .closure
+            .0
             .iter()
             .map(|part| {
                 let ryo_derived::domain::contract::types::DerivedView::ClosureAdjacency(view) =
                     part.view()
-                        .expect(super::constants::VALIDATED_CLOSURE_PARTITION)
+                        .expect(constants::VALIDATED_CLOSURE_PARTITION)
                 else {
                     panic!("closure partition family")
                 };
@@ -74,19 +76,19 @@ impl InvocationResources<'_> {
         if let Some(parts) = &self.inputs.partitioned_closure {
             rows = parts
                 .current()
-                .expect(super::constants::OBSERVED_ACTIVE_PARTITION)
+                .expect(constants::OBSERVED_ACTIVE_PARTITION)
                 .table
                 .count
                 .0;
             capacity = ryo_execution_store::application::file_dag::closure_partitions::partitions_test::working_capacity(parts);
         }
-        if self.inputs.closure.iter().next().is_some() || self.inputs.partitioned_closure.is_some() {
+        if self.inputs.closure.0.iter().next().is_some() || self.inputs.partitioned_closure.is_some() {
             capacity += walk_capacity;
             observed.closure_partition_rows = observed.closure_partition_rows.max(rows);
             observed.closure_partition_capacity = observed.closure_partition_capacity.max(capacity);
         }
         if let Some(dfs) =
-            Self::dfs_view(self.inputs.dfs.as_ref()).expect(super::constants::VALIDATED_DFS_VIEW)
+            Self::dfs_view(self.inputs.dfs.as_ref()).expect(constants::VALIDATED_DFS_VIEW)
         {
             observed.dfs_adjacency_len = dfs.adjacency.len();
         }
