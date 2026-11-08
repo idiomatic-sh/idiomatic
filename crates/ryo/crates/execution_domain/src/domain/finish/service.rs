@@ -44,7 +44,7 @@ pub(crate) fn escape(table: &mut Table, leaving: Leaving<'_>, kept: Retained<'_>
 
 /// Publish one independently decodable frame. Its place numbers never borrow the
 /// caller's accumulated place log; only the backing text arena is shared.
-pub(crate) fn escape_frame(
+pub fn escape_frame(
     table: &mut Table,
     leaving: Leaving<'_>,
     arena: Arena<'_>,

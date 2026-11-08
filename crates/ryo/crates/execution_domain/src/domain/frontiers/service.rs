@@ -17,7 +17,7 @@ use ryo_values::domain::table_words::service::decode_combined;
 /// The relation the project wrote that a rule's input is, when it is one: what the project wrote waits in its own handle, not in
 /// the buckets of the files.
 #[must_use]
-pub(crate) fn project_relation(input: Input) -> Option<Relation> {
+pub fn project_relation(input: Input) -> Option<Relation> {
     match input {
         Input::Relation(relation) if provenance_of(relation) == Provenance::Manifests => {
             Some(relation)
@@ -30,7 +30,7 @@ pub(crate) fn project_relation(input: Input) -> Option<Relation> {
 /// finish. Two linked languages that read the same manifest write the same fact twice: a row is one fact by every one of its columns,
 /// so a row repeated is kept once, the first in place.
 #[must_use]
-pub(crate) fn project_input(
+pub fn project_input(
     view: ColumnsView<'_>,
     input: Input,
     project: &Symbols,
@@ -49,7 +49,7 @@ pub(crate) fn project_input(
 /// The rows the files handed to an input of a rule, from the words the workers kept, their names made again among the names of the
 /// finish.
 #[must_use]
-pub(crate) fn decode_input(words: &KeptWords, cross: &mut Symbols) -> Table {
+pub fn decode_input(words: &KeptWords, cross: &mut Symbols) -> Table {
     decode_combined(&words.0, places_mut(cross))
 }
 

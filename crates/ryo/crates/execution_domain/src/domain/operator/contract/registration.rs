@@ -2,7 +2,7 @@
 //! by its declared contract and evaluated by the operators' one meaning of it.
 use ryo_values::domain::query_operators::types::OperationKind;
 /// Only this registry constructs a callable operator selected by the exhaustive kind.
-pub(crate) struct RegisteredOperator {
+pub struct RegisteredOperator {
     kind: OperationKind,
 }
 impl RegisteredOperator {
@@ -18,7 +18,7 @@ impl RegisteredOperator {
         }
         super::service::prepare_for(self.kind, operation, inputs, bindings)
     }
-    pub(crate) fn evaluate(
+    pub fn evaluate(
         &self,
         operation: &ryo_values::domain::plans::types::Operation,
         inputs: super::types::PreparedInputs<'_>,
@@ -31,6 +31,6 @@ impl RegisteredOperator {
         super::driver::evaluate(operation, inputs, lease, output)
     }
 }
-pub(crate) fn registered(kind: OperationKind) -> RegisteredOperator {
+pub fn registered(kind: OperationKind) -> RegisteredOperator {
     RegisteredOperator { kind }
 }

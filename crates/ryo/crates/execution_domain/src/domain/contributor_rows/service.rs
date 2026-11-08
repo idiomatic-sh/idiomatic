@@ -6,7 +6,7 @@ use crate::domain::output_coverage::types::InputCoverage;
 /// MissingRows named populations obey the same absence semantics as physical reads.
 /// Positive operators retain admitted rows; absence-sensitive operators can
 /// trust a keyed answer only outside the affected physical partitions.
-pub(crate) fn filter_contributor_rows(
+pub fn filter_contributor_rows(
     operation: &ryo_values::domain::plans::types::Operation,
     absence: AbsenceMask,
     inputs: &[InputCoverage<'_>],

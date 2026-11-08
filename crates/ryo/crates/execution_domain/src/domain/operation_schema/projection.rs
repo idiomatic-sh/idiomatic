@@ -25,7 +25,7 @@ pub(crate) fn projected(
 
 /// Carry the schema of an empty first instruction through the compiler's closed
 /// row-continuation family without evaluating predicates or acquiring bindings.
-pub(crate) fn continuation_kinds(
+pub fn continuation_kinds(
     operation: &Operation,
     input: &[CellKind],
 ) -> Result<Vec<CellKind>, OperatingError> {

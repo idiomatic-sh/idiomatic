@@ -12,6 +12,6 @@ use ryo_values::domain::runs::types::RuleId;
     clippy::expect_used,
     reason = "a rule's place comes only from the rules of the run; one past them is a bug that must crash, not a blank id that hides the rule"
 )]
-pub(crate) fn id_at(ids: &[RuleId], place: RuleIndex) -> RuleId {
+pub fn id_at(ids: &[RuleId], place: RuleIndex) -> RuleId {
     ids.get(place.0).cloned().expect(PLACE_OF_RULE)
 }

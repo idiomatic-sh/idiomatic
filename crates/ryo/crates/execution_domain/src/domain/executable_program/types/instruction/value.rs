@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 /// One instruction of a region: the operation of one original step, its prepared contract, operands, demand and partition.
 #[derive(Clone, Debug)]
-pub(crate) struct Instruction {
+pub struct Instruction {
     logical: LogicalInstruction,
     producer: RuleIndex,
     operation: Operation,
@@ -35,19 +35,19 @@ impl Instruction {
             partition,
         }
     }
-    pub(crate) fn logical(&self) -> LogicalInstruction {
+    pub fn logical(&self) -> LogicalInstruction {
         self.logical
     }
-    pub(crate) fn producer(&self) -> RuleIndex {
+    pub fn producer(&self) -> RuleIndex {
         self.producer
     }
-    pub(crate) fn operation(&self) -> &Operation {
+    pub fn operation(&self) -> &Operation {
         &self.operation
     }
-    pub(crate) fn contract(&self) -> &Arc<OperatorContract> {
+    pub fn contract(&self) -> &Arc<OperatorContract> {
         &self.contract
     }
-    pub(crate) fn demand(&self) -> &DemandProgram {
+    pub fn demand(&self) -> &DemandProgram {
         &self.demand
     }
     pub(crate) fn partition(&self) -> PartitionRequirement {

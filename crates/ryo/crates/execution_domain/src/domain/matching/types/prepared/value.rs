@@ -16,7 +16,7 @@ use std::sync::OnceLock;
 
 /// Request-owned metadata only; runtime patterns cannot add keys or replace compiled slots.
 #[derive(Debug, Default)]
-pub(crate) struct PreparedMatchers {
+pub struct PreparedMatchers {
     /// Exact test and literal bytes distinguish matcher families and glob polarity.
     slots: hashbrown::HashMap<Test, hashbrown::HashMap<RegexPattern, PreparedPattern>>,
     /// Actual first compilation events, absent from production.
@@ -45,7 +45,7 @@ impl PreparedMatchers {
     }
 
     /// Declare literal keys from the one compiled executable program, before any worker runs.
-    pub(crate) fn from_operations<'a>(operations: impl IntoIterator<Item = &'a Operation>) -> Self {
+    pub fn from_operations<'a>(operations: impl IntoIterator<Item = &'a Operation>) -> Self {
         let mut prepared = Self::default();
         for operation in operations {
             let comparisons = match operation {
@@ -83,7 +83,7 @@ impl PreparedMatchers {
     }
 
     /// Read an exact authored regex slot after the evaluator has validated both text operands.
-    pub(crate) fn regex(
+    pub fn regex(
         &self,
         pattern: TextView<'_>,
         matcher: PatternMatcher<'_>,
@@ -125,7 +125,7 @@ impl PreparedMatchers {
 }
 
 /// Adapt semantic compilation refusal without changing the engine's cache or error meaning.
-pub(crate) fn compile_regex(
+pub fn compile_regex(
     pattern: TextView<'_>,
     matcher: PatternMatcher<'_>,
 ) -> Result<CompiledRegex, OperatingError> {

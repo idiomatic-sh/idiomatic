@@ -15,15 +15,15 @@ pub(crate) struct MergedStep {
 
 /// Steps over one relation with equal ordered comparisons and referenced typed bindings.
 #[derive(Clone, Debug, PartialEq)]
-pub(crate) struct StepClass {
+pub struct StepClass {
     /// The typed relation whose ordered rows these comparisons select.
     pub source: ryo_relations::domain::relations::types::Relation,
     /// The partition whose rows the class selects: a class never spans two partitions.
     pub scope: ryo_values::domain::plan_parts::types::StepScope,
     /// The step the class is decided by.
-    pub first: MergedStep,
+    pub(crate) first: MergedStep,
     /// Every step of the class, the first included.
-    pub members: Vec<MergedStep>,
+    pub(crate) members: Vec<MergedStep>,
     /// Ordered predicates mapped through preceding selections to source columns.
     pub comparisons: Vec<PlanComparison>,
 }
@@ -57,4 +57,4 @@ pub(crate) enum BindingsAgreement {
 
 /// A class of the steps that select from the elements of a tree, by its place among the classes of the call's rules.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub(crate) struct ClassPlace(pub usize);
+pub struct ClassPlace(pub usize);

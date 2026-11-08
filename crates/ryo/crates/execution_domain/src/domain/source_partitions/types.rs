@@ -1,5 +1,5 @@
 //! Checked declarations retain their private source provenance.
-pub(crate) mod source_partitions;
+pub mod source_partitions;
 
 /// Number of immutable hosted relation snapshots.
 pub(crate) struct HostedCount(pub usize);

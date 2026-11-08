@@ -122,7 +122,7 @@ fn compile_mode(
         observations: named_outputs.into_boxed_slice(),
     })
 }
-pub(crate) fn compile(
+pub fn compile(
     program: &ExecutableProgram,
     rule: RuleIndex,
     observations: &[ObservationDemandSource],
@@ -217,7 +217,7 @@ pub(crate) fn readers(
 
 /// Initial reader counts for the selected roots, computed once and shared by every
 /// later file that selects the same roots.
-pub(crate) fn remaining(
+pub fn remaining(
     graph: &FileReaderGraph,
     regions: &[Region],
     selected: &std::collections::HashMap<RegionId, ReaderMultiplicity>,
@@ -291,7 +291,7 @@ fn table(
 }
 
 /// The initial reader count of `producer` in a table: its dense count, or the selected root's own.
-pub(crate) fn reader_count(table: &RemainingTable, producer: RegionId) -> ReaderMultiplicity {
+pub fn reader_count(table: &RemainingTable, producer: RegionId) -> ReaderMultiplicity {
     table
         .counts
         .get(producer.0)

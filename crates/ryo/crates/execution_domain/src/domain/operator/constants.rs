@@ -14,7 +14,7 @@ use ryo_values::domain::query_operators::types::QueryOperator;
 pub(crate) const NO_SEMANTIC_SESSION: &str = "no file semantic session was admitted";
 
 /// Every operator, in the order the documentation lists them.
-pub(crate) const OPERATORS: [QueryOperator; 25] = [
+pub const OPERATORS: [QueryOperator; 25] = [
     QueryOperator::SpanBetween,
     QueryOperator::SpanBounds,
     QueryOperator::SourceMatches,
@@ -48,7 +48,7 @@ pub(crate) const OPERATORS: [QueryOperator; 25] = [
     clippy::too_many_lines,
     reason = "one exhaustive match with one arm for each operator, each arm the text of that operator's description; splitting it would split the one table of descriptions"
 )]
-pub(crate) fn describe(operator: QueryOperator) -> OperatorDescription {
+pub fn describe(operator: QueryOperator) -> OperatorDescription {
     match operator {
         QueryOperator::SpanBetween => crate::domain::describing::constants::span_between(),
         QueryOperator::SpanBounds => crate::domain::describing::constants::span_bounds(),

@@ -13,13 +13,13 @@ use ryo_values::domain::plan_parts::types::{FlagState, WholeNumber};
 
 /// The text of a name, or nothing when the texts do not hold it.
 #[must_use]
-pub(crate) fn symbol_text<'a>(texts: &Texts<'a>, symbol: Symbol) -> Option<TextView<'a>> {
+pub fn symbol_text<'a>(texts: &Texts<'a>, symbol: Symbol) -> Option<TextView<'a>> {
     text_of(texts.symbols, ByteSlice(texts.source.0), symbol).map(|found| TextView(found.0))
 }
 
 /// The text of a name that has left its file, when its worker's arena holds it.
 #[must_use]
-pub(crate) fn name_text<'a>(texts: &Texts<'a>, name: Name) -> Option<TextView<'a>> {
+pub fn name_text<'a>(texts: &Texts<'a>, name: Name) -> Option<TextView<'a>> {
     let place = place_of(name, places_of(texts.symbols), texts.symbols)?;
     let Origin::Derived(worker) = place.origin else {
         return None;
@@ -51,7 +51,7 @@ pub(crate) fn file_text<'a>(texts: &Texts<'a>, file: FileId) -> Option<TextView<
 
 /// What a value reads as when it is compared.
 #[must_use]
-pub(crate) fn datum<'a>(value: Value, texts: &Texts<'a>) -> Datum<'a> {
+pub fn datum<'a>(value: Value, texts: &Texts<'a>) -> Datum<'a> {
     match value {
         Value::Node(node) => Datum::Number(WholeNumber(node.0.cast_signed())),
         Value::Symbol(symbol) => Datum::Text(symbol_text(texts, symbol).unwrap_or_default()),

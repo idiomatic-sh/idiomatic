@@ -8,7 +8,7 @@ use ryo_relations::domain::relations::types::{CellKind, Value};
 macro_rules! kinds {
     ($($kind:ident),+ $(,)?) => {
         #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-        pub(crate) enum RepresentationKind { $($kind,)+ }
+        pub enum RepresentationKind { $($kind,)+ }
         #[cfg(test)]
         impl RepresentationKind {
             pub(crate) const ALL: &'static [Self] = &[$(Self::$kind,)+];
@@ -17,15 +17,15 @@ macro_rules! kinds {
 }
 kinds!(Stored, Tree, Computed, Compact);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum PhysicalShape {
+pub enum PhysicalShape {
     Complete,
     ReadablePhysicalFallback,
 }
-pub(crate) struct RelationContract<'a> {
-    pub input: RepresentationInput<'a>,
+pub struct RelationContract<'a> {
+    pub(crate) input: RepresentationInput<'a>,
     pub kind: RepresentationKind,
-    pub kinds: &'a [CellKind],
-    pub rows: RowCount,
+    pub(crate) kinds: &'a [CellKind],
+    pub(crate) rows: RowCount,
     /// Captured metadata refusals are interpreted only at the existing demand gate.
     pub metadata: Result<(), OperatingError>,
 }

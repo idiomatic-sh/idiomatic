@@ -274,7 +274,7 @@ fn holds_one_bound(
 /// The engine's bound semantic capability, sharing the existing memo/verdict
 /// algorithm with native callers. Symbols and source text are read-only; only
 /// the explicitly supplied comparison workspace can change.
-pub(crate) fn holds_bound(
+pub fn holds_bound(
     comparisons: &[PlanComparison],
     row: &[Value],
     shape: RowShape<'_>,

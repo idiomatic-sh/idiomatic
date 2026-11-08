@@ -6,11 +6,11 @@ use ryo_derived::domain::sharing::types::SharedMarks;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::types::RowCount;
 
-pub(crate) mod traversal;
+pub mod traversal;
 
 /// Exact immutable relation population within one file-generation owner.
 #[derive(Clone, Debug, PartialEq)]
-pub(crate) struct RelationPopulation {
+pub struct RelationPopulation {
     /// Provider relation; native domain populations use their distinct native relation.
     pub relation: Relation,
     /// Physical provider column types.
@@ -23,7 +23,7 @@ pub(crate) struct RelationPopulation {
 
 /// The physical columns and population defining one adjacency, independent of lookup orientation.
 #[derive(Clone, Debug, PartialEq)]
-pub(crate) struct GraphIdentity {
+pub struct GraphIdentity {
     /// Exact physical population and optional selection.
     pub population: RelationPopulation,
     /// Canonically ordered physical endpoint columns.
@@ -34,7 +34,7 @@ pub(crate) struct GraphIdentity {
 
 /// Neighbor direction in the graph's canonical endpoint order.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Orientation {
+pub enum Orientation {
     /// First endpoint to second.
     Forward,
     /// Second endpoint to first.
@@ -50,7 +50,7 @@ pub(crate) enum Orientation {
 /// A graph handle and requested orientation; no mutable cache borrow survives acquisition.
 
 /// Canonical graph identity plus the columns needed to build it from the current logical row view.
-pub(crate) struct GraphSource {
+pub struct GraphSource {
     /// Exact physical population key.
     pub identity: GraphIdentity,
     /// Canonical endpoint columns in the current row view.
@@ -63,7 +63,7 @@ pub(crate) struct GraphSource {
 
 /// Exact domain membership context for graph/nearest reuse.
 #[derive(Clone, Debug, PartialEq)]
-pub(crate) struct DomainIdentity {
+pub struct DomainIdentity {
     /// Domain population, distinct from the graph's population.
     pub population: RelationPopulation,
     /// Physical entity column.
@@ -72,7 +72,7 @@ pub(crate) struct DomainIdentity {
 
 /// Membership is independent of duplicate domain rows.
 #[derive(Debug)]
-pub(crate) struct GraphDomain {
+pub struct GraphDomain {
     /// Exact domain identity when shared, absent for invocation-local computed rows.
     pub identity: Option<DomainIdentity>,
     /// Membership by dense vertex ID.
@@ -91,19 +91,19 @@ pub(crate) struct VisitEpoch(pub u32);
 
 /// Graph vertices expanded by one walk.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) struct ExpandedVertices(pub u64);
+pub struct ExpandedVertices(pub u64);
 
 /// Graph edges examined by one walk.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) struct ExaminedVertices(pub u64);
+pub struct ExaminedVertices(pub u64);
 
 /// Reusable invocation traversal memory; marks use epochs rather than clearing all vertices per root.
 #[derive(Debug, Default)]
-pub(crate) struct GraphWalk {
+pub struct GraphWalk {
     /// Visitation epoch by dense vertex.
-    pub marks: Vec<VisitEpoch>,
+    pub(crate) marks: Vec<VisitEpoch>,
     /// Nonzero current epoch; wrapping resets marks once.
-    pub epoch: VisitEpoch,
+    pub(crate) epoch: VisitEpoch,
     /// Iterative BFS frontier.
     pub queue: std::collections::VecDeque<VertexId>,
     /// Successful vertices in encounter order, optionally sorted by the caller.
@@ -120,7 +120,7 @@ pub(crate) struct GraphWalk {
 
 /// Whether a breadth traversal ran to its end or stopped at its first qualifying encounter.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum BreadthEnd {
+pub enum BreadthEnd {
     /// Every reachable vertex was visited.
     Complete,
     /// The traversal stopped at its first qualifying vertex.
@@ -129,7 +129,7 @@ pub(crate) enum BreadthEnd {
 
 /// Whether a nearest answer came from an earlier walk of the validated forest.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum MemoStatus {
+pub enum MemoStatus {
     /// The answer was computed by this call.
     Fresh,
     /// The answer was already known.
@@ -138,7 +138,7 @@ pub(crate) enum MemoStatus {
 
 /// The nearest qualifying ancestor of a vertex and where the answer came from.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct Nearest {
+pub struct Nearest {
     /// The ancestor, absent when none qualifies or the orientation has no validated forest.
     pub vertex: Option<VertexId>,
     /// Whether the answer was already known.
@@ -147,55 +147,55 @@ pub(crate) struct Nearest {
 
 /// Dormant ordinary indexes reclaimed only to admit a complete new adjacency.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) struct ReclaimedIndexes(pub u64);
+pub struct ReclaimedIndexes(pub u64);
 
 /// Actual payload bytes released, excluding retained metadata capacity.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) struct ReclaimedBytes(pub u64);
+pub struct ReclaimedBytes(pub u64);
 
 /// Admissions blocked while ordinary payload is pinned by another consumer.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) struct PinnedRefusals(pub u64);
+pub struct PinnedRefusals(pub u64);
 
 /// Highest accounted retained cache bytes, not process RSS or transient allocations.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) struct PeakBytes(pub usize);
+pub struct PeakBytes(pub usize);
 
 /// Complete physical adjacency builds.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) struct GraphBuilds(pub u64);
+pub struct GraphBuilds(pub u64);
 
 /// Compatible generation-local adjacency hits.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) struct GraphReuses(pub u64);
+pub struct GraphReuses(pub u64);
 
 /// Complete local graphs whose retention was refused.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) struct GraphRefusals(pub u64);
+pub struct GraphRefusals(pub u64);
 
 /// Actual source-key requests, retaining left-row multiplicity.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) struct RootRequests(pub u64);
+pub struct RootRequests(pub u64);
 
 /// Root requests that performed traversal.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) struct Traversals(pub u64);
+pub struct Traversals(pub u64);
 
 /// Successful reached-ID memo hits.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) struct MemoHits(pub u64);
+pub struct MemoHits(pub u64);
 
 /// Nearest queries stopped at their first qualifying encounter.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) struct EarlyStops(pub u64);
+pub struct EarlyStops(pub u64);
 
 /// Forest answers reused without a parent-chain walk.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) struct ForestHits(pub u64);
+pub struct ForestHits(pub u64);
 
 /// Opt-in-compatible aggregate work counts for one generation.
 #[derive(Debug, Default)]
-pub(crate) struct GraphCounts {
+pub struct GraphCounts {
     /// Dormant ordinary indexes reclaimed only to admit a complete new adjacency.
     pub reclaimed_indexes: ReclaimedIndexes,
     /// Actual payload bytes released, excluding retained metadata capacity.

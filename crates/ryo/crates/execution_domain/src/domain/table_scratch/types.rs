@@ -103,7 +103,7 @@ pub(crate) struct MemoSlot(pub usize);
 /// A heavy operator group, constructed only when an operation first accesses it.
 /// Its box and every payload are owned by the enclosing rule invocation.
 #[derive(Debug, Default)]
-pub(crate) struct LazyScratch<T>(pub std::cell::OnceCell<Box<T>>);
+pub struct LazyScratch<T>(pub std::cell::OnceCell<Box<T>>);
 
 impl<T: Default> std::ops::Deref for LazyScratch<T> {
     type Target = T;
@@ -126,35 +126,35 @@ impl<T: Default> std::ops::DerefMut for LazyScratch<T> {
 
 /// Cheap row buffers and lazy heavy groups owned only by the current rule.
 #[derive(Debug, Default)]
-pub(crate) struct OperatorScratch {
+pub struct OperatorScratch {
     /// Lazily constructed select work for this invocation.
     pub select_scratch: LazyScratch<SelectScratch>,
 }
 
 /// Mutable select work, allocated only by operators that use it.
 #[derive(Debug, Default)]
-pub(crate) struct SelectScratch {
+pub struct SelectScratch {
     /// What a comparison decided about a text, by the comparison and the hash of the text: the same text
     /// is decided once for the run, not once for each file that has it.
-    pub verdicts: hashbrown::HashMap<VerdictKey, Verdict>,
+    pub(crate) verdicts: hashbrown::HashMap<VerdictKey, Verdict>,
 
     /// Fixed glob operands made ready once for each comparison, for this run's bindings.
-    pub compiled_globs: hashbrown::HashMap<
+    pub(crate) compiled_globs: hashbrown::HashMap<
         ComparisonSlot,
         ryo_matching::inbound::use_cases::matching::compiled::CompiledTextGlobs,
     >,
 
     /// Compiled regular expressions reused across rows, bounded by the matching service.
-    pub compiled_regexes: Patterns,
+    pub(crate) compiled_regexes: Patterns,
 
     /// The kinds of a language by the name they are given: a name is the same kind in every file.
-    pub kind_names: hashbrown::HashMap<KindTest, KindSetPlace>,
+    pub(crate) kind_names: hashbrown::HashMap<KindTest, KindSetPlace>,
 
     /// The kinds each name stands for, as the sets `kind_names` numbers.
-    pub kind_sets: Vec<std::sync::Arc<KindSet>>,
+    pub(crate) kind_sets: Vec<std::sync::Arc<KindSet>>,
 
     /// The comparisons of a filter that name a kind: the set of kinds that satisfy each.
-    pub kind_tests: ComparisonNumbers,
+    pub(crate) kind_tests: ComparisonNumbers,
 
 }
 

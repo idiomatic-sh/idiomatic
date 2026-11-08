@@ -135,7 +135,7 @@ fn transported(
 /// A missing row may affect a different file after a non-file join. Keep exact
 /// scopes only when every emitted file identity is anchored to the uncertain
 /// operand itself or to an explicitly equal file/node key of a relation it reads.
-pub(crate) fn output_coverage(
+pub fn output_coverage(
     operation: &ryo_values::domain::plans::types::Operation,
     output_kinds: &[ryo_relations::domain::relations::types::CellKind],
     inputs: &[InputCoverage<'_>],
@@ -373,7 +373,7 @@ pub(crate) fn output_coverage(
 /// The ordered existence alternative compares a source with groups derived
 /// from that same source. Only a declared file/node partition key certifies
 /// that missing rows cannot change answers in another physical file.
-pub(crate) fn ordered_output_coverage(
+pub fn ordered_output_coverage(
     partition: &[ryo_values::domain::plan_parts::types::ColumnIndex],
     output_kinds: &[ryo_relations::domain::relations::types::CellKind],
     source: &InputCoverage<'_>,

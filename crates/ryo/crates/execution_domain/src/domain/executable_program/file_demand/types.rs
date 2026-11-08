@@ -7,18 +7,18 @@ use ryo_values::domain::{
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum RootSelection {
+pub enum RootSelection {
     Undemanded,
     Required,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum FrontierSelection {
+pub enum FrontierSelection {
     Disabled,
     Observations,
     All,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct FileDemand {
+pub struct FileDemand {
     pub diagnostic: RootSelection,
     pub observations: RootSelection,
     pub capture: FrontierSelection,
@@ -30,12 +30,12 @@ impl FileDemand {
         capture: FrontierSelection::Disabled,
     };
 }
-pub(crate) struct ObservationDemandSource {
+pub struct ObservationDemandSource {
     pub source: Result<InputSource, OperatingError>,
     pub phase: StepScope,
 }
 #[derive(Debug)]
-pub(crate) enum FileRootDemand {
+pub enum FileRootDemand {
     Ordinary(RegionId),
     Observation {
         region: RegionId,
@@ -45,15 +45,15 @@ pub(crate) enum FileRootDemand {
     Deferred(OperatingError),
 }
 #[derive(Debug)]
-pub(crate) struct FileMode {
+pub struct FileMode {
     pub readers: Box<[RegionId]>,
     pub roots: Box<[FileRootDemand]>,
     pub observations: Box<[ObservationIndex]>,
 }
 #[derive(Debug)]
-pub(crate) struct NamedOutputCount(pub usize);
+pub struct NamedOutputCount(pub usize);
 #[derive(Debug)]
-pub(crate) struct FileRuleDemand {
+pub struct FileRuleDemand {
     pub outputs: NamedOutputCount,
     pub(super) modes: Box<[FileMode]>,
 }

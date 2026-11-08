@@ -155,7 +155,7 @@ fn consider(
     clippy::too_many_arguments,
     reason = "The prepared request and one borrowed typed source population"
 )]
-pub(crate) fn evaluate(
+pub fn evaluate(
     program: &PreparedWalk,
     relation: Relation,
     rows: &Rows<'_>,

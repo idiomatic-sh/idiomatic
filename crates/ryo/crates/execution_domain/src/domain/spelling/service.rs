@@ -33,7 +33,7 @@ pub(crate) fn check_spellings<'a>(
 }
 
 /// The same spelling invariant over compact admission's names; no row table is required.
-pub(crate) fn check_name_spellings(
+pub fn check_name_spellings(
     names: impl IntoIterator<Item = ryo_relations::domain::relations::types::Name>,
     symbols: &Symbols,
     arenas: &[ArenaBytes],

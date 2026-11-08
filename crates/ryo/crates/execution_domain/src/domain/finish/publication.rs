@@ -18,7 +18,7 @@ use std::collections::BTreeMap;
 
 /// Normalize local names, preserve real inherited origins, then use the ordinary escape boundary.
 /// The caller owns the table boundary, mutable producer Symbols and destination arena; Emit is not aliased.
-pub(crate) fn escape_cross_publication(
+pub fn escape_cross_publication(
     table: &mut Table,
     producer: &mut Symbols,
     inherited: &[ArenaBytes],

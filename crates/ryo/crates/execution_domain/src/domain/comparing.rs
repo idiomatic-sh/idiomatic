@@ -2,8 +2,8 @@
 //! and remembered by name and by text.
 
 pub(crate) mod collections;
-pub(crate) mod service;
-pub(crate) mod types;
+pub mod service;
+pub mod types;
 
 #[cfg(test)]
 mod service_test;

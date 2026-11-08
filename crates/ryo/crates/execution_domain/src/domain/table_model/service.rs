@@ -27,7 +27,7 @@ use ryo_values::domain::rows::service::{positions, push_row, reset, row_in};
 
 /// What each column of the rows holds.
 #[must_use]
-pub(crate) fn kinds_of<'a>(rows: &'a Rows<'_>) -> &'a [CellKind] {
+pub fn kinds_of<'a>(rows: &'a Rows<'_>) -> &'a [CellKind] {
     match rows {
         Rows::Stored(view) => view.kinds,
         Rows::Tree(TreeRows {
@@ -45,7 +45,7 @@ pub(crate) fn kinds_of<'a>(rows: &'a Rows<'_>) -> &'a [CellKind] {
 
 /// How many rows there are.
 #[must_use]
-pub(crate) fn count_of(rows: &Rows<'_>) -> RowCount {
+pub fn count_of(rows: &Rows<'_>) -> RowCount {
     match rows {
         Rows::Stored(view) => RowCount(view.columns.first().map_or(0, |column| column.0.len())),
         Rows::Computed(table) => table.count,
@@ -79,7 +79,7 @@ const ELEMENT_KINDS: [CellKind; 5] = [
 
 /// The row at `index`: a computed row where it is, a stored row read into `scratch`, which keeps
 /// its room from row to row.
-pub(crate) fn read_row<'s>(
+pub fn read_row<'s>(
     rows: &'s Rows<'s>,
     index: RowIndex,
     scratch: &'s mut Vec<Value>,
@@ -88,7 +88,7 @@ pub(crate) fn read_row<'s>(
 }
 
 /// Copies the rows into `into`, keeping the room `into` has.
-pub(crate) fn materialize(rows: &Rows<'_>, into: &mut Table, scratch: &mut Vec<Value>) {
+pub fn materialize(rows: &Rows<'_>, into: &mut Table, scratch: &mut Vec<Value>) {
     reset(into, kinds_of(rows));
     for index in positions(count_of(rows)) {
         if let Some(row) = read_row(rows, index, scratch) {
@@ -124,7 +124,7 @@ pub(crate) fn compare_key(row: &[Value], on: On<'_>, key: &[Value]) -> Ordering 
 /// # Errors
 ///
 /// `NoSuchColumn` naming the first it lacks.
-pub(crate) fn check_columns(kinds: &[CellKind], columns: &[ColumnIndex]) -> Result<(), RowsError> {
+pub fn check_columns(kinds: &[CellKind], columns: &[ColumnIndex]) -> Result<(), RowsError> {
     match columns
         .iter()
         .find(|column| usize::try_from(column.0).map_or(true, |place| place >= kinds.len()))
@@ -241,12 +241,12 @@ pub(crate) fn matching<'o, 'k>(
 use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
 
 /// The classified catalog value that reads rows of `kind`.
-pub(crate) fn registered(kind: RepresentationKind) -> RegisteredRepresentation {
+pub fn registered(kind: RepresentationKind) -> RegisteredRepresentation {
     RegisteredRepresentation::new(kind)
 }
 
 /// The representation `input` is held in.
-pub(crate) fn kind(input: RepresentationInput<'_>) -> RepresentationKind {
+pub fn kind(input: RepresentationInput<'_>) -> RepresentationKind {
     RegisteredRepresentation::kind(input)
 }
 

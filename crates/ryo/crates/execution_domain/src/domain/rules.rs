@@ -1,6 +1,6 @@
 //! Lookup of admitted execution rule coordinates.
 mod constants;
-pub(crate) mod service;
+pub mod service;
 
 #[cfg(test)]
 mod service_test;

@@ -4,19 +4,19 @@ use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{StepId, StepScope};
 
 
-pub(crate) mod demand_program;
-pub(crate) mod executable_program;
-pub(crate) mod instruction;
-pub(crate) mod region;
+pub mod demand_program;
+pub mod executable_program;
+pub mod instruction;
+pub mod region;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub(crate) struct RegionId(pub usize);
+pub struct RegionId(pub usize);
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub(crate) struct InputId(pub usize);
+pub struct InputId(pub usize);
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub(crate) struct LogicalInstruction(pub usize);
+pub struct LogicalInstruction(pub usize);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum InputSource {
+pub enum InputSource {
     Relation(Relation),
     Hosted {
         rule: RuleIndex,
@@ -34,12 +34,12 @@ pub(crate) enum InputSource {
 }
 /// The request-qualified slot of one named input.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub(crate) struct ObservationPlace(pub usize);
+pub struct ObservationPlace(pub usize);
 /// One producer of a named input, by its place among the slot's producers.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub(crate) struct ProducerMember(pub usize);
+pub struct ProducerMember(pub usize);
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub(crate) enum PartitionRequirement {
+pub enum PartitionRequirement {
     RequestInvariant,
     CurrentFile,
     /// Must be bound to the consumer's finite demanded partition set.
@@ -47,11 +47,11 @@ pub(crate) enum PartitionRequirement {
     InputLineage,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum DemandAction {
+pub enum DemandAction {
     Admit(InputId),
 }
 #[derive(Clone, Debug)]
-pub(crate) struct OrderedExistence {
+pub struct OrderedExistence {
     pub source: RegionId,
     pub number: crate::domain::self_join_recogniser::types::NumberRequirement,
     pub partition: Box<[ryo_values::domain::plan_parts::types::ColumnIndex]>,
@@ -66,7 +66,7 @@ pub(crate) struct SourcePartition {
 }
 /// How a region is evaluated. Exactly one per region, decided when the program is compiled.
 #[derive(Clone, Debug, Default)]
-pub(crate) enum Route {
+pub enum Route {
     /// The registered operator of each instruction, in order: the operators' one meaning of its kind.
     #[default]
     Generic,
@@ -76,7 +76,7 @@ pub(crate) enum Route {
 }
 /// A route without its payload: what a permit is issued for.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum RouteKind {
+pub enum RouteKind {
     Generic,
     OrderedExistence,
 }
@@ -90,10 +90,10 @@ pub(super) enum StepUse {
 }
 /// The address of the compiled regular expression an operator call was prepared with.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct RegexIdentity(pub usize);
+pub struct RegexIdentity(pub usize);
 /// Whether a row passes the first applicable row gate of an instruction.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum RowGate {
+pub enum RowGate {
     /// The row is invoked.
     Admitted,
     /// The row is skipped before invocation.
@@ -101,13 +101,13 @@ pub(crate) enum RowGate {
 }
 /// Where an original step of a rule is in the executable program.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct StepOrigin {
-    pub rule: RuleIndex,
-    pub step: StepId,
+pub struct StepOrigin {
+    pub(crate) rule: RuleIndex,
+    pub(crate) step: StepId,
     pub logical: LogicalInstruction,
 }
 #[derive(Debug)]
-pub(crate) struct RuleProgram {
+pub struct RuleProgram {
     /// External root-reader obligations, including repeated aliases.
     pub root_readers: Box<[RegionId]>,
     pub original_steps: Box<[Result<StepOrigin, OperatingError>]>,
@@ -119,7 +119,7 @@ pub(crate) struct RuleProgram {
 
 /// Mandatory producer declarations. No operation kind implies broadcast completeness.
 /// Used by preparation/admission only; semantic kernels never receive this interface.
-pub(crate) trait ProducerPartitions {
+pub trait ProducerPartitions {
     fn hosted(
         &self,
         rule: RuleIndex,
@@ -158,22 +158,22 @@ pub(crate) struct Fusibilities {
 
 /// Number of independent readers of the same publication.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) struct ReaderMultiplicity(pub usize);
+pub struct ReaderMultiplicity(pub usize);
 /// One direct consumer and the number of its repeated dependency edges.
 #[derive(Debug)]
-pub(crate) struct ConsumerObligation {
-    pub consumer: RegionId,
-    pub readers: ReaderMultiplicity,
+pub struct ConsumerObligation {
+    pub(crate) consumer: RegionId,
+    pub(crate) readers: ReaderMultiplicity,
 }
 /// Request-compiled potential obligations, indexed by external root and producer.
 #[derive(Debug)]
-pub(crate) struct FileReaderGraph {
+pub struct FileReaderGraph {
     pub consumers: std::collections::HashMap<
         RegionId,
         std::collections::HashMap<RegionId, Box<[ConsumerObligation]>>,
     >,
     /// The last initial reader counts, shared by every file that selects the same roots.
-    pub remaining: std::sync::Mutex<RemainingMemo>,
+    pub(crate) remaining: std::sync::Mutex<RemainingMemo>,
 }
 /// How many reader-count tables a request has computed.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
@@ -186,13 +186,13 @@ pub(crate) struct RemainingMemo {
 }
 /// Initial reader count of every region for one selection of external roots.
 #[derive(Debug)]
-pub(crate) struct RemainingTable {
-    pub selected: std::collections::HashMap<RegionId, ReaderMultiplicity>,
-    pub counts: Box<[ReaderMultiplicity]>,
+pub struct RemainingTable {
+    pub(crate) selected: std::collections::HashMap<RegionId, ReaderMultiplicity>,
+    pub(crate) counts: Box<[ReaderMultiplicity]>,
 }
 /// A shared table and the cumulative number of tables the request has computed.
 #[derive(Debug)]
-pub(crate) struct Remaining {
+pub struct Remaining {
     pub table: std::sync::Arc<RemainingTable>,
     #[cfg(test)]
     pub computations: ComputationCount,

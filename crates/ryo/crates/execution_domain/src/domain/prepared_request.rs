@@ -1,5 +1,5 @@
 //! Immutable compiled request inputs, consumed by preparation.
-pub(crate) mod service;
+pub mod service;
 #[cfg(test)]
 mod service_test;
-pub(crate) mod types;
+pub mod types;

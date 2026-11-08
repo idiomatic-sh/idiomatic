@@ -20,7 +20,7 @@ use ryo_values::domain::stored_facts::types::{PartialCause, PartialScope, ReadIn
 /// Physical file ordinals affected by a partial project publication. An
 /// unlocated cause applies to the entire named file set; no named file means
 /// the caller must retain the project refusal instead of losing it in a report.
-pub(crate) fn affected_ordinals(
+pub fn affected_ordinals(
     affected: &[Option<FileId>],
     file_count: DeclaredFiles,
 ) -> Result<Vec<FileOrdinal>, crate::domain::operating::errors::OperatingError> {
@@ -192,7 +192,7 @@ pub(crate) fn drop_inapplicable(
 /// The relations of a file that are read in part: those the reader said so of, and, when the whole file is only a recovery of what was
 /// written (`everything` says how), every relation of code that was asked for.
 #[must_use]
-pub(crate) fn partial_of(
+pub fn partial_of(
     said: &[ReadInPart],
     everything: Recovery,
     wanted: &[Relation],
@@ -244,7 +244,7 @@ pub(crate) fn partial_of(
 
 /// What an operator that trusts an absence of rows says it could not decide, for a relation read in part in a file.
 #[must_use]
-pub(crate) fn unknown_message(partial: &Partial, scope: CoverageScope<'_>) -> Message {
+pub fn unknown_message(partial: &Partial, scope: CoverageScope<'_>) -> Message {
     let path: &str = match scope {
         CoverageScope::Repository => REPOSITORY,
         CoverageScope::File(file) => &file.0,

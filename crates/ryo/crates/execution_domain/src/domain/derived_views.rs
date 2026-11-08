@@ -1,7 +1,7 @@
 //! Semantic derived-view algorithms; application owns acquisition and every retained lifetime.
-pub(crate) mod types;
+pub mod types;
 
-pub(crate) mod service;
+pub mod service;
 
 #[cfg(test)]
 pub(crate) mod fixtures;

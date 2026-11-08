@@ -9,7 +9,7 @@ use ryo_values::domain::{plan_parts::types::StepScope, plans::types::Operation};
 
 /// One region of the executable program: what it reads, what it computes and how many readers its publication has.
 #[derive(Clone, Debug)]
-pub(crate) struct Region {
+pub struct Region {
     producer: RuleIndex,
     needs: Result<Box<[RelationRead]>, OperatingError>,
     phase: StepScope,
@@ -72,37 +72,37 @@ impl Region {
     ) {
         self.source_partitions = partitions;
     }
-    pub(crate) fn producer(&self) -> RuleIndex {
+    pub fn producer(&self) -> RuleIndex {
         self.producer
     }
-    pub(crate) fn needs(&self) -> &Result<Box<[RelationRead]>, OperatingError> {
+    pub fn needs(&self) -> &Result<Box<[RelationRead]>, OperatingError> {
         &self.needs
     }
-    pub(crate) fn phase(&self) -> StepScope {
+    pub fn phase(&self) -> StepScope {
         self.phase
     }
-    pub(crate) fn instructions(&self) -> &[Instruction] {
+    pub fn instructions(&self) -> &[Instruction] {
         &self.instructions
     }
-    pub(crate) fn inputs(&self) -> &[InputSource] {
+    pub fn inputs(&self) -> &[InputSource] {
         &self.inputs
     }
     pub(crate) fn source_partitions(&self) -> &[SourcePartition] {
         &self.source_partitions
     }
-    pub(crate) fn consumers(&self) -> ReaderMultiplicity {
+    pub fn consumers(&self) -> ReaderMultiplicity {
         self.consumers
     }
-    pub(crate) fn dependencies(&self) -> &[RegionId] {
+    pub fn dependencies(&self) -> &[RegionId] {
         &self.dependencies
     }
-    pub(crate) fn route(&self) -> &Route {
+    pub fn route(&self) -> &Route {
         &self.route
     }
-    pub(crate) fn lineage(&self) -> &Lineage {
+    pub fn lineage(&self) -> &Lineage {
         &self.lineage
     }
-    pub(crate) fn last_operation(&self) -> Result<&Operation, OperatingError> {
+    pub fn last_operation(&self) -> Result<&Operation, OperatingError> {
         self.instructions
             .last()
             .map(Instruction::operation)

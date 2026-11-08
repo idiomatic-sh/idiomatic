@@ -19,13 +19,13 @@ use ryo_values::domain::{
 };
 
 /// A linked request owns its remapped plans and typed producer references. Cached plans are untouched.
-pub(crate) struct LinkedObservationPlans {
+pub struct LinkedObservationPlans {
     pub plans: Vec<Plan>,
     pub bindings: Vec<Vec<ResolvedObservationBinding>>,
 }
 
 /// Follow only roots reachable from Emit or from actually read bound inputs, then remap once.
-pub(crate) fn link(
+pub fn link(
     mut plans: Vec<Plan>,
     bindings: Vec<Vec<ResolvedObservationBinding>>,
 ) -> Result<LinkedObservationPlans, FileProgramError> {
@@ -336,7 +336,7 @@ fn frontier(plan: &Plan) -> Result<Vec<Input>, FileProgramError> {
 }
 
 /// Actual bound sources beneath each retained cross frontier, including per-file transforms.
-pub(crate) fn frontier_dependencies(
+pub fn frontier_dependencies(
     plan: &Plan,
 ) -> Result<Vec<Vec<ryo_values::domain::plan_parts::types::ObservationBindingId>>, FileProgramError>
 {

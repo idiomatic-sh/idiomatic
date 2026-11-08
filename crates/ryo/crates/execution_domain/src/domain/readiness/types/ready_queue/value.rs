@@ -21,7 +21,7 @@ struct Entry {
     waiters: Vec<RegionId>,
 }
 /// Owns only readiness transitions. The application polls the sole actual interpreter.
-pub(crate) struct ReadyQueue {
+pub struct ReadyQueue {
     region_count: RegionCount,
     entries: FxHashMap<RegionId, Entry>,
     pending: VecDeque<RegionId>,
@@ -31,7 +31,7 @@ pub(crate) struct ReadyQueue {
     counts: ReadinessCounts,
 }
 impl ReadyQueue {
-    pub(crate) fn new(
+    pub fn new(
         region_count: RegionCount,
         roots: &[RegionId],
     ) -> Result<Self, OperatingError> {
@@ -65,7 +65,7 @@ impl ReadyQueue {
     }
     /// Finish the current evaluation cohort before admitting newly woken parents.
     /// Otherwise drain all reachable admissions before evaluating any ready head.
-    pub(crate) fn next(&mut self) -> Result<Option<ReadinessAction>, OperatingError> {
+    pub fn next(&mut self) -> Result<Option<ReadinessAction>, OperatingError> {
         let action = if let Some(id) = self.cohort.pop_front() {
             self.counts.evaluations.0 += 1;
             ReadinessAction::Evaluate(id)
@@ -90,7 +90,7 @@ impl ReadyQueue {
             .state = State::Polling;
         Ok(Some(action))
     }
-    pub(crate) fn observe(
+    pub fn observe(
         &mut self,
         id: RegionId,
         outcome: ReadinessOutcome,
@@ -174,7 +174,7 @@ impl ReadyQueue {
     pub(super) fn reached_entries(&self) -> crate::domain::readiness::types::ReadinessEntryCount {
         crate::domain::readiness::types::ReadinessEntryCount(self.entries.len())
     }
-    pub(crate) fn counts(&self) -> ReadinessCounts {
+    pub fn counts(&self) -> ReadinessCounts {
         self.counts
     }
 }

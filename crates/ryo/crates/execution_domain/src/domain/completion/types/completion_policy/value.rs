@@ -21,7 +21,7 @@ enum CompletionBehavior {
 }
 /// No Default: the scope's actual partiality source must be supplied.
 #[derive(Clone, PartialEq, Eq)]
-pub(crate) struct CompletionPolicy {
+pub struct CompletionPolicy {
     scope: ScopeIdentity,
     behavior: CompletionBehavior,
     /// Publication readiness is physical evidence, independent of Rows-mode
@@ -33,7 +33,7 @@ impl CompletionPolicy {
     pub(crate) fn file(rule: RuleIndex, file: FileId, partials: &[Partial]) -> Self {
         Self::file_inputs(rule, file, partials, partials)
     }
-    pub(crate) fn file_inputs(
+    pub fn file_inputs(
         rule: RuleIndex,
         file: FileId,
         evaluation: &[Partial],
@@ -45,7 +45,7 @@ impl CompletionPolicy {
             publication: CompletionBehavior::BlockBeforeRun(publication.into()),
         }
     }
-    pub(crate) fn project_inputs(
+    pub fn project_inputs(
         rule: RuleIndex,
         evaluation: &Partials,
         publication: &Partials,
@@ -58,7 +58,7 @@ impl CompletionPolicy {
             )),
         }
     }
-    pub(crate) fn blocked_coverage(&self) -> CoverageState {
+    pub fn blocked_coverage(&self) -> CoverageState {
         match self.scope {
             ScopeIdentity::File { file, .. } => {
                 crate::domain::completion::service::partial_any(vec![Some(file)])
@@ -68,7 +68,7 @@ impl CompletionPolicy {
             }
         }
     }
-    pub(crate) fn coverage(&self, reads: &[RelationRead]) -> CoverageState {
+    pub fn coverage(&self, reads: &[RelationRead]) -> CoverageState {
         let files = match &self.publication {
             CompletionBehavior::BlockBeforeRun(partials)
                 if blocked(reads, partials) == Blocking::Blocked =>
@@ -95,7 +95,7 @@ impl CompletionPolicy {
     }
     /// The coverage of a relation as it is read, its rows in the relation's own columns: what the partial relations leave
     /// missing is kept by file, so a consumer that rules the missing kinds out is not made partial.
-    pub(crate) fn relation_coverage(
+    pub fn relation_coverage(
         &self,
         relation: ryo_relations::domain::relations::types::Relation,
     ) -> CoverageState {
@@ -138,7 +138,7 @@ impl CompletionPolicy {
                 .collect(),
         )
     }
-    pub(crate) fn observation_admission(&self, reads: &[RelationRead]) -> ObservationAdmission {
+    pub fn observation_admission(&self, reads: &[RelationRead]) -> ObservationAdmission {
         let ready = match &self.publication {
             CompletionBehavior::BlockBeforeRun(partials) => {
                 blocked(reads, partials) == Blocking::Free
@@ -151,7 +151,7 @@ impl CompletionPolicy {
             ObservationAdmission::Incomplete
         }
     }
-    pub(crate) fn filter_rows(
+    pub fn filter_rows(
         &self,
         operation: &Operation,
         needs: &[RelationRead],
@@ -164,7 +164,7 @@ impl CompletionPolicy {
             drop_inapplicable(operation, &kinds, rows, &skipped_files(partials));
         }
     }
-    pub(crate) fn region_admission(&self, needs: &[RelationRead]) -> RegionAdmission {
+    pub fn region_admission(&self, needs: &[RelationRead]) -> RegionAdmission {
         let allowed = match &self.behavior {
             CompletionBehavior::BlockBeforeRun(partials) => {
                 blocked(needs, partials) == Blocking::Free
@@ -177,7 +177,7 @@ impl CompletionPolicy {
             RegionAdmission::Blocked
         }
     }
-    pub(crate) fn for_rule(&self, rule: RuleIndex) -> Self {
+    pub fn for_rule(&self, rule: RuleIndex) -> Self {
         let scope = match self.scope {
             ScopeIdentity::File { file, .. } => ScopeIdentity::File { rule, file },
             ScopeIdentity::Project { .. } => ScopeIdentity::Project { rule },

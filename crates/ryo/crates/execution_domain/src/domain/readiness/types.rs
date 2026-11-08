@@ -1,8 +1,8 @@
 //! Scheduler decisions carry region identities, never evaluation authority.
 use crate::domain::executable_program::types::RegionId;
-pub(crate) mod ready_queue;
+pub mod ready_queue;
 /// Distinct physical regions in this compiled program.
-pub(crate) struct RegionCount(pub usize);
+pub struct RegionCount(pub usize);
 /// Readiness entries a queue holds, one for each region it has reached.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[cfg(test)]
@@ -11,12 +11,12 @@ pub(crate) struct ReadinessEntryCount(pub usize);
 pub(crate) struct WaitingCount(pub usize);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum ReadinessAction {
+pub enum ReadinessAction {
     Prepare(RegionId),
     Evaluate(RegionId),
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum ReadinessOutcome {
+pub enum ReadinessOutcome {
     Waiting(RegionId),
     Ready,
     Terminal,

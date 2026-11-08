@@ -15,7 +15,7 @@ use ryo_values::domain::{
     plan_parts::types::ColumnIndex,
     rows::types::{RowCount, RowIndex},
 };
-pub(crate) struct RegisteredRepresentation {
+pub struct RegisteredRepresentation {
     kind: RepresentationKind,
 }
 impl RegisteredRepresentation {
@@ -57,7 +57,7 @@ impl RegisteredRepresentation {
         }
         Ok(contract)
     }
-    pub(crate) fn inspect(
+    pub fn inspect(
         &self,
         contract: &RelationContract<'_>,
     ) -> Result<PhysicalShape, OperatingError> {
@@ -105,19 +105,19 @@ impl RegisteredRepresentation {
 }
 
 impl<'f> RepresentationInput<'f> {
-    pub(crate) fn bulk(
+    pub fn bulk(
         self,
     ) -> Result<RepresentationInput<'f>, OperatingError>
     {
         RegisteredRepresentation::new(RegisteredRepresentation::kind(self)).bulk(self)
     }
-    pub(crate) fn contract(
+    pub fn contract(
         self,
     ) -> Result<RelationContract<'f>, OperatingError>
     {
         RegisteredRepresentation::new(RegisteredRepresentation::kind(self)).prepare(self)
     }
-    pub(crate) fn validate(self) -> Result<(), OperatingError> {
+    pub fn validate(self) -> Result<(), OperatingError> {
         let contract = self.contract()?;
         if RegisteredRepresentation::new(contract.kind).inspect(&contract)? == PhysicalShape::Complete {
             Ok(())
@@ -125,7 +125,7 @@ impl<'f> RepresentationInput<'f> {
             Err(OperatingError::ShapeMismatch)
         }
     }
-    pub(crate) fn cell(
+    pub fn cell(
         self,
         row: RowIndex,
         column: ColumnIndex,
@@ -135,7 +135,7 @@ impl<'f> RepresentationInput<'f> {
             Ok(CellRead::MissingPhysical) | Err(_) => None,
         }
     }
-    pub(crate) fn read<'r>(
+    pub fn read<'r>(
         self,
         row: RowIndex,
         decode: &'r mut Vec<Value>,
@@ -160,7 +160,7 @@ impl<'f> RepresentationInput<'f> {
     }
     // Metadata-only compatibility for existing domain algorithms. Validation is
     // never triggered by a cardinality/schema request.
-    pub(crate) fn count(self) -> RowCount {
+    pub fn count(self) -> RowCount {
         match self {
             Self::Stored(view) => RowCount(view.columns.first().map_or(0, |column| column.0.len())),
             Self::Tree(tree) => RowCount(tree.elements.kind.len().saturating_sub(usize::from(
@@ -170,7 +170,7 @@ impl<'f> RepresentationInput<'f> {
             Self::Compact(table) => ryo_values::domain::compact_table::service::compact_rows(table),
         }
     }
-    pub(crate) fn kinds(self) -> &'f [CellKind] {
+    pub fn kinds(self) -> &'f [CellKind] {
         match self {
             Self::Stored(view) => view.kinds,
             Self::Computed(table) => &table.kinds,

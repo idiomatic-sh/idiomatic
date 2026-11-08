@@ -41,7 +41,7 @@ impl ProgressObserver for IgnoredProgress {
 
 /// Exact typed key lookup prepared by the engine; primitives only probe it.
 #[derive(Clone, Copy)]
-pub(crate) struct IndexedRows<'a> {
+pub struct IndexedRows<'a> {
     #[cfg(feature = "diagnostic-row-progress")]
     pub progress: &'a dyn ProgressObserver,
     pub rows: RepresentationInput<'a>,
@@ -123,7 +123,7 @@ impl Iterator for MatchingRows<'_> {
 use ryo_values::domain::rows::types::RowIndex;
 
 /// Finite immutable partition access; ownership and recycling remain in the invocation owner.
-pub(crate) trait ClosureParts {
+pub trait ClosureParts {
     fn len(&self) -> PartitionCount;
     fn get(
         &self,
@@ -135,14 +135,14 @@ pub(crate) trait ClosureParts {
 }
 /// How many partitions a closure holds.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct PartitionCount(pub usize);
+pub struct PartitionCount(pub usize);
 
 /// One partition of a closure, by its place among them.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct PartitionIndex(pub usize);
+pub struct PartitionIndex(pub usize);
 
 #[derive(Clone, Copy, Default)]
-pub(crate) enum ClosureViews<'a> {
+pub enum ClosureViews<'a> {
     #[default]
     Empty,
     One(&'a ryo_derived::domain::closure_adjacency::types::ClosurePartition),
@@ -172,7 +172,7 @@ impl<'a> ClosureViews<'a> {
         }
     }
 }
-pub(crate) struct ClosureIter<'a> {
+pub struct ClosureIter<'a> {
     views: ClosureViews<'a>,
     at: PartitionIndex,
 }
@@ -204,7 +204,7 @@ impl<'a> IntoIterator for ClosureViews<'a> {
 /// The evaluator is bound to the prepared contract's exact ordered program.
 /// Its implementation is engine-private; this interface cannot choose predicates,
 /// schemas, cache keys or upstream scheduling.
-pub(crate) trait PredicateProgram {
+pub trait PredicateProgram {
     fn holds(
         &mut self,
         row: &[Value],
@@ -214,10 +214,10 @@ pub(crate) trait PredicateProgram {
 
 /// The checked physical text of a source-matching span, with where it starts and the line it begins on.
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct ValidatedSource<'a> {
-    pub base: SourceBase,
-    pub text: CellText<'a>,
-    pub line: BaseLine,
+pub struct ValidatedSource<'a> {
+    pub(crate) base: SourceBase,
+    pub(crate) text: CellText<'a>,
+    pub(crate) line: BaseLine,
 }
 
 /// The checked physical text of a span and where it starts in the source.
@@ -259,7 +259,7 @@ fn source_slice<'a>(
 
 /// The source gate of an occurrence search: validates the span, and its base line, before any matcher is
 /// acquired. An absent span suppresses the row's later checks.
-pub(crate) fn validate<'a>(
+pub fn validate<'a>(
     row: &[Value],
     span: ColumnIndex,
     base_line: Option<ColumnIndex>,
@@ -286,7 +286,7 @@ pub(crate) fn validate<'a>(
 
 /// A native lookup bound to a join: the tree it finds candidates in, and how it finds them.
 #[derive(Clone, Copy)]
-pub(crate) struct NativeJoin<'a> {
+pub struct NativeJoin<'a> {
     pub tree: crate::domain::table_cells::types::TreeRows<'a>,
     pub finding: ryo_derived::domain::native::types::NativeFinding,
 }
@@ -318,7 +318,7 @@ pub(crate) struct JoinCursor<'f> {
 
 /// The axis resources one walk runs over: none, a tree of elements, or an index of edges with its domain.
 #[derive(Clone, Copy)]
-pub(crate) enum PreparedAxis<'a> {
+pub enum PreparedAxis<'a> {
     Empty,
     Native {
         tree: crate::domain::table_cells::types::TreeRows<'a>,

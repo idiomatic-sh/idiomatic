@@ -3,7 +3,7 @@
 
 #[cfg(test)]
 mod publication;
-pub(crate) mod service;
+pub mod service;
 #[cfg(test)]
 pub(crate) mod service_test;
-pub(crate) mod types;
+pub mod types;

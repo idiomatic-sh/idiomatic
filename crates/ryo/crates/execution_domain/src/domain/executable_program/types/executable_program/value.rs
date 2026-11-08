@@ -9,7 +9,7 @@ use ryo_values::domain::{plan_parts::types::StepScope, plans::types::Operation};
 
 /// The compiled program of one request.
 #[derive(Debug)]
-pub(crate) struct ExecutableProgram {
+pub struct ExecutableProgram {
     regions: Box<[Region]>,
     file_readers: FileReaderGraph,
     rules: Box<[RuleProgram]>,
@@ -56,12 +56,12 @@ impl ExecutableProgram {
     ) -> Option<crate::domain::executable_program::fusion::types::Fusibility> {
         self.fusibility.get(logical.0).copied()
     }
-    pub(crate) fn file_readers(&self) -> &FileReaderGraph {
+    pub fn file_readers(&self) -> &FileReaderGraph {
         &self.file_readers
     }
     /// The prepared physical phase of an original frontier root. No file or
     /// project runtime can change this declaration while admitting its input.
-    pub(crate) fn frontier_phase(&self, source: InputSource) -> Result<StepScope, OperatingError> {
+    pub fn frontier_phase(&self, source: InputSource) -> Result<StepScope, OperatingError> {
         match source {
             InputSource::Relation(_) => match self.source_partition(source)? {
                 PartitionRequirement::CurrentFile => Ok(StepScope::PerFile),
@@ -88,7 +88,7 @@ impl ExecutableProgram {
             _ => Err(OperatingError::WrongOperation),
         }
     }
-    pub(crate) fn source_partition(
+    pub fn source_partition(
         &self,
         source: InputSource,
     ) -> Result<PartitionRequirement, OperatingError> {
@@ -136,21 +136,21 @@ impl ExecutableProgram {
             _ => Err(OperatingError::NotRead),
         }
     }
-    pub(crate) fn regions(&self) -> &[Region] {
+    pub fn regions(&self) -> &[Region] {
         &self.regions
     }
-    pub(crate) fn rules(&self) -> &[RuleProgram] {
+    pub fn rules(&self) -> &[RuleProgram] {
         &self.rules
     }
-    pub(crate) fn logical_regions(&self) -> &[RegionId] {
+    pub fn logical_regions(&self) -> &[RegionId] {
         &self.logical_regions
     }
-    pub(crate) fn observation_regions(&self) -> &[Result<RegionId, OperatingError>] {
+    pub fn observation_regions(&self) -> &[Result<RegionId, OperatingError>] {
         &self.observation_regions
     }
     /// Where the rows of one input of a region come from: a relation's from one file each, a region's or a named
     /// observation's as the compiler found, anything else from no one file.
-    pub(crate) fn source_lineage(&self, source: InputSource) -> crate::domain::lineage::types::Lineage {
+    pub fn source_lineage(&self, source: InputSource) -> crate::domain::lineage::types::Lineage {
         use crate::domain::lineage::types::Lineage;
         let of_region = |id: RegionId| {
             self.regions

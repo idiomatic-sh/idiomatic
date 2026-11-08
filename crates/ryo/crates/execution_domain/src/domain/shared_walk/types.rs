@@ -8,9 +8,9 @@ use crate::domain::{
 };
 use ryo_relations::domain::relations::types::Value;
 
-pub(crate) mod native_batch;
-pub(crate) mod prepared_walk;
-pub(crate) mod walk_route;
+pub mod native_batch;
+pub mod prepared_walk;
+pub mod walk_route;
 
 /// Number of equivalence classes in one prepared request.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -18,7 +18,7 @@ pub(crate) struct ClassCount(pub usize);
 
 /// Candidate source rows offered to a reached class.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) struct RowsVisited(pub u64);
+pub struct RowsVisited(pub u64);
 
 /// Immutable identity of an exact ordered predicate prefix in this request.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -30,7 +30,7 @@ pub(crate) struct PredicateNumber(pub usize);
 
 /// A stored class result with the source rows its decision visited.
 #[derive(Clone, Debug)]
-pub(crate) struct ClassLease {
+pub struct ClassLease {
     pub result: std::sync::Arc<ClassResult>,
     pub visits: RowsVisited,
 }
@@ -63,14 +63,14 @@ pub(crate) struct ClassWork {
 pub(crate) struct CohortPlace(pub usize);
 
 #[derive(Debug, Default)]
-pub(crate) struct WalkWork {
-    pub active: Vec<ClassPlace>,
-    pub work: Vec<ClassWork>,
-    pub by_kind: Vec<Vec<CohortPlace>>,
-    pub columns_by_kind: Vec<ColumnPlaces>,
-    pub every: Vec<CohortPlace>,
-    pub cells: Vec<Value>,
-    pub predicates: PredicateMemo,
+pub struct WalkWork {
+    pub(crate) active: Vec<ClassPlace>,
+    pub(crate) work: Vec<ClassWork>,
+    pub(crate) by_kind: Vec<Vec<CohortPlace>>,
+    pub(crate) columns_by_kind: Vec<ColumnPlaces>,
+    pub(crate) every: Vec<CohortPlace>,
+    pub(crate) cells: Vec<Value>,
+    pub(crate) predicates: PredicateMemo,
 }
 
 /// Decisions of the current source row indexed by `PredicatePlace`, and the places filled.
@@ -113,16 +113,16 @@ pub struct WalkCounts {
 
 /// Accepted rows precede the first terminal predicate error in source order.
 #[derive(Debug)]
-pub(crate) struct ClassResult {
-    pub positions: Slots,
-    pub completion: Result<(), crate::domain::operating::errors::OperatingError>,
+pub struct ClassResult {
+    pub(crate) positions: Slots,
+    pub(crate) completion: Result<(), crate::domain::operating::errors::OperatingError>,
 }
 
 /// Read-only accounting of the bound physical program; never admission authority.
 #[derive(Clone, Copy, Debug, Default)]
-pub(crate) struct WalkRouteCount(pub usize);
+pub struct WalkRouteCount(pub usize);
 #[derive(Debug, Default)]
-pub(crate) struct WalkCensus {
+pub struct WalkCensus {
     pub instructions: WalkRouteCount,
     pub shared: WalkRouteCount,
     pub classes: Vec<ClassPlace>,
@@ -137,7 +137,7 @@ pub(crate) struct WalkCensus {
 
 /// A declined representation is emitted only by the semantic preflight that inspected it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum WalkRefusal {
+pub enum WalkRefusal {
     Representation,
 }
 

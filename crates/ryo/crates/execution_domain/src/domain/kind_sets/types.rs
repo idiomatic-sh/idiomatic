@@ -12,7 +12,7 @@ pub(crate) struct KindScratch {
     pub tests: ComparisonNumbers,
 }
 
-pub(crate) mod vocabulary;
+pub mod vocabulary;
 
 /// The stable address of a request-owned list of comparisons, never dereferenced.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]

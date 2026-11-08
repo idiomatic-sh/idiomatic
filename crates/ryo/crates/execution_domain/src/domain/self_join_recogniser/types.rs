@@ -4,7 +4,7 @@ use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, StepId};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Extremum {
+pub enum Extremum {
     Maximum,
     Minimum,
 }
@@ -12,18 +12,18 @@ pub(crate) enum Extremum {
 /// A stored numeric decoder required by the original, uncanonicalized column lineage.
 /// This is a requirement, never a caller assertion that runtime admission succeeded.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct StoredNumberOrigin {
+pub struct StoredNumberOrigin {
     pub relation: Relation,
     pub column: ColumnIndex,
 }
 
 /// How many columns the rows of the source hold.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct SchemaWidth(pub usize);
+pub struct SchemaWidth(pub usize);
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct NumberRequirement {
-    pub source: StepId,
+pub struct NumberRequirement {
+    pub(crate) source: StepId,
     pub column: ColumnIndex,
     pub width: SchemaWidth,
     pub origins: Vec<StoredNumberOrigin>,
@@ -73,7 +73,7 @@ pub(crate) struct Declined {
 }
 
 #[derive(Clone, Debug, Default)]
-pub(crate) struct Program {
-    pub shapes: Vec<Shape>,
-    pub declines: Vec<Declined>,
+pub struct Program {
+    pub(crate) shapes: Vec<Shape>,
+    pub(crate) declines: Vec<Declined>,
 }

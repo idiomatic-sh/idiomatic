@@ -4,7 +4,7 @@ use crate::domain::completion::types::{CoverageState, FileLacks, MissingRows};
 use crate::domain::operating::errors::OperatingError;
 use ryo_relations::domain::relations::types::FileId;
 
-pub(crate) fn file_frontier_coverage(
+pub fn file_frontier_coverage(
     coverage: CoverageState,
     file: FileId,
 ) -> Result<ryo_values::domain::records::types::FrontierCoverage, OperatingError> {
@@ -59,7 +59,7 @@ fn frontier_missing(
 }
 
 /// What a frontier proof of `file` says is missing, as the lacks of a coverage.
-pub(crate) fn restored_lacks(
+pub fn restored_lacks(
     file: FileId,
     affected: &[ryo_values::domain::records::types::FrontierAffected],
 ) -> Vec<FileLacks> {
@@ -97,7 +97,7 @@ fn coverage_missing(
 }
 
 /// The files a coverage lacks input of, an inapplicable one as the file it is; none when nothing lacks input.
-pub(crate) fn affected_files(
+pub fn affected_files(
     coverage: &CoverageState,
 ) -> Option<Vec<Option<FileId>>> {
     match coverage {

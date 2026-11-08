@@ -26,7 +26,7 @@ use ryo_values::domain::plan_parts::types::Input;
 /// The rows an operator reads: the columns of a relation as the store keeps them, or the table
 /// another step computed.
 #[derive(Clone, Debug)]
-pub(crate) enum Rows<'a> {
+pub enum Rows<'a> {
     /// A relation's columns, read where the store keeps them.
     Stored(ColumnsView<'a>),
     /// The edges of a file's syntax tree, read from the tree itself: no row of them is stored.
@@ -40,7 +40,7 @@ pub(crate) enum Rows<'a> {
 /// The rows of one input that the per-file steps hand to the cross-file steps: the rows of every
 /// file that has any, one after another.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct Frontier {
+pub struct Frontier {
     /// What the rows are of.
     pub input: Input,
     /// The rows, with every name as the place of its text.
@@ -71,7 +71,7 @@ pub(crate) enum Addition {
 
 /// What a comparison decided about a text.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Verdict {
+pub enum Verdict {
     /// The comparison holds.
     Holds,
     /// It does not.
@@ -82,14 +82,14 @@ pub(crate) enum Verdict {
 /// Opaque immutable publication crossing the engine's domain port. A foreign
 /// implementation carries no authority: the application verifies its private
 /// record and current population epoch before admission or resolution.
-pub(crate) trait PublishedRelation: std::any::Any + std::fmt::Debug + Send + Sync {
+pub trait PublishedRelation: std::any::Any + std::fmt::Debug + Send + Sync {
     fn as_any(&self) -> &dyn std::any::Any;
 }
-pub(crate) mod registered_representation;
+pub mod registered_representation;
 
 /// The representation a physical row source is held in.
 #[derive(Clone, Copy)]
-pub(crate) enum RepresentationInput<'a> {
+pub enum RepresentationInput<'a> {
     Stored(ColumnsView<'a>),
     Tree(TreeRows<'a>),
     Computed(&'a Table),

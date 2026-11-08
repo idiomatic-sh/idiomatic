@@ -26,7 +26,7 @@ const KIND_COLUMN: ColumnIndex = ColumnIndex(1);
 /// The words `plan` compares the kind of a node or a token with, once the parameters are bound: a literal, or the texts a parameter is
 /// bound to.
 #[must_use]
-pub(crate) fn kinds_asked(plan: &Plan, bound: &[ParameterBinding]) -> Vec<AskedKind> {
+pub fn kinds_asked(plan: &Plan, bound: &[ParameterBinding]) -> Vec<AskedKind> {
     let mut asked = Vec::new();
     for step in &plan.steps {
         if let Operation::Select {
@@ -183,7 +183,7 @@ pub(crate) fn languages_of(vocabularies: &KindVocabularies) -> LanguageList {
 
 /// The first word a rule writes for a kind that no linked language has a kind for.
 #[must_use]
-pub(crate) fn first_unknown(
+pub fn first_unknown(
     plans: &[Plan],
     bindings: &[Vec<ParameterBinding>],
     vocabularies: &KindVocabularies,
@@ -204,7 +204,7 @@ pub(crate) fn first_unknown(
 
 /// What is said of a word that names no kind: the word and the languages that were looked in.
 #[must_use]
-pub(crate) fn unknown_message(word: &KindWord, vocabularies: &KindVocabularies) -> KindRefusal {
+pub fn unknown_message(word: &KindWord, vocabularies: &KindVocabularies) -> KindRefusal {
     KindRefusal {
         message: KindMessage(
             format!(

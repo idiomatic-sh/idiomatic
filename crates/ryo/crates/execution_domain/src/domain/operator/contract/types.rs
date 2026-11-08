@@ -13,7 +13,7 @@ use ryo_values::domain::query_bindings::types::ParameterBinding;
 
 /// The finite existing semantic input shapes; dependency acquisition is engine work.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum InputMode {
+pub enum InputMode {
     /// One row and immutable side resources, preserving immediate emitter failure.
     Row {
         /// The input whose rows trigger this mode.
@@ -78,12 +78,12 @@ pub(crate) enum Effects {
 
 /// One prepared semantic dependency and input contract for every output consumer.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct SemanticContract {
-    pub(crate) shape: InputMode,
+pub struct SemanticContract {
+    pub shape: InputMode,
     pub(crate) demand: DemandOrder,
-    pub(crate) acquisition: AcquisitionBoundary,
-    pub(crate) row_inputs: RowInputMask,
-    pub(crate) preflight: PreflightOrder,
+    pub acquisition: AcquisitionBoundary,
+    pub row_inputs: RowInputMask,
+    pub preflight: PreflightOrder,
 }
 
 /// What an operation declares of its semantics: its input contract, its effects and the
@@ -96,11 +96,11 @@ pub(crate) struct OperationSemantics {
 
 /// Inputs whose rows may trigger evaluation in this mode.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct RowInputMask(pub u8);
+pub struct RowInputMask(pub u8);
 
 /// Resource acquisition preserves the old applicable-input refusal boundary.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum AcquisitionBoundary {
+pub enum AcquisitionBoundary {
     /// Before reading input rows.
     BeforeRows,
     /// At the first applicable input row.
@@ -109,7 +109,7 @@ pub(crate) enum AcquisitionBoundary {
 
 /// Physical source validation precedes resource acquisition for SourceMatches.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum SourceGate {
+pub enum SourceGate {
     /// No physical source check.
     None,
     /// Check a source text column.
@@ -128,7 +128,7 @@ pub(crate) enum SourceGate {
 
 /// Whether collected preflight validates schema before resource acquisition.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum PreflightOrder {
+pub enum PreflightOrder {
     /// Check the complete schema before acquiring resources.
     SchemaFirst,
     /// Acquire resources before validating the complete schema.
@@ -136,12 +136,12 @@ pub(crate) enum PreflightOrder {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum WorkspaceLifetime {
+pub enum WorkspaceLifetime {
     Invocation,
     PrimaryRow,
 }
 #[derive(Clone, Debug)]
-pub(crate) enum WorkspaceProgram {
+pub enum WorkspaceProgram {
     None,
     FirstOccurrences {
         lifetime: WorkspaceLifetime,
@@ -151,7 +151,7 @@ pub(crate) enum WorkspaceProgram {
 
 /// Owned by one request and aligned with the compiled operation.
 #[derive(Clone, Debug)]
-pub(crate) struct OperatorContract {
+pub struct OperatorContract {
     pub derived: crate::domain::derived_views::types::contract::value::DerivedSlots,
     pub kind: OperationKind,
     pub inputs: Inputs,
@@ -170,15 +170,15 @@ pub(crate) struct OperatorContract {
     pub row_error: Option<OperatingError>,
     pub literal_pattern: Option<ryo_values::domain::plan_parts::types::LiteralText>,
     pub predicates: PreparedPredicates,
-    pub effects: Effects,
-    pub reuse: ReuseScope,
+    pub(crate) effects: Effects,
+    pub(crate) reuse: ReuseScope,
     /// Exact typed fields, not a hash-only or Debug-text key.
     pub identity: Operation,
 }
 
 /// Immutable inputs only. No Feed, callback, scheduler or owned/retained Arc is supplied.
 #[derive(Clone, Copy)]
-pub(crate) enum PreparedInputs<'a> {
+pub enum PreparedInputs<'a> {
     Row {
         input: InputPlace,
         row: &'a [Value],
@@ -190,7 +190,7 @@ pub(crate) enum PreparedInputs<'a> {
 
 /// Read-only data borrowed from the application-owned invocation. No owner,
 /// scheduler, acquisition or release operation crosses this interface.
-pub(crate) trait PrimitiveResources {
+pub trait PrimitiveResources {
     fn validate_declared(&self) -> Result<(), OperatingError>;
     fn index(&self) -> Option<IndexedRows<'_>>;
     fn appended(&self) -> Option<&[Value]>;
@@ -212,7 +212,7 @@ pub(crate) trait PrimitiveResources {
 
 /// Only row-varying context is assembled at row delivery. Acquired resources
 /// remain in the invocation and are reached through a borrowed reader.
-pub(crate) struct PrimitiveViews<'a> {
+pub struct PrimitiveViews<'a> {
     pub phase: crate::domain::operating::types::AfterTheFiles,
     pub resources: &'a dyn PrimitiveResources,
     pub semantic: Option<&'a dyn crate::domain::operating::types::SemanticLookup>,
@@ -228,30 +228,30 @@ pub(crate) struct PrimitiveViews<'a> {
 
 /// Allocation slots owned once by the application invocation. A primitive only
 /// receives a reborrow; no cache, owner or generation identity is reachable.
-pub(crate) struct PrimitiveWorkspace {
+pub struct PrimitiveWorkspace {
     /// The buffers the operators fill while they evaluate a kind.
     pub evaluation: ryo_operators::domain::evaluation::types::EvaluationScratch,
-    pub axis: Option<AxisWorkspace>,
-    pub positions: Vec<ryo_relations::domain::relations::types::Position>,
-    pub dfs: Option<DfsWorkspace>,
-    pub closure_walk: Option<crate::domain::table_reach::types::Walk>,
-    pub distinct: Option<DistinctWorkspace>,
+    pub(crate) axis: Option<AxisWorkspace>,
+    pub(crate) positions: Vec<ryo_relations::domain::relations::types::Position>,
+    pub(crate) dfs: Option<DfsWorkspace>,
+    pub(crate) closure_walk: Option<crate::domain::table_reach::types::Walk>,
+    pub(crate) distinct: Option<DistinctWorkspace>,
 }
 /// The rows found at each of the three inputs of a counted step.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) struct WorkTotals(pub [FoundRows; 3]);
+pub struct WorkTotals(pub [FoundRows; 3]);
 
 /// How many rows a counted step found.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) struct FoundRows(pub u64);
+pub struct FoundRows(pub u64);
 
 /// The engine constructs and releases this borrow; a primitive owns no service state.
 /// Borrowed logical work counters; storage belongs to the invocation owner.
 #[derive(Default)]
-pub(crate) struct WorkCounters(pub(super) [std::cell::Cell<u64>; 3]);
-pub(crate) struct PrimitiveLease<'a> {
-    pub views: PrimitiveViews<'a>,
-    pub workspace: &'a mut PrimitiveWorkspace,
+pub struct WorkCounters(pub(super) [std::cell::Cell<u64>; 3]);
+pub struct PrimitiveLease<'a> {
+    pub(crate) views: PrimitiveViews<'a>,
+    pub(crate) workspace: &'a mut PrimitiveWorkspace,
     pub derived: QuerySymbols<'a>,
     pub(super) predicate: &'a mut dyn PredicateProgram,
     pub(super) semantics: &'a dyn PrimitiveSemantics,
@@ -260,7 +260,7 @@ pub(crate) struct PrimitiveLease<'a> {
 
 /// Borrowed portable primitive meanings; the application supplies the implementation.
 /// No outbound adapter, cache owner or scheduler is reachable from a primitive.
-pub(crate) trait PrimitiveSemantics: Sync {
+pub trait PrimitiveSemantics: Sync {
     #[cfg(feature = "diagnostic-row-progress")]
     fn progress(&self) -> &dyn super::views::ProgressObserver {
         &super::views::IgnoredProgress
@@ -275,7 +275,7 @@ pub(crate) trait PrimitiveSemantics: Sync {
     >;
 }
 
-pub(crate) fn portable_fault(
+pub fn portable_fault(
     error: ryo_operators::domain::contract::types::PortableOperatorFault,
 ) -> OperatingError {
     use ryo_operators::domain::contract::types::PortableOperatorFault;
@@ -299,7 +299,7 @@ pub(crate) fn portable_fault(
 }
 
 /// A narrow lease reborrow preserves source/derived symbols while downstream rows run.
-pub(crate) trait RowSink {
+pub trait RowSink {
     fn row(&mut self, lease: &mut PrimitiveLease<'_>, row: &[Value]) -> Result<(), OperatingError>;
 }
 
@@ -312,11 +312,11 @@ pub(crate) struct DistinctWorkspace {
 
 /// How many operations a request prepared.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct PreparationCount(pub usize);
+pub struct PreparationCount(pub usize);
 
 /// Prepared metadata belongs to the request; workers only borrow this immutable value.
 #[derive(Debug)]
-pub(crate) struct RequestOperators {
+pub struct RequestOperators {
     /// Original-plan shape metadata owned by this exact immutable request, never file state:
     /// one slot per rule, compiled when the request graph first resolves that rule's regions.
     pub ordered_existence:
@@ -327,7 +327,7 @@ pub(crate) struct RequestOperators {
 
 /// Exact semantic program bound once; a primitive cannot substitute comparisons.
 #[derive(Clone, Debug)]
-pub(crate) struct PreparedPredicates {
+pub struct PreparedPredicates {
     pub comparisons: Vec<ryo_values::domain::plan_parts::types::PlanComparison>,
     pub kinds: Vec<CellKind>,
 }
@@ -340,12 +340,12 @@ pub(crate) enum ReuseScope {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum EmptyRepresentation {
+pub enum EmptyRepresentation {
     Any,
     Computed,
 }
 #[derive(Clone, Debug)]
-pub(crate) struct EmptyResult {
+pub struct EmptyResult {
     pub input: ryo_values::domain::plan_parts::types::InputNumber,
     pub representation: EmptyRepresentation,
     pub kinds: Result<Vec<CellKind>, OperatingError>,
@@ -353,7 +353,7 @@ pub(crate) struct EmptyResult {
 
 /// The work of one invocation of an axis walk.
 #[derive(Debug, Default)]
-pub(crate) struct AxisWorkspace {
+pub struct AxisWorkspace {
     pub(crate) walk: crate::domain::table_reach::types::Walk,
     pub(crate) found: Vec<ryo_relations::domain::relations::types::Position>,
 }
@@ -368,7 +368,7 @@ pub(crate) struct ExaminedCount(pub(crate) usize);
 
 /// The work of one invocation of the ordered depth-first search, with what its walks expanded and examined.
 #[derive(Debug, Default)]
-pub(crate) struct DfsWorkspace {
+pub struct DfsWorkspace {
     pub(crate) walk: crate::domain::table_reach::types::OrderedWalk,
     pub(crate) expanded: ExpandedCount,
     pub(crate) examined: ExaminedCount,

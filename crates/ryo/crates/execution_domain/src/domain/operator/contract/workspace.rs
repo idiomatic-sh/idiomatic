@@ -47,7 +47,7 @@ pub(crate) fn prepare(
 }
 /// Reset logical contents while retaining allocation. A schema fault stays deferred
 /// until the primitive actually requests first-occurrence semantics.
-pub(crate) fn begin(
+pub fn begin(
     program: &WorkspaceProgram,
     lifetime: Lifetime,
     workspace: &mut PrimitiveWorkspace,

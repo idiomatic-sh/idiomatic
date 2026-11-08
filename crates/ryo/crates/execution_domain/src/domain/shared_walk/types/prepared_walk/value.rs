@@ -19,7 +19,7 @@ use ryo_values::domain::{
 
 /// A request's exact comparison and binding equivalence, with no retained Plan.
 #[derive(Debug)]
-pub(crate) struct PreparedWalk {
+pub struct PreparedWalk {
     classes: Merge,
     pub(crate) physical: Vec<Option<WalkRoute>>,
     prefixes: Vec<Vec<PredicatePlace>>,
@@ -28,7 +28,7 @@ pub(crate) struct PreparedWalk {
 }
 
 impl PreparedWalk {
-    pub(crate) fn compile(plans: &[Plan], bindings: &[Vec<ParameterBinding>]) -> Self {
+    pub fn compile(plans: &[Plan], bindings: &[Vec<ParameterBinding>]) -> Self {
         let mut prepared = Self {
             classes: merge(plans, bindings),
             physical: Vec::new(),
@@ -102,7 +102,7 @@ impl PreparedWalk {
         }
     }
     /// Count the exact routes chosen during binding, independently of later demand.
-    pub(crate) fn census(&self) -> crate::domain::shared_walk::types::WalkCensus {
+    pub fn census(&self) -> crate::domain::shared_walk::types::WalkCensus {
         use crate::domain::shared_walk::types::{WalkCensus, WalkRouteCount};
         let mut census = WalkCensus {
             instructions: WalkRouteCount(self.physical.iter().flatten().count()),
@@ -181,7 +181,7 @@ impl PreparedWalk {
     }
 
     /// Exclude logical classes with no physical consumer of the shared result.
-    pub(crate) fn retain_program_consumers(
+    pub fn retain_program_consumers(
         &mut self,
         program: &crate::domain::executable_program::types::executable_program::value::ExecutableProgram,
     ) -> Result<(), OperatingError> {
@@ -320,7 +320,7 @@ impl PreparedWalk {
     }
 
     /// Direct lookup in the immutable physical program, prepared once per request.
-    pub(crate) fn class_for(
+    pub fn class_for(
         &self,
         instruction: &crate::domain::executable_program::types::instruction::value::Instruction,
     ) -> Option<ClassPlace> {
@@ -331,18 +331,18 @@ impl PreparedWalk {
     }
 
     /// The route bound to a physical instruction, if it was bound.
-    pub(crate) fn route_of(
+    pub fn route_of(
         &self,
         instruction: &crate::domain::executable_program::types::instruction::value::Instruction,
     ) -> Option<WalkRoute> {
         *self.physical.get(instruction.logical().0)?
     }
 
-    pub(crate) fn classes(&self) -> &[StepClass] {
+    pub fn classes(&self) -> &[StepClass] {
         &self.classes.classes
     }
 
-    pub(crate) fn class_of(&self, rule: RuleIndex) -> Option<&[Option<ClassPlace>]> {
+    pub fn class_of(&self, rule: RuleIndex) -> Option<&[Option<ClassPlace>]> {
         self.classes.class_of.get(rule.0).map(Vec::as_slice)
     }
 }

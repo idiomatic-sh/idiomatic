@@ -7,7 +7,7 @@ use crate::domain::file_program::{
 use ryo_values::domain::{
     plans::types::Plan, query_bindings::types::ParameterBinding, rule_requests::types::RuleSpec,
 };
-pub(crate) fn assemble(
+pub fn assemble(
     plans: Vec<Plan>,
     bindings: Vec<Vec<ParameterBinding>>,
     rules: &[RuleSpec],

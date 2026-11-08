@@ -13,7 +13,7 @@ use ryo_values::domain::rows::service::positions;
 /// # Errors
 ///
 /// Whatever `emit` refuses.
-pub(crate) fn scan(
+pub fn scan(
     rows: &Rows<'_>,
     buffer: &mut Vec<Value>,
     context: &mut OperatorContext<'_>,
@@ -41,7 +41,7 @@ pub(crate) fn scan(
 
 /// Deliver a selection's accepted prefix before its terminal predicate error.
 /// The existing continuation decides downstream semantics and sink refusal order.
-pub(crate) fn selected(
+pub fn selected(
     result: &crate::domain::shared_walk::types::ClassResult,
     source: &Rows<'_>,
     kept: super::types::SelectionColumns<'_>,

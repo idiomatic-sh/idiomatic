@@ -1,10 +1,10 @@
 //! The `core` domain's `table_model` concept.
 
-pub(crate) mod collections;
+pub mod collections;
 mod constants;
 
-pub(crate) mod service;
-pub(crate) mod types;
+pub mod service;
+pub mod types;
 
 #[cfg(test)]
 pub(crate) mod service_test;

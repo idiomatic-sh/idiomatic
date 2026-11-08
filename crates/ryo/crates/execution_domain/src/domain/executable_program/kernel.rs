@@ -2,7 +2,7 @@
 //! They cannot ask an engine to resolve a dependency or mint a publication.
 /// The first applicable row gate precedes invocation resource acquisition. It
 /// reads admitted values/text only and has no application acquisition capability.
-pub(crate) fn row_admissible(
+pub fn row_admissible(
     contract: &crate::domain::operator::contract::types::OperatorContract,
     row: &[ryo_relations::domain::relations::types::Value],
     texts: &crate::domain::table_texts::types::Texts<'_>,

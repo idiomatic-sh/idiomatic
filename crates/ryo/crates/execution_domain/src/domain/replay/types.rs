@@ -7,7 +7,7 @@ use crate::domain::operating::types::{Emit, OperatorContext};
 use ryo_values::domain::rows::service::push_row;
 
 /// A table that takes the rows as they come.
-pub(crate) struct Collect<'t>(pub &'t mut Table);
+pub struct Collect<'t>(pub &'t mut Table);
 
 impl Emit for Collect<'_> {
     fn row(
@@ -24,7 +24,7 @@ use ryo_values::domain::rows::types::Table;
 
 /// The authored projection, including the deliberate zero-column projection.
 #[derive(Clone, Copy)]
-pub(crate) enum SelectionColumns<'a> {
+pub enum SelectionColumns<'a> {
     All,
     Columns(&'a [ryo_values::domain::plan_parts::types::ColumnIndex]),
 }

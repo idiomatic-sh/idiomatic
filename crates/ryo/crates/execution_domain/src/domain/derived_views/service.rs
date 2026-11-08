@@ -3,7 +3,7 @@ use super::types::contract::value::{DerivedContract, kind_of};
 use crate::domain::operating::errors::OperatingError;
 use ryo_derived::domain::request::types::DerivedKind;
 
-pub(crate) fn validate(
+pub fn validate(
     expected: DerivedKind,
     contract: &DerivedContract,
 ) -> Result<(), OperatingError> {

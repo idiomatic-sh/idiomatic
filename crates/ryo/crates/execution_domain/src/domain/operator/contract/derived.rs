@@ -1,7 +1,7 @@
 //! Portable meaning of derived faults.
 use crate::domain::operating::errors::OperatingError;
 
-pub(crate) fn portable_fault(
+pub fn portable_fault(
     fault: ryo_derived::domain::fault::types::DerivedFault,
 ) -> OperatingError {
     use ryo_derived::domain::fault::types::DerivedFault;

@@ -16,7 +16,7 @@ pub(crate) struct NumberedComparison<'a> {
 
 /// What the cells of a row are, and how many names the file has.
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct RowShape<'a> {
+pub struct RowShape<'a> {
     /// The kind of each column of the row.
     pub kinds: &'a [CellKind],
     /// How many names the file has: the length of a comparison's run of the memo.
@@ -25,7 +25,7 @@ pub(crate) struct RowShape<'a> {
 
 /// The room a decision is made in: the select's scratch and the memo of what was decided about each name.
 #[derive(Debug)]
-pub(crate) struct DecisionWorkspace<'a> {
+pub struct DecisionWorkspace<'a> {
     /// The select's scratch: the verdicts kept by text, and the compiled matchers.
     pub select: &'a mut SelectScratch,
     /// What each comparison decided about each name of the file.

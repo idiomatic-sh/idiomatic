@@ -2,7 +2,7 @@
 
 /// Where the rows of a step come from.
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
-pub(crate) enum Lineage {
+pub enum Lineage {
     /// A row may be made of the rows of more than one file, so no column says which file it comes from.
     #[default]
     Mixed,
@@ -12,7 +12,7 @@ pub(crate) enum Lineage {
 
 /// Whether a column's file or node lies in the file its row comes from.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum ColumnAnchor {
+pub enum ColumnAnchor {
     /// The column holds the file the row comes from, or a node of it.
     InFile,
     /// The column holds no file or node, or one that may lie in another file.

@@ -4,4 +4,4 @@ use ryo_language::domain::files::types::FilePath;
 
 /// The files of a run in the order they are numbered: a file's number is its place.
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct NumberedFiles<'a>(pub &'a [FilePath]);
+pub struct NumberedFiles<'a>(pub &'a [FilePath]);

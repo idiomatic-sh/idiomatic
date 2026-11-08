@@ -228,7 +228,7 @@ fn vocabulary_names(
 
 /// Select one exact vocabulary generation. Replacing a generation drops all old literal metadata
 /// once the previous file's own handle ends; distinct file vocabularies cannot accumulate indefinitely.
-pub(crate) fn prepare_vocabulary(
+pub fn prepare_vocabulary(
     previous: &mut Option<std::sync::Arc<PreparedVocabulary>>,
     elements: &ryo_language::domain::elements::types::Elements,
     symbols: &ryo_language::domain::symbols::types::Symbols,

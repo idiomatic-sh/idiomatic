@@ -1,7 +1,7 @@
 //! The `core` domain's `placement` concept.
 
-pub(crate) mod service;
-pub(crate) mod types;
+pub mod service;
+pub mod types;
 
 #[cfg(test)]
 mod service_test;

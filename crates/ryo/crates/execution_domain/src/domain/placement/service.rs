@@ -38,14 +38,14 @@ fn clear(mask: &mut Mask, rule: RuleNumber) {
 }
 
 /// Clears one rule from a file's temporary applicability mask without changing its path scope.
-pub(crate) fn unplace(mask: &mut Mask, rule: RuleNumber) {
+pub fn unplace(mask: &mut Mask, rule: RuleNumber) {
     clear(mask, rule);
 }
 
 /// Decides the scopes of the rules, the first scope being rule zero: the globs in one list, whose
 /// each is whose, and the rules that include nothing.
 #[must_use]
-pub(crate) fn decide(scopes: &[RuleScope]) -> ScopePlacement {
+pub fn decide(scopes: &[RuleScope]) -> ScopePlacement {
     let mut globs: Vec<Glob> = Vec::new();
     let mut owners: Vec<Vec<GlobOwner>> = Vec::new();
     let mut found: HashMap<GlobKey, usize> = HashMap::new();
@@ -85,7 +85,7 @@ pub(crate) fn decide(scopes: &[RuleScope]) -> ScopePlacement {
 /// Says which rules govern the file at `path`: the rules that include nothing, and the rules whose
 /// included globs match, less the rules whose excluded globs match. `mask` and `hits` are the
 /// worker's own and keep their room.
-pub(crate) fn place(placed: &PlacedScopes, path: &FilePath, mask: &mut Mask, hits: &mut Hits) {
+pub fn place(placed: &PlacedScopes, path: &FilePath, mask: &mut Mask, hits: &mut Hits) {
     mask.0.clone_from(&placed.placement.always.0);
     placed.matcher.matches.find(MatchCandidate(&path.0), hits);
     for owner in hits
@@ -110,7 +110,7 @@ pub(crate) fn place(placed: &PlacedScopes, path: &FilePath, mask: &mut Mask, hit
 
 /// Whether the rule governs the file the mask was made for.
 #[must_use]
-pub(crate) fn governs(mask: &Mask, rule: RuleNumber) -> Governing {
+pub fn governs(mask: &Mask, rule: RuleNumber) -> Governing {
     let bit = bit_of(rule);
     if mask
         .0
@@ -125,7 +125,7 @@ pub(crate) fn governs(mask: &Mask, rule: RuleNumber) -> Governing {
 
 /// Whether any rule governs the file the mask was made for.
 #[must_use]
-pub(crate) fn governed(mask: &Mask) -> Governing {
+pub fn governed(mask: &Mask) -> Governing {
     if mask.0.iter().any(|word| *word != 0) {
         Governing::Governs
     } else {

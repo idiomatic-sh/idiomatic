@@ -8,7 +8,7 @@ pub(crate) mod canonical_operation;
 pub(crate) mod fingerprint;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub(crate) struct ProgramNodeId(pub usize);
+pub struct ProgramNodeId(pub usize);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum NodeInput {
@@ -36,22 +36,22 @@ pub(crate) struct FileProgramNode {
 }
 
 #[derive(Debug)]
-pub(crate) struct RequestGraph {
+pub struct RequestGraph {
     /// Every original step, including terminal and project steps. Invalid
     /// references are deferred faults, never a choice of another scheduler.
     pub program_nodes: Vec<Vec<Result<ProgramNodeId, crate::domain::operating::errors::OperatingError>>>,
     /// Reviewed alternatives indexed by their replaced Select producer.
-    pub ordered_existence: Vec<Option<ResolvedAlternative>>,
+    pub(crate) ordered_existence: Vec<Option<ResolvedAlternative>>,
     /// Named roots extend this request graph; ordinary requests retain no observation allocation.
     pub observations: Option<GraphObservations>,
     /// Producers of declared derived inputs, computed once for the whole request.
-    pub derived_sources: DerivedSources,
-    pub nodes: Vec<FileProgramNode>,
+    pub(crate) derived_sources: DerivedSources,
+    pub(crate) nodes: Vec<FileProgramNode>,
 }
 
 /// Ordinary requests need no named-root traversal allocation.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) enum RuleSchedule {
+pub enum RuleSchedule {
     /// Preserve the existing independent original-index traversal.
     Independent,
     /// Original indices traversed once in dependency order and ready batches.
@@ -62,7 +62,7 @@ pub(crate) enum RuleSchedule {
 }
 /// A producer identity resolved once during request compilation.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) enum ResolvedObservationProducer {
+pub enum ResolvedObservationProducer {
     /// An actual named root in a compiled producer plan.
     Output {
         rule: crate::domain::coverage::types::RuleIndex,
@@ -75,7 +75,7 @@ pub(crate) enum ResolvedObservationProducer {
 }
 /// A resolved consumer input in its stable local slot.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct ResolvedObservationBinding {
+pub struct ResolvedObservationBinding {
     /// Local compiled input identity.
     pub input: ryo_values::domain::plan_parts::types::ObservationBindingId,
     /// The actual inferred schema and phase.
@@ -84,7 +84,7 @@ pub(crate) struct ResolvedObservationBinding {
     pub producers: Vec<ResolvedObservationProducer>,
 }
 /// Compile-time descriptors and their resolved graph references travel together.
-pub(crate) struct PreparedObservationInputs {
+pub struct PreparedObservationInputs {
     /// Compiler declarations in original local input order.
     pub schemas: Vec<ryo_values::domain::observations::types::BoundObservationInput>,
     /// Corresponding resolved graph roots.
@@ -93,7 +93,7 @@ pub(crate) struct PreparedObservationInputs {
 
 /// The resolved request dependency contract borrowed by the existing file/cross graph owners.
 #[derive(Clone, Copy, Debug)]
-pub(crate) enum ObservationRequest<'a> {
+pub enum ObservationRequest<'a> {
     /// No bound named roots: keep independent scheduling and no observation state.
     Independent,
     /// Actual resolved bindings and original-index topology, never a second executor.
@@ -105,26 +105,26 @@ pub(crate) enum ObservationRequest<'a> {
 
 /// Stable local bound input qualified by its original consumer index.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub(crate) struct ObservationSlot {
+pub struct ObservationSlot {
     pub rule: crate::domain::coverage::types::RuleIndex,
     pub input: ryo_values::domain::plan_parts::types::ObservationBindingId,
 }
 /// Actual prepared root location; unsupported admission never becomes complete-empty.
 #[derive(Clone, Debug)]
-pub(crate) enum GraphObservationRoot {
+pub enum GraphObservationRoot {
     PerFile(ProgramNodeId),
     CrossFile,
     Unavailable,
 }
 /// One named root and its actual final-consumer accounting.
 #[derive(Clone, Debug)]
-pub(crate) struct GraphObservationOutput {
+pub struct GraphObservationOutput {
     pub root: GraphObservationRoot,
     pub consumers: Vec<crate::domain::coverage::types::RuleIndex>,
 }
 /// The existing request graph owns both typed binding edges and root lifetime declarations.
 #[derive(Debug)]
-pub(crate) struct GraphObservations {
+pub struct GraphObservations {
     pub layout: ryo_values::domain::records::types::ObservationReadinessLayout,
     /// Request-qualified bound slots; graph edges carry a compact ID rather than widening every ordinary edge.
     pub slots: Vec<ObservationSlot>,
@@ -134,7 +134,7 @@ pub(crate) struct GraphObservations {
     pub frontiers: Vec<ObservedFrontierRoot>,
     /// Prepared outgoing retirement edges, indexed by original consumer rule.
     pub retire: Vec<Vec<ObservationRetirement>>,
-    pub bindings: Vec<Vec<GraphObservationBinding>>,
+    pub(crate) bindings: Vec<Vec<GraphObservationBinding>>,
     pub outputs: Vec<Vec<GraphObservationOutput>>,
 }
 
@@ -150,7 +150,7 @@ pub(crate) struct GraphObservationBinding {
 
 /// One unique consumer-to-producer-output lifetime edge, resolved once per request.
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct ObservationRetirement {
+pub struct ObservationRetirement {
     pub producer: crate::domain::coverage::types::RuleIndex,
     pub output: ryo_values::domain::records::types::ObservationIndex,
 }

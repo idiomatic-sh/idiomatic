@@ -6,7 +6,7 @@ use super::views::PredicateProgram;
 use ryo_language::domain::symbols::types::QuerySymbols;
 
 /// The application invocation bridge owns the only production call site.
-pub(crate) fn with_primitive_context<'a, T>(
+pub fn with_primitive_context<'a, T>(
     views: PrimitiveViews<'a>,
     workspace: &'a mut PrimitiveWorkspace,
     derived: QuerySymbols<'a>,

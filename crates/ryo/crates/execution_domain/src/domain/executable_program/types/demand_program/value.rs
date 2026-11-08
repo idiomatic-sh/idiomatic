@@ -5,7 +5,7 @@ use ryo_values::domain::plan_parts::types::InputCount;
 
 /// The ordered admissions of one instruction's inputs.
 #[derive(Clone, Debug)]
-pub(crate) struct DemandProgram {
+pub struct DemandProgram {
     actions: Box<[DemandAction]>,
 }
 
@@ -35,7 +35,7 @@ impl DemandProgram {
     ) -> Self {
         Self::new(Self::admissions(contract, used).into_boxed_slice())
     }
-    pub(crate) fn actions(&self) -> &[DemandAction] {
+    pub fn actions(&self) -> &[DemandAction] {
         &self.actions
     }
 }

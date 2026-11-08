@@ -1,7 +1,7 @@
 //! The `core` domain's `operation_schema` concept.
-pub(crate) mod projection;
+pub mod projection;
 pub(crate) mod service;
-pub(crate) mod types;
+pub mod types;
 
 #[cfg(test)]
 mod join_test;

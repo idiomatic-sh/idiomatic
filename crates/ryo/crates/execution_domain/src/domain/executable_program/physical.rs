@@ -7,17 +7,17 @@ use ryo_operators::domain::ordered_existence::types::PartitionExtremum;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_operators::types::OperationKind;
 
-pub(crate) enum PhysicalRoute<'a> {
+pub enum PhysicalRoute<'a> {
     Registered,
     Ordered(&'a OrderedExistence),
 }
-pub(crate) struct PhysicalBinding<'a> {
+pub struct PhysicalBinding<'a> {
     pub bindings: &'a [ryo_values::domain::query_bindings::types::ParameterBinding],
     pub regex_identity: Option<RegexIdentity>,
     pub source_len: ryo_operators::domain::contract::types::SourceByteLength,
 }
 /// The proof that one operator call is the compiled meaning of its instruction; only [`authorize`] makes one.
-pub(crate) struct PhysicalAuthorization {
+pub struct PhysicalAuthorization {
     _sealed: std::marker::PhantomData<()>,
 }
 
@@ -55,7 +55,7 @@ fn bound_views(
 /// Authorizes one call of the operators as the compiled meaning of its instruction: the one evaluation of the
 /// instruction's own operation on the registered route, the ordered-existence driver of a resolved region, or a
 /// reduction that prepares the grouping of a grouped instruction.
-pub(crate) fn authorize(
+pub fn authorize(
     operation: &Operation,
     route: PhysicalRoute<'_>,
     binding: &PhysicalBinding<'_>,

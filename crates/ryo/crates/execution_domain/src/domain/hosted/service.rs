@@ -49,7 +49,7 @@ pub(crate) fn lines(relations: &[HostRelation]) -> Vec<HostedText> {
 
 /// Materialize a declared request source in the query's derived-name pool.
 /// Source-name interning remains unavailable to semantic operators.
-pub(crate) fn table_of_query(
+pub fn table_of_query(
     relation: &HostRelation,
     files: NumberedFiles<'_>,
     symbols: &mut QuerySymbols<'_>,

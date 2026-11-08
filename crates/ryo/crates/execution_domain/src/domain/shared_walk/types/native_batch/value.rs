@@ -8,7 +8,7 @@ use crate::domain::{
 
 /// Sparse results for only classes reached in this admitted population.
 #[derive(Debug)]
-pub(crate) struct NativeBatch {
+pub struct NativeBatch {
     class_count: ClassCount,
     refusal: Option<crate::domain::shared_walk::types::WalkRefusal>,
     classes: std::collections::BTreeMap<ClassPlace, ClassLease>,
@@ -16,11 +16,11 @@ pub(crate) struct NativeBatch {
 }
 
 impl NativeBatch {
-    pub(crate) fn for_program(program: &PreparedWalk) -> Self {
+    pub fn for_program(program: &PreparedWalk) -> Self {
         Self::empty(ClassCount(program.classes().len()))
     }
     /// Preflight the whole transfer before committing any class or counter.
-    pub(crate) fn merge(&mut self, next: Self) -> Result<(), OperatingError> {
+    pub fn merge(&mut self, next: Self) -> Result<(), OperatingError> {
         if self.class_count != next.class_count
             || next
                 .classes
@@ -70,13 +70,13 @@ impl NativeBatch {
             .saturating_add(next.counts.result_slots.0);
         Ok(())
     }
-    pub(crate) fn refusal(&self) -> Option<crate::domain::shared_walk::types::WalkRefusal> {
+    pub fn refusal(&self) -> Option<crate::domain::shared_walk::types::WalkRefusal> {
         self.refusal
     }
     pub(in crate::domain::shared_walk) fn refuse_representation(&mut self) {
         self.refusal = Some(crate::domain::shared_walk::types::WalkRefusal::Representation);
     }
-    pub(crate) fn counts(&self) -> crate::domain::shared_walk::types::WalkCounts {
+    pub fn counts(&self) -> crate::domain::shared_walk::types::WalkCounts {
         self.counts
     }
     pub(in crate::domain::shared_walk) fn record_pass(&mut self) {
@@ -97,13 +97,13 @@ impl NativeBatch {
     pub(in crate::domain::shared_walk) fn record_scratch_reset(&mut self) {
         self.counts.scratch_classes.0 = self.counts.scratch_classes.0.saturating_add(1);
     }
-    pub(crate) fn class(
+    pub fn class(
         &self,
         place: ClassPlace,
     ) -> Option<&crate::domain::shared_walk::types::ClassResult> {
         self.classes.get(&place).map(|lease| lease.result.as_ref())
     }
-    pub(crate) fn lease(&self, place: ClassPlace) -> Option<ClassLease> {
+    pub fn lease(&self, place: ClassPlace) -> Option<ClassLease> {
         self.classes.get(&place).map(|lease| ClassLease {
             result: std::sync::Arc::clone(&lease.result),
             visits: lease.visits,

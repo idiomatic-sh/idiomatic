@@ -50,7 +50,7 @@ pub(crate) enum Family {
 /// bytes of the file the rows are of, and the paths of the files. An operator may add only derived
 /// names; language fact readers alone own source-name interning.
 #[derive(Debug)]
-pub(crate) struct OperatorContext<'a> {
+pub struct OperatorContext<'a> {
     /// Execution phase supplied by the owner, independent of available text arenas.
     pub phase: AfterTheFiles,
     /// The current file's application-owned semantic session, when available.
@@ -82,7 +82,7 @@ pub(crate) struct OperatorContext<'a> {
 
 /// What a comparison decided about a name of the file.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Memo {
+pub enum Memo {
     /// Not decided yet.
     Unknown,
     /// The comparison fails for the name.
@@ -93,7 +93,7 @@ pub(crate) enum Memo {
 
 /// Where the rows of a step go as they are made, one at a time. The context is the one of the step that makes them; the
 /// step that takes them makes its own from it.
-pub(crate) trait Emit {
+pub trait Emit {
     /// Takes one row.
     ///
     /// # Errors
@@ -108,7 +108,7 @@ pub(crate) trait Emit {
 
 /// How many names a file has: the length of a comparison's run of the memo.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct NameCount(pub usize);
+pub struct NameCount(pub usize);
 
 /// A comparison of a `select`, by its place among the select's comparisons.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -116,7 +116,7 @@ pub(crate) struct ComparisonNumber(pub usize);
 
 /// One of the inputs of a step, by its place among them.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct InputPlace(pub usize);
+pub struct InputPlace(pub usize);
 
 /// Whether a comparison asks of the kind of an element something fixed, which the sets of kinds decide.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -129,7 +129,7 @@ pub(crate) enum KindNaming {
 
 /// Whether the steps run before the files were read, or after: after, the text of the workers is given.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum AfterTheFiles {
+pub enum AfterTheFiles {
     /// While the files are read.
     Before,
     /// After the files were read.

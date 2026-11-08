@@ -15,7 +15,7 @@ use ryo_values::domain::runs::types::RuleId;
 use std::collections::{BTreeMap, BTreeSet};
 
 /// Resolve only declared dependency edges. No providers or operators are executed here.
-pub(crate) fn schedule(rules: &[RuleSpec]) -> Result<RuleSchedule, FileProgramError> {
+pub fn schedule(rules: &[RuleSpec]) -> Result<RuleSchedule, FileProgramError> {
     if rules.iter().all(|rule| rule.observations.is_empty()) {
         return Ok(RuleSchedule::Independent);
     }
@@ -83,7 +83,7 @@ pub(crate) fn schedule(rules: &[RuleSpec]) -> Result<RuleSchedule, FileProgramEr
 }
 
 /// Infer actual schemas/phases after earlier producer plans compiled, without renumbering rule IDs.
-pub(crate) fn schemas<P: std::borrow::Borrow<Plan>>(
+pub fn schemas<P: std::borrow::Borrow<Plan>>(
     consumer: &RuleSpec,
     rules: &[RuleSpec],
     compiled: &[Option<P>],
@@ -352,7 +352,7 @@ pub(crate) fn graph_outputs(
 }
 
 /// A bound request cannot silently fall back to independent execution.
-pub(crate) fn request<'a>(
+pub fn request<'a>(
     schedule: &'a RuleSchedule,
     bindings: &'a [Vec<ResolvedObservationBinding>],
     layout: ryo_values::domain::records::types::ObservationReadinessLayout,

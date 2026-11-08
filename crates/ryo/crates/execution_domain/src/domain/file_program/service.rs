@@ -1,7 +1,7 @@
 //! Typed request graph construction and bounded file-local successful result reuse.
 
-pub(crate) mod link;
-pub(crate) mod observations;
+pub mod link;
+pub mod observations;
 
 use super::constants::{EXPECT_BINDING_SLOTS, ORDERED_EXISTENCE_DECLINED, PREPARATION_TARGET};
 use super::types::canonical_operation::value::CanonicalOperation;
@@ -33,7 +33,7 @@ pub(crate) fn compile_prepared(
 }
 
 /// Extend the same graph with named producer edges after all real contracts are prepared.
-pub(crate) fn compile_prepared_observations(
+pub fn compile_prepared_observations(
     plans: &[Plan],
     operators: &crate::domain::operator::contract::types::RequestOperators,
     observations: ObservationRequest<'_>,

@@ -3,15 +3,15 @@ use crate::domain::operating::errors::OperatingError;
 
 /// Whether the latch has recorded a failure.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum LatchState {
+pub enum LatchState {
     Failed,
     Open,
 }
 
 #[derive(Default)]
-pub(crate) struct FailureLatch(Option<OperatingError>);
+pub struct FailureLatch(Option<OperatingError>);
 impl FailureLatch {
-    pub(crate) fn failed(&self) -> LatchState {
+    pub fn failed(&self) -> LatchState {
         if self.0.is_some() {
             LatchState::Failed
         } else {
@@ -19,7 +19,7 @@ impl FailureLatch {
         }
     }
     /// Skip every callback after the first failure and preserve that original engine error.
-    pub(crate) fn run<T>(
+    pub fn run<T>(
         &mut self,
         body: impl FnOnce() -> Result<T, OperatingError>,
     ) -> Result<T, ()> {
@@ -39,7 +39,7 @@ impl FailureLatch {
             self.0 = Some(error);
         }
     }
-    pub(crate) fn take(&mut self) -> Option<OperatingError> {
+    pub fn take(&mut self) -> Option<OperatingError> {
         self.0.take()
     }
 }

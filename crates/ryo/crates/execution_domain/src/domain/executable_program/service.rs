@@ -18,7 +18,7 @@ use ryo_values::domain::{
 
 /// The analysis graph is consumed. Its native regions, layouts, cuts, liveness
 /// tables and original-plan execution copies do not survive into this program.
-pub(crate) fn compile(
+pub fn compile(
     plans: &[Plan],
     graph: RequestGraph,
     partitions: &dyn ProducerPartitions,
@@ -242,7 +242,7 @@ pub(crate) fn compile(
     Ok(program)
 }
 
-pub(crate) fn ordered_existence(route: &super::types::Route) -> Option<&OrderedExistence> {
+pub fn ordered_existence(route: &super::types::Route) -> Option<&OrderedExistence> {
     match route {
         super::types::Route::OrderedExistence(shape) => Some(shape),
         _ => None,

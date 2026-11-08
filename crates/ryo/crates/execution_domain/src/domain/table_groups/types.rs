@@ -15,22 +15,22 @@ pub(crate) struct SetDigest(pub i64);
 
 /// A run of rows that agree on their keys, counted: the first of its rows, and how many it has.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct Group {
+pub struct Group {
     /// The first row of the group, in the order the rows came.
     pub first: RowIndex,
     /// What was counted for it.
     pub counted: RowCount,
     /// A digest of the set of distinct values it holds, when a digest was asked for; zero otherwise.
-    pub digest: SetDigest,
+    pub(crate) digest: SetDigest,
 }
 
 /// The hashes of the values of a group.
 #[derive(Debug, Default, PartialEq, Eq)]
-pub(crate) struct Hashes(pub Vec<u64>);
+pub struct Hashes(pub Vec<u64>);
 
 /// The room a count works in.
 #[derive(Debug)]
-pub(crate) struct CountRoom<'a> {
+pub struct CountRoom<'a> {
     /// The rows in the order of their keys.
     pub order: &'a [RowIndex],
     /// The groups found.

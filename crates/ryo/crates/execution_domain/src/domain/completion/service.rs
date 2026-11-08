@@ -4,7 +4,7 @@ use ryo_relations::domain::relations::types::FileId;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Operand, PlanComparison};
 
 /// A coverage partial in these files, any row of which could be missing.
-pub(crate) fn partial_any(files: Vec<Option<FileId>>) -> CoverageState {
+pub fn partial_any(files: Vec<Option<FileId>>) -> CoverageState {
     partial_of_lacks(
         files
             .into_iter()
@@ -17,7 +17,7 @@ pub(crate) fn partial_any(files: Vec<Option<FileId>>) -> CoverageState {
 }
 
 /// What is missing from each of `files`: what `lacks` says of a file, any row of one it does not name.
-pub(crate) fn lacks_of(files: &[Option<FileId>], lacks: &[FileLacks]) -> Vec<FileLacks> {
+pub fn lacks_of(files: &[Option<FileId>], lacks: &[FileLacks]) -> Vec<FileLacks> {
     files
         .iter()
         .map(|file| FileLacks {
@@ -51,7 +51,7 @@ fn union_missing(first: MissingRows, second: MissingRows) -> MissingRows {
 
 /// The partial coverage of what is missing from files, sorted, once each; what is missing is the union of what was said of a file.
 /// A file that lacks any row is not named, as `lacks` leaves it out.
-pub(crate) fn partial_of_lacks(mut all: Vec<FileLacks>) -> CoverageState {
+pub fn partial_of_lacks(mut all: Vec<FileLacks>) -> CoverageState {
     all.sort();
     let mut files: Vec<Option<FileId>> = Vec::with_capacity(all.len());
     let mut lacks: Vec<FileLacks> = Vec::new();

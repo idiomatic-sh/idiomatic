@@ -112,7 +112,7 @@ fn needs_from(plan: &Plan, reads: &[Result<StepReads, OperatingError>]) -> Vec<V
 
 /// The reads of the relations the steps of a plan trust the absence of rows of, by where the steps run.
 #[must_use]
-pub(crate) fn scoped_needs(plan: &Plan) -> Needs {
+pub fn scoped_needs(plan: &Plan) -> Needs {
     let mut scoped = Needs::default();
     // What the plan reads is what its last steps have read, with every narrowing made on the way to them.
     let steps = uses_of(plan);
@@ -158,7 +158,7 @@ pub(crate) fn scoped_needs(plan: &Plan) -> Needs {
 /// Whether a partly read relation could change what a read of it makes: it is that relation, and the rows that could be missing
 /// are of a kind the read lets through.
 #[must_use]
-pub(crate) fn matters(read: &RelationRead, partial: &Partial) -> Bearing {
+pub fn matters(read: &RelationRead, partial: &Partial) -> Bearing {
     let does = read.relation == partial.relation
         && match &partial.lacking {
             Lacking::Any => true,
@@ -176,7 +176,7 @@ pub(crate) fn matters(read: &RelationRead, partial: &Partial) -> Bearing {
 
 /// Whether any of the reads `needs` is of a relation read in part in the file.
 #[must_use]
-pub(crate) fn blocked(needs: &[RelationRead], partial: &[Partial]) -> Blocking {
+pub fn blocked(needs: &[RelationRead], partial: &[Partial]) -> Blocking {
     if needs.iter().any(|read| {
         partial
             .iter()
@@ -235,7 +235,7 @@ pub(crate) fn files_for(partials: &Partials, needs: &[RelationRead]) -> Vec<Opti
 /// What the rules could not decide because a relation of the project they trust the absence of rows of is read in part: at the file
 /// the partial relation is about, among `named` (the files the run lists, then the manifests it does not), or at the repository.
 #[must_use]
-pub(crate) fn project_unknowns(
+pub fn project_unknowns(
     partials: &[Partial],
     named: &[FilePath],
     needs: &[Needs],
@@ -289,7 +289,7 @@ pub(crate) fn needs_of_contracts(
 
 /// One topological physical-read pass for all demanded roots: each step's reads, or the refusal of a step that reads a step not
 /// before it.
-pub(crate) fn physical_reads(plan: &Plan) -> Vec<Result<Vec<RelationRead>, OperatingError>> {
+pub fn physical_reads(plan: &Plan) -> Vec<Result<Vec<RelationRead>, OperatingError>> {
     uses_of(plan)
         .into_iter()
         .map(|reads| reads.map(|reads| reads.uses))
@@ -297,7 +297,7 @@ pub(crate) fn physical_reads(plan: &Plan) -> Vec<Result<Vec<RelationRead>, Opera
 }
 /// All physical reads needed to certify demanded observations, including an observed
 /// intermediate whose diagnostic descendant narrows the same relation further.
-pub(crate) fn observed_reads(plan: &Plan) -> Vec<RelationRead> {
+pub fn observed_reads(plan: &Plan) -> Vec<RelationRead> {
     if plan.observations.is_empty() {
         return Vec::new();
     }

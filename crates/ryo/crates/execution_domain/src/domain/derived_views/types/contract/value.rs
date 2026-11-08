@@ -10,7 +10,7 @@ use ryo_relations::domain::relations::types::CellKind;
 use std::sync::Arc;
 
 /// The kind a request asks for.
-pub(crate) fn kind_of(request: &ViewRequest) -> DerivedKind {
+pub fn kind_of(request: &ViewRequest) -> DerivedKind {
     match request {
         ViewRequest::Equality { .. } => DerivedKind::Equality,
         ViewRequest::Adjacency { .. } => DerivedKind::Adjacency,
@@ -25,7 +25,7 @@ pub(crate) fn kind_of(request: &ViewRequest) -> DerivedKind {
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct DerivedContract {
+pub struct DerivedContract {
     /// Prepared once; equality still checks the complete semantic descriptor on collisions.
     /// Private: a struct literal or update outside this module cannot forge a contract.
     identity_hash: IdentityHash,
@@ -39,7 +39,7 @@ pub(crate) struct DerivedContract {
 impl DerivedContract {
     /// The only constructor: kind and metadata follow from the request and the validated semantic
     /// descriptor, so no caller can state a contract whose parts disagree.
-    pub(crate) fn issue(
+    pub fn issue(
         identity_hash: IdentityHash,
         semantic: Arc<PreparedDerived>,
         request: ViewRequest,
@@ -58,26 +58,26 @@ impl DerivedContract {
         }
     }
 
-    pub(crate) fn identity_hash(&self) -> IdentityHash {
+    pub fn identity_hash(&self) -> IdentityHash {
         self.identity_hash
     }
 }
 
 /// Request-owned prepared use; population slots are immutable dependency metadata, not a scheduler.
 #[derive(Clone, Debug)]
-pub(crate) struct PreparedViewUse {
+pub struct PreparedViewUse {
     pub plan: Arc<DerivedContract>,
     pub inputs: [InputNumber; 2],
     pub relations: [Option<ryo_relations::domain::relations::types::Relation>; 2],
     pub len: InputsUsed,
 }
 #[derive(Clone, Debug)]
-pub(crate) struct PreparedViewGroup {
+pub struct PreparedViewGroup {
     pub primary: Arc<PreparedViewUse>,
     pub secondary: Option<Arc<PreparedViewUse>>,
 }
 #[derive(Clone, Debug, Default)]
-pub(crate) struct DerivedSlots {
+pub struct DerivedSlots {
     pub slots: [Option<Arc<PreparedViewGroup>>; DerivedKind::ALL.len()],
 }
 

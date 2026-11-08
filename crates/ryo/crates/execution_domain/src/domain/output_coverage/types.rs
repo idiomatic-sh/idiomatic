@@ -4,7 +4,7 @@ use crate::domain::completion::types::CoverageState;
 
 /// The place of an operand among the operands of an operator.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct OperandOrdinal(pub usize);
+pub struct OperandOrdinal(pub usize);
 
 /// What an operand of an operator reads.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -17,7 +17,7 @@ pub(crate) enum OperandReads {
 
 /// One actually admitted operand's schema and physical completeness. MissingRows
 /// operands are intentionally absent when a lazy demand gate did not read them.
-pub(crate) struct InputCoverage<'a> {
+pub struct InputCoverage<'a> {
     pub ordinal: OperandOrdinal,
     pub kinds: &'a [ryo_relations::domain::relations::types::CellKind],
     pub coverage: CoverageState,

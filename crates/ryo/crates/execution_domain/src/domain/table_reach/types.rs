@@ -8,7 +8,7 @@ use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 /// The room a walk along edges works in, kept from walk to walk.
 #[derive(Debug, Default)]
-pub(crate) struct Walk {
+pub struct Walk {
     /// The key a lookup of the edges is made with.
     pub key: Vec<Value>,
     /// The entities to visit.

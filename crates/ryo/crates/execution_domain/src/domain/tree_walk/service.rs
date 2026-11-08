@@ -39,7 +39,7 @@ pub(crate) fn walk_kinds(
 }
 
 /// The column of the domain that holds the entity a walk reaches: the domain's id, through its view (a column the view does not name is the domain's own).
-pub(crate) fn entity_of(domain_view: &[ColumnIndex], domain_id: ColumnIndex) -> ColumnIndex {
+pub fn entity_of(domain_view: &[ColumnIndex], domain_id: ColumnIndex) -> ColumnIndex {
     match domain_view.get(usize::try_from(domain_id.0).unwrap_or(usize::MAX)) {
         Some(moved) => *moved,
         None => domain_id,

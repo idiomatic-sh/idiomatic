@@ -16,7 +16,7 @@ use ryo_values::domain::{
     rows::types::Table,
 };
 
-pub(crate) fn count_groups(
+pub fn count_groups(
     table: &Table,
     on: On<'_>,
     distinct: Option<ColumnIndex>,
@@ -36,7 +36,7 @@ pub(crate) fn count_groups(
     });
     written_result(answer, None)
 }
-pub(crate) fn digest_groups(
+pub fn digest_groups(
     table: &Table,
     keys: &[ColumnIndex],
     over: ColumnIndex,

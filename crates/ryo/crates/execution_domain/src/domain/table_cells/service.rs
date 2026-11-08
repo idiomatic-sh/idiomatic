@@ -114,7 +114,7 @@ pub(crate) fn read_tree_cells(
 use ryo_values::domain::rows::types::RowIndex;
 
 /// A native reader exists only through the common native-relation catalog.
-pub(crate) fn native_form(
+pub fn native_form(
     relation: ryo_relations::domain::relations::types::Relation,
 ) -> Option<TreeForm> {
     super::constants::NATIVE_RELATIONS

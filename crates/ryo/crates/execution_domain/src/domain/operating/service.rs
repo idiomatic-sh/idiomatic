@@ -25,7 +25,7 @@ pub(crate) fn family_of(test: Test) -> Family {
 /// A name the steps made, as a value: when the steps run after the files were read (the text of the workers is
 /// given) it is a name that has left its file, which compares with the names the files handed over; before, a name of the file.
 #[must_use]
-pub(crate) fn minted(
+pub fn minted(
     symbols: &ryo_language::domain::symbols::types::Symbols,
     symbol: ryo_relations::domain::terms::types::Symbol,
     after_the_files: super::types::AfterTheFiles,

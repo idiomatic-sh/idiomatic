@@ -8,7 +8,7 @@ use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::query_operators::types::OperationKind;
 
 /// Read-only contract preparation. This surface cannot evaluate an operation.
-pub(crate) fn prepare_operator(
+pub fn prepare_operator(
     kind: OperationKind,
     operation: &Operation,
     inputs: &[InputShape<'_>],

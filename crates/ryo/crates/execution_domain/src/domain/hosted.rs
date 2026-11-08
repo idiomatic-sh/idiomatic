@@ -3,8 +3,8 @@
 
 #[cfg(test)]
 pub(crate) mod constants;
-pub(crate) mod service;
-pub(crate) mod types;
+pub mod service;
+pub mod types;
 
 #[cfg(test)]
 mod service_test;

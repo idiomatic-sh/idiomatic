@@ -3,7 +3,7 @@ use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Direction, JoinColumn, Operand, ParameterId, ReachLookup,
 };
 #[derive(Clone, Debug)]
-pub(crate) enum ResourceProgram {
+pub enum ResourceProgram {
     None,
     Appended(Vec<Operand>),
     Rank(ParameterId),
@@ -39,19 +39,19 @@ pub(crate) enum ResourceProgram {
     Axis(AxisResources),
 }
 #[derive(Clone, Debug)]
-pub(crate) enum IndexColumns {
+pub enum IndexColumns {
     Whole,
     Columns(Vec<ColumnIndex>),
     ColumnsUnlessEmpty(Vec<ColumnIndex>),
 }
 /// Whether a join or an axis carries a filter over its rows.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Filtering {
+pub enum Filtering {
     Filtered,
     Unfiltered,
 }
 #[derive(Clone, Debug)]
-pub(crate) struct JoinResources {
+pub struct JoinResources {
     pub left_on: Vec<ColumnIndex>,
     pub right_on: Vec<ColumnIndex>,
     pub view: Vec<ColumnIndex>,
@@ -59,7 +59,7 @@ pub(crate) struct JoinResources {
     pub reach: Option<ReachLookup>,
 }
 #[derive(Clone, Debug)]
-pub(crate) struct AxisResources {
+pub struct AxisResources {
     pub id: ColumnIndex,
     pub parent: ColumnIndex,
     pub child: ColumnIndex,
@@ -70,7 +70,7 @@ pub(crate) struct AxisResources {
     pub direction: Direction,
 }
 #[derive(Clone, Debug)]
-pub(crate) struct DfsResources {
+pub struct DfsResources {
     pub root: ColumnIndex,
     pub source: ColumnIndex,
     pub destination: ColumnIndex,

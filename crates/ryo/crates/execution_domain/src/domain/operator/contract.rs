@@ -1,23 +1,23 @@
 //! Mandatory per-operation metadata and the finite primitive capability boundary.
 pub(crate) mod candidates;
-pub(crate) mod context;
+pub mod context;
 pub(crate) mod driver;
-pub(crate) mod failure;
+pub mod failure;
 
 pub(crate) mod graph;
-pub(crate) mod graph_view;
+pub mod graph_view;
 pub(crate) mod lease;
 pub(crate) mod preflight;
-pub(crate) mod registration;
-pub(crate) mod resources;
+pub mod registration;
+pub mod resources;
 pub(crate) mod service;
-pub(crate) mod types;
-pub(crate) mod views;
+pub mod types;
+pub mod views;
 pub(crate) mod walk;
 
-pub(crate) mod derived;
+pub mod derived;
 
-pub(crate) mod workspace;
+pub mod workspace;
 
 #[cfg(test)]
 mod workspace_test;

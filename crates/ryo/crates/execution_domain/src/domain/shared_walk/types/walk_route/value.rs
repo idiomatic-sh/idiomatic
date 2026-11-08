@@ -6,12 +6,12 @@ use ryo_values::domain::plan_parts::types::Input;
 /// Explicit source boundaries remain in request metadata. Adding an operation
 /// requires choosing its source-walk barrier in this exhaustive classifier.
 #[derive(Clone, Copy, Debug)]
-pub(crate) enum WalkRoute {
+pub enum WalkRoute {
     Shared(ClassPlace),
     Barrier(WalkBarrier),
 }
 #[derive(Clone, Copy, Debug)]
-pub(crate) enum WalkBarrier {
+pub enum WalkBarrier {
     Representation,
     DependentInput,
     Observation,

@@ -31,7 +31,7 @@ use ryo_values::domain::files::types::SourceView;
 /// Where the names of a file's rows are read, and who they leave as: the file's names and bytes, the file, and the worker that
 /// keeps the text of a name made while evaluating.
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct Leaving<'a> {
+pub struct Leaving<'a> {
     /// The names of the file.
     pub symbols: &'a Symbols,
     /// The bytes of the file.
@@ -46,7 +46,7 @@ pub(crate) struct Leaving<'a> {
 
 /// Whether a name that leaves its file takes its text with it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Leaves {
+pub enum Leaves {
     /// The text is moved to the worker's own, so steps that read the text after the files were read can.
     WithText,
     /// The text stays in the file; only the tests of `escape` leave a name so, a run always takes the text.
@@ -56,7 +56,7 @@ pub(crate) enum Leaves {
 
 /// Where the text and the places of the names that left are kept: the worker's own text, and the places of one table.
 #[derive(Debug)]
-pub(crate) struct Retained<'a> {
+pub struct Retained<'a> {
     /// The text the worker made, which it keeps for the whole run.
     pub arena: Arena<'a>,
     /// Where the text of each name that left is.

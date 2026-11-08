@@ -5,12 +5,12 @@ use ryo_derived::domain::adjacency::types::compact_graph::value::CompactGraph;
 use ryo_derived::domain::vertices::types::VertexId;
 
 /// No known nearest answer has been computed for this vertex/context.
-pub(crate) const UNKNOWN: VertexId = VertexId(u32::MAX);
+pub const UNKNOWN: VertexId = VertexId(u32::MAX);
 /// A complete parent-chain walk found no qualifying ancestor.
 pub(crate) const ABSENT: VertexId = VertexId(u32::MAX - 1);
 
 /// A read-only graph plus reusable invocation-owned traversal memory.
-pub(crate) struct GraphTraversal<'a> {
+pub struct GraphTraversal<'a> {
     /// Complete, immutable adjacency.
     graph: &'a CompactGraph,
     /// No provider references or mutable file-cache borrow.
@@ -19,12 +19,12 @@ pub(crate) struct GraphTraversal<'a> {
 
 impl<'a> GraphTraversal<'a> {
     /// Borrow no provider or cache state while traversing.
-    pub(crate) fn new(graph: &'a CompactGraph, walk: &'a mut GraphWalk) -> Self {
+    pub fn new(graph: &'a CompactGraph, walk: &'a mut GraphWalk) -> Self {
         Self { graph, walk }
     }
 
     /// Direct neighbors retain physical duplicate edges, as Parent/Child axes do.
-    pub(crate) fn direct(&mut self, root: VertexId, orientation: Orientation) {
+    pub fn direct(&mut self, root: VertexId, orientation: Orientation) {
         self.begin();
         self.walk.reached.extend(
             neighbors(self.graph, root, orientation)
@@ -38,7 +38,7 @@ impl<'a> GraphTraversal<'a> {
     }
 
     /// Positive-length BFS, optionally stopping before expansion of its first qualifying endpoint.
-    pub(crate) fn breadth(
+    pub fn breadth(
         &mut self,
         root: VertexId,
         orientation: Orientation,
@@ -60,14 +60,14 @@ impl<'a> GraphTraversal<'a> {
     }
 
     /// Closure destinations sort by typed Value, independently of Axis encounter order.
-    pub(crate) fn sort(&mut self) {
+    pub fn sort(&mut self) {
         self.walk
             .reached
             .sort_unstable_by_key(|vertex| self.graph.vertices()[vertex.0 as usize]);
     }
 
     /// Path-compressed nearest ancestry in a previously validated acyclic orientation.
-    pub(crate) fn nearest(
+    pub fn nearest(
         &mut self,
         root: VertexId,
         orientation: Orientation,
@@ -151,7 +151,7 @@ impl<'a> GraphTraversal<'a> {
 }
 
 /// Dense adjacency stores forward then reverse arrays.
-pub(crate) const fn direction(
+pub const fn direction(
     orientation: Orientation,
 ) -> ryo_derived::domain::vertices::types::EdgeDirection {
     match orientation {

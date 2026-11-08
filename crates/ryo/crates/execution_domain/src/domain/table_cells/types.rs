@@ -9,7 +9,7 @@ use ryo_relations::domain::relations::types::FileId;
 /// elements. The table of the file says them already, so nothing is stored, and a lookup by parent or
 /// by child is a read of the table.
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct TreeRows<'a> {
+pub struct TreeRows<'a> {
     /// Which rows of the tree these are.
     pub form: TreeForm,
     /// The file's elements.
@@ -20,7 +20,7 @@ pub(crate) struct TreeRows<'a> {
 
 /// Which relation the rows of a tree stand for.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum TreeForm {
+pub enum TreeForm {
     /// `syntax-child`: a row for each element but the root.
     Edges,
     /// `syntax-tree`: a row for each element.
