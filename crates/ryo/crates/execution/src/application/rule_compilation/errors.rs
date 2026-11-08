@@ -27,4 +27,12 @@ pub enum RuleCompilationError {
         /// What the kind check says of the word.
         reason: ryo_execution_domain::domain::kind_check::types::KindMessage,
     },
+    /// A rule index the compiler reports names no rule of the request: refused rather than reported under an empty id.
+    #[error("rule index {index} names no rule of the {rules} in the request")]
+    UnknownRuleIndex {
+        /// The index the compiler reported.
+        index: usize,
+        /// How many rules the request holds.
+        rules: usize,
+    },
 }

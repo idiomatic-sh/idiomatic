@@ -7,6 +7,7 @@ Your job is to make this review unnecessary. Turn recurring architecture mistake
 | Clear ownership and flow | The engine owns scheduling, sharing, invalidation, data and lifetime. Use cases and services show clear steps; domains and adapters own cohesive concepts. |
 | Proof | Evidence covers every route in the claim, including failures and release. Performance claims use matched full-rule benchmarks. |
 
+Two reviewers cover every checkpoint, and both run on every one: the [diff-scoped Rust gate](rust-principal-review.md) before the landing, and this contract review after it. They do different things, so neither replaces the other. Owner (2026-11-08): "so keep both" / "if they do different things have them both review yes".
 Grade each axis PASS or FAIL. Missing evidence is FAIL. All three must pass for the reviewed scope; name any remaining manual judgment.
 Use Astra as lead and independent Opus through Claude Code.
 Read [ownership matrix](../../crates/ryo/docs/contracts/README.md),

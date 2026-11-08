@@ -322,6 +322,13 @@ impl From<ryo_execution::inbound::use_cases::compile_rules::interface::RuleCompi
                 id: id.0.to_string(),
                 reason: reason.0.into(),
             },
+            ryo_execution::inbound::use_cases::compile_rules::interface::RuleCompilationError::UnknownRuleIndex {
+                index,
+                rules,
+            } => Self::Rule {
+                id: format!("#{index}"),
+                reason: format!("the index names no rule of the {rules} in the request"),
+            },
         }
     }
 }

@@ -59,13 +59,16 @@ impl CompileRulesUseCase for CompileRulesUseCaseImpl {
         }
         let matching = ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl::new();
         match first_unknown(&inner.plans, &inner.bindings, vocabularies, PatternMatcher(&matching)) {
-            Some(unknown) => Err(RuleCompilationError::UnknownKind {
-                id: rules
-                    .get(unknown.rule.0)
-                    .map(|rule| rule.id.clone())
-                    .unwrap_or_default(),
-                reason: unknown_message(&unknown.word, vocabularies).message,
-            }),
+            Some(unknown) => {
+                let rule = rules.get(unknown.rule.0).ok_or(RuleCompilationError::UnknownRuleIndex {
+                    index: unknown.rule.0,
+                    rules: rules.len(),
+                })?;
+                Err(RuleCompilationError::UnknownKind {
+                    id: rule.id.clone(),
+                    reason: unknown_message(&unknown.word, vocabularies).message,
+                })
+            }
             None => Ok(CompiledRules { inner }),
         }
     }

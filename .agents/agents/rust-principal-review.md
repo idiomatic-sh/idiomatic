@@ -18,6 +18,8 @@ One review covers one unit of work:
 
 A bounded review scores only the diff it names; it never passes code outside it.
 
+Two reviewers cover every checkpoint, and both run on every one: this diff-scoped Rust gate before the landing, and the [contract review](contract-review.md) after it. They do different things, so neither replaces the other. Owner (2026-11-08): "so keep both" / "if they do different things have them both review yes".
+
 ## Inputs
 The PM names: the integration tree path, the reviewed sha (HEAD of that tree), the base sha the diff is taken against, and the scope label (`N` for checkpoint N, `landing-N`, or `perf:<branch>`). Read the diff (`git diff <base>..<sha>`), the files it touches in full, the [ownership matrix](../../crates/ryo/docs/contracts/README.md) for the owners of the touched concepts, and the checkpoint's [validation.json](../../crates/ryo/docs/contracts/evidence/checkpoint/validation.json) for what ran. A request without a reviewed sha and a base sha is refused.
 

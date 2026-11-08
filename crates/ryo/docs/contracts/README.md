@@ -300,6 +300,8 @@ Left as they are, with the reason:
 
 ### Principal Rust report card
 
+Two reviewers cover every checkpoint, and both run on every one: the diff-scoped Rust gate (`.agents/agents/rust-principal-review.md`) before the landing, and the contract review (`.agents/agents/contract-review.md`) after it. Owner (2026-11-08): "so keep both" / "if they do different things have them both review yes".
+
 One row per checkpoint, landing and perf branch, copied from its `rust-review.json` (charter: `.agents/agents/rust-principal-review.md`). Grades: 1 ownership and API shape, 2 compiler over tests, 3 hot path, 4 one representation per concept, 5 standard crate over home-grown, 6 tests, 7 Rust fit; the verdict is FAIL when any grade is FAIL.
 
 | Unit | Source | 1 | 2 | 3 | 4 | 5 | 6 | 7 | Verdict |
