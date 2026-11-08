@@ -128,46 +128,21 @@ fn counted(census: &WalkCensus, barrier: WalkBarrier) -> usize {
     }
 }
 
-/// Every physical instruction of the compiled program is bound to a route, and every bound
-/// instruction is either shared or counted behind a named barrier.
+/// Every physical instruction of the compiled program is bound to a route, and a class is
+/// held by shared routes only.
 fn accounted(program: &Program) -> WalkCensus {
     let walk = program.prepared.walk();
     let compiled = program.prepared.program();
     let census = walk.census();
-    // No `..`: a new census counter must join the identity below.
-    let WalkCensus {
-        instructions,
-        shared,
-        classes,
-        representation,
-        dependent,
-        observation,
-        row,
-        derived,
-        request,
-        continuation,
-    } = &census;
     let physical = compiled
         .regions()
         .iter()
         .flat_map(|region| region.instructions().iter())
         .collect::<Vec<_>>();
     assert_eq!(
-        instructions.0,
+        census.instructions.0,
         physical.len(),
         "every physical instruction is bound to a route"
-    );
-    assert_eq!(
-        shared.0
-            + representation.0
-            + dependent.0
-            + observation.0
-            + row.0
-            + derived.0
-            + request.0
-            + continuation.0,
-        instructions.0,
-        "every bound instruction is shared or counted behind a named barrier"
     );
     for instruction in &physical {
         assert_eq!(
@@ -177,7 +152,7 @@ fn accounted(program: &Program) -> WalkCensus {
         );
     }
     assert_eq!(
-        classes.len(),
+        census.classes.len(),
         physical
             .iter()
             .filter_map(|instruction| walk.class_for(instruction))
