@@ -14,6 +14,16 @@ pub(in crate::application::file_dag) struct AdmissionOrigin {
 /// The population and source relation an input was admitted under, without its generation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct AdmissionIdentity {
-    pub population: PopulationId,
-    pub relation: Option<Relation>,
+    pub(in crate::application::file_dag::relations) population: PopulationId,
+    pub(in crate::application::file_dag::relations) relation: Option<Relation>,
+}
+impl AdmissionIdentity {
+    /// The population the input was admitted under.
+    pub fn population(&self) -> PopulationId {
+        self.population
+    }
+    /// The source relation the input was admitted from, when it came from one.
+    pub fn relation(&self) -> Option<Relation> {
+        self.relation
+    }
 }

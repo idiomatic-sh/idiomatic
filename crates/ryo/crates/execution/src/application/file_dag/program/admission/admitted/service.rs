@@ -202,10 +202,8 @@ use crate::domain::table_model::types::RepresentationInput;
             .proof
             .owner
             .admit(publication.as_ref(), RepresentationInput::from(rows))?;
-        let ryo_execution_store::application::file_dag::relations::admission::types::AdmissionIdentity {
-            population,
-            relation: actual_relation,
-        } = admitted.identity(&self.proof.owner)?;
+        let identity = admitted.identity(&self.proof.owner)?;
+        let (population, actual_relation) = (identity.population(), identity.relation());
         // A project-stage input is the decoded frontier of the relation: computed rows carry no relation identity of their own, and
         // the root and the population proof already say which relation they are.
         if population != self.proof.population
@@ -234,7 +232,7 @@ use crate::domain::table_model::types::RepresentationInput;
         read: ReadProof,
     ) -> Result<Self, OperatingError> {
         admitted.require_publication(owner.as_ref(), publication.as_ref())?;
-        let ryo_execution_store::application::file_dag::relations::admission::types::AdmissionIdentity { population, .. } = admitted.identity(&owner)?;
+        let population = admitted.identity(&owner)?.population();
         let generation = admitted.generation_guard();
 
         Ok(Self {

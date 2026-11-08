@@ -37,11 +37,18 @@ pub mod types;
 /// Runtime semantic dependencies that are not columns: candidate filter and exact dense ordering.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub struct ViewContext {
-    pub candidate: Option<graph_key::PreparedIdentity>,
-    pub literals: Option<Arc<[ryo_values::domain::plan_parts::types::LiteralText]>>,
-    pub membership_order: Option<MembershipOrder>,
+    pub(in crate::application::file_dag) candidate: Option<graph_key::PreparedIdentity>,
+    pub(in crate::application::file_dag) literals: Option<Arc<[ryo_values::domain::plan_parts::types::LiteralText]>>,
+    pub(in crate::application::file_dag) membership_order: Option<MembershipOrder>,
 }
 impl ViewContext {
+    /// The context of a membership view whose members keep the dense order `order`.
+    pub fn ordered(order: MembershipOrder) -> Self {
+        Self {
+            membership_order: Some(order),
+            ..Self::default()
+        }
+    }
     #[cfg(test)]
     pub(in crate::application::file_dag) fn for_predicate(plan: &Arc<DerivedContract>) -> Self {
         Self {

@@ -294,12 +294,9 @@ pub(in crate::application::file_dag) fn prepare<'f>(
                             .ok_or(OperatingError::NotRun)?
                             .primary
                             .as_ref(),
-                        ryo_execution_store::application::file_dag::derived::owner::ViewContext {
-                            membership_order: Some(
-                                ryo_execution_store::application::file_dag::derived::owner::types::MembershipOrder(1),
-                            ),
-                            ..Default::default()
-                        },
+                        ryo_execution_store::application::file_dag::derived::owner::ViewContext::ordered(
+                            ryo_execution_store::application::file_dag::derived::owner::types::MembershipOrder(1),
+                        ),
                         ryo_execution_store::application::file_dag::workspace::ViewInputs::MembershipNative,
                     )?,
                 ),

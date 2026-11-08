@@ -13,6 +13,10 @@ impl AdmittedNumber<'_> {
     pub fn publication(&self) -> &PublishedInput {
         self.publication
     }
+    /// The numeric column the population owner bound.
+    pub fn column(&self) -> ryo_values::domain::plan_parts::types::ColumnIndex {
+        self.column
+    }
 }
 
 #[cfg(test)]

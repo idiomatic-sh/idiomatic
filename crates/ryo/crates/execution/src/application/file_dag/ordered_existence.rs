@@ -89,7 +89,7 @@ pub(super) fn evaluate(
     emit: &mut dyn crate::domain::operating::types::Emit,
 ) -> Result<(), OperatingError> {
     let _pin = admitted.publication();
-    if admitted.column != shape.order {
+    if admitted.column() != shape.order {
         return Err(OperatingError::WrongOperation);
     }
     let mut driver = Driver {
@@ -103,7 +103,7 @@ pub(super) fn evaluate(
     };
     let result = semantics.operators(OperatorCall::OrderedExistence {
         partition: &shape.partition,
-        order: admitted.column,
+        order: admitted.column(),
         extremum: match shape.extremum {
             Extremum::Maximum => PartitionExtremum::Maximum,
             Extremum::Minimum => PartitionExtremum::Minimum,
