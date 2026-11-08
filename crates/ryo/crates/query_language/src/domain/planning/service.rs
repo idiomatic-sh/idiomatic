@@ -206,11 +206,13 @@ pub(crate) fn planned_scope(
     input: parts::Input,
 ) -> Option<ryo_values::domain::plan_parts::types::StepScope> {
     match input {
-        parts::Input::Relation(relation) => Some(if provenance_of(relation) == Provenance::Manifests {
-            ryo_values::domain::plan_parts::types::StepScope::CrossFile
-        } else {
-            ryo_values::domain::plan_parts::types::StepScope::PerFile
-        }),
+        parts::Input::Relation(relation) => {
+            Some(if provenance_of(relation) == Provenance::Manifests {
+                ryo_values::domain::plan_parts::types::StepScope::CrossFile
+            } else {
+                ryo_values::domain::plan_parts::types::StepScope::PerFile
+            })
+        }
         parts::Input::BoundObservation(_) => None,
         parts::Input::Step(id) => {
             ryo_values::domain::plan_parts::service::step_in(steps, id).map(|step| step.scope)

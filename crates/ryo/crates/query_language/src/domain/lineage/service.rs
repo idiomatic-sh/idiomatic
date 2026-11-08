@@ -17,7 +17,11 @@ use ryo_values::domain::plans::types::PlanStep;
 /// A step that appends columns to the rows it reads is followed into what it reads; a column past those rows is past every column
 /// there as well, and so is none.
 #[must_use]
-pub(crate) fn column_kind(steps: &[PlanStep], input: Input, column: ColumnIndex) -> Option<CellKind> {
+pub(crate) fn column_kind(
+    steps: &[PlanStep],
+    input: Input,
+    column: ColumnIndex,
+) -> Option<CellKind> {
     let id = match input {
         Input::Relation(relation) => {
             return column_in(&relation_fields(relation), column).map(|field| field.kind);

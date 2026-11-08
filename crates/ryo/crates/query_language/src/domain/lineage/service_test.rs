@@ -25,7 +25,9 @@ type Input = Scenario;
 
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName("a_column_read_through_a_join_and_a_projection_has_the_relation_column_kind"),
+        name: CaseName(
+            "a_column_read_through_a_join_and_a_projection_has_the_relation_column_kind",
+        ),
         word: Word::Succeeds,
         input: || Scenario::AFileThroughAJoin,
         expect: Expect::Value(Some(CellKind::File)),

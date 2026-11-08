@@ -26,7 +26,9 @@ type Input = Scenario;
 
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName("a_join_after_the_files_on_the_file_of_its_per_file_input_joins_the_per_file_inputs_in_each_file"),
+        name: CaseName(
+            "a_join_after_the_files_on_the_file_of_its_per_file_input_joins_the_per_file_inputs_in_each_file",
+        ),
         word: Word::Succeeds,
         input: || Scenario::KeyedOnTheFile,
         expect: Expect::Value((Vec::new(), StepId(0))),

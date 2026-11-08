@@ -93,18 +93,37 @@ fn filters_only(steps: &[PlanStep], place: usize, readers: Option<&Vec<usize>>) 
     let Some(readers) = readers.filter(|readers| !readers.is_empty()) else {
         return false;
     };
-    // One copy for each of several filters pays where the whole would be large for the rows they keep: a union, or a join keyed on the
-    // file alone, which pairs every row of a file with every row of it on the other side.
-    let copied = match &made.operation {
-        Operation::Union { .. } => true,
+    leads_to_product(steps, Input::Step(StepId(u32::try_from(place).unwrap_or(u32::MAX))))
+        && readers.iter().all(|reader| {
+        steps.get(*reader).is_some_and(|step| {
+            step.scope == made.scope
+                && matches!(step.operation, Operation::Select { from: Input::Step(id), .. } if usize::try_from(id.0).ok() == Some(place))
+        })
+    })
+}
+
+/// Whether the rows of `input` are made by a join keyed on the file alone, which pairs every row of a file with every row of it on the
+/// other side, or by a union of such rows: there, rows a filter takes out after the join were made by the thousand, and a filter made
+/// before it pays for a copy of the join or the union for each filter. Elsewhere a filter stays where it is.
+fn leads_to_product(steps: &[PlanStep], input: Input) -> bool {
+    let Input::Step(id) = input else {
+        return false;
+    };
+    let Some(made) = steps.get(usize::try_from(id.0).unwrap_or(usize::MAX)) else {
+        return false;
+    };
+    match &made.operation {
+        Operation::Union { left, right } => {
+            leads_to_product(steps, *left) || leads_to_product(steps, *right)
+        }
         Operation::Join {
             left,
             left_on,
             reach: None,
             ..
         } => {
-            readers.len() == 1
-                || left_on
+            !left_on.is_empty()
+                && left_on
                     .iter()
                     .all(|key| column_kind(steps, *left, *key) == Some(CellKind::File))
         }
@@ -133,13 +152,7 @@ fn filters_only(steps: &[PlanStep], place: usize, readers: Option<&Vec<usize>>) 
         | Operation::RenderSyntax { .. }
         | Operation::FitsRendered { .. }
         | Operation::SpanBounds { .. } => false,
-    };
-    copied && readers.iter().all(|reader| {
-        steps.get(*reader).is_some_and(|step| {
-            step.scope == made.scope
-                && matches!(step.operation, Operation::Select { from: Input::Step(id), .. } if usize::try_from(id.0).ok() == Some(place))
-        })
-    })
+    }
 }
 
 /// Whether a comparison tests a column.
@@ -194,7 +207,11 @@ fn split_comparisons(
 }
 
 /// A filter of `from` by `comparisons`, made where `from` is.
-fn filter_of(steps: &[PlanStep], from: Input, comparisons: Vec<PlanComparison>) -> Option<PlanStep> {
+fn filter_of(
+    steps: &[PlanStep],
+    from: Input,
+    comparisons: Vec<PlanComparison>,
+) -> Option<PlanStep> {
     Some(PlanStep {
         operation: Operation::Select {
             from,

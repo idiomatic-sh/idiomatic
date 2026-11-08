@@ -253,7 +253,10 @@ fn regrouped_on(steps: &[PlanStep], outer: &Operation, side: Side, at: Input) ->
         if column.side == side {
             let made = *column_in(split.output, joined_column(column.column)?)?;
             if made.side != split.crossing_side {
-                push_new(&mut local_kept, source_column(split.local_view, made.column)?);
+                push_new(
+                    &mut local_kept,
+                    source_column(split.local_view, made.column)?,
+                );
             }
         } else {
             push_new(&mut other_kept, column.column);
