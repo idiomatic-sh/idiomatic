@@ -59,9 +59,9 @@ fn numbers() -> Table {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Leaked {
     /// Required bytes before the view was acquired.
-    pub(crate) before: usize,
+    pub before: usize,
     /// Required bytes after the exit ran, before any fixture-side release.
-    pub(crate) after: usize,
+    pub after: usize,
 }
 /// Who releases the pins at the last consumer's exit.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
