@@ -18,6 +18,7 @@ use crate::domain::lowering::types::{Builder, HostedStep, PlannedColumn, StepLab
 use crate::domain::planning::service::{frontier_of, pushed};
 use crate::domain::pruning::service::{without_unused, without_unused_roots};
 use crate::domain::pushing::service::{push_lookups, push_lookups_roots};
+use crate::domain::regrouping::service::{regroup_joins, regroup_joins_roots};
 use crate::domain::resolving::service::{position, read_source, step_named, step_of};
 use crate::domain::rewriting::types::Planned;
 use crate::domain::selecting::service::lower_select;
@@ -168,6 +169,7 @@ pub(crate) fn lower_with_observations(
         );
         let Planned { steps, emitted } = without_unused(pushed, named);
         let Planned { steps, emitted } = push_below_captures(steps, emitted);
+        let Planned { steps, emitted } = regroup_joins(steps, emitted);
         let Planned { steps, emitted } = reduced_frontier(steps, emitted);
         let Planned { steps, emitted } = cut_relations(steps, emitted);
         // Full-scan/exported consumers remain ordinary; pruning removes only fully replaced closure chains.
@@ -184,6 +186,7 @@ pub(crate) fn lower_with_observations(
         let steps = push_lookups_roots(steps, &mut roots);
         let steps = without_unused_roots(steps, &mut roots);
         let steps = push_below_captures_roots(steps, &mut roots);
+        let steps = regroup_joins_roots(steps, &mut roots);
         let steps = reduced_frontier_roots(steps, &mut roots);
         let steps = cut_relations_roots(steps, &mut roots);
         let steps = fuse_keyed_reaches(steps, &roots);
