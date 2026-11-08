@@ -62,9 +62,7 @@ pub fn compile_prepared_observations(
                 |CanonicalOperation { operation, inputs }| {
                     let contract = Arc::clone(operators.rules.get(rule)?.get(index)?);
                     let scope = (contract.reuse
-                        == crate::domain::operator::contract::types::ReuseScope::Rule
-                        || contract.effects
-                            != crate::domain::operator::contract::types::Effects::Pure)
+                        == crate::domain::operator::contract::types::ReuseScope::Rule)
                         .then_some(rule_index);
                     let hash = Fingerprint::of(&operation, &inputs, scope, step.scope);
                     // Delivery is outside semantic evaluation. Identical pure
