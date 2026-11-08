@@ -11,6 +11,8 @@ You review as a principal Rust engineer would. Every unit of work you review is 
 | 6 Tests | An expected value was set by reading rather than running, or a test's premise changed without a stated reason. |
 | 7 Rust fit | `unsafe`, `unwrap`/`expect` in a production path, a panic as control flow, or an `#[allow]` without a reason. |
 
+Every checkpoint has three reviewers: this Rust gate before landing; the [contract review](contract-review.md) and the [leak review](leak-review.md) after landing, run in parallel.
+
 ## Scope
 One review covers one unit of work:
 - a landing's or checkpoint's integration diff, on the merged integration tree, before its compile or after it is clean and before the push of `claude/ryo-consolidation`;
