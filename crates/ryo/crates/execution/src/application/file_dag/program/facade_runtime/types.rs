@@ -37,7 +37,7 @@ pub(super) struct PreparedNamed {
 }
 /// The delivery, observation and capture a file declared for one rule.
 #[derive(Clone, Copy, Debug)]
-pub(super) struct DeclaredIntent {
+pub(crate) struct DeclaredIntent {
     pub(super) delivery:
         ryo_execution_domain::domain::rule_intent::types::DiagnosticDelivery,
     pub(super) demand: ryo_execution_domain::domain::rule_intent::types::ObservationDemand,

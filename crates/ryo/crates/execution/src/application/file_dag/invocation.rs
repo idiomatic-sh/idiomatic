@@ -141,10 +141,6 @@ impl AcquiredPartitions {
     pub(crate) fn push(&mut self, view: AcquiredView) {
         self.0.push(view);
     }
-    /// The acquired views, in partition order.
-    pub(crate) fn iter(&self) -> std::slice::Iter<'_, AcquiredView> {
-        self.0.iter()
-    }
 }
 
 impl ryo_execution_domain::domain::operator::contract::views::ClosureParts for AcquiredPartitions {
