@@ -30,7 +30,7 @@ use ryo_execution_domain::domain::table_model::types::RepresentationInput;
     };
     let a = owner.computed(rows.clone()).unwrap();
     let b = owner.computed(rows).unwrap();
-    assert_eq!(a.same_record(&b), crate::application::file_dag::relations::types::Sameness::Different);
+    assert_eq!(a.same_record(&b), ryo_execution_store::application::file_dag::relations::types::Sameness::Different);
     for aliases in [false, true] {
         if aliases {
             execution
@@ -77,7 +77,7 @@ use ryo_execution_domain::domain::table_model::types::RepresentationInput;
                     .publication(&owner)
                     .unwrap()
                     .same_record(publication),
-                crate::application::file_dag::relations::types::Sameness::Same
+                ryo_execution_store::application::file_dag::relations::types::Sameness::Same
             );
         }
         for (publication, proof) in [(&b, &a_proof), (&a, &b_proof)] {

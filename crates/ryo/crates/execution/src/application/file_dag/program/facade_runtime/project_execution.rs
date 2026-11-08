@@ -1,6 +1,6 @@
 //! Project execution over deferred frontier sources and one publication scope.
 use super::super::project_population::types::ProjectFrontierPopulation;
-use crate::application::file_dag::derived::population::types::PopulationId;
+use ryo_execution_store::application::file_dag::derived::population::types::PopulationId;
 use crate::application::file_dag::program::admission::AvailableInput;
 use crate::application::file_dag::program::admission::Partition;
 use crate::application::file_dag::program::admission::RequiredPartitions;
@@ -15,8 +15,8 @@ use crate::application::file_dag::program::rule_outcome::types::RuleOutcome;
 use crate::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome;
 use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
 use crate::application::file_dag::program::runtime::service::ProgramExecution;
-use crate::application::file_dag::relations::RelationOwner;
-use crate::application::file_dag::scope::ScopePartials;
+use ryo_execution_store::application::file_dag::relations::RelationOwner;
+use ryo_execution_store::application::file_dag::service::ScopePartials;
 use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::executable_program::types::InputSource;
@@ -124,7 +124,7 @@ impl ProjectRun<'_> {
         &self,
         rule: RuleIndex,
     ) -> Result<
-        crate::application::file_dag::derived::population::types::PopulationId,
+        ryo_execution_store::application::file_dag::derived::population::types::PopulationId,
         OperatingError,
     > {
         crate::application::file_dag::frontiers::types::validate_consumer_sources(

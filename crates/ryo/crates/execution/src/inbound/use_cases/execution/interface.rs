@@ -56,7 +56,7 @@ pub use ryo_execution_domain::domain::coverage::types::LackingKind;
 pub use ryo_execution_domain::domain::coverage::types::Partial;
 pub use ryo_execution_domain::domain::coverage::types::Partials;
 pub use ryo_execution_domain::domain::coverage::types::RuleIndex;
-pub use ryo_execution_domain::domain::file_program::errors::FileProgramError;
+pub use ryo_execution_domain::domain::rule_intent::errors::RuleIntentError;
 pub use ryo_execution_domain::domain::file_program::types::ObservedFrontierRoot;
 pub use ryo_execution_domain::domain::frontier_capture::types::CapturedFrontier;
 pub use ryo_execution_domain::domain::frontier_capture::types::FrontierCapture;

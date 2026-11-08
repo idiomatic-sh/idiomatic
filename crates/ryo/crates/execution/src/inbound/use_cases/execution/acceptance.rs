@@ -23,7 +23,7 @@ fn runs(world: &mut Behavior) {
                 ryo_operators::outbound::matching::factory::use_case(),
             ))),
         ),
-        Arc::new(ryo_execution::outbound::derived::factory::semantics()),
+        Arc::new(ryo_execution_store::outbound::derived::factory::semantics()),
         Arc::new(ryo_execution::outbound::digest::factory::blake3()),
     );
     let prepared = prepare

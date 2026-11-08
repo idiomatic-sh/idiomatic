@@ -4,7 +4,7 @@ use crate::application::file_dag::program::admission::Emptiness;
 use crate::application::file_dag::program::admission::Inputs;
 use crate::application::file_dag::program::admission::Partition;
 use crate::application::file_dag::program::runtime::service::ProgramExecution;
-use crate::application::file_dag::relations::RelationOwner;
+use ryo_execution_store::application::file_dag::relations::RelationOwner;
 use ryo_execution_domain::domain::executable_program::types::RegionId;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operating::types::Emit;
@@ -88,7 +88,7 @@ pub(crate) struct CompiledCase {
 
 pub(crate) fn compiled() -> CompiledCase {
     let plans = [plan(Relation::Function), plan(Relation::Identifier)];
-    let semantic = crate::application::file_dag::fixtures::program_derived_port();
+    let semantic = ryo_execution_store::application::file_dag::fixtures::program_derived_port();
     let prepared =
         crate::application::file_dag::service::prepare(&plans, &[vec![], vec![]], &[], Arc::clone(&semantic)).unwrap();
     let graph = ryo_execution_domain::domain::file_program::service::compile_prepared(&plans, &prepared);
@@ -109,7 +109,7 @@ pub(crate) fn compiled() -> CompiledCase {
         roots[0], roots[1],
         "distinct source roots must remain distinct"
     );
-    let owner = Rc::new(RelationOwner::new(crate::application::file_dag::relations::types::ReuseEligibility::Eligible, semantic));
+    let owner = Rc::new(RelationOwner::new(ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible, semantic));
     let partition = Partition::File(
         crate::application::file_dag::program::admission::FileGeneration::from_owner(
             FileId(0),
@@ -203,8 +203,8 @@ impl TestInputs {
 impl Inputs for TestInputs {
     fn population_scope(
         &self,
-    ) -> crate::application::file_dag::relations::publication::types::ProducerScope {
-        crate::application::file_dag::relations::publication::types::ProducerScope::File
+    ) -> ryo_execution_store::application::file_dag::relations::publication::types::ProducerScope {
+        ryo_execution_store::application::file_dag::relations::publication::types::ProducerScope::File
     }
     fn supply(
         &mut self,

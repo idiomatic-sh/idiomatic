@@ -4,13 +4,8 @@ pub(super) mod project;
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use crate::application::file_dag::program::runtime::service::KernelPermit;
 use ryo_execution_domain::domain::{coverage::types::RuleIndex, shared_walk::types::WalkCounts};
-use crate::application::file_dag::derived::population::types::PopulationId;
-use ryo_execution_domain::domain::{
-    operating::{errors::OperatingError, types::OperatorContext},
-    step_classes::types::ClassPlace,
-    shared_walk::types::{WalkWork, native_batch::value::NativeBatch},
-    table_model::types::Rows,
-};
+use ryo_execution_domain::domain::{operating::{errors::OperatingError, types::OperatorContext}, shared_walk::types::{WalkWork, native_batch::value::NativeBatch}, step_classes::types::ClassPlace, table_model::types::Rows};
+use ryo_execution_store::application::file_dag::derived::population::types::PopulationId;
 use lease::service::PermittedWalk;
 
 /// Whether the admitted source joined the shared walk.

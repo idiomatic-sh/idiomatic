@@ -32,7 +32,7 @@ use crate::application::file_dag::program::request_execution::interface::Executi
 use crate::application::file_dag::program::project_phase::types::FrontierDemand;
 use crate::application::file_dag::program::project_phase::types::FrontierRequest;
 use crate::application::file_dag::program::request_execution::types::RequestExecution;
-use crate::application::file_dag::scope::ScopePartials;
+use ryo_execution_store::application::file_dag::service::ScopePartials;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use crate::outbound::facts::types::ResidentStability;
 use ryo_language::domain::symbols::types::Symbols;
@@ -153,9 +153,9 @@ impl RequestExecution {
             if matches!(input.language, SourceLanguage::Recognized)
                 && input.resident_stability == ResidentStability::Stable
             {
-                crate::application::file_dag::relations::types::ReuseEligibility::Eligible
+                ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible
             } else {
-                crate::application::file_dag::relations::types::ReuseEligibility::Ineligible
+                ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Ineligible
             },
             symbols,
             match input.semantic {

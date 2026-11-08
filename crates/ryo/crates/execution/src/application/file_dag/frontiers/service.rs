@@ -10,7 +10,7 @@ use super::types::{
     FileAccounting, FrontierCache, FrontierDecodes, FrontierInput, FrontierSource, InputReadiness,
     PackedFrontier, PreparedFrontiers, ProviderAddress, Providers,
 };
-use crate::application::file_dag::derived::constants::TARGET_LIFECYCLE_MEMORY;
+use ryo_execution_store::application::file_dag::derived::constants::TARGET_LIFECYCLE_MEMORY;
 use crate::outbound::facts::interface::{FactsFinish, FactsWorker};
 use ryo_language::domain::symbols::{service::places_mut, types::Symbols};
 use ryo_values::domain::{

@@ -1,9 +1,9 @@
 //! Opening one publication scope and naming the physical files of one project request.
 use super::types::{ProgramServices, PublicationScope};
-use crate::application::file_dag::relations::types::ReuseEligibility;
+use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
 use crate::application::file_dag::program::admission::RequiredPartitions;
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
-use crate::application::file_dag::scope::open_program_owner;
+use ryo_execution_store::application::file_dag::service::open_program_owner;
 use ryo_execution_domain::domain::coverage::types::{Covered, RuleIndex};
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_values::domain::runs::types::Skipped;
@@ -22,7 +22,7 @@ pub(crate) fn publication_owner(
             program.program(),
             services.derived().clone(),
             ReuseEligibility::Eligible,
-            crate::application::file_dag::route_counts::types::RouteProfile::default(),
+            ryo_execution_store::application::file_dag::route_counts::types::RouteProfile::default(),
         ),
         execution: std::cell::OnceCell::new(),
         walk:

@@ -2,7 +2,7 @@
 use ryo_relations::domain::relations::types::FileId;
 use crate::domain::completion::types::CoverageState;
 use crate::domain::output_coverage::types::OperandOrdinal;
-use super::types::AbsenceMask;
+use crate::domain::operator::contract::types::AbsenceMask;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 
 /// What a row of the cases proves.

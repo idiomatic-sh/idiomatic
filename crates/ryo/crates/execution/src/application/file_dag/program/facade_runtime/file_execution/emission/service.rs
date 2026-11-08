@@ -5,7 +5,7 @@ use crate::application::file_dag::program::facade_runtime::file_execution::FileR
 use crate::application::file_dag::program::facade_runtime::source_admission::SourceInputs;
 use ryo_execution_domain::domain::rule_intent::types::DiagnosticDelivery;
 use crate::application::file_dag::program::runtime::service::InvocationOutcome;
-use crate::application::file_dag::scope::ScopePartials;
+use ryo_execution_store::application::file_dag::service::ScopePartials;
 use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
@@ -61,13 +61,9 @@ impl FileRun<'_> {
             );
         }
         self.prepare_walk(read, symbols)?;
-        let _rule_origin = crate::application::file_dag::route_counts::rule(
-            self.routes.profile(),
-            rule.0,
-            self.program.rule_id(rule)?,
-        );
+        let _rule_origin = self.routes.profile().rule(rule.0, self.program.rule_id(rule)?);
         let _consumer_origin =
-            crate::application::file_dag::route_counts::consumer(self.routes.profile(), FILE_STREAM_CONSUMER);
+            self.routes.profile().consumer(FILE_STREAM_CONSUMER);
         let mut context = self.context.borrow(symbols, self.program, rule)?;
         let context = &mut context;
         let completion = match &self.partials {

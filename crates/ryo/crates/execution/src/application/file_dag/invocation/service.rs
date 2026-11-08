@@ -36,7 +36,7 @@ pub(crate) fn continuation<'f>(
             native_join: None,
             native_storage: None,
             cycles: None,
-            closure: Vec::new(),
+            closure: super::AcquiredPartitions::default(),
             partitioned_closure: None,
             ordered: None,
             dfs: None,
@@ -55,7 +55,7 @@ pub(crate) fn prepare<'f>(
     inputs: &[RepresentationInput<'f>],
     context: &mut OperatorContext<'_>,
     originals: &[ryo_execution_domain::domain::table_model::types::Rows<'f>],
-    admission: &crate::application::file_dag::workspace::InvocationWorkspace,
+    admission: &ryo_execution_store::application::file_dag::workspace::InvocationWorkspace,
     semantics: &crate::application::file_dag::execution::PrimitiveSemanticsBridge<'_>,
 ) -> Result<InvocationResources<'f>, OperatingError> {
     InvocationResources::validate_row_metadata(contract, inputs)?;
@@ -68,14 +68,14 @@ pub(crate) fn prepare<'f>(
             native_join: None,
             native_storage: None,
             cycles: None,
-            closure: Vec::new(),
+            closure: super::AcquiredPartitions::default(),
             partitioned_closure: None,
             ordered: None,
             dfs: None,
             axis: None,
             groups: None,
             #[cfg(feature = "diagnostic-row-progress")]
-            progress: admission.progress_origin.profile.clone(),
+            progress: admission.progress_origin().profile().clone(),
         },
     };
     let program = &contract.resources;
@@ -152,7 +152,7 @@ pub(crate) fn prepare<'f>(
             let right = input(inputs, InputNumber(1))?;
             if let Some(reach) = reach {
                 let mut cursor = partitioned(contract, right, &admitted, context)?;
-                while cursor.advance()? == crate::application::file_dag::closure_partitions::types::PartitionAdvance::Advanced {
+                while cursor.advance()? == ryo_execution_store::application::file_dag::closure_partitions::types::PartitionAdvance::Advanced {
                     resources.inputs.closure.push(cursor.take_current()?);
                 }
             } else {
@@ -244,8 +244,8 @@ pub(crate) fn prepare<'f>(
             };
             resources.inputs.ordered = Some(admitted.acquire_derived(
                 use_,
-                crate::application::file_dag::derived::owner::ViewContext::default(),
-                crate::application::file_dag::workspace::ViewInputs::Text(&texts),
+                ryo_execution_store::application::file_dag::derived::owner::ViewContext::default(),
+                ryo_execution_store::application::file_dag::workspace::ViewInputs::Text(&texts),
             )?);
         }
         ResourceProgram::Dfs(_) => {
@@ -254,8 +254,8 @@ pub(crate) fn prepare<'f>(
             let use_ = prepared(contract, DerivedKind::OrderedDfs)?;
             resources.inputs.dfs = Some(admitted.acquire_derived(
                 use_,
-                crate::application::file_dag::derived::owner::ViewContext::default(),
-                crate::application::file_dag::workspace::ViewInputs::Dfs {
+                ryo_execution_store::application::file_dag::derived::owner::ViewContext::default(),
+                ryo_execution_store::application::file_dag::workspace::ViewInputs::Dfs {
                     symbols: &mut context.symbols,
                     source: context.source,
                     paths: context.paths,
@@ -294,13 +294,10 @@ pub(crate) fn prepare<'f>(
                             .ok_or(OperatingError::NotRun)?
                             .primary
                             .as_ref(),
-                        crate::application::file_dag::derived::owner::ViewContext {
-                            membership_order: Some(
-                                crate::application::file_dag::derived::owner::types::MembershipOrder(1),
-                            ),
-                            ..Default::default()
-                        },
-                        crate::application::file_dag::workspace::ViewInputs::MembershipNative,
+                        ryo_execution_store::application::file_dag::derived::owner::ViewContext::ordered(
+                            ryo_execution_store::application::file_dag::derived::owner::types::MembershipOrder(1),
+                        ),
+                        ryo_execution_store::application::file_dag::workspace::ViewInputs::MembershipNative,
                     )?,
                 ),
                 AxisMode::Indexed { .. } => Some(
@@ -310,8 +307,8 @@ pub(crate) fn prepare<'f>(
                             .ok_or(OperatingError::NotRun)?
                             .primary
                             .as_ref(),
-                        crate::application::file_dag::derived::owner::ViewContext::default(),
-                        crate::application::file_dag::workspace::ViewInputs::MembershipValues,
+                        ryo_execution_store::application::file_dag::derived::owner::ViewContext::default(),
+                        ryo_execution_store::application::file_dag::workspace::ViewInputs::MembershipValues,
                     )?,
                 ),
             };

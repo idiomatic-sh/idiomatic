@@ -10,12 +10,12 @@ use std::rc::Rc;
 pub(crate) enum CrossRoot {
     Pending,
     FileFrontier {
-        publication: crate::application::file_dag::relations::packed::service::PackedPublication,
+        publication: ryo_execution_store::application::file_dag::relations::packed::service::PackedPublication,
         token: crate::application::file_dag::program::restored::types::ValidatedFrontier,
         arenas: Vec<WorkerNumber>,
     },
     Named {
-        publication: crate::application::file_dag::relations::packed::service::PackedPublication,
+        publication: ryo_execution_store::application::file_dag::relations::packed::service::PackedPublication,
         admitted: crate::application::file_dag::program::observed_publication::types::ObservedPublication,
         arenas: Vec<WorkerNumber>,
     },
@@ -32,7 +32,7 @@ pub(crate) struct FrontierPopulation<'a> {
 }
 /// A checked physical frontier; aliases share this exact owned payload and common lease.
 pub(crate) struct PreparedFrontier {
-    pub(crate) publication: crate::application::file_dag::relations::packed::service::PackedPublication,
+    pub(crate) publication: ryo_execution_store::application::file_dag::relations::packed::service::PackedPublication,
     pub(crate) token: crate::application::file_dag::program::restored::types::ValidatedFrontier,
     pub(crate) arenas: Vec<WorkerNumber>,
 }
@@ -74,7 +74,7 @@ pub struct AdmittedOutput {
 /// One invocation extends the existing arena vector; stable slot indices never move during execution.
 pub(crate) struct CrossPublications<'a> {
     pub(crate) metadata: &'a ObservationMetadata,
-    pub(crate) owner: Rc<crate::application::file_dag::relations::RelationOwner>,
+    pub(crate) owner: Rc<ryo_execution_store::application::file_dag::relations::RelationOwner>,
     pub(crate) arenas: &'a mut Vec<ArenaBytes>,
     pub(crate) inherited: ArenaCount,
     pub(crate) references: Vec<ReferenceCount>,

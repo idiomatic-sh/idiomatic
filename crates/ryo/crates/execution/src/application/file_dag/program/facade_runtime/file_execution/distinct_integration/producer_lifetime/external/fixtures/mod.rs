@@ -31,7 +31,7 @@ pub(super) fn prepare_case(exit: ExternalRootExit) -> Result<PreparedCase, Opera
         ExternalRootExit::CaptureCollectedFailure => Some(RuleIndex(3)),
         _ => None,
     };
-    let derived = crate::application::file_dag::fixtures::program_derived_port();
+    let derived = ryo_execution_store::application::file_dag::fixtures::program_derived_port();
     let mut external = shared_plan(ProjectionOrder::Forward, FinalConsumer::Completes);
     external.steps.truncate(2);
     external.emit.step = StepId(1);

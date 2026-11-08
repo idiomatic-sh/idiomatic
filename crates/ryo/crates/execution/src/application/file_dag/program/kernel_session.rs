@@ -4,15 +4,9 @@ use crate::application::file_dag::program::runtime::service::KernelPermit;
 use crate::application::file_dag::program::runtime::types::InvocationFailure;
 use crate::application::file_dag::program::runtime::types::KernelInput;
 use crate::application::file_dag::program::runtime::types::KernelScratch;
-use crate::application::file_dag::{executor::PrimitiveExecutor, relations::RelationOwner};
-use ryo_execution_domain::domain::{
-    executable_program::types::instruction::value::Instruction,
-    operating::{
-        errors::OperatingError,
-        types::{Emit, OperatorContext},
-    },
-    table_model::types::Rows,
-};
+use crate::application::file_dag::executor::PrimitiveExecutor;
+use ryo_execution_domain::domain::{executable_program::types::instruction::value::Instruction, operating::{errors::OperatingError, types::{Emit, OperatorContext}}, table_model::types::Rows};
+use ryo_execution_store::application::file_dag::relations::RelationOwner;
 use ryo_relations::domain::relations::types::Relation;
 use std::rc::Rc;
 

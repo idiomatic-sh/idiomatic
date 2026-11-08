@@ -1,5 +1,5 @@
 //! What the rows of an answer keep of the operands whose absence of rows an operator trusts.
-use super::types::AbsenceMask;
+use crate::domain::operator::contract::types::AbsenceMask;
 use crate::domain::completion::types::CoverageState;
 use crate::domain::output_coverage::types::InputCoverage;
 

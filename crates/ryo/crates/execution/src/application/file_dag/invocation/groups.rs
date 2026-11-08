@@ -36,7 +36,7 @@ pub(super) fn groups(
     digest: Option<ColumnIndex>,
     context: &mut OperatorContext<'_>,
     contract: &OperatorContract,
-    admitted: &super::super::workspace::InputAdmissions<'_, '_>,
+    admitted: &ryo_execution_store::application::file_dag::workspace::InputAdmissions<'_, '_>,
     semantics: &crate::application::file_dag::execution::PrimitiveSemanticsBridge<'_>,
 ) -> Result<Vec<Group>, OperatingError> {
     // The original collected contract checks the reduction operand before its grouping keys.

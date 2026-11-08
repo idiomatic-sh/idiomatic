@@ -55,7 +55,7 @@ fn chained_registered_evaluations_reuse_downstream_invocation_state() {
             .map(|number| vec![HostedCell::Number(Integer(number))])
             .collect(),
     );
-    let derived = crate::application::file_dag::fixtures::program_derived_port();
+    let derived = ryo_execution_store::application::file_dag::fixtures::program_derived_port();
     let prepared = crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
             schedule: RuleSchedule::Independent,
@@ -97,7 +97,7 @@ fn chained_registered_evaluations_reuse_downstream_invocation_state() {
         }],
         services,
         ryo_values::domain::files::types::SourceView(b""),
-        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
+        ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible,
         &mut symbols,
         None,
         None,

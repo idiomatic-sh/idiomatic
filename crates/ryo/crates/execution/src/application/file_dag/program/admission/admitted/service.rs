@@ -3,8 +3,8 @@ use super::super::{
     AdmittedInput, AdmittedWalkSource, Agreement, ObservationReadiness, Partition, PartitionSupply,
     PopulationProof, ProducerRoot, ReadProof, Readiness,
 };
-use crate::application::file_dag::derived::population::types::PopulationId;
-use crate::application::file_dag::relations::{RelationOwner, handle::service::PublishedInput};
+use ryo_execution_store::application::file_dag::derived::population::types::PopulationId;
+use ryo_execution_store::application::file_dag::relations::{RelationOwner, handle::service::PublishedInput};
 use ryo_execution_domain::domain::{executable_program::types::InputSource, operating::errors::OperatingError};
 use std::{rc::Rc, sync::Arc};
 
@@ -47,7 +47,7 @@ impl AdmittedInput {
         &self,
         owner: &Rc<RelationOwner>,
     ) -> Result<
-        crate::application::file_dag::derived::population::types::PopulationId,
+        ryo_execution_store::application::file_dag::derived::population::types::PopulationId,
         OperatingError,
     > {
         self.publication(owner)?;
@@ -170,7 +170,7 @@ impl AdmittedInput {
         required: &Partition,
         expected: ProducerRoot,
     ) -> Result<(), OperatingError> {
-        if owner.matches_generation(generation) == crate::application::file_dag::relations::types::Sameness::Different
+        if owner.matches_generation(generation) == ryo_execution_store::application::file_dag::relations::types::Sameness::Different
             || !Rc::ptr_eq(owner, &self.proof.owner)
             || !Arc::ptr_eq(&self.proof.generation, generation)
             || self.root != expected
@@ -202,10 +202,8 @@ use ryo_execution_domain::domain::table_model::types::RepresentationInput;
             .proof
             .owner
             .admit(publication.as_ref(), RepresentationInput::from(rows))?;
-        let crate::application::file_dag::relations::admission::types::AdmissionIdentity {
-            population,
-            relation: actual_relation,
-        } = admitted.identity(&self.proof.owner)?;
+        let identity = admitted.identity(&self.proof.owner)?;
+        let (population, actual_relation) = (identity.population(), identity.relation());
         // A project-stage input is the decoded frontier of the relation: computed rows carry no relation identity of their own, and
         // the root and the population proof already say which relation they are.
         if population != self.proof.population
@@ -229,12 +227,12 @@ use ryo_execution_domain::domain::table_model::types::RepresentationInput;
     pub(crate) fn from_publication(
         owner: Rc<RelationOwner>,
         publication: PublishedInput,
-        admitted: &crate::application::file_dag::relations::admission::service::BorrowedInput<'_>,
+        admitted: &ryo_execution_store::application::file_dag::relations::admission::service::BorrowedInput<'_>,
         root: ProducerRoot,
         read: ReadProof,
     ) -> Result<Self, OperatingError> {
         admitted.require_publication(owner.as_ref(), publication.as_ref())?;
-        let crate::application::file_dag::relations::admission::types::AdmissionIdentity { population, .. } = admitted.identity(&owner)?;
+        let population = admitted.identity(&owner)?.population();
         let generation = admitted.generation_guard();
 
         Ok(Self {
@@ -254,7 +252,7 @@ use ryo_execution_domain::domain::table_model::types::RepresentationInput;
         owner: &Rc<RelationOwner>,
     ) -> Result<&PublishedInput, OperatingError> {
         if !Rc::ptr_eq(owner, &self.proof.owner)
-            || owner.matches_generation(&self.proof.generation) == crate::application::file_dag::relations::types::Sameness::Different
+            || owner.matches_generation(&self.proof.generation) == ryo_execution_store::application::file_dag::relations::types::Sameness::Different
         {
             return Err(OperatingError::NotRead);
         }

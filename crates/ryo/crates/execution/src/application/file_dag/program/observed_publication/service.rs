@@ -15,7 +15,7 @@ impl ObservedPublication {
     }
     pub(crate) fn validate_transfer_readiness(
         &self,
-        owner: &std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
+        owner: &std::rc::Rc<ryo_execution_store::application::file_dag::relations::RelationOwner>,
         readiness: &ryo_values::domain::records::types::ProducerReadiness,
     ) -> Result<(), OperatingError> {
         self.admitted.publication(owner)?;

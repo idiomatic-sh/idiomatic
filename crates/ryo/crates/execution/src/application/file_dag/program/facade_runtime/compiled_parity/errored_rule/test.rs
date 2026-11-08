@@ -121,7 +121,7 @@ fn only_the_rule_with_an_errored_step_is_refused_on_its_roots() {
         plans,
         bindings,
     };
-    let derived = crate::application::file_dag::fixtures::program_derived_port();
+    let derived = ryo_execution_store::application::file_dag::fixtures::program_derived_port();
     let prepared = prepare(
         compiled,
         &rules,

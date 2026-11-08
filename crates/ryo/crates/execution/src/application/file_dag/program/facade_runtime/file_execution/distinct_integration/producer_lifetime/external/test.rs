@@ -1,7 +1,7 @@
 //! Actual external aliases retain one production backing through terminal exits.
 use super::super::super::*;
 use super::fixtures::{ExternalRootExit, PreparedCase, prepare_case};
-use crate::application::file_dag::derived::owner::witness::service::BackingLiveness;
+use ryo_execution_store::application::file_dag::derived::owner::witness::service::BackingLiveness;
 use ryo_relations::domain::relations::{
     service::to_bits,
     types::{ColumnsView, FactColumn},
@@ -48,13 +48,13 @@ fn external_root_exit(exit: ExternalRootExit) -> Result<(), OperatingError> {
         &intents,
         services,
         ryo_values::domain::files::types::SourceView(b""),
-        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
+        ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible,
         &mut symbols,
         None,
         None,
     )?;
     file.owner.derived().set_optional_limit(
-        crate::application::file_dag::derived::owner::index::types::ByteLimit(0),
+        ryo_execution_store::application::file_dag::derived::owner::index::types::ByteLimit(0),
     )?;
     assert_eq!(
         file.prepared_roots

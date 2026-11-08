@@ -1,5 +1,5 @@
 //! Owned derived handles stay in application state; the primitive sees borrowed views only.
-use super::super::derived::owner::acquisition::admission::service::AcquiredView;
+use ryo_execution_store::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView;
 use ryo_execution_domain::domain::{
     operating::errors::OperatingError,
     operator::contract::{

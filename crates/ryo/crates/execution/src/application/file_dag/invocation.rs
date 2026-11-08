@@ -1,5 +1,5 @@
 //! Invocation-owned acquisition at the contract's demand boundary; no primitive cache policy.
-use super::derived::owner::acquisition::admission::service::AcquiredView;
+use ryo_execution_store::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView;
 mod binding;
 mod constants;
 mod groups;
@@ -44,7 +44,7 @@ fn input<'f>(
 /// Resources are prepared once, after the scheduler's static/empty/first-row gates.
 /// Regex resources are acquired separately after the checked physical/text row gates.
 pub(crate) struct InvocationResources<'f> {
-    pub(crate) cached_graph: Option<super::derived::owner::cached_graph::types::CachedGraph>,
+    pub(crate) cached_graph: Option<ryo_execution_store::application::file_dag::derived::owner::cached_graph::types::CachedGraph>,
     pub(crate) inputs: InvocationInputs<'f>,
 }
 
@@ -57,15 +57,15 @@ pub(crate) struct InvocationInputs<'f> {
     pub(crate) native_join: Option<NativeJoin<'f>>,
     pub(crate) native_storage: Option<AcquiredView>,
     pub(crate) cycles: Option<AcquiredView>,
-    pub(crate) closure: Vec<super::derived::owner::acquisition::admission::service::AcquiredView>,
-    pub(crate) partitioned_closure: Option<super::closure_partitions::PartitionedClosure<'f>>,
+    pub(crate) closure: AcquiredPartitions,
+    pub(crate) partitioned_closure: Option<ryo_execution_store::application::file_dag::closure_partitions::PartitionedClosure<'f>>,
     pub(crate) ordered: Option<AcquiredView>,
     pub(crate) dfs: Option<AcquiredView>,
     pub(crate) axis: Option<super::axis_resources::view::AxisResource<'f>>,
     pub(crate) groups: Option<Vec<Group>>,
     /// The file's profile, the observer the lent indexes report their probes to.
     #[cfg(feature = "diagnostic-row-progress")]
-    pub(crate) progress: super::route_counts::types::RouteProfile,
+    pub(crate) progress: ryo_execution_store::application::file_dag::route_counts::types::RouteProfile,
 }
 impl<'f> InvocationResources<'f> {
     /// Validate required Join resource metadata without constructing a payload.
@@ -121,9 +121,9 @@ impl<'f> InvocationResources<'f> {
 fn partitioned<'f>(
     contract: &OperatorContract,
     input: RepresentationInput<'f>,
-    admitted: &super::workspace::InputAdmissions<'_, 'f>,
+    admitted: &ryo_execution_store::application::file_dag::workspace::InputAdmissions<'_, 'f>,
     context: &mut OperatorContext<'_>,
-) -> Result<super::closure_partitions::PartitionedClosure<'f>, OperatingError> {
+) -> Result<ryo_execution_store::application::file_dag::closure_partitions::PartitionedClosure<'f>, OperatingError> {
     use ryo_derived::domain::request::types::DerivedKind;
     let order = prepared(contract, DerivedKind::PartitionOrder)?;
     let closure = prepared(contract, DerivedKind::ClosureAdjacency)?;
@@ -132,16 +132,32 @@ fn partitioned<'f>(
 
 use ryo_values::domain::rows::types::Table;
 
-impl ryo_execution_domain::domain::operator::contract::views::ClosureParts for InvocationInputs<'_> {
+/// The closure partitions an invocation acquired, in partition order: the views the store leased, held as one
+/// list so the engine can lend them to the domain's partition access (a foreign list cannot implement it).
+#[derive(Debug, Default)]
+pub(crate) struct AcquiredPartitions(Vec<AcquiredView>);
+impl AcquiredPartitions {
+    /// Appends the next partition's view.
+    pub(crate) fn push(&mut self, view: AcquiredView) {
+        self.0.push(view);
+    }
+    /// The acquired views, in partition order.
+    pub(crate) fn iter(&self) -> std::slice::Iter<'_, AcquiredView> {
+        self.0.iter()
+    }
+}
+
+impl ryo_execution_domain::domain::operator::contract::views::ClosureParts for AcquiredPartitions {
     fn len(&self) -> ryo_execution_domain::domain::operator::contract::views::PartitionCount {
-        ryo_execution_domain::domain::operator::contract::views::PartitionCount(self.closure.len())
+        ryo_execution_domain::domain::operator::contract::views::PartitionCount(self.0.len())
     }
     fn get(
         &self,
         at: ryo_execution_domain::domain::operator::contract::views::PartitionIndex,
     ) -> Result<&ryo_derived::domain::closure_adjacency::types::ClosurePartition, OperatingError> {
         let view = self
-            .closure
+            .0
+            .as_slice()
             .get(at.0)
             .ok_or(OperatingError::ShapeMismatch)?
             .view()?;

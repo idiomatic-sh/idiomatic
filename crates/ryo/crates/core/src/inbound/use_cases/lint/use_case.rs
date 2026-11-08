@@ -42,7 +42,7 @@ use ryo_execution::inbound::use_cases::execution::interface::Counting;
 use ryo_execution::inbound::use_cases::metadata::interface::{MetadataUseCase as _, Needs};
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase as _;
 use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
-use ryo_execution::outbound::derived::interface::DerivedPort;
+use ryo_execution_store::outbound::derived::interface::DerivedPort;
 use ryo_execution::outbound::digest::interface::DigestPort;
 use ryo_execution::outbound::facts::interface::FactsPort;
 use ryo_execution::outbound::matching::interface::MatchingPort;

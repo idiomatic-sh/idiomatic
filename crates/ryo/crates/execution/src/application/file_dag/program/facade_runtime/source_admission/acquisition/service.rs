@@ -11,8 +11,8 @@ use crate::application::file_dag::program::constants::{
     PRODUCER_WITHOUT_QUERY, SOURCE_FACTS_INCOMPLETE,
 };
 use crate::application::file_dag::program::facade_runtime::types::ObservationKey;
-use crate::application::file_dag::relations::RelationOwner;
-use crate::application::file_dag::relations::handle::service::PublishedInput;
+use ryo_execution_store::application::file_dag::relations::RelationOwner;
+use ryo_execution_store::application::file_dag::relations::handle::service::PublishedInput;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operating::types::OperatorContext;
 use std::rc::Rc;

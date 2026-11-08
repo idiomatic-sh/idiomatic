@@ -1,7 +1,7 @@
 //! Real publication scopes retain and release project batch leases.
 use super::super::super::*;
 use super::fixtures::{PhaseExit, PreparedCase, prepare_case};
-use crate::application::file_dag::derived::owner::witness::service::BackingLiveness;
+use ryo_execution_store::application::file_dag::derived::owner::witness::service::BackingLiveness;
 use crate::application::file_dag::frontiers::types::FrontierInput;
 use crate::application::file_dag::frontiers::types::FrontierSource;
 use crate::application::file_dag::frontiers::types::PreparedFrontiers;

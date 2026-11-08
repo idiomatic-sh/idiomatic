@@ -1,5 +1,5 @@
 //! Request-graph dependencies: the producers a rule may read, their schemas and the plans linked beneath them.
-use super::errors::FileProgramError;
+use crate::domain::rule_intent::errors::RuleIntentError;
 use super::fixtures::{binding, bound_input, export, exporting, observing, plan, rule};
 use super::service::link::{following, link};
 use super::service::observations::{schedule, schemas};
@@ -28,7 +28,7 @@ enum Scenario {
 }
 type Input = Scenario;
 type Value = ();
-type Failure = FileProgramError;
+type Failure = RuleIntentError;
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_consumer_reads_the_export_of_an_earlier_producer"),
@@ -41,7 +41,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Scenario::UnknownProducer,
         expect: Expect::Refusal(|error| {
-            selects!(matches!(error, FileProgramError::UnknownProducer { .. }))
+            selects!(matches!(error, RuleIntentError::UnknownProducer { .. }))
         }),
     },
     Case {
@@ -49,7 +49,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Scenario::SelfRead,
         expect: Expect::Refusal(|error| {
-            selects!(matches!(error, FileProgramError::SelfDependency { .. }))
+            selects!(matches!(error, RuleIntentError::SelfDependency { .. }))
         }),
     },
     Case {
@@ -57,7 +57,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Scenario::ExecutableNoQuery,
         expect: Expect::Refusal(|error| {
-            selects!(matches!(error, FileProgramError::ExecutableNoQuery { .. }))
+            selects!(matches!(error, RuleIntentError::ExecutableNoQuery { .. }))
         }),
     },
     Case {
@@ -65,21 +65,21 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Scenario::RepeatedBinding,
         expect: Expect::Refusal(|error| {
-            selects!(matches!(error, FileProgramError::DuplicateBinding { .. }))
+            selects!(matches!(error, RuleIntentError::DuplicateBinding { .. }))
         }),
     },
     Case {
         name: CaseName("rules_that_read_each_other_have_no_order"),
         word: Word::Refuses,
         input: || Scenario::Cycle,
-        expect: Expect::Error(FileProgramError::Cycle),
+        expect: Expect::Error(RuleIntentError::Cycle),
     },
     Case {
         name: CaseName("a_producer_without_a_plan_is_not_compiled"),
         word: Word::Refuses,
         input: || Scenario::NotCompiled,
         expect: Expect::Refusal(|error| {
-            selects!(matches!(error, FileProgramError::NotCompiled { .. }))
+            selects!(matches!(error, RuleIntentError::NotCompiled { .. }))
         }),
     },
     Case {
@@ -87,7 +87,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Scenario::MissingOutput,
         expect: Expect::Refusal(|error| {
-            selects!(matches!(error, FileProgramError::MissingOutput { .. }))
+            selects!(matches!(error, RuleIntentError::MissingOutput { .. }))
         }),
     },
     Case {
@@ -97,7 +97,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Refusal(|error| {
             selects!(matches!(
                 error,
-                FileProgramError::IncompatibleObservationColumns { .. }
+                RuleIntentError::IncompatibleObservationColumns { .. }
             ))
         }),
     },
@@ -105,13 +105,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_step_the_plan_does_not_have_is_an_invalid_reference"),
         word: Word::Refuses,
         input: || Scenario::DanglingStep,
-        expect: Expect::Error(FileProgramError::InvalidReference),
+        expect: Expect::Error(RuleIntentError::InvalidReference),
     },
     Case {
         name: CaseName("a_plan_cannot_have_more_steps_than_step_numbers"),
         word: Word::Refuses,
         input: || Scenario::StepNumbersExhausted,
-        expect: Expect::Error(FileProgramError::TooManyOutputs),
+        expect: Expect::Error(RuleIntentError::TooManyOutputs),
     },
 ];
 use ryo_values::domain::plan_parts::types::Input as InputSource;

@@ -6,7 +6,7 @@ use super::{
 };
 use crate::application::file_dag::program::prepared_execution::interface::PreparedExecution;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_execution_domain::domain::file_program::errors::FileProgramError;
+use ryo_execution_domain::domain::rule_intent::errors::RuleIntentError;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::prepared_request::types::ObservationIdentity;
 use super::interface::{ExecutionCompilation as _, PreparedQueries as _, QueryCompilation, RuleCompilationError};
@@ -56,7 +56,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || request(vec![vec![]]),
         expect: Expect::Error(OperatingError::ObservationConfiguration(
-            FileProgramError::InvalidReference,
+            RuleIntentError::InvalidReference,
         )),
     },
 ];
@@ -67,7 +67,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
                 ryo_operators::outbound::matching::factory::use_case(),
             ))),
         ),
-        Arc::new(crate::outbound::derived::factory::semantics()),
+        Arc::new(ryo_execution_store::outbound::derived::factory::semantics()),
         Arc::new(crate::outbound::digest::factory::blake3()),
     );
     prepare.prepare(input).map(|program| program.rule_count().0)

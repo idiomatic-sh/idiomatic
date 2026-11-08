@@ -1,7 +1,7 @@
 //! Request-local demand closure over immutable cached plans; no source names are resolved here.
 use crate::domain::coverage::types::RuleIndex;
+use crate::domain::rule_intent::errors::RuleIntentError;
 use crate::domain::file_program::{
-    errors::FileProgramError,
     types::{
         BindingCount, EscapingOutputs, ExportedOutputs, PendingStep, ResolvedObservationBinding,
         ResolvedObservationProducer, UsedInputs, WantedSteps,
@@ -30,7 +30,7 @@ pub struct LinkedObservationPlans {
 pub fn link(
     mut plans: Vec<Plan>,
     bindings: Vec<Vec<ResolvedObservationBinding>>,
-) -> Result<LinkedObservationPlans, FileProgramError> {
+) -> Result<LinkedObservationPlans, RuleIntentError> {
     if bindings.iter().all(Vec::is_empty) && plans.iter().all(|plan| plan.observations.is_empty()) {
         return Ok(LinkedObservationPlans { plans, bindings });
     }
@@ -55,11 +55,11 @@ pub fn link(
         })
         .collect();
     while let Some(PendingStep { rule, step: id }) = pending.pop() {
-        let at = usize::try_from(id.0).map_err(|_| FileProgramError::InvalidReference)?;
+        let at = usize::try_from(id.0).map_err(|_| RuleIntentError::InvalidReference)?;
         let seen = wanted
             .get_mut(rule.0)
             .and_then(|steps| steps.0.get_mut(at))
-            .ok_or(FileProgramError::InvalidReference)?;
+            .ok_or(RuleIntentError::InvalidReference)?;
         if *seen {
             continue;
         }
@@ -67,7 +67,7 @@ pub fn link(
         let step = plans
             .get(rule.0)
             .and_then(|plan| plan.steps.get(at))
-            .ok_or(FileProgramError::InvalidReference)?;
+            .ok_or(RuleIntentError::InvalidReference)?;
         for input in named(&inputs_of(&step.operation)) {
             match *input {
                 Input::Step(step) => pending.push(PendingStep { rule, step }),
@@ -97,20 +97,20 @@ pub fn link(
                 .get(rule)
                 .and_then(|used| used.0.get(position))
                 .copied()
-                .ok_or(FileProgramError::InvalidReference)?;
+                .ok_or(RuleIntentError::InvalidReference)?;
             if !demanded {
                 continue;
             }
             for producer in &mut binding.producers {
                 if let ResolvedObservationProducer::Output { rule, output } = producer {
                     let Ok(at) = usize::try_from(output.0) else {
-                        return Err(FileProgramError::InvalidReference);
+                        return Err(RuleIntentError::InvalidReference);
                     };
                     *output = output_maps
                         .get(rule.0)
                         .and_then(|mapping| mapping.get(at))
                         .and_then(|id| *id)
-                        .ok_or(FileProgramError::InvalidReference)?;
+                        .ok_or(RuleIntentError::InvalidReference)?;
                 }
             }
             kept.push(binding);
@@ -132,35 +132,35 @@ fn demand_bound_input(
     used: &mut [UsedInputs],
     exports: &mut [ExportedOutputs],
     pending: &mut Vec<PendingStep>,
-) -> Result<(), FileProgramError> {
+) -> Result<(), RuleIntentError> {
     let inputs = bindings
         .get(rule.0)
-        .ok_or(FileProgramError::InvalidReference)?;
+        .ok_or(RuleIntentError::InvalidReference)?;
     let position = inputs
         .iter()
         .position(|binding| binding.input == input)
-        .ok_or(FileProgramError::InvalidReference)?;
+        .ok_or(RuleIntentError::InvalidReference)?;
     used.get_mut(rule.0)
         .and_then(|inputs| inputs.0.get_mut(position))
-        .ok_or(FileProgramError::InvalidReference)
+        .ok_or(RuleIntentError::InvalidReference)
         .map(|used| *used = true)?;
     for producer in &inputs[position].producers {
         let ResolvedObservationProducer::Output { rule: owner, output } = producer else {
             continue;
         };
         let output =
-            usize::try_from(output.0).map_err(|_| FileProgramError::InvalidReference)?;
+            usize::try_from(output.0).map_err(|_| RuleIntentError::InvalidReference)?;
         let observed = plans
             .get(owner.0)
             .and_then(|plan| plan.observations.get(output))
-            .ok_or(FileProgramError::InvalidReference)?;
+            .ok_or(RuleIntentError::InvalidReference)?;
         let Input::Step(source) = observed.source else {
-            return Err(FileProgramError::InvalidReference);
+            return Err(RuleIntentError::InvalidReference);
         };
         exports
             .get_mut(owner.0)
             .and_then(|outputs| outputs.0.get_mut(output))
-            .ok_or(FileProgramError::InvalidReference)
+            .ok_or(RuleIntentError::InvalidReference)
             .map(|used| *used = true)?;
         pending.push(PendingStep {
             rule: *owner,
@@ -175,7 +175,7 @@ fn cross_file_exports(
     plans: &[Plan],
     bindings: &[Vec<ResolvedObservationBinding>],
     wanted: &[WantedSteps],
-) -> Result<Vec<EscapingOutputs>, FileProgramError> {
+) -> Result<Vec<EscapingOutputs>, RuleIntentError> {
     let mut escapes: Vec<_> = plans
         .iter()
         .map(|plan| EscapingOutputs(vec![false; plan.observations.len()]))
@@ -191,12 +191,12 @@ fn cross_file_exports(
             }
             for id in dependencies
                 .get(at)
-                .ok_or(FileProgramError::InvalidReference)?
+                .ok_or(RuleIntentError::InvalidReference)?
             {
                 let binding = bindings
                     .get(rule)
                     .and_then(|inputs| inputs.iter().find(|binding| binding.input == *id))
-                    .ok_or(FileProgramError::InvalidReference)?;
+                    .ok_or(RuleIntentError::InvalidReference)?;
                 mark_escapes(plans, binding, &mut escapes)?;
             }
         }
@@ -209,16 +209,16 @@ fn mark_escapes(
     plans: &[Plan],
     binding: &ResolvedObservationBinding,
     escapes: &mut [EscapingOutputs],
-) -> Result<(), FileProgramError> {
+) -> Result<(), RuleIntentError> {
     for producer in &binding.producers {
         let ResolvedObservationProducer::Output { rule, output } = producer else {
             continue;
         };
-        let at = usize::try_from(output.0).map_err(|_| FileProgramError::InvalidReference)?;
+        let at = usize::try_from(output.0).map_err(|_| RuleIntentError::InvalidReference)?;
         let observed = plans
             .get(rule.0)
             .and_then(|plan| plan.observations.get(at))
-            .ok_or(FileProgramError::InvalidReference)?;
+            .ok_or(RuleIntentError::InvalidReference)?;
         if observed.scope == StepScope::PerFile {
             escapes[rule.0].0[at] = true;
         }
@@ -232,7 +232,7 @@ fn prune(
     wanted: &WantedSteps,
     exports: &ExportedOutputs,
     escapes: &EscapingOutputs,
-) -> Result<Vec<Option<ObservationIndex>>, FileProgramError> {
+) -> Result<Vec<Option<ObservationIndex>>, RuleIntentError> {
     let mut step_map = vec![None; plan.steps.len()];
     let mut next = StepId(0);
     for (at, keep) in wanted.0.iter().copied().enumerate() {
@@ -243,10 +243,10 @@ fn prune(
     }
     let remap = |id: StepId| {
         step_map
-            .get(usize::try_from(id.0).map_err(|_| FileProgramError::InvalidReference)?)
+            .get(usize::try_from(id.0).map_err(|_| RuleIntentError::InvalidReference)?)
             .copied()
             .flatten()
-            .ok_or(FileProgramError::InvalidReference)
+            .ok_or(RuleIntentError::InvalidReference)
     };
     let mut steps = Vec::new();
     for (at, mut step) in std::mem::take(&mut plan.steps).into_iter().enumerate() {
@@ -279,14 +279,14 @@ fn prune(
             continue;
         }
         let Input::Step(id) = observation.source else {
-            return Err(FileProgramError::InvalidReference);
+            return Err(RuleIntentError::InvalidReference);
         };
         observation.source = Input::Step(remap(id)?);
         if escapes.0[at] {
             extra_frontier.push(observation.source);
         }
         output_map[at] = Some(ObservationIndex(
-            u32::try_from(observations.len()).map_err(|_| FileProgramError::TooManyOutputs)?,
+            u32::try_from(observations.len()).map_err(|_| RuleIntentError::TooManyOutputs)?,
         ));
         observations.push(observation);
     }
@@ -302,13 +302,13 @@ fn prune(
 }
 
 /// The step number after `id`; a plan cannot have more steps than numbers.
-pub(crate) fn following(id: StepId) -> Result<StepId, FileProgramError> {
+pub(crate) fn following(id: StepId) -> Result<StepId, RuleIntentError> {
     id.0.checked_add(1)
         .map(StepId)
-        .ok_or(FileProgramError::TooManyOutputs)
+        .ok_or(RuleIntentError::TooManyOutputs)
 }
 
-fn frontier(plan: &Plan) -> Result<Vec<Input>, FileProgramError> {
+fn frontier(plan: &Plan) -> Result<Vec<Input>, RuleIntentError> {
     let mut frontier = Vec::new();
     for step in plan
         .steps
@@ -322,9 +322,9 @@ fn frontier(plan: &Plan) -> Result<Vec<Input>, FileProgramError> {
                     plan.steps
                         .get(
                             usize::try_from(id.0)
-                                .map_err(|_| FileProgramError::InvalidReference)?,
+                                .map_err(|_| RuleIntentError::InvalidReference)?,
                         )
-                        .ok_or(FileProgramError::InvalidReference)?
+                        .ok_or(RuleIntentError::InvalidReference)?
                         .scope
                         == StepScope::PerFile
                 }
@@ -340,7 +340,7 @@ fn frontier(plan: &Plan) -> Result<Vec<Input>, FileProgramError> {
 /// Actual bound sources beneath each retained cross frontier, including per-file transforms.
 pub fn frontier_dependencies(
     plan: &Plan,
-) -> Result<Vec<Vec<ryo_values::domain::plan_parts::types::ObservationBindingId>>, FileProgramError>
+) -> Result<Vec<Vec<ryo_values::domain::plan_parts::types::ObservationBindingId>>, RuleIntentError>
 {
     if plan.observation_inputs.is_empty() {
         return Ok(vec![Vec::new(); plan.frontier.len()]);
@@ -363,7 +363,7 @@ pub(crate) fn bound_step_dependencies(
     plan: &Plan,
 ) -> Result<
     Vec<BTreeSet<ryo_values::domain::plan_parts::types::ObservationBindingId>>,
-    FileProgramError,
+    RuleIntentError,
 > {
     let mut steps = Vec::with_capacity(plan.steps.len());
     for step in &plan.steps {
@@ -385,7 +385,7 @@ fn bound_input_dependencies(
     input: ryo_values::domain::plan_parts::types::Input,
     steps: &[BTreeSet<ryo_values::domain::plan_parts::types::ObservationBindingId>],
     count: BindingCount,
-) -> Result<BTreeSet<ryo_values::domain::plan_parts::types::ObservationBindingId>, FileProgramError>
+) -> Result<BTreeSet<ryo_values::domain::plan_parts::types::ObservationBindingId>, RuleIntentError>
 {
     use ryo_values::domain::plan_parts::types::Input;
     match input {
@@ -393,8 +393,8 @@ fn bound_input_dependencies(
         Input::Step(step) => steps
             .get(step.0 as usize)
             .cloned()
-            .ok_or(FileProgramError::InvalidReference),
+            .ok_or(RuleIntentError::InvalidReference),
         Input::BoundObservation(id) if (id.0 as usize) < count.0 => Ok(BTreeSet::from([id])),
-        Input::BoundObservation(_) => Err(FileProgramError::InvalidReference),
+        Input::BoundObservation(_) => Err(RuleIntentError::InvalidReference),
     }
 }

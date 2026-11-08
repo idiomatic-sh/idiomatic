@@ -10,7 +10,7 @@ use ryo_execution_domain::domain::rule_intent::types::FileRuleIntent;
 use ryo_execution_domain::domain::rule_intent::types::ObservationDemand;
 use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
 use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
-use crate::application::file_dag::scope::ScopePartials;
+use ryo_execution_store::application::file_dag::service::ScopePartials;
 use ryo_execution_domain::domain::{
     coverage::types::RuleIndex,
     file_program::types::RuleSchedule,
@@ -149,7 +149,7 @@ fn prepare(
     bindings: Vec<Vec<ParameterBinding>>,
 ) -> Prepared {
     let count = bindings.len();
-    let derived = crate::application::file_dag::fixtures::program_derived_port();
+    let derived = ryo_execution_store::application::file_dag::fixtures::program_derived_port();
     let prepared = crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
             schedule: RuleSchedule::Independent,
@@ -265,7 +265,7 @@ fn identical_binding_dependent_operations_do_not_share_rule_graph_results() -> R
         ],
         services,
         ryo_values::domain::files::types::SourceView(b""),
-        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
+        ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible,
         &mut symbols,
         None,
         None,
@@ -307,7 +307,7 @@ fn two_file_generation_owners_cannot_reuse_the_other_files_results() -> Result<A
         }],
         Arc::clone(&services),
         ryo_values::domain::files::types::SourceView(b""),
-        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
+        ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible,
         &mut first_symbols,
         None,
         None,
@@ -329,7 +329,7 @@ fn two_file_generation_owners_cannot_reuse_the_other_files_results() -> Result<A
         }],
         services,
         ryo_values::domain::files::types::SourceView(b""),
-        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
+        ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible,
         &mut second_symbols,
         None,
         None,

@@ -2,9 +2,8 @@
 use crate::application::file_dag::executor::{KernelAnswer, KernelFault};
 pub(crate) mod capability;
 use super::super::executor::{KernelCall, PrimitiveExecutor};
-use super::super::{
-    invocation::InvocationResources, predicates::BoundPredicate, workspace::InvocationWorkspace,
-};
+use super::super::{invocation::InvocationResources, predicates::BoundPredicate};
+use ryo_execution_store::application::file_dag::workspace::InvocationWorkspace;
 use ryo_execution_domain::domain::operating::{
     errors::OperatingError,
     types::{Emit, OperatorContext},
@@ -50,7 +49,7 @@ pub(crate) fn evaluate(
             .as_mut()
             .ok_or(OperatingError::NotRun)?
             .advance()?;
-        if available == crate::application::file_dag::closure_partitions::types::PartitionAdvance::Exhausted {
+        if available == ryo_execution_store::application::file_dag::closure_partitions::types::PartitionAdvance::Exhausted {
             return Ok(());
         }
         evaluate_once(
@@ -70,12 +69,13 @@ fn evaluate_once(
     emit: &mut dyn Emit,
 ) -> Result<(), OperatingError> {
     #[cfg(feature = "diagnostic-row-progress")]
-    let routes = workspace.progress_origin.profile.clone();
+    let routes = workspace.progress_origin().profile().clone();
     #[cfg(feature = "diagnostic-row-progress")]
     let _progress_invocation =
-        crate::application::file_dag::route_counts::resume(&workspace.progress_origin);
+        workspace.progress_origin().resume();
     #[cfg(test)]
     resources.observe(workspace);
+    let mut parts = workspace.parts();
     let semantic_failure = std::sync::OnceLock::new();
     let row = match input {
         PreparedInputs::Row { input, sides, row } => {
@@ -91,12 +91,8 @@ fn evaluate_once(
     };
     #[cfg(feature = "diagnostic-row-progress")]
     if let Some(row) = row {
-        crate::application::file_dag::route_counts::progress::service::row_file(
-            &routes,
-            row,
-            context.paths,
-        );
-        crate::application::file_dag::route_counts::progress::service::progress(
+        routes.row_file(row, context.paths);
+        ryo_execution_domain::domain::operator::contract::views::ProgressObserver::observe(
             &routes,
             ryo_execution_domain::domain::operator::contract::views::ProgressCounter::InputRows,
             ryo_execution_domain::domain::operator::contract::views::ProgressAmount(1),
@@ -138,21 +134,21 @@ fn evaluate_once(
         {
             Some(prepared?)
         } else {
-            if workspace.literal_regex.is_none() {
-                workspace.literal_regex = Some(
+            if parts.literal_regex.is_none() {
+                *parts.literal_regex = Some(
                     ryo_execution_domain::domain::matching::types::prepared::value::compile_regex(
                         ryo_execution_domain::domain::table_texts::types::TextView(&pattern.0),
                         context.matcher,
                     )?,
                 );
             }
-            workspace.literal_regex.as_ref()
+            parts.literal_regex.as_ref()
         }
     } else {
         None
     };
     let cached = if let (Some(graph), Some(row)) = (resources.cached_graph.as_mut(), row) {
-        Some(workspace.owner().derived().graph_row(graph, row)?)
+        Some(parts.owner.derived().graph_row(graph, row)?)
     } else {
         None
     };
@@ -172,9 +168,9 @@ fn evaluate_once(
         paths: context.paths,
         arenas: context.arenas,
         prepared: context.prepared_matchers,
-        state: &mut workspace.predicates,
-        memo: &mut workspace.predicate_memo,
-        names: &mut workspace.predicate_names,
+        state: &mut *parts.predicates,
+        memo: &mut *parts.predicate_memo,
+        names: &mut *parts.predicate_names,
         #[cfg(feature = "diagnostic-row-progress")]
         progress: &routes,
     };
@@ -189,7 +185,7 @@ fn evaluate_once(
         ryo_execution_domain::domain::operator::contract::workspace::begin(
             &contract.workspace,
             WorkspaceLifetime::PrimaryRow,
-            &mut workspace.primitive,
+            &mut *parts.primitive,
         );
     }
     let views = PrimitiveViews {
@@ -208,8 +204,8 @@ fn evaluate_once(
     let mut output = OutputBridge {
         emit,
         headers: super::output::Headers::from_context(context),
-        scratch: &mut workspace.downstream_scratch,
-        memo: &mut workspace.downstream_memo,
+        scratch: &mut *parts.downstream_scratch,
+        memo: &mut *parts.downstream_memo,
     };
     let semantics = super::PrimitiveSemanticsBridge {
         port: operators,
@@ -228,19 +224,19 @@ fn evaluate_once(
         },
     };
     #[cfg(test)]
-    let registered_calls = &mut workspace.observation.registered_calls;
+    let mut registered_calls = 0;
     let outcome = with_primitive_context(
         views,
-        &mut workspace.primitive,
+        &mut *parts.primitive,
         query_reborrow(&mut context.symbols),
         &mut predicate,
         &semantics,
-        &workspace.work,
+        parts.work,
         |context| {
             let request = ExecutableLease::new(permit, context, operation, input, &mut output);
             #[cfg(test)]
             {
-                *registered_calls += 1;
+                registered_calls += 1;
             }
             match operators.execute(KernelCall::Registered { request }) {
                 Ok(KernelAnswer::Complete) => Ok(()),
@@ -255,7 +251,10 @@ fn evaluate_once(
     drop(output);
     drop(predicate);
     #[cfg(test)]
-    resources.observe(workspace);
+    {
+        workspace.observation_mut().registered_calls += registered_calls;
+        resources.observe(workspace);
+    }
     semantic_failure.into_inner().map_or(outcome, Err)
 }
 struct OutputBridge<'a> {

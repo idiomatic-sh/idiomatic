@@ -14,7 +14,7 @@ use crate::application::file_dag::program::facade_runtime::types::Provision;
 use crate::application::file_dag::program::facade_runtime::types::PublicationScope;
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use crate::application::file_dag::program::runtime::service::ProgramExecution;
-use crate::application::file_dag::relations::RelationOwner;
+use ryo_execution_store::application::file_dag::relations::RelationOwner;
 use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
@@ -73,7 +73,7 @@ impl SourceInputs<'_, '_> {
 impl Inputs for SourceInputs<'_, '_> {
     fn population_scope(
         &self,
-    ) -> super::super::super::relations::publication::types::ProducerScope {
+    ) -> ryo_execution_store::application::file_dag::relations::publication::types::ProducerScope {
         self.state.population_scope()
     }
     fn bind_rule(&mut self, rule: RuleIndex) {

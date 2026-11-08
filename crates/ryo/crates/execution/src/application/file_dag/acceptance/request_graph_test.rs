@@ -62,7 +62,7 @@ fn graph(plans: &[Plan], bindings: &[Vec<ParameterBinding>]) -> Result<RequestGr
         bindings,
         &[],
         &ryo_relations::domain::relations::service::kinds,
-        Arc::new(crate::outbound::derived::factory::semantics()),
+        Arc::new(ryo_execution_store::outbound::derived::factory::semantics()),
     )?;
     Ok(compile_prepared(plans, &operators))
 }

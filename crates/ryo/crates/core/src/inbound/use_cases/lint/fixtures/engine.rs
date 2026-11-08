@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use ryo_execution::inbound::use_cases::publication::interface::PublicationUseCase;
-use ryo_execution::outbound::derived::interface::DerivedPort;
+use ryo_execution_store::outbound::derived::interface::DerivedPort;
 use ryo_execution::outbound::digest::fixtures::fake::DigestFake;
 use ryo_execution::outbound::digest::interface::DigestPort;
 use ryo_execution::outbound::facts::interface::FactsPort;
@@ -40,7 +40,7 @@ pub fn operators() -> Arc<dyn OperatorsPort> {
 /// The derived-views port over the engine's derived use case.
 #[must_use]
 pub fn derived() -> Arc<dyn DerivedPort> {
-    Arc::new(ryo_execution::outbound::derived::factory::use_case(
-        ryo_execution::outbound::derived::factory::semantics(),
+    Arc::new(ryo_execution_store::outbound::derived::factory::use_case(
+        ryo_execution_store::outbound::derived::factory::semantics(),
     ))
 }

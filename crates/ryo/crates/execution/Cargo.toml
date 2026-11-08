@@ -17,6 +17,7 @@ ryo_execution_domain = { package = "idiomatic-sh-ryo-execution-domain", path = "
 ryo_matching = { package = "idiomatic-sh-ryo-matching", path = "../matching", version = "0.1.2" }
 ryo_derived = { package = "idiomatic-sh-ryo-derived", path = "../derived", version = "0.1.2" }
 ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations", version = "0.1.2" }
+ryo_execution_store = { package = "idiomatic-sh-ryo-execution-store", path = "../execution_store", version = "0.1.2" }
 thiserror.workspace = true
 ignore.workspace = true
 rayon.workspace = true
@@ -37,6 +38,7 @@ tempfile.workspace = true
 
 [dev-dependencies]
 idiomatic-sh-ryo-execution = { path = ".", features = ["fixtures"] }
+ryo_execution_store = { package = "idiomatic-sh-ryo-execution-store", path = "../execution_store", version = "0.1.2", features = ["fixtures"] }
 dhat.workspace = true
 toml.workspace = true
 ryo_query_language = { package = "idiomatic-sh-ryo-query_language", path = "../query_language", version = "0.1.2", features = ["fixtures"] }
@@ -59,8 +61,8 @@ name = "bdd"
 harness = false
 
 [features]
-fixtures = ["ryo_execution_domain/fixtures", "ryo_values/fixtures", "ryo_relations/fixtures", "ryo_language/fixtures"]
-diagnostic-row-progress = ["ryo_execution_domain/diagnostic-row-progress"]
+fixtures = ["ryo_execution_domain/fixtures", "ryo_execution_store/fixtures", "ryo_values/fixtures", "ryo_relations/fixtures", "ryo_language/fixtures"]
+diagnostic-row-progress = ["ryo_execution_domain/diagnostic-row-progress", "ryo_execution_store/diagnostic-row-progress"]
 
 [lints]
 workspace = true
@@ -77,11 +79,3 @@ harness = false
 [[test]]
 name = "executable_program_authority"
 path = "tests/executable_program_authority/test.rs"
-
-[[test]]
-name = "owner_resource_capabilities"
-path = "tests/owner_resource_capabilities/test.rs"
-
-[[test]]
-name = "representation_capabilities"
-path = "tests/representation_capabilities/test.rs"

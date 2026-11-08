@@ -2,7 +2,7 @@
 use crate::application::file_dag::program::admission::AdmittedInput;
 use crate::application::file_dag::program::admission::FileGeneration;
 use crate::application::file_dag::program::admission::Partition;
-use crate::application::file_dag::derived::constants::TARGET_RESOURCE_ROUTES;
+use ryo_execution_store::application::file_dag::derived::constants::TARGET_RESOURCE_ROUTES;
 use crate::application::file_dag::program::constants::{
     FILE_OWNER_FINISH, PRODUCER_COVERAGE_INCOMPLETE,
 };
@@ -11,7 +11,7 @@ use crate::application::file_dag::program::facade_runtime::types::ProgramService
 use crate::application::file_dag::program::facade_runtime::types::{
     FileRoot, FrontierCommit, ObservationKey, PreparedNamed, WalkPreparation,
 };
-use crate::application::file_dag::relations::types::ReuseEligibility;
+use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use ryo_execution_domain::domain::rule_intent::types::FileRuleIntent;
 use ryo_execution_domain::domain::operator::types::LogicalCounts;
@@ -20,9 +20,9 @@ use crate::application::file_dag::program::rule_outcome::types::ProjectObservati
 use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
 use crate::application::file_dag::program::runtime::service::InvocationOutcome;
 use crate::application::file_dag::program::runtime::service::ProgramExecution;
-use crate::application::file_dag::relations::RelationOwner;
-use crate::application::file_dag::scope::ScopePartials;
-use crate::application::file_dag::scope::open_program_owner;
+use ryo_execution_store::application::file_dag::relations::RelationOwner;
+use ryo_execution_store::application::file_dag::service::ScopePartials;
+use ryo_execution_store::application::file_dag::service::open_program_owner;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 #[cfg(test)]
@@ -78,7 +78,7 @@ pub(crate) struct FileRun<'a> {
     context: super::super::context::RunContext<'a>,
     walk: super::super::native_walk::FileWalk,
     walk_prepared: WalkPreparation,
-    routes: crate::application::file_dag::route_counts::types::FileScope,
+    routes: ryo_execution_store::application::file_dag::route_counts::types::FileScope,
 }
 pub(crate) fn open_file<'a>(
     program: &'a Arc<PreparedProgram>,
@@ -103,13 +103,10 @@ pub(crate) fn open_file<'a>(
     if !matches!(partials, ScopePartials::File { .. }) {
         return Err(OperatingError::WrongOperation);
     }
-    let routes = crate::application::file_dag::route_counts::types::FileScope::begin(file.0 as usize);
+    let routes = ryo_execution_store::application::file_dag::route_counts::types::FileScope::begin(file.0 as usize);
     #[cfg(feature = "diagnostic-row-progress")]
     if let Some(path) = services.request.path(file) {
-        crate::application::file_dag::route_counts::progress::service::file_name(
-            routes.profile(),
-            path,
-        );
+        routes.profile().file_name(path);
     }
     let owner = open_program_owner(
         program.program(),
@@ -162,7 +159,7 @@ impl FileRun<'_> {
         self.observed.clear();
         self.walk.retire_all();
         self.owner.derived().report(self.file);
-        let crate::application::file_dag::derived::owner::types::BuildCounts(
+        let ryo_execution_store::application::file_dag::derived::owner::types::BuildCounts(
             builds,
             hits,
             refusals,
@@ -190,7 +187,7 @@ impl FileRun<'_> {
     #[cfg(test)]
     pub(crate) fn resource_fixture_counts(
         &self,
-    ) -> crate::application::file_dag::derived::owner::fixtures::resources::Snapshot {
+    ) -> ryo_execution_store::application::file_dag::derived::owner::fixtures::resources::Snapshot {
         self.owner.derived().resource_fixture_counts()
     }
     #[cfg(test)]

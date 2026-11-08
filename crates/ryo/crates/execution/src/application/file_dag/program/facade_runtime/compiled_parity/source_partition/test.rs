@@ -78,7 +78,7 @@ fn subject(case: Input) -> Result<Value, Failure> {
             },
         ])]));
     }
-    let derived = crate::application::file_dag::fixtures::program_derived_port();
+    let derived = ryo_execution_store::application::file_dag::fixtures::program_derived_port();
     let prepared = crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
             schedule: RuleSchedule::Independent,
@@ -139,7 +139,7 @@ fn subject(case: Input) -> Result<Value, Failure> {
         handover.validate_scope(prepared.program(), &required)?;
         return Ok("frontier-scope");
     }
-    let owner = open_program_owner(prepared.program(), Arc::clone(&derived), crate::application::file_dag::relations::types::ReuseEligibility::Eligible, crate::application::file_dag::route_counts::types::RouteProfile::default());
+    let owner = open_program_owner(prepared.program(), Arc::clone(&derived), ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible, ryo_execution_store::application::file_dag::route_counts::types::RouteProfile::default());
     let project = Partition::Project(required);
     let scope = if project_case {
         project.clone()
@@ -186,7 +186,7 @@ fn subject(case: Input) -> Result<Value, Failure> {
         }
     };
     let walk_owner = if matches!(case, SourceCase::ForeignWalkGeneration) {
-        open_program_owner(prepared.program(), Arc::clone(&derived), crate::application::file_dag::relations::types::ReuseEligibility::Eligible, crate::application::file_dag::route_counts::types::RouteProfile::default())
+        open_program_owner(prepared.program(), Arc::clone(&derived), ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible, ryo_execution_store::application::file_dag::route_counts::types::RouteProfile::default())
     } else {
         Rc::clone(&owner)
     };
@@ -322,5 +322,5 @@ fn refuses() {
 use ryo_values::domain::query_bindings::types::{BindingCell, BindingTable, ParameterBinding};
 
 use crate::application::file_dag::program::facade_runtime::service::required_partitions;
-use crate::application::file_dag::scope::open_program_owner;
+use ryo_execution_store::application::file_dag::service::open_program_owner;
 use ryo_execution_domain::domain::table_model::service::count_of;

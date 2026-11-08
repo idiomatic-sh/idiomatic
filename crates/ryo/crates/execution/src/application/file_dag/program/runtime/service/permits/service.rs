@@ -15,7 +15,7 @@ impl<'scope> KernelPermit<'scope> {
         execution: &ProgramExecution,
         region: RegionId,
     ) -> Result<&ryo_execution_domain::domain::executable_program::types::region::value::Region, OperatingError> {
-        if execution.owner.matches_generation(&execution.generation) == crate::application::file_dag::relations::types::Sameness::Different {
+        if execution.owner.matches_generation(&execution.generation) == ryo_execution_store::application::file_dag::relations::types::Sameness::Different {
             return Err(OperatingError::NotRead);
         }
         let code = execution
@@ -156,7 +156,7 @@ impl<'scope> KernelPermit<'scope> {
     pub(crate) fn validate_live(
         &self,
     ) -> Result<(), OperatingError> {
-        if self.live.is_live() == crate::application::file_dag::relations::types::Liveness::Live {
+        if self.live.is_live() == ryo_execution_store::application::file_dag::relations::types::Liveness::Live {
             Ok(())
         } else {
             Err(OperatingError::NotRead)

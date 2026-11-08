@@ -80,7 +80,7 @@ impl OrderedExistenceDriver for Driver<'_, '_> {
 pub(super) fn evaluate(
     semantics: &dyn ryo_execution_domain::domain::operator::contract::types::PrimitiveSemantics,
     shape: &ryo_execution_domain::domain::executable_program::types::OrderedExistence,
-    admitted: &super::relations::number::service::AdmittedNumber<'_>,
+    admitted: &ryo_execution_store::application::file_dag::relations::number::service::AdmittedNumber<'_>,
     rows: RepresentationInput<'_>,
     context: &mut ryo_execution_domain::domain::operating::types::OperatorContext<'_>,
     row: &mut Vec<Value>,
@@ -89,7 +89,7 @@ pub(super) fn evaluate(
     emit: &mut dyn ryo_execution_domain::domain::operating::types::Emit,
 ) -> Result<(), OperatingError> {
     let _pin = admitted.publication();
-    if admitted.column != shape.order {
+    if admitted.column() != shape.order {
         return Err(OperatingError::WrongOperation);
     }
     let mut driver = Driver {
@@ -103,7 +103,7 @@ pub(super) fn evaluate(
     };
     let result = semantics.operators(OperatorCall::OrderedExistence {
         partition: &shape.partition,
-        order: admitted.column,
+        order: admitted.column(),
         extremum: match shape.extremum {
             Extremum::Maximum => PartitionExtremum::Maximum,
             Extremum::Minimum => PartitionExtremum::Minimum,

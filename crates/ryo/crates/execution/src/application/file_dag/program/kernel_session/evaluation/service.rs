@@ -3,22 +3,9 @@ use crate::application::file_dag::program::runtime::service::KernelPermit;
 use crate::application::file_dag::program::runtime::types::InvocationFailure;
 use crate::application::file_dag::program::runtime::types::KernelInput;
 use crate::application::file_dag::program::runtime::types::KernelScratch;
-use crate::application::file_dag::{invocation::InvocationResources, workspace::InvocationWorkspace};
-use ryo_execution_domain::domain::{
-    executable_program::types::instruction::value::Instruction,
-    operating::{
-        errors::OperatingError,
-        types::{Emit, InputPlace, OperatorContext},
-    },
-    operator::contract::{
-        types::{InputMode, PreparedInputs},
-        
-    },
-    table_model::{
-        service::{count_of, read_row},
-        types::Rows,
-    },
-};
+use crate::application::file_dag::invocation::InvocationResources;
+use ryo_execution_domain::domain::{executable_program::types::instruction::value::Instruction, operating::{errors::OperatingError, types::{Emit, InputPlace, OperatorContext}}, operator::contract::types::{InputMode, PreparedInputs}, table_model::{service::{count_of, read_row}, types::Rows}};
+use ryo_execution_store::application::file_dag::workspace::InvocationWorkspace;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_values::domain::rows::types::RowIndex;
 use std::rc::Rc;
@@ -78,7 +65,7 @@ impl super::super::KernelSession<'_, '_> {
         let result = (|| {
             match input {
                 KernelInput::Continuation(row) => {
-                    workspace.work.found(ryo_values::domain::plan_parts::types::InputNumber(0), ryo_execution_domain::domain::operator::contract::types::FoundRows(1));
+                    workspace.work().found(ryo_values::domain::plan_parts::types::InputNumber(0), ryo_execution_domain::domain::operator::contract::types::FoundRows(1));
                     let mut resources = crate::application::file_dag::invocation::service::continuation(contract)
                         .map_err(InvocationFailure::Semantic)?;
                     crate::application::file_dag::execution::lease::evaluate(
@@ -142,7 +129,7 @@ impl super::super::KernelSession<'_, '_> {
                                     ));
                                 }
                             };
-                            workspace.work.found(ryo_values::domain::plan_parts::types::InputNumber(0), ryo_execution_domain::domain::operator::contract::types::FoundRows(shared.visits().0));
+                            workspace.work().found(ryo_values::domain::plan_parts::types::InputNumber(0), ryo_execution_domain::domain::operator::contract::types::FoundRows(shared.visits().0));
                             return ryo_execution_domain::domain::replay::service::selected(
                                 shared.result(),
                                 source,
@@ -264,7 +251,7 @@ impl super::super::KernelSession<'_, '_> {
                                     let row = read_row(source, RowIndex(at), &mut cells).ok_or(
                                         InvocationFailure::Semantic(OperatingError::ShapeMismatch),
                                     )?;
-                                    workspace.work.found(ryo_values::domain::plan_parts::types::InputNumber(input), ryo_execution_domain::domain::operator::contract::types::FoundRows(1));
+                                    workspace.work().found(ryo_values::domain::plan_parts::types::InputNumber(input), ryo_execution_domain::domain::operator::contract::types::FoundRows(1));
                                     let texts = ryo_execution_domain::domain::table_texts::types::Texts {
                                         symbols: context.symbols.as_ref(),
                                         source: context.source,

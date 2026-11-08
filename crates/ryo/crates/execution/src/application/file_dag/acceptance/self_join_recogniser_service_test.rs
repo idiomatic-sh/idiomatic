@@ -107,7 +107,7 @@ fn a_second_rules_bag_sensitive_terminal_select_declines_the_shape() -> Result<V
         &[vec![], vec![]],
         &[],
         std::sync::Arc::new(
-            crate::outbound::derived::factory::semantics(),
+            ryo_execution_store::outbound::derived::factory::semantics(),
         ),
     )
     .unwrap();

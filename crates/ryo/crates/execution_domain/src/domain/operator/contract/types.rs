@@ -96,10 +96,15 @@ pub struct SemanticContract {
 pub struct OperationSemantics {
     /// The operation's input contract.
     pub contract: SemanticContract,
-    pub(crate) effects: Effects,
+    /// Whether the operation is pure or has effects.
+    pub effects: Effects,
     /// The inputs whose absence of rows the operation's answer depends on.
-    pub absence: crate::domain::contributor_rows::types::AbsenceMask,
+    pub absence: AbsenceMask,
 }
+
+/// The operands, by their place, whose absence of rows an operator trusts: the bit of an operand is `1 << place`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct AbsenceMask(pub u8);
 
 /// Inputs whose rows may trigger evaluation in this mode.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -182,7 +187,7 @@ pub struct OperatorContract {
     /// Payload-independent collected layout; row-lazy refusals are not raised by it.
     pub output_kinds: Result<Vec<CellKind>, OperatingError>,
     /// Input-position bitset: absence-dependent outputs require these populations complete.
-    pub absence_inputs: crate::domain::contributor_rows::types::AbsenceMask,
+    pub absence_inputs: AbsenceMask,
     /// The logical state the operation keeps between rows.
     pub workspace: WorkspaceProgram,
     /// The side resources the operation acquires before it evaluates.
@@ -380,19 +385,6 @@ pub struct DistinctWorkspace {
 /// How many operations a request prepared.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PreparationCount(pub usize);
-
-/// Prepared metadata belongs to the request; workers only borrow this immutable value.
-#[derive(Debug)]
-pub struct RequestOperators {
-    /// Original-plan shape metadata owned by this exact immutable request, never file state:
-    /// one slot per rule, compiled when the request graph first resolves that rule's regions.
-    pub ordered_existence:
-        Vec<std::sync::OnceLock<crate::domain::self_join_recogniser::types::Program>>,
-    /// The prepared operator contracts of each rule, one per compiled operation.
-    pub rules: Vec<Vec<std::sync::Arc<OperatorContract>>>,
-    /// How many contracts were prepared.
-    pub preparations: PreparationCount,
-}
 
 /// Exact semantic program bound once; a primitive cannot substitute comparisons.
 #[derive(Clone, Debug)]

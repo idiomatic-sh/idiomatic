@@ -1,0 +1,47 @@
+[package]
+name = "idiomatic-sh-ryo-execution-store"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = true
+description = "Ryo execution store: the file DAG's derived views, relation publications, leases, ledger and working allocations, issued only as opaque tokens"
+autobenches = false
+
+[lib]
+name = "ryo_execution_store"
+
+[dependencies]
+ryo_execution_domain = { package = "idiomatic-sh-ryo-execution-domain", path = "../execution_domain", version = "0.1.2" }
+ryo_derived = { package = "idiomatic-sh-ryo-derived", path = "../derived", version = "0.1.2" }
+ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations", version = "0.1.2" }
+ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.1.2" }
+ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.1.2" }
+ryo_matching = { package = "idiomatic-sh-ryo-matching", path = "../matching", version = "0.1.2" }
+hashbrown.workspace = true
+rustc-hash.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+idiomatic-sh-ryo-execution-store = { path = ".", features = ["fixtures"] }
+ryo_execution_domain = { package = "idiomatic-sh-ryo-execution-domain", path = "../execution_domain", version = "0.1.2", features = ["fixtures"] }
+ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.1.2", features = ["fixtures"] }
+ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations", version = "0.1.2", features = ["fixtures"] }
+ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.1.2", features = ["fixtures"] }
+divan.workspace = true
+
+[[bench]]
+name = "performance"
+path = "benches/performance.rs"
+harness = false
+
+[features]
+fixtures = ["ryo_execution_domain/fixtures", "ryo_values/fixtures", "ryo_relations/fixtures", "ryo_language/fixtures"]
+diagnostic-row-progress = ["ryo_execution_domain/diagnostic-row-progress"]
+
+[lints]
+workspace = true
+
+[package.metadata.cargo-machete]
+ignored = ["idiomatic-sh-ryo-execution-store"]

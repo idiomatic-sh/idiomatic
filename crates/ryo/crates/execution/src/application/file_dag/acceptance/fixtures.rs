@@ -10,7 +10,7 @@ use ryo_execution_domain::domain::rule_intent::types::FileRuleIntent;
 use ryo_execution_domain::domain::rule_intent::types::ObservationDemand;
 use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
 use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
-use crate::application::file_dag::scope::ScopePartials;
+use ryo_execution_store::application::file_dag::service::ScopePartials;
 use ryo_execution_domain::domain::{
     coverage::types::RuleIndex,
     file_program::types::RuleSchedule,
@@ -154,7 +154,7 @@ pub(super) fn run(
         include: vec![],
         exclude: vec![],
     };
-    let derived = crate::application::file_dag::fixtures::program_derived_port();
+    let derived = ryo_execution_store::application::file_dag::fixtures::program_derived_port();
     let prepared = match crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
             schedule: RuleSchedule::Independent,
@@ -203,7 +203,7 @@ pub(super) fn run(
             }],
             services,
             source,
-            crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
+            ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible,
             symbols,
             None,
             None)?;

@@ -111,7 +111,7 @@ fn exercise_nested(single_result: bool) -> Result<(), OperatingError> {
         });
         inner.emit.step = StepId((inner.steps.len() - 1) as u32);
     }
-    let derived = crate::application::file_dag::fixtures::program_derived_port();
+    let derived = ryo_execution_store::application::file_dag::fixtures::program_derived_port();
     let mut second = rule();
     second.id = RuleId("nested-join".into());
     let prepared = crate::application::file_dag::program::preparation::service::prepare(
@@ -170,7 +170,7 @@ fn exercise_nested(single_result: bool) -> Result<(), OperatingError> {
         ],
         services,
         ryo_values::domain::files::types::SourceView(b""),
-        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
+        ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible,
         &mut symbols,
         Some(&lookup),
         None,

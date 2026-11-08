@@ -41,7 +41,7 @@ impl ProgramExecution {
             return Err(OperatingError::NotRead);
         }
         let _node_origin =
-            crate::application::file_dag::route_counts::node(self.owner.routes(), id.0);
+            self.owner.routes().node(id.0);
         self.cleanup_status()?;
         let region = self
             .program
@@ -81,7 +81,7 @@ impl ProgramExecution {
                     ryo_execution_domain::domain::operator::contract::workspace::begin(
                         &instruction.contract().workspace,
                         ryo_execution_domain::domain::operator::contract::types::WorkspaceLifetime::Invocation,
-                        &mut workspace.primitive,
+                        workspace.primitive_mut(),
                     );
                 }
             }
@@ -235,9 +235,9 @@ impl Drop for Invocation<'_> {
                     {
                         slot.observed = workspace.measured();
                         slot.registered_calls.0 +=
-                            std::mem::take(&mut workspace.observation.registered_calls);
+                            std::mem::take(&mut workspace.observation_mut().registered_calls);
                     }
-                    for (total, delta) in fed.0.iter_mut().zip(workspace.work.take().0) {
+                    for (total, delta) in fed.0.iter_mut().zip(workspace.work().take().0) {
                         *total = total.saturating_add(delta.0);
                     }
                 }

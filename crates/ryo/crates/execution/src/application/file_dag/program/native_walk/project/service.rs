@@ -5,7 +5,7 @@ use super::super::{
     WalkSourceIdentity,
 };
 use crate::application::file_dag::program::admission::AdmittedInput;
-use crate::application::file_dag::relations::RelationOwner;
+use ryo_execution_store::application::file_dag::relations::RelationOwner;
 use std::rc::Rc;
 use crate::application::file_dag::executor::{
     KernelCall, PrimitiveExecutor,

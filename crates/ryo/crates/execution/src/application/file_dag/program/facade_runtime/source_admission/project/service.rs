@@ -4,7 +4,7 @@ use crate::application::file_dag::program::admission::AvailableInput;
 use crate::application::file_dag::program::admission::Partition;
 use crate::application::file_dag::program::constants::BOUND_PRODUCER_UNAVAILABLE;
 use crate::application::file_dag::program::facade_runtime::types::{CachedInput, OrdinaryPlace, Provision};
-use crate::application::file_dag::relations::RelationOwner;
+use ryo_execution_store::application::file_dag::relations::RelationOwner;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operating::types::OperatorContext;
 use std::rc::Rc;

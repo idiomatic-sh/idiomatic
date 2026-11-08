@@ -2,11 +2,8 @@
 use crate::application::file_dag::program::runtime::service::KernelPermit;
 use crate::application::file_dag::program::runtime::types::InvocationFailure;
 use crate::application::file_dag::program::runtime::types::KernelScratch;
-use crate::application::file_dag::workspace::InvocationWorkspace;
-use ryo_execution_domain::domain::{
-    operating::{
-        errors::OperatingError,
-        types::{Emit, OperatorContext}}};
+use ryo_execution_domain::domain::operating::{errors::OperatingError, types::{Emit, OperatorContext}};
+use ryo_execution_store::application::file_dag::workspace::InvocationWorkspace;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use std::rc::Rc;
 
@@ -88,7 +85,7 @@ impl super::super::KernelSession<'_, '_> {
             context,
             &mut scratch.ordered_row,
             &mut scratch.ordered,
-            &workspace.work,
+            workspace.work(),
             output,
         );
         failure

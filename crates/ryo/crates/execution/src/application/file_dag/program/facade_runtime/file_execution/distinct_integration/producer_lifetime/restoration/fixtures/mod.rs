@@ -171,7 +171,7 @@ impl CapturedProject {
             vec![vec![]; rules.len()],
             &rules,
         )?;
-        let derived = crate::application::file_dag::fixtures::program_derived_port();
+        let derived = ryo_execution_store::application::file_dag::fixtures::program_derived_port();
         let prepared = crate::application::file_dag::program::preparation::service::prepare(
             compiled,
             &rules,
@@ -228,7 +228,7 @@ impl CapturedProject {
             &intents,
             Arc::clone(&services),
             ryo_values::domain::files::types::SourceView(b""),
-            crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
+            ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible,
             symbols,
             None,
             None)?;

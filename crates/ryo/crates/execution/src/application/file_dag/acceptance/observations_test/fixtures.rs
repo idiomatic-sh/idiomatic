@@ -5,9 +5,8 @@ use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::{
     coverage::types::RuleIndex,
     file_program::types::{
-        ObservationRequest, ResolvedObservationBinding, ResolvedObservationProducer,
+        ObservationRequest, RequestOperators, ResolvedObservationBinding, ResolvedObservationProducer,
     },
-    operator::contract::types::RequestOperators,
 };
 use ryo_relations::domain::relations::types::{CellKind, Relation};
 use ryo_values::domain::plan_parts::types::{Input, StepId};
@@ -167,7 +166,7 @@ pub(crate) fn fixture(frontier: FrontierSlots, names: Names) -> Fixture {
         &[vec![], vec![], vec![], vec![]],
         &[],
         std::sync::Arc::new(
-            crate::outbound::derived::factory::semantics(),
+            ryo_execution_store::outbound::derived::factory::semantics(),
         ),
     )
     .unwrap();

@@ -3,7 +3,6 @@ mod constants;
 pub mod service;
 pub mod types;
 
-pub mod errors;
 
 #[cfg(any(test, feature = "fixtures"))]
 pub mod fixtures;

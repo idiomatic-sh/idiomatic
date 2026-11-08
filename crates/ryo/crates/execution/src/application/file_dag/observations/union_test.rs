@@ -9,7 +9,7 @@ use ryo_execution_domain::domain::rule_intent::types::FileRuleIntent;
 use ryo_execution_domain::domain::rule_intent::types::ObservationDemand;
 use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
 use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
-use crate::application::file_dag::scope::ScopePartials;
+use ryo_execution_store::application::file_dag::service::ScopePartials;
 use ryo_execution_domain::domain::{
     coverage::types::RuleIndex,
     operating::errors::OperatingError,
@@ -163,7 +163,7 @@ fn exercise(given: &[&[i64]], expected: Option<&[i64]>, registered_calls: usize)
                 .collect(),
         })
         .collect::<Vec<_>>();
-    let derived = crate::application::file_dag::fixtures::program_derived_port();
+    let derived = ryo_execution_store::application::file_dag::fixtures::program_derived_port();
     let prepared = crate::application::file_dag::program::preparation::service::prepare(
         compiled,
         &rules,
@@ -210,7 +210,7 @@ fn exercise(given: &[&[i64]], expected: Option<&[i64]>, registered_calls: usize)
             .collect::<Vec<_>>(),
         services,
         ryo_values::domain::files::types::SourceView(b""),
-        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
+        ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible,
         &mut symbols,
         None,
         None,

@@ -168,7 +168,7 @@ pub(crate) fn build(
                 query,
                 analysis_memory,
                 Arc::new(ryo_execution::outbound::operators::factory::use_case(ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())))),
-std::sync::Arc::new(ryo_execution::outbound::derived::factory::use_case(ryo_execution::outbound::derived::factory::semantics())),
+std::sync::Arc::new(ryo_execution_store::outbound::derived::factory::use_case(ryo_execution_store::outbound::derived::factory::semantics())),
                 pool,
                 workers,
                 Arc::new(row_sink::factory::collect(collector)),

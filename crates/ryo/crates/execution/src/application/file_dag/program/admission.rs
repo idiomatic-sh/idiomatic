@@ -1,8 +1,5 @@
 //! Population proofs, partition identity and readiness are minted by admission only.
-use super::super::{
-    derived::population::types::PopulationId,
-    relations::{RelationOwner, handle::service::PublishedInput},
-};
+use ryo_execution_store::application::file_dag::{derived::population::types::PopulationId, relations::{RelationOwner, handle::service::PublishedInput}};
 
 mod admitted;
 mod available;
@@ -147,7 +144,7 @@ pub(super) struct AliasMember(pub usize);
 pub(crate) trait Inputs {
     fn population_scope(
         &self,
-    ) -> crate::application::file_dag::relations::publication::types::ProducerScope;
+    ) -> ryo_execution_store::application::file_dag::relations::publication::types::ProducerScope;
     /// A dependency is polled without entering another invocation. The owner
     /// resumes this same admission action after its producer reaches a terminal state.
     fn dependency(

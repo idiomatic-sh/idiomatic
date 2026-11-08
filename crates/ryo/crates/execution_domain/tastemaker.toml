@@ -20,6 +20,7 @@ templates = [
   { template = "idiomatic.arch/service", file = "src/domain/trust/reads.rs", params = { concept = "trust" }, description = "One part of the concept's service: pure functions over the domain's types." },
   { template = "idiomatic.arch/service", file = "src/domain/file_program/service/link.rs", params = { concept = "file_program" }, description = "One part of the concept's service: pure functions over the domain's types." },
   { template = "idiomatic.arch/service", file = "src/domain/file_program/service/observations.rs", params = { concept = "file_program" }, description = "One part of the concept's service: pure functions over the domain's types." },
+  { template = "idiomatic.arch/service", file = "src/domain/file_program/service/operators.rs", params = { concept = "file_program" }, description = "One part of the concept's service: pure functions over the domain's types." },
   { template = "idiomatic.arch/unit-test", file = "src/domain/operation_schema/join_test.rs", params = { kind = "concept", part = "join" }, description = "Proves one part's body beside it, in the one test shape." },
   { template = "idiomatic.arch/service", file = "src/domain/operator/contract/walk.rs", params = { concept = "contract" }, description = "One part of the concept's service: pure functions over the domain's types." },
   { template = "idiomatic.arch/service", file = "src/domain/operator/contract/derived.rs", params = { concept = "contract" }, description = "One part of the concept's service: pure functions over the domain's types." },

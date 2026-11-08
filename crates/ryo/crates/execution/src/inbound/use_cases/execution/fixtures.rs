@@ -1,5 +1,5 @@
 //! The test support of the `execution` use case: the scenario its tests share.
-use crate::outbound::derived::interface::DerivedPort;
+use ryo_execution_store::outbound::derived::interface::DerivedPort;
 use crate::outbound::operators::interface::OperatorsPort;
 use std::sync::Arc;
 
@@ -18,5 +18,5 @@ pub fn operators() -> impl OperatorsPort {
 /// The derived capability behind its port, as the edge composes it.
 #[must_use]
 pub fn derived() -> impl DerivedPort {
-    crate::outbound::derived::factory::semantics()
+    ryo_execution_store::outbound::derived::factory::semantics()
 }
