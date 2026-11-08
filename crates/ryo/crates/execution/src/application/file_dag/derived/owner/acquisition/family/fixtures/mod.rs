@@ -11,7 +11,7 @@ use ryo_execution_domain::domain::{
     derived_views::types::{DerivedInputs, DerivedScratch, ViewRequest},
     operating::errors::OperatingError,
     operation_schema::types::InputShape,
-    table_cells::service_test::{ SmallTree, small_tree},
+    table_cells::fixtures::{ SmallTree, small_tree},
     table_cells::types::{TreeForm, TreeRows},
     table_model::types::Rows};
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;

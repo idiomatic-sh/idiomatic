@@ -26,7 +26,7 @@ use ryo_values::domain::plan_parts::types::{
     ColumnIndex, LiteralText, Operand, PlanComparison, QueryLiteral, Test};
 
 /// Whether the comparison asks of the kind of an element something fixed, which the sets of kinds decide.
-pub(crate) fn names_a_kind(comparison: &PlanComparison) -> KindNaming {
+pub fn names_a_kind(comparison: &PlanComparison) -> KindNaming {
     if naming(comparison.test).is_some()
         && matches!(
             (&comparison.left, &comparison.right),
@@ -66,7 +66,7 @@ fn naming(test: Test) -> Option<NamingPlace> {
 }
 
 /// Whether the name of a kind satisfies the test against `wanted`.
-pub(crate) fn satisfies(
+pub fn satisfies(
     test: Test,
     name: TextView<'_>,
     wanted: TextView<'_>,

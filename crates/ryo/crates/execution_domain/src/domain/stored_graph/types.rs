@@ -87,7 +87,7 @@ pub(crate) struct Neighbors<'a>(pub &'a [u32]);
 
 /// The traversal in which a vertex was last visited; zero marks no traversal.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) struct VisitEpoch(pub u32);
+pub struct VisitEpoch(pub u32);
 
 /// Graph vertices expanded by one walk.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -103,7 +103,7 @@ pub struct GraphWalk {
     /// Visitation epoch by dense vertex.
     pub(crate) marks: Vec<VisitEpoch>,
     /// Nonzero current epoch; wrapping resets marks once.
-    pub(crate) epoch: VisitEpoch,
+    pub epoch: VisitEpoch,
     /// Iterative BFS frontier.
     pub queue: std::collections::VecDeque<VertexId>,
     /// Successful vertices in encounter order, optionally sorted by the caller.

@@ -10,7 +10,7 @@ pub(crate) mod lease;
 pub(crate) mod preflight;
 pub mod registration;
 pub mod resources;
-pub(crate) mod service;
+pub mod service;
 pub mod types;
 pub mod views;
 pub(crate) mod walk;

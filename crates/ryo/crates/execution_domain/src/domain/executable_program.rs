@@ -10,7 +10,7 @@ mod origins;
 
 pub mod physical;
 
-pub(crate) mod fusion;
+pub mod fusion;
 
 #[cfg(test)]
 mod service_test;

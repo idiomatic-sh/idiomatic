@@ -53,7 +53,7 @@ pub struct Frontier {
 
 /// Whether a value, a kind or an entity, is in a set of them.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum SetMembership {
+pub enum SetMembership {
     /// It is in the set.
     In,
     /// It is not.

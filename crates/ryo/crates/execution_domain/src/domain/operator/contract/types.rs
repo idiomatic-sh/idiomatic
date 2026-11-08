@@ -27,7 +27,7 @@ pub enum InputMode {
 
 /// A closed dependency order and lazy gate, interpreted by the engine before evaluation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum DemandOrder {
+pub enum DemandOrder {
     /// No upstream rows are needed.
     None,
     /// Read the sole upstream input.
@@ -80,7 +80,7 @@ pub(crate) enum Effects {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct SemanticContract {
     pub shape: InputMode,
-    pub(crate) demand: DemandOrder,
+    pub demand: DemandOrder,
     pub acquisition: AcquisitionBoundary,
     pub row_inputs: RowInputMask,
     pub preflight: PreflightOrder,
@@ -88,9 +88,9 @@ pub struct SemanticContract {
 
 /// What an operation declares of its semantics: its input contract, its effects and the
 /// inputs whose absence of rows it trusts.
-pub(crate) struct OperationSemantics {
+pub struct OperationSemantics {
     pub contract: SemanticContract,
-    pub effects: Effects,
+    pub(crate) effects: Effects,
     pub absence: crate::domain::contributor_rows::types::AbsenceMask,
 }
 
@@ -231,11 +231,11 @@ pub struct PrimitiveViews<'a> {
 pub struct PrimitiveWorkspace {
     /// The buffers the operators fill while they evaluate a kind.
     pub evaluation: ryo_operators::domain::evaluation::types::EvaluationScratch,
-    pub(crate) axis: Option<AxisWorkspace>,
+    pub axis: Option<AxisWorkspace>,
     pub(crate) positions: Vec<ryo_relations::domain::relations::types::Position>,
-    pub(crate) dfs: Option<DfsWorkspace>,
-    pub(crate) closure_walk: Option<crate::domain::table_reach::types::Walk>,
-    pub(crate) distinct: Option<DistinctWorkspace>,
+    pub dfs: Option<DfsWorkspace>,
+    pub closure_walk: Option<crate::domain::table_reach::types::Walk>,
+    pub distinct: Option<DistinctWorkspace>,
 }
 /// The rows found at each of the three inputs of a counted step.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -304,7 +304,7 @@ pub trait RowSink {
 }
 
 /// First-occurrence row semantics, bounded and released by the engine invocation.
-pub(crate) struct DistinctWorkspace {
+pub struct DistinctWorkspace {
     pub schema: Result<(), OperatingError>,
     pub rows: ryo_values::domain::rows::types::Table,
     pub seen: hashbrown::HashTable<ryo_values::domain::rows::types::RowIndex>,
@@ -354,22 +354,22 @@ pub struct EmptyResult {
 /// The work of one invocation of an axis walk.
 #[derive(Debug, Default)]
 pub struct AxisWorkspace {
-    pub(crate) walk: crate::domain::table_reach::types::Walk,
+    pub walk: crate::domain::table_reach::types::Walk,
     pub(crate) found: Vec<ryo_relations::domain::relations::types::Position>,
 }
 
 /// The vertices one invocation of the ordered depth-first search has expanded.
 #[derive(Clone, Copy, Debug, Default)]
-pub(crate) struct ExpandedCount(pub(crate) usize);
+pub struct ExpandedCount(pub usize);
 
 /// The edges one invocation of the ordered depth-first search has examined.
 #[derive(Clone, Copy, Debug, Default)]
-pub(crate) struct ExaminedCount(pub(crate) usize);
+pub struct ExaminedCount(pub usize);
 
 /// The work of one invocation of the ordered depth-first search, with what its walks expanded and examined.
 #[derive(Debug, Default)]
 pub struct DfsWorkspace {
-    pub(crate) walk: crate::domain::table_reach::types::OrderedWalk,
-    pub(crate) expanded: ExpandedCount,
-    pub(crate) examined: ExaminedCount,
+    pub walk: crate::domain::table_reach::types::OrderedWalk,
+    pub expanded: ExpandedCount,
+    pub examined: ExaminedCount,
 }

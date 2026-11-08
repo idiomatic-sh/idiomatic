@@ -1,6 +1,6 @@
 //! The `core` domain's `table_reach` concept.
 
-pub(crate) mod borrowed;
+pub mod borrowed;
 pub(crate) mod service;
 pub mod types;
 

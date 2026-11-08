@@ -195,7 +195,7 @@ pub struct RemainingTable {
 pub struct Remaining {
     pub table: std::sync::Arc<RemainingTable>,
     #[cfg(test)]
-    pub computations: ComputationCount,
+    pub(crate) computations: ComputationCount,
 }
 /// One region as the compiler drafts it, before equivalent regions merge: its instructions `I` in order.
 pub(super) struct DraftRegion<I> {

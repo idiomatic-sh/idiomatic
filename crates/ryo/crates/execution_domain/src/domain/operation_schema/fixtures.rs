@@ -21,17 +21,17 @@ use ryo_values::domain::{
     },
 };
 /// A named column index for the fixture's mixed row.
-pub(crate) fn col(value: u32) -> ColumnIndex {
+pub fn col(value: u32) -> ColumnIndex {
     ColumnIndex(value)
 }
 /// A stable real file/position identity, not a composite graph encoding.
-pub(crate) fn node(value: u32) -> Cell {
+pub fn node(value: u32) -> Cell {
     Cell::Node(node_id(FileId(0), Position(value)))
 }
 /// The irrelevant logical source used by direct operator subjects.
 const FROM: Source = Source::Relation(Relation::Function);
 /// A two-sided projection with repeats, order and unlike kinds.
-pub(crate) fn output() -> Vec<JoinColumn> {
+pub fn output() -> Vec<JoinColumn> {
     vec![
         JoinColumn {
             side: Side::Right,
@@ -48,7 +48,7 @@ pub(crate) fn output() -> Vec<JoinColumn> {
     ]
 }
 /// A typed row, whose schema contains every primitive engine kind.
-pub(crate) fn mixed(symbol: Symbol) -> Table {
+pub fn mixed(symbol: Symbol) -> Table {
     let mut table = Table {
         kinds: vec![
             CellKind::Number,
@@ -77,7 +77,7 @@ pub(crate) fn mixed(symbol: Symbol) -> Table {
     table
 }
 /// One directed edge with file partition, numeric order and retained text identity.
-pub(crate) fn edges(symbol: Symbol) -> Table {
+pub fn edges(symbol: Symbol) -> Table {
     let mut table = Table {
         kinds: vec![
             CellKind::Node,
@@ -101,7 +101,7 @@ pub(crate) fn edges(symbol: Symbol) -> Table {
     table
 }
 /// Scalar and collection bindings, including all accepted empty-list encodings.
-pub(crate) fn bindings() -> Vec<ParameterBinding> {
+pub fn bindings() -> Vec<ParameterBinding> {
     vec![
         ParameterBinding::Text(LiteralText("fixed".into())),
         ParameterBinding::Number(WholeNumber(3)),
@@ -246,7 +246,7 @@ fn binary() -> Vec<Operation> {
     ]
 }
 /// Traversals retain root metadata and graph partitions without graph-dependent schema.
-pub(crate) fn graph_operations() -> Vec<Operation> {
+pub fn graph_operations() -> Vec<Operation> {
     vec![
         Operation::Axis {
             from: FROM,
@@ -286,7 +286,7 @@ pub(crate) fn graph_operations() -> Vec<Operation> {
     ]
 }
 /// Every current Operation variant exactly once, including a real Hosted request source.
-pub(crate) fn operations() -> Vec<Operation> {
+pub fn operations() -> Vec<Operation> {
     let mut values = unary();
     values.extend(binary());
     values.extend(graph_operations());
@@ -300,7 +300,7 @@ pub(crate) fn operations() -> Vec<Operation> {
     values
 }
 /// Actual typed inputs of each operator, with cardinality varied independently of schema.
-pub(crate) fn tables(operation: &Operation, symbol: Symbol, populated: bool) -> Vec<Table> {
+pub fn tables(operation: &Operation, symbol: Symbol, populated: bool) -> Vec<Table> {
     let mut first = mixed(symbol);
     let mut second = first.clone();
     second.cells[0] = Cell::Number(Integer(2));

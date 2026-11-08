@@ -16,7 +16,7 @@ pub struct ExecutableProgram {
     logical_regions: Box<[RegionId]>,
     observation_regions: Box<[Result<RegionId, OperatingError>]>,
     /// The fusion classification of every instruction, indexed by its logical number.
-    #[cfg(test)]
+    #[cfg(any(test, feature = "fixtures"))]
     fusibility: Box<[crate::domain::executable_program::fusion::types::Fusibility]>,
 }
 
@@ -35,12 +35,12 @@ impl ExecutableProgram {
             rules,
             logical_regions,
             observation_regions,
-            #[cfg(test)]
+            #[cfg(any(test, feature = "fixtures"))]
             fusibility: Box::new([]),
         }
     }
     /// The same program with the fusion classification the compiler made, which only the controls read.
-    #[cfg(test)]
+    #[cfg(any(test, feature = "fixtures"))]
     pub(in crate::domain::executable_program) fn with_fusibility(
         mut self,
         fusibility: Box<[crate::domain::executable_program::fusion::types::Fusibility]>,
@@ -49,8 +49,8 @@ impl ExecutableProgram {
         self
     }
     /// How the compiler classified an instruction against the region of its producer.
-    #[cfg(test)]
-    pub(crate) fn fusibility(
+    #[cfg(any(test, feature = "fixtures"))]
+    pub fn fusibility(
         &self,
         logical: LogicalInstruction,
     ) -> Option<crate::domain::executable_program::fusion::types::Fusibility> {

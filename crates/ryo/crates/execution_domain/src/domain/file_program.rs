@@ -5,7 +5,7 @@ pub mod types;
 
 pub mod errors;
 
-#[cfg(test)]
-pub(crate) mod fixtures;
+#[cfg(any(test, feature = "fixtures"))]
+pub mod fixtures;
 #[cfg(test)]
 mod service_test;

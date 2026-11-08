@@ -10,7 +10,7 @@ use ryo_matching::inbound::use_cases::matching::{
 use crate::domain::matching::types::PatternMatcher;
 use ryo_values::domain::plan_parts::types::{Operand, QueryLiteral, Test};
 use ryo_values::domain::plans::types::Operation;
-#[cfg(test)]
+#[cfg(any(test, feature = "fixtures"))]
 use ryo_values::domain::plans::types::Plan;
 use std::sync::OnceLock;
 
@@ -20,7 +20,7 @@ pub struct PreparedMatchers {
     /// Exact test and literal bytes distinguish matcher families and glob polarity.
     slots: hashbrown::HashMap<Test, hashbrown::HashMap<RegexPattern, PreparedPattern>>,
     /// Actual first compilation events, absent from production.
-    #[cfg(test)]
+    #[cfg(any(test, feature = "fixtures"))]
     pub builds: std::sync::atomic::AtomicUsize,
 }
 
@@ -35,8 +35,8 @@ enum PreparedPattern {
 
 impl PreparedMatchers {
     /// Declare only authored literal keys from these plans, without interpreting their contents.
-    #[cfg(test)]
-    pub(crate) fn new(plans: &[Plan]) -> Self {
+    #[cfg(any(test, feature = "fixtures"))]
+    pub fn new(plans: &[Plan]) -> Self {
         Self::from_operations(
             plans
                 .iter()
@@ -93,7 +93,7 @@ impl PreparedMatchers {
         };
         Some(
             slot.get_or_init(|| {
-                #[cfg(test)]
+                #[cfg(any(test, feature = "fixtures"))]
                 let _previous = self
                     .builds
                     .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
@@ -105,7 +105,7 @@ impl PreparedMatchers {
     }
 
     /// Read an exact authored glob slot only after resolving an actual text subject.
-    pub(crate) fn glob(
+    pub fn glob(
         &self,
         test: Test,
         pattern: TextView<'_>,
@@ -115,7 +115,7 @@ impl PreparedMatchers {
             return None;
         };
         Some(slot.get_or_init(|| {
-            #[cfg(test)]
+            #[cfg(any(test, feature = "fixtures"))]
             let _previous = self
                 .builds
                 .fetch_add(1, std::sync::atomic::Ordering::Relaxed);

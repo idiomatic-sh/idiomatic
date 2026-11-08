@@ -20,7 +20,7 @@ pub enum WalkBarrier {
     RequestOwnedSource,
     Continuation,
 }
-pub(crate) fn source_barrier(
+pub fn source_barrier(
     operation: &ryo_values::domain::plans::types::Operation,
     inputs: &[crate::domain::executable_program::types::InputSource],
 ) -> WalkBarrier {

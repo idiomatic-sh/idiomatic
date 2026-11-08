@@ -23,7 +23,7 @@ pub struct SchemaWidth(pub usize);
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NumberRequirement {
-    pub(crate) source: StepId,
+    pub source: StepId,
     pub column: ColumnIndex,
     pub width: SchemaWidth,
     pub origins: Vec<StoredNumberOrigin>,
@@ -33,8 +33,8 @@ pub struct NumberRequirement {
 /// No kernel may execute this descriptor until the existing owner binds NumberRequirement
 /// to its actual admitted population, schema and generation.
 #[derive(Clone, Debug)]
-pub(crate) struct Shape {
-    pub plan: PlanIdentity,
+pub struct Shape {
+    pub(crate) plan: PlanIdentity,
     pub source: StepId,
     pub replaced_join: StepId,
     pub replaced_select: StepId,
@@ -48,7 +48,7 @@ pub(crate) struct Shape {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Decline {
+pub enum Decline {
     NotAntijoin,
     NotDistinctProject,
     NotSinglePredicate,
@@ -74,6 +74,6 @@ pub(crate) struct Declined {
 
 #[derive(Clone, Debug, Default)]
 pub struct Program {
-    pub(crate) shapes: Vec<Shape>,
+    pub shapes: Vec<Shape>,
     pub(crate) declines: Vec<Declined>,
 }

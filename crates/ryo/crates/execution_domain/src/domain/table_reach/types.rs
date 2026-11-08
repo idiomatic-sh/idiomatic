@@ -36,7 +36,7 @@ pub(crate) struct Edges<'a> {
 
 /// One reusable iterative DFS, reset before each distinct partition/root.
 #[derive(Debug, Default)]
-pub(crate) struct OrderedWalk {
+pub struct OrderedWalk {
     /// Exact partition and current entity lookup key.
     pub key: Vec<Value>,
     /// Next adjacency cursor and end of each active stack frame.
@@ -48,15 +48,15 @@ pub(crate) struct OrderedWalk {
     /// Next representable visit ordinal; none means the next visit would overflow.
     pub ordinal: Option<Integer>,
     /// Vertices expanded in this root walk.
-    pub expanded: VerticesExpanded,
+    pub(crate) expanded: VerticesExpanded,
     /// Edges examined in this root walk.
-    pub examined: EdgesExamined,
+    pub(crate) examined: EdgesExamined,
 }
 
 
 /// The cursor of one active stack frame of the depth-first walk: the next edge and the end of its edges.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct AdjacencyCursor(pub std::ops::Range<usize>);
+pub struct AdjacencyCursor(pub std::ops::Range<usize>);
 
 /// The vertices one root walk of the ordered search has expanded.
 #[derive(Clone, Copy, Debug, Default)]

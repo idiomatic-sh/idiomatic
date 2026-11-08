@@ -120,7 +120,7 @@ pub struct InputPlace(pub usize);
 
 /// Whether a comparison asks of the kind of an element something fixed, which the sets of kinds decide.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum KindNaming {
+pub enum KindNaming {
     /// It names a kind.
     Names,
     /// It does not.

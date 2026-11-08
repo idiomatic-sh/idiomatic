@@ -29,8 +29,8 @@ pub struct CompletionPolicy {
     publication: CompletionBehavior,
 }
 impl CompletionPolicy {
-    #[cfg(test)]
-    pub(crate) fn file(rule: RuleIndex, file: FileId, partials: &[Partial]) -> Self {
+    #[cfg(any(test, feature = "fixtures"))]
+    pub fn file(rule: RuleIndex, file: FileId, partials: &[Partial]) -> Self {
         Self::file_inputs(rule, file, partials, partials)
     }
     pub fn file_inputs(

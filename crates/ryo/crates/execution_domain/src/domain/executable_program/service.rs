@@ -1,5 +1,5 @@
 //! Lower the temporary canonical analysis graph; erase internal continuation cuts.
-#[cfg(test)]
+#[cfg(any(test, feature = "fixtures"))]
 use super::fusion::types::Ineligible;
 use super::fusion::types::{Fusibility, RegionSharing};
 use super::merge::merge_equivalent;
@@ -189,7 +189,7 @@ pub fn compile(
         &logical_regions,
         &faults,
     );
-    #[cfg(test)]
+    #[cfg(any(test, feature = "fixtures"))]
     let synthesized = regions.len();
     let observation_regions = super::observed::compile_unions(
         &mut regions,
@@ -199,7 +199,7 @@ pub fn compile(
     )?;
     // Named distinct-set unions are synthesized instructions: two members, never a continuation.
     // Only the controls read the table back, so only the test build keeps it.
-    #[cfg(test)]
+    #[cfg(any(test, feature = "fixtures"))]
     let fusibility = {
         let mut fusibility = classification.fusibility;
         for instruction in regions[synthesized..]
@@ -237,7 +237,7 @@ pub fn compile(
         logical_regions.into_boxed_slice(),
         observation_regions.into_boxed_slice(),
     );
-    #[cfg(test)]
+    #[cfg(any(test, feature = "fixtures"))]
     let program = program.with_fusibility(fusibility.into_boxed_slice());
     Ok(program)
 }

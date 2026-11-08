@@ -148,7 +148,7 @@ pub(crate) fn rectangular(view: ColumnsView<'_>) -> TableShape {
     }
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "fixtures"))]
 /// Decode one typed stored cell, preserving normalization such as nonzero flag encodings.
 fn stored_cell(view: ColumnsView<'_>, row: RowIndex, column: ColumnIndex) -> Option<Value> {
     let kind = column_in(view.kinds, column)?;
@@ -163,10 +163,10 @@ pub(crate) fn cell_at(rows: &Rows<'_>, row: RowIndex, column: ColumnIndex) -> Op
         .cell(row, column)
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "fixtures"))]
 /// Find original stored rows by typed keys, checking equality after every hash match.
 /// The caller indexes a rectangular view first; payload columns are never read here.
-pub(crate) fn matching_stored<'o, 'k>(
+pub fn matching_stored<'o, 'k>(
     view: ColumnsView<'o>,
     columns: &'k [ColumnIndex],
     order: &'o KeyIndex,

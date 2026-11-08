@@ -5,7 +5,7 @@ use crate::domain::contributor_rows::types::AbsenceMask;
 use ryo_values::domain::query_operators::types::OperationKind;
 
 /// One semantic input and dependency contract, independent of output delivery.
-pub(crate) fn semantics(kind: OperationKind) -> OperationSemantics {
+pub fn semantics(kind: OperationKind) -> OperationSemantics {
     use OperationKind::*;
     let (demand, _resource, effects, absence) = match kind {
         Select => (

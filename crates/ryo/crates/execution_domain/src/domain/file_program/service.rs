@@ -24,8 +24,8 @@ use std::sync::Arc;
 
 /// Compile one DAG for the entire ordered request. Unsupported descendants
 /// break the chain; no raw Debug serialization or source-origin text is a key.
-#[cfg(test)]
-pub(crate) fn compile_prepared(
+#[cfg(any(test, feature = "fixtures"))]
+pub fn compile_prepared(
     plans: &[Plan],
     operators: &crate::domain::operator::contract::types::RequestOperators,
 ) -> RequestGraph {

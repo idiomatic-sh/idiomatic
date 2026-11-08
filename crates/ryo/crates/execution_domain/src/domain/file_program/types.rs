@@ -11,7 +11,7 @@ pub(crate) mod fingerprint;
 pub struct ProgramNodeId(pub usize);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub(crate) enum NodeInput {
+pub enum NodeInput {
     Relation(Relation),
     Node(ProgramNodeId),
     /// A named input reads already-published producer roots, never demands them under this rule.
@@ -19,7 +19,7 @@ pub(crate) enum NodeInput {
 }
 
 #[derive(Debug)]
-pub(crate) struct FileProgramNode {
+pub struct FileProgramNode {
     pub needs: Result<
         Vec<crate::domain::trust::types::RelationRead>,
         crate::domain::operating::errors::OperatingError,
@@ -41,12 +41,12 @@ pub struct RequestGraph {
     /// references are deferred faults, never a choice of another scheduler.
     pub program_nodes: Vec<Vec<Result<ProgramNodeId, crate::domain::operating::errors::OperatingError>>>,
     /// Reviewed alternatives indexed by their replaced Select producer.
-    pub(crate) ordered_existence: Vec<Option<ResolvedAlternative>>,
+    pub ordered_existence: Vec<Option<ResolvedAlternative>>,
     /// Named roots extend this request graph; ordinary requests retain no observation allocation.
     pub observations: Option<GraphObservations>,
     /// Producers of declared derived inputs, computed once for the whole request.
     pub(crate) derived_sources: DerivedSources,
-    pub(crate) nodes: Vec<FileProgramNode>,
+    pub nodes: Vec<FileProgramNode>,
 }
 
 /// Ordinary requests need no named-root traversal allocation.
@@ -134,13 +134,13 @@ pub struct GraphObservations {
     pub frontiers: Vec<ObservedFrontierRoot>,
     /// Prepared outgoing retirement edges, indexed by original consumer rule.
     pub retire: Vec<Vec<ObservationRetirement>>,
-    pub(crate) bindings: Vec<Vec<GraphObservationBinding>>,
+    pub bindings: Vec<Vec<GraphObservationBinding>>,
     pub outputs: Vec<Vec<GraphObservationOutput>>,
 }
 
 /// One resolved input and its request-prepared distinct-set combination contract.
 #[derive(Debug)]
-pub(crate) struct GraphObservationBinding {
+pub struct GraphObservationBinding {
     pub input: ResolvedObservationBinding,
     pub union: Result<
         Arc<crate::domain::operator::contract::types::OperatorContract>,
@@ -165,11 +165,11 @@ pub struct ObservedFrontierRoot {
 
 /// One request-wide binding slot; its payload is the same width as an ordinary ProgramNodeId edge.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub(crate) struct ObservationGraphInputId(pub usize);
+pub struct ObservationGraphInputId(pub usize);
 
 /// Request-owned binding to canonical producers, never template Step(0) equality.
 #[derive(Clone, Debug)]
-pub(crate) struct ResolvedShape {
+pub struct ResolvedShape {
     pub shape: Shape,
     pub source: ProgramNodeId,
     pub join: ProgramNodeId,
@@ -179,7 +179,7 @@ pub(crate) struct ResolvedShape {
 }
 
 #[derive(Clone, Debug)]
-pub(crate) enum ResolvedAlternative {
+pub enum ResolvedAlternative {
     Eligible(ResolvedShape),
     Declined(Decline),
 }
@@ -223,7 +223,7 @@ pub(crate) struct DerivedSources(pub Vec<bool>);
 
 /// Whether the contract of a node and of everything it reads has a valid schema.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum SchemaValidity {
+pub enum SchemaValidity {
     /// Every schema is valid.
     Valid,
     /// A schema is invalid; ordinary error order applies instead of DAG admission.

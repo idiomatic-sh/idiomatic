@@ -2,7 +2,7 @@
 
 /// An owner-issued identity that fusion must never erase: the producer keeps its own publication.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub(crate) enum Barrier {
+pub enum Barrier {
     /// The producer, or the instruction itself, acquires a derived view or counted resource.
     Derived,
     /// More than one reader (including a rule root) consumes the producer's publication.
@@ -25,7 +25,7 @@ pub(crate) enum Barrier {
 
 /// Why an instruction can never continue a producer, whatever the surrounding program.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub(crate) enum Ineligible {
+pub enum Ineligible {
     /// It reads a relation, named observation, request parameter or host relation: it begins a region.
     Source,
     /// It admits more than one input; demand and fault order across inputs belongs to the engine.
@@ -40,7 +40,7 @@ pub(crate) enum Ineligible {
 
 /// How one instruction relates to the region of its producer.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub(crate) enum Fusibility {
+pub enum Fusibility {
     /// A direct continuation: it runs on the producer's borrowed row inside the producer's region.
     Fusable,
     /// A continuation by shape, held apart by an identity the producer must keep.

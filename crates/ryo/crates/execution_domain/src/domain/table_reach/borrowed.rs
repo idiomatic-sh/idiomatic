@@ -6,7 +6,7 @@ use crate::domain::{
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
-pub(crate) fn follow(
+pub fn follow(
     edges: &IndexedRows<'_>,
     to: ColumnIndex,
     start: Value,
@@ -22,7 +22,7 @@ pub(crate) fn follow(
     }
 }
 
-pub(crate) fn reach_breadth(
+pub fn reach_breadth(
     edges: &IndexedRows<'_>,
     to: ColumnIndex,
     start: Value,

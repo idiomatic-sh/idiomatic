@@ -6,7 +6,7 @@ use ryo_relations::domain::relations::types::KindBits;
 
 /// Whether the kind numbered `kind` is in the set.
 #[must_use]
-pub(crate) fn kind_has(set: &KindSet, kind: KindBits) -> SetMembership {
+pub fn kind_has(set: &KindSet, kind: KindBits) -> SetMembership {
     let kind = kind.0;
     let in_set = set
         .bits

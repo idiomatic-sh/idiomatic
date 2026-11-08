@@ -11,7 +11,7 @@ use ryo_execution_domain::domain::rule_intent::types::{
 use crate::application::file_dag::scope::ScopePartials;
 use ryo_execution_domain::domain::file_program::types::RuleSchedule;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_domain::domain::table_cells::service_test::{SMALL_SOURCE, SmallTree, rows_over, small_tree};
+use ryo_execution_domain::domain::table_cells::fixtures::{SMALL_SOURCE, SmallTree, rows_over, small_tree};
 use ryo_execution_domain::domain::prepared_request::types::{Compiled, ObservationIdentity};
 use ryo_execution_domain::domain::table_model::types::Rows;
 use ryo_language::domain::files::types::FilePath;

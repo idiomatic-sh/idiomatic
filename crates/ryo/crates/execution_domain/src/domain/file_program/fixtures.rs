@@ -18,7 +18,7 @@ const NO_TEXT: &str = "";
 const OUTPUT: &str = "out";
 
 /// A function selection followed by a projection of it.
-pub(crate) fn plan() -> Plan {
+pub fn plan() -> Plan {
     Plan {
         observation_inputs: vec![],
         observations: vec![],
@@ -57,7 +57,7 @@ pub(crate) fn plan() -> Plan {
     }
 }
 /// A rule that reads no named root.
-pub(crate) fn rule(id: &str) -> RuleSpec {
+pub fn rule(id: &str) -> RuleSpec {
     RuleSpec {
         id: RuleId(id.into()),
         query: QueryBundle {
@@ -77,7 +77,7 @@ pub(crate) fn rule(id: &str) -> RuleSpec {
 }
 
 /// The one column a named root of these fixtures holds.
-pub(crate) fn column() -> ObservationColumn {
+pub fn column() -> ObservationColumn {
     ObservationColumn {
         name: ObservationColumnName("c".into()),
         kind: CellKind::Number,
@@ -85,7 +85,7 @@ pub(crate) fn column() -> ObservationColumn {
 }
 
 /// The binding of `name` to the given producers, over the one column.
-pub(crate) fn binding(name: &str, producers: Vec<ObservationProducer>) -> ObservationBinding {
+pub fn binding(name: &str, producers: Vec<ObservationProducer>) -> ObservationBinding {
     ObservationBinding {
         name: ObservationBindingName(name.into()),
         columns: vec![column()],
@@ -94,7 +94,7 @@ pub(crate) fn binding(name: &str, producers: Vec<ObservationProducer>) -> Observ
 }
 
 /// The export of `rule` that every consumer of these fixtures names.
-pub(crate) fn export(rule: &str) -> ObservationProducer {
+pub fn export(rule: &str) -> ObservationProducer {
     ObservationProducer::Output {
         rule: RuleId(rule.into()),
         output: ObservationName(OUTPUT.into()),
@@ -102,7 +102,7 @@ pub(crate) fn export(rule: &str) -> ObservationProducer {
 }
 
 /// The rule `id` reading the given bindings.
-pub(crate) fn observing(id: &str, observations: Vec<ObservationBinding>) -> RuleSpec {
+pub fn observing(id: &str, observations: Vec<ObservationBinding>) -> RuleSpec {
     RuleSpec {
         observations,
         ..rule(id)
@@ -110,7 +110,7 @@ pub(crate) fn observing(id: &str, observations: Vec<ObservationBinding>) -> Rule
 }
 
 /// The plan of a producer that exports `OUTPUT` over the given columns.
-pub(crate) fn exporting(columns: Vec<ObservationColumn>) -> Plan {
+pub fn exporting(columns: Vec<ObservationColumn>) -> Plan {
     let mut exporting = plan();
     exporting.observations.push(PlanObservation {
         name: ObservationName(OUTPUT.into()),
@@ -122,7 +122,7 @@ pub(crate) fn exporting(columns: Vec<ObservationColumn>) -> Plan {
 }
 
 /// The input a plan declares for a binding over the one column.
-pub(crate) fn bound_input(name: &str) -> BoundObservationInput {
+pub fn bound_input(name: &str) -> BoundObservationInput {
     BoundObservationInput {
         name: ObservationBindingName(name.into()),
         columns: vec![column()],

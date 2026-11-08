@@ -75,8 +75,8 @@ pub(crate) fn admits(comparison: &PlanComparison, kind: &LackingKind) -> Passage
 /// The reads whose absence of rows each step trusts: for an antijoin or a difference, those its right input has; for a count or a
 /// digest of a group, those it groups. Empty for a step that only passes on the rows it is given.
 #[must_use]
-#[cfg(test)]
-pub(crate) fn needs_of(plan: &Plan) -> Vec<Vec<RelationRead>> {
+#[cfg(any(test, feature = "fixtures"))]
+pub fn needs_of(plan: &Plan) -> Vec<Vec<RelationRead>> {
     needs_from(plan, &uses_of(plan))
 }
 

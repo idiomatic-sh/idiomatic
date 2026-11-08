@@ -4,7 +4,7 @@ use crate::application::file_dag::relations::RelationOwner;
 use ryo_execution_domain::domain::{
     derived_views::types::{contract::value::DerivedContract, DerivedInputs, DerivedScratch, MembershipSpace},
     operating::errors::OperatingError,
-    table_cells::service_test::SMALL_SOURCE,
+    table_cells::fixtures::SMALL_SOURCE,
     table_texts::types::Texts};
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_derived::domain::request::types::DerivedKind;

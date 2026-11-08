@@ -9,7 +9,7 @@ use ryo_values::domain::stored_facts::types::ArenaBytes;
 
 /// A query's regular-expression pattern, keyed by its exact source text.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub(crate) struct RegexPattern(pub String);
+pub struct RegexPattern(pub String);
 
 impl std::borrow::Borrow<str> for RegexPattern {
     fn borrow(&self) -> &str {

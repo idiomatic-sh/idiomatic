@@ -114,7 +114,7 @@ pub struct WalkCounts {
 /// Accepted rows precede the first terminal predicate error in source order.
 #[derive(Debug)]
 pub struct ClassResult {
-    pub(crate) positions: Slots,
+    pub positions: Slots,
     pub(crate) completion: Result<(), crate::domain::operating::errors::OperatingError>,
 }
 
@@ -143,4 +143,4 @@ pub enum WalkRefusal {
 
 /// The positions of the elements a walk step admits, row after row.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub(crate) struct Slots(pub Vec<u32>);
+pub struct Slots(pub Vec<u32>);

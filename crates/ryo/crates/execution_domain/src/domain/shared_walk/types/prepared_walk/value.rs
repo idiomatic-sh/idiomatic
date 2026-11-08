@@ -21,7 +21,7 @@ use ryo_values::domain::{
 #[derive(Debug)]
 pub struct PreparedWalk {
     classes: Merge,
-    pub(crate) physical: Vec<Option<WalkRoute>>,
+    pub physical: Vec<Option<WalkRoute>>,
     prefixes: Vec<Vec<PredicatePlace>>,
     predicates: Vec<PreparedPredicate>,
     needed: Vec<crate::domain::table_cells::types::ColumnPlaces>,

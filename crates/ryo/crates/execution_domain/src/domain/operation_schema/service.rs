@@ -28,7 +28,7 @@ pub(crate) fn reach_kinds(
 /// This function cannot read rows, source bytes, symbols or execution scratch.
 /// Binding/table-key and structural errors remain explicit; data errors such as
 /// invalid spans and duplicate order values remain execution's responsibility.
-pub(crate) fn schema_of(
+pub fn schema_of(
     operation: &Operation,
     inputs: &[InputShape<'_>],
     bindings: &[ParameterBinding],

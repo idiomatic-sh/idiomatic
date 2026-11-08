@@ -25,7 +25,7 @@ pub(crate) struct KindTest {
 
 /// The kinds of a language that have one name: as a set to ask of, and as a list to walk.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub(crate) struct KindSet {
+pub struct KindSet {
     /// A bit for each kind, by its number.
     pub bits: KindMask,
     /// The kinds, in order.
@@ -78,7 +78,7 @@ pub(crate) struct VerdictKey {
 
 /// A comparison of a filter, by its place among the filter's comparisons.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub(crate) struct ComparisonSlot(pub usize);
+pub struct ComparisonSlot(pub usize);
 
 /// The number of a kind set among the sets of a language's kinds.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -86,7 +86,7 @@ pub(crate) struct KindSetPlace(pub usize);
 
 /// A bit for each kind of a set, by the number of the kind.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub(crate) struct KindMask(pub Vec<u64>);
+pub struct KindMask(pub Vec<u64>);
 
 /// How a name is compared, by its place among the tests that can name a kind.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -139,13 +139,13 @@ pub struct SelectScratch {
     pub(crate) verdicts: hashbrown::HashMap<VerdictKey, Verdict>,
 
     /// Fixed glob operands made ready once for each comparison, for this run's bindings.
-    pub(crate) compiled_globs: hashbrown::HashMap<
+    pub compiled_globs: hashbrown::HashMap<
         ComparisonSlot,
         ryo_matching::inbound::use_cases::matching::compiled::CompiledTextGlobs,
     >,
 
     /// Compiled regular expressions reused across rows, bounded by the matching service.
-    pub(crate) compiled_regexes: Patterns,
+    pub compiled_regexes: Patterns,
 
     /// The kinds of a language by the name they are given: a name is the same kind in every file.
     pub(crate) kind_names: hashbrown::HashMap<KindTest, KindSetPlace>,
@@ -160,7 +160,7 @@ pub struct SelectScratch {
 
 /// Compiled patterns, indexed by their exact source text.
 #[derive(Debug, Default)]
-pub(crate) struct Patterns(
+pub struct Patterns(
     pub  hashbrown::HashMap<
         crate::domain::table_texts::types::RegexPattern,
         ryo_matching::inbound::use_cases::matching::compiled::CompiledRegex,
