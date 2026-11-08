@@ -1,0 +1,55 @@
+{
+ "source": "2b7eed3618707fef8dc7f9d765064dd872fef595",
+ "base": "67cb2b1385230b843e39fb3a3202b179423ad53f",
+ "verdict": "PASS",
+ "reviewer": "leak-review",
+ "checks": {
+  "1": {
+   "verdict": "PASS",
+   "evidence": "Docs only (crates/ryo/docs/contracts/method.md:48,50 at 2b7eed3618); no proof moved or asserted."
+  },
+  "2": {
+   "verdict": "PASS",
+   "evidence": "Delta 4595362f20..2b7eed3618 (method.md:50 only) corrects the four statements, each checked against /tmp/ryo-perf-p6 and this host: (1) 'a plain perf record works and falls back to task-clock:u, but any call graph without --user-callchains is refused' matches perf evlist task-clock:upppH and the -g refusal; (2) '10,428 of the worker's 12,188 functions' keep frame records matches objdump on cpu/worker (sha256 276575e2...), and 1,760 = 12,188 - 10,428; the dwarf rationale (a sample in a function without a frame record loses its caller under fp unwinding, dwarf recovers it from the copied stack) is correct as mechanism and makes no measured claim; (3) '180 GB (3,418.9 MB x 999 / 19)' matches cpu/full/err; (4) '330.8 s for the same iteration's plain run' matches alloc/full/err (5:30.76). The other claims stand as verified in the prior review."
+  },
+  "3": {
+   "verdict": "PASS",
+   "evidence": "No code."
+  },
+  "4": {
+   "verdict": "PASS",
+   "evidence": "No code."
+  },
+  "5": {
+   "verdict": "PASS",
+   "evidence": "No code."
+  },
+  "6": {
+   "verdict": "PASS",
+   "evidence": "No code."
+  }
+ },
+ "plants": [],
+ "findings": [
+  {
+   "severity": "advisory",
+   "finding": "The dwarf-over-fp sentence is reasoning, not measurement, but the text does not say so (no 'not measured' wording at method.md:50), contrary to the coordinator's description. It asserts no number for the gain, so it is not inaccurate; adding 'not measured: no --call-graph fp run was taken' would make that explicit."
+  },
+  {
+   "severity": "advisory",
+   "finding": "'samply record' is named but no samply run is in the raw files."
+  },
+  {
+   "severity": "advisory",
+   "finding": "'at 1 GiB full Django writes 2,468 dumps' counts the final dump (2,467 interval + jeprof.3063404.2467.f.heap); 'about 70 minutes' is 66.6 min measured."
+  }
+ ],
+ "date": "2026-11-08",
+ "superseded_review": {
+  "source": "4595362f20cce087de8cdb99e83363b9b931cc99",
+  "verdict": "FAIL",
+  "failed_checks": [
+   2
+  ]
+ }
+}
