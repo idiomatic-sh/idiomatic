@@ -376,6 +376,14 @@ class PerfGate(unittest.TestCase):
                 self.assertEqual(done.returncode, 2)
                 self.assertIn("push of claude/p6-speed refused", done.stderr)
 
+    def test_remote_consolidation_perf_commits_are_not_pushed(self):
+        git(self.tree, "checkout", "-q", "-b", "claude/other", self.base)
+        git(self.tree, "commit", "-q", "--allow-empty", "-m", "perf(engine): remote only 3s")
+        git(self.tree, "update-ref", "refs/remotes/origin/claude/ryo-consolidation", "HEAD")
+        git(self.tree, "checkout", "-q", "claude/p6-speed")
+        git(self.tree, "commit", "-q", "--allow-empty", "-m", "fix: unrelated")
+        self.assertEqual(self.push().returncode, 0)
+
     def test_no_perf_commit_passes(self):
         git(self.tree, "commit", "-q", "--allow-empty", "-m", "fix: 3s typo")
         self.assertEqual(self.push().returncode, 0)

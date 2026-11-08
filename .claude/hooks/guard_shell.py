@@ -455,8 +455,8 @@ def pushed_commits(tree, remote, branch):
         if not base:
             return []
     args = ["log", "--reverse", "--format=%H%x1f%B%x1e", base + "..HEAD"]
-    for ref in exclude:
-        args += ["--not", ref]
+    if exclude:
+        args += ["--not", *exclude]
     code, out = git_out(tree, *args)
     rows = [row.strip("\n").split("\x1f", 1) for row in out.split("\x1e") if row.strip()]
     return [(row[0].strip(), row[1] if len(row) > 1 else "") for row in rows]
