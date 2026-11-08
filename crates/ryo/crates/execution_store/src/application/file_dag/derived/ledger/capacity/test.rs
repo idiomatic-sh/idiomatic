@@ -24,6 +24,6 @@ fn compact_table_accounting_charges_header_and_reserved_vectors() {
     assert!(
         super::compact_table(&table).0
             >= size_of::<types::CompactTable>()
-                + table.row_offsets.capacity() * size_of::<types::PackedOffset>()
+                + table.row_offsets.capacity() * size_of::<types::FrameOffset>()
     );
 }
