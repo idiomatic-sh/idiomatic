@@ -224,12 +224,12 @@
     "core_library": {
       "passed": 120,
       "failed": 1,
-      "note": "lint::use_case_test::succeeds, one red row a_removed_file_leaves_no_unknown_or_skip_behind_in_any_store, owned by the Phase 1 row \"Repair every deferred output failure\", as at validation324"
+      "note": "lint::use_case_test::succeeds, one red row a_removed_file_leaves_no_unknown_or_skip_behind_in_any_store, as at validation324; owned by \"Repair every deferred output failure; rerun all 413 and full corpus.\""
     },
     "benchmark_library": {
       "passed": 221,
       "failed": 1,
-      "note": "verify_cases process_capture succeeds, one red row (a metadata failure preserves the process bytes and cannot be admitted), as at validation324"
+      "note": "verify_cases process_capture succeeds, one red row (a metadata failure preserves the process bytes and cannot be admitted), as at validation324; owned by \"Close full TM, contracts, independent review and normal CI.\""
     },
     "sdk_passed": 29,
     "other_libraries_passed": 187,
@@ -255,7 +255,7 @@
     },
     "ruff_rule_phases": {
       "exit": 1,
-      "note": "the staging guard exits 1 (durable verifier output or identities were not preserved), red since 321, the benchmark TM row"
+      "note": "the staging guard exits 1 (durable verifier output or identities were not preserved), red since 321; both causes were in the harness (the guard expected the command without the case-receipt argument added on 2026-11-04, and rebuilt frozen moved candidates from the live queries), repaired by Review repairs X, whose self-test exits 0; owned by \"Close full TM, contracts, independent review and normal CI.\""
     },
     "doctests": {
       "execution": 14,
@@ -272,12 +272,12 @@
     "core_allocation": {"exit": 101, "phase": 7},
     "cli_replay": {"passed": 75, "failed": 3},
     "cli_replay_reds": ["behavior::ruff_rules_feed_every_catalog_feature_a_thousand_rows", "cache::every_recorded_rule_gives_over_ruff_the_rows_a_warm_run_gives_again_from_a_small_store", "peak::a_warm_unchanged_run_over_ruff_peaks_within_its_bound"],
-    "cli_replay_note": "the reds of validation324: feed (operation:Closure, Cycles, Scope fed fewer than 1,000 rows, the kernels row); cache, the store of ruff 78,525,063 bytes against 75,000,000, the bytes of validation324 (the Phase 1 row); warm peak 113,012,736 bytes against 100,000,000 (115,310,592 at validation324; the Phase 6 frontier-decode row)",
+    "cli_replay_note": "the reds of validation324: feed (operation:Closure, Cycles, Scope fed fewer than 1,000 rows); cache, the store of ruff 78,525,063 bytes against 75,000,000, the bytes of validation324; warm peak 113,012,736 bytes against 100,000,000 (115,310,592 at validation324); behavior owned by \"Consolidate the kernels: run the differential parity and the canary with and without each of the five join/select kernels and delete every kernel the evidence shows superseded.\"; cache owned by \"Repair every deferred output failure; rerun all 413 and full corpus.\"; peak owned by \"Decode lazy packed frontiers once per population, not once per root, and compile ordered existence without the eager request-level pass.\"",
     "cli_cost": {
       "passed": 1,
       "failed": 3,
       "not_run": 3,
-      "note": "the ruff rows of ratchet.toml hold best 1 and are not seeded (cold 9,658 ms / CPU 57,975 ms, peak 580 MB, warm 552 ms, edit 2,635 ms measured); the Django and one-file rows are not available without RYO_PREFLIGHT_WORKER (the Phase 7 acceptance row)"
+      "note": "the ruff rows of ratchet.toml hold best 1 and are not seeded (cold 9,658 ms / CPU 57,975 ms, peak 580 MB, warm 552 ms, edit 2,635 ms measured); the Django and one-file rows are not available without RYO_PREFLIGHT_WORKER; owned by \"Acceptance: 413/413 on the current engine, full Django (2,875 files, all 413 rules) with unknown 0 and unread 0, sub-second cold wall with low peak RSS, warm and edit faster, Rust regression guards within bounds.\""
     },
     "cli_other_targets": "blocks (dhat run, no panic), call_count 1/1, command_line 7/7, command_tree 11/11, readme 1/1",
     "conformance": {"targets": 10, "exit": 0},

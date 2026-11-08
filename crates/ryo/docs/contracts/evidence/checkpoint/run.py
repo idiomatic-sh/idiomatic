@@ -239,6 +239,32 @@ def reruns_without_log(texts,v):
   logs=re.findall(r'[\w.-]+\.log\b',text)
   if not logs or not all((Path(v['raw_identity'])/x).is_file() for x in logs): bad.append(where+': cites a rerun with no raw log in '+v['raw_identity']+': '+text[:110])
  return bad
+REPAIR='Repair every deferred output failure; rerun all 413 and full corpus.'
+CLOSE='Close full TM, contracts, independent review and normal CI.'
+OWNERS={
+ 'core_library':REPAIR,
+ 'benchmark_library':CLOSE,
+ 'ruff_rule_phases':CLOSE,
+ 'cli_cost':'Acceptance: 413/413 on the current engine, full Django (2,875 files, all 413 rules) with unknown 0 and unread 0, sub-second cold wall with low peak RSS, warm and edit faster, Rust regression guards within bounds.',
+ 'behavior::ruff_rules_feed_every_catalog_feature_a_thousand_rows':'Consolidate the kernels: run the differential parity and the canary with and without each of the five join/select kernels and delete every kernel the evidence shows superseded.',
+ 'cache::every_recorded_rule_gives_over_ruff_the_rows_a_warm_run_gives_again_from_a_small_store':REPAIR,
+ 'peak::a_warm_unchanged_run_over_ruff_peaks_within_its_bound':'Decode lazy packed frontiers once per population, not once per root, and compile ordered existence without the eager request-level pass.',
+}
+OWNED=re.compile(r'(?:; )?(?:[a-z_]+ )?owned by "[^"]*"')
+def owned(note,clauses):
+ """The note without its owner clauses, then one `owned by "<row title>"` clause per owner."""
+ return '; '.join([x for x in [OWNED.sub('',note).strip('; ')] if x]+clauses)
+def own(v,readme_text):
+ """Each red that OWNERS names gets its owning row's exact title in its validation.json note; a title that is no README row is reported. Returns (changed, problems)."""
+ results=v['results']; bad=[]; before=json.dumps(results)
+ for key,title in OWNERS.items():
+  if '[ ] '+title not in readme_text and '[x] '+title not in readme_text: bad.append('owner of '+key+' is no README row: '+title[:80])
+ for key,x in results.items():
+  if key in OWNERS and isinstance(x,dict): x['note']=owned(x.get('note',''),['owned by "'+OWNERS[key]+'"'])
+ reds=results.get('cli_replay_reds',[])
+ if reds: results['cli_replay_note']=owned(results.get('cli_replay_note',''),[r.split('::')[0]+' owned by "'+OWNERS[r]+'"' for r in reds if r in OWNERS])
+ bad+=['red '+r+' has no owner in OWNERS' for r in reds if r not in OWNERS]
+ return json.dumps(results)!=before,bad
 def write_block(text,v):
  """Replace the block from the `### Current ownership checkpoint` heading to the first following bullet."""
  lines=text.splitlines(keepends=True)
@@ -247,16 +273,17 @@ def write_block(text,v):
  return ''.join(lines[:start])+render(v)+''.join(lines[end:])
 def finish(v):
  """Write the matrix numbers block from validation.json, print the scope delta, un-tick each ticked row that cites no test or a test the recorded logs do not prove, check each ticked row cites a validation and each rerun result names its raw log. Returns the exit code."""
- old=readme.read_text(); text=write_block(old,v)
+ old=readme.read_text(); owners_changed,owner_bad=own(v,old); text=write_block(old,v)
+ if owners_changed: validation_json.write_text(dumps({k:x for k,x in v.items() if k!='tests'})+'\n')
  for line in scope_delta(v): print(line)
- bad=[]; texts=[]; changed=[]
+ bad=list(owner_bad); texts=[]; changed=['validation.json'] if owners_changed else []
  for part in sorted(contracts.glob('*.md')):
   before=old if part==readme else part.read_text(); body,unticked=untick_unproven(text if part==readme else before,v); where='' if part==readme else part.name+' '
   if body!=before: part.write_text(body); changed.append(part.name)
   for line in unticked: print('UNTICKED ROW '+where+line)
   bad+=[where+x for x in ticked_rows_without_proof(body,v['validation'])]
   texts+=[(part.name+':'+str(n),line) for n,line in enumerate(body.splitlines(),1) if TICKED.match(line)]
- texts+=[('validation.json results '+k,x['note']) for k,x in v['results'].items() if isinstance(x,dict) and 'note' in x]
+ texts+=[('validation.json results '+k,OWNED.sub('',x['note'])) for k,x in v['results'].items() if isinstance(x,dict) and 'note' in x]
  bad+=reruns_without_log(texts,v)
  for line in bad: print('TICKED ROW '+line)
  if changed: print('rewritten from validation.json (numbers block, un-ticked rows): '+', '.join(changed)+'; stage them')
