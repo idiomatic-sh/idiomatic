@@ -216,7 +216,7 @@
     "core_library": {
       "passed": 120,
       "failed": 1,
-      "note": "lint::use_case_test::succeeds, one red row a_removed_file_leaves_no_unknown_or_skip_behind_in_any_store: the narrow instrumented run (narrow-removed_file-instrumented.log) shows the red call is the row's oracle run over the discard store (a.rs and c.rs), whose project phase receives an empty bucket (0 sources) for two required files; hand_words_again and remap_packed are not on that path; the store replay row"
+      "note": "lint::use_case_test::succeeds, one red row a_removed_file_leaves_no_unknown_or_skip_behind_in_any_store, owned by the Phase 1 row \"Repair every deferred output failure\": it panics at lint/fixtures/stores.rs:51 ('the lint answers'), the same in rerun-libraries-f8659b91f6.log; at 322 its oracle run over the discard store (a.rs and c.rs) was found to receive an empty bucket (0 sources) for two required files"
     },
     "benchmark_library": {
       "passed": 221,
@@ -273,7 +273,7 @@
     "core_allocation": {"exit": 101, "phase": 7},
     "cli_replay": {"passed": 75, "failed": 3},
     "cli_replay_reds": ["behavior::ruff_rules_feed_every_catalog_feature_a_thousand_rows", "cache::every_recorded_rule_gives_over_ruff_the_rows_a_warm_run_gives_again_from_a_small_store", "peak::a_warm_unchanged_run_over_ruff_peaks_within_its_bound"],
-    "cli_replay_note": "feed: 3 features fed fewer than 1,000 rows (operation:Closure, Cycles, Scope: the graph drivers record no WorkCounters::found, the fold area); cache: the store of ruff 78,525,063 bytes against 75,000,000 (unchanged from 322), the coverage missing-kinds row; warm peak 113,815,552 bytes against 100,000,000 (114,180,096 at 322; 115,728,384 rerun on f8659b91f6 after the post-validation repairs, rerun-cli_tests-f8659b91f6.log, the same three reds): the walk extension C row",
+    "cli_replay_note": "feed: 3 features fed fewer than 1,000 rows (operation:Closure, Cycles, Scope: the graph drivers record no WorkCounters::found, the fold area); cache: the store of ruff 78,525,063 bytes against 75,000,000 (unchanged from 322), the Phase 1 row \"Repair every deferred output failure\"; warm peak 113,815,552 bytes against 100,000,000 (114,180,096 at 322; 115,728,384 rerun on f8659b91f6 after the post-validation repairs, rerun-cli_tests-f8659b91f6.log, the same three reds): the walk extension C row",
     "cli_cost": {
       "passed": 1,
       "failed": 3,
