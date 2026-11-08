@@ -102,54 +102,52 @@ Branch `claude/w9-review-repairs-xi` from checkpoint 326 `f3a9a7e95c`, for the c
 - **R3, stale text:** README:9 and the Phase 1 row cite validation326; row "Prove actual413 sharing" cites validation326 (`ruff_sharing` and the five `walk_coverage` route and head controls pass in `tests.json`); the rows "Consolidate legal fusion", "Remove redundant intermediates", "Unify cold/warm/edit reuse" and "Prove file/project/configuration invalidation" are marked unverified at validation326; crates.md:12 says 9 kinds; the perf iteration 2 row records `relation_partitions` as a private index added.
 - **Standing from 326:** rows 237 and 240 (older validations), walk B, the fixtures-gated second `derived()` composition, `RAYON_NUM_THREADS` as an environment setting, the Rust gate whitespace and `ok_or` notes (ryo-artq), the review README branch table, the 320 to 321 deletions, and README:267 "8 flagged kinds".
 
-### Current ownership checkpoint — source `142fe40a98`, validation327
+### Current ownership checkpoint — source `4a982fa0a5`, validation328
 
 Written by `evidence/checkpoint/run.py` from [validation.json](evidence/checkpoint/validation.json); do not edit by hand. Review: [checkpoint](audits/2026-11-06-derived/ownership/checkpoint.json).
 
 | Check | Result |
 |---|---|
-| Source | `142fe40a98` |
-| Validation | validation327 (raw logs in the directory named `ryo-contract-validation327-20261108`, kept outside the repository) |
-| execution library | 270 PASS / 0 failed (the engine after landing 1, as at validation324; its domain and store are their own crates (the two rows below)) |
+| Source | `4a982fa0a5` |
+| Validation | validation328 (raw logs in the directory named `ryo-contract-validation328-20261108`, kept outside the repository) |
+| execution library | 72 PASS / 0 failed (execution after landing 2: its file DAG application moved to the runtime crate (the row below); execution 72 + runtime 198 = 270, the rows of validation327's execution library) |
 | execution domain library | 136 PASS / 0 failed |
 | execution store library | 81 PASS / 0 failed |
-| core library | 120 PASS / 1 failed (lint::use_case_test::succeeds, one red row a_removed_file_leaves_no_unknown_or_skip_behind_in_any_store, as at validation326; owned by "Repair every deferred output failure; rerun all 413 and full corpus.") |
-| benchmark library | 220 PASS / 2 failed (verify_cases process_capture succeeds, one red row (a metadata failure preserves the process bytes and cannot be admitted), as at validation326; and, in this run only, direct::adapter_test::succeeds (row "missing script interpreter is a launch failure" answered ExecutableFileBusy for NotFound, the ETXTBSY race of a script written and executed while another test thread holds its write descriptor; no file of the benchmark crate changed since 326): five reruns of the benchmark library under the lock at 142fe40a98 give 221/1, the process_capture row alone (benchmark_library_reruns.log); owned by "Close full TM, contracts, independent review and normal CI.") |
+| core library | 121 PASS / 0 failed (the removed-file row a_removed_file_leaves_no_unknown_or_skip_behind_in_any_store passes since the Phase 1 tail (its fixture runs the cold run's language for the oracle and warm runs)) |
+| benchmark library | 221 PASS / 1 failed (verify_cases process_capture succeeds, one red row (a metadata failure preserves the process bytes and cannot be admitted), as at validation326 and validation327; owned by "Close full TM, contracts, independent review and normal CI.") |
 | sdk passed | 29 |
 | other libraries passed | 187 |
-| libraries total | 1078 PASS / 3 failed (validation326 1079/2; the same two reds and the direct adapter ETXTBSY race (green on five reruns, benchmark_library_reruns.log)) |
+| libraries total | 1080 PASS / 1 failed (validation327 1078/3; the removed-file row is green and the direct adapter ETXTBSY race did not recur) |
 | execution boundary | 97 PASS / 0 failed (102 at validation323 less the five source-reading rows landing 1 deletes (source_boundary activation rejects, derived census, runtime authority; submission census trait methods and prepared frontiers), each replaced as the ownership record's table states) |
 | activation | 11 PASS / 0 failed (11 actual cases, the facts-finish dhat control among them) |
 | bdd | scenarios 7, failed 0 |
-| core bdd | scenarios 18, failed 0, note not a result for 142fe40a98: the binary took units another worktree built in the shared target; it runs again at 328 on the tree's own target |
+| core bdd | scenarios 18, failed 0, note the 327 erratum's owed run, on the tree's own target |
 | ruff sharing | 1 PASS / 0 failed |
 | ruff canary | 1 PASS / 0 failed (112 = 110 N999 + 2 invalid-syntax, the split asserted, the answer of validation323; now on the benchmark worker pool at rayon default size (10 threads here; one worker at validation325): the same answer) |
 | ruff | 13 PASS / 0 failed (as at validation326 (13/0), on rayon default size (10 threads here)) |
 | ruff rule phases | exit 0, note the staging guard self-test exits 0 (red from 321 to 325); both causes were in the harness (the guard expected the command without the case-receipt argument added on 2026-11-04, and rebuilt frozen moved candidates from the live queries), repaired by Review repairs X |
-| doctests | execution 14, core 1, sdk 3, values 4, derived 11, failed 0, note as at validation324: execution 14 (16 at validation323 less the two compile_fail probes the split made vacuous) |
+| doctests | execution 4, execution runtime 4, core 1, sdk 3, values 4, derived 11, failed 0, note the doctest target's 14 execution-side doctests of validation327 are now execution 4 (domain and store included) and the runtime 4: its two API examples and its two compile_fail,E0599 probes (FileExecution, ProjectRootExecution), first run here; landing 2 retired ten privacy and removed-name probes that the crate boundary replaces |
 | tm import cli | pass |
 | tm cli source findings | 0 |
 | tm guards | pass |
-| core allocation | exit 101, phase 7, note not a result for 142fe40a98: the binary took units another worktree built in the shared target; it runs again at 328 on the tree's own target; owned by "Measure full-Django cold/warm/edit and Rust regressions; meet final objective." |
-| cli replay | 75 PASS / 3 failed |
-| cli replay reds | 3: `behavior::ruff_rules_feed_every_catalog_feature_a_thousand_rows`; `cache::every_recorded_rule_gives_over_ruff_the_rows_a_warm_run_gives_again_from_a_small_store`; `peak::a_warm_unchanged_run_over_ruff_peaks_within_its_bound` |
-| cli replay note | the reds of validation326: feed (operation:Closure, Cycles, Scope fed fewer than 1,000 rows); cache, the store of ruff 78,525,063 bytes against 75,000,000, the bytes of validation326; warm peak 114,192,384 bytes against 100,000,000 (113,549,312 at validation326); behavior owned by "Consolidate the kernels: run the differential parity and the canary with and without each of the five join/select kernels and delete every kernel the evidence shows superseded."; cache owned by "Repair every deferred output failure; rerun all 413 and full corpus."; peak owned by "Decode lazy packed frontiers once per population, not once per root, and compile ordered existence without the eager request-level pass." |
-| cli cost | 1 PASS / 3 failed / 3 not run (the ruff rows of ratchet.toml hold best 1 and are not seeded (cold 9,326 ms / CPU 54,540 ms, peak 585 MB, warm 532 ms, edit 2,617 ms measured; the new row an_absent_input_is_a_typed_reason_not_a_pass passes); the Django and one-file rows are not available without RYO_PREFLIGHT_WORKER (the staged run is the directory of the worker it names); the three staged runs with it are cli_cost_staged_an_absent_input_is_a_typed_reason_not_a_pass.log, cli_cost_staged_n999_over_django_holds_its_ratchet.log and cli_cost_staged_one_file_with_every_rule_holds_its_ratchet.log; owned by "Acceptance: 413/413 on the current engine, full Django (2,875 files, all 413 rules) with unknown 0 and unread 0, sub-second cold wall with low peak RSS, warm and edit faster, Rust regression guards within bounds.") |
+| core allocation | exit 101, phase 7, note the 327 erratum's owed run, on the tree's own target: a file allocates 1,698 to 1,700 blocks beyond the parser library; owned by "Measure full-Django cold/warm/edit and Rust regressions; meet final objective." |
+| cli replay | 76 PASS / 2 failed |
+| cli replay reds | 2: `behavior::ruff_rules_feed_every_catalog_feature_a_thousand_rows`; `peak::a_warm_unchanged_run_over_ruff_peaks_within_its_bound` |
+| cli replay note | the reds of validation328: feed: Closure, Cycles and Scope are fed since the Phase 1 tail; the row now fails on family:FloatTextGreaterThanOrEqual, which unfed.toml lists and the shared walk credits with every visited row (counted 9,763,518 at the Phase 1 tail), the shared walk per-step count; the cache row passes (store of ruff 72,522,094 bytes at the Phase 1 tail, under 75,000,000: each proof's rule digest kept once); warm peak 114,536,448 bytes against 100,000,000 (114,192,384 at validation327); behavior owned by "Consolidate the kernels: run the differential parity and the canary with and without each of the five join/select kernels and delete every kernel the evidence shows superseded."; peak owned by "Decode lazy packed frontiers once per population, not once per root, and compile ordered existence without the eager request-level pass." |
+| cli cost | 4 PASS / 3 failed / 0 not run (the ruff rows of ratchet.toml hold best 1 and are not seeded (cold 9,039 ms, peak 589 MB, warm 542 ms measured); without RYO_PREFLIGHT_WORKER the three Django and one-file rows answer not available (passed, a typed reason); the staged runs with the receipt worker are the cli_cost_staged_*.log files of the raw directory; owned by "Acceptance: 413/413 on the current engine, full Django (2,875 files, all 413 rules) with unknown 0 and unread 0, sub-second cold wall with low peak RSS, warm and edit faster, Rust regression guards within bounds.") |
 | cli other targets | blocks (dhat run, no panic), call_count 1/1, command_line 7/7, command_tree 11/11, readme 1/1 |
 | conformance | targets 10, exit 0 |
-| harness hooks | 45 PASS / 0 failed |
+| harness hooks | 48 PASS / 0 failed |
 | checkpoint check | 16 PASS / 0 failed |
 | derived library | 35 PASS / 0 failed |
 | python and language libraries | 181 PASS / 0 failed (python 138/0 and language 43/0, now targets of the set (python_lib, language_lib)) |
 | tm validate all | crates ryo 241 PASS / 0 failed, repository root 223 PASS / 0 failed |
+| execution runtime library | 198 PASS / 0 failed |
 | tm_cli_source findings | 0 (0 production, 0 test), 0 suppressed, 1 scoped directories |
 | tm_source findings | 0 (0 production, 0 test), 2 suppressed, 16 scoped directories |
 | Whole-tree TM | 18 findings, 6 suppressed (3676 at 318) |
 | File-level ownership cycles | 0 (0 targeted) |
 | Red test | libraries inbound::use_cases::verify_cases::use_case_test::process_capture::test::succeeds: red rows 1: a metadata failure preserves the process bytes and cannot be admitted |
-| Red test | libraries outbound::execution::adapters::direct::adapter_test::succeeds: red rows 2: missing script interpreter is a launch failure, resource mode honors its declared platform contract |
-| Red test | libraries inbound::use_cases::lint::use_case_test::succeeds: red rows 1: a_removed_file_leaves_no_unknown_or_skip_behind_in_any_store |
-| Red test | cli_tests cache::every_recorded_rule_gives_over_ruff_the_rows_a_warm_run_gives_again_from_a_small_store: red; its failure names no case row |
 | Red test | cli_tests behavior::ruff_rules_feed_every_catalog_feature_a_thousand_rows: red; its failure names no case row |
 | Red test | cli_tests peak::a_warm_unchanged_run_over_ruff_peaks_within_its_bound: red; its failure names no case row |
 | Red test | cli_cost cost::a_cold_run_over_ruff_holds_the_peak_ratchet: red; its failure names no case row |
