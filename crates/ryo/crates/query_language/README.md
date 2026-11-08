@@ -56,6 +56,10 @@ The `query_language` domain's `inlining` concept: the views of a relation read i
 
 The `query_language` domain's `joining` concept: the join a `select` writes, and the columns of either side its `where` names.
 
+### lineage
+
+The `query_language` domain's `lineage` concept: what a column of a step's rows is, found from the relation column it was read from, and the per-file steps its values come from.
+
 ### linking
 
 The `query_language` domain's `linking` concept: the located refusals of linking and the source ids it reads.
@@ -63,6 +67,10 @@ The `query_language` domain's `linking` concept: the located refusals of linking
 ### lowering
 
 The `query_language` domain's `lowering` concept: the values, names and failures the concepts that lower a program share while a plan is built.
+
+### narrowing
+
+The `query_language` domain's `narrowing` concept: the per-file input of a join after the files, narrowed in each file to the rows whose key a value of the other input can be.
 
 ### observation_inputs
 
@@ -79,6 +87,10 @@ The `query_language` domain's `pruning` concept: the steps nothing reads, droppe
 ### pushing
 
 The `query_language` domain's `pushing` concept: the lookups into a join of edges and elements made before the join.
+
+### regrouping
+
+The `query_language` domain's `regrouping` concept: the per-file inputs of a join after the files joined with each other in each file, so a file hands over only the rows that meet.
 
 ### remapping
 
@@ -107,6 +119,10 @@ The `query_language` domain's `rooting` concept: the identities and origins the 
 ### selecting
 
 The `query_language` domain's `selecting` concept: a `select` lowered to the join, the filter and the projection the query wrote.
+
+### selection_pushing
+
+The `query_language` domain's `selection_pushing` concept: the filters of a union or a join made on its inputs, so it combines only the rows they let through.
 
 ### spanning
 

@@ -1,44 +1,42 @@
 //! A control for every entry method: an incomplete, extra or undeclared root is refused.
-use ryo_execution_runtime::application::file_dag::observations::types::RuleSelection;
 use super::inventory::{
     CAPTURES, DELIVERIES, DEMANDS, REASONS, REFUSALS, assert_inventory, capture_place,
     delivery_place, demand_place, every_intent, intent_place, reason_place, refusal_place,
 };
-use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
-use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use super::routes::{file_route, run_file_route};
 use super::witness::{ALL, Method, Witness, implements_every_entry_trait};
 use crate::boundary_fixture::{corpus, demand, engine, prepared_rules};
 use crate::file_intents::named_request;
-use crate::project_phase::negative::fixtures::{
-    Entry, Held, NoFacts, prepare_for, with_held,
-};
-use ryo_execution::inbound::use_cases::execution::interface::OccurrenceNumber;
-use ryo_execution::inbound::use_cases::execution::interface::FrontierDemand;
-use ryo_execution::inbound::use_cases::execution::interface::PhaseOccurrence;
-use ryo_execution::inbound::use_cases::execution::interface::PhaseOccurrences;
-use ryo_execution::inbound::use_cases::execution::interface::ProjectBatch;
-use ryo_execution::inbound::use_cases::execution::interface::Partials;
-use ryo_execution::inbound::use_cases::execution::interface::PhasePartials;
-use ryo_execution::inbound::use_cases::execution::interface::PhaseStop;
+use crate::project_phase::negative::fixtures::{Entry, Held, NoFacts, prepare_for, with_held};
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
-use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
+use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
+use ryo_execution::inbound::use_cases::execution::interface::FrontierDemand;
+use ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationExecution;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationPublication;
+use ryo_execution::inbound::use_cases::execution::interface::OccurrenceNumber;
+use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
+use ryo_execution::inbound::use_cases::execution::interface::Partials;
+use ryo_execution::inbound::use_cases::execution::interface::PhaseOccurrence;
+use ryo_execution::inbound::use_cases::execution::interface::PhaseOccurrences;
+use ryo_execution::inbound::use_cases::execution::interface::PhasePartials;
+use ryo_execution::inbound::use_cases::execution::interface::PhaseStop;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectBatch;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
+use ryo_execution::inbound::use_cases::execution::interface::RefusedFiles;
+use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution_runtime::application::file_dag::frontiers::errors::PreparationError;
 use ryo_execution_runtime::application::file_dag::frontiers::types::PublicationSlot;
+use ryo_execution_runtime::application::file_dag::observations::types::RuleSelection;
+use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
-use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
-use ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles;
-use ryo_execution::inbound::use_cases::execution::interface::RefusedFiles;
-use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
-use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
+use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use std::collections::BTreeSet;
 
 /// What a method does with a root set: refuse an incomplete, extra or undeclared one, or
@@ -138,7 +136,11 @@ pub(super) fn occurrence_of_an_undeclared_rule() {
         let phase = request.project_phase().expect("the phase opens");
         let ran = phase.evaluate_occurrences(
             PhaseOccurrences {
-                occurrences: &[occurrence(RuleIndex(0)), occurrence(RuleIndex(0)), occurrence(RuleIndex(3))],
+                occurrences: &[
+                    occurrence(RuleIndex(0)),
+                    occurrence(RuleIndex(0)),
+                    occurrence(RuleIndex(3)),
+                ],
                 first: &[ryo_values::domain::stored_facts::types::Bucket(0); 4],
                 corpus,
                 covered,
@@ -177,7 +179,10 @@ pub(super) fn occurrence_of_an_undeclared_rule() {
             Some(Err(PhaseStop::Operating(OperatingError::NotRun)))
         ));
         assert_eq!(occurrences.len(), 3);
-        assert!(phase.finish().is_ok(), "the phase is released once its occurrences are completed");
+        assert!(
+            phase.finish().is_ok(),
+            "the phase is released once its occurrences are completed"
+        );
     });
 }
 /// Each phase a request opens owns its own publication: a scope one phase still holds makes that phase's finish refuse, and leaves
@@ -187,9 +192,18 @@ pub(super) fn each_phase_owns_its_publication() {
         let held = request.project_phase().expect("the first phase opens");
         let other = request.project_phase().expect("the second phase opens");
         let scope = held
-            .project_scope(RuleIndex(0), corpus, covered, &[], &InapplicableFiles::default())
+            .project_scope(
+                RuleIndex(0),
+                corpus,
+                covered,
+                &[],
+                &InapplicableFiles::default(),
+            )
             .expect("a declared rule has a scope");
-        assert!(other.finish().is_ok(), "another phase's scope does not hold this phase's publication");
+        assert!(
+            other.finish().is_ok(),
+            "another phase's scope does not hold this phase's publication"
+        );
         assert!(
             matches!(held.finish(), Err(OperatingError::NotRead)),
             "an outstanding scope keeps its own phase's publication shared"
@@ -302,7 +316,12 @@ pub(super) fn install_undeclared_rule() {
         };
         assert!(
             stage
-                .install(RuleIndex(3), PublicationSlot::Reserved(worker), transfer, vec![])
+                .install(
+                    RuleIndex(3),
+                    PublicationSlot::Reserved(worker),
+                    transfer,
+                    vec![]
+                )
                 .is_err()
         );
     });

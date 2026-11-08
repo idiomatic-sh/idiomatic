@@ -11,15 +11,15 @@ use crate::domain::answering::types::Crossed;
 use crate::domain::answering::types::Todo;
 use crate::domain::crossing::types::ObservedRoot;
 use crate::domain::crossing::types::PhaseRoots;
-use ryo_execution::inbound::use_cases::publication::interface::PublicationUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationContract;
-use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
+use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectObservation;
 use ryo_execution::inbound::use_cases::execution::interface::PublicationSlot;
 use ryo_execution::inbound::use_cases::execution::interface::RootOutcome;
 use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
 use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
+use ryo_execution::inbound::use_cases::publication::interface::PublicationUseCase;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::records::types::ObservationReason;
 use ryo_values::domain::records::types::ProducerReadiness;
@@ -104,7 +104,7 @@ impl ProjectCompletion {
                 if crossing.covered.iter().any(|each| {
                     usize::try_from(each.file.0) == Ok(index)
                         && each.rules.contains(&todo.rule)
-                        && crate::domain::recording::service::names_at_file(&MetadataUseCaseImpl, 
+                        && crate::domain::recording::service::names_at_file(&MetadataUseCaseImpl,
                             &each.partial,
                             crossing.needs.get(todo.rule.0),
                         ) == ryo_execution::inbound::use_cases::metadata::interface::Bearing::Matters
@@ -216,7 +216,9 @@ impl ProjectCompletion {
 
 /// The rows each root of a project rule's outcome delivers, and the owner proof of every usable named root.
 pub(crate) fn collected(
-    outcome: ryo_execution::inbound::use_cases::execution::interface::RuleOutcome<ryo_execution::inbound::use_cases::execution::interface::ProjectOutputOutcome>,
+    outcome: ryo_execution::inbound::use_cases::execution::interface::RuleOutcome<
+        ryo_execution::inbound::use_cases::execution::interface::ProjectOutputOutcome,
+    >,
 ) -> Result<ProgramEvaluated, OperatingError> {
     let mut roots = PhaseRoots::default();
     match outcome.emit {

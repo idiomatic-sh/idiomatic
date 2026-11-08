@@ -20,6 +20,10 @@ The values domain's `files` concept: the files of a run and the globs that name 
 
 The values domain's `hosted` concept: the relations a host declares to a run, and their rows.
 
+### lineage
+
+Which file the rows of a step come from and which of its columns lie in that file: the one definition the planner's rewrites and the engine both read.
+
 ### observations
 
 The values domain's `observations` concept: Explicit authored outputs and the typed dependencies between rules, and the readiness a run records for them.

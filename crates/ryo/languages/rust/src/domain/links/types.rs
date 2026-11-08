@@ -65,7 +65,7 @@ pub(crate) struct Packaged {
     /// The manifests that could not be read: the files they would have held are missing.
     pub refused: Vec<Refusal>,
     /// The number of the file of each manifest the packages name: its place among the files the run lists, or after them.
-    pub listed: std::collections::BTreeMap<RepoPath, ryo::languages::FileId>,
+    pub listed: BTreeMap<RepoPath, ryo::languages::FileId>,
 }
 
 /// One dependency of a file on another, before the place of the target is known: the target and where the path is written.

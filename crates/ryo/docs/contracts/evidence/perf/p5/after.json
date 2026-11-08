@@ -1,5 +1,5 @@
 {
- "source": "baaf4ff267",
+ "source": "baaf4ff26708ae88eea56e33dc3eb434e1b61082",
  "before": [
   {
    "name": "full Django 413, cold, default threads",
@@ -7,7 +7,9 @@
    "cpu_s": 2646.3,
    "peak_mb": 6579,
    "peak_kb": 6736756,
-   "frontier_mb": 2053
+   "frontier_mb": 2053,
+   "frontier_mb_worker_commit": "258a65fe3ec7d1eea22222456250ac471258f6e3",
+   "frontier_mb_note": "measured by the perf 4 after worker (258a65fe3e), not by the worker of this row"
   },
   {
    "name": "100 files x 413, cold, default threads",
@@ -24,7 +26,8 @@
    "cpu_s": 2549.7,
    "peak_mb": 3546,
    "peak_kb": 3630972,
-   "frontier_mb": 8.9
+   "frontier_mb": 8.9,
+   "frontier_mb_note": "unbacked: the events.jsonl of the diagnostic runs were not retained; the number survives only in a scratchpad note"
   },
   {
    "name": "100 files x 413, cold, default threads",

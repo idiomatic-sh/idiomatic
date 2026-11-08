@@ -1,195 +1,81 @@
 {
- "checkpoint": 329,
+ "source": "1086daee4b3a4435e60438d2df6ec7a7128dd883",
+ "verdict": "blocking",
  "schema": "contract-review-verdict/v1",
- "source": "171789169ee342550bab8f76e7563f9e04a8acfd",
- "base": "90a0a472b243b2ab9350db0447c1d5b39138a571",
- "verdict": "BLOCKING",
- "reviewer": "Opus 5.5 (claude-opus-5-5), single independent reviewer, read-only; no second reviewer session ran, named as manual judgment",
- "phases": [
-  {
-   "phase": 1,
-   "verdict": "NOTE",
-   "findings": [
-    {
-     "row": "Django receipt on 74a799c116 (README:20, record README:44-52)",
-     "claim": "Full Django 413 cold, staged request, default threads, exit 0, unknown 0, output bytes equal to 328.",
-     "evidence": "/tmp/ryo-django329/{run1,default}/rc rc=0; default 327.50 s, 2580.66+67.00 s CPU, 6,780,164 KB, load 6.16; run1 337.39 s, 6,711,972 KB, load 7.26; store 1,757,210,648; both out sha256 53b163f4...b547b4 (= 328); request.json sha256 406d0b15...976d = staged.json request_sha256; staged digest 0132c274..., 1,088 files, source_commit 74a799c116; build.json 17:26 rc 0.",
-     "missing": "Verified. Note: worker 70587a22 cited by README:20 was overwritten at 18:19 (worker and target ruff-f58c766a39166f9b now 59a28524), so it cannot be re-hashed."
-    },
-    {
-     "row": "Django receipt on 779f4a960f (request only)",
-     "claim": "327.46 s / 6.83 GB, worker 59a28524, output identical.",
-     "evidence": "jnr7/rc rc=0, 327.46 s, 6,830,240 KB, out sha 53b163f4. Worker built 18:19:43.9 (target mtime); 779f4a960f committed 18:20:14; no build record (build.json/build.err are the 17:26 build; source_commit still 74a799c116).",
-     "missing": "Note: rebuild the worker from 171789169e with build.json and source_commit in a fresh directory; show sha = 59a28524 or rerun one cold Django; record it in the 329 record."
-    },
-    {
-     "row": "328 note: Always removed-file assertion",
-     "claim": "Cold rows include the rejected file's row.",
-     "evidence": "core lint/fixtures/skips.rs:228-238 names_b requires a cold row with cell b.rs, oracle none.",
-     "missing": "Closed."
-    }
-   ]
+ "checkpoint": 330,
+ "base": "171789169ee342550bab8f76e7563f9e04a8acfd",
+ "validated": "4df6abaca2fb9b8e24bf35261477ceae87bb60ab",
+ "reviewer": "Opus 5.5 (claude-opus-5-5), single independent reviewer, read-only on archives of fixed shas; tm whole-tree on both archives, run.py --check, cargo check -p core/values/sdk --all-targets into /workspaces/idiomatic-check-target/cr330 (rc 0, 0 errors; deleted after), SCC recount over validation330 ownership_edges.log; no tests, no seeds; no Astra session (two-reviewer binding not met, manual judgment)",
+ "receipts": {
+  "tm": {
+   "met": false,
+   "claimed": "whole-tree 18 / 6 suppressed",
+   "measured": {
+    "4df6abaca2": "28 / 6 (18 ring + 8 crate-readme#template query_language + 1 error-variants-reached UnknownRuleIndex + 1 pub-item-unreferenced-elsewhere file_owner_released)",
+    "1086daee4b": "31 / 6 (adds no-machine-paths-shipped x2, no-tracker-text-shipped at docs/contracts/README.md:45)"
+   },
+   "cause": "validation.json tm_whole_tree is checkpoint 328's; no tm_whole_tree.json in validation330 raw dir; tm_source scope excludes query_language and execution/rule_compilation"
   },
-  {
-   "phase": 2,
+  "run_py_check": {
+   "met": true,
+   "exit": 0
+  },
+  "validation_json": {
+   "met": "in substance; record stale",
+   "no_print_exit": 0,
+   "cycles_recomputed": "0 SCCs over 4,691 occurrences, 745 files (validation330 ownership_edges.log)",
+   "stale": "ownership_graph names 4a982fa0a5 / validation328 / 4,645"
+  }
+ },
+ "request_refused": "receipt 1 (tm) false: 28/6 measured on the validated source against 18/6 claimed",
+ "phases": {
+  "1": {
+   "verdict": "NOTE",
+   "file": "review-phase1-330.json",
+   "blocking": []
+  },
+  "2": {
    "verdict": "BLOCKING",
-   "findings": [
-    {
-     "row": "BLOCKING: project-batch-owner inert across crates; one phase call unenforced",
-     "claim": "evaluate_occurrences is the one phase call (request); project-batch-owner 0.1.0 (tastemaker.toml:68, crates/core/src) forbids direct ProjectRootExecution::evaluate/open_project in core outside application/cross_file/service.rs; its why relies on Rust forbidding SealedBatch forgery.",
-     "evidence": "779f4a960f deleted SealedBatch/Preparation/PreparedProject/ReadyProject/evaluate_batch. Seed on the copy: direct stage.evaluate(...) inserted at core/src/application/cross_file/ordinary/service.rs:59 (and at cross_file/service.rs:171): whole-tree tm 0 project-batch-owner findings (rv329/seed_tm.json). Cause: the rule's users come from source-dependency targets */inbound/use_cases/execution/{interface,types}.rs; source-dependency of ordinary/service.rs has 11 rows, all intra-core, none for its 11 ryo_execution imports (ryo query run), and the interface lives in crates/execution. Validate scenarios pass only with a same-crate fixture. evaluate remains pub on the trait (project_phase/interface.rs:49-54) and its doctest calls it the authorized route (:29-46); core tests call it (batch_test.rs:121, budget_test.rs:198, population_test.rs:164, single_rule_test.rs:40). Placement description is the template placeholder (tastemaker.toml:68, since c7fdb65890). f472801258's 0.1.1 changes only why/help; query unchanged.",
-     "missing": "Take evaluate off the public ProjectRootExecution trait (compiler-enforced; Rust gate A5), or rewrite the rule on written paths/static-import with a second-crate scenario and show the ordinary/service.rs seed failing and the tree passing; fix why/help/description. Seed-check the class: shared-walk-owner 0.1.0, derived-view-acquisition 0.2.0, program-implementation-boundary 0.1.0. Owner: integrator or the A5 bead builder."
-    },
-    {
-     "row": "Privacy by private_interfaces (779f4a960f)",
-     "claim": "Widening parts (PreparedExecutionProgram, FileSession) or open_project to pub fails the runtime's own build (README:208, prepared_execution/types.rs:3-5).",
-     "evidence": "Compiler seeds on the copy (runtime package check): pub parts: ProgramParts -> error 'type ProgramParts is more private than the item PreparedExecutionProgram::parts' (types.rs:20); pub parts: SessionParts -> same (file_session/types.rs:53); pub fn open_project -> 'type ProjectRun<'a> is more private than ... open_project' (request_execution/service.rs:171). Gap: pub fn open_session (request_execution/service.rs:121, signature all-public FileInput/FileSession/Symbols) compiles, and a seed in crates/execution/src/lib.rs calling request.open_session(input, symbols) passes the execution check. Limit: widening struct ProgramParts + parts + digest together compiles and execution reads program.parts.digest. Kept E0603 probe (types.rs:7-9): compile_fail codes are checked only on nightly; toolchain stable 1.97.1.",
-     "missing": "Verified for the claimed items. Note: bring open_session under the lint (crate-private parameter/return/part) or name it as manual judgment in README:208; state the multi-widening limit."
-    },
-    {
-     "row": "328 Declined double count (tracked row)",
-     "claim": "Queue is the only writer of evaluation counts.",
-     "evidence": "No hand += in the runtime; ReadyQueue::evaluated_in_preparation (execution_domain ready_queue/value.rs:99-107, refuses unless Polling(Prepare)) and next() (:74); lifecycle::test::a_region_evaluated_in_its_preparation_is_counted_once_as_a_dispatched_one_is ok in validation329 libraries.log.",
-     "missing": "Closed."
-    },
-    {
-     "row": "Census of the new entry",
-     "claim": "Every entry method refuses an undeclared root.",
-     "evidence": "witness/mod.rs:80 RootsEvaluateOccurrences; controls/mod.rs:67,137-189 occurrence_of_an_undeclared_rule; census ok only in validation330 (f472801258, boundary 97/0), not on the reviewed source.",
-     "missing": "Note: cite a run on the reviewed source or name validation330's source."
-    },
-    {
-     "row": "Proof of changed routes",
-     "claim": "Budget case proves the production guard-refused path; observation error text changed on error paths only.",
-     "evidence": "budget_test.rs:79-118 drives the runtime Refused path with a test copy of core's within guard; core's CrossFile::ordinary is driven only for before refusals (budget_test.rs:240-321, refused.is_none()); its ProjectBatch::Refused settlement (ordinary/service.rs:94-97) has no control. MISSING_FRONTIER_BUCKET on the observation route (cross_file/service.rs:299) has no test; the only assertion is ordinary (budget_test.rs:303).",
-     "missing": "Note: add a control for CrossFile::ordinary's guard refusal and for the observation missing-bucket path."
-    },
-    {
-     "row": "Rows 174-178",
-     "claim": "Unverified at validation328.",
-     "evidence": "validation329 ran boundary_contract 97/0 and the Declined control passes.",
-     "missing": "Note: rebind what ran (repeated from 328)."
-    }
+   "file": "review-phase2-330.json",
+   "blocking": [
+    "BLOCKING (329 standing): project-batch-owner inert across crates; one phase call unenforced"
    ]
   },
-  {
-   "phase": 3,
+  "3": {
    "verdict": "NOTE",
-   "findings": [
-    {
-     "row": "Phase 3 rows",
-     "claim": "Standing.",
-     "evidence": "329 does not touch the walks; ruff_sharing 1/0 and ruff 13/0 at validation329.",
-     "missing": "Walk B, row 181 and the independent audit are standing."
-    }
-   ]
+   "file": "review-phase3-330.json",
+   "blocking": []
   },
-  {
-   "phase": 4,
+  "4": {
    "verdict": "BLOCKING",
-   "findings": [
-    {
-     "row": "BLOCKING: crates.md:14 and :17 vs 779f4a960f",
-     "claim": "Crate matrix states owners, edges and enforcement.",
-     "evidence": "crates.md:14 cites 'library-surface 0.2.0 over crates/execution/**, review repairs XIII', but 779f4a960f deleted that entry (tastemaker.toml:16 holds only the outside-crates entry, which excludes crates/execution/**). crates.md:17 says library-surface keeps execution off program::admission (false), and still reads 'Compiled and validated at checkpoint 328 ... 198 / 4 doctests ... XIII restores ... 15 compile_fail ... for the next validation to run'; validation329 ran them (runtime doctests 2+15, library 199/0), then 779f4a960f deleted 12 and the mechanism became private_interfaces.",
-     "missing": "Author edits the rows; the independent reviewer verifies. Owner: integrator."
-    },
-    {
-     "row": "BLOCKING: README:208 hardening step 3",
-     "claim": "Row carries the current result.",
-     "evidence": "Says landing 2 deleted ten probes (omits XIII restoring 15 and 779f deleting 12); 'library 198 PASS / 4 doctests' is validation328's; open_session gap and multi-widening limit not named.",
-     "missing": "Update the result line."
-    },
-    {
-     "row": "README:91-92 (XIII R1) and the 329 record",
-     "claim": "Record matches the source.",
-     "evidence": "R1 still states the second library-surface entry and the 15 probes; the 329 record (README:38-65) does not say 779f4a960f reversed both or deleted core's preparation module.",
-     "missing": "Add a gate-repairs paragraph to the 329 record."
-    },
-    {
-     "row": "Closed from 328",
-     "claim": "Crate map and crate-layers.",
-     "evidence": "crates.md rows 3, 7, 9, 11, 15, 16, 18-20, 46 name the four engine crates and runtime edges; execution_store in crate-layers between runtime and domain.",
-     "missing": "Closed."
-    }
+   "file": "review-phase4-330.json",
+   "blocking": [
+    "BLOCKING (329 standing): matrix contradicts the source"
    ]
   },
-  {
-   "phase": 5,
+  "5": {
    "verdict": "NOTE",
-   "findings": [
-    {
-     "row": "327/328 Effects negative list, RequestSource control, stale comment (tracked row)",
-     "claim": "Request reuse is an exhaustive choice per effect.",
-     "evidence": "reuse_scope (execution_domain operator/contract/service.rs:285-295) matches every Effects variant; equal_request_source_steps_of_different_rules_keep_their_own_producers is a case of acceptance/request_graph_test.rs:53 and request_graph_test::succeeds is ok at validation329; 'identical pure' comment gone.",
-     "missing": "Closed."
-    }
+   "file": "review-phase5-330.json",
+   "blocking": []
+  },
+  "6": {
+   "verdict": "BLOCKING",
+   "file": "review-phase6-330.json",
+   "blocking": [
+    "BLOCKING: retained-frontier identity omits the plan"
    ]
   },
-  {
-   "phase": 6,
-   "verdict": "NOTE",
-   "findings": [
-    {
-     "row": "Warm peak",
-     "claim": "README:128 / validation.json cli_replay_note: 114,536,448 bytes at validation329.",
-     "evidence": "validation329 cli_tests.log:9484 measures 114,876,416 bytes (+339,968 over 328).",
-     "missing": "Note: correct the number; red, owned."
-    },
-    {
-     "row": "A1 confound",
-     "claim": "329 Django walls comparable to 328.",
-     "evidence": "Observation chain still compiled into fixtures builds and the bench worker at 329; perf 4 step 0 (473d76da81, 07ec517ffe) lands after the reviewed source.",
-     "missing": "Standing."
-    }
-   ]
-  },
-  {
-   "phase": 7,
-   "verdict": "NOTE",
-   "findings": [
-    {
-     "row": "Receipts",
-     "claim": "tm 18/6 (ring), run.py --check 0, no_print 0, cycles 0.",
-     "evidence": "Copy of 171789169e: tm --root crates/ryo check 18 findings (all no-domain-concept-cycles, execution_domain), 6 suppressed (file-length); run.py --check exit 0; ownership query 4,685 occurrences, 0 file-level SCCs; validation329 ownership_edges.log 4,686, 0 SCCs; no_print exit 0 on 74a799c116, not rerun after 779f4a960f (0 print!/println!/eprint!/eprintln!/dbg! in the changed files). Request names 'the ring' without a row id (row 204).",
-     "missing": "Met."
-    },
-    {
-     "row": "validation.json stale blocks",
-     "claim": "validation.json records validation329.",
-     "evidence": "ownership_graph names source 4a982fa0a5, validation328, 4,645 occurrences; results.doctests says execution_runtime 4 / 'landing 2 retired ten' (validation329: 2+15); results.execution_runtime_library 198 (validation329: 199/0). The checks block is validation329's.",
-     "missing": "Note: regenerate results/ownership_graph from validation329 raw files."
-    },
-    {
-     "row": "After-repair counts",
-     "claim": "runtime 199/0 + doc 5/0, core 119/0, core_bdd 5/5, ruff 13/0, canary 1/0, boundary 97/0.",
-     "evidence": "No raw logs on disk; the Rust gate took them as reported by the PM. Corroboration only: validation330 on f472801258 (superset with perf 4/5): core 119/0, runtime 200/0, boundary 97/0 including the census, runtime doctests 2+3. 'core_bdd 5/5' ambiguous, no log.",
-     "missing": "Note: keep the logs in the validation directory with their source, or cite validation330 with its source named."
-    },
-    {
-     "row": "Integration record",
-     "claim": "Record lists what landed.",
-     "evidence": "README:38-65 says only 'Rust gate PASS on the third pass'; it omits the 12 probes deleted, the library-surface entry dropped, core's deleted preparation module/PreparedProject/ReadyProject/evaluate_batch/BatchPreparationError with their placements, and the observation error text change.",
-     "missing": "Note: add a gate-repairs paragraph."
-    },
-    {
-     "row": "Review identity",
-     "claim": "Frozen tree.",
-     "evidence": "the checkpoint tree moved 171789169e -> f472801258 during the review; identity.json modified by validation330. Review read from a git archive copy of 171789169e.",
-     "missing": "Note: freeze the tree or name a copy for reviews."
-    },
-    {
-     "row": "Standing",
-     "claim": "Owned reds and open items.",
-     "evidence": "Ratchet reds (N999 peak, cli_cost x3), process_capture, core_allocation 1,698-1,700 blocks, tracked row, RAYON, 322 quote, ETXTBSY production question, shared target for the perf measurement trees; two-reviewer binding not met (Opus only).",
-     "missing": "Standing; manual judgment named."
-    }
+  "7": {
+   "verdict": "BLOCKING",
+   "file": "review-phase7-330.json",
+   "blocking": [
+    "BLOCKING: receipt 1 false"
    ]
   }
- ],
- "blocking": [
-  "Phase 2: the TM rule cited for the phase entry is inert across crates; the one phase call is not enforced.",
-  "Phase 4: crates.md rows 14 and 17 describe the library-surface entry and probe state that 779f4a960f removed."
- ],
- "repairs": "in progress for checkpoint 331"
+ },
+ "dispositions": [],
+ "manual_judgment": [
+  "two-reviewer binding not met (no Astra session)",
+  "Django peak is a singleton (diagnostic)"
+ ]
 }

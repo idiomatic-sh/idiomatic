@@ -1,9 +1,9 @@
 //! Missing transport remains an error; explicit syntax rejection and refused acceptance remain partial.
-use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityReason;
-use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
-use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use super::super::*;
+use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityReason;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::{
     files::types::{CorpusInput, InputReadFailure},
@@ -67,14 +67,16 @@ fn exercise(case: Case) {
         comparisons: vec![],
         kept: vec![ColumnIndex(column as u32)],
     };
-    crate::boundary_fixture::plans(&mut authored)[0].steps.push(PlanStep {
-        scope: StepScope::CrossFile,
-        operation: Operation::Select {
-            from: Input::Step(StepId(0)),
-            comparisons: vec![],
-            kept: vec![],
-        },
-    });
+    crate::boundary_fixture::plans(&mut authored)[0]
+        .steps
+        .push(PlanStep {
+            scope: StepScope::CrossFile,
+            operation: Operation::Select {
+                from: Input::Step(StepId(0)),
+                comparisons: vec![],
+                kept: vec![],
+            },
+        });
     crate::boundary_fixture::plans(&mut authored)[0].frontier = vec![Input::Step(StepId(0))];
     crate::boundary_fixture::plans(&mut authored)[0].emit.step = StepId(1);
     let prepared = engine.prepare(authored).unwrap();
@@ -208,20 +210,31 @@ fn exercise(case: Case) {
         skipped.push(skipped[0].clone());
     }
     let phase = request.project_phase().unwrap();
-    let inapplicable = [ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles(
-        if matches!(case, Case::MissingWhileAnotherFileIsInapplicable) {
-            vec![FileId(0)]
-        } else {
-            Vec::new()
-        },
-    )];
-    let refused = [ryo_execution::inbound::use_cases::execution::interface::RefusedFiles(match case {
-        Case::UndeterminedSyntax => vec![FileId(1)],
-        Case::RefusedFileWithAFrame => vec![FileId(0)],
-        _ => Vec::new(),
-    })];
+    let inapplicable = [
+        ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles(
+            if matches!(case, Case::MissingWhileAnotherFileIsInapplicable) {
+                vec![FileId(0)]
+            } else {
+                Vec::new()
+            },
+        ),
+    ];
+    let refused = [
+        ryo_execution::inbound::use_cases::execution::interface::RefusedFiles(match case {
+            Case::UndeterminedSyntax => vec![FileId(1)],
+            Case::RefusedFileWithAFrame => vec![FileId(0)],
+            _ => Vec::new(),
+        }),
+    ];
     let scope = phase
-        .project_scope(RuleIndex(0), &corpus, &[], &skipped, &inapplicable[0], &refused[0])
+        .project_scope(
+            RuleIndex(0),
+            &corpus,
+            &[],
+            &skipped,
+            &inapplicable[0],
+            &refused[0],
+        )
         .unwrap();
     let project = ProjectFacts::new(Relation::ModuleIdentity);
     let project_symbols = Symbols::default();
@@ -270,9 +283,17 @@ fn exercise(case: Case) {
     };
     assert_eq!(table.kinds, [CellKind::File]);
     // The accepted file's row is answered; only the skipped or refused file is uncertain.
-    assert_eq!(table.cells, [Value::File(FileId(0))], "{case:?}: the accepted file's row");
+    assert_eq!(
+        table.cells,
+        [Value::File(FileId(0))],
+        "{case:?}: the accepted file's row"
+    );
     assert_eq!(table.count, RowCount(1));
-    assert_eq!(affected, [Some(FileId(1))], "{case:?}: only the skipped or refused file is uncertain");
+    assert_eq!(
+        affected,
+        [Some(FileId(1))],
+        "{case:?}: only the skipped or refused file is uncertain"
+    );
 }
 
 #[test]
@@ -281,14 +302,16 @@ fn wholly_skipped_frontier_is_unavailable_without_fabricating_a_schema_or_rows()
     let mut authored = authored_request(1);
     authored.rules[0].applicability = RuleApplicability::AcceptedSyntax;
     let rule_id = authored.rules[0].id.clone();
-    crate::boundary_fixture::plans(&mut authored)[0].steps.push(PlanStep {
-        scope: StepScope::CrossFile,
-        operation: Operation::Select {
-            from: Input::Step(StepId(0)),
-            comparisons: vec![],
-            kept: vec![],
-        },
-    });
+    crate::boundary_fixture::plans(&mut authored)[0]
+        .steps
+        .push(PlanStep {
+            scope: StepScope::CrossFile,
+            operation: Operation::Select {
+                from: Input::Step(StepId(0)),
+                comparisons: vec![],
+                kept: vec![],
+            },
+        });
     crate::boundary_fixture::plans(&mut authored)[0].emit.step = StepId(1);
     crate::boundary_fixture::plans(&mut authored)[0].frontier = vec![Input::Step(StepId(0))];
     let prepared = engine.prepare(authored).unwrap();
@@ -344,7 +367,10 @@ fn wholly_skipped_frontier_is_unavailable_without_fabricating_a_schema_or_rows()
             corpus: &corpus,
             covered: &[],
             skipped: &skipped,
-            inapplicable: &[ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default()],
+            inapplicable: &[
+                ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(
+                ),
+            ],
             facts: &stored,
             project: &project,
             project_symbols: &project_symbols,

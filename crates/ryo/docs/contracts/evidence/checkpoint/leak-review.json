@@ -1,0 +1,81 @@
+{
+ "checkpoint": 330,
+ "source": "1086daee4b3a4435e60438d2df6ec7a7128dd883",
+ "base": "171789169ee342550bab8f76e7563f9e04a8acfd",
+ "verdict": "FAIL",
+ "reviewer": "leak-review",
+ "date": "2026-11-08",
+ "checks": {
+  "1": {
+   "verdict": "FAIL",
+   "evidence": "query_language regrouping/narrowing/selection_pushing service_test.rs compare plan shape only (regrouping/service_test.rs:148, narrowing/service_test.rs:145); row equivalence of the perf 5 rewrites is proven only by Django/100-file/admin_views output and the 413 ruff inventory. Perf 4's moved counter proofs (execution_runtime measured_work/test.rs) are in the owning crate."
+  },
+  "2": {
+   "verdict": "FAIL",
+   "evidence": "project-batch-owner 0.1.1 reported 0 on two planted project-entry bypasses in core (application/bypass.rs:4, application/cross_file/ordinary/service.rs:120); its query does not match evaluate_occurrences (real call at cross_file/ordinary/service.rs:59). The cfg(test) seam plant (lease.rs:72) failed to compile with --features fixtures; interface-shape fired 4 on a planted default body (outbound/facts/interface.rs:84)."
+  },
+  "3": {
+   "verdict": "FAIL",
+   "evidence": "Visibility in the diff is sound (pub(crate) additions, index_among pub(crate), FileSession::route_observation deleted, no production dependency enables fixtures), but the project-entry import boundary claimed by project-batch-owner is unenforced (check 2 plants count 0; crates/ryo/tastemaker.toml:68 placement with placeholder description)."
+  },
+  "4": {
+   "verdict": "FAIL",
+   "evidence": "Column file-lineage held twice: execution_domain/src/domain/lineage (Lineage, ColumnAnchor, KeyPairing; File|Node, paired by position) and query_language lineage + planning::stated_by (planning/service.rs:72) + regrouping::states_file (regrouping/service.rs:86-94) + narrowing::origins_state_file; they diverge on Span, which holds no file (relations/src/domain/relations/types.rs:157), so regrouping accepts span-only keys (regrouping/service.rs:237-242)."
+  },
+  "5": {
+   "verdict": "PASS",
+   "evidence": "New query_language items are domain services/types importing only domain siblings; values change stays in domain; core maps execution's error through the public inbound compile_rules interface (core/src/inbound/use_cases/lint/errors.rs:325)."
+  },
+  "6": {
+   "verdict": "PASS",
+   "evidence": "Perf 4 narrows every execution_runtime observation seam to cfg(test) and deletes the pub FileSession::route_observation; the lease.rs:72 plant fails to compile with --features fixtures; observation strings 1 in the 328 worker, 0 in the p4 and 330 workers."
+  }
+ },
+ "plants": [
+  {
+   "claim": "project-batch-owner 0.1.1",
+   "file": "crates/ryo/crates/core/src/application/bypass.rs:4",
+   "count": 0,
+   "reverted": true
+  },
+  {
+   "claim": "project-batch-owner 0.1.1",
+   "file": "crates/ryo/crates/core/src/application/cross_file/ordinary/service.rs:120",
+   "count": 0,
+   "reverted": true
+  },
+  {
+   "claim": "observation chain cfg(test) (compile, --features fixtures)",
+   "file": "crates/ryo/crates/execution_runtime/src/application/file_dag/execution/lease.rs:72",
+   "count": 1,
+   "reverted": true
+  },
+  {
+   "claim": "interface-shape refuses default bodies calling outside the trait",
+   "file": "crates/ryo/crates/execution_runtime/src/outbound/facts/interface.rs:84",
+   "count": 4,
+   "reverted": true
+  }
+ ],
+ "cross_file_leak_into_per_file_entries": {
+  "verdict": "none found",
+  "evidence": "regrouped_on requires per-file other and split.local (regrouping/service.rs:214-219); value_origins returns origins only at per-file steps (lineage/service.rs:124-125); filter_of takes its input's scope (selection_pushing/service.rs:243)."
+ },
+ "perf_evidence": {
+  "verdict": "FAIL",
+  "unbacked": [
+   "E1 p5/diagnosis.json source 90a0a472b2, but worker 7f578c5e is /tmp/ryo-perf-p4/after/worker (258a65fe3e) per /tmp/ryo-perf-p5/diag.sh:3 and chunk.sh",
+   "E2 p4/diagnosis.json source 90a0a472b2, but /tmp/ryo-perf-p4/before/source_commit is 473d76da81",
+   "E3 p5/after.json after.frontier_mb 8.9 and README frontier bytes (8,519,252 -> 1,013,810 -> 95,240 B; 8,917,995 B): no events.jsonl retained in /tmp/ryo-perf-p5b diag runs",
+   "E4 p5/after.json before.frontier_mb 2053 sits on the 90a0a472b2 plain run; it was measured on the p4-after worker",
+   "E5 p5 h1 '5 of 413 rules': subplans events not retained, only 4 fr-*.txt lists"
+  ]
+ },
+ "tree": {
+  "reviewed_by_sha": true,
+  "ryo_hooks_head_before": "d51090fb5541231d5f11355090a191003a0fb0f0",
+  "ryo_hooks_head_after": "0778f6e8054739704a986c0b9fa0f42881089a5e",
+  "status_porcelain": "clean before and after",
+  "note": "HEAD moved through PM commits; review inputs were content-addressed (diff 171789169e..1086daee4b, git archive 1086daee4b)"
+ }
+}

@@ -12,8 +12,7 @@ pub struct ExecutionObservation {
     pub other_capacity: usize,
     pub index_rows: usize,
     /// Actual borrowed representation behind the acquired equality resource.
-    pub index_representation:
-        Option<crate::domain::table_model::types::RepresentationKind>,
+    pub index_representation: Option<crate::domain::table_model::types::RepresentationKind>,
     pub index_cells: usize,
     pub index_capacity: usize,
     pub closure_partition_rows: usize,
@@ -25,6 +24,4 @@ pub struct ExecutionObservation {
     pub dfs_frames_len: usize,
     pub dfs_visited_len: usize,
     pub traversal_queue_len: usize,
-    /// Set only after a real weak file-owner handle is observed dead at file finish.
-    pub file_owner_released: bool,
 }

@@ -1,6 +1,8 @@
 {
  "iteration": "p5",
- "source": "90a0a472b2",
+ "source": "90a0a472b243b2ab9350db0447c1d5b39138a571",
+ "measured_worker_commit": "258a65fe3ec7d1eea22222456250ac471258f6e3",
+ "measured_worker_note": "the worker_sha256 below is the perf 4 after worker, built from 258a65fe3e; the diagnosis measured that head, not source",
  "worker_sha256": "7f578c5ed9947810450bfd785826a72117b36a43fe053e6df58b7e93cc501b37",
  "staged_digest": "0132c274d68dc22252b09d0551a36617652fd7ffecaff02a246e5bf0448027df",
  "workloads": [
@@ -26,7 +28,7 @@
    "id": "h1",
    "claim": "Many rules build the project-phase frontier.",
    "verdict": "refuted",
-   "evidence": "subplans census: 5 of 413 rules have cross-file steps; PLW0406 873 MB, N999 733 MB and I001 447 MB of the 2,053 MB packed frontier."
+   "evidence": "subplans census: 5 of 413 rules have cross-file steps; PLW0406 873 MB, N999 733 MB and I001 447 MB of the 2,053 MB packed frontier. Unbacked: the subplans census events were not kept; only the per-rule frontier lists of I001, N999, PLW0406 and RUF100 survive, so \"5 of 413\" is not re-checkable."
   },
   {
    "id": "h2",

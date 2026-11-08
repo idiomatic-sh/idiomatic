@@ -23,14 +23,19 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 /// The rules compiled through the use case over `compiler`, with no hosted relation and no linked language.
-fn compiled(compiler: Arc<dyn QueryLanguagePort>, rules: &[RuleSpec]) -> Result<CompiledRules, RuleCompilationError> {
-    CompileRulesUseCaseImpl::new(compiler, Arc::new(ryo_execution_runtime::outbound::digest::factory::blake3())).compile_rules(
-        CompileRequest {
-            rules,
-            hosted: &[],
-            vocabularies: &KindVocabularies(Vec::new()),
-        },
+fn compiled(
+    compiler: Arc<dyn QueryLanguagePort>,
+    rules: &[RuleSpec],
+) -> Result<CompiledRules, RuleCompilationError> {
+    CompileRulesUseCaseImpl::new(
+        compiler,
+        Arc::new(ryo_execution_runtime::outbound::digest::factory::blake3()),
     )
+    .compile_rules(CompileRequest {
+        rules,
+        hosted: &[],
+        vocabularies: &KindVocabularies(Vec::new()),
+    })
 }
 /// What a row of the cases asks of compilation.
 #[derive(Clone, Copy)]
@@ -41,6 +46,8 @@ enum Scenario {
     SessionParses,
     /// A rule that writes a word for a kind no linked language has: whether it is refused by its id, and the plans made.
     UnknownKind,
+    /// An index the compiler reports past the request's rules: the index and the rule count the refusal carries.
+    UnknownIndex,
 }
 /// What a row of the cases asks.
 type Input = Scenario;
@@ -71,6 +78,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Scenario::UnknownKind,
         expect: Expect::Value([1, 0]),
     },
+    Case {
+        // Refused with the index and the rule count, never reported under an empty id.
+        name: CaseName("an_index_past_the_rules_is_refused_with_the_count"),
+        word: Word::Succeeds,
+        input: || Scenario::UnknownIndex,
+        expect: Expect::Value([1, 1]),
+    },
 ];
 
 fn subject(scenario: Input) -> Result<Value, Failure> {
@@ -78,6 +92,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::PatternBuilds => pattern_builds(),
         Scenario::SessionParses => session_parses(),
         Scenario::UnknownKind => unknown_kind(),
+        Scenario::UnknownIndex => unknown_index(),
     }
 }
 
@@ -86,7 +101,8 @@ fn unknown_kind() -> Result<Value, Failure> {
     use crate::outbound::query_language::fixtures::fake::QueryLanguageFake;
     use ryo_relations::domain::relations::types::Relation;
     use ryo_values::domain::plan_parts::types::{
-        ColumnIndex, ComparisonOrigin, Input as PlanInput, LiteralText, Operand, PlanComparison, QueryLiteral, StepScope, Test,
+        ColumnIndex, ComparisonOrigin, Input as PlanInput, LiteralText, Operand, PlanComparison,
+        QueryLiteral, StepScope, Test,
     };
     use ryo_values::domain::plans::types::{Operation, PlanStep};
     let mut fake = QueryLanguageFake::default();
@@ -103,7 +119,13 @@ fn unknown_kind() -> Result<Value, Failure> {
         },
         scope: StepScope::PerFile,
     }];
-    let refused = compiled(Arc::new(fake), &[rule("kinds".to_owned(), QueryBundle::from(QueryText("".into())))]);
+    let refused = compiled(
+        Arc::new(fake),
+        &[rule(
+            "kinds".to_owned(),
+            QueryBundle::from(QueryText("".into())),
+        )],
+    );
     Ok(match refused {
         Err(RuleCompilationError::UnknownKind { ref id, ref reason })
             if id.0.as_ref() == "kinds" && reason.0.contains("nonesuch") =>
@@ -113,6 +135,19 @@ fn unknown_kind() -> Result<Value, Failure> {
         Err(other) => return Err(other),
         Ok(compiled) => [0, compiled.plans().len()],
     })
+}
+
+/// The rule at index 1 of a one-rule request: refused with the index and the count.
+fn unknown_index() -> Result<Value, Failure> {
+    let rules = [rule(
+        "only".to_owned(),
+        QueryBundle::from(QueryText("".into())),
+    )];
+    match super::use_case::named(&rules, 1) {
+        Err(RuleCompilationError::UnknownRuleIndex { index, rules }) => Ok([index, rules]),
+        Err(other) => Err(other),
+        Ok(found) => Ok([0, usize::from(found.id.0.is_empty())]),
+    }
 }
 
 /// The real winnow syntax, counting the modules each read of a whole bundle parses.
@@ -127,7 +162,9 @@ impl SyntaxPort for CountingSyntax {
         self.inner.read(text)
     }
     fn read_bundle(&self, bundle: &QueryBundle) -> Result<ParsedQueryBundle, SyntaxError> {
-        let _before = self.modules.fetch_add(bundle.modules.len(), Ordering::SeqCst);
+        let _before = self
+            .modules
+            .fetch_add(bundle.modules.len(), Ordering::SeqCst);
         self.inner.read_bundle(bundle)
     }
     fn read_root(&self, bundle: &QueryBundle) -> Result<WrittenProgram, SyntaxError> {
@@ -172,20 +209,32 @@ fn pattern_builds() -> Result<[usize; 2], RuleCompilationError> {
         let text = format!(
             r#"let rows = select * from "comment" where matches(text, "{pattern}"); emit rows subject file key(span);"#
         );
-        rule(format!("r{pattern}"), QueryBundle::from(QueryText(text.into())))
+        rule(
+            format!("r{pattern}"),
+            QueryBundle::from(QueryText(text.into())),
+        )
     };
     let patterns: Vec<String> = (0..413).map(|place| format!("p{place}x")).collect();
     let rules: Vec<RuleSpec> = patterns.iter().map(|pattern| matching(pattern)).collect();
     let plans = |rules: &[RuleSpec]| {
-        compiled(compiler(Arc::new(ryo_query_language::outbound::syntax::factory::winnow())), rules)
-            .map(|queries| PreparedMatchers::new(queries.plans()))
+        compiled(
+            compiler(Arc::new(
+                ryo_query_language::outbound::syntax::factory::winnow(),
+            )),
+            rules,
+        )
+        .map(|queries| PreparedMatchers::new(queries.plans()))
     };
     let slots = plans(&rules)?;
     let prepared = slots.builds.load(Ordering::Relaxed);
-    let matcher = PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl);
+    let matcher =
+        PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl);
     for _file in 0..2 {
         for pattern in &patterns {
-            assert!(matches!(slots.regex(TextView(pattern), matcher), Some(Ok(_))));
+            assert!(matches!(
+                slots.regex(TextView(pattern), matcher),
+                Some(Ok(_))
+            ));
         }
     }
     let oversized = "(?:[a-z]{1000}){1000}";
@@ -201,10 +250,15 @@ fn pattern_builds() -> Result<[usize; 2], RuleCompilationError> {
 /// 413 rules over one catalog of 60 modules parse each module once in their session, not once per rule; the same program with one
 /// more module that does not parse, imported by no rule, is refused at its first rule as a lone compile of that rule refuses it.
 fn session_parses() -> Result<[usize; 2], RuleCompilationError> {
-    use ryo_values::domain::program::service::{document_source, module_catalog, query_bundle_with_catalog, source_id};
+    use ryo_values::domain::program::service::{
+        document_source, module_catalog, query_bundle_with_catalog, source_id,
+    };
     let over = |modules: Vec<(String, String)>| -> Vec<RuleSpec> {
         let catalog = module_catalog(modules.into_iter().map(|(id, text)| {
-            document_source(source_id(QuerySpelling(&id)).expect("a module id"), text.into_boxed_str())
+            document_source(
+                source_id(QuerySpelling(&id)).expect("a module id"),
+                text.into_boxed_str(),
+            )
         }))
         .expect("a catalog");
         (0..413)
@@ -234,11 +288,18 @@ fn session_parses() -> Result<[usize; 2], RuleCompilationError> {
         inner: Arc::new(ryo_query_language::outbound::syntax::factory::winnow()),
         modules: AtomicUsize::new(0),
     });
-    let session = compiled(compiler(Arc::<CountingSyntax>::clone(&syntax)), &over(modules.clone()))?;
+    let session = compiled(
+        compiler(Arc::<CountingSyntax>::clone(&syntax)),
+        &over(modules.clone()),
+    )?;
     let parsed = syntax.modules.load(Ordering::SeqCst);
     modules.push(("query/unused".to_owned(), "not a module".to_owned()));
     let broken = over(modules);
-    let winnow = || compiler(Arc::new(ryo_query_language::outbound::syntax::factory::winnow()));
+    let winnow = || {
+        compiler(Arc::new(
+            ryo_query_language::outbound::syntax::factory::winnow(),
+        ))
+    };
     let refused = compiled(winnow(), &broken)
         .map(|_compiled| ())
         .expect_err("a module that does not parse refuses the run");

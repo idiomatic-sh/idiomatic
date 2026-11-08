@@ -1,9 +1,11 @@
 //! Thin public orchestration over the private rule compilation.
-use super::interface::{CompileRulesUseCase, CompiledRules, RuleCompilationError, CompiledPlans};
+use super::interface::{CompileRulesUseCase, CompiledPlans, CompiledRules, RuleCompilationError};
 use super::types::CompileRequest;
 use crate::application::rule_compilation::service::{RuleCompilation, observed};
 use crate::outbound::query_language::interface::QueryLanguagePort;
-use ryo_execution_domain::domain::kind_check::service::{first_unknown, kinds_asked, unknown_message};
+use ryo_execution_domain::domain::kind_check::service::{
+    first_unknown, kinds_asked, unknown_message,
+};
 use ryo_execution_domain::domain::matching::types::PatternMatcher;
 use ryo_execution_runtime::outbound::digest::interface::DigestPort;
 use std::sync::Arc;
@@ -40,14 +42,23 @@ impl CompileRulesUseCaseImpl {
 }
 
 impl CompileRulesUseCase for CompileRulesUseCaseImpl {
-    fn compile_rules(&self, request: CompileRequest<'_>) -> Result<CompiledRules, RuleCompilationError> {
+    fn compile_rules(
+        &self,
+        request: CompileRequest<'_>,
+    ) -> Result<CompiledRules, RuleCompilationError> {
         let CompileRequest {
             rules,
             hosted,
             vocabularies,
         } = request;
         let inner = self.compilation.prepare(rules, hosted)?;
-        observed(rules, &inner.plans, &inner.bindings, hosted, self.digest.as_ref());
+        observed(
+            rules,
+            &inner.plans,
+            &inner.bindings,
+            hosted,
+            self.digest.as_ref(),
+        );
         // Rules that write no word for a kind need no vocabulary.
         if inner
             .plans
@@ -57,13 +68,16 @@ impl CompileRulesUseCase for CompileRulesUseCaseImpl {
         {
             return Ok(CompiledRules { inner });
         }
-        let matching = ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl::new();
-        match first_unknown(&inner.plans, &inner.bindings, vocabularies, PatternMatcher(&matching)) {
+        let matching =
+            ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl::new();
+        match first_unknown(
+            &inner.plans,
+            &inner.bindings,
+            vocabularies,
+            PatternMatcher(&matching),
+        ) {
             Some(unknown) => {
-                let rule = rules.get(unknown.rule.0).ok_or(RuleCompilationError::UnknownRuleIndex {
-                    index: unknown.rule.0,
-                    rules: rules.len(),
-                })?;
+                let rule = named(rules, unknown.rule.0)?;
                 Err(RuleCompilationError::UnknownKind {
                     id: rule.id.clone(),
                     reason: unknown_message(&unknown.word, vocabularies).message,
@@ -72,4 +86,17 @@ impl CompileRulesUseCase for CompileRulesUseCaseImpl {
             None => Ok(CompiledRules { inner }),
         }
     }
+}
+
+/// The rule at `index` of the request, or the refusal for an index the compiler reported past its rules.
+pub(super) fn named(
+    rules: &[ryo_values::domain::rule_requests::types::RuleSpec],
+    index: usize,
+) -> Result<&ryo_values::domain::rule_requests::types::RuleSpec, RuleCompilationError> {
+    rules
+        .get(index)
+        .ok_or(RuleCompilationError::UnknownRuleIndex {
+            index,
+            rules: rules.len(),
+        })
 }

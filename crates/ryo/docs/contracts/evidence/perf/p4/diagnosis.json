@@ -1,6 +1,8 @@
 {
  "iteration": "p4",
- "source": "90a0a472b2",
+ "source": "90a0a472b243b2ab9350db0447c1d5b39138a571",
+ "measured_worker_commit": "473d76da81f9abd4dec8e86c89b07f6e4d51dae2",
+ "measured_worker_note": "the worker_sha256 below was built from 473d76da81 (STEP 0 of perf 4), not from source",
  "worker_sha256": "7577b1f13fc135ea72e3c7dd622234d05217992ec2f7c0ab6dcef4acadc63f1f",
  "staged_digest": "0132c274d68dc22252b09d0551a36617652fd7ffecaff02a246e5bf0448027df",
  "workloads": [

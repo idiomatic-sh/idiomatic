@@ -1,0 +1,61 @@
+{
+  "checkpoint": 330,
+  "source": "1086daee4b3a4435e60438d2df6ec7a7128dd883",
+  "previous": "171789169ee342550bab8f76e7563f9e04a8acfd",
+  "verdict": "FAIL",
+  "verdict_reason": "lint group fails on the landed sha (cargo-fmt internal error at core cross_file/completion/service.rs:106, cargo-machete self-ignore at crates/derived/Cargo.toml:40, tm 31/6 with 13 unnamed beyond the 18-finding ring); per the agent file the steward stops: no asset authored",
+  "reviewer": "tm-steward",
+  "date": "2026-11-08T22:05:00Z",
+  "gate": [
+    {"command": "asymptote check --groups lint", "cwd": "crates/ryo (git archive copy)", "result": "FAIL", "detail": "rc 2; 33 new, 174 resolved; cargo-fmt FAIL (pre-existing, 75ec7adb45), tastemaker FAIL (31), cargo-machete FAIL (pre-existing), cargo-deny PASS"},
+    {"command": "asymptote check --since 171789169e --groups lint", "cwd": "crates/ryo (git archive copy with 329 parent)", "result": "FAIL", "detail": "rc 2; 33 introduced since 171789169e"},
+    {"command": "tm check --format json", "cwd": "crates/ryo (git archive copy)", "result": "FAIL", "detail": "31 findings / 6 suppressed: 18 no-domain-concept-cycles, 8 crate-readme#template, 1 error-variants-reached, 1 pub-item-unreferenced-elsewhere, 2 no-machine-paths-shipped, 1 no-tracker-text-shipped"},
+    {"command": "asymptote check --groups check", "result": "NOT RUN", "detail": "nextest / bdd / doc tests / doc build build the workspace; the hook allows only a package-scoped check into the check target"},
+    {"command": "asymptote check --groups clippy", "result": "NOT RUN", "detail": "workspace clippy run is beyond the hook's allowed cargo form"}
+  ],
+  "decisions": [
+    {"class": "typed compiler error flattened to fabricated RuleId (F1.1)", "decision": "a", "mechanism": "exhaustive From match; repaired 055b130c25", "proof_count": null},
+    {"class": "new pub item without # Examples (F1.2)", "decision": "d", "mechanism": "one-off; Rust gate item 1; rustdoc example lint is nightly-only", "proof_count": null},
+    {"class": "receipts copied from an older validation (E1, contract P7)", "decision": "d", "mechanism": "record tooling: run.py --check binds tm_whole_tree from a raw tm_whole_tree.json", "proof_count": null},
+    {"class": "store identity omits the plan (A1, contract P6)", "decision": "a", "mechanism": "branch claude/w12-store-key (plan identity, decision controls)", "proof_count": null},
+    {"class": "span as file-stating; file-lineage held twice (A7, leak 4)", "decision": "a", "mechanism": "branch claude/w12-lineage (one lineage in values, anchor_of)", "proof_count": null},
+    {"class": "no row-equivalence proof for plan rewrites (leak 1)", "decision": "d", "mechanism": "semantic; tests in owning crate; TM cannot prove", "proof_count": null},
+    {"class": "index_among silent fallback (A5)", "decision": "a", "mechanism": "Option on claude/w12-lineage", "proof_count": null},
+    {"class": "relation-scope rule written twice (A4)", "decision": "d", "mechanism": "one-off refactor", "proof_count": null},
+    {"class": "semver of pub struct fields (A3)", "decision": "a", "mechanism": "cargo-semver-checks in release group (owner)", "proof_count": null},
+    {"class": "lineage memo (A6), engine-bug wording (A8)", "decision": "d", "mechanism": "perf/message only", "proof_count": null},
+    {"class": "rustfmt internal error / hunk (A9, gate)", "decision": "a", "mechanism": "rustfmt already gates; fix completion/service.rs:106", "proof_count": null},
+    {"class": "cargo-machete self-ignore (gate)", "decision": "a", "mechanism": "cargo-machete already gates; fix crates/derived/Cargo.toml:40", "proof_count": null},
+    {"class": "13 unnamed TM findings at 1086 (README sections, UnknownRuleIndex test, file_owner_released, /tmp paths)", "decision": "d", "mechanism": "already enforced; rules fired in this gate", "proof_count": 13},
+    {"class": "project-batch-owner inert; cross-crate source-dependency blind (ryo-00qd)", "decision": "a", "mechanism": "branch claude/w12-repairs-xiv (evaluate crate-private, rule deleted, source-dependency fix, shared-walk-owner 0.2.0)", "proof_count": null},
+    {"class": "placeholder placement description", "decision": "d", "mechanism": "removed with the placement on repairs-xiv; one-off", "proof_count": null},
+    {"class": "fixtures-only-in-tests blind to gated modules/impls (S32)", "decision": "b", "mechanism": "fixtures-only-in-tests@0.4.0 on claude/w12-leak-repairs-a", "proof_count": 1},
+    {"class": "cli->sdk edge unenforced (L29)", "decision": "b", "mechanism": "layer-order@0.2.0 on claude/w12-leak-repairs-a", "proof_count": 1},
+    {"class": "workspace-inherited fixtures feature (sweep 6)", "decision": "c", "mechanism": "workspace-fixtures-feature@0.1.0 on claude/w12-leak-repairs-a", "proof_count": 1},
+    {"class": "cli allowlist admits runtime; python benchmark normal dep (sweep 3)", "decision": "b", "mechanism": "placement params + crate-layers order on claude/w12-leak-repairs-a", "proof_count": 1},
+    {"class": "never-named pub types; 132 forwarded items (sweep 3/5)", "decision": "a", "mechanism": "sealing/forwarding cut on leak-repairs-a; private_interfaces deny; existing pub-item-unreferenced-elsewhere", "proof_count": null},
+    {"class": "compile_fail doctests without error code (sweep 2, review-324)", "decision": "d", "mechanism": "NEW FINDING: stable 1.97.1 rustdoc does not check compile_fail error codes (nightly only), so a code requirement would be a string marker; use the existing compile-fail template + compiler-ui rule (trybuild stderr) or nightly doctests where the exact error is the contract; f3f68c4df1's codes are unverified by test-doc", "proof_count": null},
+    {"class": "core domain takes another crate's inbound use-case trait (MetadataUseCase, 6 services)", "decision": "b", "mechanism": "deferred (gate red): idiomatic-rust@0.1.12 directions-domain forbids *::inbound::use_cases::*::interface, matching its own description; lands with core's fix", "proof_count": null},
+    {"class": "fixtures feature in published API; sdk_api.py without all features (sweep 6)", "decision": "a", "mechanism": "CI script --all-features, not TM", "proof_count": null},
+    {"class": "product-corpus proofs in cli/tests/replay (sweep 1)", "decision": "d", "mechanism": "in flight ryo-l2uc", "proof_count": null},
+    {"class": "perf evidence sources wrong (E1-E5); hook push/merge gaps", "decision": "a", "mechanism": "branch claude/w12-perf-gate (hook)", "proof_count": 1},
+    {"class": "unit-test dev-deps and use alias in source-dependency (331b #3)", "decision": "a", "mechanism": "repairs-xiv 73d5a6bb55", "proof_count": null},
+    {"class": "wording/advisories (N999 proves, p6 method.md, zo3j map type, agent names)", "decision": "d", "mechanism": "docs/advisories on their branches", "proof_count": null},
+    {"class": "execution_domain ring", "decision": "d", "mechanism": "already enforced, standing", "proof_count": 18}
+  ],
+  "p1_bugs": [
+    {"id": "ryo-b6pw", "decision": "close", "reason": "fixed: OWN_UNRAN/ONLY_UNRAN verdict queries (scenario_judging/constants.rs:83-94), evaluated only where a file is reached (applying/service.rs:89-95); test cli/tests/replay/validate.rs:20; residual: found_rule bare-suffix match is cosmetic"},
+    {"id": "ryo-o9u2", "decision": "close", "reason": "fixed: unreached() emits <id>#coverage at error (applying/service.rs:121-137); test cli/tests/replay/check.rs:56"},
+    {"id": "ryo-n0of", "decision": "close", "reason": "fixed: --fix rewrites only a LockVersion lock, other errors propagate (check/use_case.rs:208-233); validate .ok() carries reasoned ignores; test cli/tests/replay/check.rs:94"},
+    {"id": "ryo-9jqi", "decision": "fix", "reason": "code fixed (closing/service.rs:91-96 uses owns like nest()), but no test covers a rules-only instance nested in a closed scope; add that regression test"},
+    {"id": "ryo-8m9v", "decision": "close", "reason": "fixed: strays() + ValidateError::Stray (packages/service.rs:335, validate/use_case.rs:2245); test cli/tests/replay/validate.rs:47"},
+    {"id": "ryo-i6y4", "decision": "close", "reason": "fixed per owner: create needs --set extension, refuses without (create/errors.rs:28); no language default in init/scaffold/add/create"},
+    {"id": "ryo-wx8b", "decision": "close", "reason": "fixed: tracing::warn! in check/validate, warnings layer in every timings mode (cli/src/output.rs:209-250, timings.rs, phases.rs:218); test cli/src/output_test.rs:115"}
+  ],
+  "asset_counts": {
+    "before": {"rules": 27, "specs": 11, "templates": 27, "placements": 185},
+    "after": {"rules": 27, "specs": 11, "templates": 27, "placements": 185}
+  },
+  "branch": null,
+  "cleanup": "scratchpad/tm330 deleted; no check target dir, worktree or branch created"
+}
