@@ -197,7 +197,7 @@ pub(crate) fn a_syntax_rejected_file_is_skipped_with_its_reason_and_never_undeci
     Ok((1, 0))
 }
 
-/// A file the store kept an unknown or a skip of and the run no longer lists is gone: nothing the store kept of it is an answer about
+/// A file the store kept a skip or the rows of and the run no longer lists is gone: nothing the store kept of it is an answer about
 /// this run, so a warm run without it names it in neither what is undecided nor what is skipped, and answers what a run over a store
 /// that keeps nothing answers.
 pub(crate) fn removed_file_leaves_nothing() -> Result<(usize, usize), LintError> {
@@ -214,20 +214,29 @@ pub(crate) fn removed_file_leaves_nothing() -> Result<(usize, usize), LintError>
                 AnswerShape::Findings,
                 Arc::clone(&kept_in),
             );
-            assert!(
-                cold.undecided.contains("b.rs") || cold.skipped.contains("b.rs"),
-                "{kind} {applicability:?}: the cold run records the rejected file: {} {}",
-                cold.undecided,
-                cold.skipped
-            );
+            // The language is the cold run's: it still rejects `b.rs` and accepts the files around it; only the file is gone.
             let oracle = answered(
                 &without,
-                &[],
+                &["b.rs"],
                 applicability,
                 AnswerShape::Findings,
                 store_of("discard", directory.path()),
             );
-            let warm = answered(&without, &[], applicability, AnswerShape::Findings, kept_in);
+            // What the store keeps of the rejected file: a rule that asks for accepted syntax skips it; a rule that always applies
+            // answers it as any other file, so its rows are among the cold rows.
+            match applicability {
+                AcceptedSyntax => assert!(
+                    cold.undecided.contains("b.rs") || cold.skipped.contains("b.rs"),
+                    "{kind} {applicability:?}: the cold run records the rejected file: {} {}",
+                    cold.undecided,
+                    cold.skipped
+                ),
+                Always => assert!(
+                    cold.rows != oracle.rows,
+                    "{kind} {applicability:?}: the cold run answers the rejected file"
+                ),
+            }
+            let warm = answered(&without, &["b.rs"], applicability, AnswerShape::Findings, kept_in);
             assert!(
                 !warm.undecided.contains("b.rs") && !warm.skipped.contains("b.rs"),
                 "{kind} {applicability:?}: the removed file is named: {} {}",
