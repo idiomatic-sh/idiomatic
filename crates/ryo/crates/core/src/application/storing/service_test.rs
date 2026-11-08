@@ -9,7 +9,7 @@ use crate::outbound::lint_store::fixtures::fake::LintStoreFake;
 use crate::outbound::memory::fixtures::fake::MemoryFake;
 use crate::outbound::scheduler::fixtures::fake::SchedulerFake;
 use crate::outbound::scheduler::types::WorkerCount;
-use ryo_execution::outbound::digest::fixtures::fake::DigestFake;
+use ryo_execution_runtime::outbound::digest::fixtures::fake::DigestFake;
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::files::service::input_path;
 use ryo_values::domain::files::types::{CorpusFile, ExecutablePermission, FileBytes};

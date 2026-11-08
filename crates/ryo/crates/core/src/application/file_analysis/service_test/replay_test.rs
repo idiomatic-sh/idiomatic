@@ -3,7 +3,7 @@ use crate::domain::visit::types::Keeping;
 use crate::domain::workers::service::tables_for;
 use ryo_execution::inbound::use_cases::metadata::interface::PlacedScopes;
 use ryo_execution::inbound::use_cases::metadata::interface::ScopePlacement;
-use ryo_execution::outbound::facts::fixtures::fake::FactsFake;
+use ryo_execution_runtime::outbound::facts::fixtures::fake::FactsFake;
 use ryo_language::domain::files::types::FilePath;
 use ryo_relations::domain::relations::types::WorkerNumber;
 use ryo_values::domain::files::types::FileNumber;
@@ -35,7 +35,7 @@ use super::program_test::replay_under_capture;
 use super::super::errors::FileAnalysisError;
 use super::super::service::FileAnalysis;
 use super::super::types::RequestVisitSetting;
-use ryo_execution::outbound::facts::interface::FactsPort;
+use ryo_execution_runtime::outbound::facts::interface::FactsPort;
 use ryo_execution::outbound::matching::interface::MatchingPort;
 pub(super) fn a_selected_bucket_under_a_stale_proof_is_refused_and_an_unselected_one_is_not_read() -> Result<usize, FileAnalysisError> {
     use ryo_values::domain::records::types::FrontierCoverage;

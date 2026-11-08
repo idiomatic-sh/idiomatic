@@ -43,10 +43,10 @@ use ryo_execution::inbound::use_cases::metadata::interface::{MetadataUseCase as 
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase as _;
 use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
 use ryo_execution::inbound::use_cases::prepare::interface::DerivedAccess;
-use ryo_execution::outbound::digest::interface::DigestPort;
-use ryo_execution::outbound::facts::interface::FactsPort;
+use ryo_execution_runtime::outbound::digest::interface::DigestPort;
+use ryo_execution_runtime::outbound::facts::interface::FactsPort;
 use ryo_execution::outbound::matching::interface::MatchingPort;
-use ryo_execution::outbound::operators::interface::OperatorsPort;
+use ryo_execution_runtime::outbound::operators::interface::OperatorsPort;
 use ryo_execution::outbound::query_language::interface::QueryLanguagePort;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::rule_requests::types::RuleSpec;

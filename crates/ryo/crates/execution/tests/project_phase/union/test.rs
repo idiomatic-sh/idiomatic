@@ -1,9 +1,9 @@
 //! One project observation union: its members feed the semantic calls, a refused frontier prevents them, and hosted text joins by spelling.
 use super::super::*;
 use super::fixtures::UnionSemanticCalls;
-use ryo_execution::application::file_dag::program::observation_stage::interface::ObservationExecution;
-use ryo_execution::application::file_dag::program::observation_stage::interface::ObservationPublication;
-use ryo_execution::application::file_dag::program::prepared_execution::interface::PreparedExecution;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationExecution;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationPublication;
+use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution;
 use ryo_values::domain::observations::types::{
     BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn,
     ObservationColumnName, ObservationName, ObservationProducer, PlanObservation,
@@ -43,7 +43,7 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
     let engine = PrepareUseCaseImpl::new(
         union_semantic_calls.clone(),
         Arc::new(ryo_execution_store::outbound::derived::factory::semantics()),
-        std::sync::Arc::new(ryo_execution::outbound::digest::factory::blake3()),
+        std::sync::Arc::new(ryo_execution_runtime::outbound::digest::factory::blake3()),
     );
     let mut authored = authored_request(2);
     let relation = Relation::ModuleIdentity;

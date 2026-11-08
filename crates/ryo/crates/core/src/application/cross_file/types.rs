@@ -10,8 +10,8 @@ use ryo_execution::inbound::use_cases::execution::interface::PhaseScope;
 use ryo_execution::inbound::use_cases::execution::interface::PublicationSlot;
 use ryo_execution::inbound::use_cases::execution::interface::RequestExecution;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
-use ryo_execution::outbound::facts::interface::FactsFinish;
-use ryo_execution::outbound::facts::interface::FactsWorker;
+use ryo_execution_runtime::outbound::facts::interface::FactsFinish;
+use ryo_execution_runtime::outbound::facts::interface::FactsWorker;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::stored_facts::types::{ArenaBytes, Bucket};
 use std::ops::Deref;
@@ -156,7 +156,7 @@ pub(crate) struct PhaseRun<'a> {
 #[derive(Clone, Copy)]
 pub(crate) struct PhasePorts<'a> {
     /// Finishes the words the files handed the cross-file steps.
-    pub facts: &'a dyn ryo_execution::outbound::facts::interface::FactsPort,
+    pub facts: &'a dyn ryo_execution_runtime::outbound::facts::interface::FactsPort,
     /// Names the reasons of the linked languages.
     pub language: &'a dyn crate::outbound::language::interface::LanguagePort,
     /// Says how much memory the process holds.

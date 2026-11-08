@@ -85,7 +85,7 @@ fn html_dom_and_absent_locations_are_stable_across_runs() -> Result<(), Box<dyn 
                 .iter()
                 .map(|(name, query)| crate::rule_from_query(name, query, &["**/*.html".to_owned()]))
                 .collect(),
-            Arc::new(ryo_execution::outbound::facts::factory::spill(
+            Arc::new(ryo_execution_runtime::outbound::facts::factory::spill(
                 store.path().to_path_buf(),
             )),
             Arc::new(LintStoreFake::default()),

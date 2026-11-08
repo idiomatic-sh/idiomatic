@@ -1,19 +1,19 @@
 //! The public protocol is the only execution entry used by these controls.
-use ryo_execution::outbound::operators::interface::OperatorsPort as _;
+use ryo_execution_runtime::outbound::operators::interface::OperatorsPort as _;
 use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
 use ryo_execution::outbound::query_language::errors::QueryLanguageError;
 use ryo_execution::outbound::query_language::interface::QueryLanguagePort;
-use ryo_execution::outbound::facts::types::ResidentStability;
+use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
-use ryo_execution::application::file_dag::program::request_execution::interface::ExecutionRequest;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution::application::file_dag::program::file_session::interface::FileExecution;
-use ryo_execution::application::file_dag::program::file_session::types::FileInput;
-use ryo_execution::application::file_dag::program::file_session::types::SourceLanguage;
-use ryo_execution::application::file_dag::program::file_session::types::SourceRows;
-use ryo_execution::application::file_dag::program::rule_outcome::types::RootOutcome;
+use ryo_execution::inbound::use_cases::execution::interface::FileExecution;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
+use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
 use ryo_execution::application::rule_compilation::service::QueryCompilation;
 use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityReason;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
@@ -50,7 +50,7 @@ struct ReductionAudit {
     reductions: std::sync::atomic::AtomicUsize,
     emissions: std::sync::atomic::AtomicUsize,
 }
-impl ryo_execution::outbound::operators::interface::OperatorsPort for ReductionAudit {
+impl ryo_execution_runtime::outbound::operators::interface::OperatorsPort for ReductionAudit {
     fn operators(
         &self,
         mut call: ryo_operators::inbound::use_cases::operators::types::OperatorCall<'_>,
@@ -87,7 +87,7 @@ fn public_group_reduction_and_emission_use_the_admitted_semantic_path() {
     let engine = PrepareUseCaseImpl::new(
         semantics.clone(),
         Arc::new(ryo_execution_store::outbound::derived::factory::semantics()),
-        Arc::new(ryo_execution::outbound::digest::factory::blake3()),
+        Arc::new(ryo_execution_runtime::outbound::digest::factory::blake3()),
     );
     let mut input = authored_request(1);
     crate::boundary_fixture::plans(&mut input)[0].steps.push(PlanStep {
@@ -128,8 +128,8 @@ fn public_group_reduction_and_emission_use_the_admitted_semantic_path() {
                 source: ryo_values::domain::files::types::SourceView(b"abc"),
                 elements: &elements,
                 read: &read,
-                semantic: ryo_execution::application::file_dag::program::file_session::types::SemanticSupport::Absent,
-                kinds: ryo_execution::application::file_dag::program::file_session::types::KindSupport::Absent,
+                semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+                kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
             },
             &mut symbols,
         )

@@ -95,8 +95,8 @@ fn named_function_selection_replays_without_running_project_steps_or_hiding_abse
                     source: ryo_values::domain::files::types::SourceView(b"mainother"),
                     elements: &elements,
                     read: &read,
-                    semantic: ryo_execution::application::file_dag::program::file_session::types::SemanticSupport::Absent,
-                    kinds: ryo_execution::application::file_dag::program::file_session::types::KindSupport::Absent,
+                    semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+                    kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
                 },
                 &mut symbols,
             )

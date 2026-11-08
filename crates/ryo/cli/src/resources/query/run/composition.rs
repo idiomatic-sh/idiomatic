@@ -36,8 +36,9 @@ pub(crate) fn build(
     use ryo_core::outbound::lint_store::interface::LintStorePort;
     use ryo_core::outbound::memory::interface::MemoryPort;
     use ryo_core::outbound::{corpus, lint_store, memory, scheduler};
-    use ryo_execution::outbound::{digest, facts, matching, query_language};
-    use ryo_execution::outbound::digest::interface::DigestPort;
+    use ryo_execution::outbound::{matching, query_language};
+use ryo_execution_runtime::outbound::{digest, facts};
+    use ryo_execution_runtime::outbound::digest::interface::DigestPort;
     use ryo_query_language::inbound::use_cases::compile::use_case::CompileUseCaseImpl;
     use ryo_query_language::inbound::use_cases::typecheck::use_case::TypecheckUseCaseImpl;
     use std::sync::Arc;
@@ -86,7 +87,7 @@ pub(crate) fn build(
             Arc::new(matching::factory::globset()),
             Arc::new(query_language::factory::use_case(compile, typecheck)),
             memory,
-            Arc::new(ryo_execution::outbound::operators::factory::use_case(
+            Arc::new(ryo_execution_runtime::outbound::operators::factory::use_case(
                 ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
             )),
 ryo_execution::derived(),

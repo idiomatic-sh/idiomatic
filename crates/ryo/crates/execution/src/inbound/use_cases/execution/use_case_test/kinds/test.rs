@@ -1,6 +1,6 @@
 //! The `kind_sets` service's cases: the elements of a named kind are found among that kind, and a file nothing read teaches nothing.
 use super::super::super::fixtures;
-use crate::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
+use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
 
 use ryo_language::domain::completion::service::{completion, name_kind};
 use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
@@ -199,10 +199,10 @@ fn names_a_kind_by_a_test_on_its_name() -> Value {
     let naming = names_a_kind(&by_name) == KindNaming::Names
         && names_a_kind(&by_text) == KindNaming::Silent
         && names_a_kind(&by_order) == KindNaming::Silent;
-    let satisfying = satisfies(Test::Equal, TextView("word"), TextView("word"), crate::application::file_dag::fixtures::pattern_matcher()) == Verdict::Holds
-        && satisfies(Test::NotEqual, TextView("word"), TextView("word"), crate::application::file_dag::fixtures::pattern_matcher()) == Verdict::Fails
-        && satisfies(Test::StartsWith, TextView("word"), TextView("wo"), crate::application::file_dag::fixtures::pattern_matcher()) == Verdict::Holds
-        && satisfies(Test::GlobAny, TextView("word"), TextView("{file,word}"), crate::application::file_dag::fixtures::pattern_matcher()) == Verdict::Holds;
+    let satisfying = satisfies(Test::Equal, TextView("word"), TextView("word"), ryo_execution_runtime::application::file_dag::fixtures::pattern_matcher()) == Verdict::Holds
+        && satisfies(Test::NotEqual, TextView("word"), TextView("word"), ryo_execution_runtime::application::file_dag::fixtures::pattern_matcher()) == Verdict::Fails
+        && satisfies(Test::StartsWith, TextView("word"), TextView("wo"), ryo_execution_runtime::application::file_dag::fixtures::pattern_matcher()) == Verdict::Holds
+        && satisfies(Test::GlobAny, TextView("word"), TextView("{file,word}"), ryo_execution_runtime::application::file_dag::fixtures::pattern_matcher()) == Verdict::Holds;
     usize::from(naming && satisfying)
 }
 

@@ -3,18 +3,18 @@ use super::super::errors::FileAnalysisError;
 use crate::domain::render::types::Answering;
 use crate::domain::visit::types::Keeping;
 use crate::outbound::language::fixtures::fake::LanguageFake;
-use ryo_execution::outbound::digest::fixtures::fake::DigestFake;
-use ryo_execution::outbound::facts::fixtures::fake::FactsFake;
+use ryo_execution_runtime::outbound::digest::fixtures::fake::DigestFake;
+use ryo_execution_runtime::outbound::facts::fixtures::fake::FactsFake;
 use ryo_relations::domain::relations::types::Relation;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 use super::visit_test::visited_as;
 use super::visit_test::visited_as_with_facts;
-use ryo_execution::outbound::facts::interface::FactsPort;
+use ryo_execution_runtime::outbound::facts::interface::FactsPort;
 /// A legal unaudited worker whose immutable resident alternatives change between reads.
 pub(super) struct UnstableResidentFacts {
     /// Delegate mutation/retained-word operations without promising resident identity.
-    inner: Box<dyn ryo_execution::outbound::facts::interface::FactsWorker>,
+    inner: Box<dyn ryo_execution_runtime::outbound::facts::interface::FactsWorker>,
     /// Distinguishable same-shape populations selected by read order.
     alternatives: [Vec<ryo_relations::domain::relations::types::FactColumn>; 2],
     /// Source reads remain observable even when their shapes agree.
@@ -22,7 +22,7 @@ pub(super) struct UnstableResidentFacts {
 }
 
 pub(super) fn unstable_same_shape_resident_populations_remain_distinct() -> Result<usize, FileAnalysisError> {
-    use ryo_execution::outbound::facts::interface::FactsWorker as _;
+    use ryo_execution_runtime::outbound::facts::interface::FactsWorker as _;
     use ryo_relations::domain::relations::types::FactColumn;
     let facts = UnstableResidentFacts {
         inner: FactsFake::default().worker().expect("inner"),
@@ -52,7 +52,7 @@ pub(super) fn unstable_same_shape_resident_populations_remain_distinct() -> Resu
         .clone();
     assert_eq!(
         facts.resident_stability(),
-        ryo_execution::outbound::facts::types::ResidentStability::Unstable
+        ryo_execution_runtime::outbound::facts::types::ResidentStability::Unstable
     );
     let second = facts
         .rows(Relation::Function)
@@ -115,19 +115,19 @@ pub(super) fn file_visits_preserve_stable_unstable_and_unread_provider_outcomes(
     Ok(1)
 }
 
-impl ryo_execution::outbound::facts::interface::FactsWorker
+impl ryo_execution_runtime::outbound::facts::interface::FactsWorker
     for UnstableResidentFacts
 {
     fn resident_stability(
         &self,
-    ) -> ryo_execution::outbound::facts::types::ResidentStability {
-        ryo_execution::outbound::facts::types::ResidentStability::Unstable
+    ) -> ryo_execution_runtime::outbound::facts::types::ResidentStability {
+        ryo_execution_runtime::outbound::facts::types::ResidentStability::Unstable
     }
     fn columns_mut(
         &mut self,
     ) -> Result<
-        ryo_execution::outbound::facts::types::ColumnsMut<'_>,
-        ryo_execution::outbound::facts::errors::FactsError,
+        ryo_execution_runtime::outbound::facts::types::ColumnsMut<'_>,
+        ryo_execution_runtime::outbound::facts::errors::FactsError,
     > {
         self.inner.columns_mut()
     }
@@ -136,7 +136,7 @@ impl ryo_execution::outbound::facts::interface::FactsWorker
         relation: Relation,
     ) -> Result<
         ryo_relations::domain::relations::types::ColumnsView<'_>,
-        ryo_execution::outbound::facts::errors::FactsError,
+        ryo_execution_runtime::outbound::facts::errors::FactsError,
     > {
         use ryo_relations::domain::relations::{service::kinds, types::ColumnsView};
         if relation != Relation::Function {
@@ -155,20 +155,20 @@ impl ryo_execution::outbound::facts::interface::FactsWorker
     fn keep(
         &self,
         bucket: ryo_values::domain::stored_facts::types::Bucket,
-        words: ryo_execution::outbound::facts::types::WordsToKeep<'_>,
-    ) -> Result<(), ryo_execution::outbound::facts::errors::FactsError> {
+        words: ryo_execution_runtime::outbound::facts::types::WordsToKeep<'_>,
+    ) -> Result<(), ryo_execution_runtime::outbound::facts::errors::FactsError> {
         self.inner.keep(bucket, words)
     }
     fn release(
         &mut self,
-    ) -> Result<(), ryo_execution::outbound::facts::errors::FactsError> {
+    ) -> Result<(), ryo_execution_runtime::outbound::facts::errors::FactsError> {
         self.inner.release()
     }
     fn finished(
         self: Box<Self>,
     ) -> Result<
-        Box<dyn ryo_execution::outbound::facts::interface::FactsFinish>,
-        ryo_execution::outbound::facts::errors::FactsError,
+        Box<dyn ryo_execution_runtime::outbound::facts::interface::FactsFinish>,
+        ryo_execution_runtime::outbound::facts::errors::FactsError,
     > {
         self.inner.finished()
     }

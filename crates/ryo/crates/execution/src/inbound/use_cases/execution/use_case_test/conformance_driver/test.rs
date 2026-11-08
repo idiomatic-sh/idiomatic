@@ -7,11 +7,11 @@ use ryo_values::cases::run;
 use super::super::super::fixtures as owner_fixtures;
 use crate::inbound::use_cases::execution::interface::OperatingError;
 use crate::inbound::use_cases::execution::interface::SemanticLookup;
-use crate::outbound::operators::interface::OperatorsPort;
-use crate::application::file_dag::acceptance::operator_contract_test::fixtures::*;
-use crate::application::file_dag::acceptance::operator_contract_test::fixtures::values::KnownSyntax;
-use crate::application::file_dag::acceptance::operator_contract_test::fixtures::expectations::SOURCE;
-use crate::application::file_dag::acceptance::operator_contract_test::fixtures::expectations::assert_expected;
+use ryo_execution_runtime::outbound::operators::interface::OperatorsPort;
+use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::*;
+use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::values::KnownSyntax;
+use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::expectations::SOURCE;
+use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::expectations::assert_expected;
 use ryo_language::domain::semantics::types::RenderOutcome;
 use ryo_language::domain::semantics::types::RenderRequest;
 use ryo_relations::domain::relations::types::FileId;
@@ -29,7 +29,7 @@ type Value = ();
 type Failure = OperatingError;
 #[derive(Debug, Default)]
 struct ContinuesAfterDriverRefusal(std::sync::atomic::AtomicUsize);
-impl crate::outbound::operators::interface::OperatorsPort
+impl ryo_execution_runtime::outbound::operators::interface::OperatorsPort
     for ContinuesAfterDriverRefusal
 {
     fn operators(

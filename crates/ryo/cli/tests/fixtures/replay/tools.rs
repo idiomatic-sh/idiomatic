@@ -23,7 +23,7 @@ pub(crate) fn ryo_lines(
     let (rows, _) = crate::base::lint_report_with_languages(
         root,
         rules,
-        Arc::new(ryo_execution::outbound::facts::factory::memory()),
+        Arc::new(ryo_execution_runtime::outbound::facts::factory::memory()),
         Arc::new(ryo_core::outbound::lint_store::fixtures::fake::LintStoreFake::default()),
         Vec::new(),
         false,

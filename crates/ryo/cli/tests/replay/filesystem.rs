@@ -37,7 +37,7 @@ fn every_inventoried_file_is_a_row_whatever_it_holds() {
     let (rows, _) = base::lint_with(
         root.path(),
         vec![rule],
-        Arc::new(ryo_execution::outbound::facts::factory::memory()),
+        Arc::new(ryo_execution_runtime::outbound::facts::factory::memory()),
         Arc::new(ryo_core::outbound::lint_store::fixtures::fake::LintStoreFake::default()),
     )
     .expect("the rule runs");

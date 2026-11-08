@@ -1,16 +1,16 @@
 //! Actual two-file named restoration and absence publication, including a
 //! downstream projection that would erase the completeness key if fused early.
 use crate::boundary_fixture::Observed as _;
-use ryo_execution::application::file_dag::program::observation_stage::interface::ObservationExecution as _;
-use ryo_execution::application::file_dag::program::observation_stage::interface::ObservationPublication as _;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationExecution as _;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationPublication as _;
 use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityReason;
 use ryo_execution::inbound::use_cases::execution::interface::FileObservationReadiness;
 use ryo_execution::inbound::use_cases::execution::interface::Partial;
-use ryo_execution::application::file_dag::observations::types::AdmittedOutput;
-use ryo_execution::application::file_dag::observations::types::RuleSelection;
-use ryo_execution::application::file_dag::frontiers::types::InputReadiness;
+use ryo_execution_runtime::application::file_dag::observations::types::AdmittedOutput;
+use ryo_execution_runtime::application::file_dag::observations::types::RuleSelection;
+use ryo_execution_runtime::application::file_dag::frontiers::types::InputReadiness;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
-use ryo_execution::outbound::facts::types::ResidentStability;
+use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use super::super::super::*;
 use ryo_language::domain::files::types::FilePath;
 use ryo_relations::domain::relations::types::Integer;
@@ -87,8 +87,8 @@ pub(super) fn exercise_with(
                     source: ryo_values::domain::files::types::SourceView(b"abc"),
                     elements: &elements,
                     read: &read,
-                    semantic: ryo_execution::application::file_dag::program::file_session::types::SemanticSupport::Absent,
-                    kinds: ryo_execution::application::file_dag::program::file_session::types::KindSupport::Absent,
+                    semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+                    kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
                 },
                 &mut symbols,
             )

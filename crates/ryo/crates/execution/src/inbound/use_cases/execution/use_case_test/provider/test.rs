@@ -1,13 +1,13 @@
 //! Binary operators must demand the refusing RHS after a real nonempty successful LHS.
-use crate::application::file_dag::program::file_session::interface::FileExecution as _;
-use crate::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
+use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution as _;
+use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
 use crate::inbound::use_cases::execution::interface::ExecutionUseCase;
-use crate::outbound::facts::types::ResidentStability;
+use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use super::super::super::fixtures;
-use crate::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
-use crate::application::file_dag::program::file_session::types::FileInput;
-use crate::application::file_dag::program::file_session::types::SourceLanguage;
-use crate::application::file_dag::program::file_session::types::SourceRows;
+use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
 use crate::inbound::use_cases::execution::interface::CaptureIntent;
 use crate::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use crate::inbound::use_cases::execution::interface::FileRuleIntent;
@@ -146,8 +146,8 @@ fn subject((operator, missing, delivery): Input) -> Result<Value, Failure> {
                     source: ryo_values::domain::files::types::SourceView(b"abcd"),
                     elements: &elements,
                     read: &read,
-                    semantic: crate::application::file_dag::program::file_session::types::SemanticSupport::Absent,
-                    kinds: crate::application::file_dag::program::file_session::types::KindSupport::Absent,
+                    semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+                    kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
                 },
                 &mut symbols,
             )?;

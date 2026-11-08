@@ -1,7 +1,7 @@
 //! File/span key order preserves exact native span matches through the public owner.
 use super::super::super::fixtures;
-use crate::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
-use crate::application::file_dag::program::file_session::types::SourceRows;
+use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
 use crate::inbound::use_cases::execution::interface::OperatingError;
 use ryo_relations::domain::relations::{
     service::{kinds, node_id},

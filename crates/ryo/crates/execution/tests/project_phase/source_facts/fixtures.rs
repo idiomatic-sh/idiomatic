@@ -1,12 +1,12 @@
 //! Injected immutable source rows and the exact file frontier captured by the public owner.
-use ryo_execution::outbound::facts::types::BucketSource;
-use ryo_execution::outbound::facts::types::ColumnsMut;
-use ryo_execution::outbound::facts::errors::FactsError;
-use ryo_execution::outbound::facts::interface::FactsFinish;
-use ryo_execution::outbound::facts::interface::FactsWorker;
-use ryo_execution::outbound::facts::types::KeptBucket;
-use ryo_execution::outbound::facts::types::ResidentStability;
-use ryo_execution::outbound::facts::types::WordsToKeep;
+use ryo_execution_runtime::outbound::facts::types::BucketSource;
+use ryo_execution_runtime::outbound::facts::types::ColumnsMut;
+use ryo_execution_runtime::outbound::facts::errors::FactsError;
+use ryo_execution_runtime::outbound::facts::interface::FactsFinish;
+use ryo_execution_runtime::outbound::facts::interface::FactsWorker;
+use ryo_execution_runtime::outbound::facts::types::KeptBucket;
+use ryo_execution_runtime::outbound::facts::types::ResidentStability;
+use ryo_execution_runtime::outbound::facts::types::WordsToKeep;
 use ryo_execution::inbound::use_cases::execution::interface::CapturedFrontier;
 use ryo_relations::domain::relations::{
     fixtures::kinds,
@@ -102,8 +102,8 @@ impl FactsFinish for CapturedFacts {
             assert_eq!(bucket, capture.bucket);
             sources.push(BucketSource {
                 file: *file,
-                start: ryo_execution::outbound::facts::types::KeptWordsStart(words.len()),
-                length: ryo_execution::outbound::facts::types::KeptWordsLength(capture.words.0.len()),
+                start: ryo_execution_runtime::outbound::facts::types::KeptWordsStart(words.len()),
+                length: ryo_execution_runtime::outbound::facts::types::KeptWordsLength(capture.words.0.len()),
                 proof: capture.proof.clone(),
             });
             words.extend_from_slice(&capture.words.0);

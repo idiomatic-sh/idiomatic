@@ -2,9 +2,9 @@
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use super::super::conformance::test::{compare_delivery, repeated};
-use crate::application::file_dag::acceptance::operator_contract_test::fixtures::*;
-use crate::application::file_dag::acceptance::operator_contract_test::fixtures::values::numbers;
-use crate::application::file_dag::acceptance::operator_contract_test::fixtures::expectations::SOURCE;
+use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::*;
+use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::values::numbers;
+use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::expectations::SOURCE;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::{
     plan_parts::types::ColumnIndex,

@@ -1,6 +1,6 @@
 //! Native traversal projection is compared with the actual public owner output.
 use super::super::super::fixtures;
-use crate::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
+use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
 use ryo_execution_domain::domain::{
     operating::errors::OperatingError,
     operation_schema::types::InputShape,

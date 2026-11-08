@@ -1,12 +1,12 @@
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
-use ryo_execution::outbound::facts::types::ResidentStability;
+use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use super::program::{corpus, engine, prepared};
 use super::subscriber::{Activation, Sample};
-use ryo_execution::application::file_dag::program::request_execution::interface::ExecutionRequest;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution::application::file_dag::program::file_session::interface::FileExecution;
-use ryo_execution::application::file_dag::program::file_session::types::FileInput;
-use ryo_execution::application::file_dag::program::file_session::types::SourceLanguage;
+use ryo_execution::inbound::use_cases::execution::interface::FileExecution;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
@@ -55,8 +55,8 @@ pub(crate) fn measure(total: usize, demanded: &[usize]) -> Sample {
                         source: ryo_values::domain::files::types::SourceView(b""),
                         elements: &elements,
                         read: &read,
-                        semantic: ryo_execution::application::file_dag::program::file_session::types::SemanticSupport::Absent,
-                        kinds: ryo_execution::application::file_dag::program::file_session::types::KindSupport::Absent,
+                        semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+                        kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
                     },
                     &mut symbols,
                 )

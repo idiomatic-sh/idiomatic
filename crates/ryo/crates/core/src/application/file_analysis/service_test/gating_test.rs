@@ -11,7 +11,7 @@ use ryo_execution::inbound::use_cases::metadata::interface::PlacedScopes;
 use ryo_execution::inbound::use_cases::metadata::interface::RelationRead;
 use ryo_execution::inbound::use_cases::metadata::interface::ScopePlacement;
 use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
-use ryo_execution::outbound::digest::fixtures::fake::DigestFake;
+use ryo_execution_runtime::outbound::digest::fixtures::fake::DigestFake;
 use ryo_language::domain::elements::types::SyntaxAcceptance;
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::domain::symbols::types::Symbols;

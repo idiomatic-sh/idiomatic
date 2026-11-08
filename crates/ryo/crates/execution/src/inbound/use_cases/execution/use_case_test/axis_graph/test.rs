@@ -1,15 +1,15 @@
 //! The canonical stored graph, selected stored edges and hosted ordinary traversal publish identical ordered bags.
-use crate::application::file_dag::program::file_session::interface::FileExecution as _;
-use crate::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
+use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution as _;
+use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
 use super::super::super::fixtures::requests::{Authored, Preparation};
-use crate::outbound::facts::types::ResidentStability;
+use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use crate::inbound::use_cases::execution::interface::ExecutionUseCase;
 use super::super::super::fixtures;
-use crate::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
-use crate::application::file_dag::program::file_session::types::FileInput;
-use crate::application::file_dag::program::file_session::types::SourceLanguage;
-use crate::application::file_dag::program::file_session::types::SourceRows;
-use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
+use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
+use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
 use crate::inbound::use_cases::execution::interface::CaptureIntent;
 use crate::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use crate::inbound::use_cases::execution::interface::EmitDemand;
@@ -190,8 +190,8 @@ fn execute(stored: bool, projected: bool) -> Result<Vec<Table>, OperatingError> 
             source: ryo_values::domain::files::types::SourceView(b""),
             elements: &elements,
             read: &read,
-            semantic: crate::application::file_dag::program::file_session::types::SemanticSupport::Absent,
-            kinds: crate::application::file_dag::program::file_session::types::KindSupport::Absent,
+            semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+            kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
         },
         &mut symbols,
     )?;
@@ -210,7 +210,7 @@ fn execute(stored: bool, projected: bool) -> Result<Vec<Table>, OperatingError> 
         };
         answers.push(table);
     }
-    let counts = file.inner.resource_fixture_counts();
+    let counts = file.resource_fixture_counts();
     let walks = file.walk_counts();
     if stored && !projected {
         // The derived Adjacency route through the owner: one canonical graph for the five consumers.
@@ -269,7 +269,7 @@ fn execute(stored: bool, projected: bool) -> Result<Vec<Table>, OperatingError> 
         walks,
         "delivery retries do no source or predicate work"
     );
-    let repeated = file.inner.resource_fixture_counts();
+    let repeated = file.resource_fixture_counts();
     assert_eq!(repeated.graph_builds, counts.graph_builds);
     assert_eq!(repeated.graph_reuses, counts.graph_reuses);
     assert_eq!(repeated.graph_early_stops, counts.graph_early_stops);

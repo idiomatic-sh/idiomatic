@@ -1,23 +1,23 @@
 //! Authored request assembly, for the use case's own tests: every operation runs through the public execution owner.
 
-use crate::application::file_dag::program::file_session::interface::FileExecution as _;
-use crate::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
+use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution as _;
+use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
 use ryo_values::domain::query_tokens::types::{QueryBundle, QueryDocumentSource, QuerySourceId};
 use ryo_values::domain::runs::types::{RuleApplicability, RuleId};
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use crate::inbound::use_cases::execution::interface::{ExecutionUseCase, CaptureIntent, DiagnosticDelivery, EmitDemand, FileRuleIntent, ObservationDemand, RuleDemand, RuleIndex};
 use ryo_values::domain::rule_requests::types::{RuleParameters, RuleSpec};
 use std::collections::BTreeMap;
-use crate::outbound::facts::types::ResidentStability;
+use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use crate::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use super::{derived, operators};
 use ryo_execution_store::application::file_dag::derived::owner::types::DerivedAccess;
-use crate::application::file_dag::program::prepared_execution::service::prepare;
+use ryo_execution_runtime::application::file_dag::program::prepared_execution::service::prepare;
 use ryo_execution_store::outbound::derived::interface::DerivedPort;
-use crate::outbound::operators::interface::OperatorsPort;
-use crate::application::file_dag::program::file_session::types::{FileInput, SourceLanguage, SourceRows};
-use crate::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
-use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
+use ryo_execution_runtime::outbound::operators::interface::OperatorsPort;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::{FileInput, SourceLanguage, SourceRows};
+use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
+use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
 use ryo_execution_domain::domain::prepared_request::types::ObservationIdentity;
 use ryo_language::domain::completion::service::{completion, name_kind};
 use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
@@ -33,7 +33,7 @@ use ryo_values::domain::rows::types::Table;
 use ryo_values::domain::stored_facts::types::Digest;
 use std::cell::Cell;
 use std::sync::Arc;
-use crate::application::file_dag::acceptance::operator_contract_test::fixtures::inputs::{plan, text, table_inputs};
+use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs::{plan, text, table_inputs};
 
 pub(crate) fn published(
     plan: Plan,
@@ -133,7 +133,7 @@ impl Preparation {
             request.observations,
             Arc::clone(&self.operators),
             &self.derived,
-            Arc::new(crate::outbound::digest::fixtures::fake::DigestFake),
+            Arc::new(ryo_execution_runtime::outbound::digest::fixtures::fake::DigestFake),
         )
     }
 }
@@ -214,7 +214,7 @@ pub(crate) fn run_prepared_context<'facts>(
     read: &dyn Fn(Relation) -> Result<SourceRows<'facts>, OperatingError>,
     semantic: Option<&dyn ryo_execution_domain::domain::operating::types::SemanticLookup>,
 ) -> Result<(Table, ryo_execution_domain::domain::operating::fixtures::ExecutionObservation), OperatingError> {
-    let last = crate::application::file_dag::program::prepared_execution::interface::PreparedExecution::emit(prepared, RuleIndex(0))?.step;
+    let last = ryo_execution_runtime::application::file_dag::program::prepared_execution::interface::PreparedExecution::emit(prepared, RuleIndex(0))?.step;
     let corpus = [CorpusInput::Available(CorpusEntry {
         path: ryo_language::domain::files::types::FilePath("operator-contract.py".into()),
         executable: ExecutablePermission::Unknown,
@@ -238,10 +238,10 @@ pub(crate) fn run_prepared_context<'facts>(
             elements,
             read,
             semantic: match semantic {
-                Some(lookup) => crate::application::file_dag::program::file_session::types::SemanticSupport::Supplied(lookup),
-                None => crate::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+                Some(lookup) => ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Supplied(lookup),
+                None => ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
             },
-            kinds: crate::application::file_dag::program::file_session::types::KindSupport::Absent,
+            kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
         },
         symbols,
     )?;
@@ -255,13 +255,13 @@ pub(crate) fn run_prepared_context<'facts>(
     );
     let mut observed = match &outcome {
         Ok(result) if matches!(result.emit, RootOutcome::Complete(_)) => {
-            file.inner.route_observation(RuleIndex(0), last)?
+            file.route_observation(RuleIndex(0), last)?
         }
         _ => Default::default(),
     };
     // Every actual invocation workspace retains this required owner Rc. A
     // surviving workspace would therefore keep this weak owner live.
-    let owner = file.inner.owner_lifetime();
+    let owner = file.owner_lifetime();
     assert!(owner.upgrade().is_some());
     let finished = file.finish();
     observed.file_owner_released = owner.upgrade().is_none();

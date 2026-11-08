@@ -32,7 +32,7 @@ emit missing subject dir key(dir);";
     let (rows, _) = base::lint_with(
         root.path(),
         vec![rule, rule_across, crate::rule_from_query("every", "let a = select * from \"syntax-tree\" where kind = \"fn\"; emit a subject file key(id);", &["**".to_owned()])],
-        Arc::new(ryo_execution::outbound::facts::factory::memory()),
+        Arc::new(ryo_execution_runtime::outbound::facts::factory::memory()),
         Arc::new(ryo_core::outbound::lint_store::fixtures::fake::LintStoreFake::default()),
     )
     .expect("a rule that governs no file runs");
@@ -57,7 +57,7 @@ fn the_work_of_a_rule_is_a_count_of_rows_per_step() {
         let (_, report) = base::lint_report(
             root.path(),
             vec![rule("all", "**"), rule("none", "nothing-here/**")],
-            Arc::new(ryo_execution::outbound::facts::factory::memory()),
+            Arc::new(ryo_execution_runtime::outbound::facts::factory::memory()),
             Arc::new(ryo_core::outbound::lint_store::fixtures::fake::LintStoreFake::default()),
         )
         .expect("the rules run");
@@ -112,7 +112,7 @@ fn a_probe_of_the_tree_is_fed_what_it_finds() {
                 "let edges = select * from \"syntax-child\"; emit edges subject child key(child);",
             ),
         ],
-        Arc::new(ryo_execution::outbound::facts::factory::memory()),
+        Arc::new(ryo_execution_runtime::outbound::facts::factory::memory()),
         Arc::new(ryo_core::outbound::lint_store::fixtures::fake::LintStoreFake::default()),
     )
     .expect("the rules run");
@@ -148,7 +148,7 @@ fn a_module_without_a_file_is_unknown_at_its_file_and_a_file_no_crate_root_reach
     let (_, report) = base::lint_report(
         root.path(),
         vec![rule],
-        Arc::new(ryo_execution::outbound::facts::factory::memory()),
+        Arc::new(ryo_execution_runtime::outbound::facts::factory::memory()),
         Arc::new(ryo_core::outbound::lint_store::fixtures::fake::LintStoreFake::default()),
     )
     .expect("the rule runs");
@@ -186,7 +186,7 @@ fn a_rule_that_names_a_kind_no_language_has_fails_the_run() {
     let refused = base::lint_with(
         root.path(),
         vec![rule],
-        Arc::new(ryo_execution::outbound::facts::factory::memory()),
+        Arc::new(ryo_execution_runtime::outbound::facts::factory::memory()),
         Arc::new(ryo_core::outbound::lint_store::fixtures::fake::LintStoreFake::default()),
     )
     .expect_err("a kind no language has fails the run");

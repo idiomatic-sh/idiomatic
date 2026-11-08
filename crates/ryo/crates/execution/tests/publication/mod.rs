@@ -1,6 +1,6 @@
 //! Publication policy is enforced by fresh public delivery, never a pre-collected root.
-use ryo_execution::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
-use ryo_execution::outbound::facts::types::ResidentStability;
+use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
+use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
@@ -79,8 +79,8 @@ fn semantic_failure_discards_every_after_success_row() {
                         source: ryo_values::domain::files::types::SourceView(b"abc"),
                         elements: &elements,
                         read: &read,
-                        semantic: ryo_execution::application::file_dag::program::file_session::types::SemanticSupport::Absent,
-                        kinds: ryo_execution::application::file_dag::program::file_session::types::KindSupport::Absent,
+                        semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+                        kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
                     },
                     &mut symbols,
                 )
@@ -144,8 +144,8 @@ fn committed_rows_keep_order_and_delivery_refusal_remains_retryable() {
                     source: ryo_values::domain::files::types::SourceView(b"abc"),
                     elements: &elements,
                     read: &read,
-                    semantic: ryo_execution::application::file_dag::program::file_session::types::SemanticSupport::Absent,
-                    kinds: ryo_execution::application::file_dag::program::file_session::types::KindSupport::Absent,
+                    semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+                    kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
                 },
                 &mut symbols,
             )

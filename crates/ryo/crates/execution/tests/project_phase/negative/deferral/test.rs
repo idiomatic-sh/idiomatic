@@ -1,24 +1,24 @@
 //! Deferred roots do not hide owning-phase faults or renumber file frontier refusals.
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase as _;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
-use ryo_execution::outbound::facts::types::ResidentStability;
+use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use super::super::super::source_facts::fixtures::ProjectFacts;
 use super::super::fixtures::NoFileFrontiers;
 use crate::boundary_fixture::{
     authored_request, corpus, demand, engine, prepared, project_root, source,
 };
-use ryo_execution::application::file_dag::program::request_execution::interface::ExecutionRequest;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution::application::file_dag::program::file_session::interface::FileExecution;
-use ryo_execution::application::file_dag::program::project_phase::interface::ProjectStage;
-use ryo_execution::application::file_dag::program::file_session::types::CaptureContext;
-use ryo_execution::application::file_dag::program::file_session::types::FileInput;
-use ryo_execution::application::file_dag::program::file_session::types::SourceLanguage;
-use ryo_execution::application::file_dag::program::file_session::types::SourceRows;
-use ryo_execution::application::file_dag::program::project_phase::types::ProjectInput;
-use ryo_execution::application::file_dag::program::project_phase::types::FrontierDemand;
-use ryo_execution::application::file_dag::program::project_phase::types::FrontierRequest;
-use ryo_execution::application::file_dag::program::rule_outcome::types::RootOutcome;
+use ryo_execution::inbound::use_cases::execution::interface::FileExecution;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
+use ryo_execution_runtime::application::file_dag::program::project_phase::types::ProjectInput;
+use ryo_execution_runtime::application::file_dag::program::project_phase::types::FrontierDemand;
+use ryo_execution_runtime::application::file_dag::program::project_phase::types::FrontierRequest;
+use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::Covered;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
@@ -126,8 +126,8 @@ fn a_file_emit_defers_at_project_scope_but_its_real_file_failure_is_not_deferred
                 source: ryo_values::domain::files::types::SourceView(b"abc"),
                 elements: &elements,
                 read: &read,
-                semantic: ryo_execution::application::file_dag::program::file_session::types::SemanticSupport::Absent,
-                kinds: ryo_execution::application::file_dag::program::file_session::types::KindSupport::Absent,
+                semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+                kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
             },
             &mut symbols,
         )
@@ -217,8 +217,8 @@ fn a_skipped_project_frontier_preserves_the_later_original_file_error_index() {
                 source: ryo_values::domain::files::types::SourceView(b"abc"),
                 elements: &elements,
                 read: &read,
-                semantic: ryo_execution::application::file_dag::program::file_session::types::SemanticSupport::Absent,
-                kinds: ryo_execution::application::file_dag::program::file_session::types::KindSupport::Absent,
+                semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+                kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
             },
             &mut symbols,
         )

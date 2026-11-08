@@ -165,7 +165,7 @@ pub(super) fn ordinary_project_rules_share_one_preparation_and_reject_another_ge
         let engine = PrepareUseCaseImpl::new(
             calls.clone(),
             ryo_execution::derived(),
-            Arc::new(ryo_execution::outbound::digest::factory::blake3()),
+            Arc::new(ryo_execution_runtime::outbound::digest::factory::blake3()),
         );
         rules.request = ExecutionUseCaseImpl::new().execution(&rules.program, &rules.files);
         let phase = rules.request.project_phase().unwrap();

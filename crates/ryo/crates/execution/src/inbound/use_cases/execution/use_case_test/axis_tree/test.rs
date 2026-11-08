@@ -1,6 +1,6 @@
 //! Axis walks over the syntax tree through the mandatory public execution owner.
 use super::super::super::fixtures;
-use crate::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
+use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_relations::domain::relations::types::Relation;
@@ -145,8 +145,8 @@ pub(crate) fn over_the_tree(
     *domain = domain_source;
     operations.push(operation);
     let read = |relation| match relation {
-        Relation::Function => Ok(crate::application::file_dag::program::file_session::types::SourceRows::Computed(&from)),
-        Relation::Identifier => Ok(crate::application::file_dag::program::file_session::types::SourceRows::Computed(
+        Relation::Function => Ok(ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows::Computed(&from)),
+        Relation::Identifier => Ok(ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows::Computed(
             domain_rows.as_ref().expect("declared domain"),
         )),
         _ => Err(OperatingError::NotRead),

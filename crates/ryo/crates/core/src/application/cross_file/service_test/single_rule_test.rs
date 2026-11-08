@@ -104,11 +104,11 @@ pub(super) fn project_evaluation_rejects_frontiers_from_another_request()
     let (_phase, _scope, frontier) = prepared(&rules, &frontier_rows(), &mut symbols)
         .expect("frontiers admitted by the original request");
     let engine = PrepareUseCaseImpl::new(
-        Arc::new(ryo_execution::outbound::operators::factory::use_case(
+        Arc::new(ryo_execution_runtime::outbound::operators::factory::use_case(
             ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
         )),
         ryo_execution::derived(),
-        Arc::new(ryo_execution::outbound::digest::factory::blake3()),
+        Arc::new(ryo_execution_runtime::outbound::digest::factory::blake3()),
     );
     let next = ExecutionUseCaseImpl::new().execution(&rules.program, &rules.files);
     let next_phase = next.project_phase().expect("independent project phase");

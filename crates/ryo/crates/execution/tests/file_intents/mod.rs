@@ -1,15 +1,15 @@
 //! File-start declarations are enforced through every public execution route.
-use ryo_execution::application::file_dag::program::file_session::types::CaptureContext;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
 use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityRefusal;
-use ryo_execution::outbound::facts::types::ResidentStability;
+use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use super::*;
-use ryo_execution::application::file_dag::program::prepared_execution::interface::PreparedExecution;
-use ryo_execution::application::file_dag::program::preparation::types::Demand;
+use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution;
+use ryo_execution_runtime::application::file_dag::program::preparation::types::Demand;
 use ryo_relations::domain::relations::types::{Words, WorkerNumber};
 
 fn input<'a, 'facts>(
@@ -27,8 +27,8 @@ fn input<'a, 'facts>(
         source: ryo_values::domain::files::types::SourceView(b"abc"),
         elements,
         read,
-        semantic: ryo_execution::application::file_dag::program::file_session::types::SemanticSupport::Absent,
-        kinds: ryo_execution::application::file_dag::program::file_session::types::KindSupport::Absent,
+        semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+        kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
     }
 }
 

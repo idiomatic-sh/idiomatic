@@ -1,12 +1,12 @@
 //! A grouped dependency and the original source join in both input positions.
-use ryo_execution::application::file_dag::program::file_session::interface::FileExecution as _;
-use ryo_execution::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
+use ryo_execution::inbound::use_cases::execution::interface::FileExecution as _;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest as _;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase as _;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use super::super::super::fixtures::{complete, input};
 use crate::boundary_fixture::{authored_request, corpus, demand, engine};
-use ryo_execution::application::file_dag::program::file_session::types::SourceRows;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;

@@ -3,7 +3,8 @@
 
 use ryo_core::inbound::use_cases::lint::interface::LintUseCase;
 use ryo_core::outbound::{corpus, language, lint_store, memory, row_sink};
-use ryo_execution::outbound::{digest, facts, matching, query_language};
+use ryo_execution::outbound::{matching, query_language};
+use ryo_execution_runtime::outbound::{digest, facts};
 use std::sync::Arc;
 
 use crate::domain::capacity::types::WorkerPool;
@@ -75,7 +76,7 @@ pub(crate) fn build(
             ));
             let port: Arc<dyn language::interface::LanguagePort> = Arc::new(linked);
             let digests: Arc<
-                dyn ryo_execution::outbound::digest::interface::DigestPort,
+                dyn ryo_execution_runtime::outbound::digest::interface::DigestPort,
             > = Arc::new(digest::factory::blake3());
             let machine: Arc<dyn memory::interface::MemoryPort> =
                 Arc::new(memory::factory::sysinfo(budget));
@@ -93,7 +94,7 @@ pub(crate) fn build(
                 Arc::new(matching::factory::globset()),
                 Arc::new(query_language::factory::use_case(compile, typecheck)),
                 machine,
-                Arc::new(ryo_execution::outbound::operators::factory::use_case(ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())))),
+                Arc::new(ryo_execution_runtime::outbound::operators::factory::use_case(ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())))),
 ryo_execution::derived(),
                 pool,
                 workers,

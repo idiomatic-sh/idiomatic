@@ -3,7 +3,7 @@ use super::constants::OBSERVATION_PRODUCERS_DOMAIN;
 use super::errors::RuleCompilationError;
 use ryo_execution_domain::domain::file_program::types::{ResolvedObservationBinding, ResolvedObservationProducer, RuleSchedule};
 use ryo_execution_domain::domain::rule_intent::errors::RuleIntentError;
-use crate::outbound::digest::{interface::DigestPort, types::DigestBytes};
+use ryo_execution_runtime::outbound::digest::{interface::DigestPort, types::DigestBytes};
 use ryo_values::domain::stores::types::{Crossing, StoredRule};
 
 /// Extend existing per-rule identities in dependency order. Ordinary requests allocate nothing here.

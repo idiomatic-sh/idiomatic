@@ -1,14 +1,14 @@
 //! Closed empty declarations remain typed populations; absent declarations remain refusals.
 use ryo_execution::inbound::use_cases::execution::interface::RuleIntentError;
-use ryo_execution::application::file_dag::frontiers::types::InputReadiness;
-use ryo_execution::outbound::facts::types::ResidentStability;
+use ryo_execution_runtime::application::file_dag::frontiers::types::InputReadiness;
+use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use super::super::*;
-use ryo_execution::application::file_dag::program::observation_stage::interface::ObservationExecution;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationExecution;
 use ryo_values::domain::{
     observations::types::{
         BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn,
@@ -83,8 +83,8 @@ fn declared_empty_observation_defers_in_file_and_publishes_typed_empty_in_projec
                 source: ryo_values::domain::files::types::SourceView(b"abc"),
                 elements: &elements,
                 read: &read,
-                semantic: ryo_execution::application::file_dag::program::file_session::types::SemanticSupport::Absent,
-                kinds: ryo_execution::application::file_dag::program::file_session::types::KindSupport::Absent,
+                semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+                kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
             },
             &mut symbols,
         )

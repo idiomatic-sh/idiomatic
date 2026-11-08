@@ -1679,8 +1679,8 @@ fn normalized_staging_preserves_store_bytes_and_snapshot_lifetime() -> Result<Va
 }
 
 fn warm_partial_frontier_keeps_exact_proof_through_facts_handover() -> Result<Value, Failure> {
-    use ryo_execution::outbound::facts::interface::FactsPort as _;
-    use ryo_execution::outbound::facts::types::WordsToKeep;
+    use ryo_execution_runtime::outbound::facts::interface::FactsPort as _;
+    use ryo_execution_runtime::outbound::facts::types::WordsToKeep;
     use ryo_relations::domain::relations::types::FileId;
     use ryo_values::domain::{
         records::types::{FrontierAffected, FrontierCoverage, FrontierMissing},
@@ -1715,7 +1715,7 @@ fn warm_partial_frontier_keeps_exact_proof_through_facts_handover() -> Result<Va
     let mut bytes = PackedWords::default();
     warm.read_old(&descriptor, &mut bytes)
         .expect("same snapshot resolves bytes");
-    let facts = ryo_execution::outbound::facts::factory::memory();
+    let facts = ryo_execution_runtime::outbound::facts::factory::memory();
     let mut worker = facts.worker().expect("facts worker");
     worker
         .keep(

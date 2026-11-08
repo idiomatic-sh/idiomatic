@@ -5,7 +5,7 @@ use super::super::super::fixtures;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_values::domain::rows::errors::RowsError;
 
-use crate::application::file_dag::testing::CompleteTableRows;
+use ryo_execution_runtime::application::file_dag::testing::CompleteTableRows;
 use ryo_execution_domain::domain::stored_graph::types::traversal::value::GraphTraversal;
 use ryo_execution_domain::domain::stored_graph::types::{ExaminedVertices, ExpandedVertices, GraphIdentity, GraphWalk, Orientation, RelationPopulation, VisitEpoch};
 use ryo_execution_domain::domain::table_model::types::Rows;
@@ -64,9 +64,8 @@ fn build(
     // The portable request carries the actual endpoints and keys. The old
     // GraphIdentity belongs to the former local builder and is not an input
     // to this port; invalid columns must be refused by the port itself.
-    let semantics = (std::sync::Arc::new(
-        fixtures::derived(),
-    ) as Arc<dyn ryo_execution_store::outbound::derived::interface::DerivedPort>);
+    let semantics: Arc<dyn ryo_execution_store::outbound::derived::interface::DerivedPort> =
+        Arc::new(fixtures::derived());
     let prepared = semantics.prepare(
         DerivedRequest::Adjacency {
             endpoints,

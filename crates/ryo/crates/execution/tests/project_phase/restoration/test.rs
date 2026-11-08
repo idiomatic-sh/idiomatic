@@ -1,11 +1,11 @@
 //! Named restoration retains partition-qualified physical coverage despite cached readiness.
 use crate::boundary_fixture::Observed as _;
 use ryo_execution::inbound::use_cases::execution::interface::FileObservationReadiness;
-use ryo_execution::application::file_dag::observations::types::RuleSelection;
-use ryo_execution::application::file_dag::frontiers::types::InputReadiness;
+use ryo_execution_runtime::application::file_dag::observations::types::RuleSelection;
+use ryo_execution_runtime::application::file_dag::frontiers::types::InputReadiness;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution::outbound::facts::types::ResidentStability;
+use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use super::super::*;
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::{
@@ -15,8 +15,8 @@ use ryo_values::domain::{
 
 #[test]
 fn restored_named_frontier_keeps_skipped_partition_provenance_despite_complete_readiness() {
-    use ryo_execution::application::file_dag::program::observation_stage::interface::ObservationExecution;
-    use ryo_execution::application::file_dag::program::observation_stage::interface::ObservationPublication;
+    use ryo_execution::inbound::use_cases::execution::interface::ObservationExecution;
+    use ryo_execution::inbound::use_cases::execution::interface::ObservationPublication;
     use ryo_values::domain::plan_parts::types::ObservationBindingId;
     for rejected in [false, true] {
         let engine = engine();
@@ -70,8 +70,8 @@ fn restored_named_frontier_keeps_skipped_partition_provenance_despite_complete_r
                         source: ryo_values::domain::files::types::SourceView(b"abc"),
                         elements: &elements,
                         read: &read,
-                        semantic: ryo_execution::application::file_dag::program::file_session::types::SemanticSupport::Absent,
-                        kinds: ryo_execution::application::file_dag::program::file_session::types::KindSupport::Absent,
+                        semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+                        kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
                     },
                     &mut symbols,
                 )

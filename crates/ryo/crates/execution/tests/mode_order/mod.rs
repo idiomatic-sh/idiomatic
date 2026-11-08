@@ -1,6 +1,6 @@
 //! Declared schema/resource and transport ordering through the real public owner.
 use ryo_execution::inbound::use_cases::execution::interface::RowEmission;
-use ryo_execution::outbound::facts::types::ResidentStability;
+use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
@@ -43,8 +43,8 @@ fn evaluate<'facts>(
                 source: ryo_values::domain::files::types::SourceView(b"abc"),
                 elements: &elements,
                 read,
-                semantic: ryo_execution::application::file_dag::program::file_session::types::SemanticSupport::Absent,
-                kinds: ryo_execution::application::file_dag::program::file_session::types::KindSupport::Absent,
+                semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+                kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
             },
             &mut symbols,
         )
@@ -136,8 +136,8 @@ fn deliver<'facts>(
                 source: ryo_values::domain::files::types::SourceView(b"abc"),
                 elements: &elements,
                 read,
-                semantic: ryo_execution::application::file_dag::program::file_session::types::SemanticSupport::Absent,
-                kinds: ryo_execution::application::file_dag::program::file_session::types::KindSupport::Absent,
+                semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+                kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
             },
             &mut symbols,
         )

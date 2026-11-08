@@ -1,7 +1,7 @@
 //! State owned by a bounded file analysis invocation.
 use super::errors::FileAnalysisError;
 use crate::domain::workers::types::Tables;
-use ryo_execution::outbound::facts::interface::FactsWorker;
+use ryo_execution_runtime::outbound::facts::interface::FactsWorker;
 use ryo_execution::inbound::use_cases::execution::interface::PreparedExecutionProgram;
 use ryo_execution::inbound::use_cases::execution::interface::RequestExecution;
 use std::ops::{Deref, DerefMut};

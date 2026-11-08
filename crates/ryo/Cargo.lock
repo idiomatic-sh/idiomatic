@@ -1267,6 +1267,7 @@ dependencies = [
  "idiomatic-sh-ryo-css",
  "idiomatic-sh-ryo-derived",
  "idiomatic-sh-ryo-execution",
+ "idiomatic-sh-ryo-execution-runtime",
  "idiomatic-sh-ryo-go",
  "idiomatic-sh-ryo-html",
  "idiomatic-sh-ryo-javascript",
@@ -1351,6 +1352,7 @@ dependencies = [
  "heck",
  "idiomatic-sh-ryo-core",
  "idiomatic-sh-ryo-execution",
+ "idiomatic-sh-ryo-execution-runtime",
  "idiomatic-sh-ryo-language",
  "idiomatic-sh-ryo-matching",
  "idiomatic-sh-ryo-operators",
@@ -1413,6 +1415,7 @@ dependencies = [
  "idiomatic-sh-ryo-derived",
  "idiomatic-sh-ryo-execution",
  "idiomatic-sh-ryo-execution-domain",
+ "idiomatic-sh-ryo-execution-runtime",
  "idiomatic-sh-ryo-execution-store",
  "idiomatic-sh-ryo-language",
  "idiomatic-sh-ryo-matching",
@@ -1449,6 +1452,27 @@ dependencies = [
  "memchr",
  "num-bigint 0.4.8",
  "rustc-hash 2.1.3",
+ "thiserror 2.0.20",
+ "tracing",
+]
+
+[[package]]
+name = "idiomatic-sh-ryo-execution-runtime"
+version = "0.1.2"
+dependencies = [
+ "blake3",
+ "divan",
+ "idiomatic-sh-ryo-derived",
+ "idiomatic-sh-ryo-execution-domain",
+ "idiomatic-sh-ryo-execution-runtime",
+ "idiomatic-sh-ryo-execution-store",
+ "idiomatic-sh-ryo-language",
+ "idiomatic-sh-ryo-matching",
+ "idiomatic-sh-ryo-operators",
+ "idiomatic-sh-ryo-relations",
+ "idiomatic-sh-ryo-values",
+ "rustc-hash 2.1.3",
+ "tempfile",
  "thiserror 2.0.20",
  "tracing",
 ]
@@ -1682,6 +1706,7 @@ dependencies = [
  "divan",
  "idiomatic-sh-ryo-core",
  "idiomatic-sh-ryo-execution",
+ "idiomatic-sh-ryo-execution-runtime",
  "idiomatic-sh-ryo-language",
  "idiomatic-sh-ryo-matching",
  "idiomatic-sh-ryo-operators",
