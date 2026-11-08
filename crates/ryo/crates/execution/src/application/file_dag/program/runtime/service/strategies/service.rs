@@ -104,10 +104,7 @@ impl ProgramExecution {
                     .as_ref()
                     .map_err(|error| InvocationFailure::Semantic(error.clone()))?,
             );
-            let frames = call
-                .frames
-                .as_mut()
-                .ok_or_else(|| InvocationFailure::Semantic(OperatingError::NotRun))?;
+            let frames = super::super::invocation::service::frames(call.frames, region)?;
             let frame = frames
                 .first_mut()
                 .ok_or_else(|| InvocationFailure::Semantic(OperatingError::NotRun))?;

@@ -82,11 +82,7 @@ pub(crate) fn region_sharing(node: &FileProgramNode, held: Option<Barrier>) -> R
     }
     match &node.operation {
         Operation::Extend { values, .. } => rule_independent(values),
-        _ if node.contract.reuse == ReuseScope::Request
-            && node.contract.effects == Effects::Pure =>
-        {
-            RegionSharing::Shareable
-        }
+        _ if node.contract.reuse == ReuseScope::Request => RegionSharing::Shareable,
         _ => RegionSharing::RuleScoped,
     }
 }

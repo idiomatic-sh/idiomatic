@@ -72,10 +72,6 @@ impl ProgramExecution {
                 .then(std::time::Instant::now);
             let fresh = matches!(slot.state, State::Dormant);
             slot.state = State::Running;
-            if slot.scratch.is_empty() {
-                slot.scratch
-                    .resize_with(region.instructions().len(), KernelScratch::default);
-            }
             for (frame, instruction) in slot.scratch.iter_mut().zip(region.instructions().iter()) {
                 if let Some(workspace) = frame.workspace.as_mut().filter(|_| fresh) {
                     ryo_execution_domain::domain::operator::contract::workspace::begin(
@@ -165,6 +161,19 @@ impl ProgramExecution {
         }
     }
 }
+/// A region's kernel frames, made when the region is first evaluated: a region that only waits holds none.
+pub(crate) fn frames<'a>(
+    frames: &'a mut Option<Vec<KernelScratch>>,
+    region: &Region,
+) -> Result<&'a mut [KernelScratch], InvocationFailure> {
+    let frames = frames
+        .as_mut()
+        .ok_or_else(|| InvocationFailure::Semantic(OperatingError::NotRun))?;
+    if frames.is_empty() {
+        frames.resize_with(region.instructions().len(), KernelScratch::default);
+    }
+    Ok(frames)
+}
 pub(crate) fn continuation(
     invocation: &KernelPermit<'_>,
     region: &Region,
@@ -223,6 +232,9 @@ impl Drop for Invocation<'_> {
     fn drop(&mut self) {
         let mut slots = self.state.slots.borrow_mut();
         let mut committed_outcome = OUTCOME_MISSING;
+        // A region that published or failed is never evaluated again: its frames leave the slot here and are
+        // dropped once the slot borrow ends, as retirement drops them.
+        let mut finished_frames = Vec::new();
         if let Some(slot) = slots.get_mut(&self.id) {
             // The terminal moves into the slot: a publication is not cloned to be dropped here.
             let terminal = std::mem::replace(&mut self.terminal, Terminal::Retry);
@@ -263,6 +275,9 @@ impl Drop for Invocation<'_> {
                 },
                 Terminal::Failed(error) => State::Failed(error),
             };
+            if matches!(slot.state, State::Published(_) | State::Failed(_)) {
+                finished_frames = std::mem::take(&mut slot.scratch);
+            }
             committed_outcome = match slot.state {
                 State::Dormant => OUTCOME_RETRY,
                 State::Suspended => OUTCOME_SUSPENDED,
@@ -274,6 +289,7 @@ impl Drop for Invocation<'_> {
             };
         }
         drop(slots);
+        drop(finished_frames);
         self.execution.wake_retirements(self.state, self.id);
         if let (Some(started), Some(region)) = (
             self.started,

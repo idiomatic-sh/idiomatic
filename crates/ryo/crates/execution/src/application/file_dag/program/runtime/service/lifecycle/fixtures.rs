@@ -60,9 +60,9 @@ impl KernelInvocation for RuntimeProbe {
         _: &crate::application::file_dag::program::runtime::service::ReadySelection<'_, '_>,
         _: &[AdmittedInput],
         _: &mut OperatorContext<'_>,
-    ) -> Result<(), OperatingError> {
+    ) -> Result<crate::application::file_dag::program::runtime::types::Submission, OperatingError> {
         // These lifecycle controls exercise ordinary invocation, not selection sharing.
-        Ok(())
+        Ok(crate::application::file_dag::program::runtime::types::Submission::Declined)
     }
     fn ordered(
         &self,

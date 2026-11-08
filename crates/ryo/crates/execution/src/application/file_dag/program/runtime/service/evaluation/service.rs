@@ -12,6 +12,7 @@ use crate::application::file_dag::program::runtime::types::KernelInput;
 use crate::application::file_dag::program::runtime::types::{
     InstructionIndex, PollMode, StageProgress,
 };
+use crate::application::file_dag::program::runtime::types::Submission;
 use ryo_execution_domain::domain::executable_program::types::DemandAction;
 use ryo_execution_domain::domain::executable_program::types::InputId;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
@@ -189,18 +190,22 @@ impl ProgramExecution {
                         generation = ?Arc::as_ptr(&self.generation), population = ?population);
                 }
             }
-            kernels
+            let joined = kernels
                 .ready(&ReadySelection { permit: &permit }, &admitted, context)
                 .map_err(InvocationFailure::Semantic)?;
             progress.ready = StageProgress::Done;
-        }
-        if prepare_only == PollMode::PrepareOnly {
+            // A region that joined a shared walk waits for its cohort; any other is evaluated now.
+            if prepare_only == PollMode::PrepareOnly && joined == Submission::Submitted {
+                return Ok(InvocationOutcome::Ready);
+            }
+        } else if prepare_only == PollMode::PrepareOnly {
             return Ok(InvocationOutcome::Ready);
         }
-        let frames = call
-            .frames
-            .as_mut()
-            .ok_or_else(|| InvocationFailure::Semantic(OperatingError::NotRun))?;
+        if prepare_only == PollMode::PrepareOnly {
+            // The queue counts the evaluations it dispatches; this one ran in its preparation poll.
+            self.readiness_counts.borrow_mut().evaluations.0 += 1;
+        }
+        let frames = super::super::invocation::service::frames(call.frames, region)?;
         let last = region
             .instructions()
             .last()

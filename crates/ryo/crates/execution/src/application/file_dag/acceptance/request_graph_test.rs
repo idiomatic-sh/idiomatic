@@ -16,6 +16,7 @@ enum Scenario {
     Origins,
     Bindings,
     Duplicates,
+    DerivedText,
     Dependencies,
     InvalidContractShape,
 }
@@ -39,6 +40,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("duplicate_steps_share_physical_identity"),
         word: Word::Succeeds,
         input: || Scenario::Duplicates,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("equal_derived_text_steps_of_different_rules_share_one_producer"),
+        word: Word::Succeeds,
+        input: || Scenario::DerivedText,
         expect: Expect::Value(()),
     },
     Case {
@@ -120,6 +127,22 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             assert_eq!(graph.program_nodes[0][1].as_ref().unwrap(), node);
             assert_eq!(graph.program_nodes[1][0].as_ref().unwrap(), node);
             assert_eq!(graph.program_nodes[1][1].as_ref().unwrap(), node);
+        }
+        Scenario::DerivedText => {
+            // Derived text belongs to the file being read, not to a rule: the same replacement over the
+            // same rows is computed once for every rule that writes it.
+            let mut replaced = first;
+            replaced.steps[1].operation = Operation::Replace {
+                from: InputSource::Step(StepId(0)),
+                text: ColumnIndex(1),
+                pattern: LiteralText("a".into()),
+                replacement: LiteralText("b".into()),
+            };
+            let graph = graph(&[replaced.clone(), replaced], &[vec![], vec![]])?;
+            assert_eq!(
+                graph.program_nodes[0][1].as_ref().expect("first derived text producer"),
+                graph.program_nodes[1][1].as_ref().expect("second derived text producer"),
+            );
         }
         Scenario::Dependencies => {
             use ryo_execution_domain::domain::operator::contract::types::DemandOrder;

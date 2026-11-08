@@ -22,7 +22,7 @@ impl KernelInvocation for ReadyAdapter<'_> {
         ready: &ReadySelection<'_, '_>,
         inputs: &[AdmittedInput],
         context: &mut OperatorContext<'_>,
-    ) -> Result<(), OperatingError> {
+    ) -> Result<crate::application::file_dag::program::runtime::types::Submission, OperatingError> {
         let logical = ready.permit().descriptor().logical();
         {
             let events = self.events.0.lock().unwrap();
@@ -38,7 +38,8 @@ impl KernelInvocation for ReadyAdapter<'_> {
         }
         if self.omitted == Some(logical) {
             self.skipped.set(self.skipped.get() + 1);
-            return Ok(());
+            // The skipped head still waits for its cohort, as a submitted one would.
+            return Ok(crate::application::file_dag::program::runtime::types::Submission::Submitted);
         }
         self.actual.ready(ready, inputs, context)
     }

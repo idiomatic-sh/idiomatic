@@ -43,19 +43,15 @@ fn nested_demand_preserves_both_frames_and_exact_semantic_failure() {
         Err(OperatingError::WrongBinding)
     ));
     let slots = execution.file_state().slots.borrow();
-    for (at, root) in roots.into_iter().enumerate() {
+    // Each frame was its own root's while it ran (the probe asserts it inside the nested call); a failed
+    // region is never evaluated again, so its frames leave the slot.
+    for root in roots {
         let slot = &slots[&root];
         assert!(matches!(
             slot.state,
             State::Failed(OperatingError::WrongBinding)
         ));
-        assert_eq!(
-            slot.scratch[0].ordered_row,
-            vec![ryo_relations::domain::relations::types::Value::Number(
-                ryo_relations::domain::relations::types::Integer(100 + at as i64)
-            )],
-            "each nested scratch frame returns to its own root"
-        );
+        assert!(slot.scratch.is_empty(), "a failed region holds no frames");
     }
     drop(slots);
     assert!(matches!(
@@ -153,7 +149,10 @@ fn downstream_error_keeps_publication_and_retry_does_not_repeat_semantics() {
     {
         let slots = execution.file_state().slots.borrow();
         assert!(matches!(slots[&roots[0]].state, State::Published(_)));
-        assert_eq!(slots[&roots[0]].scratch[0].ordered_row.len(), 1);
+        assert!(
+            slots[&roots[0]].scratch.is_empty(),
+            "a published region holds no frames: a retry replays its publication"
+        );
     }
     let mut accept = Sink {
         mode: SinkMode::Accept,

@@ -91,6 +91,13 @@ pub(crate) enum StageProgress {
     Done,
 }
 
+/// Whether the admitted source joined the shared walk.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Submission {
+    Submitted,
+    Declined,
+}
+
 /// Whether a poll only prepares the region for evaluation or evaluates it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum PollMode {

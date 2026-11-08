@@ -274,7 +274,9 @@ pub(crate) fn prepare_for(
         literal_pattern,
         predicates,
         effects,
-        reuse: if effects == Effects::Pure && super::resources::binding_dependent(operation) == super::resources::BindingUse::Independent {
+        // Derived and physical text belong to the file, not to a rule: only a binding or the request's own
+        // source makes equal operations of different rules answer differently.
+        reuse: if effects != Effects::RequestSource && super::resources::binding_dependent(operation) == super::resources::BindingUse::Independent {
             ReuseScope::Request
         } else {
             ReuseScope::Rule
