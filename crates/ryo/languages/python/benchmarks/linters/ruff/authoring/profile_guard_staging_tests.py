@@ -68,7 +68,7 @@ def guards_5(fake_runner, manifest, root, temporary) -> tuple[int, tuple]:
         return 1, ()
     result_path = durable / 'profiles' / 'mock' / 'result.json'
     result = json.loads(result_path.read_text(encoding='utf-8'))
-    if len(calls) != 1 or calls[0][0] != command or (not calls[0][1]['capture_output']) or calls[0][1]['text'] or ((durable / 'profiles' / 'mock' / 'stdout.bin').read_bytes() != fake_output.stdout) or ((durable / 'profiles' / 'mock' / 'stderr.bin').read_bytes() != fake_output.stderr) or (result['status'] != 7) or (result['identities']['identity'] != 'sealed') or (result['identities']['worker']['executable']['sha256'] != profile_config.sha256(mock_executable)) or (result['staged_inputs'] != {'benchmark.toml': profile_config.sha256(repro / 'benchmark.toml')}):
+    if len(calls) != 1 or calls[0][0] != profile_worker.with_case_receipts(command, durable / 'profiles' / 'mock' / 'cases.jsonl') or (not calls[0][1]['capture_output']) or calls[0][1]['text'] or ((durable / 'profiles' / 'mock' / 'stdout.bin').read_bytes() != fake_output.stdout) or ((durable / 'profiles' / 'mock' / 'stderr.bin').read_bytes() != fake_output.stderr) or (result['status'] != 7) or (result['identities']['identity'] != 'sealed') or (result['identities']['worker']['executable']['sha256'] != profile_config.sha256(mock_executable)) or (result['staged_inputs'] != {'benchmark.toml': profile_config.sha256(repro / 'benchmark.toml')}):
         print('durable verifier output or identities were not preserved', file=sys.stderr)
         return 1, ()
     fake_worker = root / 'ruff-fake-worker'
@@ -276,7 +276,9 @@ def guards_7(expanded_descriptor, manifest, root, shape_descriptor) -> tuple[int
                     raise FileNotFoundError(f'archived candidate is missing: {relative}')
                 restored = member.read()
             else:
-                restored = (profile_config.REPOSITORY / entry['active_path']).read_bytes()
+                # The active query has moved on since the normalization; the frozen
+                # bytes are the old path at the normalization's source commit.
+                restored = subprocess.run(['git', '-C', str(profile_config.REPOSITORY), 'show', f"{normalization['source_commit']}:{relative}"], check=True, capture_output=True).stdout
             if hashlib.sha256(restored).hexdigest() != expected_hash:
                 raise ValueError(f'frozen input bytes changed during canonical path migration: {relative}')
             destination.write_bytes(restored)
