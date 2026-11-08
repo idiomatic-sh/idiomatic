@@ -109,7 +109,7 @@ pub(super) fn lease_bytes(key_capacity: SlotCount) -> Result<ByteCount, Operatin
                 .and_then(|keys| base.checked_add(keys))
         })
         .map(ByteCount)
-        .ok_or(OperatingError::ShapeMismatch)
+        .ok_or_else(|| OperatingError::ShapeMismatch)
 }
 
 pub(crate) fn append_backing(

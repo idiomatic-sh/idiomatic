@@ -33,6 +33,14 @@ ruff_text_size = "=0.0.18"
 unicode-properties = { version = "=0.1.4", default-features = false, features = ["general-category"] }
 ryo = { package = "idiomatic-sh-ryo-sdk", path = "../../crates/sdk", version = "0.1.2" }
 
+# The worker binary runs on the allocator the command line ships (ruff and uv ship the same): jemalloc where it builds,
+# mimalloc on Windows.
+[target.'cfg(all(not(target_os = "windows"), not(target_os = "openbsd"), not(target_os = "aix"), not(target_os = "android"), any(target_arch = "x86_64", target_arch = "aarch64", target_arch = "powerpc64", target_arch = "riscv64")))'.dev-dependencies]
+tikv-jemallocator.workspace = true
+
+[target.'cfg(target_os = "windows")'.dev-dependencies]
+mimalloc.workspace = true
+
 [dev-dependencies]
 ryo-benchmark-contracts = { package = "idiomatic-sh-ryo-benchmark-contracts", path = "../../crates/benchmark_contracts", version = "0.1.2" }
 sha2.workspace = true

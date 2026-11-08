@@ -13,7 +13,7 @@ impl RelationOwner {
     ) -> Result<PopulationId, OperatingError> {
         let id = self.next_population.get();
         self.next_population.set(PopulationId(
-            id.0.checked_add(1).ok_or(OperatingError::ShapeMismatch)?,
+            id.0.checked_add(1).ok_or_else(|| OperatingError::ShapeMismatch)?,
         ));
         Ok(id)
     }

@@ -24,7 +24,7 @@ impl RelationOwner {
         let record = result
             .as_any()
             .downcast_ref::<RelationResult>()
-            .ok_or(OperatingError::NotRead)?;
+            .ok_or_else(|| OperatingError::NotRead)?;
         self.generation(record)?;
         Ok(record)
     }

@@ -43,7 +43,7 @@ pub(crate) fn evaluate(
             .inputs
             .partitioned_closure
             .as_mut()
-            .ok_or(OperatingError::NotRun)?
+            .ok_or_else(|| OperatingError::NotRun)?
             .advance()?;
         if available == ryo_execution_store::application::file_dag::closure_partitions::types::PartitionAdvance::Exhausted {
             return Ok(());

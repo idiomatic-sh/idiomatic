@@ -99,7 +99,7 @@ impl ProjectSources<'_> {
                         .as_ref()
                         .map_err(Clone::clone)?
                         .get(member)
-                        .ok_or(OperatingError::NotRun)?;
+                        .ok_or_else(|| OperatingError::NotRun)?;
                     let producer = match proof {
                         crate::application::file_dag::frontiers::types::BoundMember::Current(
                             actual,

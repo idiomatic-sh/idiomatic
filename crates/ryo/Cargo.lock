@@ -1313,6 +1313,7 @@ dependencies = [
  "idiomatic-sh-ryo-benchmark-contracts",
  "idiomatic-sh-ryo-sdk",
  "idiomatic-sh-ryo-values",
+ "rayon",
  "serde",
  "serde_json",
  "sha2",
@@ -1607,6 +1608,7 @@ dependencies = [
  "idiomatic-sh-ryo-python",
  "idiomatic-sh-ryo-sdk",
  "indexmap",
+ "mimalloc",
  "pep508_rs",
  "postcard",
  "pyproject-toml",
@@ -1619,6 +1621,7 @@ dependencies = [
  "strum",
  "tempfile",
  "thiserror 2.0.20",
+ "tikv-jemallocator",
  "toml 1.1.4+spec-1.1.0",
  "unicode-properties",
 ]

@@ -32,7 +32,7 @@ impl ProgramExecution {
             self.program
                 .regions()
                 .get(root.0)
-                .ok_or(OperatingError::NotRun)?;
+                .ok_or_else(|| OperatingError::NotRun)?;
             let terminal = state.slots.borrow().get(&root).is_some_and(|slot| {
                 matches!(
                     slot.state,
@@ -79,13 +79,23 @@ impl ProgramExecution {
         state: &RuntimeState,
         id: RegionId,
     ) -> Result<Option<AdmittedInput>, OperatingError> {
+        self.published_with(state, id, AdmittedInput::clone)
+    }
+    /// What `published` answers, with the publication lent to `read` instead of cloned: a caller that only asks whether the
+    /// region has published pays no copy.
+    pub(crate) fn published_with<R>(
+        &self,
+        state: &RuntimeState,
+        id: RegionId,
+        read: impl FnOnce(&AdmittedInput) -> R,
+    ) -> Result<Option<R>, OperatingError> {
         self.validate_state(state)?;
         let slots = state.slots.borrow();
         let Some(slot) = slots.get(&id) else {
             self.program
                 .regions()
                 .get(id.0)
-                .ok_or(OperatingError::NotRun)?;
+                .ok_or_else(|| OperatingError::NotRun)?;
             return if state.dormant.borrow().get(&id) == Some(&ReaderCount(0)) {
                 Err(OperatingError::NotRun)
             } else {
@@ -93,7 +103,7 @@ impl ProgramExecution {
             };
         };
         match &slot.state {
-            State::Published(input) => Ok(Some(input.clone())),
+            State::Published(input) => Ok(Some(read(input))),
             State::Failed(error) => Err(error.clone()),
             State::Retired => Err(OperatingError::NotRun),
             _ => Ok(None),
@@ -137,7 +147,7 @@ impl ProgramExecution {
             .program
             .regions()
             .get(id.0)
-            .ok_or(OperatingError::NotRun)?
+            .ok_or_else(|| OperatingError::NotRun)?
             .producer();
         if state
             .slots
@@ -168,6 +178,6 @@ impl ProgramExecution {
         self.cleanup_status()?;
         published
             .map(InvocationOutcome::Published)
-            .ok_or(OperatingError::NotRun)
+            .ok_or_else(|| OperatingError::NotRun)
     }
 }

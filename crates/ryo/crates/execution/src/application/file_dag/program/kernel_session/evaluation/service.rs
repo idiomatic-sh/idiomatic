@@ -184,7 +184,7 @@ impl super::super::KernelSession<'_, '_> {
                                 PreparedInputs::Views(&views),
                                 resources
                                     .as_mut()
-                                    .ok_or(InvocationFailure::Semantic(OperatingError::NotRun))?,
+                                    .ok_or_else(|| InvocationFailure::Semantic(OperatingError::NotRun))?,
                                 workspace,
                                 context,
                                 output,
@@ -199,7 +199,7 @@ impl super::super::KernelSession<'_, '_> {
                                 ryo_values::domain::plans::types::Operation::Rows { .. } => {
                                     RepresentationInput::Computed(&empty)
                                 }
-                                _ => views.first().copied().ok_or(InvocationFailure::Semantic(
+                                _ => views.first().copied().ok_or_else(|| InvocationFailure::Semantic(
                                     OperatingError::MissingInput { position: 1 },
                                 ))?,
                             };
@@ -211,7 +211,7 @@ impl super::super::KernelSession<'_, '_> {
                                 PreparedInputs::RequestSource(&source),
                                 resources
                                     .as_mut()
-                                    .ok_or(InvocationFailure::Semantic(OperatingError::NotRun))?,
+                                    .ok_or_else(|| InvocationFailure::Semantic(OperatingError::NotRun))?,
                                 workspace,
                                 context,
                                 output,
@@ -225,7 +225,7 @@ impl super::super::KernelSession<'_, '_> {
                             let primary_shift = u32::try_from(primary.0).map_err(|_| {
                                 InvocationFailure::Semantic(OperatingError::WrongOperation)
                             })?;
-                            let primary_bit = 1_u8.checked_shl(primary_shift).ok_or(
+                            let primary_bit = 1_u8.checked_shl(primary_shift).ok_or_else(|| 
                                 InvocationFailure::Semantic(OperatingError::WrongOperation),
                             )?;
                             if row_inputs == 0 || row_inputs & primary_bit == 0 {
@@ -248,7 +248,7 @@ impl super::super::KernelSession<'_, '_> {
                                     continue;
                                 }
                                 for at in 0..count_of(source).0 {
-                                    let row = read_row(source, RowIndex(at), &mut cells).ok_or(
+                                    let row = read_row(source, RowIndex(at), &mut cells).ok_or_else(|| 
                                         InvocationFailure::Semantic(OperatingError::ShapeMismatch),
                                     )?;
                                     workspace.work().found(ryo_values::domain::plan_parts::types::InputNumber(input), ryo_execution_domain::domain::operator::contract::types::FoundRows(1));
@@ -289,7 +289,7 @@ impl super::super::KernelSession<'_, '_> {
                                             sides: &views,
                                             row,
                                         },
-                                        resources.as_mut().ok_or(InvocationFailure::Semantic(
+                                        resources.as_mut().ok_or_else(|| InvocationFailure::Semantic(
                                             OperatingError::NotRun,
                                         ))?,
                                         workspace,

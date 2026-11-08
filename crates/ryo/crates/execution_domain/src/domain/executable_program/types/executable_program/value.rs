@@ -15,6 +15,8 @@ pub struct ExecutableProgram {
     rules: Box<[RuleProgram]>,
     logical_regions: Box<[RegionId]>,
     observation_regions: Box<[Result<RegionId, OperatingError>]>,
+    /// The partition requirement of each relation source: the first region declaring it decides, found once per program.
+    relation_partitions: rustc_hash::FxHashMap<ryo_relations::domain::relations::types::Relation, PartitionRequirement>,
     /// The fusion classification of every instruction, indexed by its logical number.
     #[cfg(any(test, feature = "fixtures"))]
     fusibility: Box<[crate::domain::executable_program::fusion::types::Fusibility]>,
@@ -29,8 +31,17 @@ impl ExecutableProgram {
         logical_regions: Box<[RegionId]>,
         observation_regions: Box<[Result<RegionId, OperatingError>]>,
     ) -> Self {
+        let mut relation_partitions = rustc_hash::FxHashMap::default();
+        for declaration in regions.iter().flat_map(|region| region.source_partitions().iter()) {
+            if let InputSource::Relation(relation) = declaration.source {
+                let _first = relation_partitions
+                    .entry(relation)
+                    .or_insert(declaration.requirement);
+            }
+        }
         Self {
             regions,
+            relation_partitions,
             file_readers,
             rules,
             logical_regions,
@@ -101,12 +112,10 @@ impl ExecutableProgram {
                 .map(super::super::instruction::value::Instruction::partition)
         };
         match source {
-            InputSource::Relation(_) => self
-                .regions
-                .iter()
-                .flat_map(|region| region.source_partitions().iter())
-                .find(|declaration| declaration.source == source)
-                .map(|declaration| declaration.requirement)
+            InputSource::Relation(relation) => self
+                .relation_partitions
+                .get(&relation)
+                .copied()
                 .ok_or(OperatingError::NotRead),
             InputSource::Region(id) => self
                 .regions

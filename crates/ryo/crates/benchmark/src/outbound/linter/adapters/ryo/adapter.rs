@@ -99,7 +99,9 @@ impl LinterPort for LinterRyoAdapter {
         Ok(Invocation {
             executable: self.executable.clone(),
             arguments,
-            environment: std::collections::BTreeMap::default(),
+            environment: [(constants::WORKERS_ENV.into(), constants::ONE_WORKER.into())]
+                .into_iter()
+                .collect(),
             directory: request.root.clone(),
         })
     }

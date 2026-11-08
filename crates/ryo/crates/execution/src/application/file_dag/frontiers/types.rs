@@ -132,7 +132,8 @@ pub(crate) enum FrontierInput {
     Compact {
         input: ryo_values::domain::plan_parts::types::Input,
         table: std::sync::Arc<ryo_values::domain::table_words::types::CompactTable>,
-        spelling: Vec<ryo_relations::domain::relations::types::Name>,
+        /// Shared by every root the decode is relabelled for: one copy per decode, not per root.
+        spelling: std::sync::Arc<[ryo_relations::domain::relations::types::Name]>,
         coverage: ryo_execution_domain::domain::completion::types::CoverageState,
     },
     /// Read from the store and proven, not yet decoded: the first demand admits it.

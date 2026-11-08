@@ -52,10 +52,10 @@ impl Ledger {
             entry.handles = entry
                 .handles
                 .checked_add(HoldCount(1))
-                .ok_or(OperatingError::ShapeMismatch)?;
+                .ok_or_else(|| OperatingError::ShapeMismatch)?;
             keys = keys
                 .checked_add(lease.keys.len())
-                .ok_or(OperatingError::ShapeMismatch)?;
+                .ok_or_else(|| OperatingError::ShapeMismatch)?;
         }
         let mut references = FxHashMap::<BackingKey, HoldCount>::default();
         if references.try_reserve(keys).is_err() {
@@ -69,7 +69,7 @@ impl Ledger {
                 let count = references.entry(*key).or_default();
                 *count = count
                     .checked_add(HoldCount(1))
-                    .ok_or(OperatingError::ShapeMismatch)?;
+                    .ok_or_else(|| OperatingError::ShapeMismatch)?;
             }
         }
         let mut bytes = ByteCount(0);
@@ -78,19 +78,19 @@ impl Ledger {
             let entry = self
                 .entries
                 .get(&key)
-                .ok_or(OperatingError::ShapeMismatch)?;
+                .ok_or_else(|| OperatingError::ShapeMismatch)?;
             if releasing > entry.optional {
                 return Err(OperatingError::ShapeMismatch);
             }
             if releasing == entry.optional {
                 units = units
                     .checked_add(entry.retention_units)
-                    .ok_or(OperatingError::ShapeMismatch)?;
+                    .ok_or_else(|| OperatingError::ShapeMismatch)?;
             }
             if releasing == entry.optional && entry.required == HoldCount(0) {
                 bytes = bytes
                     .checked_add(entry.bytes)
-                    .ok_or(OperatingError::ShapeMismatch)?;
+                    .ok_or_else(|| OperatingError::ShapeMismatch)?;
             }
         }
         Ok(Some(Credit { bytes, units }))

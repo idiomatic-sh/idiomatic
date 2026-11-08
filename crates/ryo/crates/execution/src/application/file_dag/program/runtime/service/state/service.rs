@@ -19,7 +19,7 @@ impl Slot {
         program: &ExecutableProgram,
         id: RegionId,
     ) -> Result<&'a mut Slot, OperatingError> {
-        let region = program.regions().get(id.0).ok_or(OperatingError::NotRun)?;
+        let region = program.regions().get(id.0).ok_or_else(|| OperatingError::NotRun)?;
         let vacant = match slots.entry(id) {
             std::collections::hash_map::Entry::Occupied(entry) => return Ok(entry.into_mut()),
             std::collections::hash_map::Entry::Vacant(entry) => entry,
@@ -99,7 +99,7 @@ impl RuntimeState {
                 .regions()
                 .get(id.0)
                 .map(|region| ReaderCount(region.consumers().0))
-                .ok_or(OperatingError::NotRun),
+                .ok_or_else(|| OperatingError::NotRun),
             RootReaders::Selected(selected) => {
                 Ok(ReaderCount(ryo_execution_domain::domain::executable_program::file_demand::service::reader_count(selected, id).0))
             }

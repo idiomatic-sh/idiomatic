@@ -37,7 +37,7 @@ impl SourceInputs<'_, '_> {
                 .program()
                 .regions()
                 .get(region.0)
-                .ok_or(OperatingError::NotRun)?;
+                .ok_or_else(|| OperatingError::NotRun)?;
             let ordered = ryo_execution_domain::domain::executable_program::service::ordered_existence(
                 &code.route(),
             )
@@ -49,7 +49,7 @@ impl SourceInputs<'_, '_> {
             let instruction = code
                 .instructions()
                 .first()
-                .ok_or(OperatingError::NotRun)?;
+                .ok_or_else(|| OperatingError::NotRun)?;
             let contributions = inputs
                 .iter()
                 .enumerate()
@@ -60,7 +60,7 @@ impl SourceInputs<'_, '_> {
                             .regions()
                             .get(shape.source.0)
                             .and_then(|source| source.instructions().last())
-                            .ok_or(OperatingError::NotRun)?
+                            .ok_or_else(|| OperatingError::NotRun)?
                             .contract()
                             .output_kinds
                             .as_ref()
@@ -70,7 +70,7 @@ impl SourceInputs<'_, '_> {
                             .contract()
                             .input_kinds
                             .get(ordinal)
-                            .ok_or(OperatingError::NotRun)?
+                            .ok_or_else(|| OperatingError::NotRun)?
                     };
                     // Where the operand's rows come from, as the compiler found it for the input the instruction reads.
                     let lineage = if let Some(shape) = ordered {
