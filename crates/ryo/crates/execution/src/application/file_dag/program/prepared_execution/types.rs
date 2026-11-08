@@ -8,9 +8,8 @@ use std::sync::Arc;
 /// ```compile_fail,E0603
 /// use ryo_execution::domain::executable_program::service::compile;
 /// ```
-/// ```compile_fail,E0603
-/// use ryo_execution_store::application::file_dag::relations::RelationOwner;
-/// ```
+/// The store's owners (`ryo_execution_store::application::file_dag::relations::RelationOwner` and the rest) are
+/// public to the engine crates; `idiomatic.arch/library-surface` keeps every other crate to the store's derived port.
 /// There is no production strategy selector: the removed public kernel-strategy
 /// choice and the tree-step choice no longer resolve, and no execution API names them.
 /// ```compile_fail,E0432
