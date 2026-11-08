@@ -19,7 +19,8 @@ BUILDERS_AUTHOR = ("Builders author; the integrator compiles. cargo builds only 
                    "(branch claude/checkpoint-N); builders may run " + CHECK_FORM)
 COMMENT = re.compile(r"(^|\s)#.*$", re.MULTILINE)
 CONSOLIDATION = "claude/ryo-consolidation"
-EVIDENCE = "crates/ryo/docs/contracts/evidence/checkpoint/"
+EVIDENCE_ROOT = "crates/ryo/docs/contracts/evidence/"
+EVIDENCE = EVIDENCE_ROOT + "checkpoint/"
 RUST_REVIEW = EVIDENCE + "rust-review.json"
 BOOTSTRAP_HEAD = "171789169e"  # checkpoint 329: landed before the leak and TM agents existed
 PREVIOUS_REVIEWS = (("contract-review.json", "contract-review"), ("leak-review.json", "leak-review"),
@@ -54,6 +55,16 @@ def segments(text):
 WRAPPERS = {"env", "time", "exec", "nohup", "command", "nice"}
 
 
+def shell_command(words):
+    """The command string of `bash|sh|zsh -c` (also -lc, -ec ...), or None."""
+    if not words or words[0] not in ("bash", "sh", "zsh"):
+        return None
+    for i, w in enumerate(words[1:], 1):
+        if re.fullmatch(r"-[A-Za-z]*c[A-Za-z]*", w):
+            return words[i + 1] if i + 1 < len(words) else None
+    return None
+
+
 def runs_cargo_verb(words):
     """True when the word list is a command that runs cargo with a build verb, directly or through a wrapper."""
     while words and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*=.*", words[0]):
@@ -67,8 +78,9 @@ def runs_cargo_verb(words):
         while rest and rest[0].startswith("-"):
             rest = rest[2:] if rest[0] in ("-w", "-E", "--timeout", "--conflict-exit-code") else rest[1:]
         return runs_cargo_verb(rest[1:])
-    if words[0] in ("bash", "sh", "zsh") and "-c" in words and words.index("-c") + 1 < len(words):
-        return has_cargo_command(words[words.index("-c") + 1])
+    inner = shell_command(words)
+    if inner is not None:
+        return has_cargo_command(inner)
     if words[0] == "cargo":
         rest = [w for w in words[1:] if not w.startswith("+")]
         return next((w for w in rest if not w.startswith("-")), "") in CARGO_BUILDS
@@ -228,8 +240,8 @@ def tm_fix(words, command):
     return None
 
 
-def git_push(words):
-    """The -C directory and the arguments of a `git push`, or None when the words are not one."""
+def git_verb(words, verb):
+    """The -C directory and the operands of `git <verb>`, or None when the words are not one."""
     if len(words) < 2 or words[0] != "git":
         return None
     directory, i = None, 1
@@ -241,7 +253,7 @@ def git_push(words):
             i += 2
         else:
             i += 1
-    if i >= len(words) or words[i] != "push":
+    if i >= len(words) or words[i] != verb:
         return None
     return directory, words[i + 1:]
 
@@ -286,9 +298,17 @@ def consolidation_targets(tree, push):
     return [t for t in push_targets(tree, push) if t[2] == CONSOLIDATION]
 
 
+def bulk_push(words, here):
+    """git push --all / --mirror would push refs no gate has looked at; this repository refuses them."""
+    push = git_verb(words, "push")
+    if push is not None and any(a in ("--all", "--mirror", "--branches") for a in push[1]):
+        return "git push --all/--mirror/--branches pushes refs no gate checked; push each branch by name"
+    return None
+
+
 def rust_review(words, here):
     """A push of claude/ryo-consolidation needs the pushed ref's rust-review.json at PASS with a source it contains."""
-    push = git_push(words)
+    push = git_verb(words, "push")
     if push is None:
         return None
     tree = os.path.join(here, push[0]) if push[0] else here
@@ -328,14 +348,14 @@ def previous_head(tree, remote):
     return words[0] if code == 0 and words else None
 
 
-def stands_for(tree, source, head):
-    """True when source is head, or an ancestor of head with only evidence files changed since."""
+def stands_for(tree, source, head, prefix):
+    """True when source is head, or an ancestor of head with only files under prefix changed since."""
     if source == head:
         return True
     if git_out(tree, "merge-base", "--is-ancestor", source, head)[0] != 0:
         return False
     code, out = git_out(tree, "diff", "--name-only", source, head)
-    return code == 0 and all(line.startswith(EVIDENCE) for line in out.split())
+    return code == 0 and all(line.startswith(prefix) for line in out.split())
 
 
 def previous_reviews(words, here):
@@ -345,7 +365,7 @@ def previous_reviews(words, here):
     At the bootstrap head only contract-review.json is required: the leak and TM agents did not exist then.
     The reviews are read from the pushed ref.
     """
-    push = git_push(words)
+    push = git_verb(words, "push")
     if push is None:
         return None
     tree = os.path.join(here, push[0]) if push[0] else here
@@ -370,7 +390,7 @@ def previous_reviews(words, here):
                 return refused + EVIDENCE + name + " at " + source + " has no \"verdict\"; " + run
             reviewed = review.get("source")
             if not isinstance(reviewed, str) or not reviewed or reviewed.startswith("-") or \
-                    not stands_for(tree, reviewed, head):
+                    not stands_for(tree, reviewed, head, EVIDENCE):
                 return (refused + "the source " + repr(reviewed) + " in " + EVIDENCE + name +
                         " is not the previous landed head " + head +
                         " (or an ancestor with only evidence changed since); " + run)
@@ -418,7 +438,7 @@ def branch_range(tree, remote, sha):
 
 def perf_gate(words, here):
     """A push with a `perf` commit needs a diagnosis added in the pushed range (and, for claimed numbers, an after.json)."""
-    push = git_push(words)
+    push = git_verb(words, "push")
     if push is None:
         return None
     tree = os.path.join(here, push[0]) if push[0] else here
@@ -434,6 +454,12 @@ def perf_gate(words, here):
         if found:
             return found
     return None
+
+
+def names_pushed_work(tree, source, sha, commits):
+    """True when source is a commit of the pushed range that is sha or has only evidence files changed before sha."""
+    found = rev(tree, source) if isinstance(source, str) else None
+    return found is not None and found in commits and stands_for(tree, found, sha, EVIDENCE_ROOT)
 
 
 def perf_problem(tree, remote, sha, branch, perf):
@@ -474,8 +500,9 @@ def perf_problem(tree, remote, sha, branch, perf):
                 problems.append("a perf commit claims a number but " + after + " lacks before, after and identical_output")
             elif record["identical_output"] is not True:
                 problems.append(after + " has identical_output other than true")
-            elif rev(tree, record.get("source") if isinstance(record.get("source"), str) else "") not in commits:
-                problems.append(after + " has no \"source\" naming a commit in the pushed range")
+            elif not names_pushed_work(tree, record.get("source"), sha, commits):
+                problems.append(after + " has no \"source\" that is the pushed sha, or a commit in the pushed range "
+                                "with only " + EVIDENCE_ROOT + " files changed since")
             else:
                 return None
     if not diagnoses:
@@ -487,24 +514,6 @@ MERGE_VALUE_OPTIONS = {"-m", "-F", "-s", "-X", "--into-name", "--file", "--strat
 MERGE_CONTROL = {"--abort", "--continue", "--quit"}
 CHECKPOINT = re.compile(r"claude/checkpoint-\d+")
 SHELL_EXPANDED = re.compile(r"[$`*?{}\\]")
-
-
-def git_verb(words, verb):
-    """The -C directory and the operands of `git <verb>`, or None when the words are not one."""
-    if len(words) < 2 or words[0] != "git":
-        return None
-    directory, i = None, 1
-    while i < len(words) and words[i].startswith("-"):
-        if words[i] == "-C" and i + 1 < len(words):
-            directory = words[i + 1]
-            i += 2
-        elif words[i] in ("-c", "--git-dir", "--work-tree") and i + 1 < len(words):
-            i += 2
-        else:
-            i += 1
-    if i >= len(words) or words[i] != verb:
-        return None
-    return directory, words[i + 1:]
 
 
 def git_merge(words):
@@ -621,9 +630,10 @@ def unwrapped(words, depth=0):
             words = rest[1:]
         else:
             break
-    if words and words[0] in ("bash", "sh", "zsh") and "-c" in words and words.index("-c") + 1 < len(words) and depth < 4:
+    inner = shell_command(words) if words else None
+    if inner is not None and depth < 4:
         found = []
-        for segment in segments(words[words.index("-c") + 1]):
+        for segment in segments(inner):
             found += unwrapped(tokens(segment), depth + 1)
         return found
     return [words]
@@ -673,7 +683,7 @@ def reason(command, cwd=None):
             if found:
                 return found
         for inner in unwrapped(words):
-            for found in (rust_review(inner, here), previous_reviews(inner, here), perf_gate(inner, here),
+            for found in (bulk_push(inner, here), rust_review(inner, here), previous_reviews(inner, here), perf_gate(inner, here),
                           branch_review(inner, here)):
                 if found:
                     return found

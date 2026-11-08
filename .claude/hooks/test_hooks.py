@@ -430,6 +430,37 @@ class PerfGate(unittest.TestCase):
                 done = run_hook("guard_shell.py", {"tool_input": {"command": command}, "cwd": self.tree})
                 self.assertEqual(done.returncode, 2)
 
+    def test_a_later_number_claim_cannot_ride_an_older_after(self):
+        self.diagnosis()
+        with open(os.path.join(self.tree, "engine.rs"), "w", encoding="utf-8") as handle:
+            handle.write("p11\n")
+        git(self.tree, "add", "engine.rs")
+        git(self.tree, "commit", "-q", "-m", "perf(engine): p11, 12s to 8s")
+        self.write("after.json", {"before": [], "after": [], "identical_output": True,
+                                  "source": git(self.tree, "rev-parse", "HEAD")})
+        self.assertEqual(self.push().returncode, 0)
+        with open(os.path.join(self.tree, "engine.rs"), "w", encoding="utf-8") as handle:
+            handle.write("p13\n")
+        git(self.tree, "commit", "-q", "-am", "perf(engine): p13, 12s to 4s")
+        result = self.push()
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("only crates/ryo/docs/contracts/evidence/ files changed since", result.stderr)
+
+    def test_push_all_and_mirror_are_refused(self):
+        for command in ["git push --all origin", "git push --mirror", "env git push origin --all"]:
+            with self.subTest(command=command):
+                done = run_hook("guard_shell.py", {"tool_input": {"command": command}, "cwd": self.tree})
+                self.assertEqual(done.returncode, 2)
+
+    def test_login_shell_c_is_unwrapped(self):
+        self.perf()
+        for command in ["bash -lc 'git push origin claude/p6-speed'", "sh -ec 'git push origin claude/p6-speed'"]:
+            with self.subTest(command=command):
+                done = run_hook("guard_shell.py", {"tool_input": {"command": command}, "cwd": self.tree})
+                self.assertEqual(done.returncode, 2)
+        done = run_hook("guard_shell.py", {"tool_input": {"command": "bash -lc 'cargo build'"}, "cwd": self.tree})
+        self.assertEqual(done.returncode, 2)
+
     def test_no_perf_commit_passes(self):
         git(self.tree, "commit", "-q", "--allow-empty", "-m", "fix: 3s typo")
         self.assertEqual(self.push().returncode, 0)
