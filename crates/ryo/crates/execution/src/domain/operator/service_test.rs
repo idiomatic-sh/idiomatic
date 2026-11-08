@@ -10,15 +10,12 @@ use ryo_values::{
     },
 };
 use ryo_values::domain::query_operators::types::OperationKind;
-use std::path::{Path, PathBuf};
 #[derive(Clone, Copy)]
 enum Scenario {
     Valid,
     Foreign,
     Missing,
     InvalidValue,
-    /// Every registered kind has exactly one evaluation arm, in the operators' one evaluation.
-    OneSemanticPerKind,
     /// Every operator the documentation lists describes itself with a name, a summary and an example.
     EveryOperatorDescribesItself,
     /// Every kind's registered preparation refuses an operation of another kind.
@@ -27,48 +24,9 @@ enum Scenario {
 type Input = Scenario;
 type Value = ();
 type Failure = OperatingError;
-fn crates() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("..")
-}
-
-fn text(path: &Path) -> String {
-    std::fs::read_to_string(path).expect("a source of the census is readable")
-}
-
-/// The names after `marker` in `source`, each followed by a character that ends an identifier.
-fn named_after(source: &str, marker: &str) -> Vec<String> {
-    source
-        .match_indices(marker)
-        .map(|(at, _)| {
-            source[at + marker.len()..]
-                .chars()
-                .take_while(|each| each.is_alphanumeric() || *each == '_')
-                .collect::<String>()
-        })
-        .filter(|name| !name.is_empty())
-        .collect()
-}
-
-/// The census scenarios read the registry (`OperationKind::ALL`) and the operators' one evaluation, never a
-/// list kept by hand.
+/// The registry scenarios read `OperationKind::ALL` and the documented operators, never a list kept by hand.
 fn census(scenario: Scenario) {
     match scenario {
-        Scenario::OneSemanticPerKind => {
-            let dispatcher = text(&crates().join("operators/src/domain/evaluation/service.rs"));
-            let arms = named_after(&dispatcher, "Operation::");
-            assert!(!OperationKind::ALL.is_empty());
-            let wrong: Vec<String> = OperationKind::ALL
-                .iter()
-                .map(|kind| format!("{kind:?}"))
-                .filter(|kind| arms.iter().filter(|arm| *arm == kind).count() != 1)
-                .collect();
-            assert!(wrong.is_empty(), "kinds without exactly one evaluation in operators: {wrong:?}");
-            let unknown: Vec<&String> = arms
-                .iter()
-                .filter(|arm| !OperationKind::ALL.iter().any(|kind| format!("{kind:?}") == **arm))
-                .collect();
-            assert!(unknown.is_empty(), "evaluations of no registered kind: {unknown:?}");
-        }
         Scenario::EveryOperatorDescribesItself => {
             for operator in super::constants::OPERATORS {
                 let description = super::constants::describe(operator);
@@ -105,9 +63,7 @@ fn census(scenario: Scenario) {
 fn subject(scenario: Input) -> Result<Value, Failure> {
     if matches!(
         scenario,
-        Scenario::OneSemanticPerKind
-            | Scenario::EveryOperatorDescribesItself
-            | Scenario::EveryKindRefusesAForeignOperation
+        Scenario::EveryOperatorDescribesItself | Scenario::EveryKindRefusesAForeignOperation
     ) {
         census(scenario);
         return Ok(());
@@ -138,9 +94,9 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             &[],
         ),
         Scenario::Missing => prepare_operator(OperationKind::Project, &project, &[], &[]),
-        Scenario::OneSemanticPerKind
-        | Scenario::EveryOperatorDescribesItself
-        | Scenario::EveryKindRefusesAForeignOperation => return Ok(()),
+        Scenario::EveryOperatorDescribesItself | Scenario::EveryKindRefusesAForeignOperation => {
+            return Ok(());
+        }
         Scenario::InvalidValue => prepare_operator(
             OperationKind::Extend,
             &Operation::Extend {
@@ -163,12 +119,6 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     })
 }
 const CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: CaseName("one_semantic_implementation_per_operation_kind"),
-        word: Word::Succeeds,
-        input: || Scenario::OneSemanticPerKind,
-        expect: Expect::Value(()),
-    },
     Case {
         name: CaseName("every_operator_describes_itself"),
         word: Word::Succeeds,

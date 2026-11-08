@@ -35,14 +35,14 @@ pub(in crate::application::file_dag) struct FrontierSource {
 /// root of one population (see `FrontierCache`); a clone shares the rows and never copies them.
 #[derive(Clone)]
 pub struct PreparedFrontiers {
-    pub(in crate::application::file_dag) producer: crate::domain::coverage::types::RuleIndex,
-    pub(in crate::application::file_dag) sources: std::sync::Arc<[FrontierSource]>,
-    pub(in crate::application::file_dag) rows: std::sync::Arc<[FrontierInput]>,
-    pub(in crate::application::file_dag) program:
+    pub(in crate::application::file_dag::frontiers) producer: crate::domain::coverage::types::RuleIndex,
+    pub(in crate::application::file_dag::frontiers) sources: std::sync::Arc<[FrontierSource]>,
+    pub(in crate::application::file_dag::frontiers) rows: std::sync::Arc<[FrontierInput]>,
+    pub(in crate::application::file_dag::frontiers) program:
         std::sync::Arc<crate::domain::executable_program::types::executable_program::value::ExecutableProgram>,
-    pub(in crate::application::file_dag) required:
+    pub(in crate::application::file_dag::frontiers) required:
         crate::application::file_dag::program::admission::RequiredPartitions,
-    pub(in crate::application::file_dag) refused:
+    pub(in crate::application::file_dag::frontiers) refused:
         std::sync::Arc<[crate::domain::frontiers::types::RefusedFrontier]>,
 }
 
@@ -288,6 +288,22 @@ fn relabel(
 }
 
 impl PreparedFrontiers {
+    /// The rule whose frontiers these are.
+    pub(in crate::application::file_dag) fn producer(&self) -> crate::domain::coverage::types::RuleIndex {
+        self.producer
+    }
+    /// The sources the frontier rows were read from, shared with every root of the population.
+    pub(in crate::application::file_dag) fn sources(&self) -> &std::sync::Arc<[FrontierSource]> {
+        &self.sources
+    }
+    /// The frontier rows, shared with every root of the population.
+    pub(in crate::application::file_dag) fn rows(&self) -> &std::sync::Arc<[FrontierInput]> {
+        &self.rows
+    }
+    /// The frontiers the preparation refused, each with its error.
+    pub(in crate::application::file_dag) fn refused(&self) -> &[crate::domain::frontiers::types::RefusedFrontier] {
+        &self.refused
+    }
     pub(in crate::application::file_dag) fn validate_scope(
         &self,
         program: &std::sync::Arc<crate::domain::executable_program::types::executable_program::value::ExecutableProgram>,

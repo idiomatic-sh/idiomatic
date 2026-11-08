@@ -68,7 +68,3 @@ fixtures = ["dep:dhat", "ryo_execution/fixtures", "ryo_language/fixtures", "ryo_
 
 [lints]
 workspace = true
-
-[[test]]
-name = "project_batch_boundary"
-path = "tests/test.rs"

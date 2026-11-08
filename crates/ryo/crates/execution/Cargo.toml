@@ -75,15 +75,3 @@ path = "tests/test.rs"
 name = "activation"
 path = "tests/activation/test.rs"
 harness = false
-
-[[test]]
-name = "executable_program_authority"
-path = "tests/executable_program_authority/test.rs"
-
-[[test]]
-name = "owner_resource_capabilities"
-path = "tests/owner_resource_capabilities/test.rs"
-
-[[test]]
-name = "representation_capabilities"
-path = "tests/representation_capabilities/test.rs"

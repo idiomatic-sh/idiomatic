@@ -6,7 +6,7 @@ use crate::application::file_dag::frontiers::types::DecodeCount;
 use crate::application::file_dag::frontiers::types::FrontierInput;
 use crate::application::file_dag::frontiers::types::PackedFrontier;
 use crate::application::file_dag::frontiers::types::FrontierSource;
-use crate::application::file_dag::frontiers::types::PreparedFrontiers;
+use crate::application::file_dag::frontiers::fixtures::prepared_frontiers;
 use crate::application::file_dag::program::facade_runtime::project_execution::ProjectRoot;
 use crate::application::file_dag::program::facade_runtime::project_execution::evaluate_roots;
 use crate::application::file_dag::program::facade_runtime::types::ProjectFrontiers;
@@ -120,18 +120,18 @@ fn exercise(exit: PhaseExit, values: [i64; 4], stored: Stored) -> Observed {
                     },
                     ProjectFrontiers {
                         publication: &phase,
-                        ordinary: PreparedFrontiers {
-                            producer: RuleIndex(at),
-                            sources: vec![FrontierSource {
+                        ordinary: prepared_frontiers(
+                            RuleIndex(at),
+                            vec![FrontierSource {
                                 input: source,
                                 root: source_root.clone(),
                             }]
                             .into(),
-                            rows: vec![frontier_row(stored, source, table)].into(),
-                            program: Arc::clone(prepared.program()),
-                            required: required.clone(),
-                            refused: vec![].into(),
-                        },
+                            vec![frontier_row(stored, source, table)].into(),
+                            Arc::clone(prepared.program()),
+                            required.clone(),
+                            vec![].into(),
+                        ),
                         bound_inputs: &[],
                     },
                     &mut symbols,

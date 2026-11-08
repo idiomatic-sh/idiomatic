@@ -1,3 +1,3 @@
-//! Each entry trait method has its own variant and refusal control, and only the frontiers module builds prepared frontiers.
+//! Each entry trait method runs its refusal control, over intent inventories that list every variant.
 #[cfg(test)]
 pub(super) mod test;
