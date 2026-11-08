@@ -40,3 +40,6 @@ Two artifacts in the scratch directory, `leak-review-<N>.md` and `leak-review-<N
 
 ## On FAIL
 Each failed check's findings become beads (one per finding class, all instances listed, with file:line). Only a fresh review of a repaired sha clears a FAIL; the FAIL files stay committed.
+
+## Per-branch result
+A review of a builder branch head is written to `crates/ryo/docs/contracts/evidence/branches/<branch-name-with-slashes-as-dashes>.json` (same fields, `source` the branch head sha); the guard hook refuses a merge into a checkpoint without its PASS.
