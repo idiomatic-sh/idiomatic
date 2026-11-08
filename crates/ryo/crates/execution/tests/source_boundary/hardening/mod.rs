@@ -6,7 +6,7 @@ const PROGRAM: &str = "src/application/file_dag/program.rs";
 const REQUEST: &str = "src/inbound/use_cases/execution/use_case.rs";
 const LEDGER_TYPES: &str = "crate::application::file_dag::derived::ledger::types";
 const ADMISSION: &str = "crate::application::file_dag::program::admission";
-const COMPILED: &str = "crate::domain::executable_program::types";
+const COMPILED: &str = "ryo_execution_domain::domain::executable_program::types";
 
 fn refuse(
     owner: &'static str,
@@ -40,7 +40,7 @@ pub(super) fn controls() -> Vec<Probe> {
         accept(
             super::derived::ROOT,
             format!(
-                "mod ledger_issuer {{ use {LEDGER_TYPES}::{{Backing, LeaseClass, Ledger, ResourceLease}}; use crate::domain::operating::errors::OperatingError; use std::{{cell::RefCell, rc::Rc}}; fn issue(ledger: &Rc<RefCell<Ledger>>, backings: &[Backing]) -> Result<ResourceLease, OperatingError> {{ Ledger::acquire(ledger, backings, LeaseClass::Required) }} const _: fn(&Rc<RefCell<Ledger>>, &[Backing]) -> Result<ResourceLease, OperatingError> = issue; }}"
+                "mod ledger_issuer {{ use {LEDGER_TYPES}::{{Backing, LeaseClass, Ledger, ResourceLease}}; use ryo_execution_domain::domain::operating::errors::OperatingError; use std::{{cell::RefCell, rc::Rc}}; fn issue(ledger: &Rc<RefCell<Ledger>>, backings: &[Backing]) -> Result<ResourceLease, OperatingError> {{ Ledger::acquire(ledger, backings, LeaseClass::Required) }} const _: fn(&Rc<RefCell<Ledger>>, &[Backing]) -> Result<ResourceLease, OperatingError> = issue; }}"
             ),
         ),
         refuse(
@@ -102,7 +102,7 @@ pub(super) fn controls() -> Vec<Probe> {
         accept(
             PROGRAM,
             format!(
-                "mod read_proof_route {{ use {ADMISSION}::{{AdmittedInput, Partition, ProducerRoot, ReadProof}}; use crate::application::file_dag::relations::{{RelationOwner, admission::service::BorrowedInput, handle::service::PublishedInput}}; use crate::domain::operating::errors::OperatingError; use std::rc::Rc; fn whole() -> ReadProof {{ ReadProof::complete(Partition::RequestInvariant) }} const _: fn() -> ReadProof = whole; fn admit(owner: Rc<RelationOwner>, publication: PublishedInput, admitted: &BorrowedInput<'_>, root: ProducerRoot, read: ReadProof) -> Result<AdmittedInput, OperatingError> {{ AdmittedInput::from_publication(owner, publication, admitted, root, read) }} const _: for<'a> fn(Rc<RelationOwner>, PublishedInput, &BorrowedInput<'a>, ProducerRoot, ReadProof) -> Result<AdmittedInput, OperatingError> = admit; }}"
+                "mod read_proof_route {{ use {ADMISSION}::{{AdmittedInput, Partition, ProducerRoot, ReadProof}}; use crate::application::file_dag::relations::{{RelationOwner, admission::service::BorrowedInput, handle::service::PublishedInput}}; use ryo_execution_domain::domain::operating::errors::OperatingError; use std::rc::Rc; fn whole() -> ReadProof {{ ReadProof::complete(Partition::RequestInvariant) }} const _: fn() -> ReadProof = whole; fn admit(owner: Rc<RelationOwner>, publication: PublishedInput, admitted: &BorrowedInput<'_>, root: ProducerRoot, read: ReadProof) -> Result<AdmittedInput, OperatingError> {{ AdmittedInput::from_publication(owner, publication, admitted, root, read) }} const _: for<'a> fn(Rc<RelationOwner>, PublishedInput, &BorrowedInput<'a>, ProducerRoot, ReadProof) -> Result<AdmittedInput, OperatingError> = admit; }}"
             ),
         ),
         refuse(
@@ -149,7 +149,7 @@ pub(super) fn controls() -> Vec<Probe> {
         refuse(
             PROGRAM,
             format!(
-                "mod retarget_region {{ use {COMPILED}::region::value::Region; use crate::domain::coverage::types::RuleIndex; fn retarget(value: Region, producer: RuleIndex) -> Region {{ Region {{ producer, ..value }} }} const _: fn(Region, RuleIndex) -> Region = retarget; }}"
+                "mod retarget_region {{ use {COMPILED}::region::value::Region; use ryo_execution_domain::domain::coverage::types::RuleIndex; fn retarget(value: Region, producer: RuleIndex) -> Region {{ Region {{ producer, ..value }} }} const _: fn(Region, RuleIndex) -> Region = retarget; }}"
             ),
             "E0451",
             "producer",
@@ -167,7 +167,7 @@ pub(super) fn controls() -> Vec<Probe> {
         refuse(
             PROGRAM,
             format!(
-                "mod retarget_instruction {{ use {COMPILED}::instruction::value::Instruction; use crate::domain::coverage::types::RuleIndex; fn retarget(instruction: &mut Instruction, producer: RuleIndex) {{ instruction.producer = producer; }} const _: fn(&mut Instruction, RuleIndex) = retarget; }}"
+                "mod retarget_instruction {{ use {COMPILED}::instruction::value::Instruction; use ryo_execution_domain::domain::coverage::types::RuleIndex; fn retarget(instruction: &mut Instruction, producer: RuleIndex) {{ instruction.producer = producer; }} const _: fn(&mut Instruction, RuleIndex) = retarget; }}"
             ),
             "E0616",
             "producer",

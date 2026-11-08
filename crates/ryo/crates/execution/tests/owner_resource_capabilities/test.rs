@@ -128,10 +128,10 @@ fn only_derived_owner_can_mutate_the_actual_backend() {
 }
 
 fn context_scaffold(client: &str) -> String {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/domain/operating/types.rs");
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../execution_domain/src/domain/operating/types.rs");
     let production = fs::read_to_string(path).unwrap();
     let start = production
-        .find("pub(crate) struct OperatorContext")
+        .find("pub struct OperatorContext")
         .unwrap();
     let end = start + production[start..].find("\n}").unwrap() + 2;
     let declaration = &production[start..end];
@@ -139,7 +139,7 @@ fn context_scaffold(client: &str) -> String {
 #![allow(dead_code,unused_imports)]
 pub mod domain {
  pub mod operating {pub mod types {
-  use crate::domain::{table_model::types::ParameterBinding,symbols::types::QuerySymbols,table_texts::types::SourceView,files::types::FilePath,stored_facts::types::ArenaBytes};
+  use ryo_execution_domain::domain::{table_model::types::ParameterBinding,symbols::types::QuerySymbols,table_texts::types::SourceView,files::types::FilePath,stored_facts::types::ArenaBytes};
   #[derive(Debug)]pub struct AfterTheFiles;
   #[derive(Debug)]pub struct Memo;
   #[derive(Debug)]pub struct OperatorScratch;

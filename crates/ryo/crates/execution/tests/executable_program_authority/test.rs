@@ -55,10 +55,10 @@ fn refuses(directory: &Path, name: &str, source: &str, expected: &str) {
 fn program_source(client: &str) -> String {
     let source = fs::read_to_string(
         Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("src/domain/executable_program/types/executable_program/value.rs"),
+            .join("../execution_domain/src/domain/executable_program/types/executable_program/value.rs"),
     )
     .unwrap();
-    let data = declaration(&source, "pub(crate) struct ExecutableProgram");
+    let data = declaration(&source, "pub struct ExecutableProgram");
     r#"
 #![allow(dead_code, unused_imports)]
 mod domain {
@@ -74,7 +74,7 @@ mod domain {
           use super::super::*;
           __DECLARATION__
           impl ExecutableProgram {
-            pub(in crate::domain::executable_program) fn new(
+            pub(in ryo_execution_domain::domain::executable_program) fn new(
               regions: Box<[Region]>, file_readers: FileReaderGraph, rules: Box<[RuleProgram]>,
               logical_regions: Box<[RegionId]>, observation_regions: Box<[Result<RegionId, OperatingError>]>,
             ) -> Self {
@@ -98,11 +98,11 @@ mod domain {
 }
 mod application {
   pub mod facade {
-    use crate::domain::executable_program::types::ExecutableProgram;
+    use ryo_execution_domain::domain::executable_program::types::ExecutableProgram;
     pub fn region_count(program: &ExecutableProgram) -> usize { program.regions().len() }
   }
   pub mod rogue {
-    use crate::domain::executable_program::types::ExecutableProgram;
+    use ryo_execution_domain::domain::executable_program::types::ExecutableProgram;
     __CLIENT__
   }
 }
@@ -125,7 +125,7 @@ fn compiled_program_state_is_constructed_only_by_its_domain_owner() {
         &program_source(
             "pub fn forge() -> ExecutableProgram { ExecutableProgram {
               regions: Box::new([]),
-              file_readers: crate::domain::executable_program::types::FileReaderGraph,
+              file_readers: ryo_execution_domain::domain::executable_program::types::FileReaderGraph,
               rules: Box::new([]),
               logical_regions: Box::new([]), observation_regions: Box::new([]),
             } }",
@@ -204,7 +204,7 @@ pub mod application { pub mod file_dag {
   pub mod program {
     pub mod admission {
       use std::sync::Arc;
-      use crate::domain::executable_program::types::{ExecutableProgram, RegionId};
+      use ryo_execution_domain::domain::executable_program::types::{ExecutableProgram, RegionId};
       use crate::application::file_dag::relations::RelationOwner;
       pub struct Partition;
       #[derive(Clone, Copy)]
@@ -236,13 +236,13 @@ pub mod application { pub mod file_dag {
       ) -> PermittedPhysical<'p, 'm, 's> {
         PermittedPhysical {
           permit, meaning,
-          authority: crate::domain::executable_program::physical::PhysicalAuthorization,
+          authority: ryo_execution_domain::domain::executable_program::physical::PhysicalAuthorization,
         }
       }
     }
     pub mod rogue {
       use std::sync::Arc;
-      use crate::domain::executable_program::types::{ExecutableProgram, RegionId};
+      use ryo_execution_domain::domain::executable_program::types::{ExecutableProgram, RegionId};
       use crate::application::file_dag::relations::RelationOwner;
       use crate::application::file_dag::relations::generation::service::GenerationLease;
       use super::admission::{BoundInputs, InstructionIndex, KernelPermit, RouteKind, Partition, PermittedPhysical, SemanticPermit};
@@ -291,7 +291,7 @@ fn physical_permits_are_minted_only_by_admission() {
             ) -> PermittedPhysical<'p, 'm, 's> {
               PermittedPhysical {
                 permit, meaning,
-                authority: crate::domain::executable_program::physical::PhysicalAuthorization,
+                authority: ryo_execution_domain::domain::executable_program::physical::PhysicalAuthorization,
               }
             }",
         ),

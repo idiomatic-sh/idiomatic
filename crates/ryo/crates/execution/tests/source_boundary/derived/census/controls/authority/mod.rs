@@ -66,7 +66,7 @@ pub(in super::super) static AUTHORITY_CACHED: Negative = refuses(
     r#"
 mod census_authority_cached {
     use crate::application::file_dag::derived::owner::cached_graph::types::ReachGraph as Authority;
-    use crate::domain::stored_graph::types::GraphWalk;
+    use ryo_execution_domain::domain::stored_graph::types::GraphWalk;
     fn forge(value: Authority) -> Authority { Authority { walk: GraphWalk::default(), ..value } }
     const _: () = { let _ = forge; };
 }
