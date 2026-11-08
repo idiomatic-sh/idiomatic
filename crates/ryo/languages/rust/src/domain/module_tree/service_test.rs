@@ -46,6 +46,7 @@ fn writes(segments: &[&str]) -> Written {
         start: Offset(1),
         end: Offset(2),
         text: Spelling(segments.join("::").into()),
+        bound: None,
     }
 }
 

@@ -203,6 +203,8 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
         &mut symbols,
     )
     .unwrap();
+    // The phase call always demands the emit; that an undemanded emit answers `NoQuery` is proved in the runtime by
+    // `project_phase::service_test::a_root_whose_emit_is_not_demanded_answers_no_query`.
     assert!(
         !matches!(result.emit, RootOutcome::Failed(_) | RootOutcome::Unknown(_)),
         "the phase call evaluates the producer's own emit beside its publication"

@@ -167,6 +167,7 @@ fn written_paths<'a>(tree: &Tree<'a>, out: &mut Vec<WrittenNote<'a>>) {
             start: NoteOffset(start(tree, node).0),
             end: NoteOffset(end(tree, node).0),
             text: spelled(tree, node),
+            bound: None,
         });
     }
 }
@@ -228,12 +229,21 @@ fn flatten<'a>(
         if glob {
             segments.push(NoteName(Cow::Borrowed(GLOB)));
         }
+        // The name the leaf binds: its `as` name (none for `as _`), or else its last segment; a glob binds no one name.
+        let bound = match child(tree, use_tree, Kind::Node(Node::Rename)) {
+            Some(rename) => child(tree, rename, Kind::Node(Node::Name))
+                .and_then(|name| first_token(tree, name))
+                .map(|name| NoteName(Cow::Borrowed(name.0))),
+            None if glob => None,
+            None => prefix.last().map(|last| NoteName(Cow::Borrowed(last.0))),
+        };
         out.push(WrittenNote {
             segments,
             enclosing: enclosing_of(tree, use_node),
             start: NoteOffset(start(tree, use_tree).0),
             end: NoteOffset(end(tree, use_tree).0),
             text: spelled(tree, use_tree),
+            bound,
         });
     }
     prefix.truncate(before);

@@ -53,6 +53,7 @@ fn writes(segments: &[&str]) -> Written {
         start: Offset(1),
         end: Offset(2),
         text: Spelling(segments.join("::").into()),
+        bound: None,
     }
 }
 
@@ -318,10 +319,11 @@ fn subject(made: Input) -> Value {
     }
     let mut externs = Externs::default();
     for (package, name, directory, root) in made.externs {
-        drop(externs.by_package.entry(RepoPath(package.into())).or_default().insert(
-            Segment(name.into()),
-            ExternCrate { directory: RepoPath(directory.into()), root: RepoPath(root.into()) },
-        ));
+        externs.by_package.entry(RepoPath(package.into())).or_default().entry(Segment(name.into())).or_default().push(ExternCrate {
+            directory: RepoPath(directory.into()),
+            root: RepoPath(root.into()),
+            kind: ryo::languages::DependencyKind::Normal,
+        });
     }
     let linked = link(&files, &roots, &outputs, &known, &externs);
     let links: Vec<String> = linked

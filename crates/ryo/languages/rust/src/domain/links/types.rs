@@ -110,12 +110,26 @@ pub(crate) struct ExternCrate {
     pub directory: RepoPath,
     /// The root file of its library.
     pub root: RepoPath,
+    /// How it is depended on: which of the package's targets may name it.
+    pub kind: ryo::languages::DependencyKind,
 }
 
 /// The libraries of the repository each package's code can name, by the directory of the package, then by the name its code writes
 /// for each.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct Externs {
-    /// The libraries, by the depending package's directory, then by name.
-    pub by_package: BTreeMap<RepoPath, BTreeMap<Segment, ExternCrate>>,
+    /// The libraries, by the depending package's directory, then by name: one entry per kind the name is depended on as.
+    pub by_package: BTreeMap<RepoPath, BTreeMap<Segment, Vec<ExternCrate>>>,
+}
+
+/// What a crate root of a package is, as far as the dependencies it may name go: Cargo hands normal dependencies to every target
+/// but the build script, dev-dependencies to tests, benches and examples besides, and build-dependencies to the build script alone.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum TargetRole {
+    /// A library or a binary.
+    Ordinary,
+    /// A test, a bench or an example.
+    Test,
+    /// The build script.
+    Build,
 }

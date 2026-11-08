@@ -166,7 +166,8 @@ impl RequestExecution {
             file: input.file,
         })
     }
-    /// Sessions exist only inside `ProjectRootExecution::evaluate`, one per declared root.
+    /// Sessions exist only inside the crate-private `ProjectPhase::evaluate`, one per declared root, which only
+/// `ProjectRootExecution::evaluate_occurrences` calls.
     pub(crate) fn open_project<'a>(
         &'a self,
         input: ProjectInput<'a>,

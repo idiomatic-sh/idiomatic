@@ -54,7 +54,7 @@ pub(super) fn control(method: Method) -> Control {
         Method::RequestRunFile => Control::Refuses(run_file_route),
         Method::RequestObservations => Control::Refuses(observations_need_a_named_program),
         Method::RequestPrepareFrontiers => Control::Refuses(frontiers_of_an_undeclared_rule),
-        Method::RequestProjectPhase => Control::Refuses(occurrence_of_an_undeclared_rule),
+        Method::RequestProjectPhase => Control::Refuses(each_phase_owns_its_publication),
         Method::RootsEvaluateOccurrences => Control::Refuses(occurrence_of_an_undeclared_rule),
         Method::StageProjectScope => Control::Refuses(|| scope_of_an_undeclared_rule(Entry::Phase)),
         Method::ObservedProjectScope => {
@@ -175,6 +175,23 @@ pub(super) fn occurrence_of_an_undeclared_rule() {
         ));
         assert_eq!(occurrences.len(), 3);
         assert!(phase.finish().is_ok(), "the phase is released once its occurrences are completed");
+    });
+}
+/// Each phase a request opens owns its own publication: a scope one phase still holds makes that phase's finish refuse, and leaves
+/// another phase of the same request free to finish.
+pub(super) fn each_phase_owns_its_publication() {
+    with_held(&engine(), Entry::Phase, 3, |request, _, corpus, covered| {
+        let held = request.project_phase().expect("the first phase opens");
+        let other = request.project_phase().expect("the second phase opens");
+        let scope = held
+            .project_scope(RuleIndex(0), corpus, covered, &[], &InapplicableFiles::default())
+            .expect("a declared rule has a scope");
+        assert!(other.finish().is_ok(), "another phase's scope does not hold this phase's publication");
+        assert!(
+            matches!(held.finish(), Err(OperatingError::NotRead)),
+            "an outstanding scope keeps its own phase's publication shared"
+        );
+        drop(scope);
     });
 }
 pub(super) fn scope_of_an_undeclared_rule(entry: Entry) {

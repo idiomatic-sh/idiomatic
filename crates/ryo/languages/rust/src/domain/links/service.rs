@@ -4,19 +4,21 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use super::types::{Drawn, Examination, ExternCrate, Externs, SourceDependencyLink, Linked, Packaged, Placed, Run, UnplacedLink};
+use super::types::{Drawn, Examination, ExternCrate, Externs, SourceDependencyLink, Linked, Packaged, Placed, Run, TargetRole, UnplacedLink};
 use crate::domain::fact_notes::service::facts_of;
 use crate::domain::fact_notes::types::{Naming, Note};
 use crate::domain::module_tree::constants::{CRATE, SOURCE};
 use crate::domain::module_tree::service::{resolve, tree};
 use crate::domain::module_tree::types::{
-    Cleanliness, Facts, ModulePath, ModuleTree, Segment, Unfollowed,
+    Cleanliness, Facts, ModulePath, ModuleTree, Segment, Unfollowed, Written,
 };
 use crate::domain::package_index::constants::MANIFEST;
 use crate::domain::package_index::service::{index, kept_files, package_of};
 use crate::domain::package_index::types::{Index, ListIndex, Package};
 use crate::domain::packages::types::Packages;
 use crate::domain::targets::service::crate_name;
+use crate::domain::paths::constants::SEPARATOR;
+use crate::domain::targets::constants::{BENCHES, BUILD, EXAMPLES, TESTS};
 use crate::domain::targets::types::PackageName;
 use crate::domain::paths::service::{directory_of, lexical_join};
 use crate::domain::paths::types::Relative;
@@ -124,7 +126,8 @@ pub(crate) fn merged(run: Run<'_>, gaps: Vec<Unfollowed>, examined: Vec<Examinat
 }
 
 /// The libraries of the repository each package depends on, by the name its code writes for each: the binding when the manifest
-/// renames the package, and the library's own name when it does not. A package's dependency on itself names nothing new.
+/// renames the package, and the library's own name when it does not, each with the kind it is depended on as. A package's
+/// dependency on itself names nothing new.
 #[must_use]
 pub(crate) fn externs_in(packages: &Packages) -> Externs {
     let mut externs = Externs::default();
@@ -140,26 +143,61 @@ pub(crate) fn externs_in(packages: &Packages) -> Externs {
         } else {
             crate_name(&PackageName(dependency.binding.0.clone())).0
         };
-        drop(externs.by_package.entry(directory_of(&dependency.source)).or_default().insert(
-            Segment(name),
-            ExternCrate {
+        externs
+            .by_package
+            .entry(directory_of(&dependency.source))
+            .or_default()
+            .entry(Segment(name))
+            .or_default()
+            .push(ExternCrate {
                 directory: directory_of(target),
                 root: library.root.clone(),
-            },
-        ));
+                kind: dependency.kind,
+            });
     }
     externs
 }
 
-/// The files a path written in a package names in the library of another package of the repository it depends on: the path's first
-/// segment is the name the package's code writes for that library, and the rest is resolved from the library's crate root.
+/// The role of the crate root `tree` is drawn from: its root file, relative to its package's directory, under `tests`, `benches` or
+/// `examples`, or the package's `build.rs`.
+fn role_of(tree: &ModuleTree) -> TargetRole {
+    let Some(root) = tree.modules.get(&ModulePath::default()).and_then(|roots| roots.first()) else {
+        return TargetRole::Ordinary;
+    };
+    let relative = if tree.package.is_empty() {
+        Some(&*root.0)
+    } else {
+        root.strip_prefix(&*tree.package.0).and_then(|rest| rest.strip_prefix(SEPARATOR))
+    };
+    match relative {
+        Some(relative) if relative == BUILD => TargetRole::Build,
+        Some(relative) if [TESTS, BENCHES, EXAMPLES].contains(&relative.split(SEPARATOR).next().unwrap_or_default()) => {
+            TargetRole::Test
+        }
+        _ => TargetRole::Ordinary,
+    }
+}
+
+/// The files a path written in a crate root of `role` names in the library of another package of the repository its package
+/// depends on: the path's first segment is the name the package's code writes for that library, depended on as a kind the root may
+/// name, and the rest is resolved from the library's crate root.
 fn resolve_extern<'a>(
-    externs: Option<&BTreeMap<Segment, ExternCrate>>,
+    externs: Option<&BTreeMap<Segment, Vec<ExternCrate>>>,
+    role: TargetRole,
     trees: &'a BTreeMap<RepoPath, Vec<ModuleTree>>,
     written: &[Segment],
 ) -> Option<&'a [RepoPath]> {
     let (first, rest) = written.split_first()?;
-    let library = externs?.get(first)?;
+    // Cargo hands normal dependencies to every target but the build script, dev-dependencies to tests, benches and examples
+    // besides, and build-dependencies to the build script alone.
+    let library = externs?.get(first)?.iter().find(|each| {
+        matches!(
+            (role, each.kind),
+            (TargetRole::Ordinary | TargetRole::Test, languages::DependencyKind::Normal)
+                | (TargetRole::Test, languages::DependencyKind::Dev)
+                | (TargetRole::Build, languages::DependencyKind::Build)
+        )
+    })?;
     let tree = trees.get(&library.directory)?.iter().find(|tree| {
         tree.modules
             .get(&ModulePath::default())
@@ -169,6 +207,29 @@ fn resolve_extern<'a>(
     from_root.push(Segment(CRATE.into()));
     from_root.extend(rest.iter().cloned());
     resolve(tree, &[], &from_root)
+}
+
+/// The path `written` once a name a `use` of the same file binds in the same module is replaced by what that `use` names: a `use`
+/// item shadows the crates a package depends on, so `helper::f` after `use crate::util as helper` is `crate::util::f`. A path
+/// whose first segment no other `use` there binds is as written.
+fn through_uses<'w>(known: &'w Facts, written: &'w Written) -> std::borrow::Cow<'w, [Segment]> {
+    let Some(first) = written.segments.first() else {
+        return std::borrow::Cow::Borrowed(&written.segments);
+    };
+    let binding = known.written.iter().find(|each| {
+        each.start != written.start && each.enclosing == written.enclosing && each.bound.as_ref() == Some(first)
+    });
+    match binding {
+        Some(binding) => std::borrow::Cow::Owned(
+            binding
+                .segments
+                .iter()
+                .chain(written.segments.iter().skip(1))
+                .cloned()
+                .collect(),
+        ),
+        None => std::borrow::Cow::Borrowed(&written.segments),
+    }
 }
 
 /// The names the modules declared in one file bear, from the notes the parse left of it.
@@ -238,11 +299,13 @@ pub(crate) fn examine(
     };
     let mut edges: BTreeSet<UnplacedLink<'_>> = BTreeSet::new();
     for (each, module) in memberships {
+        let role = role_of(each);
         for written in &known.written {
             let mut current = module.0.clone();
             current.extend(written.enclosing.iter().cloned());
-            let Some(targets) = resolve(each, &current, &written.segments)
-                .or_else(|| resolve_extern(externs.by_package.get(own), trees, &written.segments))
+            let segments = through_uses(known, written);
+            let Some(targets) = resolve(each, &current, &segments)
+                .or_else(|| resolve_extern(externs.by_package.get(own), role, trees, &segments))
             else {
                 continue;
             };

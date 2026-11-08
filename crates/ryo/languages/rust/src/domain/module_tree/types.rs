@@ -175,6 +175,9 @@ pub(crate) struct Written {
     pub end: Offset,
     /// The path as the file writes it, its whitespace left out.
     pub text: Spelling,
+    /// The name a `use` leaf binds in its module: its `as` name, or else its last segment; none for a glob, an `as _` or a path
+    /// that is not a `use` leaf.
+    pub bound: Option<Segment>,
 }
 
 /// A path as the file writes it from where it starts to where it ends, its whitespace left out: `crate::a::<T>::b`.

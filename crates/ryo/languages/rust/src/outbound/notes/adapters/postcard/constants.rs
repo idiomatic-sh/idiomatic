@@ -32,6 +32,8 @@ pub(super) const START: &str = "start";
 pub(super) const END: &str = "end";
 /// A written path as the file writes it, its whitespace left out.
 pub(super) const TEXT: &str = "text";
+/// The name a `use` leaf binds.
+pub(super) const BOUND: &str = "bound";
 /// How many fields a note has.
 pub(super) const NOTE_FIELDS: usize = 3;
 /// How many fields a declaration has.
@@ -39,4 +41,4 @@ pub(super) const DECLARED_FIELDS: usize = 4;
 /// How many fields an inline block has.
 pub(super) const STEP_FIELDS: usize = 2;
 /// How many fields a written path has.
-pub(super) const WRITTEN_FIELDS: usize = 5;
+pub(super) const WRITTEN_FIELDS: usize = 6;

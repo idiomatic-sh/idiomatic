@@ -57,6 +57,7 @@ fn written(segments: &[&str], enclosing: &[&str], place: (u32, u32)) -> Written 
         start: Offset(place.0),
         end: Offset(place.1),
         text: Spelling(segments.join("::").into()),
+        bound: None,
     }
 }
 

@@ -1,8 +1,8 @@
 //! A project submission answers exactly the roots it names, and refuses by name the ones it did not declare. These are the runtime's
 //! own contracts on the crate-private root evaluation: a caller of `evaluate_occurrences` cannot assemble such roots.
-use super::fixtures::{Entry, corpus, covered, prepare_for, program};
-use crate::application::file_dag::program::observation_stage::interface::ObservationExecution as _;
-use crate::application::file_dag::program::observation_stage::types::ObservationStage;
+use super::fixtures::{Entry, Root, corpus, covered, foreign_phase_outcome, prepare_for, producer_program, program, submit};
+use crate::application::file_dag::frontiers::types::PreparedFrontiers;
+use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
 use crate::application::file_dag::program::project_phase::interface::ProjectStage as _;
 use crate::application::file_dag::program::project_phase::types::{PhaseScope, ProjectInput, ProjectPhase, ProjectTask};
 use crate::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
@@ -11,148 +11,6 @@ use ryo_execution_domain::domain::coverage::types::{Covered, InapplicableFiles, 
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::rule_intent::types::{EmitDemand, ObservationDemand, RuleDemand};
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_values::domain::files::types::CorpusInput;
-
-pub(crate) enum Held<'a> {
-    Phase(ProjectPhase<'a>),
-    Stage(ObservationStage<'a>),
-}
-impl Held<'_> {
-    fn phase(&self) -> &ProjectPhase<'_> {
-        match self {
-            Held::Phase(phase) => phase,
-            Held::Stage(stage) => &stage.phase,
-        }
-    }
-    fn scope(&self, rule: RuleIndex, corpus: &[CorpusInput], covered: &[Covered]) -> PhaseScope {
-        self.phase()
-            .project_scope(rule, corpus, covered, &[], &InapplicableFiles::default())
-            .expect("a declared rule has a scope")
-    }
-    fn finish(self) {
-        match self {
-            Held::Phase(phase) => phase.finish().expect("the phase finishes"),
-            Held::Stage(stage) => stage.finish_stage().expect("the stage finishes"),
-        }
-    }
-}
-
-/// What the caller declared: the scope and frontiers come from `declared`, while the task names `named`. The two differ only when
-/// the caller submits a root nobody declared.
-#[derive(Clone, Copy)]
-pub(crate) struct Root {
-    pub(crate) declared: usize,
-    pub(crate) named: usize,
-}
-pub(crate) struct Submitted {
-    pub(crate) outcomes: Vec<Result<RuleOutcome<ProjectOutputOutcome>, OperatingError>>,
-    pub(crate) guarded: Vec<RuleIndex>,
-    pub(crate) refused: Option<OperatingError>,
-}
-/// Evaluate `roots` through the real project phase of a request over `rule_count` rules; `refuse` is the rule the guard rejects,
-/// if any.
-pub(crate) fn submit(entry: Entry, rule_count: usize, roots: &[Root], refuse: Option<RuleIndex>) -> Submitted {
-    let prepared = program(entry, rule_count);
-    let corpus = corpus();
-    let request = crate::application::file_dag::program::request_execution::service::begin(&prepared, &corpus);
-    let covered = covered(rule_count);
-    let mut arenas = Vec::new();
-    let held = match entry {
-        Entry::Phase => Held::Phase(request.project_phase().expect("the phase opens")),
-        Entry::Stage => Held::Stage(request.observations(&mut arenas).expect("the stage opens")),
-    };
-    let mut symbols = Symbols::default();
-    let partials = Partials::default();
-    let scopes: Vec<PhaseScope> = roots
-        .iter()
-        .map(|root| held.scope(RuleIndex(root.declared), &corpus, &covered))
-        .collect();
-    let tasks = roots
-        .iter()
-        .zip(&scopes)
-        .map(|(root, scope)| ProjectTask {
-            rule: RuleIndex(root.named),
-            demand: RuleDemand {
-                emit: EmitDemand::Enabled,
-                observations: ObservationDemand::NotRequired,
-            },
-            input: ProjectInput {
-                scope,
-                evaluation: &partials,
-                publication: &partials,
-                ordinary: prepare_for(&request, scope, RuleIndex(root.declared)).expect("declared frontiers"),
-                bound: &[],
-                arenas: &[],
-            },
-        })
-        .collect();
-    let mut guarded = Vec::new();
-    let batch = held.phase().evaluate(tasks, &mut symbols, |rule| {
-        guarded.push(rule);
-        if Some(rule) == refuse {
-            Err(OperatingError::WrongBinding)
-        } else {
-            Ok(())
-        }
-    });
-    let (outcomes, refused) = match batch {
-        ProjectBatch::Complete(outcomes) => (outcomes, None),
-        ProjectBatch::Refused { completed, error } => (completed, Some(error)),
-    };
-    drop(scopes);
-    held.finish();
-    request.finish();
-    Submitted {
-        outcomes,
-        guarded,
-        refused,
-    }
-}
-
-/// A scope opened by one phase of the request, evaluated through another phase of it.
-pub(crate) fn foreign_phase_outcome() -> Result<RuleOutcome<ProjectOutputOutcome>, OperatingError> {
-    let prepared = program(Entry::Phase, 1);
-    let corpus = corpus();
-    let request = crate::application::file_dag::program::request_execution::service::begin(&prepared, &corpus);
-    let covered = covered(1);
-    let (owner, other) = (
-        request.project_phase().expect("the first phase opens"),
-        request.project_phase().expect("the second phase opens"),
-    );
-    let scope = owner
-        .project_scope(RuleIndex(0), &corpus, &covered, &[], &InapplicableFiles::default())
-        .expect("a declared rule has a scope");
-    let ordinary = prepare_for(&request, &scope, RuleIndex(0)).expect("declared frontiers");
-    let partials = Partials::default();
-    let batch = other.evaluate(
-        vec![ProjectTask {
-            rule: RuleIndex(0),
-            demand: RuleDemand {
-                emit: EmitDemand::Enabled,
-                observations: ObservationDemand::NotRequired,
-            },
-            input: ProjectInput {
-                scope: &scope,
-                evaluation: &partials,
-                publication: &partials,
-                ordinary,
-                bound: &[],
-                arenas: &[],
-            },
-        }],
-        &mut Symbols::default(),
-        |_| Ok::<(), OperatingError>(()),
-    );
-    drop(scope);
-    owner.finish().expect("the first phase finishes");
-    other.finish().expect("the second phase finishes");
-    request.finish();
-    match batch {
-        ProjectBatch::Complete(mut done) => done.remove(0),
-        ProjectBatch::Refused { error, .. } => Err(error),
-    }
-}
-
 
 fn root(rule: usize) -> Root {
     Root {
@@ -303,4 +161,147 @@ fn every_holder_of_roots_refuses_an_incomplete_extra_or_undeclared_root() {
 #[test]
 fn a_scope_belongs_to_its_own_phase() {
     assert!(matches!(foreign_phase_outcome(), Err(OperatingError::NotRead)));
+}
+
+/// The one root `rule` evaluated in `phase` over `scope` and `ordinary`, with `demand`.
+fn evaluate_one(
+    phase: &ProjectPhase<'_>,
+    rule: RuleIndex,
+    demand: RuleDemand,
+    scope: &PhaseScope,
+    ordinary: PreparedFrontiers,
+) -> Result<RuleOutcome<ProjectOutputOutcome>, OperatingError> {
+    let partials = Partials::default();
+    let batch = phase.evaluate(
+        vec![ProjectTask {
+            rule,
+            demand,
+            input: ProjectInput {
+                scope,
+                evaluation: &partials,
+                publication: &partials,
+                ordinary,
+                bound: &[],
+                arenas: &[],
+            },
+        }],
+        &mut Symbols::default(),
+        |_| Ok::<(), OperatingError>(()),
+    );
+    match batch {
+        ProjectBatch::Complete(mut done) => done.remove(0),
+        ProjectBatch::Refused { error, .. } => Err(error),
+    }
+}
+
+const DIAGNOSTIC: RuleDemand = RuleDemand {
+    emit: EmitDemand::Enabled,
+    observations: ObservationDemand::Required,
+};
+
+/// Frontiers one request prepared are not admitted by another request's phase over the same program and corpus
+/// (`PreparedFrontiers::validate_scope`).
+#[test]
+fn frontiers_from_another_request_are_refused() {
+    let prepared = program(Entry::Phase, 1);
+    let corpus = corpus();
+    let covered = covered(1);
+    let first = crate::application::file_dag::program::request_execution::service::begin(&prepared, &corpus);
+    let second = crate::application::file_dag::program::request_execution::service::begin(&prepared, &corpus);
+    let (owner, other) = (
+        first.project_phase().expect("the first request's phase opens"),
+        second.project_phase().expect("the second request's phase opens"),
+    );
+    let owned = owner
+        .project_scope(RuleIndex(0), &corpus, &covered, &[], &InapplicableFiles::default())
+        .expect("a declared rule has a scope");
+    let frontiers = prepare_for(&first, &owned, RuleIndex(0)).expect("the first request's frontiers");
+    let scope = other
+        .project_scope(RuleIndex(0), &corpus, &covered, &[], &InapplicableFiles::default())
+        .expect("a declared rule has a scope");
+    assert!(
+        matches!(evaluate_one(&other, RuleIndex(0), DIAGNOSTIC, &scope, frontiers), Err(OperatingError::NotRead)),
+        "an unrelated request cannot admit the original frontiers"
+    );
+    drop((owned, scope));
+    owner.finish().expect("the first phase finishes");
+    other.finish().expect("the second phase finishes");
+    first.finish();
+    second.finish();
+}
+
+/// Frontiers prepared over one coverage are not admitted beside a scope over another (`PreparedFrontiers::validate_scope`).
+#[test]
+fn frontiers_over_another_coverage_are_refused() {
+    let prepared = program(Entry::Phase, 2);
+    let corpus = corpus();
+    let request = crate::application::file_dag::program::request_execution::service::begin(&prepared, &corpus);
+    let phase = request.project_phase().expect("the phase opens");
+    let old = phase
+        .project_scope(RuleIndex(1), &corpus, &[], &[], &InapplicableFiles::default())
+        .expect("a declared rule has a scope");
+    let frontiers = prepare_for(&request, &old, RuleIndex(1)).expect("frontiers over the old coverage");
+    let changed = [Covered {
+        file: ryo_relations::domain::relations::types::FileId(0),
+        rules: vec![RuleIndex(0)],
+        partial: vec![],
+    }];
+    let scope = phase
+        .project_scope(RuleIndex(1), &corpus, &changed, &[], &InapplicableFiles::default())
+        .expect("a declared rule has a scope");
+    assert!(
+        matches!(evaluate_one(&phase, RuleIndex(1), DIAGNOSTIC, &scope, frontiers), Err(OperatingError::NotRead)),
+        "a changed physical coverage declaration cannot consume frontiers prepared over another"
+    );
+    drop((old, scope));
+    phase.finish().expect("the phase finishes");
+    request.finish();
+}
+
+/// A root whose emit is not demanded answers `NoQuery` for it. The project phase's one call always demands the emit, so this is
+/// the only proof of the arm; execution's producer cases (`consumers`, `union`) name this test beside their weaker check.
+#[test]
+fn a_root_whose_emit_is_not_demanded_answers_no_query() {
+    let prepared = program(Entry::Phase, 1);
+    let corpus = corpus();
+    let request = crate::application::file_dag::program::request_execution::service::begin(&prepared, &corpus);
+    let phase = request.project_phase().expect("the phase opens");
+    let scope = phase
+        .project_scope(RuleIndex(0), &corpus, &covered(1), &[], &InapplicableFiles::default())
+        .expect("a declared rule has a scope");
+    let frontiers = prepare_for(&request, &scope, RuleIndex(0)).expect("declared frontiers");
+    let silent = RuleDemand {
+        emit: EmitDemand::Disabled,
+        observations: ObservationDemand::NotRequired,
+    };
+    let outcome = evaluate_one(&phase, RuleIndex(0), silent, &scope, frontiers).expect("the root is evaluated");
+    assert!(matches!(outcome.emit, RootOutcome::NoQuery));
+    assert!(outcome.observations.is_empty());
+    drop(scope);
+    phase.finish().expect("the phase finishes");
+    request.finish();
+}
+
+/// A root whose observations are not demanded invokes none of its observation roots: the producer's observation reads the
+/// project relation, which these facts refuse to answer (they panic), and its outcome publishes nothing.
+#[test]
+fn a_root_whose_observations_are_not_required_invokes_no_observation_root() {
+    let prepared = producer_program();
+    let corpus = corpus();
+    let request = crate::application::file_dag::program::request_execution::service::begin(&prepared, &corpus);
+    let phase = request.project_phase().expect("the phase opens");
+    let scope = phase
+        .project_scope(RuleIndex(0), &corpus, &covered(1), &[], &InapplicableFiles::default())
+        .expect("a declared rule has a scope");
+    let frontiers = prepare_for(&request, &scope, RuleIndex(0)).expect("declared frontiers");
+    let emit_only = RuleDemand {
+        emit: EmitDemand::Enabled,
+        observations: ObservationDemand::NotRequired,
+    };
+    let outcome = evaluate_one(&phase, RuleIndex(0), emit_only, &scope, frontiers).expect("the root is evaluated");
+    assert!(outcome.observations.is_empty(), "no observation root ran");
+    assert!(!matches!(outcome.emit, RootOutcome::Failed(_) | RootOutcome::Unknown(_)));
+    drop(scope);
+    phase.finish().expect("the phase finishes");
+    request.finish();
 }

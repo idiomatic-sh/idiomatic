@@ -7,7 +7,7 @@ use serde::ser::SerializeStruct as _;
 use serde::{Deserialize, Serialize, Serializer};
 
 use super::constants::{
-    AROUND, CLEAN, DECLARED, DECLARED_FIELD, DECLARED_FIELDS, ENCLOSING, END, INLINE, NAME, NOTE,
+    AROUND, BOUND, CLEAN, DECLARED, DECLARED_FIELD, DECLARED_FIELDS, ENCLOSING, END, INLINE, NAME, NOTE,
     NOTE_FIELDS, PATH, SEGMENTS, START, STEP, STEP_FIELDS, TEXT, WRITTEN, WRITTEN_FIELD,
     WRITTEN_FIELDS,
 };
@@ -88,6 +88,9 @@ pub(super) struct WrittenSchema<'a> {
     /// The path as the file writes it, its whitespace left out.
     #[serde(borrow)]
     text: NameSchema<'a>,
+    /// The name a `use` leaf binds, when it binds one.
+    #[serde(borrow)]
+    bound: Option<NameSchema<'a>>,
 }
 
 impl<'a> From<NoteSchema<'a>> for Note<'a> {
@@ -127,6 +130,7 @@ impl<'a> From<NoteSchema<'a>> for Note<'a> {
                     start: NoteOffset(each.start.0),
                     end: NoteOffset(each.end.0),
                     text: NoteName(Cow::Borrowed(each.text.0)),
+                    bound: each.bound.map(|name| NoteName(Cow::Borrowed(name.0))),
                 })
                 .collect(),
         }
@@ -209,6 +213,7 @@ impl Serialize for WrittenViewSchema<'_, '_> {
         written.serialize_field(START, &self.0.start.0)?;
         written.serialize_field(END, &self.0.end.0)?;
         written.serialize_field(TEXT, &*self.0.text.0)?;
+        written.serialize_field(BOUND, &self.0.bound.as_ref().map(|name| &*name.0))?;
         written.end()
     }
 }

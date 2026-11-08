@@ -76,4 +76,7 @@ pub(crate) struct WrittenNote<'a> {
     pub end: NoteOffset,
     /// The path as the file writes it, its whitespace left out: the text from `start` to `end`.
     pub text: NoteName<'a>,
+    /// The name a `use` leaf binds in its module: its `as` name, or else its last segment; none for a glob, an `as _` or a path
+    /// that is not a `use` leaf.
+    pub bound: Option<NoteName<'a>>,
 }

@@ -59,6 +59,7 @@ pub(crate) fn note_of(facts: &Facts) -> Note<'_> {
                 start: NoteOffset(written.start.0),
                 end: NoteOffset(written.end.0),
                 text: NoteName(Cow::Borrowed(&written.text.0)),
+                bound: written.bound.as_ref().map(|each| NoteName(Cow::Borrowed(each))),
             })
             .collect(),
     }
@@ -95,21 +96,34 @@ pub(crate) fn facts_of(note: Note<'_>, names: &dyn Fn(&Segment) -> Naming) -> Fa
             path: path(each.path),
         })
         .collect();
+    // A name a `use` of the file binds names what that `use` names: a path that starts with it is kept to be resolved through it.
+    let bound: Vec<&str> = note
+        .written
+        .iter()
+        .filter_map(|each| each.bound.as_ref().map(|name| &*name.0))
+        .collect();
+    let keeps = |first: &NoteName<'_>| {
+        [CRATE, SELF, SUPER].contains(&&*first.0)
+            || bound.contains(&&*first.0)
+            || names(&segment(first.clone())) == Naming::Known
+    };
+    let kept: Vec<bool> = note
+        .written
+        .iter()
+        .map(|each| each.segments.first().is_some_and(&keeps))
+        .collect();
     let written = note
         .written
         .into_iter()
-        .filter(|each| {
-            each.segments.first().is_some_and(|first| {
-                [CRATE, SELF, SUPER].contains(&&*first.0)
-                    || names(&segment(first.clone())) == Naming::Known
-            })
-        })
+        .zip(kept)
+        .filter_map(|(each, kept)| kept.then_some(each))
         .map(|each| Written {
             segments: each.segments.into_iter().map(segment).collect(),
             enclosing: each.enclosing.into_iter().map(segment).collect(),
             start: Offset(each.start.0),
             end: Offset(each.end.0),
             text: Spelling(each.text.0.into()),
+            bound: each.bound.map(segment),
         })
         .collect();
     Facts {

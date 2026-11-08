@@ -21,6 +21,9 @@ pub(super) fn expected() -> ManifestExpected {
                 path: file("app/src/util.rs"),
             },
             AnalyzedSourceExpectedRow {
+                path: file("app/tests/smoke.rs"),
+            },
+            AnalyzedSourceExpectedRow {
                 path: file("support/src/lib.rs"),
             },
             AnalyzedSourceExpectedRow {
@@ -143,11 +146,32 @@ pub(super) fn expected() -> ManifestExpected {
             span: span((4, 5), (4, 17)),
             written: name("util::double"),
         },
+        // A `use` of the file shadows the dependency of the same name: `helper::double` in `shadow` is `crate::util::double`.
+        SourceDependencyExpectedRow {
+            source: file("app/src/lib.rs"),
+            target: file("app/src/util.rs"),
+            span: span((12, 9), (12, 30)),
+            written: name("crate::utilashelper"),
+        },
+        SourceDependencyExpectedRow {
+            source: file("app/src/lib.rs"),
+            target: file("app/src/util.rs"),
+            span: span((13, 29), (13, 43)),
+            written: name("helper::double"),
+        },
+        // The renamed package's own name (`support::ready`) and the dev- and build-dependency `tool` from the library name nothing.
         SourceDependencyExpectedRow {
             source: file("app/src/lib.rs"),
             target: file("support/src/lib.rs"),
             span: span((7, 17), (7, 30)),
             written: name("helper::ready"),
+        },
+        // A test target names its dev-dependency.
+        SourceDependencyExpectedRow {
+            source: file("app/tests/smoke.rs"),
+            target: file("tool/src/lib.rs"),
+            span: span((1, 17), (1, 28)),
+            written: name("tool::ready"),
         }])
         .rows(&[
             FilePackageExpectedRow {
@@ -164,6 +188,10 @@ pub(super) fn expected() -> ManifestExpected {
             },
             FilePackageExpectedRow {
                 path: file("app/src/util.rs"),
+                package: file("app/Cargo.toml"),
+            },
+            FilePackageExpectedRow {
+                path: file("app/tests/smoke.rs"),
                 package: file("app/Cargo.toml"),
             },
             FilePackageExpectedRow {
