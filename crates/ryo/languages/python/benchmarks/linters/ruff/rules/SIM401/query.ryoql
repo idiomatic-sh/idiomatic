@@ -5,7 +5,7 @@ import suppress from "python/ruff/suppress";
 let nodes = select id, kind, file, span from "semantic-syntax";
 let edges = select parent, child, field, file from "semantic-child";
 let ifs = select id, file, span from nodes where kind = "if";
-let elif_headers = source-matches(from=ifs, span="span", pattern="^elif\\b", output="header");
+let elif_headers = source-matches(from=ifs, span="span", pattern="^elif\b", output="header");
 let plain_ifs = antijoin(left=ifs, right=elif_headers, left-on=["id","file"], right-on=["id","file"]);
 let bodies = select parent, child, file from edges where field = "body";
 let else_clauses = select parent, child, file from edges where field = "orelse";

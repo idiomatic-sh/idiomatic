@@ -52,3 +52,18 @@ expected = [{ file = "case.pyi", start = 6, end = 9 }]
 name = "staticmethod-import-alias"
 files = { "case.pyi" = "from builtins import staticmethod as sm\nclass C:\n    @sm\n    def f(__x): ...\n" }
 expected = [{ file = "case.pyi", start = 67, end = 70 }]
+
+[[cases]]
+name = "noqa-codes-comma-space-suppress-function-private-leading-parameter"
+files = { "case.pyi" = "def f(__x): ...  # noqa: E501, PYI063\n" }
+expected = []
+
+[[cases]]
+name = "noqa-codes-comma-suppress-function-private-leading-parameter"
+files = { "case.pyi" = "def f(__x): ...  # noqa: E501,PYI063\n" }
+expected = []
+
+[[cases]]
+name = "noqa-codes-trailing-reason-suppress-function-private-leading-parameter"
+files = { "case.pyi" = "def f(__x): ...  # noqa: PYI063 # why\n" }
+expected = []

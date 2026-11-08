@@ -250,3 +250,21 @@ name="tagged-PYI003.pyi"
 comparison="full"
 files={"PYI003.pyi"="import sys\n\nif sys.version_info[0] == 2: ...\nif sys.version_info[0] == True: ...  # Y003 Unrecognized sys.version_info check  # E712 comparison to True should be 'if cond is True:' or 'if cond:'\nif sys.version_info[0.0] == 2: ...  # Y003 Unrecognized sys.version_info check\nif sys.version_info[False] == 2: ...  # Y003 Unrecognized sys.version_info check\nif sys.version_info[0j] == 2: ...  # Y003 Unrecognized sys.version_info check\nif sys.version_info[0] == (2, 7): ...  # Y003 Unrecognized sys.version_info check\nif sys.version_info[0] == '2': ...  # Y003 Unrecognized sys.version_info check\nif sys.version_info[1:] >= (7, 11): ...  # Y003 Unrecognized sys.version_info check\nif sys.version_info[::-1] < (11, 7): ...  # Y003 Unrecognized sys.version_info check\nif sys.version_info[:3] >= (2, 7): ...  # Y003 Unrecognized sys.version_info check\nif sys.version_info[:True] >= (2, 7): ...  # Y003 Unrecognized sys.version_info check\nif sys.version_info[:1] == (2,): ...\nif sys.version_info[:1] == (True,): ...  # Y003 Unrecognized sys.version_info check\nif sys.version_info[:1] == (2, 7): ...  # Y005 Version comparison must be against a length-1 tuple\nif sys.version_info[:2] == (2, 7): ...\nif sys.version_info[:2] == (2,): ...  # Y005 Version comparison must be against a length-2 tuple\nif sys.version_info[:2] == \"lol\": ...  # Y003 Unrecognized sys.version_info check\nif sys.version_info[:2.0] >= (3, 9): ...  # Y003 Unrecognized sys.version_info check\nif sys.version_info[:2j] >= (3, 9): ...  # Y003 Unrecognized sys.version_info check\nif sys.version_info[:, :] >= (2, 7): ...  # Y003 Unrecognized sys.version_info check\nif sys.version_info < [3, 0]: ...  # Y003 Unrecognized sys.version_info check\nif sys.version_info < ('3', '0'): ...  # Y003 Unrecognized sys.version_info check\nif sys.version_info >= (3, 4, 3): ...  # Y004 Version comparison must use only major and minor version\nif sys.version_info == (3, 4): ...  # Y006 Use only < and >= for version comparisons\nif sys.version_info > (3, 0): ...  # Y006 Use only < and >= for version comparisons\nif sys.version_info <= (3, 0): ...  # Y006 Use only < and >= for version comparisons\nif sys.version_info < (3, 5): ...\nif sys.version_info >= (3, 5): ...\nif (2, 7) <= sys.version_info < (3, 5): ...  # Y002 If test must be a simple comparison against sys.platform or sys.version_info\n"}
 expected=[{rule="PYI003", file="PYI003.pyi", start=48, end=75}, {rule="PYI003", file="PYI003.pyi", start=198, end=224}, {rule="PYI003", file="PYI003.pyi", start=277, end=305}, {rule="PYI003", file="PYI003.pyi", start=358, end=383}, {rule="PYI003", file="PYI003.pyi", start=436, end=465}, {rule="PYI003", file="PYI003.pyi", start=518, end=544}, {rule="PYI003", file="PYI003.pyi", start=597, end=628}, {rule="PYI003", file="PYI003.pyi", start=681, end=713}, {rule="PYI003", file="PYI003.pyi", start=766, end=796}, {rule="PYI003", file="PYI003.pyi", start=849, end=882}, {rule="PYI003", file="PYI003.pyi", start=972, end=1003}, {rule="PYI003", file="PYI003.pyi", start=1291, end=1320}, {rule="PYI003", file="PYI003.pyi", start=1373, end=1405}, {rule="PYI003", file="PYI003.pyi", start=1458, end=1489}, {rule="PYI003", file="PYI003.pyi", start=1542, end=1574}, {rule="PYI003", file="PYI003.pyi", start=1627, end=1652}, {rule="PYI003", file="PYI003.pyi", start=1705, end=1734}]
+
+[[cases]]
+name = "noqa-codes-comma-space-suppress-policy-plain-integer"
+comparison = "full"
+files = { "case.pyi" = "import sys\nif sys.version_info == 3: ...  # noqa: E501, PYI003\n" }
+expected = []
+
+[[cases]]
+name = "noqa-codes-comma-suppress-policy-plain-integer"
+comparison = "full"
+files = { "case.pyi" = "import sys\nif sys.version_info == 3: ...  # noqa: E501,PYI003\n" }
+expected = []
+
+[[cases]]
+name = "noqa-codes-trailing-reason-suppress-policy-plain-integer"
+comparison = "full"
+files = { "case.pyi" = "import sys\nif sys.version_info == 3: ...  # noqa: PYI003 # why\n" }
+expected = []

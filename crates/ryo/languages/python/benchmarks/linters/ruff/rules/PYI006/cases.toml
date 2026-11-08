@@ -22,3 +22,18 @@ expected = [{ file = "case.pyi", start = 32, end = 55 }]
 name = "runtime"
 files = { "case.py" = "import sys\nif sys.version_info == (3, 10):\n    ...\n" }
 expected = [{ file = "case.py", start = 14, end = 41 }]
+
+[[cases]]
+name = "noqa-codes-comma-space-suppress-equality"
+files = { "case.pyi" = "import sys\nif sys.version_info == (3, 10):  # noqa: E501, PYI006\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "noqa-codes-comma-suppress-equality"
+files = { "case.pyi" = "import sys\nif sys.version_info == (3, 10):  # noqa: E501,PYI006\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "noqa-codes-trailing-reason-suppress-equality"
+files = { "case.pyi" = "import sys\nif sys.version_info == (3, 10):  # noqa: PYI006 # why\n    ...\n" }
+expected = []

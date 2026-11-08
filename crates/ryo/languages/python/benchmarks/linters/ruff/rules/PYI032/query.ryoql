@@ -28,8 +28,8 @@ let any_annotations = select id as annotation, file from "qualified-name" where 
 let matching = select l.annotation as id, l.file as file from annotated_second as l join any_annotations as r on l.annotation = r.annotation and l.file = r.file;
 let locations = select r.id as id, r.file as file, r.span as span, r."start-line" as line from "source-location" as r;
 let candidates = select l.id as id, l.file as file, r.span as span, r.line as line from matching as l join locations as r on l.id = r.id and l.file = r.file;
-let violations = suppress(candidates=candidates, inline-pattern="^[\\s,]*(?:[A-Z]+[0-9]+[\\s,]*)*PYI032(?:$|[\\s,#]|[A-Z])", range-pattern="(?:^|,)(?:PYI032)(?:,|$)");
-let ruf100_matches = observation_matches(candidates=candidates, inline-pattern="^[\\s,]*(?:[A-Z]+[0-9]+[\\s,]*)*PYI032(?:$|[\\s,#]|[A-Z])", range-pattern="(?:^|,)(?:PYI032)(?:,|$)");
+let violations = suppress(candidates=candidates, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*PYI032(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:PYI032)(?:,|$)");
+let ruf100_matches = observation_matches(candidates=candidates, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*PYI032(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:PYI032)(?:,|$)");
 let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
 let ruf100_used = extend(from=ruf100_directives, values={code: "PYI032"});
 observe ruf100_used as noqa_matches;

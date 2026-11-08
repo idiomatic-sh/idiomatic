@@ -52,3 +52,18 @@ expected = [{ file = "example.pyi", start = 14, end = 46 }]
 name = "octal-two-underscore-correct-length"
 files = { "example.pyi" = "import sys\nif sys.version_info[:0o0_2] == (3, 10):\n    pass\n" }
 expected = []
+
+[[cases]]
+name = "noqa-codes-comma-space-suppress-empty-tuple-length"
+files = { "case.pyi" = "import sys\nif sys.version_info[:1] == ():  # noqa: E501, PYI005\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "noqa-codes-comma-suppress-empty-tuple-length"
+files = { "case.pyi" = "import sys\nif sys.version_info[:1] == ():  # noqa: E501,PYI005\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "noqa-codes-trailing-reason-suppress-empty-tuple-length"
+files = { "case.pyi" = "import sys\nif sys.version_info[:1] == ():  # noqa: PYI005 # why\n    ...\n" }
+expected = []

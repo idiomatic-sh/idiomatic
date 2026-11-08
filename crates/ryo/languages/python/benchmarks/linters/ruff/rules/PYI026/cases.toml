@@ -37,3 +37,18 @@ expected = []
 name = "python-control"
 files = { "case.py" = "import typing\nAlias = typing.List[int]\n" }
 expected = []
+
+[[cases]]
+name = "noqa-codes-comma-space-suppress-none-alias"
+files = { "case.pyi" = "Alias = None  # noqa: E501, PYI026\n" }
+expected = []
+
+[[cases]]
+name = "noqa-codes-comma-suppress-none-alias"
+files = { "case.pyi" = "Alias = None  # noqa: E501,PYI026\n" }
+expected = []
+
+[[cases]]
+name = "noqa-codes-trailing-reason-suppress-none-alias"
+files = { "case.pyi" = "Alias = None  # noqa: PYI026 # why\n" }
+expected = []

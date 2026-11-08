@@ -17,3 +17,18 @@ expected = []
 name = "python-file-positive"
 files = { "case.py" = "from typing import Literal\nvalue: Literal[1] | Literal[2]\n" }
 expected = [{ file = "case.py", start = 34, end = 57 }]
+
+[[cases]]
+name = "noqa-codes-comma-space-suppress-two-literal-members"
+files = { "case.pyi" = "from typing import Literal\nvalue: Literal[1] | Literal[2]  # noqa: E501, PYI030\n" }
+expected = []
+
+[[cases]]
+name = "noqa-codes-comma-suppress-two-literal-members"
+files = { "case.pyi" = "from typing import Literal\nvalue: Literal[1] | Literal[2]  # noqa: E501,PYI030\n" }
+expected = []
+
+[[cases]]
+name = "noqa-codes-trailing-reason-suppress-two-literal-members"
+files = { "case.pyi" = "from typing import Literal\nvalue: Literal[1] | Literal[2]  # noqa: PYI030 # why\n" }
+expected = []

@@ -32,3 +32,18 @@ expected = []
 name = "three-args-control"
 files = { "case.pyi" = "from typing import Any\nclass C:\n    def __eq__(self, self_: object, other: Any, extra: int) -> bool: ...\n" }
 expected = []
+
+[[cases]]
+name = "noqa-codes-comma-space-suppress-ne-qualified-any"
+files = { "case.pyi" = "import typing\nclass C:\n    def __ne__(self, other: typing.Any) -> bool: ...  # noqa: E501, PYI032\n" }
+expected = []
+
+[[cases]]
+name = "noqa-codes-comma-suppress-ne-qualified-any"
+files = { "case.pyi" = "import typing\nclass C:\n    def __ne__(self, other: typing.Any) -> bool: ...  # noqa: E501,PYI032\n" }
+expected = []
+
+[[cases]]
+name = "noqa-codes-trailing-reason-suppress-ne-qualified-any"
+files = { "case.pyi" = "import typing\nclass C:\n    def __ne__(self, other: typing.Any) -> bool: ...  # noqa: PYI032 # why\n" }
+expected = []

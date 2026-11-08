@@ -101,3 +101,18 @@ name = "module-binding-before-deferred-function-check-shadows-builtin"
 comparison = "full"
 files = { "case.py" = "def f():\n    x and not x and (lambda list: list())\nlist = custom\n" }
 expected = []
+
+[[cases]]
+name = "noqa-codes-comma-space-suppress-useless_number"
+files = { "case.py" = "def f():\n    42  # noqa: E501, B018\n" }
+expected = []
+
+[[cases]]
+name = "noqa-codes-comma-suppress-useless_number"
+files = { "case.py" = "def f():\n    42  # noqa: E501,B018\n" }
+expected = []
+
+[[cases]]
+name = "noqa-codes-trailing-reason-suppress-useless_number"
+files = { "case.py" = "def f():\n    42  # noqa: B018 # why\n" }
+expected = []

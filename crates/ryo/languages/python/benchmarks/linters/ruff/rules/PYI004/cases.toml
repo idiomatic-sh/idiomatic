@@ -147,3 +147,18 @@ name="tagged-PYI004.pyi"
 comparison="full"
 files={"PYI004.pyi"="import sys\nfrom sys import version_info\n\nif sys.version_info >= (3, 4, 3): ...  # PYI004 \nif sys.version_info < (3, 4, 3): ...  # PYI004 \nif sys.version_info == (3, 4, 3): ...  # PYI004 \nif sys.version_info != (3, 4, 3): ...  # PYI004 \n\nif sys.version_info[0] == 2: ...\nif version_info[0] == 2: ...\nif sys.version_info < (3, 5): ...\nif version_info >= (3, 5): ...\nif sys.version_info[:2] == (2, 7): ...\nif sys.version_info[:1] == (2,): ...\nif sys.platform == 'linux': ...\n"}
 expected=[{rule="PYI004", file="PYI004.pyi", start=44, end=73}, {rule="PYI004", file="PYI004.pyi", start=93, end=121}, {rule="PYI004", file="PYI004.pyi", start=141, end=170}, {rule="PYI004", file="PYI004.pyi", start=190, end=219}]
+
+[[cases]]
+name = "noqa-codes-comma-space-suppress-patch-version"
+files = { "case.pyi" = "import sys\nif sys.version_info >= (3, 10, 1):  # noqa: E501, PYI004\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "noqa-codes-comma-suppress-patch-version"
+files = { "case.pyi" = "import sys\nif sys.version_info >= (3, 10, 1):  # noqa: E501,PYI004\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "noqa-codes-trailing-reason-suppress-patch-version"
+files = { "case.pyi" = "import sys\nif sys.version_info >= (3, 10, 1):  # noqa: PYI004 # why\n    ...\n" }
+expected = []

@@ -749,3 +749,21 @@ name = "b008-stub-class-header-in-function"
 comparison = "full"
 files = { "case.pyi" = "from typing import NewType\ndef outer():\n class C(base:=(int:=object)):\n  T=NewType(\"T\",int)\n  def f(x=T(1)): ...\n" }
 expected = []
+
+[[cases]]
+name = "noqa-codes-comma-space-suppress-policy-constructor-assignment-alias"
+comparison = "full"
+files = { "case.py" = "T=tuple\ndef f(x=T()): ...  # noqa: E501, B008\n" }
+expected = []
+
+[[cases]]
+name = "noqa-codes-comma-suppress-policy-constructor-assignment-alias"
+comparison = "full"
+files = { "case.py" = "T=tuple\ndef f(x=T()): ...  # noqa: E501,B008\n" }
+expected = []
+
+[[cases]]
+name = "noqa-codes-trailing-reason-suppress-policy-constructor-assignment-alias"
+comparison = "full"
+files = { "case.py" = "T=tuple\ndef f(x=T()): ...  # noqa: B008 # why\n" }
+expected = []
