@@ -1,6 +1,6 @@
 # Integration records
 
-The integration records of checkpoints 319 to 324 and the branch records they merged, newest checkpoint last; the current checkpoint's record is in [the matrix](README.md).
+The integration records of checkpoints 319 to 325 and the branch records they merged, newest checkpoint last; the current checkpoint's record is in [the matrix](README.md).
 
 ## Checkpoint 319 integration record
 
@@ -345,3 +345,39 @@ Branch `claude/w6-review-repairs-viii` from checkpoint 323 `7d93840b19`, for the
   - P7 stale `checks` block: repaired here (R2). P7 vacuous passes: repaired here (R2). P7 no tm validate log: repaired here (R2). P7 ring row id and Result: repaired here (R3). P7 perf rows not joined: repaired here (R3); the lowered one-file bests of the ratchet stay uncited until perf-323.md.
   - P7 missed doc comment: repaired here (R4); the unnecessary qualification at `crates/language/src/inbound/use_cases/parse/service.rs:289`: owner, the next engine batch (engine code is limited to the doc comment here).
   - P7 check-pass logs, deleted tests 320 to 321, inventory 8 to 9, review README upkeep: "Close full TM, contracts, independent review and normal CI" and "One implementation per kind for every registry, or a named port" (standing).
+
+## Checkpoint 325 integration record
+
+Checkpoint 325 merges three branches into checkpoint 324 (`14a8352416`), each as a merge commit, in this order: review repairs IX (`claude/w7-review-repairs-ix` `f2cdd02d7e`, merge `48bfef4bb3`), the Django unknowns second pass (`claude/w6-django-unknowns-2` `7bb5318d4c`, merge `f338984c32`) and the perf ratchet 323 (`claude/w5-ratchet-323` `3160ff706d`, merge `316497ef75`). validation325 ran on `316497ef75` (raw logs in `ryo-contract-validation325-20261108`).
+
+- **Joins:** the second pass is cut from 323 (`7d93840b19`), before landing 1 moved the domain. Its coverage and lineage edits (`coverage/service.rs`, `coverage/service_test.rs`, `lineage/service.rs`, `lineage/service_test.rs`) replay onto `crates/execution_domain/src/domain/` by git's rename detection, with no conflict; the `crate::domain::operator::contract::service::semantics` path it calls is the domain crate's own. The benchmark adapter (`adapter.rs`, `schemas.rs`, `schemas_test.rs`), the ruff `engine_test.rs` and the new `engine_test/rejected_syntax_consumer_test.rs` merge as they are. The ratchet changes one line of `cli/tests/fixtures/ratchet.toml` (one-file x 413 wall best 10,143 to 6,871 ms).
+- **Lines under `crates/ryo`:** +678 / -213 against 324 (Rust +484 / -63); the Tastemaker rule versions of review repairs IX add 272 lines at the repository root.
+- **Matrix upkeep at the merge:** four README lines from the merged branches named a machine path (the 323 perf log, twice) or a tracker id (twice), which `no-machine-paths-shipped` and `no-tracker-text-shipped` report (whole-tree TM 22); they now name the log's directory and drop the id (18). The Phase 1 headline and row carry the Django receipt below.
+
+| Pass | Command | Errors reported | Errors fixed |
+|---|---|---|---|
+| 1 | workspace check (all features, all targets) | 0: clean | 0 |
+
+The pass is the workspace check with all features and all targets, `--keep-going` and JSON diagnostics, under the build lock (15.3 s). One warning falls on a line this checkpoint added: `dead_code_pub_in_binary` on `ryo_execution::derived` (review repairs IX's composition entry), reported by the execution crate's own test binary, the class of 324's 32. The full test build is validation325's first target.
+
+- **validation325 (rows, from `tests.json` and the raw logs):** libraries 1079 / 2 (the same two named reds: core `lint::use_case_test::succeeds` row `a_removed_file_leaves_no_unknown_or_skip_behind_in_any_store`, benchmark `process_capture`); boundary 97 / 0; activation 11 / 0; bdd 7, core bdd 18; `ruff_sharing` 1 / 0; `ruff_canary` 1 / 0 (112, the split asserted); ruff 13 / 0 (11 / 1 at 324: both I001 rows of `engine_test::succeeds` green, `engine_test::rejected_syntax_consumer_test` green); doctests 33 / 0; conformance exit 0; cli replay 75 / 3 (the same three reds; the store of ruff 78,525,063 bytes as at 324, warm peak 113,012,736 bytes against 115,310,592); `cli_cost` 1 / 3 with 3 not run; python library 138 / 0; language 43 / 0; hooks 45 / 0; `checkpoint_check` 15 / 0; `no_print` exit 0 over execution, its domain, its store and core; `bench_build` exit 0; `core_allocation` exit 101 (Phase 7); `ruff_rule_phases` exit 1 (owned by "Close full TM, contracts, independent review and normal CI."; both causes were in the harness and Review repairs X repairs them); `tm_source` 0 findings, 2 suppressed; `tm_validate_all` exit 0.
+- **Whole-tree TM:** 18 findings, 6 suppressed (the six admitted ignores), all `no-domain-concept-cycles` in `crates/execution_domain` (the ring row). File-level ownership cycles 0 over 4,864 edge occurrences (4,861 at 324).
+- **Acceptance blocks on the merged tree** (without each block's worktree-state and branch-head lines): review repairs IX exit 0 (`tm` over its changed `.rs` and `.py` files 0; core, the SDK and the command line name no execution store; `run.py --check` exit 0; no ignore added). The second pass: `tm` over its nine `.rs` files at their 325 paths 0, its three domain controls present, `rejected_syntax_consumer_test` green in validation325, no ignore or allow added: exit 0. The ratchet: `perf-323.md` present, the one-file wall best 6,871 ms.
+- **Django receipt (full Django 413 cold, 2,875 files x 413 rules, `RAYON_NUM_THREADS=1`, fresh store, under the build lock):** the release `ruff` bench worker built from `316497ef75`; the request is the 323 request with its rules directory copied from this tree's `languages/python/benchmarks/linters/ruff` (`rules`, `fragments`, `benchmark.toml`) and each rule's applicability read from that `benchmark.toml` (E501, W191 and ERA001 `always`; RUF100 `accepted-syntax`). Exit 0; coverage selected 1,187,375, evaluated 1,186,980, skipped 395 (every skip at `tests/test_runner_apps/tagged/tests_syntax_error.py`, `syntax-rejected`), unknown_or_unread 0; 8,804 diagnostics. Wall 3,383.4 s, CPU 3,382.1 s (user 3,321.4, sys 60.7), peak RSS 6,607,908 KB (6.61 GB); store 1,778,454,983 bytes; 1-minute load 1.69 at start. Against the second pass's run on its own source (3,427.7 s, 6.59 GB, 8,804 diagnostics, 395 skips): the same answer.
+- **Landing 1 follow-ups (unchanged here):** `missing_debug_implementations` 109 sites across the workspace (68 in the three engine crates), never-used items 65 (execution 28, store 35, derived 2). Each wants a manual `Debug` or a feature gate per item, not a merge-time edit; they stay with their row.
+- **Principal Rust review:** PASS on all seven items, first pass (diff `14a8352416..0a02582a09`, `evidence/checkpoint/rust-review.json`).
+
+**Cycle metrics:**
+
+| Metric | Checkpoint 325 |
+|---|---|
+| Builders | 2 (review repairs IX, Django unknowns second pass) and the perf ratchet 323 |
+| BLOCKED questions | 0 |
+| Time dispatch to FROZEN (first and last branch commit) | review repairs IX 04:26 to 04:37, second pass 04:25 to 05:25 (2026-11-08 UTC) |
+| Tokens per builder | not supplied to the integrator |
+| Compile passes | 1 check pass (errors 0) and the validation's test build |
+| Rows ticked by machine | 0 (`run.py --check` un-ticks no row) |
+| Lines under `crates/ryo` | +678 / -213 (Rust +484 / -63) |
+| Full Django 413 cold | exit 0, unknown 0, 3,383.4 s, 6.61 GB |
+| Contract review | pending |
+| Rust gate review | PASS on all seven items, first pass (diff `14a8352416..0a02582a09`) |
