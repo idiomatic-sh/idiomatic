@@ -208,7 +208,6 @@ fn two_declared_roots_of_one_population_read_the_provider_once() {
             "another population reads the provider again"
         );
         assert_eq!(project.reads.load(Ordering::SeqCst), 2);
-        drop((first, second));
         let partials = Partials::default();
         let root = crate::boundary_fixture::ordinary_occurrence(RuleIndex(0));
         let mut outcomes = crate::boundary_fixture::project_roots(
@@ -230,6 +229,8 @@ fn two_declared_roots_of_one_population_read_the_provider_once() {
             &partials,
             &mut symbols,
         );
+        // The held frontiers keep the population acquired, so the occurrences share it.
+        drop((first, second));
         let again = outcomes.pop().unwrap().unwrap();
         let outcome = outcomes
             .pop()

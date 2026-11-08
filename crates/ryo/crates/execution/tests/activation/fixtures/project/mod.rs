@@ -73,6 +73,12 @@ pub(crate) fn measure_project(
     let project_symbols = Symbols::default();
     // The first cycle warms callsite registration and allocator metadata; the second
     // sees exactly the same real request and declared roots.
+    // The per-rule inputs of the phase are built before the measured cycle: they are the caller's, not activation's.
+    let first = vec![Bucket(0); total];
+    let inapplicable =
+        vec![ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(); total];
+    let refused =
+        vec![ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(); total];
     for _ in 0..2 {
         let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
         let partials = Partials::default();
@@ -89,9 +95,6 @@ pub(crate) fn measure_project(
                     demand: FrontierDemand::Diagnostic,
                 })
                 .collect();
-            let first = vec![Bucket(0); total];
-            let inapplicable =
-                vec![ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(); total];
             let ProjectBatch::Complete(outcomes) = phase.evaluate_occurrences(
                 PhaseOccurrences {
                     occurrences: &occurrences,
@@ -100,7 +103,7 @@ pub(crate) fn measure_project(
                     covered: &covered,
                     skipped: &[],
                     inapplicable: &inapplicable,
-                    refused: &vec![ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(); inapplicable.len()],
+                    refused: &refused,
                     facts: &NoFacts,
                     project: &NoFacts,
                     project_symbols: &project_symbols,

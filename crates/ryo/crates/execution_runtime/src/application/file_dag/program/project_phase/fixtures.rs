@@ -170,39 +170,39 @@ pub(super) fn program(entry: Entry, rule_count: usize) -> PreparedExecutionProgr
 }
 
 /// One producer rule: a per-file emit, and a project observation of the files' module identities that only the facts' project
-/// relation could answer.
+/// relation could answer; rule 1 binds that observation, so the producer exports it as a root.
 pub(super) fn producer_program() -> PreparedExecutionProgram {
+    use ryo_values::domain::observations::types::{ObservationName, ObservationProducer, PlanObservation};
     let relation = Relation::ModuleIdentity;
-    let file_column = ryo_relations::domain::relations::fixtures::kinds(relation)
-        .iter()
-        .position(|kind| *kind == CellKind::File)
-        .and_then(|column| u32::try_from(column).ok())
-        .expect("a module identity row names its file");
+    let kinds = ryo_relations::domain::relations::fixtures::kinds(relation);
+    let file = kinds.iter().position(|kind| *kind == CellKind::File).and_then(|at| u32::try_from(at).ok());
+    let columns = vec![ObservationColumn { name: ObservationColumnName("file".into()), kind: CellKind::File }];
+    let select = |from, kept| PlanStep {
+        scope: StepScope::CrossFile,
+        operation: Operation::Select { from, comparisons: vec![], kept },
+    };
     let mut produced = plan();
-    produced.steps.push(PlanStep {
-        scope: StepScope::CrossFile,
-        operation: Operation::Select {
-            from: Input::Relation(relation),
-            comparisons: vec![],
-            kept: vec![ColumnIndex(file_column)],
-        },
-    });
-    produced.observations.push(ryo_values::domain::observations::types::PlanObservation {
-        name: ryo_values::domain::observations::types::ObservationName("files".into()),
-        source: Input::Step(StepId(1)),
-        columns: vec![ObservationColumn {
-            name: ObservationColumnName("file".into()),
-            kind: CellKind::File,
-        }],
-        scope: StepScope::CrossFile,
-    });
-    let rules = [rule(0)];
-    let compiled = ryo_execution_domain::domain::prepared_request::service::assemble(vec![produced], vec![vec![]], &rules)
-        .expect("valid authored producer");
+    produced.steps.push(select(Input::Relation(relation), vec![ColumnIndex(file.expect("a module identity row names its file"))]));
+    let name = || ObservationName("files".into());
+    let observation = PlanObservation { name: name(), source: Input::Step(StepId(1)), columns: columns.clone(), scope: StepScope::CrossFile };
+    produced.observations.push(observation);
+    let mut rules = [rule(0), rule(1)];
+    let producers = vec![ObservationProducer::Output { rule: rules[0].id.clone(), output: name() }];
+    let binding = || ObservationBindingName("files".into());
+    rules[1].observations.push(ObservationBinding { name: binding(), columns: columns.clone(), producers });
+    let mut consumer = plan();
+    consumer.observation_inputs.push(BoundObservationInput { name: binding(), columns, scope: StepScope::CrossFile });
+    consumer.steps = vec![select(Input::BoundObservation(ObservationBindingId(0)), vec![])];
+    let compiled = ryo_execution_domain::domain::prepared_request::service::assemble(
+        vec![produced, consumer],
+        vec![vec![]; 2],
+        &rules,
+    )
+    .expect("valid authored producer");
     crate::application::file_dag::program::prepared_execution::service::prepare(
         compiled,
         &rules,
-        &[Digest([9; 16])],
+        &[Digest([9; 16]), Digest([10; 16])],
         &[],
         ObservationIdentity::Named(ObservationReadinessLayout(Digest([11; 16]))),
         Arc::new(crate::outbound::operators::factory::use_case(

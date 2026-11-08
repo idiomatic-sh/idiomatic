@@ -245,10 +245,14 @@ pub(super) fn kept_facts(world: &World, kept: &[(RuleIndex, &[(FileId, Table)])]
     let facts_port = ryo_execution_runtime::outbound::facts::fixtures::fake::FactsFake::default();
     let mut workers = Vec::new();
     for (rule, rows) in kept {
+        // A rule the program does not declare keeps nothing: the phase refuses it by itself.
+        let Ok(rule_digest) = world.program.rule_digest(*rule) else {
+            continue;
+        };
         let proof = FrontierProof {
             rule: ryo_values::domain::records::types::ProducerRule(rule.0 as u32),
             input: ryo_values::domain::records::types::FrontierOrdinal(0),
-            rule_digest: world.program.rule_digest(*rule).expect("rule digest"),
+            rule_digest,
             coverage: FrontierCoverage::Complete,
         };
         for (file, table) in *rows {

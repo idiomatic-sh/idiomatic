@@ -293,7 +293,23 @@ fn a_root_whose_observations_are_not_required_invokes_no_observation_root() {
     let scope = phase
         .project_scope(RuleIndex(0), &corpus, &covered(1), &[], &InapplicableFiles::default(), &RefusedFiles::default())
         .expect("a declared rule has a scope");
-    let frontiers = prepare_for(&request, &scope, RuleIndex(0)).expect("declared frontiers");
+    // The exported observation's source is a frontier input, so preparation reads its project relation: no rows here.
+    let project = crate::outbound::facts::interface::FactsPort::worker(&crate::outbound::facts::fixtures::fake::FactsFake::default())
+        .expect("a fake project worker");
+    let frontiers = request
+        .prepare_frontiers(
+            crate::application::file_dag::program::project_phase::types::FrontierRequest {
+                demand: crate::application::file_dag::program::project_phase::types::FrontierDemand::Diagnostic,
+                scope: &scope,
+                rule: RuleIndex(0),
+                first: ryo_values::domain::stored_facts::types::Bucket(0),
+                facts: &super::fixtures::NoFacts,
+                project: project.as_ref(),
+                project_symbols: &Symbols::default(),
+            },
+            &mut Symbols::default(),
+        )
+        .expect("declared frontiers");
     let emit_only = RuleDemand {
         emit: EmitDemand::Enabled,
         observations: ObservationDemand::NotRequired,
