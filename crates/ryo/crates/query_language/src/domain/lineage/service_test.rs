@@ -1,6 +1,7 @@
 //! A column read from a relation through a join and a projection has the relation column's kind; a column a step made has none.
 
 use super::service::column_kind;
+use super::types::LineageMemo;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_relations::domain::relations::types::{CellKind, Relation};
 use ryo_values::domain::plan_parts::types::{
@@ -80,8 +81,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         }),
     ];
     Ok(match scenario {
-        Scenario::AFileThroughAJoin => column_kind(&steps, Reads::Step(StepId(1)), ColumnIndex(0)),
-        Scenario::ACount => column_kind(&steps, Reads::Step(StepId(2)), ColumnIndex(1)),
+        Scenario::AFileThroughAJoin => column_kind(&steps, &mut LineageMemo::default(), Reads::Step(StepId(1)), ColumnIndex(0)),
+        Scenario::ACount => column_kind(&steps, &mut LineageMemo::default(), Reads::Step(StepId(2)), ColumnIndex(1)),
     })
 }
 

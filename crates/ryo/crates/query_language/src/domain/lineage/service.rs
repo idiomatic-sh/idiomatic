@@ -1,18 +1,26 @@
 //! The `lineage` service: free functions named by verb over the relation column a column of a step's rows was read from, and the
 //! per-file steps its values come from.
 
+use super::types::LineageMemo;
+use super::types::StepColumn;
 use super::types::ValueOrigin;
 use crate::domain::fusing::service::source_column;
 use crate::domain::planning::service::planned_scope;
 use crate::domain::resolving::service::relation_fields;
 use crate::domain::walking::service::width_of;
+use ryo_relations::domain::relations::service::kinds;
 use ryo_relations::domain::relations::types::CellKind;
+use ryo_values::domain::lineage::service::anchor_of;
+use ryo_values::domain::lineage::service::one_file;
+use ryo_values::domain::lineage::types::ColumnAnchor;
+use ryo_values::domain::lineage::types::Lineage;
 use ryo_values::domain::plan_parts::service::column_in;
 use ryo_values::domain::plan_parts::service::step_in;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::JoinColumn;
 use ryo_values::domain::plan_parts::types::Side;
+use ryo_values::domain::plan_parts::types::StepId;
 use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::plans::types::PlanStep;
@@ -24,6 +32,7 @@ use ryo_values::domain::plans::types::PlanStep;
 #[must_use]
 pub(crate) fn column_kind(
     steps: &[PlanStep],
+    memo: &mut LineageMemo,
     input: Input,
     column: ColumnIndex,
 ) -> Option<CellKind> {
@@ -34,12 +43,27 @@ pub(crate) fn column_kind(
         Input::BoundObservation(_) => return None,
         Input::Step(id) => id,
     };
+    if let Some(found) = memo.kinds.get(&StepColumn { step: id, column }) {
+        return *found;
+    }
+    let found = step_kind(steps, memo, id, column);
+    let _first = memo.kinds.insert(StepColumn { step: id, column }, found);
+    found
+}
+
+/// The kind of the column `column` of the step `id`, followed into what the step reads.
+fn step_kind(
+    steps: &[PlanStep],
+    memo: &mut LineageMemo,
+    id: StepId,
+    column: ColumnIndex,
+) -> Option<CellKind> {
     match &step_in(steps, id)?.operation {
         Operation::Select { from, kept, .. } => {
-            column_kind(steps, *from, source_column(kept, column)?)
+            column_kind(steps, memo, *from, source_column(kept, column)?)
         }
         Operation::Project { from, columns, .. } => {
-            column_kind(steps, *from, *column_in(columns, column)?)
+            column_kind(steps, memo, *from, *column_in(columns, column)?)
         }
         Operation::Join {
             left,
@@ -50,8 +74,8 @@ pub(crate) fn column_kind(
         } => {
             let JoinColumn { side, column: at } = *column_in(output, column)?;
             match side {
-                Side::Left => column_kind(steps, *left, at),
-                Side::Right => column_kind(steps, *right, source_column(view, at)?),
+                Side::Left => column_kind(steps, memo, *left, at),
+                Side::Right => column_kind(steps, memo, *right, source_column(view, at)?),
             }
         }
         Operation::OrderedMatch {
@@ -62,8 +86,8 @@ pub(crate) fn column_kind(
         } => {
             let JoinColumn { side, column: at } = *column_in(output, column)?;
             match side {
-                Side::Left => column_kind(steps, *left, at),
-                Side::Right => column_kind(steps, *right, at),
+                Side::Left => column_kind(steps, memo, *left, at),
+                Side::Right => column_kind(steps, memo, *right, at),
             }
         }
         Operation::Axis {
@@ -74,21 +98,21 @@ pub(crate) fn column_kind(
             ..
         } => {
             if output.is_empty() {
-                return column_kind(steps, *from, column);
+                return column_kind(steps, memo, *from, column);
             }
             let JoinColumn { side, column: at } = *column_in(output, column)?;
             match side {
-                Side::Left => column_kind(steps, *from, at),
-                Side::Right => column_kind(steps, *domain, source_column(domain_view, at)?),
+                Side::Left => column_kind(steps, memo, *from, at),
+                Side::Right => column_kind(steps, memo, *domain, source_column(domain_view, at)?),
             }
         }
         Operation::GroupCount { from, keys, .. } | Operation::GroupDigest { from, keys, .. } => {
-            column_kind(steps, *from, *column_in(keys, column)?)
+            column_kind(steps, memo, *from, *column_in(keys, column)?)
         }
         Operation::Union { left, .. }
         | Operation::Intersection { left, .. }
         | Operation::Difference { left, .. }
-        | Operation::Antijoin { left, .. } => column_kind(steps, *left, column),
+        | Operation::Antijoin { left, .. } => column_kind(steps, memo, *left, column),
         Operation::Extend { from, .. }
         | Operation::Capture { from, .. }
         | Operation::Rank { from, .. }
@@ -98,7 +122,7 @@ pub(crate) fn column_kind(
         | Operation::SourceMatches { from, .. }
         | Operation::RenderSyntax { from, .. }
         | Operation::FitsRendered { from, .. }
-        | Operation::SpanBounds { from, .. } => column_kind(steps, *from, column),
+        | Operation::SpanBounds { from, .. } => column_kind(steps, memo, *from, column),
         Operation::OrderedDfs { .. }
         | Operation::Closure { .. }
         | Operation::Cycles { .. }
@@ -115,21 +139,38 @@ pub(crate) fn column_kind(
 #[must_use]
 pub(crate) fn value_origins(
     steps: &[PlanStep],
+    memo: &mut LineageMemo,
     input: Input,
     column: ColumnIndex,
 ) -> Option<Vec<ValueOrigin>> {
     let Input::Step(id) = input else {
         return None;
     };
+    if let Some(found) = memo.origins.get(&StepColumn { step: id, column }) {
+        return found.clone();
+    }
+    let found = step_origins(steps, memo, id, column);
+    let _first = memo.origins.insert(StepColumn { step: id, column }, found.clone());
+    found
+}
+
+/// The per-file origins of the column `column` of the step `id`, followed into what the step reads.
+fn step_origins(
+    steps: &[PlanStep],
+    memo: &mut LineageMemo,
+    id: StepId,
+    column: ColumnIndex,
+) -> Option<Vec<ValueOrigin>> {
+    let input = Input::Step(id);
     if planned_scope(steps, input)? == StepScope::PerFile {
         return Some(vec![ValueOrigin { input, column }]);
     }
     match &step_in(steps, id)?.operation {
         Operation::Select { from, kept, .. } => {
-            value_origins(steps, *from, source_column(kept, column)?)
+            value_origins(steps, memo, *from, source_column(kept, column)?)
         }
         Operation::Project { from, columns, .. } => {
-            value_origins(steps, *from, *column_in(columns, column)?)
+            value_origins(steps, memo, *from, *column_in(columns, column)?)
         }
         Operation::Join {
             left,
@@ -145,18 +186,18 @@ pub(crate) fn value_origins(
                 Side::Left => (*left, at, *right, left_on, right_on),
                 Side::Right => (*right, source_column(view, at)?, *left, right_on, left_on),
             };
-            value_origins(steps, own, own_column).or_else(|| {
+            value_origins(steps, memo, own, own_column).or_else(|| {
                 let key = own_keys.iter().position(|each| *each == at)?;
                 let equal = *other_keys.get(key)?;
                 match side {
-                    Side::Left => value_origins(steps, other, source_column(view, equal)?),
-                    Side::Right => value_origins(steps, other, equal),
+                    Side::Left => value_origins(steps, memo, other, source_column(view, equal)?),
+                    Side::Right => value_origins(steps, memo, other, equal),
                 }
             })
         }
         Operation::Union { left, right } => {
-            let mut origins = value_origins(steps, *left, column)?;
-            for origin in value_origins(steps, *right, column)? {
+            let mut origins = value_origins(steps, memo, *left, column)?;
+            for origin in value_origins(steps, memo, *right, column)? {
                 if !origins.contains(&origin) {
                     origins.push(origin);
                 }
@@ -165,9 +206,9 @@ pub(crate) fn value_origins(
         }
         Operation::Intersection { left, .. }
         | Operation::Difference { left, .. }
-        | Operation::Antijoin { left, .. } => value_origins(steps, *left, column),
+        | Operation::Antijoin { left, .. } => value_origins(steps, memo, *left, column),
         Operation::GroupCount { from, keys, .. } | Operation::GroupDigest { from, keys, .. } => {
-            value_origins(steps, *from, *column_in(keys, column)?)
+            value_origins(steps, memo, *from, *column_in(keys, column)?)
         }
         Operation::Extend { from, .. }
         | Operation::Capture { from, .. }
@@ -181,7 +222,7 @@ pub(crate) fn value_origins(
         | Operation::SpanBounds { from, .. } => {
             // A column these append is made after the files, and is followed no further.
             (column.0 < width_of(steps, *from)?.0)
-                .then(|| value_origins(steps, *from, column))
+                .then(|| value_origins(steps, memo, *from, column))
                 .flatten()
         }
         Operation::OrderedMatch { .. }
@@ -192,4 +233,32 @@ pub(crate) fn value_origins(
         | Operation::Rows { .. }
         | Operation::Hosted { .. } => None,
     }
+}
+
+/// The lineage of the rows of `input` by the one rule of `ryo_values`' lineage, when each comes from one file: a relation's, whose rows
+/// are partitioned by file, or a per-file step's, whose columns state their row's file when they are files or nodes. A column whose kind
+/// the plan cannot follow states nothing, and the rows of a step after the files or of a bound input are mixed: a rewrite that needs a
+/// proof that two rows come from one file reads it here and nowhere else.
+pub(crate) fn file_lineage(steps: &[PlanStep], memo: &mut LineageMemo, input: Input) -> Lineage {
+    let id = match input {
+        Input::Relation(relation) => return one_file(kinds(relation)),
+        Input::BoundObservation(_) => return Lineage::Mixed,
+        Input::Step(id) => id,
+    };
+    if let Some(found) = memo.lineages.get(&id) {
+        return found.clone();
+    }
+    let found = match (planned_scope(steps, input), width_of(steps, input)) {
+        (Some(StepScope::PerFile), Some(width)) => Lineage::OneFile(
+            (0..width.0)
+                .map(|column| {
+                    column_kind(steps, memo, input, ColumnIndex(column))
+                        .map_or(ColumnAnchor::Elsewhere, anchor_of)
+                })
+                .collect(),
+        ),
+        (Some(StepScope::CrossFile) | None, _) | (Some(StepScope::PerFile), None) => Lineage::Mixed,
+    };
+    let _first = memo.lineages.insert(id, found.clone());
+    found
 }

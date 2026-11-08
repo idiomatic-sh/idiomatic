@@ -158,38 +158,43 @@ fn kept_columns(
     })
 }
 
-/// Where `column` is among `columns`, after `offset` columns before them.
+/// Where `column` is among `columns`, after `offset` columns before them: none when it is not among them, so a rewrite that asks
+/// for a column it did not keep is refused instead of reading another column.
 pub(crate) fn index_among(
     columns: &[ColumnIndex],
     column: ColumnIndex,
     offset: ColumnPrefixLength,
-) -> ColumnIndex {
-    ColumnIndex(
-        u32::try_from(offset.0 + columns.iter().position(|each| *each == column).unwrap_or(0))
-            .unwrap_or(u32::MAX),
-    )
+) -> Option<ColumnIndex> {
+    let place = offset
+        .0
+        .checked_add(columns.iter().position(|each| *each == column)?)?;
+    match u32::try_from(place) {
+        Ok(at) => Some(ColumnIndex(at)),
+        // A place past every column number names no column.
+        Err(_past_every_column) => None,
+    }
 }
 
 /// The columns the lookup gives: the left's where the answer reads them, the edges' or the elements' where the second join finds them.
 fn answer_columns(
     output: &[JoinColumn],
     made_column: &dyn Fn(ColumnIndex) -> Option<JoinColumn>,
-    at_left: &dyn Fn(ColumnIndex) -> ColumnIndex,
-    at_edge: &dyn Fn(ColumnIndex) -> ColumnIndex,
+    at_left: &dyn Fn(ColumnIndex) -> Option<ColumnIndex>,
+    at_edge: &dyn Fn(ColumnIndex) -> Option<ColumnIndex>,
 ) -> Option<Vec<JoinColumn>> {
     let mut answer = Vec::new();
     for column in output {
         answer.push(match column.side {
             Side::Left => JoinColumn {
                 side: Side::Left,
-                column: at_left(column.column),
+                column: at_left(column.column)?,
             },
             Side::Right => {
                 let wanted = made_column(column.column)?;
                 match wanted.side {
                     Side::Left => JoinColumn {
                         side: Side::Left,
-                        column: at_edge(wanted.column),
+                        column: at_edge(wanted.column)?,
                     },
                     Side::Right => wanted,
                 }
@@ -298,7 +303,7 @@ fn pushed(steps: &[PlanStep], place: StepIndex) -> Option<Pushed> {
     let above = Operation::Join {
         left: Input::Step(StepId(0)),
         right: Input::Relation(Relation::SyntaxTree),
-        left_on: vec![at_edge(ColumnIndex(1))],
+        left_on: vec![at_edge(ColumnIndex(1))?],
         right_on: vec![*element_key],
         output: answer,
         filter: filters,

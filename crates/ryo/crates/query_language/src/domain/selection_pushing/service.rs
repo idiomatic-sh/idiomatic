@@ -6,6 +6,7 @@ use super::types::SplitComparisons;
 use super::types::Tested;
 use crate::domain::fusing::service::source_column;
 use crate::domain::lineage::service::column_kind;
+use crate::domain::lineage::types::LineageMemo;
 use crate::domain::planning::service::inputs_of;
 use crate::domain::planning::service::planned_scope;
 use crate::domain::pruning::service::without_unused_roots;
@@ -106,13 +107,14 @@ fn filtering_readers<'a>(
                     && matches!(step.operation, Operation::Select { from, .. } if from == Input::Step(id))
             })
         });
-    (filters && gain_of(steps, Input::Step(id)) == FilterGain::Pays).then_some(readers)
+    (filters && gain_of(steps, &mut LineageMemo::default(), Input::Step(id)) == FilterGain::Pays)
+        .then_some(readers)
 }
 
 /// Whether the rows of `input` are made by a join keyed on the file alone, which pairs every row of a file with every row of it on the
 /// other side, or by a union of such rows: there, rows a filter takes out after the join were made by the thousand, and a filter made
 /// before it pays for a copy of the join or the union for each filter. Elsewhere a filter stays where it is.
-fn gain_of(steps: &[PlanStep], input: Input) -> FilterGain {
+fn gain_of(steps: &[PlanStep], memo: &mut LineageMemo, input: Input) -> FilterGain {
     let Input::Step(id) = input else {
         return FilterGain::Stays;
     };
@@ -121,8 +123,8 @@ fn gain_of(steps: &[PlanStep], input: Input) -> FilterGain {
     };
     match &made.operation {
         Operation::Union { left, right } => {
-            if gain_of(steps, *left) == FilterGain::Pays
-                || gain_of(steps, *right) == FilterGain::Pays
+            if gain_of(steps, memo, *left) == FilterGain::Pays
+                || gain_of(steps, memo, *right) == FilterGain::Pays
             {
                 FilterGain::Pays
             } else {
@@ -138,7 +140,7 @@ fn gain_of(steps: &[PlanStep], input: Input) -> FilterGain {
             if !left_on.is_empty()
                 && left_on
                     .iter()
-                    .all(|key| column_kind(steps, *left, *key) == Some(CellKind::File))
+                    .all(|key| column_kind(steps, memo, *left, *key) == Some(CellKind::File))
             {
                 FilterGain::Pays
             } else {

@@ -2,7 +2,8 @@
 
 use ryo_relations::domain::relations::types::Relation;
 
-use super::service::push_lookups;
+use super::service::{index_among, push_lookups};
+use super::types::ColumnPrefixLength;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input as Reads;
@@ -20,6 +21,9 @@ enum Scenario {
     ALookupByTheParentIsPushed,
     /// A lookup by another column of the join is left as it is.
     ALookupByAnotherColumnIsLeft,
+    /// A column found among the kept ones is placed after the columns before them; one not kept is refused, never read as
+    /// the first.
+    AColumnNotKeptIsRefused,
 }
 
 /// A number the answer is.
@@ -121,10 +125,21 @@ fn left_lookup() -> usize {
     usize::from(planned.steps == steps && planned.emitted == StepId(2))
 }
 
+fn placed_or_refused() -> usize {
+    let kept = [column(4), column(2)];
+    usize::from(
+        index_among(&kept, column(2), ColumnPrefixLength(3)) == Some(column(4))
+            && index_among(&kept, column(4), ColumnPrefixLength(0)) == Some(column(0))
+            && index_among(&kept, column(7), ColumnPrefixLength(0)).is_none()
+            && index_among(&kept, column(2), ColumnPrefixLength(usize::MAX)).is_none(),
+    )
+}
+
 fn subject(scenario: Input) -> Value {
     match scenario {
         Scenario::ALookupByTheParentIsPushed => pushed_lookup(),
         Scenario::ALookupByAnotherColumnIsLeft => left_lookup(),
+        Scenario::AColumnNotKeptIsRefused => placed_or_refused(),
     }
 }
 
@@ -140,6 +155,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_lookup_by_another_column_is_left_alone"),
         word: Word::Succeeds,
         input: || Scenario::ALookupByAnotherColumnIsLeft,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("a_column_not_kept_is_refused_never_read_as_the_first"),
+        word: Word::Succeeds,
+        input: || Scenario::AColumnNotKeptIsRefused,
         expect: Expect::Value(1),
     },
 ];

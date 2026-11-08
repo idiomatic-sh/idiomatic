@@ -145,3 +145,48 @@ pub fn failing_catalog() -> Given {
 pub fn same_text_twice() -> Given {
     text_the_fake_reads()
 }
+
+/// The rewrites the compile use case makes of a plan, for the engine's proofs that a rewritten plan answers the rows the plan
+/// answered. Only those proofs call them, through the crate's `fixtures` feature; the crate's own tests call the rewrites directly,
+/// so its test build leaves these out.
+#[cfg(all(feature = "fixtures", not(test)))]
+pub mod rewrites {
+    use crate::domain::rewriting::types::Planned;
+    use ryo_values::domain::plan_parts::types::{Input, StepId};
+    use ryo_values::domain::plans::types::PlanStep;
+
+    /// The steps of a plan and the step it emits after `rewrite`.
+    fn rewritten(
+        steps: Vec<PlanStep>,
+        emitted: StepId,
+        rewrite: fn(Vec<PlanStep>, StepId) -> Planned,
+    ) -> (Vec<PlanStep>, StepId) {
+        let planned = rewrite(steps, emitted);
+        (planned.steps, planned.emitted)
+    }
+
+    /// The plan with the per-file inputs of its joins after the files joined in each file, as compiling regroups them.
+    #[must_use]
+    pub fn regrouped(steps: Vec<PlanStep>, emitted: StepId) -> (Vec<PlanStep>, StepId) {
+        rewritten(steps, emitted, crate::domain::regrouping::service::regroup_joins)
+    }
+
+    /// The plan with the per-file inputs of its joins after the files narrowed to the rows the other input can meet, as
+    /// compiling narrows them.
+    #[must_use]
+    pub fn narrowed(steps: Vec<PlanStep>, emitted: StepId) -> (Vec<PlanStep>, StepId) {
+        rewritten(steps, emitted, crate::domain::narrowing::service::narrow_lookups)
+    }
+
+    /// The plan with the filters of its unions and joins made on their inputs, as compiling pushes them.
+    #[must_use]
+    pub fn selections_pushed(steps: Vec<PlanStep>, emitted: StepId) -> (Vec<PlanStep>, StepId) {
+        rewritten(steps, emitted, crate::domain::selection_pushing::service::push_selections)
+    }
+
+    /// What the per-file steps of a plan hand over, as compiling finds it.
+    #[must_use]
+    pub fn frontier(steps: &[PlanStep]) -> Vec<Input> {
+        crate::domain::planning::service::frontier_of(steps)
+    }
+}

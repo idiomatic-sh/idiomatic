@@ -4,14 +4,15 @@
 use super::types::Regrouped;
 use super::types::SplitJoin;
 use crate::domain::fusing::service::source_column;
-use crate::domain::lineage::service::column_kind;
-use crate::domain::lowering::types::FileOrigin;
+use crate::domain::lineage::service::file_lineage;
+use crate::domain::lineage::types::LineageMemo;
 use crate::domain::planning::service::planned_scope;
-use crate::domain::planning::service::stated_by;
 use crate::domain::pushing::service::index_among;
 use crate::domain::pushing::types::ColumnPrefixLength;
 use crate::domain::rewriting::types::Planned;
 use crate::domain::rewriting::types::StepIndex;
+use ryo_values::domain::lineage::service::pairing;
+use ryo_values::domain::lineage::types::KeyPairing;
 use ryo_values::domain::plan_parts::service::column_in;
 use ryo_values::domain::plan_parts::service::step_in;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -26,9 +27,10 @@ use ryo_values::domain::plans::types::PlanStep;
 
 /// The plan with each join after the files of a per-file input with a join after the files, keyed on columns of that join's per-file
 /// input, made two joins: the two per-file inputs joined in each file, and the join's other input joined with that after the files.
-/// `Join(Join(C, P1, k1), P2, k2)`, with every column of `k2` a column of `P1` and `k2` saying which file a row is of on both sides,
+/// `Join(Join(C, P1, k1), P2, k2)`, with every column of `k2` a column of `P1` and `k2` pairing a column of each side that states its row's file,
 /// becomes `Join(C, Join(P1, P2, k2), k1)`: a file hands over the rows of `P1` and `P2` that meet, not every row of each. Joins are
-/// associative, so the rows and their columns are the same. Done again on the join it makes, so a chain of such joins is made in
+/// associative, and every pair `k2` matches is of one file, so the rows and their columns are the same. A key of spans alone states
+/// no file and leaves the join as it is. Done again on the join it makes, so a chain of such joins is made in
 /// each file down to its first input from after the files.
 #[must_use]
 pub(crate) fn regroup_joins(steps: Vec<PlanStep>, mut emitted: StepId) -> Planned {
@@ -39,8 +41,11 @@ pub(crate) fn regroup_joins(steps: Vec<PlanStep>, mut emitted: StepId) -> Planne
 /// The same rewrite with every externally observable root protected and renumbered together.
 pub(crate) fn regroup_joins_roots(mut steps: Vec<PlanStep>, roots: &mut [StepId]) -> Vec<PlanStep> {
     let mut place = 0;
+    let mut memo = LineageMemo::default();
     while place < steps.len() {
-        if let Some(Regrouped { inner, outer }) = regrouped(&steps, StepIndex(place)) {
+        if let Some(Regrouped { inner, outer }) = regrouped(&steps, &mut memo, StepIndex(place)) {
+            // The steps move, so what was found of them no longer holds.
+            memo = LineageMemo::default();
             // The join of the per-file inputs takes the place of the join it was made from, which follows it.
             let first = StepId(u32::try_from(place).unwrap_or(u32::MAX));
             for step in &mut steps {
@@ -79,17 +84,6 @@ fn opposite(side: Side) -> Side {
     match side {
         Side::Left => Side::Right,
         Side::Right => Side::Left,
-    }
-}
-
-/// Whether one of these columns of `input` says which file a row is of.
-fn states_file(steps: &[PlanStep], input: Input, columns: &[ColumnIndex]) -> FileOrigin {
-    if columns.iter().any(|column| {
-        column_kind(steps, input, *column).is_some_and(|kind| stated_by(kind) == FileOrigin::Stated)
-    }) {
-        FileOrigin::Stated
-    } else {
-        FileOrigin::Unstated
     }
 }
 
@@ -169,14 +163,14 @@ fn kept_from(side: Side, columns: &[ColumnIndex]) -> impl Iterator<Item = JoinCo
 }
 
 /// The two joins the join at `place` is regrouped into, with the join after the files on either side of it.
-fn regrouped(steps: &[PlanStep], place: StepIndex) -> Option<Regrouped> {
+fn regrouped(steps: &[PlanStep], memo: &mut LineageMemo, place: StepIndex) -> Option<Regrouped> {
     let step = steps.get(place.0)?;
     if step.scope != StepScope::CrossFile {
         return None;
     }
     let at = Input::Step(StepId(u32::try_from(place.0).unwrap_or(u32::MAX)));
-    regrouped_on(steps, &step.operation, Side::Left, at)
-        .or_else(|| regrouped_on(steps, &step.operation, Side::Right, at))
+    regrouped_on(steps, memo, &step.operation, Side::Left, at)
+        .or_else(|| regrouped_on(steps, memo, &step.operation, Side::Right, at))
 }
 
 /// The two joins `outer` is regrouped into when the join after the files is its input on `side`; the join of the per-file inputs
@@ -185,7 +179,13 @@ fn regrouped(steps: &[PlanStep], place: StepIndex) -> Option<Regrouped> {
     clippy::too_many_lines,
     reason = "the two sides of both joins are read and rebuilt in one place so their columns are numbered by one rule"
 )]
-fn regrouped_on(steps: &[PlanStep], outer: &Operation, side: Side, at: Input) -> Option<Regrouped> {
+fn regrouped_on(
+    steps: &[PlanStep],
+    memo: &mut LineageMemo,
+    outer: &Operation,
+    side: Side,
+    at: Input,
+) -> Option<Regrouped> {
     let Operation::Join {
         left,
         right,
@@ -234,9 +234,17 @@ fn regrouped_on(steps: &[PlanStep], outer: &Operation, side: Side, at: Input) ->
             Side::Right => Some(*key),
         })
         .collect::<Option<Vec<_>>>()?;
-    // Rows of two files could meet on the inner join's keys unless both of its inputs say which file each row is of on them.
-    if states_file(steps, split.local, &inner_local_keys) == FileOrigin::Unstated
-        || states_file(steps, other, &other_source_keys) == FileOrigin::Unstated
+    // Rows of two files could meet on the inner join's keys unless they pair, at one position, a column of each input that states its
+    // row's file: a key of spans alone states none, since equal spans of two files are equal.
+    let local_lineage = file_lineage(steps, memo, split.local);
+    let other_lineage = file_lineage(steps, memo, other);
+    if pairing(
+        &local_lineage,
+        &inner_local_keys,
+        &other_lineage,
+        &other_source_keys,
+        &[],
+    ) == KeyPairing::Unproven
     {
         return None;
     }
@@ -298,7 +306,7 @@ fn regrouped_on(steps: &[PlanStep], outer: &Operation, side: Side, at: Input) ->
         .local_keys
         .iter()
         .map(|key| index_among(&local_kept, *key, local_offset))
-        .collect::<Vec<_>>();
+        .collect::<Option<Vec<_>>>()?;
     let mut answer = Vec::new();
     for column in output {
         answer.push(if column.side == side {
@@ -312,13 +320,13 @@ fn regrouped_on(steps: &[PlanStep], outer: &Operation, side: Side, at: Input) ->
                         &local_kept,
                         source_column(split.local_view, made.column)?,
                         local_offset,
-                    ),
+                    )?,
                 }
             }
         } else {
             JoinColumn {
                 side: inner_side,
-                column: index_among(&other_kept, column.column, other_offset),
+                column: index_among(&other_kept, column.column, other_offset)?,
             }
         });
     }

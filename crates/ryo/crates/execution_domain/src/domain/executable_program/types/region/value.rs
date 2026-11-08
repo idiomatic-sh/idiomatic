@@ -1,7 +1,7 @@
 //! A compiled region: fields private, written only by the executable-program compiler, read through accessors.
 use super::super::instruction::value::Instruction;
 use super::super::{InputSource, ReaderMultiplicity, RegionId, Route, SourcePartition};
-use crate::domain::lineage::types::Lineage;
+use ryo_values::domain::lineage::types::Lineage;
 use crate::domain::{
     coverage::types::RuleIndex, operating::errors::OperatingError, trust::types::RelationRead,
 };
