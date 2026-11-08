@@ -16,6 +16,7 @@ name = "ryo_execution"
 ryo_matching = { package = "idiomatic-sh-ryo-matching", path = "../matching", version = "0.1.2" }
 ryo_derived = { package = "idiomatic-sh-ryo-derived", path = "../derived", version = "0.1.2" }
 ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations", version = "0.1.2" }
+ryo_execution_store = { package = "idiomatic-sh-ryo-execution-store", path = "../execution_store", version = "0.1.2" }
 thiserror.workspace = true
 ignore.workspace = true
 rayon.workspace = true
@@ -39,6 +40,7 @@ tempfile.workspace = true
 
 [dev-dependencies]
 idiomatic-sh-ryo-execution = { path = ".", features = ["fixtures"] }
+ryo_execution_store = { package = "idiomatic-sh-ryo-execution-store", path = "../execution_store", version = "0.1.2", features = ["fixtures"] }
 dhat.workspace = true
 toml.workspace = true
 ryo_query_language = { package = "idiomatic-sh-ryo-query_language", path = "../query_language", version = "0.1.2", features = ["fixtures"] }
@@ -61,8 +63,8 @@ name = "bdd"
 harness = false
 
 [features]
-fixtures = ["ryo_values/fixtures", "ryo_relations/fixtures", "ryo_language/fixtures"]
-diagnostic-row-progress = []
+fixtures = ["ryo_execution_store/fixtures", "ryo_values/fixtures", "ryo_relations/fixtures", "ryo_language/fixtures"]
+diagnostic-row-progress = ["ryo_execution_store/diagnostic-row-progress"]
 
 [lints]
 workspace = true

@@ -5,35 +5,23 @@ pub(crate) mod execution;
 mod graph_resources;
 pub(crate) mod invocation;
 pub(crate) mod predicates;
-pub mod service;
 pub(crate) mod resources;
 #[cfg(any(test, feature = "fixtures"))]
 pub(crate) mod testing;
 
 #[cfg(test)]
 pub(crate) mod fixtures;
-pub(crate) mod workspace;
 
 #[cfg(test)]
 mod service_test;
-
-pub(crate) mod closure_partitions;
-
-pub(crate) mod relations;
 
 pub(crate) mod executor;
 
 #[cfg(test)]
 pub(crate) mod acceptance;
 
-pub(crate) mod derived;
-
-pub mod route_counts;
-
 pub mod observations;
 mod ordered_existence;
-
-pub(crate) mod scope;
 
 pub mod program;
 
