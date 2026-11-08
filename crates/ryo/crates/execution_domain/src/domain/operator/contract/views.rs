@@ -191,7 +191,6 @@ impl<'a> ClosureViews<'a> {
     }
 }
 /// The partitions of a closure, one at a time.
-#[derive(Debug)]
 pub struct ClosureIter<'a> {
     views: ClosureViews<'a>,
     at: PartitionIndex,

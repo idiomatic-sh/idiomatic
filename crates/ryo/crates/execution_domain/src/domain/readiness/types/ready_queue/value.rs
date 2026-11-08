@@ -7,7 +7,7 @@ use crate::domain::{executable_program::types::RegionId, operating::errors::Oper
 use std::collections::VecDeque;
 use rustc_hash::FxHashMap;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 enum State {
     Unseen,
     Queued,
