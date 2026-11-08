@@ -1,0 +1,39 @@
+{
+ "source": "697a700cde50b4c0fd6e403cb321b7fc3982647e",
+ "verdict": "PASS",
+ "reviewer": "leak-review",
+ "base": "171789169e",
+ "checks": {
+  "1": {
+   "verdict": "PASS",
+   "evidence": "697a700cde (one commit on f29475bcb3, README.md only, 2+/2-) rewords both claims: :180 'N999's answers at the current engine are unproven until the Phase 1 all-413 parity run against Ruff (open row)', and :193 'Answers: N999's answers at the current engine are unproven until the Phase 1 all-413 parity run against Ruff (open row); the Django canary and its ruff_sharing target are deleted.' Row 1 (:195) is '1 ACTIVE | [ ]' and lists 'Left besides them: the all-413 rerun', so the named owner exists and is open. No line claims a proof any more; the remaining 'parity inventory' uses (3, all in row 5 at :193) are the row's task and exit criteria, not results."
+  },
+  "2": {
+   "verdict": "PASS",
+   "evidence": "The tautological sum identity (sharing/test.rs:160-171 at 17c67cf3c7) is dropped; the remaining census assertion (:143-147, every physical instruction bound) and the class assertions (:148-162) can fail. The README claim cites only the exhaustive matches over StepScope, OperationKind and WalkBarrier, which the 331 pass planted (E0004 at sharing/test.rs:89,103,120); the WalkCensus no-'..' destructure was removed with the identity, and nothing in README or the test claims it any more. cargo check -p idiomatic-sh-ryo-execution-runtime --tests: 0 errors. Unchanged at 697a700cde (README-only delta)."
+  },
+  "3": {
+   "verdict": "PASS",
+   "evidence": "Unchanged from the 331 pass: Authored::sharing pub(crate) behind cfg(any(test, feature = \"fixtures\")) (walk_routes/mod.rs:6-7); head_class pub(super)."
+  },
+  "4": {
+   "verdict": "PASS",
+   "evidence": "counted (sharing/test.rs:119-129) remains an independent expectation, not a copy of production logic."
+  },
+  "5": {
+   "verdict": "PASS",
+   "evidence": "Test-only module inside application/file_dag."
+  },
+  "6": {
+   "verdict": "PASS",
+   "evidence": "sharing is #[cfg(test)] only."
+  }
+ },
+ "findings": [
+  {
+   "severity": "advisory",
+   "finding": "One concept, three names: row 5 (:193) says '413-rule parity inventory' (new on this branch, 0 hits at 171789169e), :180/:193 say 'Phase 1 all-413 parity run', row 1 (:195) says 'all-413 rerun'. Pick one key for the row 1 run and use it in rows 5 and 2."
+  }
+ ],
+ "date": "2026-11-08"
+}
