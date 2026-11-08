@@ -148,6 +148,7 @@ fn declared_empty_observation_defers_in_file_and_publishes_typed_empty_in_projec
             &covered,
             &[],
             &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
+            &ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(),
         )
         .unwrap();
     let project_symbols = Symbols::default();
@@ -238,6 +239,7 @@ fn project_refuses(input: PrepareRequest, expected: &str, ready: InputReadiness)
             &covered,
             &[],
             &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
+            &ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(),
         )
         .unwrap();
     let mut symbols = Symbols::default();

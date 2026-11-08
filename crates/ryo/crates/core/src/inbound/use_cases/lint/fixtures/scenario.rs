@@ -23,6 +23,8 @@ use super::lookups::consulted;
 use super::lookups::interleaved_runs;
 use super::lookups::unreadable_again;
 use super::skips::a_syntax_rejected_file_is_skipped_with_its_reason_and_never_undecided_or_complete;
+use super::skips::accepted_files_answer_as_a_rule_that_always_applies;
+use super::skips::an_undetermined_file_answers_unknown_and_the_lint_finishes;
 use super::skips::a_syntax_skipped_file_does_not_poison_unrelated_partitions_cold_or_warm;
 use super::skips::cold_warm_and_edited_runs_answer_the_same_in_every_store;
 use super::skips::consulted_equal_byte_files_revalidate_on_each_executable_metadata_change;
@@ -106,6 +108,10 @@ pub(crate) enum Scenario {
     ASyntaxSkippedFileDoesNotPoisonUnrelatedPartitionsColdOrWarm,
     /// a syntax rejected file is skipped with its reason and never undecided or complete.
     ASyntaxRejectedFileIsSkippedWithItsReasonAndNeverUndecidedOrComplete,
+    /// an undetermined file answers unknown and the lint finishes.
+    AnUndeterminedFileAnswersUnknownAndTheLintFinishes,
+    /// accepted files answer as a rule that always applies.
+    AcceptedFilesAnswerAsARuleThatAlwaysApplies,
 }
 
 pub(crate) fn scenario(scenario: Scenario) -> Result<(usize, usize), LintError> {
@@ -118,6 +124,8 @@ pub(crate) fn scenario(scenario: Scenario) -> Result<(usize, usize), LintError> 
         Scenario::ColdWarmAndEditedRunsAnswerTheSameInEveryStore => cold_warm_and_edited_runs_answer_the_same_in_every_store(),
         Scenario::ASyntaxSkippedFileDoesNotPoisonUnrelatedPartitionsColdOrWarm => a_syntax_skipped_file_does_not_poison_unrelated_partitions_cold_or_warm(),
         Scenario::ASyntaxRejectedFileIsSkippedWithItsReasonAndNeverUndecidedOrComplete => a_syntax_rejected_file_is_skipped_with_its_reason_and_never_undecided_or_complete(),
+        Scenario::AnUndeterminedFileAnswersUnknownAndTheLintFinishes => an_undetermined_file_answers_unknown_and_the_lint_finishes(),
+        Scenario::AcceptedFilesAnswerAsARuleThatAlwaysApplies => accepted_files_answer_as_a_rule_that_always_applies(),
         Scenario::FileAnalysisExecutionRefused => Err(LintError::from(
             crate::application::file_analysis::errors::FileAnalysisError::Execution(
                 ryo_execution::inbound::use_cases::execution::interface::OperatingError::SemanticBatchShape,

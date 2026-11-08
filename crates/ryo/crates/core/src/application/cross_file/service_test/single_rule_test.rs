@@ -119,6 +119,7 @@ pub(super) fn project_evaluation_rejects_frontiers_from_another_request()
             &rules.covered,
             &[],
             &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
+            &ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(),
         )
         .expect("independent request over the same program and corpus");
     let result = evaluate_fixture(

@@ -201,6 +201,7 @@ impl ProjectStage for Witness {
         _: &[Covered],
         _: &[Skipped],
         _: &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles,
+        _: &ryo_execution::inbound::use_cases::execution::interface::RefusedFiles,
     ) -> Result<PhaseScope, OperatingError> {
         witness(Method::StageProjectScope)
     }
@@ -234,6 +235,7 @@ impl ObservationExecution for Witness {
         _: &[Covered],
         _: &[Skipped],
         _: &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles,
+        _: &ryo_execution::inbound::use_cases::execution::interface::RefusedFiles,
     ) -> Result<PhaseScope, OperatingError> {
         witness(Method::ObservedProjectScope)
     }
@@ -305,6 +307,7 @@ impl ObservationPublication for Witness {
         _: &[Covered],
         _: &[Skipped],
         _: &[InapplicableFiles],
+        _: &[ryo_execution::inbound::use_cases::execution::interface::RefusedFiles],
         _: &[FileObservationReadiness],
         _: &[Bucket],
         _: &[ryo_execution_runtime::application::file_dag::observations::types::RuleSelection],

@@ -75,6 +75,7 @@ pub(crate) fn partial_root(
         message: ryo_execution::inbound::use_cases::metadata::interface::Message(
             PHYSICAL_FACTS_INCOMPLETE.into(),
         ),
+        cause: ryo_values::domain::runs::types::UnknownCause::Undecided,
     });
 }
 
@@ -299,6 +300,7 @@ pub(crate) fn cover(
                     path: path.clone(),
                     message: metadata
                         .unknown_message(partial, CoverageScope::File(path)),
+                    cause: ryo_values::domain::runs::types::UnknownCause::Undecided,
                 });
             }
         }

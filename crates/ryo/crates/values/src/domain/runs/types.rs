@@ -56,6 +56,24 @@ pub enum SkipReason {
     SyntaxRejected,
 }
 
+/// Why it could not be decided whether a rule applies to a file.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum ApplicabilityRefusal {
+    /// The file's syntax could not be determined.
+    SyntaxUndetermined,
+    /// The file's metadata is unavailable.
+    MetadataUnavailable,
+}
+
+/// Why a rule could not decide on a file.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum UnknownCause {
+    /// It ran, and what it read did not decide it.
+    Undecided,
+    /// It was refused on the file before it ran: whether it applies there could not be decided.
+    Refused(ApplicabilityRefusal),
+}
+
 /// A rule that did not run for a file because its applicability condition was not met.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Skipped {

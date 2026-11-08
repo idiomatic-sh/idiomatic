@@ -17,6 +17,7 @@ use crate::application::file_dag::program::rule_outcome::types::ProjectOutputOut
 use ryo_execution_domain::domain::coverage::types::Covered;
 use ryo_execution_domain::domain::coverage::types::FileObservationReadiness;
 use ryo_execution_domain::domain::coverage::types::InapplicableFiles;
+use ryo_execution_domain::domain::coverage::types::RefusedFiles;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::readiness::types::ReadinessCounts;
@@ -99,9 +100,10 @@ impl ObservationExecution for ObservationStage<'_> {
         covered: &[Covered],
         skipped: &[Skipped],
         inapplicable: &InapplicableFiles,
+        refused: &RefusedFiles,
     ) -> Result<PhaseScope, OperatingError> {
         self.phase
-            .project_scope(rule, corpus, covered, skipped, inapplicable)
+            .project_scope(rule, corpus, covered, skipped, inapplicable, refused)
     }
     fn finish(&mut self, rule: RuleIndex) -> Result<(), OperatingError> {
         self.publications.finish(rule)
@@ -129,6 +131,7 @@ impl ObservationPublication for ObservationStage<'_> {
         covered: &[Covered],
         skipped: &[Skipped],
         inapplicable: &[InapplicableFiles],
+        refused: &[RefusedFiles],
         frames: &[FileObservationReadiness],
         first_bucket: &[Bucket],
         selected: &[RuleSelection],
@@ -143,6 +146,7 @@ impl ObservationPublication for ObservationStage<'_> {
             covered,
             skipped,
             inapplicable,
+            refused,
             frames,
             first_bucket,
             selected,

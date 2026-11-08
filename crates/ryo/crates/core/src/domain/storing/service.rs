@@ -303,6 +303,7 @@ pub(crate) fn stored_of<W>(
                 rule: RuleId(each.rule.0.clone()),
                 path: each.path.clone(),
                 message: UnknownText(each.message.0.clone()),
+                cause: each.cause,
             })
             .collect(),
         skipped: skipped.to_vec(),

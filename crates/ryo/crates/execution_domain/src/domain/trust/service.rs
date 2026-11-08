@@ -262,6 +262,7 @@ pub fn project_unknowns(
                         partial,
                         at.map_or(CoverageScope::Repository, CoverageScope::File),
                     ),
+                    cause: ryo_values::domain::runs::types::UnknownCause::Undecided,
                 });
             }
         }

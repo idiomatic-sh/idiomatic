@@ -59,6 +59,7 @@ fn a_file_emit_defers_at_project_scope_but_its_real_file_failure_is_not_deferred
             &covered,
             &[],
             &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
+            &ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(),
         )
         .unwrap();
     let project = ProjectFacts::new(Relation::ModuleIdentity);

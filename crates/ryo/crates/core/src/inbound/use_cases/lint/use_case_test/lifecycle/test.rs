@@ -175,6 +175,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Scenario::ASyntaxRejectedFileIsSkippedWithItsReasonAndNeverUndecidedOrComplete,
         expect: Expect::Value((1, 0)),
     },
+    Case {
+        name: CaseName("an_undetermined_file_answers_unknown_and_the_lint_finishes"),
+        word: Word::Succeeds,
+        input: || Scenario::AnUndeterminedFileAnswersUnknownAndTheLintFinishes,
+        expect: Expect::Value((1, 0)),
+    },
+    Case {
+        name: CaseName("accepted_files_answer_as_a_rule_that_always_applies"),
+        word: Word::Succeeds,
+        input: || Scenario::AcceptedFilesAnswerAsARuleThatAlwaysApplies,
+        expect: Expect::Value((1, 0)),
+    },
 ];
 
 fn subject(input: Input) -> Result<Value, Failure> {

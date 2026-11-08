@@ -14,7 +14,7 @@ use crate::application::file_dag::program::facade_runtime::types::{
     DeclaredIntent, FileRoot, FrontierCommit, NamedReadiness, PreparedNamed, WalkPreparation,
 };
 use crate::application::file_dag::program::native_walk::Deliveries;
-use ryo_execution_domain::domain::rule_intent::types::ApplicabilityRefusal;
+use ryo_values::domain::runs::types::ApplicabilityRefusal;
 use ryo_execution_domain::domain::rule_intent::types::CaptureIntent;
 use ryo_execution_domain::domain::rule_intent::types::DiagnosticDelivery;
 use ryo_execution_domain::domain::rule_intent::types::FileRuleIntent;

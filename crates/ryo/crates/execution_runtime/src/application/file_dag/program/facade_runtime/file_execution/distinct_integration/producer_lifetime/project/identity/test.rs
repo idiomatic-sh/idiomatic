@@ -30,6 +30,7 @@ fn project_rules_with_different_inapplicable_files_share_one_phase_execution() {
             &[],
             &[],
             inapplicable,
+            &[],
             &services,
         )
         .expect("required partitions")

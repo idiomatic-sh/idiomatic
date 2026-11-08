@@ -103,6 +103,7 @@ fn two_project_consumers_bind_their_own_slots_to_the_same_producer_in_both_order
                 &covered,
                 &[],
                 &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
+                &ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(),
             )
             .unwrap();
         let slot = stage.reserve(RuleIndex(0)).unwrap();
@@ -199,7 +200,7 @@ fn two_project_consumers_bind_their_own_slots_to_the_same_producer_in_both_order
         let mut bindings = vec![];
         for rule in order {
             let scope = stage
-                .project_scope(RuleIndex(rule), &corpus, &covered, &[], &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default())
+                .project_scope(RuleIndex(rule), &corpus, &covered, &[], &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(), &ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default())
                 .unwrap();
             let ordinary = request
                 .prepare_frontiers(

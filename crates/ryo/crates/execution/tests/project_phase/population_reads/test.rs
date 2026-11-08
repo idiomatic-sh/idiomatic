@@ -166,6 +166,7 @@ fn two_declared_roots_of_one_population_read_the_provider_once() {
                 &covered,
                 &[],
                 &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
+                &ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(),
             )
             .unwrap();
         let project_symbols = Symbols::default();

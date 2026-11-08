@@ -77,6 +77,8 @@ pub struct Unknown {
     pub path: FilePath,
     /// What is partial there and why.
     pub message: Message,
+    /// Why the rule could not decide: undecided over what it read, or refused on the file before it ran.
+    pub cause: ryo_values::domain::runs::types::UnknownCause,
 }
 
 /// Where a relation is read in part: one file, or the repository as a whole.
@@ -134,6 +136,12 @@ pub struct FileObservationReadiness {
 /// The edge that composes the languages and knows the governing mask names them; the engine discharges a missing source only for these.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct InapplicableFiles(pub Vec<FileId>);
+
+/// The files of the corpus that one rule was refused on because a language left their syntax acceptance undetermined or the
+/// rule's applicability metadata is unavailable, by file number. The rule has no frame for them and its answer lacks their input:
+/// the engine discharges a missing source for these and answers the rule partial over them, never complete.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct RefusedFiles(pub Vec<FileId>);
 
 /// How many files a run declares, among which the files of a partial source are placed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

@@ -139,6 +139,7 @@ fn project_grouping_reads_only_actual_captured_function_names() {
             &covered,
             &[],
             &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
+            &ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(),
         )
         .unwrap();
     let project_symbols = Symbols::default();

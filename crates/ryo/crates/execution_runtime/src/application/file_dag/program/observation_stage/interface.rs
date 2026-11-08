@@ -8,6 +8,7 @@ use crate::application::file_dag::program::project_phase::types::PhaseScope;
 use ryo_execution_domain::domain::coverage::types::Covered;
 use ryo_execution_domain::domain::coverage::types::FileObservationReadiness;
 use ryo_execution_domain::domain::coverage::types::InapplicableFiles;
+use ryo_execution_domain::domain::coverage::types::RefusedFiles;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use crate::outbound::facts::interface::FactsFinish;
@@ -43,6 +44,7 @@ pub trait ObservationExecution {
         covered: &[Covered],
         skipped: &[Skipped],
         inapplicable: &InapplicableFiles,
+        refused: &RefusedFiles,
     ) -> Result<PhaseScope, OperatingError>;
     fn finish(&mut self, rule: RuleIndex) -> Result<(), OperatingError>;
     fn finish_stage(self) -> Result<(), OperatingError>;
@@ -62,6 +64,7 @@ pub trait ObservationPublication {
         covered: &[Covered],
         skipped: &[Skipped],
         inapplicable: &[InapplicableFiles],
+        refused: &[RefusedFiles],
         readiness: &[FileObservationReadiness],
         first_bucket: &[Bucket],
         selected: &[RuleSelection],

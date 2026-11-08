@@ -12,6 +12,7 @@ mod rest;
 mod schemas;
 mod strings;
 mod tables;
+mod unknowns;
 pub(crate) mod types;
 pub(crate) mod writer;
 

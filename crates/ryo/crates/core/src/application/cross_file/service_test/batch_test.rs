@@ -56,6 +56,7 @@ pub(super) fn evaluate_rules(
         .map(|rule| Bucket(u32::try_from(rule).expect("a fixture rule numbers its bucket")))
         .collect::<Vec<_>>();
     let inapplicable = vec![InapplicableFiles::default(); world.ids.len()];
+    let refused = crate::domain::crossing::service::refused_files(&crossing.domain);
     let occurrences = todos
         .iter()
         .map(|todo| PhaseOccurrence {
@@ -74,6 +75,7 @@ pub(super) fn evaluate_rules(
             covered: &world.covered,
             skipped: &world.skipped,
             inapplicable: &inapplicable,
+            refused: &refused,
             facts: facts.as_ref(),
             project: project.as_ref(),
             project_symbols: &project_symbols,

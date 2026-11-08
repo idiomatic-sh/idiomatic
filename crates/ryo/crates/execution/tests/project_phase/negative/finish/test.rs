@@ -36,6 +36,7 @@ fn finish_refuses_while_a_scope_still_shares_the_publication() {
             &covered,
             &[],
             &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
+            &ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(),
         )
         .unwrap();
     let project = ProjectFacts::new(Relation::ModuleIdentity);

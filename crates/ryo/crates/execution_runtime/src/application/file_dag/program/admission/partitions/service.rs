@@ -47,6 +47,7 @@ impl RequiredPartitions {
         covered: &[ryo_execution_domain::domain::coverage::types::Covered],
         skipped: &[ryo_values::domain::runs::types::Skipped],
         inapplicable: &[FileId],
+        refused: &[FileId],
     ) -> Result<Self, OperatingError> {
         if request.corpus() != files {
             return Err(OperatingError::NotRead);
@@ -62,6 +63,7 @@ impl RequiredPartitions {
             .any(|entry| entry.file.0 as usize >= files.len())
             || inapplicable
                 .iter()
+                .chain(refused)
                 .any(|file| file.0 as usize >= files.len())
         {
             return Err(OperatingError::NotRead);
@@ -72,6 +74,7 @@ impl RequiredPartitions {
             covered: covered.to_vec().into_boxed_slice(),
             skipped: skipped.to_vec().into_boxed_slice(),
             inapplicable: inapplicable.to_vec().into_boxed_slice(),
+            refused: refused.to_vec().into_boxed_slice(),
         })
     }
     /// An explicit syntax rejection discharges transport, never completeness.
@@ -107,10 +110,16 @@ impl RequiredPartitions {
     pub(crate) fn inapplicable(&self) -> &[FileId] {
         &self.inapplicable
     }
+    /// The files the edge named as refused to the rule: their syntax acceptance undetermined, or the rule's applicability
+    /// metadata unavailable. The rule has no frame for them and lacks their input.
+    pub(crate) fn refused(&self) -> &[FileId] {
+        &self.refused
+    }
     /// The project identity alone, as a shared execution holds it: no rule's evidence.
     pub(crate) fn identity(&self) -> Self {
         Self {
             inapplicable: Box::new([]),
+            refused: Box::new([]),
             ..self.clone()
         }
     }

@@ -101,7 +101,7 @@ fn project_text_identity_does_not_depend_on_inherited_arenas() {
                 }];
                 let phase = request.project_phase().unwrap();
                 let scope = phase
-                    .project_scope(RuleIndex(0), &corpus, &covered, &[], &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default())
+                    .project_scope(RuleIndex(0), &corpus, &covered, &[], &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(), &ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default())
                     .unwrap();
                 let stored = CapturedFacts {
                     captures: vec![],

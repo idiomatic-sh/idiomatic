@@ -76,6 +76,7 @@ impl ProjectCompletion {
                         message: ryo_execution::inbound::use_cases::metadata::interface::Message(
                             format!("project phase diagnostic emit: {error}").into(),
                         ),
+                        cause: ryo_values::domain::runs::types::UnknownCause::Undecided,
                     },
                 )
                 .collect()
@@ -119,6 +120,14 @@ impl ProjectCompletion {
                 {
                     continue;
                 }
+                // A file the rule was refused on already gives the rule's unknown there, with why.
+                if crossing
+                    .refused
+                    .get(&todo.id)
+                    .is_some_and(|paths| paths.contains(path))
+                {
+                    continue;
+                }
                 unknowns.push(
                     ryo_execution::inbound::use_cases::metadata::interface::Unknown {
                         rule: todo.id.clone(),
@@ -126,6 +135,7 @@ impl ProjectCompletion {
                         message: ryo_execution::inbound::use_cases::metadata::interface::Message(
                             INCOMPLETE_FACTS.into(),
                         ),
+                        cause: ryo_values::domain::runs::types::UnknownCause::Undecided,
                     },
                 );
             }
@@ -155,6 +165,7 @@ impl ProjectCompletion {
                                     ryo_execution::inbound::use_cases::metadata::interface::Message(
                                         error.to_string().into(),
                                     ),
+                                cause: ryo_values::domain::runs::types::UnknownCause::Undecided,
                             }
                         }),
                 );

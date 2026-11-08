@@ -10,10 +10,11 @@ use ryo_values::domain::row_texts::types::PlacedRule;
 use ryo_values::domain::runs::constants::SYNTAX_REJECTED;
 use ryo_values::domain::runs::types::{ManifestRefused, RuleId, SkipReason, Skipped};
 use ryo_values::domain::stored_facts::types::{Digest, ReadFailure};
-use ryo_values::domain::stored_findings::types::{StoredUnknown, StoredUnread, UnknownText};
+use ryo_values::domain::stored_findings::types::StoredUnread;
 use ryo_values::domain::stores::types::{Crossing, Stored, StoredFile, StoredFrontier, StoredHanded, StoredRule};
 use super::super::strings::schemas::{StringsSchema, TextSchema, file_number, named, text};
 use super::super::files::schemas::{FileSchema, file_from, file_schema};
+use super::super::unknowns::schemas::{UnknownSchema, unknown_from, unknown_schema};
 use super::super::findings::schemas::{FindingSchema, KeySchema, ValueSchema, findings_from, findings_schema};
 
 /// One exact project-entry observation retained for warm context validation.
@@ -88,7 +89,7 @@ pub(in crate::outbound::lint_store::adapters::postcard) struct UnreadSchema {
     pub(in crate::outbound::lint_store::adapters::postcard) failure: Option<TextSchema>,
 }
 
-/// A manifest a language's tools refused, or something a rule could not decide: one row for each.
+/// A manifest a language's tools refused, or a rule skipped on a file: one row for each.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub(in crate::outbound::lint_store::adapters::postcard) struct TripleSchema {
     /// The language, or the rule.
@@ -122,7 +123,7 @@ pub(in crate::outbound::lint_store::adapters::postcard) struct TablesSchema<'a> 
     /// The manifests the tools refused.
     pub(in crate::outbound::lint_store::adapters::postcard) refused: Vec<TripleSchema>,
     /// What the rules could not decide.
-    pub(in crate::outbound::lint_store::adapters::postcard) unknowns: Vec<TripleSchema>,
+    pub(in crate::outbound::lint_store::adapters::postcard) unknowns: Vec<UnknownSchema>,
     /// The files the project's lookup read beyond the manifests, as the files are kept.
     pub(in crate::outbound::lint_store::adapters::postcard) consulted: Vec<FileSchema>,
     /// The files the lookup asked for and found none of, as texts.
@@ -194,11 +195,7 @@ impl<'a> From<&'a Stored> for TablesSchema<'a> {
         let unknowns = stored
             .unknowns
             .iter()
-            .map(|each| TripleSchema {
-                first: text(&mut strings, &each.rule.0),
-                path: text(&mut strings, &each.path.0),
-                said: text(&mut strings, &each.message.0),
-            })
+            .map(|each| unknown_schema(&mut strings, each))
             .collect();
         let skipped = stored
             .skipped
@@ -311,13 +308,7 @@ impl TryFrom<TablesSchema<'_>> for Stored {
         let unknowns = tables
             .unknowns
             .iter()
-            .map(|each| {
-                Ok(StoredUnknown {
-                    rule: RuleId(named(strings, each.first)?),
-                    path: FilePath(named(strings, each.path)?),
-                    message: UnknownText(named(strings, each.said)?),
-                })
-            })
+            .map(|each| unknown_from(strings, each))
             .collect::<Result<_, postcard::Error>>()?;
         let skipped = tables
             .skipped

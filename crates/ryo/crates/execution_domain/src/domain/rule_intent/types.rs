@@ -1,4 +1,5 @@
 //! What a file rule is asked to do before its source is walked: the demand of its outputs and of its frontiers.
+use ryo_values::domain::runs::types::ApplicabilityRefusal;
 /// Whether a rule's diagnostics are emitted.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum EmitDemand {
@@ -44,14 +45,6 @@ pub enum CaptureIntent {
     Observations,
     /// The frontiers of its diagnostics and observations are captured.
     DiagnosticAndObservations,
-}
-/// Why it could not be decided whether a rule applies to a file.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ApplicabilityRefusal {
-    /// The file's syntax could not be determined.
-    SyntaxUndetermined,
-    /// The file's metadata is unavailable.
-    MetadataUnavailable,
 }
 /// Why a rule does not apply to a file.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

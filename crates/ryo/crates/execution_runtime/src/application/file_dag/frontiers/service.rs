@@ -299,10 +299,21 @@ pub(crate) fn validate_bucket(
             }
         }
     }
+    // A file the rule was refused on has no frame: one that carries a frame contradicts the edge.
+    let refused = required
+        .refused()
+        .iter()
+        .filter(|file| required.files().contains(file))
+        .copied()
+        .collect::<std::collections::BTreeSet<_>>();
+    if refused.iter().any(|file| seen_files.contains(file) || skipped.contains(file)) {
+        return Err(refuse());
+    }
     // Account for known unavailable partitions without inventing encoded empty
     // frames. Their identities remain attached to the admitted partial input.
     seen_files.extend(skipped.iter().copied());
-    // A required source with no frame is discharged only when the edge named the file inapplicable to this rule.
+    seen_files.extend(refused.iter().copied());
+    // A required source with no frame is discharged only when the edge named the file inapplicable or refused to this rule.
     seen_files.extend(
         required
             .inapplicable()
@@ -315,6 +326,11 @@ pub(crate) fn validate_bucket(
     {
         return Err(refuse());
     }
+    // A refused file lacks the rule's input, so the answer is partial over it, never complete.
+    affected.extend(refused.into_iter().map(|file| FileLacks {
+        file: Some(file),
+        missing: MissingRows::Any,
+    }));
     // A skipped file stays unavailable: it lacks input without making an answer not keyed by it partial.
     Ok(if !affected.is_empty() {
         affected.extend(skipped.iter().copied().map(|file| FileLacks {

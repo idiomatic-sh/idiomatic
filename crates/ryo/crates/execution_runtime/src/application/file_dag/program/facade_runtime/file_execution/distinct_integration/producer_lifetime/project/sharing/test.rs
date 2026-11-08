@@ -81,6 +81,7 @@ fn exercise(exit: PhaseExit, values: [i64; 4], stored: Stored) -> Observed {
             &[],
             &[],
             &[],
+            &[],
             &services,
         )
         .expect("declare the required partitions");

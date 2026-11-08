@@ -54,8 +54,12 @@ pub struct LanguageFake {
     pub project_entry_paths: Vec<FilePath>,
     /// Whether the project answer gives back none of the entry observations it was given: a language whose receipt does not match the batch.
     pub forgets_entries: bool,
-    /// Paths for which this fake reports rejected syntax; other parsed files are accepted when this is nonempty.
+    /// Paths for which this fake reports rejected syntax; other parsed files are accepted when this or `undetermined_syntax` is
+    /// nonempty.
     pub rejected_syntax: Vec<FilePath>,
+    /// Paths for which this fake leaves syntax acceptance undetermined; other parsed files are accepted when this or
+    /// `rejected_syntax` is nonempty.
+    pub undetermined_syntax: Vec<FilePath>,
 }
 
 /// What the fake's catalog answers.
@@ -163,9 +167,11 @@ impl LanguagePort for LanguageFake {
             leave_node(&mut builder, Offset(end));
         }
         // A language names every kind its table holds, as the engine reads a kind by its name.
-        if !self.rejected_syntax.is_empty() {
+        if !self.rejected_syntax.is_empty() || !self.undetermined_syntax.is_empty() {
             let acceptance = if self.rejected_syntax.contains(file.path) {
                 ryo_language::domain::elements::types::SyntaxAcceptance::Rejected
+            } else if self.undetermined_syntax.contains(file.path) {
+                ryo_language::domain::elements::types::SyntaxAcceptance::Undetermined
             } else {
                 ryo_language::domain::elements::types::SyntaxAcceptance::Accepted
             };

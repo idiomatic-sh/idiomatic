@@ -153,6 +153,7 @@ fn stored() -> Stored {
             rule: RuleId("r".into()),
             path: FilePath("a.rs".into()),
             message: UnknownText("partial".into()),
+            cause: ryo_values::domain::runs::types::UnknownCause::Undecided,
         }],
         frontiers: vec![StoredFrontier {
             file: StoredFileNumber(0),

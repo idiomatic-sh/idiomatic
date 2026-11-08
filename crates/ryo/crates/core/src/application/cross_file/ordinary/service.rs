@@ -8,6 +8,7 @@ use super::super::types::{OrdinaryOutcome, OrdinaryRun, ProjectOutcome};
 use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use crate::domain::budget::service::within;
 use crate::domain::crossing::service::inapplicable_files;
+use crate::domain::crossing::service::refused_files;
 use crate::outbound::memory::interface::MemoryPort;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest as _;
 use ryo_execution::inbound::use_cases::execution::interface::FrontierDemand;
@@ -40,6 +41,7 @@ impl CrossFile {
         let mut cross = Symbols::default();
         let crossing = &run.crossing;
         let inapplicable = inapplicable_files(&MetadataUseCaseImpl, &crossing.domain);
+        let refused = refused_files(&crossing.domain);
         let occurrences = run
             .todo
             .iter()
@@ -64,6 +66,7 @@ impl CrossFile {
                 covered: crossing.domain.covered,
                 skipped: crossing.domain.skipped,
                 inapplicable: &inapplicable,
+                refused: &refused,
                 facts: run.facts,
                 project: run.project,
                 project_symbols: run.project_symbols,

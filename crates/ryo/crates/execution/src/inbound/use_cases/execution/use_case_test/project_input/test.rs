@@ -106,6 +106,7 @@ fn project_step_without_a_declared_handover_cannot_read_a_per_file_source() -> R
             &covered,
             &[],
             &crate::inbound::use_cases::execution::interface::InapplicableFiles::default(),
+            &crate::inbound::use_cases::execution::interface::RefusedFiles::default(),
         )
         .unwrap();
     let facts = UnavailableFacts::default();
