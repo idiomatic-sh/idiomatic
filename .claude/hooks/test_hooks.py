@@ -371,6 +371,18 @@ class CheckInOnStop(unittest.TestCase):
         self.assertEqual(result.returncode, 2)
         self.assertIn("Blocked: the CHECK-IN is missing table", result.stderr)
 
+    LISTS = ("**Right now: merging the wave**\n\n**Phases**\n\n- [x] design\n- [ ] build\n- [ ] land\n\n")
+
+    def test_opening_checklists_before_table_one_pass(self):
+        text = self.checkin().replace("\n\n**1.", "\n\n" + self.LISTS + "**1.", 1)
+        self.assertEqual(self.stop([(0, text)]).returncode, 0)
+
+    def test_opening_checklists_without_table_one_block(self):
+        text = self.checkin(skip=1).replace("\n\n**2.", "\n\n" + self.LISTS + "**2.", 1)
+        result = self.stop([(0, text)])
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("missing table 1 (Roadmap)", result.stderr)
+
     def test_heading_without_table_blocks(self):
         text = self.checkin().replace("| a | b |\n|---|---|\n| 1 | 2 |", "none", 1)
         self.assertEqual(self.stop([(0, text)]).returncode, 2)
