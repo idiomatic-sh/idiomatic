@@ -2,6 +2,7 @@ description = "Imports, external-crate bindings and type aliases of a path have 
 why = "Consumers use the defining module. Public use, extern crate and type declarations forward another module’s item under a second path. A canonical inbound use-case interface may expose private domain */types and */errors signature vocabulary (the error a use case's signature carries is vocabulary as much as its data), and the application and domain types its contract is made of, wherever beneath `application/` or `domain/` they are declared: a type or trait of the crate that the signature of one of the interface's methods names, or that a type so named names in its fields, variants or methods, or that such a type implements or is implemented by, transitively (the handles a use case returns and the protocol traits they implement are its contract). An application item no such signature reaches, and every service function, stays forbidden. A port factory may expose its adapter connection module's named `Connection` handle for edge construction and injection; mixed exports or adapter implementations are not exempt. Only such a factory may also carry a local `clippy::pub_use` allowance that Clippy requires; `clippy::restriction` remains forbidden. This exception checks the factory location and imported path, not runtime ownership. The product excludes only the src tree of its actual SDK spec placement; CLI and ordinary crate roots receive no exception. The former derive-facade switch is removed. Syntax checking includes inactive cfg code and macro_rules bodies, but not procedural-macro expansion; the compiler construction boundary independently resolves aliases when checking composition."
 
 query = '''
+param internal-crates: set<string>;
 let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
 let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
 let imports = select * from tree-nodes where kind = "use";
@@ -63,7 +64,7 @@ let signature-domain-step = select l."id" as "id", l."path" as "path", r."text" 
 let signature-domain = select "id", "path" from signature-domain-step where text = "domain";
 let signature-crate-path = select l."id" as "id", r."prefix" as "path" from signature-domain as l join resource-path-parents as r on l."path" = r."path";
 let signature-crate-step = select l."id" as "id", l."path" as "path", r."text" as "text" from signature-crate-path as l join resource-path-names as r on l."path" = r."path";
-let signature-crate = select "id", "path" from signature-crate-step where text = "crate";
+let signature-crate = select "id", "path" from signature-crate-step where text = "crate" or text in $internal-crates;
 let signature-imports = antijoin(left=signature-crate, right=resource-path-parents, left-on=["path"], right-on=["path"]);
 let contract-paths = select l."id" as "id", r."path" as "path" from signature-interfaces as l join resource-use-paths as r on l."id" = r."id";
 let contract-items = select l."id" as "id", l."path" as "path", r."text" as "text" from contract-paths as l join resource-path-names as r on l."path" = r."path";
@@ -74,7 +75,7 @@ let contract-application = select * from contract-prefix-names where glob_any(te
 let contract-application-inner = select l."id" as "id", r."prefix" as "inner" from contract-application as l join resource-path-parents as r on l."prefix" = r."path";
 let contract-inner-roots = antijoin(left=contract-application-inner, right=resource-path-parents, left-on=["inner"], right-on=["path"]);
 let contract-inner-names = select l."id" as "id", r."text" as "text" from contract-inner-roots as l join resource-path-names as r on l."inner" = r."path";
-let contract-crate-rooted = select * from contract-inner-names where text = "crate";
+let contract-crate-rooted = select * from contract-inner-names where text = "crate" or text in $internal-crates;
 let vocabulary-files = select * from tree-nodes where glob_any(file, "{**/src/application/**/*.rs,**/src/domain/**/*.rs,**/src/inbound/use_cases/*/interface.rs,**/src/inbound/use_cases/*/types.rs}");
 let vocabulary-items = select * from vocabulary-files where glob_any(kind, "{struct,enum,trait,type-alias,union}");
 let vocabulary-item-children = select l."id" as "item", r."child" as "child" from vocabulary-items as l join "syntax-child" as r on l."id" = r."parent";
@@ -173,8 +174,13 @@ primary = "span"
 message = "{kind} {problem}"
 help = "Import from the defining module and remove forwarding visibility. Only the src tree of the product’s actual SDK spec placement is excluded by its Tastemaker entry; neither a CLI nor an ordinary crate root has a reexport allowance. The narrow port factory resource-handle export, canonical inbound one-item private domain signature-type exports and one-item application exports of a type the interface's signatures reach are allowed; grouped, renamed and implementation exports are not."
 
+[params.internal-crates]
+type = "set<string>"
+description = "The library names of the crates a product splits its own domain or application into beneath the crate whose interfaces forward them, which only that product's engine crates depend on: their `domain/` and `application/` items count as the interface's own, as `crate::` items do; [] names none."
+
 [given]
 include = ['**']
+params = { internal-crates = [] }
 
 [[scenarios]]
 id = 'private-imports'
@@ -1755,3 +1761,34 @@ pub use crate::domain::vocabulary::types::prepared::value::Prepared;
 pub use crate::application::run::types::Support;
 pub trait RunUseCase { fn run(&self, support: Support); }
 '''
+
+[[scenarios]]
+id = 'inbound-signature-internal-crate'
+scenario = 'An interface may forward the signature types, errors and contract values of a crate its product split its own domain into, named in `internal-crates`, as it forwards its own.'
+given.params = { internal-crates = ['engine_domain'] }
+given.files.'src/inbound/use_cases/run/interface.rs' = '''
+pub use engine_domain::domain::operating::errors::OperatingError;
+pub use engine_domain::domain::coverage::types::Covered;
+pub use engine_domain::domain::vocabulary::types::prepared::value::Prepared;
+pub trait RunUseCase { fn run(&self, support: Prepared) -> Result<Covered, OperatingError>; }
+'''
+given.files.'engine_domain/src/domain/vocabulary/types/prepared/value.rs' = '''
+pub struct Prepared { ordinal: u8 }
+'''
+
+[[scenarios]]
+id = 'inbound-signature-other-crate'
+scenario = 'Another crate’s domain types are not the interface’s own: a crate `internal-crates` does not name is imported from where it defines them.'
+given.params = { internal-crates = ['engine_domain'] }
+given.files.'src/inbound/use_cases/run/interface.rs' = '''
+pub use values::domain::files::types::FilePath;
+pub use values::domain::vocabulary::types::prepared::value::Prepared;
+pub trait RunUseCase { fn run(&self, support: Prepared, path: FilePath); }
+'''
+given.files.'values/src/domain/vocabulary/types/prepared/value.rs' = '''
+pub struct Prepared { ordinal: u8 }
+'''
+then.findings = [
+  { path = 'src/inbound/use_cases/run/interface.rs', line = 1 },
+  { path = 'src/inbound/use_cases/run/interface.rs', line = 2 },
+]
