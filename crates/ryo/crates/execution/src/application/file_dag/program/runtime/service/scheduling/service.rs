@@ -79,6 +79,16 @@ impl ProgramExecution {
         state: &RuntimeState,
         id: RegionId,
     ) -> Result<Option<AdmittedInput>, OperatingError> {
+        self.published_with(state, id, AdmittedInput::clone)
+    }
+    /// What `published` answers, with the publication lent to `read` instead of cloned: a caller that only asks whether the
+    /// region has published pays no copy.
+    pub(crate) fn published_with<R>(
+        &self,
+        state: &RuntimeState,
+        id: RegionId,
+        read: impl FnOnce(&AdmittedInput) -> R,
+    ) -> Result<Option<R>, OperatingError> {
         self.validate_state(state)?;
         let slots = state.slots.borrow();
         let Some(slot) = slots.get(&id) else {
@@ -93,7 +103,7 @@ impl ProgramExecution {
             };
         };
         match &slot.state {
-            State::Published(input) => Ok(Some(input.clone())),
+            State::Published(input) => Ok(Some(read(input))),
             State::Failed(error) => Err(error.clone()),
             State::Retired => Err(OperatingError::NotRun),
             _ => Ok(None),

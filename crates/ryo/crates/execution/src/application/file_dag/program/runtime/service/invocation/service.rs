@@ -53,7 +53,7 @@ impl ProgramExecution {
         let completion = &producer_policy;
         // A scope borrow never crosses admission, kernels or downstream callbacks.
         let started;
-        let scratch = {
+        let (scratch, mut progress) = {
             let mut slots = state.slots.borrow_mut();
             let slot = Slot::touched(state, &mut slots, &self.program, id)?;
             match &slot.completion {
@@ -85,11 +85,11 @@ impl ProgramExecution {
                     );
                 }
             }
-            std::mem::take(&mut slot.scratch)
+            (
+                std::mem::take(&mut slot.scratch),
+                std::mem::take(&mut slot.admission),
+            )
         };
-        let mut progress = std::mem::take(
-            &mut Slot::touched(state, &mut state.slots.borrow_mut(), &self.program, id)?.admission,
-        );
         progress.waiting = None;
         let mut cleanup = Invocation {
             execution: self,
@@ -224,8 +224,10 @@ impl Drop for Invocation<'_> {
         let mut slots = self.state.slots.borrow_mut();
         let mut committed_outcome = OUTCOME_MISSING;
         if let Some(slot) = slots.get_mut(&self.id) {
+            // The terminal moves into the slot: a publication is not cloned to be dropped here.
+            let terminal = std::mem::replace(&mut self.terminal, Terminal::Retry);
             slot.scratch = self.scratch.take().unwrap_or_default();
-            slot.admission = match self.terminal {
+            slot.admission = match terminal {
                 Terminal::Suspended | Terminal::Ready => self.admission.take().unwrap_or_default(),
                 _ => AdmissionProgress::default(),
             };
@@ -242,14 +244,14 @@ impl Drop for Invocation<'_> {
                     }
                 }
             }
-            slot.state = match &self.terminal {
+            slot.state = match terminal {
                 Terminal::Retry => State::Dormant,
                 Terminal::Suspended => State::Suspended,
                 Terminal::Ready => State::Ready,
                 Terminal::Published(input) => match input.publication(&self.execution.owner) {
                     Ok(publication) => {
                         self.execution.owner.pin_derived(publication.as_ref());
-                        State::Published(input.clone())
+                        State::Published(input)
                     }
                     Err(error) => {
                         self.execution
@@ -259,7 +261,7 @@ impl Drop for Invocation<'_> {
                         State::Failed(error)
                     }
                 },
-                Terminal::Failed(error) => State::Failed(error.clone()),
+                Terminal::Failed(error) => State::Failed(error),
             };
             committed_outcome = match slot.state {
                 State::Dormant => OUTCOME_RETRY,

@@ -1,6 +1,6 @@
 //! The admitted input: identity, rows, coverage and generation validation.
 use super::super::{
-    AdmittedBody, AdmittedInput, AdmittedWalkSource, Agreement, ObservationReadiness, Partition, PartitionSupply,
+    AdmittedInput, AdmittedWalkSource, Agreement, ObservationReadiness, Partition, PartitionSupply,
     PopulationProof, ProducerRoot, ReadProof, Readiness,
 };
 use ryo_execution_store::application::file_dag::relations::{RelationOwner, handle::service::PublishedInput};
@@ -50,13 +50,13 @@ impl AdmittedInput {
         OperatingError,
     > {
         self.publication(owner)?;
-        Ok(self.body.proof.population)
+        Ok(self.proof.population)
     }
     pub(crate) fn has_root(
         &self,
         root: ProducerRoot,
     ) -> Agreement {
-        if self.body.root == root {
+        if self.root == root {
             Agreement::Same
         } else {
             Agreement::Different
@@ -83,7 +83,7 @@ impl AdmittedInput {
     pub(crate) fn observation_ready(
         &self,
     ) -> Result<ObservationReadiness, OperatingError> {
-        match &self.body.readiness {
+        match &self.readiness {
             Readiness::Complete => Ok(ObservationReadiness::Ready),
             Readiness::Partial { .. } | Readiness::Inapplicable { .. } => {
                 Ok(ObservationReadiness::Waiting)
@@ -94,7 +94,7 @@ impl AdmittedInput {
     pub(crate) fn coverage(
         &self,
     ) -> Result<ryo_execution_domain::domain::completion::types::CoverageState, OperatingError> {
-        match &self.body.readiness {
+        match &self.readiness {
             Readiness::Complete => Ok(ryo_execution_domain::domain::completion::types::CoverageState::Complete),
             Readiness::Partial { files, lacks } => {
                 Ok(ryo_execution_domain::domain::completion::types::CoverageState::Partial {
@@ -119,7 +119,7 @@ impl AdmittedInput {
             CoverageState::Partial { files, lacks } => {
                 use ryo_execution_domain::domain::completion::service::{lacks_of, partial_of_lacks};
                 let mut all = lacks_of(&files, &lacks);
-                match &self.body.readiness {
+                match &self.readiness {
                     Readiness::Complete => {}
                     Readiness::Partial {
                         files: existing,
@@ -133,11 +133,11 @@ impl AdmittedInput {
                     }
                 }
                 if let CoverageState::Partial { files, lacks } = partial_of_lacks(all) {
-                    Rc::make_mut(&mut self.body).readiness = Readiness::Partial { files, lacks };
+                    self.readiness = Readiness::Partial { files, lacks };
                 }
             }
-            CoverageState::Inapplicable { files } => match &mut Rc::make_mut(&mut self.body).readiness {
-                readiness @ Readiness::Complete => *readiness = Readiness::Inapplicable { files },
+            CoverageState::Inapplicable { files } => match &mut self.readiness {
+                Readiness::Complete => self.readiness = Readiness::Inapplicable { files },
                 Readiness::Partial {
                     files: existing,
                     lacks,
@@ -170,10 +170,10 @@ impl AdmittedInput {
         expected: ProducerRoot,
     ) -> Result<(), OperatingError> {
         if owner.matches_generation(generation) == ryo_execution_store::application::file_dag::relations::types::Sameness::Different
-            || !Rc::ptr_eq(owner, &self.body.proof.owner)
-            || ryo_execution_store::application::file_dag::relations::generation::service::GenerationLease::same(&self.body.proof.generation, generation) == ryo_execution_store::application::file_dag::relations::types::Sameness::Different
-            || self.body.root != expected
-            || self.body.partition.supplies(required) == PartitionSupply::Lacks
+            || !Rc::ptr_eq(owner, &self.proof.owner)
+            || ryo_execution_store::application::file_dag::relations::generation::service::GenerationLease::same(&self.proof.generation, generation) == ryo_execution_store::application::file_dag::relations::types::Sameness::Different
+            || self.root != expected
+            || self.partition.supplies(required) == PartitionSupply::Lacks
         {
             return Err(OperatingError::NotRead);
         }
@@ -190,23 +190,22 @@ impl AdmittedInput {
             table_model::{service::kinds_of, types::Rows},
         };
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
-        if self.body.root != ProducerRoot::Input(InputSource::Relation(relation)) {
+        if self.root != ProducerRoot::Input(InputSource::Relation(relation)) {
             return Err(OperatingError::WrongOperation);
         }
-        if ryo_execution_store::application::file_dag::relations::generation::service::GenerationLease::same(&self.body.proof.generation, generation) == ryo_execution_store::application::file_dag::relations::types::Sameness::Different {
+        if ryo_execution_store::application::file_dag::relations::generation::service::GenerationLease::same(&self.proof.generation, generation) == ryo_execution_store::application::file_dag::relations::types::Sameness::Different {
             return Err(OperatingError::NotRead);
         }
-        let publication = self.publication(&self.body.proof.owner)?;
+        let publication = self.publication(&self.proof.owner)?;
         let admitted = self
-            .body
             .proof
             .owner
             .admit(publication.as_ref(), RepresentationInput::from(rows))?;
-        let identity = admitted.identity(&self.body.proof.owner)?;
+        let identity = admitted.identity(&self.proof.owner)?;
         let (population, actual_relation) = (identity.population(), identity.relation());
         // A project-stage input is the decoded frontier of the relation: computed rows carry no relation identity of their own, and
         // the root and the population proof already say which relation they are.
-        if population != self.body.proof.population
+        if population != self.proof.population
             || actual_relation.is_some_and(|actual| actual != relation)
         {
             return Err(OperatingError::NotRead);
@@ -236,31 +235,29 @@ use ryo_execution_domain::domain::table_model::types::RepresentationInput;
         let generation = admitted.generation();
 
         Ok(Self {
-            body: Rc::new(AdmittedBody {
-                proof: PopulationProof {
-                    owner,
-                    population,
-                    generation,
-                },
-                root,
-                partition: read.partition,
-                readiness: read.readiness,
-                publication,
-            }),
+            proof: PopulationProof {
+                owner,
+                population,
+                generation,
+            },
+            root,
+            partition: read.partition,
+            readiness: read.readiness,
+            publication,
         })
     }
     pub(crate) fn publication(
         &self,
         owner: &Rc<RelationOwner>,
     ) -> Result<&PublishedInput, OperatingError> {
-        if !Rc::ptr_eq(owner, &self.body.proof.owner)
-            || owner.matches_generation(&self.body.proof.generation) == ryo_execution_store::application::file_dag::relations::types::Sameness::Different
+        if !Rc::ptr_eq(owner, &self.proof.owner)
+            || owner.matches_generation(&self.proof.generation) == ryo_execution_store::application::file_dag::relations::types::Sameness::Different
         {
             return Err(OperatingError::NotRead);
         }
-        match &self.body.readiness {
+        match &self.readiness {
             Readiness::Complete | Readiness::Partial { .. } | Readiness::Inapplicable { .. } => {
-                Ok(&self.body.publication)
+                Ok(&self.publication)
             }
         }
     }

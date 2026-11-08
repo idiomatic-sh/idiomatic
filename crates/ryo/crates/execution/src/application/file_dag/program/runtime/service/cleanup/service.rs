@@ -97,21 +97,18 @@ impl ProgramExecution {
             }
             Ok(Some(blocker)) => {
                 work.reset();
-                if Slot::touched(state, &mut slots, &self.program, consumer)?
-                    .waiting_on
-                    .is_none()
-                {
-                    Slot::touched(state, &mut slots, &self.program, consumer)?.waiting_on =
-                        Some(blocker);
+                let slot = Slot::touched(state, &mut slots, &self.program, consumer)?;
+                if slot.waiting_on.is_none() {
+                    slot.waiting_on = Some(blocker);
                     work.waiters.entry(blocker).or_default().push(consumer);
                 }
                 return Ok(());
             }
             Ok(None) => {}
         }
-        Slot::touched(state, &mut slots, &self.program, consumer)?.dependencies_consumed =
-            Dependencies::Consumed;
-        Slot::touched(state, &mut slots, &self.program, consumer)?.waiting_on = None;
+        let slot = Slot::touched(state, &mut slots, &self.program, consumer)?;
+        slot.dependencies_consumed = Dependencies::Consumed;
+        slot.waiting_on = None;
         for at in 0..work.touched.len() {
             let id = work.touched[at];
             let Some(slot) = slots.get_mut(&id) else {

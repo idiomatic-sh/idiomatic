@@ -77,7 +77,7 @@ impl Inputs for SourceInputs<'_, '_> {
         self.state.population_scope()
     }
     fn bind_rule(&mut self, rule: RuleIndex) {
-        self.completion = self.completion.for_rule(rule);
+        self.completion.rebind(rule);
         self.rule = rule;
     }
     fn dependency(
@@ -183,7 +183,7 @@ impl Inputs for SourceInputs<'_, '_> {
             _ => None,
         };
         match region {
-            Some(id) if self.execution.published(self.state, id)?.is_none() => Ok(Some(id)),
+            Some(id) if self.execution.published_with(self.state, id, |_| ())?.is_none() => Ok(Some(id)),
             _ => Ok(None),
         }
     }
