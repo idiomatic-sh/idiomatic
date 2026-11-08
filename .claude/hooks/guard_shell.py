@@ -323,6 +323,89 @@ def previous_reviews(words, here):
     return None
 
 
+MERGE_BRANCHES = "crates/ryo/docs/contracts/evidence/branches/"
+MERGE_VALUE_OPTIONS = {"-m", "-F", "-s", "-X", "--into-name", "--file", "--strategy", "--strategy-option"}
+CHECKPOINT = re.compile(r"claude/checkpoint-\d+")
+
+
+def git_merge(words):
+    """The -C directory and the ref operands of a `git merge`, or None when the words are not one."""
+    if len(words) < 2 or words[0] != "git":
+        return None
+    directory, i = None, 1
+    while i < len(words) and words[i].startswith("-"):
+        if words[i] == "-C" and i + 1 < len(words):
+            directory = words[i + 1]
+            i += 2
+        elif words[i] in ("-c", "--git-dir", "--work-tree") and i + 1 < len(words):
+            i += 2
+        else:
+            i += 1
+    if i >= len(words) or words[i] != "merge":
+        return None
+    refs, rest = [], words[i + 1:]
+    skip = False
+    for w in rest:
+        if skip:
+            skip = False
+        elif w in MERGE_VALUE_OPTIONS:
+            skip = True
+        elif not w.startswith("-"):
+            refs.append(w)
+    return directory, refs
+
+
+def branch_names(tree, ref, sha):
+    """The claude/* branch names the merged ref stands for: its own spelling, else any branch at that sha."""
+    plain = re.sub(r"^(refs/(heads|remotes/[^/]+)/|[^/]+/(?=claude/))", "", ref)
+    if plain.startswith("claude/"):
+        return [plain]
+    names = []
+    for line in git_out(tree, "for-each-ref", "--points-at", sha, "--format=%(refname)", "refs/heads/claude",
+                        "refs/remotes")[1].split():
+        name = re.sub(r"^refs/(heads|remotes/[^/]+)/", "", line)
+        if name.startswith("claude/") and name not in names:
+            names.append(name)
+    return names
+
+
+def branch_review(words, here):
+    """A merge of a claude/* builder branch into a checkpoint tree needs the leak-review PASS for that head in HEAD."""
+    merge = git_merge(words)
+    if merge is None:
+        return None
+    tree = os.path.join(here, merge[0]) if merge[0] else here
+    code, current = git_out(tree, "symbolic-ref", "--short", "HEAD")
+    if code != 0 or not CHECKPOINT.fullmatch(current.strip()):
+        return None
+    for ref in merge[1]:
+        code, out = git_out(tree, "rev-parse", "--verify", "-q", ref + "^{commit}")
+        sha = out.strip()
+        if code != 0 or not sha:
+            continue
+        for name in branch_names(tree, ref, sha):
+            if INTEGRATION.fullmatch(name) or git_out(tree, "merge-base", "--is-ancestor", sha, "HEAD")[0] == 0:
+                continue
+            path = MERGE_BRANCHES + name.replace("/", "-") + ".json"
+            refused = "merge of " + name + " refused: "
+            run = "; run the leak-review agent (.agents/agents/leak-review.md) on " + sha + " diff-scoped and commit its PASS"
+            code, text = git_out(tree, "show", "HEAD:" + path)
+            if code != 0:
+                return refused + "HEAD carries no " + path + run
+            try:
+                review = json.loads(text)
+            except ValueError:
+                return refused + path + " at HEAD is not JSON" + run
+            if not isinstance(review, dict) or review.get("source") != sha:
+                return refused + "the source in " + path + " is not the branch head " + sha + run
+            if review.get("reviewer") != "leak-review" or "verdict" not in review:
+                return refused + path + " lacks \"reviewer\": \"leak-review\" or a \"verdict\"" + run
+            if review["verdict"] != "PASS":
+                return (refused + path + " has verdict " + repr(review["verdict"]) +
+                        "; repair the findings on the branch, then re-run the leak-review agent on its new head")
+    return None
+
+
 PERF_DIR = "crates/ryo/docs/contracts/evidence/perf/"
 PERF_SUBJECT = re.compile(r"perf(\([^)]*\))?!?:")
 PERF_NUMBER = re.compile(r"\d\s?(ms|s|MB|GB|%)(?!\w)")
@@ -454,7 +537,7 @@ def reason(command, cwd=None):
         if len(words) > 1 and words[0] == "cd":
             here = os.path.join(here, os.path.expanduser(words[1]))
         for found in (stash(words), removal(words), cargo_rules(words, before, dirs), tm_fix(words, clean),
-                      rust_review(words, here), previous_reviews(words, here), perf_gate(words, here)):
+                      rust_review(words, here), previous_reviews(words, here), perf_gate(words, here), branch_review(words, here)):
             if found:
                 return found
         before += segment + " "

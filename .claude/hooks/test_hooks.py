@@ -427,6 +427,68 @@ class PerfGate(unittest.TestCase):
         self.assertEqual(self.push().returncode, 0)
 
 
+class BranchMerge(unittest.TestCase):
+    EVIDENCE = "crates/ryo/docs/contracts/evidence/branches/claude-w1-x.json"
+
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.dir.cleanup)
+        self.tree = repo(self.dir.name, "tree", "claude/checkpoint-9")
+        git(self.tree, "commit", "-q", "--allow-empty", "-m", "base")
+        git(self.tree, "checkout", "-q", "-b", "claude/w1-x")
+        git(self.tree, "commit", "-q", "--allow-empty", "-m", "work")
+        self.head = git(self.tree, "rev-parse", "HEAD")
+        git(self.tree, "checkout", "-q", "claude/checkpoint-9")
+
+    def evidence(self, **fields):
+        body = {"source": self.head, "verdict": "PASS", "reviewer": "leak-review"}
+        body.update(fields)
+        path = os.path.join(self.tree, self.EVIDENCE)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump(body, handle)
+        git(self.tree, "add", self.EVIDENCE)
+        git(self.tree, "commit", "-q", "-m", "docs: leak review")
+
+    def merge(self, ref="claude/w1-x"):
+        return run_hook("guard_shell.py", {"tool_input": {"command": "git merge --no-ff -m x " + ref}, "cwd": self.tree})
+
+    def test_missing_file_is_refused_naming_file_and_agent(self):
+        done = self.merge()
+        self.assertEqual(done.returncode, 2)
+        self.assertIn(self.EVIDENCE, done.stderr)
+        self.assertIn("leak-review", done.stderr)
+
+    def test_stale_source_is_refused(self):
+        self.evidence(source="0" * 40)
+        self.assertEqual(self.merge().returncode, 2)
+
+    def test_fail_verdict_is_refused(self):
+        self.evidence(verdict="FAIL")
+        self.assertEqual(self.merge().returncode, 2)
+
+    def test_wrong_reviewer_or_missing_verdict_is_refused(self):
+        self.evidence(reviewer="someone")
+        self.assertEqual(self.merge().returncode, 2)
+
+    def test_pass_is_allowed_by_name_or_sha(self):
+        self.evidence()
+        self.assertEqual(self.merge().returncode, 0)
+        self.assertEqual(self.merge(self.head).returncode, 0)
+
+    def test_exempt_refs(self):
+        git(self.tree, "branch", "claude/ryo-consolidation", self.head)
+        git(self.tree, "branch", "claude/checkpoint-8", self.head)
+        git(self.tree, "branch", "claude/ancestor", "HEAD")
+        for ref in ("claude/ryo-consolidation", "claude/checkpoint-8", "claude/ancestor"):
+            with self.subTest(ref=ref):
+                self.assertEqual(self.merge(ref).returncode, 0)
+
+    def test_other_trees_are_not_gated(self):
+        git(self.tree, "checkout", "-q", "-b", "claude/w2-y")
+        self.assertEqual(self.merge().returncode, 0)
+
+
 class Acceptance(unittest.TestCase):
     def setUp(self):
         self.dir = tempfile.TemporaryDirectory()
