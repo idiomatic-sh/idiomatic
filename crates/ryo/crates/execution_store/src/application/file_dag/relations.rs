@@ -103,7 +103,7 @@ impl RelationOwner {
     }
 
     pub(super) fn for_scope(
-        permit: super::scope::types::ScopePermit,
+        permit: super::service::types::ScopePermit,
         views: PinnedViewCount,
         semantic: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
         routes: super::route_counts::types::RouteProfile,

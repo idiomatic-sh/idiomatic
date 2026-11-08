@@ -4,7 +4,7 @@ use super::*;
 use crate::application::file_dag::program::runtime::types::AttemptCheckpoint;
 use crate::application::file_dag::program::runtime::types::DependencyCheckpoint;
 use crate::application::file_dag::execution::CommonOperatorEngine;
-use ryo_execution_store::application::file_dag::scope::ScopePartials;
+use ryo_execution_store::application::file_dag::service::ScopePartials;
 use crate::domain::{
     file_program::types::RuleSchedule,
     operating::types::Emit as RowSink,

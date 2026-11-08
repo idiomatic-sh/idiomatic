@@ -8,7 +8,7 @@ use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
 use crate::domain::rule_intent::types::{
     CaptureIntent, DiagnosticDelivery, EmitDemand, FileRuleIntent, ObservationDemand, RuleDemand,
 };
-use ryo_execution_store::application::file_dag::scope::ScopePartials;
+use ryo_execution_store::application::file_dag::service::ScopePartials;
 use crate::domain::file_program::types::RuleSchedule;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_cells::service_test::{SMALL_SOURCE, SmallTree, rows_over, small_tree};

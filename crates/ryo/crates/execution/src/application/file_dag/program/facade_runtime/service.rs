@@ -3,7 +3,7 @@ use super::types::{ProgramServices, PublicationScope};
 use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
 use crate::application::file_dag::program::admission::RequiredPartitions;
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
-use ryo_execution_store::application::file_dag::scope::open_program_owner;
+use ryo_execution_store::application::file_dag::service::open_program_owner;
 use crate::domain::coverage::types::{Covered, RuleIndex};
 use crate::domain::operating::errors::OperatingError;
 use ryo_values::domain::runs::types::Skipped;

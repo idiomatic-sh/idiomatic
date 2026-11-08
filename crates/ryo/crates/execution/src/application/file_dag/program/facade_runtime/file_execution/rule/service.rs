@@ -16,7 +16,7 @@ use crate::domain::rule_intent::types::ObservationDemand;
 use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
 use crate::domain::rule_intent::types::RuleDemand;
 use crate::application::file_dag::program::rule_outcome::types::RuleOutcome;
-use ryo_execution_store::application::file_dag::scope::ScopePartials;
+use ryo_execution_store::application::file_dag::service::ScopePartials;
 use crate::domain::completion::types::completion_policy::value::CompletionPolicy;
 use crate::domain::coverage::types::RuleIndex;
 use crate::domain::operating::errors::OperatingError;

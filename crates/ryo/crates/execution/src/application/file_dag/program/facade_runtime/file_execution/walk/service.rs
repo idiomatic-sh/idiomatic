@@ -19,7 +19,7 @@ use crate::domain::rule_intent::types::CaptureIntent;
 use crate::domain::rule_intent::types::DiagnosticDelivery;
 use crate::domain::rule_intent::types::FileRuleIntent;
 use crate::domain::rule_intent::types::ObservationDemand;
-use ryo_execution_store::application::file_dag::scope::ScopePartials;
+use ryo_execution_store::application::file_dag::service::ScopePartials;
 use crate::domain::completion::types::completion_policy::value::CompletionPolicy;
 use crate::domain::coverage::types::RuleIndex;
 use crate::domain::operating::errors::OperatingError;

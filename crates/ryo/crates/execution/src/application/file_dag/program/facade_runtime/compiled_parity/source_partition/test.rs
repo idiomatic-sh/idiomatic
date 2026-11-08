@@ -322,5 +322,5 @@ fn refuses() {
 use ryo_values::domain::query_bindings::types::{BindingCell, BindingTable, ParameterBinding};
 
 use crate::application::file_dag::program::facade_runtime::service::required_partitions;
-use ryo_execution_store::application::file_dag::scope::open_program_owner;
+use ryo_execution_store::application::file_dag::service::open_program_owner;
 use crate::domain::table_model::service::count_of;

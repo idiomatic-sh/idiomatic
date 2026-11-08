@@ -12,6 +12,13 @@ pub(crate) fn prepared_sources(
     plans: &[Plan],
     semantic: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
 ) -> super::super::prepared::RequestDerived {
+    super::super::prepared::RequestDerived::compile(&compiled(plans, semantic)).unwrap()
+}
+/// The program actual plans and declarations compile to, its operators prepared through the store's request views.
+pub(crate) fn compiled(
+    plans: &[Plan],
+    semantic: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
+) -> ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram {
     use ryo_execution_domain::domain::{
         source_partitions::types::source_partitions::value::SourcePartitions,
     };
@@ -41,7 +48,15 @@ pub(crate) fn prepared_sources(
         })
         .collect::<Vec<_>>();
     let bindings = vec![vec![]; plans.len()];
-    let request = crate::application::file_dag::service::prepare(plans, &bindings, &[], semantic).unwrap();
+    let mut views = crate::application::file_dag::derived::request::RequestViews::new(semantic);
+    let request = ryo_execution_domain::domain::file_program::service::operators::prepare(
+        plans,
+        &bindings,
+        &[],
+        &ryo_relations::domain::relations::service::kinds,
+        &mut |contract| views.bind(contract),
+    )
+    .unwrap();
     let borrowed = plans.iter().map(Ok).collect::<Vec<_>>();
     let partitions = SourcePartitions::new(
         &rules,
@@ -56,10 +71,8 @@ pub(crate) fn prepared_sources(
         &request,
         ryo_execution_domain::domain::file_program::types::ObservationRequest::Independent,
     );
-    let program =
-        ryo_execution_domain::domain::executable_program::service::compile(plans, graph, &partitions, &request)
-            .unwrap();
-    super::super::prepared::RequestDerived::compile(&program).unwrap()
+    ryo_execution_domain::domain::executable_program::service::compile(plans, graph, &partitions, &request)
+        .unwrap()
 }
 pub(crate) fn source_plan(relation: Relation) -> Plan {
     use ryo_values::domain::{

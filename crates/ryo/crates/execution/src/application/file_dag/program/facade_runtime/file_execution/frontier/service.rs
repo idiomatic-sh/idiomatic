@@ -10,7 +10,7 @@ use crate::domain::rule_intent::types::CaptureIntent;
 use crate::domain::frontier_capture::types::CaptureScope;
 use crate::domain::frontier_capture::types::CapturedFrontier;
 use crate::domain::frontier_capture::types::FrontierCapture;
-use ryo_execution_store::application::file_dag::scope::ScopePartials;
+use ryo_execution_store::application::file_dag::service::ScopePartials;
 use crate::domain::completion::types::completion_policy::value::CompletionPolicy;
 use crate::domain::coverage::types::RuleIndex;
 use crate::domain::operating::errors::OperatingError;

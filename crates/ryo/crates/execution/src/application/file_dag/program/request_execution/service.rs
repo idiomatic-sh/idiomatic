@@ -32,7 +32,7 @@ use crate::application::file_dag::program::request_execution::interface::Executi
 use crate::application::file_dag::program::project_phase::types::FrontierDemand;
 use crate::application::file_dag::program::project_phase::types::FrontierRequest;
 use crate::application::file_dag::program::request_execution::types::RequestExecution;
-use ryo_execution_store::application::file_dag::scope::ScopePartials;
+use ryo_execution_store::application::file_dag::service::ScopePartials;
 use crate::domain::operating::errors::OperatingError;
 use crate::outbound::facts::types::ResidentStability;
 use ryo_language::domain::symbols::types::Symbols;

@@ -5,7 +5,7 @@ use crate::application::file_dag::program::facade_runtime::file_execution::FileR
 use crate::application::file_dag::program::facade_runtime::source_admission::SourceInputs;
 use crate::domain::rule_intent::types::DiagnosticDelivery;
 use crate::application::file_dag::program::runtime::service::InvocationOutcome;
-use ryo_execution_store::application::file_dag::scope::ScopePartials;
+use ryo_execution_store::application::file_dag::service::ScopePartials;
 use crate::domain::completion::types::completion_policy::value::CompletionPolicy;
 use crate::domain::coverage::types::RuleIndex;
 use crate::domain::operating::errors::OperatingError;

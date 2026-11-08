@@ -3,8 +3,9 @@ pub mod closure_partitions;
 pub mod derived;
 pub mod relations;
 pub mod route_counts;
-pub mod scope;
 pub mod service;
+#[cfg(test)]
+mod service_test;
 pub mod workspace;
 
 #[cfg(any(test, feature = "fixtures"))]

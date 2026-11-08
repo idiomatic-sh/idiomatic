@@ -2,6 +2,7 @@
 
 pub(crate) mod link;
 pub(crate) mod observations;
+pub mod operators;
 
 use super::constants::{EXPECT_BINDING_SLOTS, ORDERED_EXISTENCE_DECLINED, PREPARATION_TARGET};
 use super::types::canonical_operation::value::CanonicalOperation;

@@ -21,8 +21,8 @@ use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
 use crate::application::file_dag::program::runtime::service::InvocationOutcome;
 use crate::application::file_dag::program::runtime::service::ProgramExecution;
 use ryo_execution_store::application::file_dag::relations::RelationOwner;
-use ryo_execution_store::application::file_dag::scope::ScopePartials;
-use ryo_execution_store::application::file_dag::scope::open_program_owner;
+use ryo_execution_store::application::file_dag::service::ScopePartials;
+use ryo_execution_store::application::file_dag::service::open_program_owner;
 use crate::domain::coverage::types::RuleIndex;
 use crate::domain::operating::errors::OperatingError;
 #[cfg(test)]
