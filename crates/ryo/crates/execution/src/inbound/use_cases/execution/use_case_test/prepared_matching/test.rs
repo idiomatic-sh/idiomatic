@@ -2,7 +2,7 @@
 use super::super::super::fixtures;
 use crate::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
 use crate::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
-use crate::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_language::domain::{
     elements::types::Elements,
     symbols::{
@@ -162,8 +162,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 assert_eq!(builds(&program), 0);
                 let (engine, program, mut symbols, _) =
                     prepare(operation.clone(), Some("actual"), &[], operation)?;
-                let expected = crate::domain::matching::types::prepared::value::compile_regex(
-                    crate::domain::table_texts::types::TextView("["),
+                let expected = ryo_execution_domain::domain::matching::types::prepared::value::compile_regex(
+                    ryo_execution_domain::domain::table_texts::types::TextView("["),
                     crate::application::file_dag::fixtures::pattern_matcher(),
                 )
                     .unwrap_err();
@@ -206,7 +206,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 program
                     .inner
                     .matchers()
-                    .regex(crate::domain::table_texts::types::TextView("a.*"), crate::application::file_dag::fixtures::pattern_matcher())
+                    .regex(ryo_execution_domain::domain::table_texts::types::TextView("a.*"), crate::application::file_dag::fixtures::pattern_matcher())
                     .unwrap()
                     .as_ref()
                     .expect("the prepared literal matcher compiled");
@@ -238,7 +238,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 program
                     .inner
                     .matchers()
-                    .regex(crate::domain::table_texts::types::TextView("a.*"), crate::application::file_dag::fixtures::pattern_matcher())
+                    .regex(ryo_execution_domain::domain::table_texts::types::TextView("a.*"), crate::application::file_dag::fixtures::pattern_matcher())
                     .unwrap()
                     .as_ref()
                     .expect("the prepared literal matcher compiled");
@@ -260,7 +260,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 )];
                 let (engine, program, mut symbols, _) =
                     prepare(lists.clone(), Some("alpha"), &bindings, &shadow)?;
-                assert!(program.inner.matchers().glob(Test::GlobAny, crate::domain::table_texts::types::TextView("a*"), crate::application::file_dag::fixtures::pattern_matcher()).is_some());
+                assert!(program.inner.matchers().glob(Test::GlobAny, ryo_execution_domain::domain::table_texts::types::TextView("a*"), crate::application::file_dag::fixtures::pattern_matcher()).is_some());
                 let actual = evaluate(&engine, &program, &mut symbols)?;
                 assert_eq!((actual.0.count.0, actual.2), (expected, 1));
                 assert_eq!(builds(&program), 1);

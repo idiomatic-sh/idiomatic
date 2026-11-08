@@ -1,7 +1,7 @@
 //! A cut packed frontier is refused or decoded by its input, in the mode it is admitted in.
 use crate::application::file_dag::frontiers::types::FrontierInput;
-use crate::domain::completion::types::CoverageState;
-use crate::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::completion::types::CoverageState;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::Input;

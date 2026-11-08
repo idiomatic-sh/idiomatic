@@ -4,7 +4,7 @@
 pub use crate::application::publication::errors::PublicationError;
 pub use crate::application::publication::types::PublicationInput;
 // Canonical inbound signature vocabulary from private pure concepts.
-pub use crate::domain::finish::types::PublicationReason;
+pub use ryo_execution_domain::domain::finish::types::PublicationReason;
 
 /// What `publication` offers its callers.
 pub trait PublicationUseCase: Send + Sync {

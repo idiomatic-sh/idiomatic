@@ -1,14 +1,14 @@
 //! Real borrowed-index traversal, duplicate order and admission timing controls.
 use super::*;
 use super::view::AxisResource;
-use crate::domain::derived_views::types::{DerivedInputs, DerivedScratch, MembershipSpace};
+use ryo_execution_domain::domain::derived_views::types::{DerivedInputs, DerivedScratch, MembershipSpace};
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
 use ryo_values::domain::table_words::types::ColumnCount;
 use std::sync::Arc;
 use {
-    crate::domain::operator::contract::views::PreparedAxis,
-    crate::domain::table_reach::borrowed::follow,
-    crate::domain::table_reach::borrowed::reach_breadth, crate::domain::table_reach::types::Walk,
+    ryo_execution_domain::domain::operator::contract::views::PreparedAxis,
+    ryo_execution_domain::domain::table_reach::borrowed::follow,
+    ryo_execution_domain::domain::table_reach::borrowed::reach_breadth, ryo_execution_domain::domain::table_reach::types::Walk,
     ryo_values::domain::rows::service::push_row,
 };
 
@@ -36,7 +36,7 @@ fn program(direction: Direction) -> AxisResources {
         parent: ColumnIndex(0),
         child: ColumnIndex(1),
         domain_id: ColumnIndex(0),
-        has_filter: crate::domain::operator::contract::resources::Filtering::Unfiltered,
+        has_filter: ryo_execution_domain::domain::operator::contract::resources::Filtering::Unfiltered,
         domain_view: Vec::new(),
         output: Vec::new(),
         direction,
@@ -45,7 +45,7 @@ fn program(direction: Direction) -> AxisResources {
 
 fn acquired(
     kind: ryo_derived::domain::request::types::DerivedKind,
-    request: crate::domain::derived_views::types::ViewRequest,
+    request: ryo_execution_domain::domain::derived_views::types::ViewRequest,
     rows: RepresentationInput<'_>,
 ) -> crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView {
     let plan = Arc::new(
@@ -54,7 +54,7 @@ fn acquired(
                 crate::application::file_dag::fixtures::derived(),
             ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
             &request,
-            &[crate::domain::operation_schema::types::InputShape {
+            &[ryo_execution_domain::domain::operation_schema::types::InputShape {
                 kinds: rows.kinds(),
                 tree: None,
             }],
@@ -115,14 +115,14 @@ fn borrowed_axis_keeps_duplicate_direct_edges_and_breadth_order() {
         RepresentationInput::Computed(&domain),
         Some(acquired(
             ryo_derived::domain::request::types::DerivedKind::Equality,
-            crate::domain::derived_views::types::ViewRequest::Equality {
+            ryo_execution_domain::domain::derived_views::types::ViewRequest::Equality {
                 columns: vec![ColumnIndex(0)],
             },
             RepresentationInput::Computed(&edges),
         )),
         Some(acquired(
             ryo_derived::domain::request::types::DerivedKind::Membership,
-            crate::domain::derived_views::types::ViewRequest::Membership {
+            ryo_execution_domain::domain::derived_views::types::ViewRequest::Membership {
                 column: ColumnIndex(0),
             },
             RepresentationInput::Computed(&domain),
@@ -130,7 +130,7 @@ fn borrowed_axis_keeps_duplicate_direct_edges_and_breadth_order() {
     )
     .unwrap();
     #[cfg(feature = "diagnostic-row-progress")]
-    let viewed = resource.view(&crate::domain::operator::contract::views::IgnoredProgress);
+    let viewed = resource.view(&ryo_execution_domain::domain::operator::contract::views::IgnoredProgress);
     #[cfg(not(feature = "diagnostic-row-progress"))]
     let viewed = resource.view();
     let PreparedAxis::Indexed {
@@ -175,4 +175,4 @@ fn unsupported_and_empty_gates_precede_derived_handle_requirement() {
 }
 
 use ryo_values::domain::rows::types::Table;
-use crate::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;

@@ -13,18 +13,18 @@ use crate::application::file_dag::program::constants::{
 use crate::application::file_dag::program::facade_runtime::types::ObservationKey;
 use crate::application::file_dag::relations::RelationOwner;
 use crate::application::file_dag::relations::handle::service::PublishedInput;
-use crate::domain::operating::errors::OperatingError;
-use crate::domain::operating::types::OperatorContext;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operating::types::OperatorContext;
 use std::rc::Rc;
 
 impl SourceInputs<'_, '_> {
-    pub(in crate::application::file_dag::program::facade_runtime::source_admission) fn supply_source(
+    pub(crate) fn supply_source(
         &mut self,
-        source: crate::domain::executable_program::types::InputSource,
+        source: ryo_execution_domain::domain::executable_program::types::InputSource,
         partition: &Partition,
         context: &mut OperatorContext<'_>,
     ) -> Result<AvailableInput, OperatingError> {
-        use crate::domain::executable_program::types::InputSource;
+        use ryo_execution_domain::domain::executable_program::types::InputSource;
         if let Some(project) = &mut self.project {
             if let Some(provided) = project.supply(source, partition, context, &self.owner) {
                 return provided.map(|input| match source {
@@ -67,9 +67,9 @@ impl SourceInputs<'_, '_> {
                     .hosted()
                     .get(relation.0 as usize)
                     .ok_or(OperatingError::NotRun)?;
-                let table = crate::domain::hosted::service::table_of_query(
+                let table = ryo_execution_domain::domain::hosted::service::table_of_query(
                     hosted,
-                    crate::domain::hosted::types::NumberedFiles(context.paths),
+                    ryo_execution_domain::domain::hosted::types::NumberedFiles(context.paths),
                     &mut context.symbols,
                     context.phase,
                 );
@@ -80,7 +80,7 @@ impl SourceInputs<'_, '_> {
                 .execution
                 .published(self.state, id)?
                 .ok_or(OperatingError::NotRun),
-            InputSource::Observation(crate::domain::executable_program::types::ObservationPlace(slot)) => {
+            InputSource::Observation(ryo_execution_domain::domain::executable_program::types::ObservationPlace(slot)) => {
                 if let Some(input) = self.observations.get(&ObservationKey(slot)) {
                     return Ok(AvailableInput::published(input.clone()));
                 }
@@ -106,7 +106,7 @@ impl SourceInputs<'_, '_> {
                     .insert(ObservationKey(slot), admitted.clone());
                 Ok(admitted)
             }
-            InputSource::EmptyObservation(crate::domain::executable_program::types::ObservationPlace(slot)) => {
+            InputSource::EmptyObservation(ryo_execution_domain::domain::executable_program::types::ObservationPlace(slot)) => {
                 let named = self
                     .program
                     .observation_metadata()
@@ -142,8 +142,8 @@ impl SourceInputs<'_, '_> {
                 admit_published(&self.owner, publication, source, &actual_partition)
             }
             InputSource::ObservationMember {
-                slot: crate::domain::executable_program::types::ObservationPlace(slot),
-                member: crate::domain::executable_program::types::ProducerMember(member),
+                slot: ryo_execution_domain::domain::executable_program::types::ObservationPlace(slot),
+                member: ryo_execution_domain::domain::executable_program::types::ProducerMember(member),
             } => {
                 let outputs =
                     self.file_outputs
@@ -164,7 +164,7 @@ impl SourceInputs<'_, '_> {
                     .and_then(|bindings| bindings.get(declaration.input.0 as usize))
                     .and_then(|binding| binding.producers.get(member))
                     .ok_or(OperatingError::NotRun)?;
-                let crate::domain::file_program::types::ResolvedObservationProducer::Output {
+                let ryo_execution_domain::domain::file_program::types::ResolvedObservationProducer::Output {
                     rule,
                     output,
                 } = producer
@@ -199,7 +199,7 @@ impl SourceInputs<'_, '_> {
                             .completion
                             .for_rule(*rule)
                             .observation_admission(&root.reads)
-                            != crate::domain::completion::types::ObservationAdmission::Ready
+                            != ryo_execution_domain::domain::completion::types::ObservationAdmission::Ready
                         {
                             return Err(OperatingError::ObservationIncomplete {
                                 reason: SOURCE_FACTS_INCOMPLETE.into(),
@@ -231,24 +231,24 @@ impl SourceInputs<'_, '_> {
         Ok(AvailableInput::published(admitted))
     }
 }
-pub(in crate::application::file_dag::program::facade_runtime::source_admission) fn admit_published(
+pub(crate) fn admit_published(
     owner: &Rc<RelationOwner>,
     publication: PublishedInput,
-    source: crate::domain::executable_program::types::InputSource,
+    source: ryo_execution_domain::domain::executable_program::types::InputSource,
     partition: &Partition,
 ) -> Result<AdmittedInput, OperatingError> {
     let unavailable = |_| Err(OperatingError::NotRead);
     let rows = owner.resolve(publication.as_ref(), &unavailable)?;
     let checked = owner.admit(
         publication.as_ref(),
-        crate::domain::table_model::types::RepresentationInput::from(&rows),
+        ryo_execution_domain::domain::table_model::types::RepresentationInput::from(&rows),
     )?;
     AdmittedInput::from_publication(
         Rc::clone(owner),
         publication.clone(),
         &checked,
         match source {
-            crate::domain::executable_program::types::InputSource::Region(id) => {
+            ryo_execution_domain::domain::executable_program::types::InputSource::Region(id) => {
                 ProducerRoot::Region(id)
             }
             _ => ProducerRoot::Input(source),

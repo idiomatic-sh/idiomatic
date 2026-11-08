@@ -5,16 +5,16 @@ use super::super::executor::{KernelCall, PrimitiveExecutor};
 use super::super::{
     invocation::InvocationResources, predicates::BoundPredicate, workspace::InvocationWorkspace,
 };
-use crate::domain::operating::{
+use ryo_execution_domain::domain::operating::{
     errors::OperatingError,
     types::{Emit, OperatorContext},
 };
-use crate::domain::operator::contract::{
+use ryo_execution_domain::domain::operator::contract::{
     context::with_primitive_context, types::*, 
 };
-use crate::domain::table_model::types::RepresentationInput;
-use crate::domain::table_scratch::types::OperatorScratch;
-use crate::domain::table_texts::{
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::table_scratch::types::OperatorScratch;
+use ryo_execution_domain::domain::table_texts::{
     service::datum,
     types::{Datum, Texts},
 };
@@ -22,12 +22,12 @@ use capability::service::ExecutableLease;
 use ryo_language::domain::symbols::service::query_reborrow;
 use ryo_relations::domain::relations::types::Value;
 use {
-    crate::domain::table_model::types::Verdict, ryo_values::domain::rows::service::cell,
+    ryo_execution_domain::domain::table_model::types::Verdict, ryo_values::domain::rows::service::cell,
     ryo_values::domain::rows::service::reset,
 };
 
 /// All resources are borrowed for this call. No mutable owner crosses the boundary.
-pub(in crate::application::file_dag) fn evaluate(
+pub(crate) fn evaluate(
     operators: &dyn PrimitiveExecutor,
     contract: &OperatorContract,
     permit: &crate::application::file_dag::program::runtime::service::KernelPermit<'_>,
@@ -98,8 +98,8 @@ fn evaluate_once(
         );
         crate::application::file_dag::route_counts::progress::service::progress(
             &routes,
-            crate::domain::operator::contract::views::ProgressCounter::InputRows,
-            crate::domain::operator::contract::views::ProgressAmount(1),
+            ryo_execution_domain::domain::operator::contract::views::ProgressCounter::InputRows,
+            ryo_execution_domain::domain::operator::contract::views::ProgressAmount(1),
         );
     }
     let mut validated_source = None;
@@ -110,7 +110,7 @@ fn evaluate_once(
         match contract.source_gate {
             SourceGate::None => {}
             SourceGate::CheckedSpan { span, base_line } => {
-                validated_source=crate::domain::operator::contract::views::validate(row,span,base_line,context.source)?;
+                validated_source=ryo_execution_domain::domain::operator::contract::views::validate(row,span,base_line,context.source)?;
                 if validated_source.is_none() {
                     return Ok(());
                 }
@@ -132,7 +132,7 @@ fn evaluate_once(
         if let Some(prepared) = context
             .prepared_matchers
             .and_then(|prepared| prepared.regex(
-                crate::domain::table_texts::types::TextView(&pattern.0),
+                ryo_execution_domain::domain::table_texts::types::TextView(&pattern.0),
                 context.matcher,
             ))
         {
@@ -140,8 +140,8 @@ fn evaluate_once(
         } else {
             if workspace.literal_regex.is_none() {
                 workspace.literal_regex = Some(
-                    crate::domain::matching::types::prepared::value::compile_regex(
-                        crate::domain::table_texts::types::TextView(&pattern.0),
+                    ryo_execution_domain::domain::matching::types::prepared::value::compile_regex(
+                        ryo_execution_domain::domain::table_texts::types::TextView(&pattern.0),
                         context.matcher,
                     )?,
                 );
@@ -157,10 +157,10 @@ fn evaluate_once(
         None
     };
     let (cached_reach, cached_axis) = match cached {
-        Some(crate::domain::operator::contract::graph_view::CachedGraphRow::Reach(view)) => {
+        Some(ryo_execution_domain::domain::operator::contract::graph_view::CachedGraphRow::Reach(view)) => {
             (Some(view), None)
         }
-        Some(crate::domain::operator::contract::graph_view::CachedGraphRow::Axis(view)) => {
+        Some(ryo_execution_domain::domain::operator::contract::graph_view::CachedGraphRow::Axis(view)) => {
             (None, Some(view))
         }
         None => (None, None),
@@ -182,11 +182,11 @@ fn evaluate_once(
     if matches!(
         input,
         PreparedInputs::Row {
-            input: crate::domain::operating::types::InputPlace(0),
+            input: ryo_execution_domain::domain::operating::types::InputPlace(0),
             ..
         }
     ) {
-        crate::domain::operator::contract::workspace::begin(
+        ryo_execution_domain::domain::operator::contract::workspace::begin(
             &contract.workspace,
             WorkspaceLifetime::PrimaryRow,
             &mut workspace.primitive,
@@ -217,10 +217,10 @@ fn evaluate_once(
         failure: &semantic_failure,
         #[cfg(feature = "diagnostic-row-progress")]
         progress: &routes,
-        binding: crate::domain::executable_program::physical::PhysicalBinding {
+        binding: ryo_execution_domain::domain::executable_program::physical::PhysicalBinding {
             bindings: context.bindings,
             regex_identity: regex.map(|compiled| {
-                crate::domain::executable_program::types::RegexIdentity(compiled as *const _ as usize)
+                ryo_execution_domain::domain::executable_program::types::RegexIdentity(compiled as *const _ as usize)
             }),
             source_len: ryo_operators::domain::contract::types::SourceByteLength(
                 context.source.0.len(),
@@ -262,7 +262,7 @@ struct OutputBridge<'a> {
     emit: &'a mut dyn Emit,
     headers: super::output::Headers<'a>,
     scratch: &'a mut OperatorScratch,
-    memo: &'a mut Vec<crate::domain::operating::types::Memo>,
+    memo: &'a mut Vec<ryo_execution_domain::domain::operating::types::Memo>,
 }
 impl RowSink for OutputBridge<'_> {
     fn row(&mut self, lease: &mut PrimitiveLease<'_>, row: &[Value]) -> Result<(), OperatingError> {

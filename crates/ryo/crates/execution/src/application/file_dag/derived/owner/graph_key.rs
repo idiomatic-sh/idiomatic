@@ -1,7 +1,7 @@
 //! Immutable canonical map keys.
 use super::types::IdentityCompatibility;
 use crate::application::file_dag::derived::ledger::types::ByteCount;
-use crate::domain::derived_views::types::contract::value::DerivedContract;
+use ryo_execution_domain::domain::derived_views::types::contract::value::DerivedContract;
 use std::sync::Arc;
 impl GraphRequirement {
     pub(super) fn compatible(&self, other: &Self) -> IdentityCompatibility {
@@ -45,12 +45,12 @@ impl RequirementIdentity {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub(in crate::application::file_dag::derived::owner) struct GraphRequirement {
+pub(crate) struct GraphRequirement {
     pub endpoints: [ryo_values::domain::plan_parts::types::ColumnIndex; 2],
     pub keys: Arc<[ryo_values::domain::plan_parts::types::ColumnIndex]>,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub(in crate::application::file_dag::derived::owner) enum GraphViewIdentity {
+pub(crate) enum GraphViewIdentity {
     Adjacency(GraphRequirement),
     Dense {
         graph: GraphRequirement,
@@ -59,7 +59,7 @@ pub(in crate::application::file_dag::derived::owner) enum GraphViewIdentity {
 }
 /// A retained immutable descriptor prevents address ABA and allows equivalent cross-rule plans.
 #[derive(Clone, Debug)]
-pub(in crate::application::file_dag) struct PreparedIdentity(Arc<DerivedContract>);
+pub(crate) struct PreparedIdentity(Arc<DerivedContract>);
 impl PartialEq for PreparedIdentity {
     fn eq(&self, other: &Self) -> bool {
         let (left, right) = (&self.0, &other.0);
@@ -84,7 +84,7 @@ impl PreparedIdentity {
     }
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub(in crate::application::file_dag::derived::owner) enum RequirementIdentity {
+pub(crate) enum RequirementIdentity {
     Prepared(PreparedIdentity),
     Graph(Arc<GraphViewIdentity>),
 }

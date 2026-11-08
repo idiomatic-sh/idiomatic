@@ -17,8 +17,8 @@ pub(super) const ISSUER: &str =
 const AUTHORIZED: &str = r#"
 mod derived_authorized {
     use crate::application::file_dag::relations::{RelationOwner, admission::service::BorrowedInput};
-    use crate::domain::derived_views::types::{contract::value::DerivedContract, DerivedInputs, DerivedScratch};
-    use crate::domain::operating::errors::OperatingError;
+    use ryo_execution_domain::domain::derived_views::types::{contract::value::DerivedContract, DerivedInputs, DerivedScratch};
+    use ryo_execution_domain::domain::operating::errors::OperatingError;
     use std::sync::Arc;
     fn acquire<'a>(owner: &'a RelationOwner, plan: &'a Arc<DerivedContract>, proof: &'a BorrowedInput<'a>, scratch: &'a mut DerivedScratch) -> Result<(), OperatingError> {
         let admitted = owner.derived().admit_view(plan, owner, &[proof])?;
@@ -81,7 +81,7 @@ mod removed_port_getter {
 const RAW_BRIDGE_SIBLING: &str = r#"
 mod future_raw_consumer {
     use crate::outbound::derived::interface::DerivedPort;
-    use crate::domain::derived_views::types::{contract::value::DerivedContract, DerivedInputs, DerivedScratch};
+    use ryo_execution_domain::domain::derived_views::types::{contract::value::DerivedContract, DerivedInputs, DerivedScratch};
     use std::sync::Arc;
     fn bypass<'a>(port: Arc<dyn DerivedPort>, plan: &'a DerivedContract, inputs: DerivedInputs<'a, 'a>, scratch: &'a mut DerivedScratch) {
         let _ = crate::application::file_dag::derived::owner::acquisition::semantics::service::build(port, plan, inputs, scratch, None);
@@ -115,7 +115,7 @@ const GRAPH_RECORD_FORGERY: &str = r#"
 mod graph_record_forgery { use crate::application::file_dag::derived::owner::graphs::types::handles::service::GraphHandle as Authority; fn forge(value: Authority) -> Authority { Authority { sharing: crate::application::file_dag::derived::owner::graphs::types::handles::types::GraphSharing::Shared, ..value } } const _: fn(Authority) -> Authority = forge; }
 "#;
 const UNADMITTED_GRAPH_DEMAND: &str = r#"
-mod unadmitted_graph_demand { use crate::application::file_dag::derived::owner::{DerivedOwner, cache::types::CacheBackend, graphs::types::roots::value::DemandAnswers}; use crate::domain::stored_graph::types::GraphWalk; use ryo_derived::domain::adjacency::types::compact_graph::value::CompactGraph; use ryo_relations::domain::relations::types::{Value, Integer}; fn forge(owner: &DerivedOwner, graph: &CompactGraph, walk: &mut GraphWalk, cache: &mut CacheBackend) { let _ = DemandAnswers::new(owner, cache).reach(graph, &[], Value::Number(Integer(1)), walk); } const _: fn(&DerivedOwner, &CompactGraph, &mut GraphWalk, &mut CacheBackend) = forge; }
+mod unadmitted_graph_demand { use crate::application::file_dag::derived::owner::{DerivedOwner, cache::types::CacheBackend, graphs::types::roots::value::DemandAnswers}; use ryo_execution_domain::domain::stored_graph::types::GraphWalk; use ryo_derived::domain::adjacency::types::compact_graph::value::CompactGraph; use ryo_relations::domain::relations::types::{Value, Integer}; fn forge(owner: &DerivedOwner, graph: &CompactGraph, walk: &mut GraphWalk, cache: &mut CacheBackend) { let _ = DemandAnswers::new(owner, cache).reach(graph, &[], Value::Number(Integer(1)), walk); } const _: fn(&DerivedOwner, &CompactGraph, &mut GraphWalk, &mut CacheBackend) = forge; }
 "#;
 const BORROWED_LEASED_READ: &str = r#"
 mod borrowed_leased_read { use crate::application::file_dag::derived::owner::graphs::types::handles::service::{GraphHandle, DomainHandle}; fn read(graph: &GraphHandle, domain: &DomainHandle) -> usize { graph.graph().vertices().len() + domain.members().0.len() } const _: fn(&GraphHandle, &DomainHandle) -> usize = read; }

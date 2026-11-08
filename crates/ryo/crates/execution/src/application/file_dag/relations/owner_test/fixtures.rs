@@ -1,5 +1,5 @@
 //! Schema-derived typed populations and ordinary access, shared by admission fixtures.
-use crate::domain::table_model::{
+use ryo_execution_domain::domain::table_model::{
     service::{count_of, read_row},
     types::Rows,
 };

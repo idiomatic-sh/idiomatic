@@ -13,39 +13,39 @@ use crate::application::file_dag::program::constants::PHASE_AVAILABILITY;
 use crate::application::file_dag::program::constants::PHASE_DEPENDENCY;
 use crate::application::file_dag::program::constants::PHASE_PHYSICAL;
 use crate::application::file_dag::program::runtime::types::StageProgress;
-use crate::domain::executable_program::types::region::value::Region;
-use crate::domain::executable_program::types::RegionId;
-use crate::domain::operating::errors::OperatingError;
-use crate::domain::operating::types::OperatorContext;
+use ryo_execution_domain::domain::executable_program::types::region::value::Region;
+use ryo_execution_domain::domain::executable_program::types::RegionId;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operating::types::OperatorContext;
 
 impl<'a> KernelAdmission<'a> {
-    pub(in crate::application::file_dag::program) fn execution(&self) -> &'a ProgramExecution {
+    pub(crate) fn execution(&self) -> &'a ProgramExecution {
         self.execution
     }
-    pub(in crate::application::file_dag::program) fn region(&self) -> RegionId {
+    pub(crate) fn region(&self) -> RegionId {
         self.region
     }
 }
 impl ReadySelection<'_, '_> {
-    pub(in crate::application::file_dag::program) fn permit(&self) -> &KernelPermit<'_> {
+    pub(crate) fn permit(&self) -> &KernelPermit<'_> {
         self.permit
     }
 }
-pub(in crate::application::file_dag::program::runtime::service) fn first_preflight(
+pub(crate) fn first_preflight(
     region: &Region,
-) -> Option<crate::domain::operator::contract::types::PreflightOrder> {
+) -> Option<ryo_execution_domain::domain::operator::contract::types::PreflightOrder> {
     region
         .instructions()
         .first()
         .map(|instruction| instruction.contract().semantics.preflight)
 }
 impl AdmissionProgress {
-    pub(in crate::application::file_dag::program::runtime::service) fn is_empty(
+    pub(crate) fn is_empty(
         &mut self,
         inputs: &dyn Inputs,
-        source: crate::domain::executable_program::types::InputSource,
+        source: ryo_execution_domain::domain::executable_program::types::InputSource,
         input: &AdmittedInput,
-        representation: crate::domain::operator::contract::types::EmptyRepresentation,
+        representation: ryo_execution_domain::domain::operator::contract::types::EmptyRepresentation,
     ) -> Result<Emptiness, OperatingError> {
         if let Some(answer) = self
             .emptiness
@@ -63,14 +63,14 @@ impl AdmissionProgress {
         Ok(emptiness)
     }
 
-    pub(in crate::application::file_dag::program::runtime::service) fn check_schema(
+    pub(crate) fn check_schema(
         &mut self,
         region: &Region,
     ) -> Result<(), OperatingError> {
         if self.schema_done == StageProgress::Pending {
             for instruction in region.instructions().iter().rev() {
                 if instruction.contract().semantics.preflight
-                    == crate::domain::operator::contract::types::PreflightOrder::SchemaFirst
+                    == ryo_execution_domain::domain::operator::contract::types::PreflightOrder::SchemaFirst
                 {
                     instruction
                         .contract()
@@ -83,10 +83,10 @@ impl AdmissionProgress {
         }
         Ok(())
     }
-    pub(in crate::application::file_dag::program::runtime::service) fn supply(
+    pub(crate) fn supply(
         &mut self,
         inputs: &mut dyn Inputs,
-        source: crate::domain::executable_program::types::InputSource,
+        source: ryo_execution_domain::domain::executable_program::types::InputSource,
         partition: &Partition,
         context: &mut OperatorContext<'_>,
     ) -> Result<(), OperatingError> {
@@ -112,10 +112,10 @@ impl AdmissionProgress {
         });
         Ok(())
     }
-    pub(in crate::application::file_dag::program::runtime::service) fn admit(
+    pub(crate) fn admit(
         &mut self,
         inputs: &mut dyn Inputs,
-        source: crate::domain::executable_program::types::InputSource,
+        source: ryo_execution_domain::domain::executable_program::types::InputSource,
         partition: &Partition,
         context: &mut OperatorContext<'_>,
     ) -> Result<AdmittedInput, OperatingError> {
@@ -138,13 +138,13 @@ impl AdmissionProgress {
         }
     }
 }
-pub(in crate::application::file_dag::program::runtime::service) fn empty_output_kinds(
+pub(crate) fn empty_output_kinds(
     region: &Region,
-    gate: &crate::domain::operator::contract::types::EmptyResult,
+    gate: &ryo_execution_domain::domain::operator::contract::types::EmptyResult,
 ) -> Result<Vec<ryo_relations::domain::relations::types::CellKind>, OperatingError> {
     let mut kinds = gate.kinds.clone()?;
     for instruction in region.instructions().iter().skip(1) {
-        kinds = crate::domain::operation_schema::projection::continuation_kinds(
+        kinds = ryo_execution_domain::domain::operation_schema::projection::continuation_kinds(
             &instruction.operation(),
             &kinds,
         )?;

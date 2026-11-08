@@ -1,9 +1,9 @@
 //! One invocation uses the existing owner and injected meaning; no retained strategy state.
-use crate::domain::operator::contract::{
+use ryo_execution_domain::domain::operator::contract::{
     failure::FailureLatch, types::portable_fault, 
 };
-use crate::domain::table_model::types::RepresentationInput;
-use crate::domain::{operating::errors::OperatingError, self_join_recogniser::types::Extremum};
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::{operating::errors::OperatingError, self_join_recogniser::types::Extremum};
 use ryo_operators::domain::equality_join::errors::EqualityJoinError;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_operators::domain::ordered_existence::types::OrderedExistenceDriver;
@@ -19,10 +19,10 @@ struct Driver<'a, 'c> {
     rows: RepresentationInput<'a>,
     output: &'a [ryo_values::domain::plan_parts::types::JoinColumn],
     row: &'a mut Vec<Value>,
-    context: &'a mut crate::domain::operating::types::OperatorContext<'c>,
-    emit: &'a mut dyn crate::domain::operating::types::Emit,
+    context: &'a mut ryo_execution_domain::domain::operating::types::OperatorContext<'c>,
+    emit: &'a mut dyn ryo_execution_domain::domain::operating::types::Emit,
     failure: FailureLatch,
-    work: &'a crate::domain::operator::contract::types::WorkCounters,
+    work: &'a ryo_execution_domain::domain::operator::contract::types::WorkCounters,
 }
 impl OrderedExistenceDriver for Driver<'_, '_> {
     fn len(&self) -> RowCount {
@@ -47,7 +47,7 @@ impl OrderedExistenceDriver for Driver<'_, '_> {
             .map_err(|_| EqualityJoinError::Interrupted)
     }
     fn emit_dominated(&mut self, row: RowIndex, witness: RowIndex) -> Result<(), EqualityJoinError> {
-        self.work.found(ryo_values::domain::plan_parts::types::InputNumber(0), crate::domain::operator::contract::types::FoundRows(1));
+        self.work.found(ryo_values::domain::plan_parts::types::InputNumber(0), ryo_execution_domain::domain::operator::contract::types::FoundRows(1));
         let rows = self.rows;
         let logical = &mut self.row;
         let output = self.output;
@@ -78,15 +78,15 @@ impl OrderedExistenceDriver for Driver<'_, '_> {
 /// The owner has already bound the exact numeric source. This function only
 /// drives the borrowed semantic algorithm and never publishes or schedules.
 pub(super) fn evaluate(
-    semantics: &dyn crate::domain::operator::contract::types::PrimitiveSemantics,
-    shape: &crate::domain::executable_program::types::OrderedExistence,
+    semantics: &dyn ryo_execution_domain::domain::operator::contract::types::PrimitiveSemantics,
+    shape: &ryo_execution_domain::domain::executable_program::types::OrderedExistence,
     admitted: &super::relations::number::service::AdmittedNumber<'_>,
     rows: RepresentationInput<'_>,
-    context: &mut crate::domain::operating::types::OperatorContext<'_>,
+    context: &mut ryo_execution_domain::domain::operating::types::OperatorContext<'_>,
     row: &mut Vec<Value>,
     scratch: &mut OrderedExistenceScratch,
-    work: &crate::domain::operator::contract::types::WorkCounters,
-    emit: &mut dyn crate::domain::operating::types::Emit,
+    work: &ryo_execution_domain::domain::operator::contract::types::WorkCounters,
+    emit: &mut dyn ryo_execution_domain::domain::operating::types::Emit,
 ) -> Result<(), OperatingError> {
     let _pin = admitted.publication();
     if admitted.column != shape.order {

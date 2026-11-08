@@ -5,7 +5,7 @@ use super::{
 };
 
 impl Ledger {
-    pub(in crate::application::file_dag::derived) fn snapshot(&self) -> LedgerSnapshot {
+    pub(crate) fn snapshot(&self) -> LedgerSnapshot {
         LedgerSnapshot {
             required_bytes: self.required_bytes,
             optional_bytes: self.optional_bytes,

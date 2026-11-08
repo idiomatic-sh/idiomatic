@@ -78,7 +78,7 @@ fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
                 capture: CaptureIntent::Disabled,
             },
             if skipped_at_start {
-                FileRuleIntent::Skipped(crate::domain::rule_intent::types::ApplicabilityReason::DiagnosticNotApplicable)
+                FileRuleIntent::Skipped(ryo_execution_domain::domain::rule_intent::types::ApplicabilityReason::DiagnosticNotApplicable)
             } else {
                 FileRuleIntent::Run {
                     diagnostic: DiagnosticDelivery::Collected,

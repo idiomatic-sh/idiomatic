@@ -2,7 +2,7 @@
 //! instructions, each with its observation barrier.
 use super::observations_test::fixtures::{DeclaredFileProducers, Fixture, FrontierSlots, Names, fixture};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::{
+use ryo_execution_domain::domain::{
     executable_program::{service::compile, types::InputSource},
     operating::errors::OperatingError,
     shared_walk::types::prepared_walk::value::PreparedWalk,
@@ -53,7 +53,7 @@ fn the_census_includes_every_synthetic_observation_union() -> Result<(), Operati
                 ..
             }
         ));
-        assert_eq!(&*region.inputs(), &[InputSource::Observation(crate::domain::executable_program::types::ObservationPlace(slot))]);
+        assert_eq!(&*region.inputs(), &[InputSource::Observation(ryo_execution_domain::domain::executable_program::types::ObservationPlace(slot))]);
         observation_consumers.push(head);
     }
     assert_eq!(observation_consumers.len(), 2);
@@ -155,7 +155,7 @@ fn shared_walk_census_includes_every_synthetic_observation_union() -> Result<(),
                 ..
             }
         ));
-        assert_eq!(&*region.inputs(), &[InputSource::Observation(crate::domain::executable_program::types::ObservationPlace(slot))]);
+        assert_eq!(&*region.inputs(), &[InputSource::Observation(ryo_execution_domain::domain::executable_program::types::ObservationPlace(slot))]);
         observation_consumers.push(head);
     }
     assert_eq!(observation_consumers.len(), 2);
@@ -187,7 +187,7 @@ fn shared_walk_census_includes_every_synthetic_observation_union() -> Result<(),
     assert_eq!(unions, 2, "both named observation inputs compile a union");
     assert!(total > program.logical_regions().len());
     let bindings = vec![vec![]; plans.len()];
-    let mut walk = crate::domain::shared_walk::types::prepared_walk::value::PreparedWalk::compile(
+    let mut walk = ryo_execution_domain::domain::shared_walk::types::prepared_walk::value::PreparedWalk::compile(
         &plans, &bindings,
     );
     walk.retain_program_consumers(&program).unwrap();

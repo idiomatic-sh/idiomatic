@@ -12,7 +12,7 @@ use crate::application::file_dag::derived::{
     owner::DerivedOwner, owner::cache::types::CacheBackend,
     owner::graphs::types::handles::service::GraphHandle, population::types::PopulationId,
 };
-use crate::domain::{
+use ryo_execution_domain::domain::{
     operating::errors::OperatingError,
     stored_graph::types::GraphDomain,
     table_model::{
@@ -22,12 +22,12 @@ use crate::domain::{
 };
 use std::sync::Arc;
 
-pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn adjacency(
+pub(crate) fn adjacency(
     owner: &DerivedOwner,
     population: PopulationId,
     admitted: &AdmittedViewInputs<'_>,
-    plan: &std::sync::Arc<crate::domain::derived_views::types::contract::value::DerivedContract>,
-    source: crate::domain::stored_graph::types::GraphSource,
+    plan: &std::sync::Arc<ryo_execution_domain::domain::derived_views::types::contract::value::DerivedContract>,
+    source: ryo_execution_domain::domain::stored_graph::types::GraphSource,
     rows: &Rows<'_>,
     cache: Option<&mut CacheBackend>,
 ) -> Result<Option<BuiltGraph>, OperatingError> {
@@ -56,11 +56,11 @@ pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn adja
             owner.build_admitted(
                 plan,
                 admitted,
-                crate::domain::derived_views::types::DerivedInputs::Adjacency {
-                    rows: crate::domain::table_model::types::RepresentationInput::from(rows),
+                ryo_execution_domain::domain::derived_views::types::DerivedInputs::Adjacency {
+                    rows: ryo_execution_domain::domain::table_model::types::RepresentationInput::from(rows),
                     source,
                 },
-                &mut crate::domain::derived_views::types::DerivedScratch::default(),
+                &mut ryo_execution_domain::domain::derived_views::types::DerivedScratch::default(),
                 None,
             )
         },
@@ -90,17 +90,17 @@ pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn adja
     }))
 }
 
-pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn domain(
+pub(crate) fn domain(
     owner: &DerivedOwner,
     population: PopulationId,
-    plan: &Arc<crate::domain::derived_views::types::contract::value::DerivedContract>,
+    plan: &Arc<ryo_execution_domain::domain::derived_views::types::contract::value::DerivedContract>,
     admitted: &AdmittedViewInputs<'_>,
     access: &GraphHandle,
-    identity: Option<crate::domain::stored_graph::types::DomainIdentity>,
+    identity: Option<ryo_execution_domain::domain::stored_graph::types::DomainIdentity>,
     rows: &Rows<'_>,
     mut cache: Option<&mut CacheBackend>,
 ) -> Result<BuiltDomain, OperatingError> {
-    let crate::domain::derived_views::types::ViewRequest::Membership { column } = &plan.request
+    let ryo_execution_domain::domain::derived_views::types::ViewRequest::Membership { column } = &plan.request
     else {
         return Err(OperatingError::WrongOperation);
     };
@@ -127,13 +127,13 @@ pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn doma
             owner.build_admitted(
                 plan,
                 admitted,
-                crate::domain::derived_views::types::DerivedInputs::Membership {
-                    rows: crate::domain::table_model::types::RepresentationInput::from(rows),
-                    space: crate::domain::derived_views::types::MembershipSpace::Dense(
+                ryo_execution_domain::domain::derived_views::types::DerivedInputs::Membership {
+                    rows: ryo_execution_domain::domain::table_model::types::RepresentationInput::from(rows),
+                    space: ryo_execution_domain::domain::derived_views::types::MembershipSpace::Dense(
                         access.graph().vertices(),
                     ),
                 },
-                &mut crate::domain::derived_views::types::DerivedScratch::default(),
+                &mut ryo_execution_domain::domain::derived_views::types::DerivedScratch::default(),
                 None,
             )
         },

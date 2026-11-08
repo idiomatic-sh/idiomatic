@@ -2,15 +2,15 @@
 use crate::application::file_dag::execution::CommonOperatorEngine;
 use crate::application::file_dag::program::facade_runtime::file_execution::open_file;
 use crate::application::file_dag::program::facade_runtime::types::ProgramServices;
-use crate::domain::rule_intent::types::CaptureIntent;
-use crate::domain::rule_intent::types::DiagnosticDelivery;
-use crate::domain::rule_intent::types::EmitDemand;
-use crate::domain::rule_intent::types::FileRuleIntent;
-use crate::domain::rule_intent::types::ObservationDemand;
+use ryo_execution_domain::domain::rule_intent::types::CaptureIntent;
+use ryo_execution_domain::domain::rule_intent::types::DiagnosticDelivery;
+use ryo_execution_domain::domain::rule_intent::types::EmitDemand;
+use ryo_execution_domain::domain::rule_intent::types::FileRuleIntent;
+use ryo_execution_domain::domain::rule_intent::types::ObservationDemand;
 use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
-use crate::domain::rule_intent::types::RuleDemand;
+use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
 use crate::application::file_dag::scope::ScopePartials;
-use crate::domain::{
+use ryo_execution_domain::domain::{
     coverage::types::RuleIndex,
     operating::errors::OperatingError,
     prepared_request::{service::assemble, types::ObservationIdentity},

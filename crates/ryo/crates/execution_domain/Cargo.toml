@@ -1,0 +1,40 @@
+[package]
+name = "idiomatic-sh-ryo-execution-domain"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = true
+description = "Ryo execution engine's domain: the compiled program, operator contracts, tables and the pure semantics the engine crates share"
+autobenches = false
+
+[lib]
+name = "ryo_execution_domain"
+
+[dependencies]
+ryo_matching = { package = "idiomatic-sh-ryo-matching", path = "../matching", version = "0.1.2" }
+ryo_derived = { package = "idiomatic-sh-ryo-derived", path = "../derived", version = "0.1.2" }
+ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations", version = "0.1.2" }
+ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.1.2" }
+ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.1.2" }
+ryo_operators = { package = "idiomatic-sh-ryo-operators", path = "../operators", version = "0.1.2" }
+thiserror.workspace = true
+memchr.workspace = true
+num-bigint.workspace = true
+hashbrown.workspace = true
+heck.workspace = true
+rustc-hash.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.1.2", features = ["fixtures"] }
+ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations", version = "0.1.2", features = ["fixtures"] }
+ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.1.2", features = ["fixtures"] }
+
+[features]
+fixtures = ["ryo_values/fixtures", "ryo_relations/fixtures", "ryo_language/fixtures"]
+diagnostic-row-progress = []
+
+[lints]
+workspace = true

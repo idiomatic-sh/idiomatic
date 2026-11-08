@@ -3,7 +3,7 @@ use super::types::ProjectSourceMatch;
 use std::rc::Rc;
 
 /// Values remain private to the phase that supplies their keys and issues their identities.
-pub(in crate::application::file_dag::program) struct Populations<S, K, I> {
+pub(crate) struct Populations<S, K, I> {
     sources: Vec<Rc<S>>,
     invocations: Vec<ProjectInvocationEntry<K, I>>,
 }
@@ -20,7 +20,7 @@ impl<S, K, I> Default for Populations<S, K, I> {
     }
 }
 impl<S, K: Eq, I: Copy> Populations<S, K, I> {
-    pub(in crate::application::file_dag::program) fn source<E>(
+    pub(crate) fn source<E>(
         &mut self,
         equivalent: impl Fn(&S) -> ProjectSourceMatch,
         issue: impl FnOnce() -> Result<S, E>,
@@ -36,7 +36,7 @@ impl<S, K: Eq, I: Copy> Populations<S, K, I> {
         self.sources.push(Rc::clone(&source));
         Ok(source)
     }
-    pub(in crate::application::file_dag::program) fn invocation<E>(
+    pub(crate) fn invocation<E>(
         &mut self,
         key: K,
         issue: impl FnOnce() -> Result<I, E>,

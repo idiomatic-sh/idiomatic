@@ -6,14 +6,14 @@ use crate::application::file_dag::program::file_session::types::FinishedReadines
 use crate::application::file_dag::program::file_session::types::FileSession;
 use crate::application::file_dag::program::file_session::types::SourceRows;
 use crate::application::file_dag::program::rule_outcome::types::RuleOutcome;
-use crate::domain::coverage::types::RuleIndex;
-use crate::domain::frontier_capture::types::FrontierCapture;
-use crate::domain::operating::errors::OperatingError;
-use crate::domain::operator::types::LogicalCounts;
-use crate::domain::readiness::types::ReadinessCounts;
-use crate::domain::row_emission::types::RowEmission;
-use crate::domain::rule_intent::types::RuleDemand;
-use crate::domain::shared_walk::types::WalkCounts;
+use ryo_execution_domain::domain::coverage::types::RuleIndex;
+use ryo_execution_domain::domain::frontier_capture::types::FrontierCapture;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operator::types::LogicalCounts;
+use ryo_execution_domain::domain::readiness::types::ReadinessCounts;
+use ryo_execution_domain::domain::row_emission::types::RowEmission;
+use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
+use ryo_execution_domain::domain::shared_walk::types::WalkCounts;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::stored_facts::types::Bucket;
 use crate::application::file_dag::relations::types::ReuseEligibility;
@@ -63,11 +63,11 @@ impl FileExecution for FileSession<'_, '_> {
         capture: CaptureContext<'_>,
     ) -> Result<Vec<FrontierCapture>, OperatingError> {
         let read = |relation| source_rows(self.read, self.elements, self.file, relation);
-        let bound = crate::domain::frontier_capture::types::CaptureScope {
+        let bound = ryo_execution_domain::domain::frontier_capture::types::CaptureScope {
             file: self.file,
             rule_digest: self.program.rule_digest(rule)?,
             worker: capture.worker,
-            retained: crate::domain::finish::types::Retained {
+            retained: ryo_execution_domain::domain::finish::types::Retained {
                 arena: capture.arena,
                 places: capture.places,
             },
@@ -94,8 +94,8 @@ fn source_rows<'a, 'facts: 'a>(
     elements: &'a ryo_language::domain::elements::types::Elements,
     file: ryo_relations::domain::relations::types::FileId,
     relation: ryo_relations::domain::relations::types::Relation,
-) -> Result<crate::domain::table_model::types::Rows<'a>, OperatingError> {
-    use crate::domain::{
+) -> Result<ryo_execution_domain::domain::table_model::types::Rows<'a>, OperatingError> {
+    use ryo_execution_domain::domain::{
         table_cells::{service::native_form, types::TreeRows},
         table_model::types::Rows,
     };

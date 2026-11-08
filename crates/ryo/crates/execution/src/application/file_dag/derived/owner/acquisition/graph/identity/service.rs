@@ -1,11 +1,11 @@
 //! Canonical metadata from an admitted original row view; no source admission or row scan here.
 use super::types::{PopulationScope, ProvenPopulation};
 use crate::application::file_dag::workspace::GraphInput;
-use crate::domain::stored_graph::types::{self as graph, GraphIdentity};
-use crate::domain::table_model::{service::count_of, types::Rows};
+use ryo_execution_domain::domain::stored_graph::types::{self as graph, GraphIdentity};
+use ryo_execution_domain::domain::table_model::{service::count_of, types::Rows};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 /// Prove an eligible physical population and compose selected columns before sharing graph data.
-pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn source(
+pub(crate) fn source(
     input: &GraphInput<'_>,
     endpoints: [ColumnIndex; 2],
     keys: &[ColumnIndex],
@@ -46,7 +46,7 @@ pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn sour
 }
 
 /// Exact domain provenance when stable; computed domains remain invocation-local.
-pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn domain_identity(
+pub(crate) fn domain_identity(
     input: &GraphInput<'_>,
     column: ColumnIndex,
     eligible: &[ryo_relations::domain::relations::types::Relation],
@@ -67,7 +67,7 @@ fn population(
     eligible: &[ryo_relations::domain::relations::types::Relation],
     scope: PopulationScope,
 ) -> Option<ProvenPopulation> {
-    use crate::domain::table_cells::types::TreeForm;
+    use ryo_execution_domain::domain::table_cells::types::TreeForm;
     use ryo_relations::domain::relations::{service::kinds, types::Relation};
     let relation = input.relation()?;
     if !eligible.contains(&relation) {

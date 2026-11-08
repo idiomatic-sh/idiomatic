@@ -15,8 +15,8 @@ use super::types::AffectedFiles;
 use super::types::CoverageFileCount;
 use super::use_case::MetadataUseCaseImpl;
 use ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl;
-use crate::domain::kind_check::types::KindRefusal;
-use crate::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::kind_check::types::KindRefusal;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_language::domain::files::types::FilePath;
 use ryo_relations::domain::relations::types::FileId;
 use ryo_relations::domain::relations::types::Relation;
@@ -127,7 +127,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Scenario::UnknownKind,
         expect: Expect::Refusal(|failure| {
             selects!(
-                matches!(failure, Refusal::Kind(KindRefusal { message, origin: crate::domain::kind_check::types::KindOrigin::Unrecorded }) if message.0.contains("ghost") && message.0.contains("rust")),
+                matches!(failure, Refusal::Kind(KindRefusal { message, origin: ryo_execution_domain::domain::kind_check::types::KindOrigin::Unrecorded }) if message.0.contains("ghost") && message.0.contains("rust")),
             )
         }),
     },
@@ -298,7 +298,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 relation: Relation::Function,
                 cause: PartialCause("failed read".into()),
                 lacking: Lacking::Any,
-                at: crate::domain::coverage::types::PartialPlace::File(FileId(0)),
+                at: ryo_execution_domain::domain::coverage::types::PartialPlace::File(FileId(0)),
             };
             assert_eq!(
                 metadata.matters(&needs.reads[0], &partial),

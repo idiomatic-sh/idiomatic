@@ -4,7 +4,7 @@ use super::types::{PlanSource, PrepareRequest};
 use crate::application::file_dag::derived::owner::types::DerivedAccess;
 use crate::application::file_dag::program::prepared_execution::service::prepare;
 use crate::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
-use crate::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use crate::outbound::derived::interface::DerivedPort;
 use crate::outbound::digest::interface::DigestPort;
 use crate::outbound::operators::interface::OperatorsPort;
@@ -36,7 +36,7 @@ impl PrepareUseCase for PrepareUseCaseImpl {
     fn prepare(&self, request: PrepareRequest) -> Result<PreparedExecutionProgram, OperatingError> {
         let compiled = match request.plans {
             PlanSource::Authored { plans, bindings } => {
-                crate::domain::prepared_request::service::assemble(plans, bindings, &request.rules)?
+                ryo_execution_domain::domain::prepared_request::service::assemble(plans, bindings, &request.rules)?
             }
             PlanSource::Compiled(queries) => queries.inner,
         };

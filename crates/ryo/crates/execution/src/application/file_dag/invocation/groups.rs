@@ -1,19 +1,19 @@
 //! Existing grouping semantic accumulator; input driving remains in the common engine.
 use crate::application::file_dag::invocation::prepared_use::service::prepared;
-use crate::domain::operating::errors::OperatingError;
-use crate::domain::operating::types::OperatorContext;
-use crate::domain::operator::contract::types::OperatorContract;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operating::types::OperatorContext;
+use ryo_execution_domain::domain::operator::contract::types::OperatorContract;
 
-use crate::domain::table_model::types::RepresentationInput;
-use crate::domain::table_groups::types::Group;
-use crate::domain::table_texts::types::Texts;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::table_groups::types::Group;
+use ryo_execution_domain::domain::table_texts::types::Texts;
 use ryo_derived::domain::key::types::On;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::types::Table;
 use {
-    crate::domain::table_groups::service::count_groups,
-    crate::domain::table_groups::service::digest_groups,
-    crate::domain::table_groups::types::CountRoom, crate::domain::table_groups::types::Hashes,
+    ryo_execution_domain::domain::table_groups::service::count_groups,
+    ryo_execution_domain::domain::table_groups::service::digest_groups,
+    ryo_execution_domain::domain::table_groups::types::CountRoom, ryo_execution_domain::domain::table_groups::types::Hashes,
     ryo_values::domain::rows::service::push_row,
 };
 fn materialized(input: RepresentationInput<'_>) -> Table {
@@ -41,7 +41,7 @@ pub(super) fn groups(
 ) -> Result<Vec<Group>, OperatingError> {
     // The original collected contract checks the reduction operand before its grouping keys.
     if let Some(column) = digest.or(distinct) {
-        crate::domain::table_model::service::check_columns(input.kinds(), &[column])?;
+        ryo_execution_domain::domain::table_model::service::check_columns(input.kinds(), &[column])?;
     }
     let use_ = prepared(
         contract,

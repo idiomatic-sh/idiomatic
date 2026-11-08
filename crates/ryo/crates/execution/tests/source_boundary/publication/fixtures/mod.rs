@@ -2,7 +2,7 @@
 pub(super) const DETACHED_RECORD: &str = r#"
 mod detached_publication_record {
     use crate::application::file_dag::relations::{RelationOwner, handle::service::PublishedInput};
-    use crate::domain::operating::errors::OperatingError;
+    use ryo_execution_domain::domain::operating::errors::OperatingError;
     use std::sync::Arc;
     fn escape(owner: &RelationOwner, publication: PublishedInput) -> Result<(), OperatingError> {
         let detached = Arc::clone(publication.record());
@@ -24,7 +24,7 @@ mod borrowed_publication_record {
 pub(super) const LEASED_CLONE: &str = r#"
 mod leased_publication_clone {
     use crate::application::file_dag::relations::{RelationOwner, handle::service::PublishedInput, publication::types::RelationResult};
-    use crate::domain::operating::errors::OperatingError;
+    use ryo_execution_domain::domain::operating::errors::OperatingError;
     fn read(owner: &RelationOwner, publication: PublishedInput) -> Result<(), OperatingError> {
         let alias = publication.clone();
         drop(publication);

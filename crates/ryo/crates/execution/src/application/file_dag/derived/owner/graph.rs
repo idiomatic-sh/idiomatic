@@ -2,20 +2,18 @@
 use super::*;
 use crate::application::file_dag::derived::ledger::types::ByteCount;
 use crate::application::file_dag::derived::owner::cache::types::{CacheBackend, GraphAdmission};
-use crate::{
-    application::file_dag::{
-        derived::owner::cached_graph::types::CachedGraph, workspace::InvocationWorkspace,
+use crate::application::file_dag::{
+    derived::owner::cached_graph::types::CachedGraph, workspace::InvocationWorkspace,
+};
+use ryo_execution_domain::domain::{
+    operator::contract::{
+        graph_view::CachedGraphRow, resources::ResourceProgram, types::OperatorContract,
     },
-    domain::{
-        operator::contract::{
-            graph_view::CachedGraphRow, resources::ResourceProgram, types::OperatorContract,
-        },
-        table_model::types::Rows,
-    },
+    table_model::types::Rows,
 };
 use ryo_relations::domain::relations::types::Value;
 impl DerivedOwner {
-    pub(in crate::application::file_dag) fn prepare_graph(
+    pub(crate) fn prepare_graph(
         &self,
         contract: &OperatorContract,
         admission: &InvocationWorkspace,
@@ -39,14 +37,14 @@ impl DerivedOwner {
     /// The one place a graph demand reaches the cache: before `prepare_program_file`, after
     /// retirement, or when the file's cache was refused, the demand is refused with
     /// `NotRun` and never traversed by an ordinary route.
-    pub(in crate::application::file_dag::derived::owner) fn graph_cache(
+    pub(crate) fn graph_cache(
         &self,
     ) -> Result<std::cell::RefMut<'_, CacheBackend>, OperatingError> {
         std::cell::RefMut::filter_map(self.backend.borrow_mut(), Option::as_mut)
             .map_err(|_| OperatingError::NotRun)
     }
     /// Only admitted original inputs enter the physical graph adapter.
-    pub(in crate::application::file_dag) fn acquire_graph(
+    pub(crate) fn acquire_graph(
         &self,
         plan: &Arc<DerivedContract>,
         input: &crate::application::file_dag::workspace::GraphInput<'_>,
@@ -60,7 +58,7 @@ impl DerivedOwner {
         }
         super::acquisition::graph::service::acquire(plan, input, cache)
     }
-    pub(in crate::application::file_dag) fn acquire_graph_domain(
+    pub(crate) fn acquire_graph_domain(
         &self,
         plan: &Arc<DerivedContract>,
         graph: &crate::application::file_dag::derived::owner::graphs::types::handles::service::GraphHandle,
@@ -75,7 +73,7 @@ impl DerivedOwner {
         }
         super::acquisition::graph::service::domain(plan, graph, input, cache)
     }
-    pub(in crate::application::file_dag) fn graph_row<'a>(
+    pub(crate) fn graph_row<'a>(
         &self,
         graph: &'a mut CachedGraph,
         row: &[Value],
@@ -86,7 +84,7 @@ impl DerivedOwner {
 }
 
 impl DerivedOwner {
-    pub(in crate::application::file_dag::derived::owner) fn graph_backings(
+    pub(crate) fn graph_backings(
         &self,
         storage: &Arc<DerivedStorage>,
     ) -> Result<Arc<[super::super::ledger::types::Backing]>, OperatingError> {
@@ -95,7 +93,7 @@ impl DerivedOwner {
     /// IdentityCompatibility is an owner lookup guard, never HashMap key equality.
     /// Only the matching stable hash bucket is visited; expired matching views
     /// are unlinked before retry, without retaining position payloads in keys.
-    pub(in crate::application::file_dag::derived::owner) fn canonical_graph_requirement(
+    pub(crate) fn canonical_graph_requirement(
         &self,
         requested: GraphViewIdentity,
         populations: &[PopulationId],
@@ -163,7 +161,7 @@ impl DerivedOwner {
     }
     /// Physical payload increments come from the one ledger; vector metadata
     /// remains a bounded capacity charge, never a scan of retained populations.
-    pub(in crate::application::file_dag::derived::owner) fn graph_retention_cost(
+    pub(crate) fn graph_retention_cost(
         &self,
         backings: &[super::super::ledger::types::Backing],
         metadata: ByteCount,
@@ -176,7 +174,7 @@ impl DerivedOwner {
             .map(ByteCount)
             .ok_or(OperatingError::ShapeMismatch)
     }
-    pub(in crate::application::file_dag::derived::owner) fn graph_room(
+    pub(crate) fn graph_room(
         &self,
         cache: &CacheBackend,
         cost: ByteCount,
@@ -195,7 +193,7 @@ impl DerivedOwner {
         )
     }
     /// Graph, domain and successful memo admissions use the same authority.
-    pub(in crate::application::file_dag::derived::owner) fn try_graph_lease(
+    pub(crate) fn try_graph_lease(
         &self,
         cache: &CacheBackend,
         backings: &[super::super::ledger::types::Backing],

@@ -31,7 +31,7 @@ impl InvocationResources<'_> {
         if let Some(view) = view {
             observed.index_rows = view.rows.count().0;
             observed.index_representation = Some(
-                crate::domain::table_model::service::kind(view.rows),
+                ryo_execution_domain::domain::table_model::service::kind(view.rows),
             );
         }
         let mut rows = self

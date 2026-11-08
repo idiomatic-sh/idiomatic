@@ -3,7 +3,7 @@ use crate::application::file_dag::derived::constants;
 use crate::application::file_dag::derived::ledger::types::ByteCount;
 use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
 use crate::application::file_dag::derived::population::types::PopulationId;
-use crate::domain::{
+use ryo_execution_domain::domain::{
     derived_views::types::{contract::value::DerivedContract, *},
     operating::errors::OperatingError,
 };
@@ -21,7 +21,7 @@ use types::{
     ViewCount,
 };
 
-pub(in crate::application::file_dag) mod acquisition;
+pub(crate) mod acquisition;
 mod backings;
 pub(crate) mod cached_graph;
 mod diagnostics;
@@ -36,14 +36,14 @@ pub(crate) mod types;
 
 /// Runtime semantic dependencies that are not columns: candidate filter and exact dense ordering.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
-pub(in crate::application::file_dag) struct ViewContext {
+pub(crate) struct ViewContext {
     pub candidate: Option<graph_key::PreparedIdentity>,
     pub literals: Option<Arc<[ryo_values::domain::plan_parts::types::LiteralText]>>,
     pub membership_order: Option<MembershipOrder>,
 }
 impl ViewContext {
     #[cfg(test)]
-    pub(in crate::application::file_dag) fn for_predicate(plan: &Arc<DerivedContract>) -> Self {
+    pub(crate) fn for_predicate(plan: &Arc<DerivedContract>) -> Self {
         Self {
             candidate: Some(graph_key::PreparedIdentity::new(plan)),
             ..Self::default()
@@ -110,15 +110,15 @@ pub(crate) struct DerivedOwner {
 }
 impl DerivedOwner {
     #[cfg(test)]
-    pub(in crate::application::file_dag) fn prepare_view(
+    pub(crate) fn prepare_view(
         &self,
         request: &ViewRequest,
-        schemas: &[crate::domain::operation_schema::types::InputShape<'_>],
+        schemas: &[ryo_execution_domain::domain::operation_schema::types::InputShape<'_>],
     ) -> Result<DerivedContract, OperatingError> {
         super::prepare::view(self.semantic.clone(), request, schemas)
     }
 
-    pub(in crate::application::file_dag) fn new(
+    pub(crate) fn new(
         max_entries: EntryLimit,
         semantic: impl Into<types::DerivedAccess>,
         routes: crate::application::file_dag::route_counts::types::RouteProfile,
@@ -137,26 +137,26 @@ impl DerivedOwner {
             routes,
         }
     }
-    pub(in crate::application::file_dag) fn counts(&self) -> BuildCounts {
+    pub(crate) fn counts(&self) -> BuildCounts {
         let state = self.state.borrow();
         BuildCounts(state.builds, state.hits, state.refusals)
     }
-    pub(in crate::application::file_dag) fn working_bytes(&self) -> ByteCount {
+    pub(crate) fn working_bytes(&self) -> ByteCount {
         self.state.borrow().required_bytes
     }
-    pub(in crate::application::file_dag) fn peak_working_bytes(&self) -> ByteCount {
+    pub(crate) fn peak_working_bytes(&self) -> ByteCount {
         self.state.borrow().peak_required_bytes
     }
-    pub(in crate::application::file_dag) fn retained_bytes(&self) -> ByteCount {
+    pub(crate) fn retained_bytes(&self) -> ByteCount {
         self.state.borrow().retained_bytes
     }
-    pub(in crate::application::file_dag) fn required_backend_overlap(&self) -> ByteCount {
+    pub(crate) fn required_backend_overlap(&self) -> ByteCount {
         self.state.borrow().required_backend_bytes
     }
-    pub(in crate::application::file_dag) fn peak_required_views(&self) -> ViewCount {
+    pub(crate) fn peak_required_views(&self) -> ViewCount {
         self.state.borrow().peak_required_views
     }
-    pub(in crate::application::file_dag) fn owned_bytes(&self) -> ByteCount {
+    pub(crate) fn owned_bytes(&self) -> ByteCount {
         let state = self.state.borrow();
         ByteCount(
             state
@@ -166,7 +166,7 @@ impl DerivedOwner {
                 .saturating_sub(state.overlap_bytes.0),
         )
     }
-    pub(in crate::application::file_dag) fn metadata_bytes(&self) -> ByteCount {
+    pub(crate) fn metadata_bytes(&self) -> ByteCount {
         use crate::application::file_dag::derived::ledger::{
             capacity::{saturating, table},
             types::SlotCount,
@@ -207,7 +207,7 @@ impl DerivedOwner {
 
 #[cfg(test)]
 impl DerivedOwner {
-    pub(in crate::application::file_dag) fn released_entries(&self) -> ReleasedEntries {
+    pub(crate) fn released_entries(&self) -> ReleasedEntries {
         self.state.borrow().released_entries
     }
 }
@@ -232,12 +232,12 @@ mod test;
 
 use ryo_derived::domain::request::types::DerivedKind;
 
-pub(in crate::application::file_dag) mod cache;
-pub(in crate::application::file_dag) mod graphs;
-pub(in crate::application::file_dag) mod index;
+pub(crate) mod cache;
+pub(crate) mod graphs;
+pub(crate) mod index;
 
 #[cfg(test)]
-pub(in crate::application::file_dag) mod witness;
+pub(crate) mod witness;
 
 #[cfg(test)]
-pub(in crate::application::file_dag) mod fixtures;
+pub(crate) mod fixtures;

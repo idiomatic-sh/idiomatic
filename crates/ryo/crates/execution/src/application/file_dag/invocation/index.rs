@@ -2,27 +2,27 @@
 use ryo_values::domain::plan_parts::types::InputNumber;
 use crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView;
 use crate::application::file_dag::invocation::prepared_use::service::prepared;
-use crate::domain::operating::errors::OperatingError;
-use crate::domain::operating::types::OperatorContext;
-use crate::domain::operator::contract::types::OperatorContract;
-use crate::domain::operator::contract::views::IndexedRows;
-use crate::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operating::types::OperatorContext;
+use ryo_execution_domain::domain::operator::contract::types::OperatorContract;
+use ryo_execution_domain::domain::operator::contract::views::IndexedRows;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_derived::domain::equality::types::KeyIndex;
 /// Owned immutable view handles stay in application; primitives borrow only the index.
 /// Whether an index over an empty input is skipped or still built.
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub(in crate::application::file_dag) enum EmptyInput {
+pub(crate) enum EmptyInput {
     Skip,
     Keep,
 }
-pub(in crate::application::file_dag) enum IndexResource<'f> {
+pub(crate) enum IndexResource<'f> {
     Derived {
         rows: RepresentationInput<'f>,
         view: AcquiredView,
     },
     Empty {
         rows: RepresentationInput<'f>,
-        plan: std::sync::Arc<crate::domain::derived_views::types::contract::value::DerivedContract>,
+        plan: std::sync::Arc<ryo_execution_domain::domain::derived_views::types::contract::value::DerivedContract>,
         index: KeyIndex,
     },
 }
@@ -52,14 +52,14 @@ impl<'f> IndexResource<'f> {
             view: storage,
         })
     }
-    pub(in crate::application::file_dag) fn view<'s>(
+    pub(crate) fn view<'s>(
         &'s self,
         #[cfg(feature = "diagnostic-row-progress")]
-        progress: &'s dyn crate::domain::operator::contract::views::ProgressObserver,
+        progress: &'s dyn ryo_execution_domain::domain::operator::contract::views::ProgressObserver,
     ) -> IndexedRows<'s> {
         match self {
             Self::Derived { rows, view } => {
-                let crate::domain::derived_views::types::ViewRequest::Equality { columns } =
+                let ryo_execution_domain::domain::derived_views::types::ViewRequest::Equality { columns } =
                     &view.contract().request
                 else {
                     unreachable!("prepared equality")
@@ -78,7 +78,7 @@ impl<'f> IndexResource<'f> {
                 }
             }
             Self::Empty { rows, plan, index } => {
-                let crate::domain::derived_views::types::ViewRequest::Equality { columns } =
+                let ryo_execution_domain::domain::derived_views::types::ViewRequest::Equality { columns } =
                     &plan.request
                 else {
                     unreachable!("prepared empty equality")

@@ -12,7 +12,7 @@ use crate::application::file_dag::program::runtime::types::IndexLiveness;
 use crate::application::file_dag::program::runtime::types::{
     AttemptCheckpoint, ConsumerReleasePoint,
 };
-use crate::domain::coverage::types::Partials;
+use ryo_execution_domain::domain::coverage::types::Partials;
 use ryo_values::domain::rows::errors::RowsError;
 
 fn exercise(exit: Exit) -> Result<(), OperatingError> {
@@ -96,7 +96,7 @@ fn exercise(exit: Exit) -> Result<(), OperatingError> {
         .expect("actual Join declares Equality");
     assert_eq!(
         equality.primary.len,
-        crate::domain::derived_views::types::InputsUsed(1)
+        ryo_execution_domain::domain::derived_views::types::InputsUsed(1)
     );
     assert_eq!(
         region.instructions().first().map(|first| first.logical()),
@@ -105,7 +105,7 @@ fn exercise(exit: Exit) -> Result<(), OperatingError> {
     );
     assert_eq!(
         region.inputs()[equality.primary.inputs[0].0],
-        crate::domain::executable_program::types::InputSource::Region(producer),
+        ryo_execution_domain::domain::executable_program::types::InputSource::Region(producer),
         "observe the precise population demanded by the compiled Equality contract"
     );
     runs[2]

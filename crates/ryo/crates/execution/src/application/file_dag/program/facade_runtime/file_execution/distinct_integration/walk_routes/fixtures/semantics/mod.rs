@@ -19,23 +19,23 @@ use std::sync::{
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in super::super) struct Calls(pub usize);
+pub(crate) struct Calls(pub usize);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in super::super) struct MeaningSnapshot {
-    pub(in super::super) failed: Calls,
-    pub(in super::super) appended: Calls,
-    pub(in super::super) projects: Calls,
-    pub(in super::super) unions: Calls,
+pub(crate) struct MeaningSnapshot {
+    pub(crate) failed: Calls,
+    pub(crate) appended: Calls,
+    pub(crate) projects: Calls,
+    pub(crate) unions: Calls,
 }
 #[derive(Debug, Default)]
-pub(in super::super) struct Meanings {
+pub(crate) struct Meanings {
     failed: AtomicUsize,
     appended: AtomicUsize,
     projects: AtomicUsize,
     unions: AtomicUsize,
 }
 impl Meanings {
-    pub(in super::super) fn snapshot(&self) -> MeaningSnapshot {
+    pub(crate) fn snapshot(&self) -> MeaningSnapshot {
         MeaningSnapshot {
             failed: Calls(self.failed.load(Ordering::Relaxed)),
             appended: Calls(self.appended.load(Ordering::Relaxed)),
@@ -81,16 +81,16 @@ impl crate::outbound::operators::interface::OperatorsPort for Meanings {
 }
 
 #[derive(Debug)]
-pub(in super::super) struct Derived {
+pub(crate) struct Derived {
     calls: Mutex<Vec<DerivedRequest>>,
 }
 impl Derived {
-    pub(in super::super) fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             calls: Mutex::new(vec![]),
         }
     }
-    pub(in super::super) fn snapshot(&self) -> Vec<DerivedRequest> {
+    pub(crate) fn snapshot(&self) -> Vec<DerivedRequest> {
         self.calls.lock().unwrap().clone()
     }
 }

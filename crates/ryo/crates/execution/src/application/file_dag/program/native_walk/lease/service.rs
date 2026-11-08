@@ -2,7 +2,7 @@
 use crate::application::file_dag::program::{
     preparation::types::PreparedProgram, runtime::service::KernelPermit,
 };
-use crate::domain::{
+use ryo_execution_domain::domain::{
     operating::{errors::OperatingError, types::OperatorContext},
     step_classes::types::ClassPlace,
     shared_walk::types::{WalkWork, native_batch::value::NativeBatch},
@@ -17,7 +17,7 @@ pub(crate) struct PermittedWalk<'call, 'context, 'scope> {
     work: &'call mut WalkWork,
 }
 impl<'call, 'context, 'scope> PermittedWalk<'call, 'context, 'scope> {
-    pub(in crate::application::file_dag::program::native_walk) fn new(
+    pub(crate) fn new(
         permit: &'call KernelPermit<'scope>,
         prepared: &'call PreparedProgram,
         source: crate::application::file_dag::program::admission::AdmittedWalkSource<'call>,
@@ -36,10 +36,10 @@ impl<'call, 'context, 'scope> PermittedWalk<'call, 'context, 'scope> {
     }
 }
 impl PermittedWalk<'_, '_, '_> {
-    pub(in crate::application::file_dag) fn dispatch(self) -> Result<NativeBatch, OperatingError> {
+    pub(crate) fn dispatch(self) -> Result<NativeBatch, OperatingError> {
         self.permit.validate_program(self.prepared.program())?;
         self.permit.validate_walk_source(&self.source)?;
-        let batch = crate::domain::shared_walk::service::evaluate(
+        let batch = ryo_execution_domain::domain::shared_walk::service::evaluate(
             self.prepared.walk(),
             self.source.relation(),
             self.source.rows(),

@@ -5,13 +5,13 @@ use crate::application::file_dag::derived::owner::DerivedOwner;
 use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
 use ryo_derived::domain::vertices::types::VertexId;
 use crate::application::file_dag::derived::owner::graphs::types::roots::value::DemandAnswers;
-use crate::domain::operating::errors::OperatingError;
-use crate::domain::operator::contract::{
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operator::contract::{
     graph_view::{AxisResult, CachedGraphRow, ReachResult},
     resources::ResourceProgram,
 };
-use crate::domain::stored_graph::types::{GraphWalk, Orientation};
-use crate::domain::table_model::types::Rows;
+use ryo_execution_domain::domain::stored_graph::types::{GraphWalk, Orientation};
+use ryo_execution_domain::domain::table_model::types::Rows;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Direction};
 use ryo_values::domain::rows::service::cell;
@@ -21,8 +21,8 @@ impl CachedGraph {
     /// inputs at the operation's declared lazy acquisition boundary. A program the graph
     /// route cannot serve returns `None` so the ordinary/native typed backend runs; the
     /// owner cache is required and never decides the route.
-    pub(in crate::application::file_dag::derived::owner) fn prepare(
-        contract: &crate::domain::operator::contract::types::OperatorContract,
+    pub(crate) fn prepare(
+        contract: &ryo_execution_domain::domain::operator::contract::types::OperatorContract,
         admission: &crate::application::file_dag::workspace::InvocationWorkspace,
         program: &ResourceProgram,
         original_inputs: &[Rows<'_>],
@@ -41,7 +41,7 @@ impl CachedGraph {
                 let Some(reach) = join.reach.as_ref() else {
                     return Ok(None);
                 };
-                if join.has_filter == crate::domain::operator::contract::resources::Filtering::Filtered
+                if join.has_filter == ryo_execution_domain::domain::operator::contract::resources::Filtering::Filtered
                     || !join.view.is_empty()
                     || join.left_on.len() != join.right_on.len()
                 {
@@ -86,7 +86,7 @@ impl CachedGraph {
                 })))
             }
             ResourceProgram::Axis(axis) => {
-                if axis.has_filter == crate::domain::operator::contract::resources::Filtering::Filtered
+                if axis.has_filter == ryo_execution_domain::domain::operator::contract::resources::Filtering::Filtered
                     || !axis.domain_view.is_empty()
                     || !axis.output.is_empty()
                     || matches!(
@@ -142,7 +142,7 @@ impl CachedGraph {
 
     /// A completed demand result borrows only this invocation's value buffers.
     /// Root and nearest memo admission occurs before a downstream row can emit.
-    pub(in crate::application::file_dag::derived::owner) fn row<'a>(
+    pub(crate) fn row<'a>(
         &'a mut self,
         left: &[Value],
         owner: &DerivedOwner,

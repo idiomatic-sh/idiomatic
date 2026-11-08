@@ -1,14 +1,14 @@
 //! Counters the execution reports: fed rows, populations, logical counts and readiness.
 use super::super::{ProgramExecution, RuntimeState, State};
-use crate::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 
 impl ProgramExecution {
     /// Consume the generation once no invocation can remain active. Dropping
     /// its slots releases only engine-held storage; transferred leases own theirs.
-    pub(in crate::application::file_dag::program) fn state_counts(
+    pub(crate) fn state_counts(
         &self,
-    ) -> crate::domain::readiness::types::InvocationStateCounts {
-        use crate::domain::readiness::types::{InvocationStateCount, InvocationStateCounts};
+    ) -> ryo_execution_domain::domain::readiness::types::InvocationStateCounts {
+        use ryo_execution_domain::domain::readiness::types::{InvocationStateCount, InvocationStateCounts};
         let states = self.project_states.borrow();
         let mut found = InvocationStateCounts {
             populations: InvocationStateCount(states.len()),
@@ -25,11 +25,11 @@ impl ProgramExecution {
         }
         found
     }
-    pub(in crate::application::file_dag::program) fn logical_counts(
+    pub(crate) fn logical_counts(
         &self,
         state: &RuntimeState,
-        rule: crate::domain::coverage::types::RuleIndex,
-    ) -> Result<crate::domain::operator::types::LogicalCounts, OperatingError>
+        rule: ryo_execution_domain::domain::coverage::types::RuleIndex,
+    ) -> Result<ryo_execution_domain::domain::operator::types::LogicalCounts, OperatingError>
     {
         self.validate_state(state)?;
         let rule = self
@@ -57,7 +57,7 @@ impl ProgramExecution {
                 .position(|instruction| instruction.logical() == origin.logical)
                 .ok_or(OperatingError::NotRun)?;
             let Some(slot) = slots.get(&region_id) else {
-                fed.push(crate::domain::operator::types::RowsFed::default());
+                fed.push(ryo_execution_domain::domain::operator::types::RowsFed::default());
                 continue;
             };
             if matches!(slot.state, State::Running | State::Suspended | State::Ready) {
@@ -67,14 +67,14 @@ impl ProgramExecution {
             fed.push(total);
         }
         Ok(
-            crate::domain::operator::types::LogicalCounts {
+            ryo_execution_domain::domain::operator::types::LogicalCounts {
                 fed: fed.into_boxed_slice(),
             },
         )
     }
-    pub(in crate::application::file_dag::program) fn readiness_counts(
+    pub(crate) fn readiness_counts(
         &self,
-    ) -> crate::domain::readiness::types::ReadinessCounts {
+    ) -> ryo_execution_domain::domain::readiness::types::ReadinessCounts {
         *self.readiness_counts.borrow()
     }
 }

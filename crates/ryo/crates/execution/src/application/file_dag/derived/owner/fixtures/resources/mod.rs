@@ -2,11 +2,11 @@
 use crate::outbound::derived::interface::DerivedPort;
 use crate::application::file_dag::derived::owner::*;
 use crate::application::file_dag::relations::RelationOwner;
-use crate::domain::{
+use ryo_execution_domain::domain::{
     coverage::types::Partial, operating::errors::OperatingError,
     table_model::types::Rows,
 };
-use crate::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_derived::domain::equality::types::KeyIndex;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -39,7 +39,7 @@ impl ResourceFixture {
                     owner.derived().semantic.clone(),
                 ),
                 &(0..plans.len())
-                    .map(crate::domain::coverage::types::RuleIndex)
+                    .map(ryo_execution_domain::domain::coverage::types::RuleIndex)
                     .collect::<Vec<_>>(),
                 partials,
             )
@@ -117,11 +117,11 @@ pub(crate) fn weak_storage(
 /// Passive observation of actual portable builds; every call delegates to the
 /// production derived use case. No evaluator, scheduling or owner lives here.
 #[derive(Debug, Default)]
-pub(in crate::application::file_dag) struct RecordedDerived {
+pub(crate) struct RecordedDerived {
     builds: std::sync::Mutex<Vec<ryo_derived::domain::request::types::DerivedRequest>>,
 }
 impl RecordedDerived {
-    pub(in crate::application::file_dag) fn builds(
+    pub(crate) fn builds(
         &self,
     ) -> Vec<ryo_derived::domain::request::types::DerivedRequest> {
         self.builds.lock().expect("recorded semantic calls").clone()

@@ -1,6 +1,6 @@
 //! Actual engine visit and scratch bounds over increasing authored input populations.
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use super::super::conformance::test::{compare_delivery, repeated};
 use crate::application::file_dag::acceptance::operator_contract_test::fixtures::*;
 use crate::application::file_dag::acceptance::operator_contract_test::fixtures::values::numbers;

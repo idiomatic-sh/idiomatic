@@ -50,13 +50,13 @@ fn packed(
         input,
         words,
         mode: ryo_values::domain::table_words::types::DecodeMode::Permissive,
-        coverage: crate::domain::completion::types::CoverageState::Complete,
+        coverage: ryo_execution_domain::domain::completion::types::CoverageState::Complete,
     }
 }
 
 /// The input an admitted frontier answers.
 fn input_of(
-    admitted: &Result<super::types::FrontierInput, crate::domain::frontiers::types::RefusedFrontier>,
+    admitted: &Result<super::types::FrontierInput, ryo_execution_domain::domain::frontiers::types::RefusedFrontier>,
 ) -> Option<ryo_values::domain::plan_parts::types::Input> {
     match admitted {
         Ok(super::types::FrontierInput::Decoded { frontier, .. }) => Some(frontier.input),

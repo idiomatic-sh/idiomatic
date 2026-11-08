@@ -1,6 +1,6 @@
 //! Rule compilation keeps bounded session plans and request-local bindings over injected ports.
 use super::errors::RuleCompilationError;
-use crate::domain::operator::constants::{OPERATORS, describe};
+use ryo_execution_domain::domain::operator::constants::{OPERATORS, describe};
 use ryo_query_language::inbound::use_cases::compile::use_case::CompileUseCaseImpl;
 use ryo_query_language::inbound::use_cases::typecheck::use_case::TypecheckUseCaseImpl;
 use super::service::RuleCompilation;

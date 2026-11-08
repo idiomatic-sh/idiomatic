@@ -4,8 +4,8 @@ use crate::application::file_dag::relations::types::ReuseEligibility;
 use crate::application::file_dag::program::admission::RequiredPartitions;
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use crate::application::file_dag::scope::open_program_owner;
-use crate::domain::coverage::types::{Covered, RuleIndex};
-use crate::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::coverage::types::{Covered, RuleIndex};
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_values::domain::runs::types::Skipped;
 use std::sync::Arc;
 

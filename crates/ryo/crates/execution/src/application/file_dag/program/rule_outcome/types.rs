@@ -1,7 +1,7 @@
 //! What became of the rules of a request: the outcome of each root, output and project observation.
 use crate::application::file_dag::program::observed_publication::types::ObservedPublication;
-use crate::domain::operating::errors::OperatingError;
-use crate::domain::operator::types::LogicalCounts;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operator::types::LogicalCounts;
 use ryo_values::domain::records::types::ObservationIndex;
 use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::rows::types::Table;

@@ -2,9 +2,9 @@
 use crate::application::file_dag::derived::ledger::types::{
     BackingAddress, BackingKey, BackingTag, ByteCount, UnitCount,
 };
-use crate::domain::operating::errors::OperatingError;
-use crate::domain::operator::contract::derived::portable_fault;
-use crate::domain::stored_graph::types::GraphIdentity;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operator::contract::derived::portable_fault;
+use ryo_execution_domain::domain::stored_graph::types::GraphIdentity;
 use crate::outbound::derived::interface::DerivedPort;
 use ryo_derived::domain::contract::types::derived_payload::value::DerivedPayload;
 use ryo_derived::domain::contract::types::DerivedView;
@@ -12,7 +12,7 @@ use ryo_derived::domain::contract::types::prepared_derived::value::PreparedDeriv
 use std::sync::Arc;
 
 #[derive(Debug)]
-pub(in crate::application::file_dag) struct DerivedStorage {
+pub(crate) struct DerivedStorage {
     port: Arc<dyn DerivedPort>,
     plan: Arc<PreparedDerived>,
     payload: Arc<DerivedPayload>,
@@ -33,23 +33,23 @@ impl DerivedStorage {
             graph_identity,
         }
     }
-    pub(in crate::application::file_dag::derived::owner) fn view(
+    pub(crate) fn view(
         &self,
     ) -> Result<DerivedView<'_>, OperatingError> {
         self.port
             .view(&self.plan, &self.payload)
             .map_err(portable_fault)
     }
-    pub(in crate::application::file_dag::derived::owner) fn payload(&self) -> &DerivedPayload {
+    pub(crate) fn payload(&self) -> &DerivedPayload {
         &self.payload
     }
-    pub(in crate::application::file_dag::derived::owner) fn graph_identity(
+    pub(crate) fn graph_identity(
         &self,
     ) -> Option<&Arc<GraphIdentity>> {
         self.graph_identity.as_ref()
     }
     /// Describe the exact physical allocations; admission and lease classes remain with the owner.
-    pub(in crate::application::file_dag::derived::owner) fn backings(
+    pub(crate) fn backings(
         this: &Arc<Self>,
     ) -> Result<Arc<[crate::application::file_dag::derived::ledger::types::Backing]>, OperatingError>
     {

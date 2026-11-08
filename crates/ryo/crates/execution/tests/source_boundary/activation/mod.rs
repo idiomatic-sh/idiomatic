@@ -11,7 +11,7 @@ pub(super) fn controls() -> Vec<Probe> {
         source: r#"
 mod targeted_activation {
     use crate::application::file_dag::derived::prepared::RequestDerived;
-    use crate::domain::{coverage::types::RuleIndex, operating::errors::OperatingError};
+    use ryo_execution_domain::domain::{coverage::types::RuleIndex, operating::errors::OperatingError};
     fn read(value: &RequestDerived, rule: RuleIndex) -> Result<(), OperatingError> {
         let _ = value.relations_for(rule)?;
         let _ = value.graph_for(rule)?;

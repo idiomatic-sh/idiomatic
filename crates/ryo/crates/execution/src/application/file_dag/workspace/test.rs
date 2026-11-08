@@ -1,13 +1,13 @@
 //! Actual view acquisition consumes one immutable proof and refuses stale/mismatched publications.
 use super::*;
 use crate::application::file_dag::derived::owner::ViewContext;
-use crate::domain::{
+use ryo_execution_domain::domain::{
     derived_views::types::{contract::value::PreparedViewUse, *},
     operating::{errors::OperatingError, types::OperatorContext},
     operation_schema::types::InputShape,
     table_model::types::Rows,
 };
-use crate::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_derived::domain::contract::types::DerivedView;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{
@@ -87,20 +87,20 @@ fn use_(
             ryo_values::domain::plan_parts::types::InputNumber(1),
         ],
         relations: [None, None],
-        len: crate::domain::derived_views::types::InputsUsed(len),
+        len: ryo_execution_domain::domain::derived_views::types::InputsUsed(len),
     }
 }
 fn context<'a>(
     symbols: &'a mut Symbols,
-    scratch: &'a mut crate::domain::table_scratch::types::OperatorScratch,
-    memo: &'a mut Vec<crate::domain::operating::types::Memo>,
+    scratch: &'a mut ryo_execution_domain::domain::table_scratch::types::OperatorScratch,
+    memo: &'a mut Vec<ryo_execution_domain::domain::operating::types::Memo>,
 ) -> OperatorContext<'a> {
     OperatorContext {
-        phase: crate::domain::operating::types::AfterTheFiles::Before,
+        phase: ryo_execution_domain::domain::operating::types::AfterTheFiles::Before,
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
-        matcher: crate::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl),
+        matcher: ryo_execution_domain::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl),
         bindings: &[] as &[ParameterBinding],
         symbols: symbols.into(),
         source: ryo_values::domain::files::types::SourceView(&[]),
@@ -210,7 +210,7 @@ fn distinct_published_populations_never_share_slot_only_identities() {
             .unwrap();
         workspace.capture_admitted(vec![published.clone(), right_publication.clone()]);
         let inputs = [RepresentationInput::from(&left), RepresentationInput::from(&right)];
-        let texts = crate::domain::table_texts::types::Texts {
+        let texts = ryo_execution_domain::domain::table_texts::types::Texts {
             symbols: context.symbols.as_ref(),
             source: context.source,
             paths: &[],
@@ -255,7 +255,7 @@ fn distinct_published_populations_never_share_slot_only_identities() {
     workspace.publications[1] = Some(published.clone());
     let wrong = table(&[4, 0], 2);
     let inputs = [RepresentationInput::from(&left), RepresentationInput::Computed(&wrong)];
-    let texts = crate::domain::table_texts::types::Texts {
+    let texts = ryo_execution_domain::domain::table_texts::types::Texts {
         symbols: context.symbols.as_ref(),
         source: context.source,
         paths: &[],
@@ -302,7 +302,7 @@ fn normalized_physical_input_is_admitted_but_unproved_transform_is_not() {
     };
     assert_eq!(
         index.rows.len(),
-        crate::domain::table_model::service::count_of(&normalized).0
+        ryo_execution_domain::domain::table_model::service::count_of(&normalized).0
     );
     let transformed = table(&[8, 9], 2);
     let inputs = [RepresentationInput::Computed(&transformed)];

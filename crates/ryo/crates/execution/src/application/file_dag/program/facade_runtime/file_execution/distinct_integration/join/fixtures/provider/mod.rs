@@ -1,8 +1,8 @@
 //! Canonical provider data and its physical encoding; no evaluator or admission factory.
 use super::super::super::*;
-use crate::domain::table_cells::types::TreeRows;
-use crate::domain::table_model::collections::representations::types::RepresentationKind;
-use crate::domain::table_model::service::materialize;
+use ryo_execution_domain::domain::table_cells::types::TreeRows;
+use ryo_execution_domain::domain::table_model::collections::representations::types::RepresentationKind;
+use ryo_execution_domain::domain::table_model::service::materialize;
 use ryo_relations::domain::relations::service::to_bits;
 use ryo_relations::domain::relations::types::{ColumnsView, FactColumn, NodeId};
 use ryo_relations::domain::terms::types::Symbol;

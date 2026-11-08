@@ -40,7 +40,7 @@ pub(crate) fn replace<T>(entries: &mut Vec<T>, replacement: Option<Vec<T>>) {
 }
 
 /// Account all retained payload under the original total; no fixed allowance is stranded.
-pub(in crate::application::file_dag::derived::owner) fn room(
+pub(crate) fn room(
     cache: &CacheBackend,
     cost: ByteCount,
 ) -> Option<ByteCount> {

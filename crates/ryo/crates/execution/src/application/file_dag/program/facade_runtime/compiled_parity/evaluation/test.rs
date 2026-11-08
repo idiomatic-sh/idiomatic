@@ -5,15 +5,15 @@ use crate::application::file_dag::execution::CommonOperatorEngine;
 use crate::application::file_dag::program::facade_runtime::file_execution::open_file;
 use crate::application::file_dag::program::facade_runtime::types::ProgramServices;
 use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
-use crate::domain::rule_intent::types::{
+use ryo_execution_domain::domain::rule_intent::types::{
     CaptureIntent, DiagnosticDelivery, EmitDemand, FileRuleIntent, ObservationDemand, RuleDemand,
 };
 use crate::application::file_dag::scope::ScopePartials;
-use crate::domain::file_program::types::RuleSchedule;
-use crate::domain::operating::errors::OperatingError;
-use crate::domain::table_cells::service_test::{SMALL_SOURCE, SmallTree, rows_over, small_tree};
-use crate::domain::prepared_request::types::{Compiled, ObservationIdentity};
-use crate::domain::table_model::types::Rows;
+use ryo_execution_domain::domain::file_program::types::RuleSchedule;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::table_cells::fixtures::{SMALL_SOURCE, SmallTree, rows_over, small_tree};
+use ryo_execution_domain::domain::prepared_request::types::{Compiled, ObservationIdentity};
+use ryo_execution_domain::domain::table_model::types::Rows;
 use ryo_language::domain::files::types::FilePath;
 use ryo_relations::domain::relations::service::{kinds, node_id};
 use ryo_relations::domain::relations::types::Value as Cell;
@@ -107,7 +107,7 @@ pub(crate) fn subject(scenario: Input) -> Result<Value, Failure> {
         _ => Err(OperatingError::NotRead),
     };
     let outcome = file.rule(
-        crate::domain::coverage::types::RuleIndex(0),
+        ryo_execution_domain::domain::coverage::types::RuleIndex(0),
         RuleDemand {
             emit: EmitDemand::Enabled,
             observations: ObservationDemand::NotRequired,
@@ -115,7 +115,7 @@ pub(crate) fn subject(scenario: Input) -> Result<Value, Failure> {
         &read,
         &mut symbols,
     )?;
-    let routes = file.route_observation(crate::domain::coverage::types::RuleIndex(0), target)?;
+    let routes = file.route_observation(ryo_execution_domain::domain::coverage::types::RuleIndex(0), target)?;
     let table = match outcome.emit {
         RootOutcome::Complete(table) => table,
         RootOutcome::Unknown(error) | RootOutcome::Failed(error) => return Err(error),

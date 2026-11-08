@@ -3,7 +3,7 @@
 use crate::application::file_dag::derived::ledger::types::ByteCount;
 use crate::application::file_dag::derived::owner::index::types::ByteLimit;
 use crate::application::file_dag::derived::owner::types::{BuildCount, RefusalCount, ReuseCount};
-use crate::domain::stored_graph::types::{ExaminedVertices, ExpandedVertices};
+use ryo_execution_domain::domain::stored_graph::types::{ExaminedVertices, ExpandedVertices};
 use ryo_relations::domain::relations::types::Relation;
 
 /// Whether an eligible graph consumer may request bounded adjacency admission.
@@ -14,12 +14,12 @@ pub enum GraphAdmission {
 }
 
 /// One owner bounds the shared position allocations it retains optionally.
-pub(in crate::application::file_dag::derived::owner) const MAX_RETAINED_POSITION_CAPACITY: usize =
+pub(crate) const MAX_RETAINED_POSITION_CAPACITY: usize =
     512 * 1024;
 
 /// A file-local owner: dropping it releases all admitted allocations without eviction.
 #[derive(Debug)]
-pub(in crate::application::file_dag) struct CacheBackend {
+pub(crate) struct CacheBackend {
     /// An active eligible graph consumer may request bounded adjacency admission.
     pub(in crate::application::file_dag::derived::owner) graph_enabled: GraphAdmission,
     /// Charged graph/domain/memo bytes within `bytes`.
@@ -40,7 +40,7 @@ pub(in crate::application::file_dag) struct CacheBackend {
     >,
     /// Aggregate requested/traversed work and graph admission accounting.
     pub(in crate::application::file_dag::derived::owner) graph_counts:
-        crate::domain::stored_graph::types::GraphCounts,
+        ryo_execution_domain::domain::stored_graph::types::GraphCounts,
     /// Active relations whose physical read reported no partiality, of any missing kind.
     pub(in crate::application::file_dag::derived::owner) eligible: Vec<Relation>,
     /// Accounted actual capacities and conservative allocation metadata.
@@ -56,7 +56,7 @@ pub(in crate::application::file_dag) struct CacheBackend {
 }
 
 impl CacheBackend {
-    pub(in crate::application::file_dag::derived::owner) fn observe_graph_walk(
+    pub(crate) fn observe_graph_walk(
         &mut self,
         expanded: ExpandedVertices,
         examined: ExaminedVertices,

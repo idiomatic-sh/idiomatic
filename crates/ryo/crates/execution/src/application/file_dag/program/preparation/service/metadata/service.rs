@@ -2,16 +2,16 @@
 use crate::application::file_dag::program::preparation::types::{
     ObservationMetadata, RootMetadata, RuleMetadata, SemanticNeed,
 };
-use crate::domain::coverage::types::RuleIndex;
-use crate::domain::rule_intent::types::FrontierPurpose;
-use crate::domain::executable_program::types::{executable_program::value::ExecutableProgram, InputSource};
-use crate::domain::operating::errors::OperatingError;
-use crate::domain::trust::types::RelationRead;
+use ryo_execution_domain::domain::coverage::types::RuleIndex;
+use ryo_execution_domain::domain::rule_intent::types::FrontierPurpose;
+use ryo_execution_domain::domain::executable_program::types::{executable_program::value::ExecutableProgram, InputSource};
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::trust::types::RelationRead;
 use ryo_values::domain::plan_parts::types::{Input, StepId};
 use ryo_values::domain::plans::types::{Operation, Plan};
 
 /// One entry per plan, in rule order.
-pub(in crate::application::file_dag::program::preparation) fn rules(
+pub(crate) fn rules(
     program: &ExecutableProgram,
     named: Option<&ObservationMetadata>,
     plans: &[Plan],
@@ -31,7 +31,7 @@ pub(in crate::application::file_dag::program::preparation) fn rules(
                     .find_map(|origin| origin.as_ref().err())
             })
             .cloned();
-        let reads = crate::domain::trust::service::physical_reads(plan);
+        let reads = ryo_execution_domain::domain::trust::service::physical_reads(plan);
         let outputs = plan
             .observations
             .iter()
@@ -81,7 +81,7 @@ pub(in crate::application::file_dag::program::preparation) fn rules(
                 .clone()
                 .into_boxed_slice(),
             frontier_dependencies:
-                crate::domain::file_program::service::link::frontier_dependencies(plan)
+                ryo_execution_domain::domain::file_program::service::link::frontier_dependencies(plan)
                     .map_err(|error| OperatingError::ObservationIncomplete {
                         reason: error.to_string(),
                     }),
@@ -128,7 +128,7 @@ fn source(
                     .iter()
                     .position(|slot| slot.rule == rule && slot.input == input)
             })
-            .map(|slot| InputSource::Observation(crate::domain::executable_program::types::ObservationPlace(slot)))
+            .map(|slot| InputSource::Observation(ryo_execution_domain::domain::executable_program::types::ObservationPlace(slot)))
             .ok_or(OperatingError::NotRun),
     }
 }

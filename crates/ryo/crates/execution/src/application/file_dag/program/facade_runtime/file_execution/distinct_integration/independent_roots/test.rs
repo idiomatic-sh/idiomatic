@@ -106,7 +106,7 @@ fn failed_emit_and_failed_observation_do_not_erase_the_independent_root() {
             }],
         });
         let rules = [producer_rule, consumer_rule];
-        let compiled = crate::domain::prepared_request::service::assemble(
+        let compiled = ryo_execution_domain::domain::prepared_request::service::assemble(
             vec![producer, consumer],
             vec![vec![], vec![]],
             &rules,

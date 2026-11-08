@@ -3,9 +3,9 @@ use crate::application::file_dag::frontiers::types::BoundInput;
 use crate::application::file_dag::frontiers::types::InputReadiness;
 use crate::application::file_dag::frontiers::types::PreparedFrontiers;
 use crate::application::file_dag::program::request_execution::types::RequestExecution;
-use crate::domain::coverage::types::Partials;
-use crate::domain::coverage::types::RuleIndex;
-use crate::domain::rule_intent::types::RuleDemand;
+use ryo_execution_domain::domain::coverage::types::Partials;
+use ryo_execution_domain::domain::coverage::types::RuleIndex;
+use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
 use crate::outbound::facts::interface::FactsFinish;
 use crate::outbound::facts::interface::FactsWorker;
 /// One project-phase publication/interpreter and symbol generation, shared across rules.

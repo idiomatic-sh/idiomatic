@@ -1,7 +1,7 @@
 //! Refusal and physical-route controls through the real compiled owner.
 use crate::outbound::operators::interface::OperatorsPort as _;
 use super::super::*;
-use crate::domain::coverage::types::{Lacking, Partial};
+use ryo_execution_domain::domain::coverage::types::{Lacking, Partial};
 use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
@@ -181,7 +181,7 @@ fn partial_positive_rows_survive_but_partial_absence_is_refused() {
         relation,
         cause: PartialCause("partial provider fixture".into()),
         lacking: Lacking::Any,
-        at: crate::domain::coverage::types::PartialPlace::Repository,
+        at: ryo_execution_domain::domain::coverage::types::PartialPlace::Repository,
     }];
     let RootOutcome::Partial { table, affected } = run(
         positive,
@@ -309,7 +309,7 @@ fn ordered_strategy_and_real_extra_consumer_decline_preserve_the_same_root() {
         }
     }
 }
-pub(in super::super) fn ordered_strategy_fixture() -> (Plan, Vec<CellKind>) {
+pub(crate) fn ordered_strategy_fixture() -> (Plan, Vec<CellKind>) {
     use ryo_values::domain::plan_parts::types::{JoinColumn, Side};
     let schema = kinds(ryo_relations::domain::relations::types::Relation::SourceLocation).to_vec();
     let number = ColumnIndex(

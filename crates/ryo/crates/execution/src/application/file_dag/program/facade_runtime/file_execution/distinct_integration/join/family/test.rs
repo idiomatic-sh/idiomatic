@@ -2,10 +2,8 @@
 use crate::application::file_dag::derived::owner::acquisition::family::fixtures::{
     Scenario, exercise,
 };
-use crate::{
-    cases::{Case, CaseName, Expect, Word, run},
-    domain::operating::errors::OperatingError,
-};
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_derived::domain::request::types::DerivedKind;
 type Input = DerivedKind;
 type Value = DerivedKind;

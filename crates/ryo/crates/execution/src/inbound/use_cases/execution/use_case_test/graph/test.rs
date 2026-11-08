@@ -2,13 +2,13 @@
 use ryo_derived::domain::vertices::types::VertexId;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use super::super::super::fixtures;
-use crate::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_values::domain::rows::errors::RowsError;
 
 use crate::application::file_dag::testing::CompleteTableRows;
-use crate::domain::stored_graph::types::traversal::value::GraphTraversal;
-use crate::domain::stored_graph::types::{ExaminedVertices, ExpandedVertices, GraphIdentity, GraphWalk, Orientation, RelationPopulation, VisitEpoch};
-use crate::domain::table_model::types::Rows;
+use ryo_execution_domain::domain::stored_graph::types::traversal::value::GraphTraversal;
+use ryo_execution_domain::domain::stored_graph::types::{ExaminedVertices, ExpandedVertices, GraphIdentity, GraphWalk, Orientation, RelationPopulation, VisitEpoch};
+use ryo_execution_domain::domain::table_model::types::Rows;
 use ryo_derived::domain::contract::types::BuildOutcome;
 use ryo_derived::domain::contract::types::BuildWorkspace;
 use ryo_derived::domain::adjacency::types::compact_graph::value::CompactGraph;
@@ -56,10 +56,10 @@ fn build(
     rows: &Rows<'_>,
     endpoints: [ColumnIndex; 2],
     keys: &[ColumnIndex],
-) -> Result<Option<Arc<CompactGraph>>, crate::domain::operating::errors::OperatingError> {
+) -> Result<Option<Arc<CompactGraph>>, ryo_execution_domain::domain::operating::errors::OperatingError> {
     assert_eq!(
         identity.population.rows,
-        crate::domain::table_model::service::count_of(rows)
+        ryo_execution_domain::domain::table_model::service::count_of(rows)
     );
     // The portable request carries the actual endpoints and keys. The old
     // GraphIdentity belongs to the former local builder and is not an input
@@ -72,10 +72,10 @@ fn build(
             endpoints,
             keys: keys.to_vec(),
         },
-        vec![crate::domain::table_model::service::kinds_of(rows).to_vec()],
+        vec![ryo_execution_domain::domain::table_model::service::kinds_of(rows).to_vec()],
     );
     let Rows::Computed(table) = rows else {
-        return Err(crate::domain::operating::errors::OperatingError::WrongOperation);
+        return Err(ryo_execution_domain::domain::operating::errors::OperatingError::WrongOperation);
     };
     let complete = CompleteTableRows(table);
     match semantics
@@ -85,7 +85,7 @@ fn build(
             &mut BuildWorkspace::default(),
             None,
         )
-        .map_err(crate::domain::operator::contract::derived::portable_fault)?
+        .map_err(ryo_execution_domain::domain::operator::contract::derived::portable_fault)?
     {
         BuildOutcome::Built(payload) => Ok(payload.share_adjacency().map(|graph| graph.0)),
         BuildOutcome::Declined => Ok(None),

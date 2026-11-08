@@ -32,7 +32,7 @@ mod census_acquire_graph {
         r#"
 mod census_acquire_graph_denied {
     use crate::application::file_dag::derived::owner::{DerivedOwner, cache::types::CacheBackend};
-    use crate::domain::{derived_views::types::contract::value::DerivedContract, table_model::types::Rows};
+    use ryo_execution_domain::domain::{derived_views::types::contract::value::DerivedContract, table_model::types::Rows};
     use std::sync::Arc;
     fn bypass(owner: &DerivedOwner, plan: &Arc<DerivedContract>, rows: &Rows<'_>, cache: &mut CacheBackend) { let _ = owner.acquire_graph(plan, rows, cache); }
     const _: () = { let _ = bypass; };
@@ -54,7 +54,7 @@ mod census_acquire_graph_domain {
         r#"
 mod census_acquire_graph_domain_denied {
     use crate::application::file_dag::{derived::owner::{DerivedOwner, cache::types::CacheBackend, graphs::types::handles::service::DomainHandle}, workspace::GraphInput};
-    use crate::domain::derived_views::types::contract::value::DerivedContract;
+    use ryo_execution_domain::domain::derived_views::types::contract::value::DerivedContract;
     use std::sync::Arc;
     fn bypass(owner: &DerivedOwner, plan: &Arc<DerivedContract>, domain: &DomainHandle, input: &GraphInput<'_>, cache: &mut CacheBackend) { let _ = owner.acquire_graph_domain(plan, domain, input, cache); }
     const _: () = { let _ = bypass; };
@@ -118,7 +118,7 @@ mod census_reach {
         r#"
 mod census_reach_denied {
     use crate::application::file_dag::derived::owner::{DerivedOwner, cache::types::CacheBackend, graphs::types::roots::value::DemandAnswers};
-    use crate::domain::stored_graph::types::GraphWalk;
+    use ryo_execution_domain::domain::stored_graph::types::GraphWalk;
     use ryo_derived::domain::adjacency::types::compact_graph::value::CompactGraph;
     use ryo_relations::domain::relations::types::{Integer, Value};
     fn bypass(owner: &DerivedOwner, graph: &CompactGraph, walk: &mut GraphWalk, cache: &mut CacheBackend) { let _ = DemandAnswers::new(owner, cache).reach(graph, &[], Value::Number(Integer(1)), walk); }
@@ -141,7 +141,7 @@ mod census_axis {
         r#"
 mod census_axis_denied {
     use crate::application::file_dag::derived::owner::{DerivedOwner, cache::types::CacheBackend, graphs::types::roots::value::DemandAnswers};
-    use crate::domain::stored_graph::types::{GraphWalk, Orientation};
+    use ryo_execution_domain::domain::stored_graph::types::{GraphWalk, Orientation};
     use ryo_derived::domain::adjacency::types::compact_graph::value::CompactGraph;
     use ryo_values::domain::plan_parts::types::Direction;
     fn bypass(owner: &DerivedOwner, graph: &CompactGraph, walk: &mut GraphWalk, cache: &mut CacheBackend) { let _ = DemandAnswers::new(owner, cache).axis(graph, 0, Orientation::Forward, Direction::Child, walk); }
@@ -164,7 +164,7 @@ mod census_nearest {
         r#"
 mod census_nearest_denied {
     use crate::application::file_dag::derived::owner::{DerivedOwner, cache::types::CacheBackend, graphs::types::{handles::service::DomainHandle, roots::value::DemandAnswers}};
-    use crate::domain::stored_graph::types::{GraphWalk, Orientation};
+    use ryo_execution_domain::domain::stored_graph::types::{GraphWalk, Orientation};
     use ryo_derived::domain::adjacency::types::compact_graph::value::CompactGraph;
     fn bypass(owner: &DerivedOwner, graph: &CompactGraph, domain: &DomainHandle, walk: &mut GraphWalk, cache: &mut CacheBackend) { let _ = DemandAnswers::new(owner, cache).nearest(graph, domain, 0, Orientation::Forward, &mut Vec::new(), walk); }
     const _: () = { let _ = bypass; };

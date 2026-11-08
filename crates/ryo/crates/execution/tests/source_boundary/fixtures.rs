@@ -155,5 +155,5 @@ mod boundary_probe {
     use crate::application::file_dag::program::runtime::service::KernelPermit;
     use crate::application::file_dag::program::runtime::service::KernelAdmission;
     use crate::application::file_dag::program::runtime::service::ProgramExecution;
-    use crate::domain::executable_program::types::RegionId;
+    use ryo_execution_domain::domain::executable_program::types::RegionId;
 "#;

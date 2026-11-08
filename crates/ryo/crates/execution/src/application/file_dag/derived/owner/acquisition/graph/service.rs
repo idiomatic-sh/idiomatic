@@ -19,7 +19,7 @@ use crate::application::file_dag::derived::owner::{
     GraphRequirement, GraphViewIdentity, ViewContext,
 };
 use crate::application::file_dag::workspace::GraphInput;
-use crate::domain::{
+use ryo_execution_domain::domain::{
     operating::errors::OperatingError,
     stored_graph::types::GraphDomain,
     table_model::{
@@ -28,8 +28,8 @@ use crate::domain::{
     },
 };
 use std::sync::Arc;
-pub(in crate::application::file_dag::derived::owner) fn acquire(
-    plan: &Arc<crate::domain::derived_views::types::contract::value::DerivedContract>,
+pub(crate) fn acquire(
+    plan: &Arc<ryo_execution_domain::domain::derived_views::types::contract::value::DerivedContract>,
     input: &GraphInput<'_>,
     cache: &mut CacheBackend,
 ) -> Result<Option<GraphHandle>, OperatingError> {
@@ -43,7 +43,7 @@ pub(in crate::application::file_dag::derived::owner) fn acquire(
     let rows = input.rows();
     let admitted = owner.admit_graph(plan, input)?;
 
-    let crate::domain::derived_views::types::ViewRequest::Adjacency { endpoints, keys } =
+    let ryo_execution_domain::domain::derived_views::types::ViewRequest::Adjacency { endpoints, keys } =
         &plan.request
     else {
         return Err(OperatingError::WrongOperation);
@@ -117,15 +117,15 @@ pub(in crate::application::file_dag::derived::owner) fn acquire(
     GraphHandle::new(owner, acquired, orientation, sharing).map(Some)
 }
 pub(super) fn graph_requirement(
-    identity: &crate::domain::stored_graph::types::GraphIdentity,
+    identity: &ryo_execution_domain::domain::stored_graph::types::GraphIdentity,
 ) -> GraphRequirement {
     GraphRequirement {
         endpoints: identity.endpoints,
         keys: identity.keys.clone().into(),
     }
 }
-pub(in crate::application::file_dag::derived::owner) fn domain(
-    plan: &Arc<crate::domain::derived_views::types::contract::value::DerivedContract>,
+pub(crate) fn domain(
+    plan: &Arc<ryo_execution_domain::domain::derived_views::types::contract::value::DerivedContract>,
     access: &GraphHandle,
     input: &GraphInput<'_>,
     cache: &mut CacheBackend,
@@ -146,7 +146,7 @@ pub(in crate::application::file_dag::derived::owner) fn domain(
     }
     let admitted = owner.admit_domain(plan, input, access.acquired())?;
 
-    let crate::domain::derived_views::types::ViewRequest::Membership { column } = &plan.request
+    let ryo_execution_domain::domain::derived_views::types::ViewRequest::Membership { column } = &plan.request
     else {
         return Err(OperatingError::WrongOperation);
     };
@@ -283,7 +283,7 @@ pub(in crate::application::file_dag::derived::owner) fn domain(
 }
 
 pub(super) fn validate_input(
-    plan: &crate::domain::derived_views::types::contract::value::DerivedContract,
+    plan: &ryo_execution_domain::domain::derived_views::types::contract::value::DerivedContract,
     rows: &Rows<'_>,
 ) -> Result<(), OperatingError> {
     plan.metadata.as_ref().map_err(Clone::clone)?;

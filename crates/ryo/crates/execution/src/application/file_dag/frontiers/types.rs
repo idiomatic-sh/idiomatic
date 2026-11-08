@@ -19,37 +19,37 @@ pub(crate) enum BoundMember {
 #[derive(Clone)]
 pub struct BoundInput {
     pub(crate) input: ryo_values::domain::plan_parts::types::ObservationBindingId,
-    pub(crate) members: Result<Vec<BoundMember>, crate::domain::operating::errors::OperatingError>,
+    pub(crate) members: Result<Vec<BoundMember>, ryo_execution_domain::domain::operating::errors::OperatingError>,
 }
 
 /// Admission preserves independent input successes and explicit refusal causes.
 #[derive(Clone)]
-pub(in crate::application::file_dag) struct FrontierSource {
+pub(crate) struct FrontierSource {
     pub input: ryo_values::domain::plan_parts::types::Input,
     pub root: Result<
-        crate::domain::executable_program::types::InputSource,
-        crate::domain::operating::errors::OperatingError,
+        ryo_execution_domain::domain::executable_program::types::InputSource,
+        ryo_execution_domain::domain::operating::errors::OperatingError,
     >,
 }
 /// One acquisition of the frontier sources. The request owner hands the same acquisition to every
 /// root of one population (see `FrontierCache`); a clone shares the rows and never copies them.
 #[derive(Clone)]
 pub struct PreparedFrontiers {
-    pub(in crate::application::file_dag) producer: crate::domain::coverage::types::RuleIndex,
-    pub(in crate::application::file_dag) sources: std::sync::Arc<[FrontierSource]>,
-    pub(in crate::application::file_dag) rows: std::sync::Arc<[FrontierInput]>,
-    pub(in crate::application::file_dag) program:
-        std::sync::Arc<crate::domain::executable_program::types::executable_program::value::ExecutableProgram>,
-    pub(in crate::application::file_dag) required:
+    pub(crate) producer: ryo_execution_domain::domain::coverage::types::RuleIndex,
+    pub(crate) sources: std::sync::Arc<[FrontierSource]>,
+    pub(crate) rows: std::sync::Arc<[FrontierInput]>,
+    pub(crate) program:
+        std::sync::Arc<ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram>,
+    pub(crate) required:
         crate::application::file_dag::program::admission::RequiredPartitions,
-    pub(in crate::application::file_dag) refused:
-        std::sync::Arc<[crate::domain::frontiers::types::RefusedFrontier]>,
+    pub(crate) refused:
+        std::sync::Arc<[ryo_execution_domain::domain::frontiers::types::RefusedFrontier]>,
 }
 
 /// What makes two prepare calls one population: the same rule, first bucket, demand and request
 /// scope, read from the same facts and project providers.
 struct FrontierKey {
-    rule: crate::domain::coverage::types::RuleIndex,
+    rule: ryo_execution_domain::domain::coverage::types::RuleIndex,
     first: ryo_values::domain::stored_facts::types::Bucket,
     ready: Option<Vec<InputReadiness>>,
     required: crate::application::file_dag::program::admission::RequiredPartitions,
@@ -77,7 +77,7 @@ impl FrontierCache {
     }
     pub(super) fn shared<E>(
         &self,
-        rule: crate::domain::coverage::types::RuleIndex,
+        rule: ryo_execution_domain::domain::coverage::types::RuleIndex,
         first: ryo_values::domain::stored_facts::types::Bucket,
         ready: Option<&[InputReadiness]>,
         required: &crate::application::file_dag::program::admission::RequiredPartitions,
@@ -126,14 +126,14 @@ impl FrontierCache {
 #[derive(Clone)]
 pub(crate) enum FrontierInput {
     Decoded {
-        frontier: crate::domain::table_model::types::Frontier,
-        coverage: crate::domain::completion::types::CoverageState,
+        frontier: ryo_execution_domain::domain::table_model::types::Frontier,
+        coverage: ryo_execution_domain::domain::completion::types::CoverageState,
     },
     Compact {
         input: ryo_values::domain::plan_parts::types::Input,
         table: std::sync::Arc<ryo_values::domain::table_words::types::CompactTable>,
         spelling: Vec<ryo_relations::domain::relations::types::Name>,
-        coverage: crate::domain::completion::types::CoverageState,
+        coverage: ryo_execution_domain::domain::completion::types::CoverageState,
     },
     /// Read from the store and proven, not yet decoded: the first demand admits it.
     Packed(PackedFrontier),
@@ -145,7 +145,7 @@ pub(crate) struct PackedFrontier {
     pub input: ryo_values::domain::plan_parts::types::Input,
     pub words: std::sync::Arc<ryo_values::domain::stored_facts::types::KeptWords>,
     pub mode: ryo_values::domain::table_words::types::DecodeMode,
-    pub coverage: crate::domain::completion::types::CoverageState,
+    pub coverage: ryo_execution_domain::domain::completion::types::CoverageState,
 }
 
 /// How many packed frontiers one publication scope decoded.
@@ -154,7 +154,7 @@ pub(crate) struct DecodeCount(pub usize);
 
 /// What a packed frontier decodes to: compact rows for a step, decoded rows for any other input.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in crate::application::file_dag) enum DecodeShape {
+pub(crate) enum DecodeShape {
     Compact,
     Decoded,
 }
@@ -163,12 +163,12 @@ pub(in crate::application::file_dag) enum DecodeShape {
 /// generation it read them, and what it admitted. A later root's content-equal words find this decode
 /// by their digest, so the packed words are released once decoded; the admitted rows are what the
 /// population retains.
-pub(in crate::application::file_dag) struct DecodedFrontier {
+pub(crate) struct DecodedFrontier {
     pub content: ryo_values::domain::stored_facts::types::Digest,
     pub shape: DecodeShape,
     pub mode: ryo_values::domain::table_words::types::DecodeMode,
     pub permit: ryo_language::domain::symbols::types::TransportPermit,
-    pub admitted: Result<FrontierInput, crate::domain::frontiers::types::RefusedFrontier>,
+    pub admitted: Result<FrontierInput, ryo_execution_domain::domain::frontiers::types::RefusedFrontier>,
 }
 
 /// The frontier decodes of one publication scope. Every rule of a cohort reads its own stored
@@ -176,7 +176,7 @@ pub(in crate::application::file_dag) struct DecodedFrontier {
 /// decodes them, and every later root of the scope receives the same rows, relabelled with its own
 /// input and coverage. Names are places in the symbol generation that decoded them, so a decode is
 /// shared only within that generation.
-pub(in crate::application::file_dag) struct FrontierDecodes {
+pub(crate) struct FrontierDecodes {
     pub(super) decoded: std::cell::RefCell<Vec<DecodedFrontier>>,
     pub(super) count: std::cell::Cell<DecodeCount>,
     /// What names the content of the words: the request's digest port.
@@ -186,7 +186,7 @@ pub(in crate::application::file_dag) struct FrontierDecodes {
 impl FrontierDecodes {
     /// The decodes of one publication scope: `publication_owner` issues it into the scope, over the
     /// digest port the prepared program carries.
-    pub(in crate::application::file_dag) fn new(
+    pub(crate) fn new(
         digest: std::sync::Arc<dyn crate::outbound::digest::interface::DigestPort>,
     ) -> Self {
         Self {
@@ -197,7 +197,7 @@ impl FrontierDecodes {
     }
     #[cfg(test)]
     /// How many packed frontiers this scope decoded.
-    pub(in crate::application::file_dag) fn count(&self) -> DecodeCount {
+    pub(crate) fn count(&self) -> DecodeCount {
         self.count.get()
     }
     /// Admit one packed frontier: words this scope already decoded in the same shape, mode and
@@ -210,8 +210,8 @@ impl FrontierDecodes {
         decode: impl FnOnce(
             PackedFrontier,
             &mut ryo_language::domain::symbols::types::Symbols,
-        ) -> Result<FrontierInput, crate::domain::frontiers::types::RefusedFrontier>,
-    ) -> Result<FrontierInput, crate::domain::frontiers::types::RefusedFrontier> {
+        ) -> Result<FrontierInput, ryo_execution_domain::domain::frontiers::types::RefusedFrontier>,
+    ) -> Result<FrontierInput, ryo_execution_domain::domain::frontiers::types::RefusedFrontier> {
         use ryo_language::domain::symbols::{
             service::{same_transport_generation, transport_permit},
             types::Generation,
@@ -255,13 +255,13 @@ fn shape_of(input: ryo_values::domain::plan_parts::types::Input) -> DecodeShape 
 
 /// An earlier decode as this root admits it: the shared rows under this root's input and coverage.
 fn relabel(
-    admitted: &Result<FrontierInput, crate::domain::frontiers::types::RefusedFrontier>,
+    admitted: &Result<FrontierInput, ryo_execution_domain::domain::frontiers::types::RefusedFrontier>,
     input: ryo_values::domain::plan_parts::types::Input,
-    coverage: crate::domain::completion::types::CoverageState,
-) -> Result<FrontierInput, crate::domain::frontiers::types::RefusedFrontier> {
+    coverage: ryo_execution_domain::domain::completion::types::CoverageState,
+) -> Result<FrontierInput, ryo_execution_domain::domain::frontiers::types::RefusedFrontier> {
     match admitted.clone() {
         Ok(FrontierInput::Decoded { frontier, .. }) => Ok(FrontierInput::Decoded {
-            frontier: crate::domain::table_model::types::Frontier {
+            frontier: ryo_execution_domain::domain::table_model::types::Frontier {
                 input,
                 table: frontier.table,
             },
@@ -280,7 +280,7 @@ fn relabel(
             coverage,
             ..packed
         })),
-        Err(refused) => Err(crate::domain::frontiers::types::RefusedFrontier {
+        Err(refused) => Err(ryo_execution_domain::domain::frontiers::types::RefusedFrontier {
             input,
             error: refused.error,
         }),
@@ -288,26 +288,26 @@ fn relabel(
 }
 
 impl PreparedFrontiers {
-    pub(in crate::application::file_dag) fn validate_scope(
+    pub(crate) fn validate_scope(
         &self,
-        program: &std::sync::Arc<crate::domain::executable_program::types::executable_program::value::ExecutableProgram>,
+        program: &std::sync::Arc<ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram>,
         required: &crate::application::file_dag::program::admission::RequiredPartitions,
-    ) -> Result<(), crate::domain::operating::errors::OperatingError> {
+    ) -> Result<(), ryo_execution_domain::domain::operating::errors::OperatingError> {
         if !std::sync::Arc::ptr_eq(&self.program, program) || self.required.same_request(required)
             == crate::application::file_dag::program::admission::Agreement::Different
         {
-            return Err(crate::domain::operating::errors::OperatingError::NotRead);
+            return Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead);
         }
         Ok(())
     }
 }
 
-pub(in crate::application::file_dag) fn validate_consumer_sources(
+pub(crate) fn validate_consumer_sources(
     prepared: &crate::application::file_dag::program::preparation::types::PreparedProgram,
-    producer: crate::domain::coverage::types::RuleIndex,
+    producer: ryo_execution_domain::domain::coverage::types::RuleIndex,
     sources: &[FrontierSource],
-    consumer: crate::domain::coverage::types::RuleIndex,
-) -> Result<(), crate::domain::operating::errors::OperatingError> {
+    consumer: ryo_execution_domain::domain::coverage::types::RuleIndex,
+) -> Result<(), ryo_execution_domain::domain::operating::errors::OperatingError> {
     if consumer == producer {
         return Ok(());
     }
@@ -315,22 +315,22 @@ pub(in crate::application::file_dag) fn validate_consumer_sources(
     // An undeclared rule in range finds no source here and is refused like an unread input.
     prepared.frontiers(consumer)?;
     if sources.is_empty() {
-        return Err(crate::domain::operating::errors::OperatingError::NotRead);
+        return Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead);
     }
     for binding in sources {
         let at = prepared
             .frontiers(consumer)?
             .iter()
             .position(|input| *input == binding.input)
-            .ok_or(crate::domain::operating::errors::OperatingError::NotRead)?;
+            .ok_or(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead)?;
         let expected = prepared
             .program()
             .rules()
             .get(consumer.0)
             .and_then(|rule| rule.frontier.get(at))
-            .ok_or(crate::domain::operating::errors::OperatingError::NotRead)?;
+            .ok_or(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead)?;
         if !matches!((&binding.root, expected), (Ok(actual), Ok(expected)) if actual == expected) {
-            return Err(crate::domain::operating::errors::OperatingError::NotRead);
+            return Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead);
         }
     }
     Ok(())
@@ -347,18 +347,18 @@ pub enum InputReadiness {
 
 /// The address of one provider, the identity of what a population was read from.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in crate::application::file_dag) struct ProviderAddress(pub usize);
+pub(crate) struct ProviderAddress(pub usize);
 
 /// The two providers a population is read from: the facts provider and the project provider.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in crate::application::file_dag) struct Providers {
+pub(crate) struct Providers {
     pub facts: ProviderAddress,
     pub project: ProviderAddress,
 }
 
 /// Whether the files a source proof accounts for are exactly the files the request requires.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in crate::application::file_dag) enum FileAccounting {
+pub(crate) enum FileAccounting {
     /// Every required file is accounted for, and no other.
     Exact,
     /// A required file is missing, or an unrequired one is named.

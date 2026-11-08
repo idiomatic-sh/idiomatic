@@ -3,15 +3,15 @@ use super::super::{
     AdmittedInput, AvailableBody, AvailableInput, Partition, ProducerRoot, ReadProof,
 };
 use crate::application::file_dag::relations::{RelationOwner, handle::service::PublishedInput};
-use crate::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use std::rc::Rc;
 
 impl AvailableInput {
     /// Attach the demand's physical evidence without re-reading the cached
     /// source or forcing its deferred admission/geometry refusal.
-    pub(in crate::application::file_dag::program) fn with_coverage(
+    pub(crate) fn with_coverage(
         self,
-        coverage: crate::domain::completion::types::CoverageState,
+        coverage: ryo_execution_domain::domain::completion::types::CoverageState,
     ) -> Self {
         let body = match self.body {
             AvailableBody::Published(input) => {
@@ -31,35 +31,35 @@ impl AvailableInput {
         };
         Self { body }
     }
-    pub(in crate::application::file_dag::program) fn published(input: AdmittedInput) -> Self {
+    pub(crate) fn published(input: AdmittedInput) -> Self {
         Self {
             body: AvailableBody::Published(input),
         }
     }
-    pub(in crate::application::file_dag::program) fn source(
+    pub(crate) fn source(
         owner: Rc<RelationOwner>,
         publication: PublishedInput,
         root: ProducerRoot,
         partition: Partition,
-        coverage: crate::domain::completion::types::CoverageState,
-        rows: crate::domain::table_model::types::Rows<'_>,
+        coverage: ryo_execution_domain::domain::completion::types::CoverageState,
+        rows: ryo_execution_domain::domain::table_model::types::Rows<'_>,
     ) -> Result<Self, OperatingError> {
         // Inspect this exact first provider borrow now, not a later re-read.
         // Only geometry refusals are deferred; identity/generation/source failures
         // remain immediate. No borrowed rows survive this synchronous boundary.
         let inspected = owner.inspect_available(
             publication.as_ref(),
-            crate::domain::table_model::types::RepresentationInput::from(&rows),
+            ryo_execution_domain::domain::table_model::types::RepresentationInput::from(&rows),
         )?;
         let admission = match inspected {
             Ok(physical) => {
-                let physical = if physical.physical_shape() == crate::domain::table_model::collections::representations::types::PhysicalShape::ReadablePhysicalFallback {
+                let physical = if physical.physical_shape() == ryo_execution_domain::domain::table_model::collections::representations::types::PhysicalShape::ReadablePhysicalFallback {
                     // Freeze the readable prefix from this first supplied borrow in
                     // the existing generation-owned normalization record. Its refusal
                     // remains deferred to the declared admission boundary.
                     drop(physical);
                     owner.normalize(&publication, rows).and_then(|normalized| {
-                        owner.admit(publication.as_ref(), crate::domain::table_model::types::RepresentationInput::from(&normalized))
+                        owner.admit(publication.as_ref(), ryo_execution_domain::domain::table_model::types::RepresentationInput::from(&normalized))
                             .and_then(|proof| AdmittedInput::from_publication(Rc::clone(&owner), publication.clone(), &proof,
                                 root, ReadProof::complete(partition.clone())))
                     })
@@ -80,7 +80,7 @@ impl AvailableInput {
             },
         })
     }
-    pub(in crate::application::file_dag::program) fn admit(
+    pub(crate) fn admit(
         &self,
         owner: &Rc<RelationOwner>,
         partition: &Partition,

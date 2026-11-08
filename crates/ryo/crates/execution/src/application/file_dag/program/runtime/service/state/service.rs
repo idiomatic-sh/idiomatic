@@ -6,14 +6,14 @@ use crate::application::file_dag::program::admission::Partition;
 #[cfg(test)]
 use crate::application::file_dag::program::runtime::types::{CallCount, ReaderInitializations};
 use crate::application::file_dag::program::runtime::types::{Dependencies, ReaderCount};
-use crate::domain::executable_program::types::executable_program::value::ExecutableProgram;
-use crate::domain::executable_program::types::RegionId;
-use crate::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram;
+use ryo_execution_domain::domain::executable_program::types::RegionId;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use std::cell::RefCell;
 use std::sync::Arc;
 
 impl Slot {
-    pub(in crate::application::file_dag::program::runtime) fn touched<'a>(
+    pub(crate) fn touched<'a>(
         state: &RuntimeState,
         slots: &'a mut rustc_hash::FxHashMap<RegionId, Slot>,
         program: &ExecutableProgram,
@@ -47,7 +47,7 @@ impl Slot {
             scratch: Vec::new(),
             admission: Default::default(),
             fed: vec![
-                crate::domain::operator::types::RowsFed::default();
+                ryo_execution_domain::domain::operator::types::RowsFed::default();
                 region.instructions().len()
             ]
             .into_boxed_slice(),
@@ -63,7 +63,7 @@ impl Slot {
     }
 }
 impl RuntimeState {
-    pub(in crate::application::file_dag::program::runtime::service) fn new(
+    pub(crate) fn new(
         scope: crate::application::file_dag::relations::publication::types::ProducerScope,
         generation: Arc<()>,
     ) -> Self {
@@ -85,7 +85,7 @@ impl RuntimeState {
             }),
         }
     }
-    pub(in crate::application::file_dag::program::runtime::service) fn initial_remaining(
+    pub(crate) fn initial_remaining(
         &self,
         program: &ExecutableProgram,
         id: RegionId,
@@ -101,16 +101,16 @@ impl RuntimeState {
                 .map(|region| ReaderCount(region.consumers().0))
                 .ok_or(OperatingError::NotRun),
             RootReaders::Selected(selected) => {
-                Ok(ReaderCount(crate::domain::executable_program::file_demand::service::reader_count(selected, id).0))
+                Ok(ReaderCount(ryo_execution_domain::domain::executable_program::file_demand::service::reader_count(selected, id).0))
             }
         }
     }
-    pub(in crate::application::file_dag::program) fn population_scope(
+    pub(crate) fn population_scope(
         &self,
     ) -> crate::application::file_dag::relations::publication::types::ProducerScope {
         self.scope
     }
-    pub(in crate::application::file_dag::program) fn bind(
+    pub(crate) fn bind(
         &self,
         owner: &crate::application::file_dag::relations::RelationOwner,
         root: crate::application::file_dag::program::admission::ProducerRoot,
@@ -125,7 +125,7 @@ impl RuntimeState {
 /// Constructors are private to the outer execution owner; no primitive can open
 /// another scope or choose a scheduler.
 impl ProgramExecution {
-    pub(in crate::application::file_dag::program) fn open(
+    pub(crate) fn open(
         program: Arc<ExecutableProgram>,
         partition: Partition,
         owner: std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
@@ -151,7 +151,7 @@ impl ProgramExecution {
         }
     }
     /// Bind the immutable declared file intents before any region is touched.
-    pub(in crate::application::file_dag::program) fn activate_file_roots(
+    pub(crate) fn activate_file_roots(
         &self,
         readers: &[RegionId],
     ) -> Result<(), OperatingError> {
@@ -169,10 +169,10 @@ impl ProgramExecution {
             }
             selected
                 .entry(root)
-                .or_insert(crate::domain::executable_program::types::ReaderMultiplicity(0))
+                .or_insert(ryo_execution_domain::domain::executable_program::types::ReaderMultiplicity(0))
                 .0 += 1;
         }
-        let remaining = crate::domain::executable_program::file_demand::service::remaining(
+        let remaining = ryo_execution_domain::domain::executable_program::file_demand::service::remaining(
             self.program.file_readers(),
             self.program.regions(),
             &selected,
@@ -180,7 +180,7 @@ impl ProgramExecution {
         *self.file_state.roots.borrow_mut() = RootReaders::Selected(remaining.table);
         Ok(())
     }
-    pub(in crate::application::file_dag::program::runtime::service) fn validate_state(
+    pub(crate) fn validate_state(
         &self,
         state: &RuntimeState,
     ) -> Result<(), OperatingError> {
@@ -190,10 +190,10 @@ impl ProgramExecution {
             Err(OperatingError::NotRead)
         }
     }
-    pub(in crate::application::file_dag::program) fn file_state(&self) -> &RuntimeState {
+    pub(crate) fn file_state(&self) -> &RuntimeState {
         &self.file_state
     }
-    pub(in crate::application::file_dag::program) fn project_state(
+    pub(crate) fn project_state(
         &self,
         id: crate::application::file_dag::derived::population::types::PopulationId,
     ) -> std::rc::Rc<RuntimeState> {
@@ -211,16 +211,16 @@ impl ProgramExecution {
         });
         state
     }
-    pub(in crate::application::file_dag::program) fn partition(&self) -> &Partition {
+    pub(crate) fn partition(&self) -> &Partition {
         &self.partition
     }
     /// Producer truth comes from the compiled declaration and this run's actual
     /// source scope. The consumer's requested partition is never an input.
-    pub(in crate::application::file_dag::program) fn source_partition(
+    pub(crate) fn source_partition(
         &self,
         root: crate::application::file_dag::program::admission::ProducerRoot,
     ) -> Result<Partition, OperatingError> {
-        use crate::domain::executable_program::types::{InputSource, PartitionRequirement};
+        use ryo_execution_domain::domain::executable_program::types::{InputSource, PartitionRequirement};
         if self.owner.matches_generation(&self.generation) == crate::application::file_dag::relations::types::Sameness::Different || self.generation_live.is_live() != crate::application::file_dag::relations::types::Liveness::Live {
             return Err(OperatingError::NotRead);
         }
@@ -243,7 +243,7 @@ impl ProgramExecution {
             _ => Err(OperatingError::NotRead),
         }
     }
-    pub(in crate::application::file_dag::program) fn validate_project(
+    pub(crate) fn validate_project(
         &self,
         program: &Arc<ExecutableProgram>,
         required: &crate::application::file_dag::program::admission::RequiredPartitions,
@@ -256,7 +256,7 @@ impl ProgramExecution {
             Err(OperatingError::WrongOperation)
         }
     }
-    pub(in crate::application::file_dag::program) fn finish(self) -> Result<(), OperatingError> {
+    pub(crate) fn finish(self) -> Result<(), OperatingError> {
         if self
             .file_state
             .slots

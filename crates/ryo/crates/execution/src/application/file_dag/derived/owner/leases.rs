@@ -2,13 +2,13 @@
 use super::super::ledger::types::{Backing, LeaseClass, Ledger, ResourceLease};
 use super::*;
 impl DerivedOwner {
-    pub(in crate::application::file_dag) fn required_lease(
+    pub(crate) fn required_lease(
         &self,
         backings: &[Backing],
     ) -> Result<Arc<ResourceLease>, OperatingError> {
         Ledger::acquire(&self.ledger, backings, LeaseClass::Required).map(Arc::new)
     }
-    pub(in crate::application::file_dag) fn optional_lease(
+    pub(crate) fn optional_lease(
         &self,
         backings: &[Backing],
     ) -> Result<Arc<ResourceLease>, OperatingError> {

@@ -17,7 +17,7 @@ use ryo_values::domain::row_texts::types::Cell as HostedCell;
 
 /// A request-owned or per-row operation read beside a shared head.
 #[derive(Clone, Copy, Debug)]
-pub(in super::super) enum RowRoute {
+pub(crate) enum RowRoute {
     Capture,
     Rank,
     Replace,
@@ -30,7 +30,7 @@ pub(in super::super) enum RowRoute {
     Hosted,
 }
 impl RowRoute {
-    pub(in super::super) const ALL: [Self; 10] = [
+    pub(crate) const ALL: [Self; 10] = [
         Self::Capture,
         Self::Rank,
         Self::Replace,
@@ -42,7 +42,7 @@ impl RowRoute {
         Self::Rows,
         Self::Hosted,
     ];
-    pub(in super::super) fn kind(self) -> OperationKind {
+    pub(crate) fn kind(self) -> OperationKind {
         match self {
             Self::Capture => OperationKind::Capture,
             Self::Rank => OperationKind::Rank,
@@ -65,7 +65,7 @@ fn functions() -> PlanInput {
 impl Authored {
     /// A shared head over the function relation (node, name text, file, span columns), and
     /// beside it one per-row or request-owned operation over the same rows.
-    pub(in super::super) fn row_route(route: RowRoute) -> Self {
+    pub(crate) fn row_route(route: RowRoute) -> Self {
         let from = functions();
         let mut parameters = vec![];
         let mut bindings = vec![];
@@ -181,7 +181,7 @@ impl Authored {
         }
     }
     /// Named producers whose captured head is read by a pure projection.
-    pub(in super::super) fn named_continuation() -> Self {
+    pub(crate) fn named_continuation() -> Self {
         let mut authored = Self::named();
         for plan in &mut authored.plans[..2] {
             plan.steps.push(PlanStep {
@@ -198,7 +198,7 @@ impl Authored {
     }
     /// Two ordered inputs of one combining operation, each a head, a pure projection and an
     /// Extend that can fault; `held` gives every head a second reader so nothing fuses.
-    pub(in super::super) fn combined(
+    pub(crate) fn combined(
         combine: Combine,
         left: Feed,
         right: Feed,
@@ -317,7 +317,7 @@ impl Authored {
 
 /// The combining operations that admit two ordered inputs of the same schema.
 #[derive(Clone, Copy, Debug)]
-pub(in super::super) enum Combine {
+pub(crate) enum Combine {
     Join,
     Union,
     Intersection,
@@ -325,7 +325,7 @@ pub(in super::super) enum Combine {
     Antijoin,
 }
 impl Combine {
-    pub(in super::super) const ALL: [Self; 5] = [
+    pub(crate) const ALL: [Self; 5] = [
         Self::Join,
         Self::Union,
         Self::Intersection,
@@ -335,7 +335,7 @@ impl Combine {
 }
 /// What one input of a combining operation delivers.
 #[derive(Clone, Copy, Debug)]
-pub(in super::super) enum Feed {
+pub(crate) enum Feed {
     /// No row survives its head; its Extend is never reached.
     Empty,
     /// Rows whose Extend succeeds.
@@ -344,11 +344,11 @@ pub(in super::super) enum Feed {
     Failing,
 }
 impl Feed {
-    pub(in super::super) const ALL: [Self; 3] = [Self::Empty, Self::Healthy, Self::Failing];
+    pub(crate) const ALL: [Self; 3] = [Self::Empty, Self::Healthy, Self::Failing];
 }
 /// Whether the pure projections of the program may fuse.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in super::super) enum Fusion {
+pub(crate) enum Fusion {
     Fused,
     Held,
 }

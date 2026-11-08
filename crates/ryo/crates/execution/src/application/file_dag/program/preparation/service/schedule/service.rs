@@ -2,8 +2,8 @@
 use crate::application::file_dag::program::preparation::types::{
     Demand, PreparedProgram, RuleTotal,
 };
-use crate::domain::coverage::types::RuleIndex;
-use crate::domain::file_program::types::{ResolvedObservationProducer, RuleSchedule};
+use ryo_execution_domain::domain::coverage::types::RuleIndex;
+use ryo_execution_domain::domain::file_program::types::{ResolvedObservationProducer, RuleSchedule};
 
 impl PreparedProgram {
     pub(crate) fn observation_batches(&self) -> Option<&[Vec<RuleIndex>]> {

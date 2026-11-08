@@ -3,7 +3,7 @@ use super::types::{
     Backing, BackingKey, ByteCount, Credit, Dormancy, HoldCount, LeaseClass, Ledger, ResourceLease,
     UnitCount,
 };
-use crate::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use std::sync::Arc;
 use rustc_hash::FxHashMap;
 
@@ -16,7 +16,7 @@ struct Dropping<'a> {
 impl Ledger {
     /// A live required consumer is not dormant optional payload, even
     /// when a different representation owns the same physical allocation.
-    pub(in crate::application::file_dag::derived) fn optional_payload_only(
+    pub(crate) fn optional_payload_only(
         &self,
         backings: &[Backing],
     ) -> Dormancy {
@@ -30,7 +30,7 @@ impl Ledger {
             Dormancy::Live
         }
     }
-    pub(in crate::application::file_dag::derived) fn optional_release_credit(
+    pub(crate) fn optional_release_credit(
         &self,
         leases: &[&Arc<ResourceLease>],
     ) -> Result<Option<Credit>, OperatingError> {

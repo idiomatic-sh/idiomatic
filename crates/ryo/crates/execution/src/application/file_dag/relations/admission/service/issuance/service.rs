@@ -4,10 +4,10 @@ use crate::application::file_dag::relations::admission::types::AdmissionOrigin;
 use crate::application::file_dag::relations::publication::types::*;
 use crate::application::file_dag::relations::types::Sameness;
 use crate::application::file_dag::relations::*;
-use crate::domain::table_model::types::PublishedRelation;
-use crate::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::table_model::types::PublishedRelation;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 impl<'a> BorrowedInput<'a> {
-    pub(in crate::application::file_dag) fn require_publication(
+    pub(crate) fn require_publication(
         &self,
         owner: &RelationOwner,
         publication: &dyn PublishedRelation,
@@ -26,35 +26,35 @@ impl<'a> BorrowedInput<'a> {
     /// Physical source identity bound once with this immutable, generation-checked input.
     /// Selected projections keep their own population for ordinary views while
     /// canonical graph columns can share the source backing identity.
-    pub(in crate::application::file_dag) fn backing_population(
+    pub(crate) fn backing_population(
         &self,
         owner: &RelationOwner,
     ) -> Result<PopulationId, OperatingError> {
         self.identity(owner)?;
         Ok(self.backing_population)
     }
-    pub(in crate::application::file_dag) fn graph_relation(
+    pub(crate) fn graph_relation(
         &self,
         owner: &RelationOwner,
     ) -> Result<Option<Relation>, OperatingError> {
         self.identity(owner)?;
         Ok(self.backing_relation)
     }
-    pub(in crate::application::file_dag) fn canonical_backing(
+    pub(crate) fn canonical_backing(
         &self,
     ) -> crate::application::file_dag::relations::types::BackingForm {
         self.canonical_backing
     }
-    pub(in crate::application::file_dag) fn physical_shape(&self) -> PhysicalShape {
+    pub(crate) fn physical_shape(&self) -> PhysicalShape {
         self.shape
     }
-    pub(in crate::application::file_dag) fn generation_guard(&self) -> Arc<()> {
+    pub(crate) fn generation_guard(&self) -> Arc<()> {
         Arc::clone(&self.origin.generation)
     }
-    pub(in crate::application::file_dag) fn rows(&self) -> RepresentationInput<'a> {
+    pub(crate) fn rows(&self) -> RepresentationInput<'a> {
         self.rows
     }
-    pub(in crate::application::file_dag) fn identity(
+    pub(crate) fn identity(
         &self,
         owner: &RelationOwner,
     ) -> Result<crate::application::file_dag::relations::admission::types::AdmissionIdentity, OperatingError> {
@@ -72,7 +72,7 @@ impl<'a> BorrowedInput<'a> {
 }
 
 impl RelationOwner {
-    pub(in crate::application::file_dag) fn admit<'a>(
+    pub(crate) fn admit<'a>(
         &self,
         result: &dyn PublishedRelation,
         input: RepresentationInput<'a>,
@@ -80,7 +80,7 @@ impl RelationOwner {
         self.inspect_available(result, input)?
     }
 
-    pub(in crate::application::file_dag) fn inspect_available<'a>(
+    pub(crate) fn inspect_available<'a>(
         &self,
         result: &dyn PublishedRelation,
         input: RepresentationInput<'a>,

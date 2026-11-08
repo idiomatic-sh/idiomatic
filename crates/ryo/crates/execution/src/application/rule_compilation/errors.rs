@@ -7,7 +7,7 @@ use ryo_values::domain::rule_requests::errors::RuleRequestsError;
 pub enum RuleCompilationError {
     /// Named-root dependency configuration is rejected before any file is read.
     #[error(transparent)]
-    Observations(#[from] crate::domain::file_program::errors::FileProgramError),
+    Observations(#[from] ryo_execution_domain::domain::file_program::errors::FileProgramError),
     /// Rule identities and request bindings retain their domain refusal.
     #[error(transparent)]
     Rules(#[from] RuleRequestsError),

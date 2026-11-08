@@ -1,6 +1,6 @@
 //! The request `prepare` takes: its queries, rules, digests, hosted relations and observation identity.
 use crate::application::rule_compilation::service::CompiledQueries;
-use crate::domain::prepared_request::types::ObservationIdentity;
+use ryo_execution_domain::domain::prepared_request::types::ObservationIdentity;
 
 /// Where the plans of a request come from.
 pub enum PlanSource {

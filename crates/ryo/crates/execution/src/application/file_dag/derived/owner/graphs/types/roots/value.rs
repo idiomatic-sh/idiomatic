@@ -24,7 +24,7 @@ use crate::application::file_dag::derived::{
         graphs::service::{replace, slot},
     },
 };
-use crate::domain::{
+use ryo_execution_domain::domain::{
     operating::errors::OperatingError,
     stored_graph::types::{BreadthEnd, ExaminedVertices, ExpandedVertices, GraphDomain, GraphWalk, MemoStatus, Nearest, Orientation, traversal::value::{GraphTraversal, UNKNOWN},
     },
@@ -34,12 +34,12 @@ use std::sync::Arc;
 
 /// The owner supplies both the retained storage and every admission decision.
 /// Mutable backend access ends before a downstream row can emit.
-pub(in crate::application::file_dag) struct DemandAnswers<'a> {
+pub(crate) struct DemandAnswers<'a> {
     owner: &'a DerivedOwner,
     cache: &'a mut CacheBackend,
 }
 impl<'a> DemandAnswers<'a> {
-    pub(in crate::application::file_dag) fn new(
+    pub(crate) fn new(
         owner: &'a DerivedOwner,
         cache: &'a mut CacheBackend,
     ) -> Self {
@@ -47,7 +47,7 @@ impl<'a> DemandAnswers<'a> {
     }
     /// Only a completed positive closure is retained. Unknown roots and local
     /// traversal scratch never become successful memo records.
-    pub(in crate::application::file_dag) fn reach(
+    pub(crate) fn reach(
         &mut self,
         access: &GraphHandle,
         partition: &[Value],
@@ -118,7 +118,7 @@ impl<'a> DemandAnswers<'a> {
         self.admit(access, VertexId(root), walk)
     }
     /// One-step or closure traversal for an axis row; the owner alone records its walk work.
-    pub(in crate::application::file_dag) fn axis(
+    pub(crate) fn axis(
         &mut self,
         access: &GraphHandle,
         root: VertexId,
@@ -143,7 +143,7 @@ impl<'a> DemandAnswers<'a> {
         }
         Ok(())
     }
-    pub(in crate::application::file_dag) fn nearest(
+    pub(crate) fn nearest(
         &mut self,
         access: &GraphHandle,
         domain: &DomainHandle,
@@ -162,7 +162,7 @@ impl<'a> DemandAnswers<'a> {
         );
         if access
             .graph()
-            .forest(crate::domain::stored_graph::types::traversal::value::direction(orientation))
+            .forest(ryo_execution_domain::domain::stored_graph::types::traversal::value::direction(orientation))
             .is_none()
         {
             crate::application::file_dag::route_counts::event(

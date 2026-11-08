@@ -5,7 +5,7 @@ use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_relations::domain::relations::types::Value as Cell;
-use crate::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_language::domain::elements::types::Elements;
 use ryo_relations::domain::relations::service::node_id;
 use ryo_relations::domain::relations::types::Integer;
@@ -38,7 +38,7 @@ fn node(position: u32) -> Cell {
     Cell::Node(node_id(FileId(0), Position(position)))
 }
 /// What the third input of a walk over the tree is: the nodes of a table, or the elements of the tree.
-pub(in crate::inbound::use_cases::execution::use_case_test) enum Domain {
+pub(crate) enum Domain {
     /// A table of nodes.
     Nodes(Table),
     /// The elements of the tree.
@@ -72,7 +72,7 @@ fn axis(direction: Direction, filter: Vec<PlanComparison>, output: Vec<JoinColum
     }
 }
 /// What the item makes of the operation over the tree, from the nodes in `starts`.
-pub(in crate::inbound::use_cases::execution::use_case_test) fn over_the_tree(
+pub(crate) fn over_the_tree(
     operation: &Operation,
     starts: &Table,
     domain: &Domain,

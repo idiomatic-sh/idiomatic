@@ -2,15 +2,13 @@
 use super::super::fixtures::catalog::{CompiledCorpus, compiled, prepare};
 use super::super::fixtures::plan;
 use super::{expected, supported_head};
-use crate::domain::coverage::types::RuleIndex;
-use crate::domain::shared_walk::types::{
+use ryo_execution_domain::domain::coverage::types::RuleIndex;
+use ryo_execution_domain::domain::shared_walk::types::{
     prepared_walk::value::PreparedWalk,
     walk_route::value::{WalkBarrier, WalkRoute},
 };
-use crate::{
-    cases::{Case, CaseName, Expect, Word, run},
-    domain::executable_program::types::executable_program::value::ExecutableProgram,
-};
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram;
 use ryo_relations::domain::relations::service::ALL;
 use ryo_values::domain::{
     plan_parts::types::{Input as Source, RepeatedRows, StepScope},

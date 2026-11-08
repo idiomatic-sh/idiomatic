@@ -2,7 +2,7 @@
 use crate::application::file_dag::derived::ledger::types::{Backing, ResourceLease};
 use crate::application::file_dag::derived::owner::acquisition::semantics::storage::DerivedStorage;
 use crate::application::file_dag::derived::population::types::PopulationId;
-use crate::domain::{
+use ryo_execution_domain::domain::{
     derived_views::types::{contract::value::DerivedContract, DerivedInputs, MembershipSpace},
     operating::errors::OperatingError,
 };
@@ -46,7 +46,7 @@ impl AcquiredView {
             construction,
         }
     }
-    pub(in crate::application::file_dag::derived::owner::acquisition) fn into_storage(
+    pub(crate) fn into_storage(
         self,
     ) -> Option<DerivedStorage> {
         let Self { storage, lease, .. } = self;
@@ -57,7 +57,7 @@ impl AcquiredView {
         }
     }
     #[cfg(test)]
-    pub(in crate::application::file_dag) fn partition_order_capacity(
+    pub(crate) fn partition_order_capacity(
         &self,
     ) -> Result<PartitionCapacity, OperatingError> {
         if !matches!(self.view()?, DerivedView::PartitionOrder(_)) {
@@ -70,14 +70,14 @@ impl AcquiredView {
             .ok_or(OperatingError::WrongOperation)
     }
     #[cfg(test)]
-    pub(in crate::application::file_dag) fn construction(&self) -> Construction {
+    pub(crate) fn construction(&self) -> Construction {
         self.construction
     }
-    pub(in crate::application::file_dag) fn contract(&self) -> &DerivedContract {
+    pub(crate) fn contract(&self) -> &DerivedContract {
         &self.plan
     }
     #[cfg(test)]
-    pub(in crate::application::file_dag) fn storage_identity(&self) -> StorageIdentity {
+    pub(crate) fn storage_identity(&self) -> StorageIdentity {
         StorageIdentity(Arc::as_ptr(&self.storage))
     }
     /// The lease invariant is structural: `lease` is an owned field, so the ledger entries of
@@ -85,20 +85,20 @@ impl AcquiredView {
     /// is the only release). The test-only `assert_required` re-derives that from the ledger;
     /// it is not unconditional because it takes a `RefCell` borrow, scans the lease keys and
     /// does one hash lookup per backing on every read, which production reads must not pay.
-    pub(in crate::application::file_dag) fn view(&self) -> Result<DerivedView<'_>, OperatingError> {
+    pub(crate) fn view(&self) -> Result<DerivedView<'_>, OperatingError> {
         #[cfg(test)]
         self.lease.assert_required(&self.backings);
         self.storage.view()
     }
-    pub(in crate::application::file_dag::derived::owner) fn storage(&self) -> &Arc<DerivedStorage> {
+    pub(crate) fn storage(&self) -> &Arc<DerivedStorage> {
         &self.storage
     }
-    pub(in crate::application::file_dag::derived::owner) fn backings(&self) -> &Arc<[Backing]> {
+    pub(crate) fn backings(&self) -> &Arc<[Backing]> {
         &self.backings
     }
 }
 impl AcquiredView {
-    pub(in crate::application::file_dag::derived::owner::acquisition) fn origin(
+    pub(crate) fn origin(
         &self,
     ) -> &AcquisitionOrigin {
         &self.origin
@@ -107,12 +107,12 @@ impl AcquiredView {
 
 /// Explicit lifetime of semantic work; finite invocation work has no reusable key.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in crate::application::file_dag) enum AcquisitionLifetime {
+pub(crate) enum AcquisitionLifetime {
     Population,
     Invocation,
 }
 #[derive(Clone)]
-pub(in crate::application::file_dag::derived::owner::acquisition) struct AcquisitionOrigin {
+pub(crate) struct AcquisitionOrigin {
     owner: Arc<()>,
     live: Arc<crate::application::file_dag::relations::generation::service::GenerationLease>,
     plan: Arc<DerivedContract>,
@@ -120,14 +120,14 @@ pub(in crate::application::file_dag::derived::owner::acquisition) struct Acquisi
     lifetime: AcquisitionLifetime,
 }
 /// Only acquisition admission binds actual immutable sources to their owner and descriptor.
-pub(in crate::application::file_dag) struct AdmittedViewInputs<'a> {
+pub(crate) struct AdmittedViewInputs<'a> {
     origin: AcquisitionOrigin,
     sources: AcquisitionSources<'a>,
 }
 enum AcquisitionSources<'a> {
-    Rows(Vec<crate::domain::table_model::types::RepresentationInput<'a>>),
+    Rows(Vec<ryo_execution_domain::domain::table_model::types::RepresentationInput<'a>>),
     Dense {
-        rows: Vec<crate::domain::table_model::types::RepresentationInput<'a>>,
+        rows: Vec<ryo_execution_domain::domain::table_model::types::RepresentationInput<'a>>,
         graph: Arc<ryo_derived::domain::adjacency::types::compact_graph::value::CompactGraph>,
     },
 }
@@ -142,7 +142,7 @@ impl std::fmt::Debug for AcquisitionOrigin {
 }
 
 impl AdmittedViewInputs<'_> {
-    pub(in crate::application::file_dag::derived::owner::acquisition) fn populations(
+    pub(crate) fn populations(
         &self,
     ) -> &[PopulationId] {
         &self.origin.populations
@@ -150,7 +150,7 @@ impl AdmittedViewInputs<'_> {
 }
 
 impl AcquiredView {
-    pub(in crate::application::file_dag::derived::owner::acquisition) fn lease(
+    pub(crate) fn lease(
         &self,
     ) -> &Arc<ResourceLease> {
         &self.lease

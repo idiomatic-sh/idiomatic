@@ -11,7 +11,7 @@ pub(super) fn controls() -> Vec<Probe> {
             source: r#"
 mod counted_metadata {
     use super::preparation::types::PreparedProgram;
-    use crate::domain::{coverage::types::RuleIndex, operating::errors::OperatingError};
+    use ryo_execution_domain::domain::{coverage::types::RuleIndex, operating::errors::OperatingError};
     fn read(value: &PreparedProgram, rule: RuleIndex) -> Result<(), OperatingError> {
         let _ = value.rule_metadata(rule)?;
         Ok(())

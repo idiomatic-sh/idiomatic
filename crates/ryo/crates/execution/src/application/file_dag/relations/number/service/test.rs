@@ -4,8 +4,8 @@ use crate::application::file_dag::relations::*;
 
 use crate::application::file_dag::derived::population::types::PopulationId;
 use crate::application::file_dag::relations::handle::service::PublishedInput;
-use crate::domain::executable_program::types::RegionId;
-use crate::domain::self_join_recogniser::types::{
+use ryo_execution_domain::domain::executable_program::types::RegionId;
+use ryo_execution_domain::domain::self_join_recogniser::types::{
     NumberRequirement, SchemaWidth, StoredNumberOrigin,
 };
 use ryo_relations::domain::relations::{
@@ -13,7 +13,7 @@ use ryo_relations::domain::relations::{
     types::{ColumnsView, FactColumn},
 };
 use ryo_values::domain::plan_parts::types::{ColumnIndex, StepId};
-use crate::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 #[test]
 fn number_witness_rejects_wrong_producer_and_recycled_generation() {
     let relation = Relation::SourceLocation;
@@ -140,7 +140,7 @@ fn qualified_producers_release_only_their_actual_population() {
         ViewContext,
         fixtures::resources::{ResourceFixture, weak_storage},
     };
-    use crate::domain::derived_views::types::{DerivedInputs, DerivedScratch, ViewRequest};
+    use ryo_execution_domain::domain::derived_views::types::{DerivedInputs, DerivedScratch, ViewRequest};
     use ryo_relations::domain::relations::types::{Integer, Value};
     use ryo_values::domain::rows::types::{RowCount, Table};
     // This is a generic owned-row index contract, not a catalog-provider fixture.
@@ -186,8 +186,8 @@ fn qualified_producers_release_only_their_actual_population() {
                     &ViewRequest::Equality {
                         columns: vec![ColumnIndex(0)],
                     },
-                    &[crate::domain::operation_schema::types::InputShape {
-                        kinds: crate::domain::table_model::service::kinds_of(&rows),
+                    &[ryo_execution_domain::domain::operation_schema::types::InputShape {
+                        kinds: ryo_execution_domain::domain::table_model::service::kinds_of(&rows),
                         tree: None,
                     }],
                 )

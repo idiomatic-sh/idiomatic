@@ -5,25 +5,25 @@ use crate::application::file_dag::program::admission::Inputs;
 use crate::application::file_dag::program::constants::EXECUTION_TARGET;
 use crate::application::file_dag::program::constants::READINESS_QUEUE;
 use crate::application::file_dag::program::runtime::types::{PollMode, ReaderCount};
-use crate::domain::executable_program::types::RegionId;
-use crate::domain::operating::errors::OperatingError;
-use crate::domain::operating::types::OperatorContext;
+use ryo_execution_domain::domain::executable_program::types::RegionId;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operating::types::OperatorContext;
 
 impl ProgramExecution {
     /// Drives the admission half of this interpreter for every bound root.
     /// Newly discovered dependencies join the same queue; no dependency graph is
     /// walked ahead of the action that actually demands it.
-    pub(in crate::application::file_dag::program) fn prepare_roots(
+    pub(crate) fn prepare_roots(
         &self,
         state: &RuntimeState,
         roots: &[RegionId],
         inputs: &mut dyn Inputs,
         kernels: &dyn KernelInvocation,
-        completion: &crate::domain::completion::types::completion_policy::value::CompletionPolicy,
+        completion: &ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy,
         context: &mut OperatorContext<'_>,
     ) -> Result<(), OperatingError> {
         self.validate_state(state)?;
-        use crate::domain::readiness::types::{
+        use ryo_execution_domain::domain::readiness::types::{
             ReadinessAction, ReadinessOutcome, RegionCount, ready_queue::value::ReadyQueue,
         };
         // Publication delivery and retries must not re-enter readiness work.
@@ -74,7 +74,7 @@ impl ProgramExecution {
             suspensions = counts.suspensions.0, wakeups = counts.wakeups.0);
         result
     }
-    pub(in crate::application::file_dag::program) fn published(
+    pub(crate) fn published(
         &self,
         state: &RuntimeState,
         id: RegionId,
@@ -101,14 +101,14 @@ impl ProgramExecution {
     }
     /// Observation and frontier aliases enter the same dynamic interpreter only
     /// after their caller's completeness gate has authorized this root.
-    pub(in crate::application::file_dag::program) fn admit_root(
+    pub(crate) fn admit_root(
         &self,
         state: &RuntimeState,
-        rule: crate::domain::coverage::types::RuleIndex,
-        source: crate::domain::executable_program::types::InputSource,
+        rule: ryo_execution_domain::domain::coverage::types::RuleIndex,
+        source: ryo_execution_domain::domain::executable_program::types::InputSource,
         inputs: &mut dyn Inputs,
         kernels: &dyn KernelInvocation,
-        completion: &crate::domain::completion::types::completion_policy::value::CompletionPolicy,
+        completion: &ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy,
         context: &mut OperatorContext<'_>,
     ) -> Result<AdmittedInput, OperatingError> {
         self.validate_state(state)?;
@@ -120,13 +120,13 @@ impl ProgramExecution {
         let available = inputs.supply(source, &self.partition, context)?;
         inputs.admit(&available, &self.partition, context)
     }
-    pub(in crate::application::file_dag::program) fn invoke(
+    pub(crate) fn invoke(
         &self,
         state: &RuntimeState,
         id: RegionId,
         inputs: &mut dyn Inputs,
         kernels: &dyn KernelInvocation,
-        completion: &crate::domain::completion::types::completion_policy::value::CompletionPolicy,
+        completion: &ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy,
         context: &mut OperatorContext<'_>,
     ) -> Result<InvocationOutcome, OperatingError> {
         self.validate_state(state)?;

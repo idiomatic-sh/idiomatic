@@ -5,12 +5,12 @@ use super::{
         Backing, BackingKey, ByteCount, HoldCount, LeaseClass, Measured, ResourceLease, SlotCount,
     },
 };
-use crate::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use rustc_hash::FxHashMap;
 
 #[cfg(test)]
 impl ResourceLease {
-    pub(in crate::application::file_dag::derived) fn assert_required(&self, backings: &[Backing]) {
+    pub(crate) fn assert_required(&self, backings: &[Backing]) {
         assert_eq!(self.class, LeaseClass::Required);
         let ledger = self.ledger.borrow();
         for backing in backings {
@@ -112,7 +112,7 @@ pub(super) fn lease_bytes(key_capacity: SlotCount) -> Result<ByteCount, Operatin
         .ok_or(OperatingError::ShapeMismatch)
 }
 
-pub(in crate::application::file_dag) fn append_backing(
+pub(crate) fn append_backing(
     backings: &mut Vec<Backing>,
     next: Backing,
 ) -> Result<(), OperatingError> {

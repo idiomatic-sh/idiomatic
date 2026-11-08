@@ -1,16 +1,16 @@
 //! Each family leaves through the production entry that acquires it; every exit ends with the
 //! owner generation retired and `(required, optional, unique) == (0, 0, 0)` asserted here.
-use crate::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_derived::domain::request::types::DerivedKind;
 use self::exit::{Entry, Exit, entry};
 
-pub(in crate::application::file_dag) mod exit;
+pub(crate) mod exit;
 mod graph;
 mod partition;
 mod workspace;
 
 /// Drive one exit of `kind` through its production entry.
-pub(in crate::application::file_dag) fn leave(
+pub(crate) fn leave(
     kind: DerivedKind,
     exit: Exit,
 ) -> Result<DerivedKind, OperatingError> {

@@ -1,15 +1,15 @@
 //! Immutable prepared request metadata; no runtime or lifecycle dependency.
-use crate::domain::coverage::types::RuleIndex;
-use crate::domain::rule_intent::types::FrontierPurpose;
-use crate::domain::executable_program::types::executable_program::value::ExecutableProgram;
-use crate::domain::executable_program::types::InputSource;
-use crate::domain::executable_program::types::RegionId;
-use crate::domain::file_program::types::ObservationSlot;
-use crate::domain::file_program::types::ObservedFrontierRoot;
-use crate::domain::file_program::types::ResolvedObservationBinding;
-use crate::domain::file_program::types::RuleSchedule;
-use crate::domain::operating::errors::OperatingError;
-use crate::domain::trust::types::RelationRead;
+use ryo_execution_domain::domain::coverage::types::RuleIndex;
+use ryo_execution_domain::domain::rule_intent::types::FrontierPurpose;
+use ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram;
+use ryo_execution_domain::domain::executable_program::types::InputSource;
+use ryo_execution_domain::domain::executable_program::types::RegionId;
+use ryo_execution_domain::domain::file_program::types::ObservationSlot;
+use ryo_execution_domain::domain::file_program::types::ObservedFrontierRoot;
+use ryo_execution_domain::domain::file_program::types::ResolvedObservationBinding;
+use ryo_execution_domain::domain::file_program::types::RuleSchedule;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::trust::types::RelationRead;
 use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::records::types::ObservationIndex;
 use ryo_values::domain::records::types::ObservationReadinessLayout;
@@ -54,12 +54,12 @@ pub struct ReplayClosure {
     pub buckets: Vec<Bucket>,
 }
 
-pub(in crate::application::file_dag::program) struct RootMetadata {
+pub(crate) struct RootMetadata {
     pub source: Result<InputSource, OperatingError>,
     pub phase: StepScope,
     pub reads: Box<[RelationRead]>,
 }
-pub(in crate::application::file_dag::program) struct RuleMetadata {
+pub(crate) struct RuleMetadata {
     pub emit: Emit,
     pub emit_root: Result<RegionId, OperatingError>,
     pub frontiers: Box<[Input]>,
@@ -72,24 +72,24 @@ pub(in crate::application::file_dag::program) struct RuleMetadata {
     >,
 }
 #[derive(Clone, Copy)]
-pub(in crate::application) enum OutputRoot {
+pub(crate) enum OutputRoot {
     PerFile,
     CrossFile,
     Unavailable,
 }
-pub(in crate::application) struct OutputMetadata {
+pub(crate) struct OutputMetadata {
     pub root: OutputRoot,
     pub consumers: Vec<RuleIndex>,
 }
 pub(crate) struct ObservationMetadata {
-    pub(in crate::application) layout: ObservationReadinessLayout,
-    pub(in crate::application) slots: Box<[ObservationSlot]>,
-    pub(in crate::application) frontiers: Box<[ObservedFrontierRoot]>,
-    pub(in crate::application) bindings: Vec<Vec<ResolvedObservationBinding>>,
-    pub(in crate::application) consumers: Vec<Vec<Vec<RuleIndex>>>,
-    pub(in crate::application) outputs: Vec<Vec<OutputMetadata>>,
-    pub(in crate::application) retire:
-        Vec<Vec<crate::domain::file_program::types::ObservationRetirement>>,
+    pub(crate) layout: ObservationReadinessLayout,
+    pub(crate) slots: Box<[ObservationSlot]>,
+    pub(crate) frontiers: Box<[ObservedFrontierRoot]>,
+    pub(crate) bindings: Vec<Vec<ResolvedObservationBinding>>,
+    pub(crate) consumers: Vec<Vec<Vec<RuleIndex>>>,
+    pub(crate) outputs: Vec<Vec<OutputMetadata>>,
+    pub(crate) retire:
+        Vec<Vec<ryo_execution_domain::domain::file_program::types::ObservationRetirement>>,
 }
 /// Immutable executable state has no RequestGraph, Plan, layout or old executor.
 pub(crate) struct PreparedProgram {
@@ -102,13 +102,13 @@ pub(crate) struct PreparedProgram {
     /// Computed once when the program is built; never a per-call scan of `rules`.
     pub(super) semantic_needed: SemanticNeed,
     pub(super) file_demands:
-        Box<[crate::domain::executable_program::file_demand::types::FileRuleDemand]>,
+        Box<[ryo_execution_domain::domain::executable_program::file_demand::types::FileRuleDemand]>,
     pub(super) file_frontier_outputs: Box<[Box<[Box<[ObservationIndex]>]>]>,
     pub(super) observations: Option<ObservationMetadata>,
     pub(super) schedule: RuleSchedule,
     pub(super) semantic_metadata: Vec<ryo_values::domain::run_metadata::types::RuleRunMetadata>,
     pub(super) hosted: Box<[HostRelation]>,
-    pub(super) matchers: Arc<crate::domain::matching::types::prepared::value::PreparedMatchers>,
+    pub(super) matchers: Arc<ryo_execution_domain::domain::matching::types::prepared::value::PreparedMatchers>,
     pub(super) derived: crate::application::file_dag::derived::prepared::RequestDerived,
-    pub(super) walk: crate::domain::shared_walk::types::prepared_walk::value::PreparedWalk,
+    pub(super) walk: ryo_execution_domain::domain::shared_walk::types::prepared_walk::value::PreparedWalk,
 }

@@ -1,9 +1,9 @@
 //! Prepare every operation once for one request, shared by all file workers.
-use crate::domain::operating::errors::OperatingError;
-use crate::domain::operation_schema::types::InputShape;
-use crate::domain::operator::contract::types::OperatorContract;
-use crate::domain::operator::service::prepare_operator;
-use crate::domain::table_cells::types::TreeForm;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operation_schema::types::InputShape;
+use ryo_execution_domain::domain::operator::contract::types::OperatorContract;
+use ryo_execution_domain::domain::operator::service::prepare_operator;
+use ryo_execution_domain::domain::table_cells::types::TreeForm;
 use ryo_relations::domain::relations::{
     service::kinds,
     types::{CellKind, Relation},
@@ -18,7 +18,7 @@ use ryo_values::domain::plans::{
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use std::sync::Arc;
 
-use crate::domain::operator::contract::types::RequestOperators;
+use ryo_execution_domain::domain::operator::contract::types::RequestOperators;
 
 pub(crate) fn prepare(
     plans: &[Plan],
@@ -69,7 +69,7 @@ pub(crate) fn prepare_with_schemas<'s>(
                     Ok(match input {
                         Input::Relation(relation) => InputShape {
                             kinds: relation_kinds(*relation),
-                            tree: crate::domain::table_cells::service::native_form(*relation),
+                            tree: ryo_execution_domain::domain::table_cells::service::native_form(*relation),
                         },
                         Input::BoundObservation(id) => InputShape {
                             kinds: observed_kinds
@@ -139,7 +139,7 @@ pub(crate) fn prepare_with_schemas<'s>(
     let request = RequestOperators {
         ordered_existence: plans.iter().map(|_| std::sync::OnceLock::new()).collect(),
         rules,
-        preparations: crate::domain::operator::contract::types::PreparationCount(preparations),
+        preparations: ryo_execution_domain::domain::operator::contract::types::PreparationCount(preparations),
     };
     debug_assert_eq!(
         request.preparations.0,

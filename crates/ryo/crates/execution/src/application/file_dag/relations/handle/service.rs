@@ -15,7 +15,7 @@ pub(crate) struct PublishedInput {
     leases: Arc<RequiredLeases>,
 }
 impl PublishedInput {
-    pub(in crate::application::file_dag::relations) fn new(
+    pub(crate) fn new(
         record: Arc<RelationResult>,
         initial: Arc<ResourceLease>,
     ) -> Self {
@@ -37,10 +37,10 @@ impl PublishedInput {
         &self.record
     }
     #[cfg(test)]
-    pub(in crate::application::file_dag::relations) fn record(&self) -> &Arc<RelationResult> {
+    pub(crate) fn record(&self) -> &Arc<RelationResult> {
         &self.record
     }
-    pub(in crate::application::file_dag::relations) fn normalization_charged(&self) -> NormalizationCharge {
+    pub(crate) fn normalization_charged(&self) -> NormalizationCharge {
         if self.leases.normalized_in_initial == NormalizationCharge::Charged
             || self.leases.normalized.borrow().is_some()
         {
@@ -49,7 +49,7 @@ impl PublishedInput {
             NormalizationCharge::Uncharged
         }
     }
-    pub(in crate::application::file_dag::relations) fn hold_normalization(
+    pub(crate) fn hold_normalization(
         &self,
         lease: Arc<ResourceLease>,
     ) {

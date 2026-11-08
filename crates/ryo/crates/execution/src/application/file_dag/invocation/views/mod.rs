@@ -1,7 +1,7 @@
 //! Semantic lease fields originate in the mandatory borrowed derived-view contract.
 use super::*;
 impl InvocationResources<'_> {
-    pub(in crate::application::file_dag) fn cycles_view(
+    pub(crate) fn cycles_view(
         view: Option<&AcquiredView>,
     ) -> Result<Option<&CycleGraph>, OperatingError> {
         match view.map(AcquiredView::view).transpose()? {
@@ -12,7 +12,7 @@ impl InvocationResources<'_> {
             _ => Err(OperatingError::WrongOperation),
         }
     }
-    pub(in crate::application::file_dag) fn ordered_view(
+    pub(crate) fn ordered_view(
         view: Option<&AcquiredView>,
     ) -> Result<Option<&OrderedMatching>, OperatingError> {
         match view.map(AcquiredView::view).transpose()? {
@@ -23,7 +23,7 @@ impl InvocationResources<'_> {
             _ => Err(OperatingError::WrongOperation),
         }
     }
-    pub(in crate::application::file_dag) fn dfs_view(
+    pub(crate) fn dfs_view(
         view: Option<&AcquiredView>,
     ) -> Result<Option<&PreparedDfs>, OperatingError> {
         match view.map(AcquiredView::view).transpose()? {

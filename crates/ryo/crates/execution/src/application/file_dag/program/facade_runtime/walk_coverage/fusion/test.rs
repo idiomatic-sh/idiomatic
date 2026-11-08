@@ -1,7 +1,7 @@
 //! Every operation kind and route of the compiled corpus has a fusion classification.
-use crate::domain::shared_walk::types::walk_route::value::{WalkBarrier, WalkRoute};
+use ryo_execution_domain::domain::shared_walk::types::walk_route::value::{WalkBarrier, WalkRoute};
 use super::super::fixtures::operations::corpus::{Corpus, compiled_operations};
-use crate::domain::executable_program::{
+use ryo_execution_domain::domain::executable_program::{
     fusion::types::{Barrier, Fusibility, Ineligible},
     types::LogicalInstruction,
 };

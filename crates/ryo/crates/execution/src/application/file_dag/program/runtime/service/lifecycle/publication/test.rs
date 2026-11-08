@@ -1,13 +1,13 @@
 //! Compiled program lifecycle proof with a real owner.
 use super::super::inputs::fixtures::{CompiledCase, compiled};
-use crate::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use std::rc::Rc;
 
 #[test]
 fn publication_constructor_rejects_same_owner_proof_substitution_even_for_canonical_aliases() {
     use crate::application::file_dag::program::admission::{ProducerRoot, ReadProof};
 
-use crate::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
     use ryo_values::domain::rows::types::{RowCount, Table};
     let CompiledCase { execution, roots } = compiled();
     let owner = Rc::clone(&execution.owner);

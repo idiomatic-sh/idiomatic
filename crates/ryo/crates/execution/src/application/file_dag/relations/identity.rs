@@ -5,8 +5,8 @@ use crate::application::file_dag::relations::publication::types::{
 };
 use crate::application::file_dag::relations::types::Sameness;
 
-use crate::domain::table_model::types::RepresentationInput;
-use crate::domain::table_model::service::kind;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::table_model::service::kind;
 use ryo_relations::domain::relations::types::{FactColumn, Relation};
 
 macro_rules! sameness {
@@ -27,7 +27,7 @@ fn span<T>(pointer: *const T, length: SpanLength) -> StorageSpan {
 fn column_span(column: &FactColumn) -> StorageSpan {
     span(column.0.as_ptr(), SpanLength(column.0.len()))
 }
-fn tree_spans(tree: &crate::domain::table_cells::types::TreeRows<'_>) -> Vec<StorageSpan> {
+fn tree_spans(tree: &ryo_execution_domain::domain::table_cells::types::TreeRows<'_>) -> Vec<StorageSpan> {
     let e = tree.elements;
     vec![
         span(e, SpanLength(tree.file.0 as usize)),

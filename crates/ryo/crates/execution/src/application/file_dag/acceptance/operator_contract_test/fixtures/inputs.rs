@@ -44,7 +44,7 @@ pub(crate) fn text<'a>(
     cell: ryo_relations::domain::relations::types::Value,
     symbols: &'a Symbols,
 ) -> &'a str {
-    use crate::domain::table_texts::{
+    use ryo_execution_domain::domain::table_texts::{
         service::datum,
         types::{Datum, Texts},
     };

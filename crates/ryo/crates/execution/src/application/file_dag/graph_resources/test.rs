@@ -2,11 +2,11 @@
 use ryo_relations::domain::relations::types::{CellKind, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use {
-    crate::domain::derived_views::types::*, crate::domain::operating::errors::OperatingError,
-    crate::domain::operation_schema::types::InputShape,
+    ryo_execution_domain::domain::derived_views::types::*, ryo_execution_domain::domain::operating::errors::OperatingError,
+    ryo_execution_domain::domain::operation_schema::types::InputShape,
     ryo_values::domain::rows::service::push_row,
 };
-use crate::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 fn prepare_cycles(
     input: RepresentationInput<'_>,
     source: ColumnIndex,
@@ -145,15 +145,14 @@ mod tests {
         )
         .unwrap();
         assert_eq!(partitions.len(), 2);
-        use crate::domain::operator::contract::views::ClosureParts;
-        let first = ClosureParts::get(
-            &partitions,
-            crate::domain::operator::contract::views::PartitionIndex(0),
-        )?;
-        let second = ClosureParts::get(
-            &partitions,
-            crate::domain::operator::contract::views::PartitionIndex(1),
-        )?;
+        let first = match partitions.first().ok_or(OperatingError::ShapeMismatch)?.view()? {
+            ryo_derived::domain::contract::types::DerivedView::ClosureAdjacency(part) => part,
+            _ => return Err(OperatingError::WrongOperation),
+        };
+        let second = match partitions.get(1).ok_or(OperatingError::ShapeMismatch)?.view()? {
+            ryo_derived::domain::contract::types::DerivedView::ClosureAdjacency(part) => part,
+            _ => return Err(OperatingError::WrongOperation),
+        };
         assert_eq!(first.key, vec![number(Integer(9))]);
         assert_eq!(first.sources, vec![number(Integer(2)), number(Integer(4))]);
         assert_eq!(

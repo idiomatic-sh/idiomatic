@@ -5,14 +5,14 @@ use crate::application::file_dag::program::admission::Partition;
 use crate::application::file_dag::program::constants::BOUND_PRODUCER_UNAVAILABLE;
 use crate::application::file_dag::program::facade_runtime::types::{CachedInput, OrdinaryPlace, Provision};
 use crate::application::file_dag::relations::RelationOwner;
-use crate::domain::operating::errors::OperatingError;
-use crate::domain::operating::types::OperatorContext;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operating::types::OperatorContext;
 use std::rc::Rc;
 
 impl ProjectSources<'_> {
-    pub(in crate::application::file_dag::program::facade_runtime::source_admission) fn ordinary_place(
+    pub(crate) fn ordinary_place(
         &self,
-        source: crate::domain::executable_program::types::InputSource,
+        source: ryo_execution_domain::domain::executable_program::types::InputSource,
     ) -> Option<OrdinaryPlace> {
         self.ordinary
             .iter()
@@ -20,13 +20,13 @@ impl ProjectSources<'_> {
             .map(OrdinaryPlace)
     }
 
-    pub(in crate::application::file_dag::program::facade_runtime::source_admission) fn provides(
+    pub(crate) fn provides(
         &self,
-        source: crate::domain::executable_program::types::InputSource,
+        source: ryo_execution_domain::domain::executable_program::types::InputSource,
     ) -> Provision {
         if matches!(
             source,
-            crate::domain::executable_program::types::InputSource::ObservationMember { .. }
+            ryo_execution_domain::domain::executable_program::types::InputSource::ObservationMember { .. }
         ) || self.cache.iter().any(|cached| cached.source == source)
             || self.ordinary_place(source).is_some()
             || self.refused.iter().any(|refused| {
@@ -43,14 +43,14 @@ impl ProjectSources<'_> {
     }
     /// Called only by an actual DemandAction::Admit. Raw source handles and
     /// errors remain untouched when a branch does not demand them.
-    pub(in crate::application::file_dag::program::facade_runtime::source_admission) fn supply(
+    pub(crate) fn supply(
         &mut self,
-        source: crate::domain::executable_program::types::InputSource,
+        source: ryo_execution_domain::domain::executable_program::types::InputSource,
         partition: &Partition,
         context: &mut OperatorContext<'_>,
         owner: &Rc<RelationOwner>,
     ) -> Option<Result<AvailableInput, OperatingError>> {
-        use crate::domain::executable_program::types::InputSource;
+        use ryo_execution_domain::domain::executable_program::types::InputSource;
         if let Some(cached) = self.cache.iter().find(|cached| cached.source == source) {
             return Some(Ok(cached.input.clone()));
         }
@@ -82,8 +82,8 @@ impl ProjectSources<'_> {
             }
         }
         if let InputSource::ObservationMember {
-                slot: crate::domain::executable_program::types::ObservationPlace(slot),
-                member: crate::domain::executable_program::types::ProducerMember(member),
+                slot: ryo_execution_domain::domain::executable_program::types::ObservationPlace(slot),
+                member: ryo_execution_domain::domain::executable_program::types::ProducerMember(member),
             } = source {
             for bound in &mut *self.bound {
                 let Some(binding) = bound.as_mut() else {

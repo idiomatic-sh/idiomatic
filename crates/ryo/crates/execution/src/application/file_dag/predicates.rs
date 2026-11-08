@@ -1,14 +1,14 @@
 //! A closed semantic service: program and schema are fixed by request preparation.
 //! Matcher acquisition, short circuit and cache lifetime stay inside this owner.
-use crate::domain::matching::types::prepared::value::PreparedMatchers;
-use crate::domain::operating::errors::OperatingError;
-use crate::domain::operator::contract::types::PreparedPredicates;
-use crate::domain::operator::contract::views::PredicateProgram;
-use crate::domain::table_model::types::Verdict;
+use ryo_execution_domain::domain::matching::types::prepared::value::PreparedMatchers;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operator::contract::types::PreparedPredicates;
+use ryo_execution_domain::domain::operator::contract::views::PredicateProgram;
+use ryo_execution_domain::domain::table_model::types::Verdict;
 use ryo_language::domain::{files::types::FilePath, symbols::types::Symbols};
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::stored_facts::types::ArenaBytes;
-use {crate::domain::table_texts::types::Texts, ryo_values::domain::files::types::SourceView};
+use {ryo_execution_domain::domain::table_texts::types::Texts, ryo_values::domain::files::types::SourceView};
 
 pub(crate) struct BoundPredicate<'a> {
     pub program: &'a PreparedPredicates,
@@ -17,11 +17,11 @@ pub(crate) struct BoundPredicate<'a> {
     pub paths: &'a [FilePath],
     pub arenas: &'a [ArenaBytes],
     pub prepared: Option<&'a PreparedMatchers>,
-    pub state: &'a mut crate::domain::table_scratch::types::LazyScratch<
-        crate::domain::table_scratch::types::SelectScratch,
+    pub state: &'a mut ryo_execution_domain::domain::table_scratch::types::LazyScratch<
+        ryo_execution_domain::domain::table_scratch::types::SelectScratch,
     >,
-    pub memo: &'a mut Vec<crate::domain::operating::types::Memo>,
-    pub names: &'a mut Option<crate::domain::operating::types::NameCount>,
+    pub memo: &'a mut Vec<ryo_execution_domain::domain::operating::types::Memo>,
+    pub names: &'a mut Option<ryo_execution_domain::domain::operating::types::NameCount>,
     /// The file's profile, which counts the predicates this binding decides.
     #[cfg(feature = "diagnostic-row-progress")]
     pub progress: &'a crate::application::file_dag::route_counts::types::RouteProfile,
@@ -31,8 +31,8 @@ impl PredicateProgram for BoundPredicate<'_> {
         #[cfg(feature = "diagnostic-row-progress")]
         super::route_counts::progress::service::progress(
             self.progress,
-            crate::domain::operator::contract::views::ProgressCounter::PredicateEvaluations,
-            crate::domain::operator::contract::views::ProgressAmount(1),
+            ryo_execution_domain::domain::operator::contract::views::ProgressCounter::PredicateEvaluations,
+            ryo_execution_domain::domain::operator::contract::views::ProgressAmount(1),
         );
         if !self.program.comparisons.is_empty() && row.len() != self.program.kinds.len() {
             return Err(OperatingError::ShapeMismatch);
@@ -47,30 +47,30 @@ impl PredicateProgram for BoundPredicate<'_> {
             return Ok(Verdict::Holds);
         }
         let names = *self.names.get_or_insert_with(|| {
-            let count = crate::domain::operating::types::NameCount(
+            let count = ryo_execution_domain::domain::operating::types::NameCount(
                 ryo_language::domain::names::service::name_count(symbols).0,
             );
             self.memo.clear();
             self.memo.resize(
                 self.program.comparisons.len() * count.0,
-                crate::domain::operating::types::Memo::Unknown,
+                ryo_execution_domain::domain::operating::types::Memo::Unknown,
             );
             count
         });
-        crate::domain::comparing::service::holds_bound(
+        ryo_execution_domain::domain::comparing::service::holds_bound(
             &self.program.comparisons,
             row,
-            crate::domain::comparing::types::RowShape {
+            ryo_execution_domain::domain::comparing::types::RowShape {
                 kinds: &self.program.kinds,
                 names,
             },
             &texts,
             self.bindings,
             self.prepared,
-            crate::domain::matching::types::PatternMatcher(
+            ryo_execution_domain::domain::matching::types::PatternMatcher(
                 &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
             ),
-            crate::domain::comparing::types::DecisionWorkspace {
+            ryo_execution_domain::domain::comparing::types::DecisionWorkspace {
                 select: &mut *self.state,
                 memo: &mut *self.memo,
             },

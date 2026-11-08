@@ -13,7 +13,7 @@ use crate::application::file_dag::executor::{
 };
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use crate::application::file_dag::program::runtime::service::{KernelPermit, ReadySelection};
-use crate::domain::{
+use ryo_execution_domain::domain::{
     coverage::types::RuleIndex,
     operating::{errors::OperatingError, types::OperatorContext},
     step_classes::types::ClassPlace,
@@ -30,18 +30,18 @@ use rustc_hash::FxHashMap;
 
 /// The production invocation is explicitly bound to a file owner or project stage.
 /// An invocation of either partition cannot opt out of its shared-walk owner.
-pub(in crate::application::file_dag::program) enum WalkPartition<'a> {
+pub(crate) enum WalkPartition<'a> {
     File(&'a FileWalk),
     Project(&'a ProjectWalk),
 }
 impl WalkPartition<'_> {
-    pub(in crate::application::file_dag::program) fn validate(&self, permit: &KernelPermit<'_>) -> Result<(), OperatingError> {
+    pub(crate) fn validate(&self, permit: &KernelPermit<'_>) -> Result<(), OperatingError> {
         match self {
             Self::File(walk) => permit.require_file_walk(&walk.generation),
             Self::Project(_) => permit.require_project_walk(),
         }
     }
-    pub(in crate::application::file_dag::program) fn submit<'facts>(
+    pub(crate) fn submit<'facts>(
         &self,
         prepared: &PreparedProgram,
         ready: &ReadySelection<'_, '_>,
@@ -69,11 +69,11 @@ impl WalkPartition<'_> {
                 logical = permit.descriptor().logical().0, relation = ?relation,
                 generation = ?permit.diagnostic_generation(), population = ?input.population(owner),
                 classes = ?[class.0],
-                reason = ?crate::domain::shared_walk::types::WalkRefusal::Representation);
+                reason = ?ryo_execution_domain::domain::shared_walk::types::WalkRefusal::Representation);
         }
         Ok(submitted)
     }
-    pub(in crate::application::file_dag::program) fn acquire(
+    pub(crate) fn acquire(
         &self,
         prepared: &PreparedProgram,
         permit: &KernelPermit<'_>,
@@ -118,7 +118,7 @@ fn relation_of(
 }
 /// The batches of one publication scope. A batch is keyed by the admitted source population
 /// and its relation; the scope is the generation, so no key spans two scopes.
-pub(in crate::application::file_dag::program) struct ProjectWalk {
+pub(crate) struct ProjectWalk {
     // A batch lives while a declared rule that consumes its relation still owes a delivery,
     // then retires; a lease handed out earlier keeps its own result.
     batches: RefCell<FxHashMap<WalkSourceIdentity, SourceWork>>,
@@ -129,7 +129,7 @@ pub(in crate::application::file_dag::program) struct ProjectWalk {
     work: RefCell<WalkWork>,
 }
 impl ProjectWalk {
-    pub(in crate::application::file_dag::program) fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             batches: RefCell::new(FxHashMap::default()),
             owed: RefCell::new(FxHashMap::default()),
@@ -138,7 +138,7 @@ impl ProjectWalk {
         }
     }
     /// Only a project-stage class admitted for a declared root joins this walk.
-    pub(in crate::application::file_dag::program) fn admit(
+    pub(crate) fn admit(
         &self,
         prepared: &PreparedProgram,
         class: ClassPlace,
@@ -162,7 +162,7 @@ impl ProjectWalk {
         Ok(())
     }
     /// Called only when the existing runtime has completed the head's demand program.
-    pub(in crate::application::file_dag::program) fn submit(
+    pub(crate) fn submit(
         &self,
         prepared: &PreparedProgram,
         ready: &ReadySelection<'_, '_>,
@@ -192,7 +192,7 @@ impl ProjectWalk {
         }
         Ok(Submission::Submitted)
     }
-    pub(in crate::application::file_dag::program) fn prepare<'walk>(
+    pub(crate) fn prepare<'walk>(
         &'walk self,
         prepared: &PreparedProgram,
         permit: &KernelPermit<'_>,
@@ -226,7 +226,7 @@ impl ProjectWalk {
                 Ok(KernelAnswer::Walk(batch)) => batch,
                 Err(KernelFault::Refused(error)) => return Err(error),
                 Err(KernelFault::Portable(error)) => {
-                    return Err(crate::domain::operator::contract::types::portable_fault(
+                    return Err(ryo_execution_domain::domain::operator::contract::types::portable_fault(
                         error,
                     ));
                 }
@@ -245,7 +245,7 @@ impl ProjectWalk {
     }
     /// Declare that `rule` is a root of a cohort and will make `deliveries` entry-point
     /// calls that may consume this scope's project-stage classes.
-    pub(in crate::application::file_dag::program) fn owe(
+    pub(crate) fn owe(
         &self,
         prepared: &PreparedProgram,
         rule: RuleIndex,
@@ -289,7 +289,7 @@ impl ProjectWalk {
     /// One entry-point call of `rule` finished, whatever its outcome (success,
     /// cancellation or error). The last one releases the rule's classes and every
     /// batch no remaining declared rule can still consume.
-    pub(in crate::application::file_dag::program) fn delivered(
+    pub(crate) fn delivered(
         &self,
         prepared: &PreparedProgram,
         rule: RuleIndex,
@@ -322,7 +322,7 @@ impl ProjectWalk {
         });
     }
     /// The cohort evaluation is over: nothing can lease from any batch again.
-    pub(in crate::application::file_dag::program) fn retire_all(&self) {
+    pub(crate) fn retire_all(&self) {
         self.owed.borrow_mut().clear();
         self.retire(|_, _| Fate::Release);
     }
@@ -338,13 +338,13 @@ impl ProjectWalk {
         self.retired.set(retired);
     }
     #[cfg(test)]
-    pub(in crate::application::file_dag::program) fn retained(
+    pub(crate) fn retained(
         &self,
     ) -> super::super::RetainedBatches {
         super::super::RetainedBatches(self.batches.borrow().len())
     }
     #[cfg(test)]
-    pub(in crate::application::file_dag::program) fn counts(&self) -> WalkCounts {
+    pub(crate) fn counts(&self) -> WalkCounts {
         self.batches
             .borrow()
             .values()

@@ -135,7 +135,7 @@ fn every_registered_class_runs_real_collect_and_stream_with_independent_expectat
 fn unsupported_semantic_batch_publishes_no_prefix() -> Result<(), Failure> {
     #[derive(Debug)]
     struct PartialSyntax;
-    impl crate::domain::operating::types::SemanticLookup for PartialSyntax {
+    impl ryo_execution_domain::domain::operating::types::SemanticLookup for PartialSyntax {
         fn render_batch(
             &self,
             _: &[RenderRequest],
@@ -182,7 +182,7 @@ fn unsupported_semantic_batch_publishes_no_prefix() -> Result<(), Failure> {
 fn a_semantic_batch_of_another_length_is_refused() -> Result<(), Failure> {
     #[derive(Debug)]
     struct OneAnswerTooMany;
-    impl crate::domain::operating::types::SemanticLookup for OneAnswerTooMany {
+    impl ryo_execution_domain::domain::operating::types::SemanticLookup for OneAnswerTooMany {
         fn render_batch(
             &self,
             requests: &[RenderRequest],
@@ -196,7 +196,7 @@ fn a_semantic_batch_of_another_length_is_refused() -> Result<(), Failure> {
             Ok((0..=requests.len()).map(|_| known()).collect())
         }
     }
-    let observe = |lookup: &dyn crate::domain::operating::types::SemanticLookup| {
+    let observe = |lookup: &dyn ryo_execution_domain::domain::operating::types::SemanticLookup| {
         let mut case = fixture(OperationKind::RenderSyntax);
         ryo_values::domain::rows::service::push_row(
             &mut case.inputs[0],

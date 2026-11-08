@@ -12,7 +12,7 @@ use crate::application::file_dag::derived::owner::acquisition::population::types
 use crate::application::file_dag::derived::owner::*;
 
 impl DerivedOwner {
-    pub(in crate::application::file_dag) fn scoped_build(
+    pub(crate) fn scoped_build(
         &self,
         route: crate::application::file_dag::route_counts::types::BuildRoute,
         plan: &Arc<DerivedContract>,
@@ -45,7 +45,7 @@ impl DerivedOwner {
             ),
         );
         let semantic_bytes = ryo_derived::domain::footprint::service::working_bytes(&scratch.semantic)
-            .map_err(crate::domain::operator::contract::derived::portable_fault)?
+            .map_err(ryo_execution_domain::domain::operator::contract::derived::portable_fault)?
             .0;
         let scratch_bytes = crate::application::file_dag::derived::ledger::capacity::checked::<
             ryo_relations::domain::relations::types::Value,
@@ -73,7 +73,7 @@ impl DerivedOwner {
         )
     }
 
-    pub(in crate::application::file_dag::derived::owner::acquisition) fn acquire_invocation_with(
+    pub(crate) fn acquire_invocation_with(
         &self,
         plan: &Arc<DerivedContract>,
         admitted: &AdmittedViewInputs<'_>,

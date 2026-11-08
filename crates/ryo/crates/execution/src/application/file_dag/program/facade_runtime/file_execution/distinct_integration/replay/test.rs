@@ -1,6 +1,6 @@
 //! Original scan/transport/key assertions through pure scanning or real compiled execution.
 use super::super::*;
-use crate::domain::{
+use ryo_execution_domain::domain::{
     replay::{service::scan, types::Collect},
     table_scratch::types::OperatorScratch,
 };
@@ -21,11 +21,11 @@ fn files(count: u32) -> Table {
 fn context<T>(run: impl FnOnce(&mut OperatorContext<'_>) -> T) -> T {
     let mut symbols = Symbols::default();
     run(&mut OperatorContext {
-        phase: crate::domain::operating::types::AfterTheFiles::Before,
+        phase: ryo_execution_domain::domain::operating::types::AfterTheFiles::Before,
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
-        matcher: crate::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl),
+        matcher: ryo_execution_domain::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl),
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: ryo_values::domain::files::types::SourceView(SOURCE),

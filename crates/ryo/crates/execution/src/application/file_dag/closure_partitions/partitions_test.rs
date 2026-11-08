@@ -1,6 +1,6 @@
 use super::PartitionedClosure;
 use super::constants::LIVE_PARTITION_VIEW;
-use crate::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_derived::domain::key::types::{ChainLink, HashedRow, KeyCellsHash};
 use ryo_values::domain::rows::types::RowIndex;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
@@ -17,7 +17,7 @@ fn working_cells(closure: &PartitionedClosure<'_>) -> usize {
 }
 
 /// Reserved Value buffers; shared ordering remains charged independently.
-pub(in crate::application::file_dag) fn working_capacity(closure: &PartitionedClosure<'_>) -> usize {
+pub(crate) fn working_capacity(closure: &PartitionedClosure<'_>) -> usize {
     closure.current.as_ref().map_or(0, |_| {
         let current = closure.current().expect(LIVE_PARTITION_VIEW);
         let capacities = ryo_derived::domain::closure_adjacency::service::capacities(current);
@@ -82,7 +82,7 @@ fn interleaved_partitions_keep_one_reused_adjacency() {
     let publication = scope.computed(input.clone()).unwrap();
     let rows = scope
         .resolve(publication.as_ref(), &|_| {
-            Err(crate::domain::operating::errors::OperatingError::NotRead)
+            Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead)
         })
         .unwrap();
     let mut cursor = super::schemas::prepare(
@@ -134,7 +134,7 @@ fn separate_keys_never_share_edges() {
     let publication = scope.computed(input.clone()).unwrap();
     let rows = scope
         .resolve(publication.as_ref(), &|_| {
-            Err(crate::domain::operating::errors::OperatingError::NotRead)
+            Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead)
         })
         .unwrap();
     let mut cursor = super::schemas::prepare(
@@ -177,7 +177,7 @@ fn advancing_releases_only_the_previous_partition_lease() {
     let publication = scope.computed(input.clone()).unwrap();
     let rows = scope
         .resolve(publication.as_ref(), &|_| {
-            Err(crate::domain::operating::errors::OperatingError::NotRead)
+            Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead)
         })
         .unwrap();
     let input_charge = scope.derived().publication_ownership_bytes().0;
@@ -254,7 +254,7 @@ fn empty_order_and_wrong_prepared_order_are_refused_precisely() {
     let publication = scope.computed(input.clone()).unwrap();
     let rows = scope
         .resolve(publication.as_ref(), &|_| {
-            Err(crate::domain::operating::errors::OperatingError::NotRead)
+            Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead)
         })
         .unwrap();
     let cursor = super::schemas::prepare(
@@ -269,16 +269,16 @@ fn empty_order_and_wrong_prepared_order_are_refused_precisely() {
     let mut empty = cursor;
     assert!(matches!(
         empty.current(),
-        Err(crate::domain::operating::errors::OperatingError::NotRun)
+        Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRun)
     ));
     assert_eq!(empty.advance().unwrap(), crate::application::file_dag::closure_partitions::types::PartitionAdvance::Exhausted);
     assert!(matches!(
         empty.current(),
-        Err(crate::domain::operating::errors::OperatingError::NotRun)
+        Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRun)
     ));
     assert!(matches!(
         empty.take_current(),
-        Err(crate::domain::operating::errors::OperatingError::NotRun)
+        Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRun)
     ));
     let wrong_plan = std::sync::Arc::new((*empty.partition_plan).clone());
     assert!(matches!(
@@ -289,7 +289,7 @@ fn empty_order_and_wrong_prepared_order_are_refused_precisely() {
             empty.ordered.clone(),
             std::rc::Rc::clone(&empty.owner),
         ),
-        Err(crate::domain::operating::errors::OperatingError::WrongOperation)
+        Err(ryo_execution_domain::domain::operating::errors::OperatingError::WrongOperation)
     ));
 }
 

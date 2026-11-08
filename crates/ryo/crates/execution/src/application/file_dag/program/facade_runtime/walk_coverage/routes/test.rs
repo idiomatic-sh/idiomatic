@@ -7,13 +7,11 @@ use super::super::fixtures::{
     },
 };
 use super::super::heads::expected;
-use crate::domain::shared_walk::types::walk_route::value::{
+use ryo_execution_domain::domain::shared_walk::types::walk_route::value::{
     WalkBarrier, WalkRoute, source_barrier,
 };
-use crate::{
-    cases::{Case, CaseName, Expect, Word, run},
-    domain::executable_program::types::{InputSource, LogicalInstruction},
-};
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use ryo_execution_domain::domain::executable_program::types::{InputSource, LogicalInstruction};
 use ryo_values::domain::{
     plan_parts::types::{Input as Source, RepeatedRows, StepId, ObservationBindingId},
     plans::{
@@ -115,7 +113,7 @@ fn verify_classifier() -> Result<(), RouteRefusal> {
             },
         ]
     };
-    let observed = [InputSource::Observation(crate::domain::executable_program::types::ObservationPlace(0))];
+    let observed = [InputSource::Observation(ryo_execution_domain::domain::executable_program::types::ObservationPlace(0))];
     for operation in selecting(Source::Step(StepId(0))) {
         if barrier(source_barrier(&operation, &[])) != Route::Dependent
             || barrier(source_barrier(&operation, &observed)) != Route::Observation

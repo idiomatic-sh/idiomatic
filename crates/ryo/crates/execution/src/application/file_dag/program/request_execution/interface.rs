@@ -11,7 +11,7 @@ use crate::application::file_dag::program::file_session::types::FileSession;
 use crate::application::file_dag::program::observation_stage::types::ObservationStage;
 use crate::application::file_dag::program::project_phase::types::ProjectPhase;
 use crate::application::file_dag::program::project_phase::types::FrontierRequest;
-use crate::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use crate::outbound::facts::interface::FactsWorker;
 use ryo_language::domain::symbols::types::Symbols;
 pub trait ExecutionRequest {

@@ -2,12 +2,12 @@
 use crate::application::file_dag::relations::*;
 use crate::application::file_dag::relations::publication::types::ProducerScope;
 impl RelationOwner {
-    pub(in crate::application::file_dag) fn project_identity(
+    pub(crate) fn project_identity(
         &self,
     ) -> Result<PopulationId, OperatingError> {
         self.allocate_population()
     }
-    pub(in crate::application::file_dag::relations) fn allocate_population(
+    pub(crate) fn allocate_population(
         &self,
     ) -> Result<PopulationId, OperatingError> {
         let id = self.next_population.get();
@@ -17,7 +17,7 @@ impl RelationOwner {
         Ok(id)
     }
     /// One canonical DAG producer has one population identity across rules and safe recomputation.
-    pub(in crate::application::file_dag) fn bind_producer(
+    pub(crate) fn bind_producer(
         &self,
         scope: ProducerScope,
         node: RegionId,
@@ -61,16 +61,16 @@ impl RelationOwner {
             .map_err(|_| OperatingError::WrongBinding)?;
         Ok(())
     }
-    pub(in crate::application::file_dag::relations) fn result_population(&self, result: &RelationResult) -> PopulationId {
+    pub(crate) fn result_population(&self, result: &RelationResult) -> PopulationId {
         *result.producer.get().unwrap_or(&result.population)
     }
-    pub(in crate::application::file_dag::relations) fn backing_relation(result: &RelationResult) -> Option<Relation> {
+    pub(crate) fn backing_relation(result: &RelationResult) -> Option<Relation> {
         match &result.body {
             RelationBody::Source(source) => Some(source.relation),
             RelationBody::Computed(_) | RelationBody::Compact(_) => None,
         }
     }
-    pub(in crate::application::file_dag::relations) fn backing_population(&self, result: &RelationResult) -> PopulationId {
+    pub(crate) fn backing_population(&self, result: &RelationResult) -> PopulationId {
         match &result.body {
             RelationBody::Source(source) => {
                 self.sources.borrow().get(&source.relation).map_or_else(
@@ -81,7 +81,7 @@ impl RelationOwner {
             RelationBody::Computed(_) | RelationBody::Compact(_) => self.result_population(result),
         }
     }
-    pub(in crate::application::file_dag) fn pin_derived(&self, result: &RelationResult) {
+    pub(crate) fn pin_derived(&self, result: &RelationResult) {
         let population = self.result_population(result);
         self.derived.pin(population);
         let backing = self.backing_population(result);
@@ -91,7 +91,7 @@ impl RelationOwner {
     }
     /// Read-only evidence for the actual producer in the actual population.
     #[cfg(test)]
-    pub(in crate::application::file_dag) fn producer_view_witness(
+    pub(crate) fn producer_view_witness(
         &self,
         scope: ProducerScope,
         node: RegionId,
@@ -114,10 +114,10 @@ impl RelationOwner {
     }
     /// Global consumer cancellation need not retain the producer payload.
     /// A generation clear has already released all pins and removed this map.
-    pub(in crate::application::file_dag) fn release_derived_producer(
+    pub(crate) fn release_derived_producer(
         &self,
         scope: ProducerScope,
-        node: crate::domain::executable_program::types::RegionId,
+        node: ryo_execution_domain::domain::executable_program::types::RegionId,
     ) {
         if let Some(known) = self
             .producer_populations

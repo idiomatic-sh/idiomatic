@@ -83,7 +83,7 @@ fn opening_and_preparing_one_rule_uses_only_its_reached_metadata_and_preserves_a
     }];
     consumer_plan.emit.step = StepId(0);
     plans.push(consumer_plan);
-    let compiled = crate::domain::prepared_request::service::assemble(
+    let compiled = ryo_execution_domain::domain::prepared_request::service::assemble(
         plans,
         vec![vec![]; rules.len()],
         &rules,
@@ -100,7 +100,7 @@ fn opening_and_preparing_one_rule_uses_only_its_reached_metadata_and_preserves_a
     )
     .unwrap();
     let roots = prepared.file_demand(RuleIndex(0)).unwrap();
-    use crate::domain::executable_program::file_demand::types::{
+    use ryo_execution_domain::domain::executable_program::file_demand::types::{
         FileDemand, FrontierSelection, RootSelection,
     };
     assert_eq!(roots.selected(FileDemand::NONE).readers.len(), 0);

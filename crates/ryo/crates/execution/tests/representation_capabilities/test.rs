@@ -66,7 +66,7 @@ const KINDS: &[&str] = &["Stored", "Tree", "Computed", "Compact"];
 fn production_in(name: &str) -> String {
     fs::read_to_string(
         Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("src/domain/table_model")
+            .join("../execution_domain/src/domain/table_model")
             .join(name),
     )
     .unwrap()
@@ -74,7 +74,7 @@ fn production_in(name: &str) -> String {
 fn production(name: &str) -> String {
     fs::read_to_string(
         Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("src/domain/table_model/collections/representations")
+            .join("../execution_domain/src/domain/table_model/collections/representations")
             .join(name),
     )
     .unwrap()
@@ -99,24 +99,24 @@ pub mod domain {
     pub mod rows {pub mod types {
         pub struct RowIndex(pub usize);
         pub struct RowCount(pub usize);
-        pub struct Table {pub kinds:Vec<crate::domain::relations::types::CellKind>,pub cells:Vec<crate::domain::relations::types::Value>}
+        pub struct Table {pub kinds:Vec<ryo_execution_domain::domain::relations::types::CellKind>,pub cells:Vec<ryo_execution_domain::domain::relations::types::Value>}
     }}
     pub mod table_words {pub mod types {pub struct CompactTable;}}
     pub mod table_cells {pub mod types {#[derive(Clone,Copy)]pub struct TreeRows<'a>(pub &'a());
       #[derive(Clone,Copy,PartialEq,Eq)]pub enum TreeForm {Elements,Edges}}}
     pub mod table_model {
         pub mod types {
-          use crate::domain::relations::types::{CellKind,ColumnsView};
-          use crate::domain::plan_parts::types::ColumnIndex;
-          use crate::domain::table_cells::types::TreeRows;
-          use crate::domain::rows::types::Table;
+          use ryo_execution_domain::domain::relations::types::{CellKind,ColumnsView};
+          use ryo_execution_domain::domain::plan_parts::types::ColumnIndex;
+          use ryo_execution_domain::domain::table_cells::types::TreeRows;
+          use ryo_execution_domain::domain::rows::types::Table;
           __INPUT__
           pub mod registered_representation {pub mod value {__VALUE__}}
         }
         pub mod collections {pub mod representations {
-            use crate::domain::{operating::errors::OperatingError,relations::types::Value,rows::types::{RowCount,RowIndex},plan_parts::types::ColumnIndex};
+            use ryo_execution_domain::domain::{operating::errors::OperatingError,relations::types::Value,rows::types::{RowCount,RowIndex},plan_parts::types::ColumnIndex};
             use self::types::*;
-            use crate::domain::table_model::types::RepresentationInput;
+            use ryo_execution_domain::domain::table_model::types::RepresentationInput;
             pub mod interface {__INTERFACE__}
             pub mod types {__TYPES__}
             pub mod stored {pub mod item {pub(crate) use super::super::Legitimate as StoredItem;}}
@@ -306,8 +306,8 @@ pub mod domain {
 pub mod application {pub mod file_dag {
   pub mod relations {
     pub mod publication {pub mod types {
-      use crate::domain::operating::errors::OperatingError;
-      use crate::domain::table_model::{types::{Table,PublishedRelation},collections::representations::types::PhysicalShape};
+      use ryo_execution_domain::domain::operating::errors::OperatingError;
+      use ryo_execution_domain::domain::table_model::{types::{Table,PublishedRelation},collections::representations::types::PhysicalShape};
       use std::sync::{Arc,OnceLock};
       #[derive(Clone,Copy,Debug,PartialEq,Eq)]pub struct PopulationId(pub usize);
       #[derive(Clone,Copy,Debug)]pub(in crate::application::file_dag) enum ProducerScope {File}
@@ -320,19 +320,19 @@ pub mod application {pub mod file_dag {
       use std::sync::{Arc,OnceLock};
       publication::types::RelationResult{population:publication::types::PopulationId(0),producer:OnceLock::new(),producer_scope:OnceLock::new(),generation:Arc::new(()),
         body:publication::types::RelationBody::Computed(Arc::new(Default::default())),
-        inspected:OnceLock::from(Ok(crate::domain::table_model::collections::representations::types::PhysicalShape::Complete)),normalized:OnceLock::new()}
+        inspected:OnceLock::from(Ok(ryo_execution_domain::domain::table_model::collections::representations::types::PhysicalShape::Complete)),normalized:OnceLock::new()}
     }
   }
   pub mod peer {
     use crate::application::file_dag::relations::publication::types::RelationResult;
-    use crate::domain::table_model::{types::{Table,PublishedRelation},collections::representations::types::PhysicalShape};
+    use ryo_execution_domain::domain::table_model::{types::{Table,PublishedRelation},collections::representations::types::PhysicalShape};
     use std::sync::{Arc,OnceLock};
     fn legitimate(){let record=super::relations::control();let _=format!("{record:?}");}
     __CLIENT__
   }
 }}
 "#
-    .replace("__TRAIT__", &declaration(&published, "pub(crate) trait PublishedRelation"))
+    .replace("__TRAIT__", &declaration(&published, "pub trait PublishedRelation"))
     .replace("__RESULT__", &declaration(&record, "pub(crate) struct RelationResult"))
 }
 

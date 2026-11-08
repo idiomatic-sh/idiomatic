@@ -2,7 +2,7 @@
 use super::super::super::*;
 use super::sources::Sources;
 use crate::application::file_dag::acceptance::operator_contract_test::fixtures;
-use crate::domain::executable_program::fusion::types::Fusibility;
+use ryo_execution_domain::domain::executable_program::fusion::types::Fusibility;
 use ryo_language::domain::symbols::service::query_intern_derived;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_relations::domain::terms::types::NameText;

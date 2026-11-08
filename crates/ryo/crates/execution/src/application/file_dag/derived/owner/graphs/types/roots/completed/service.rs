@@ -10,10 +10,10 @@ use crate::application::file_dag::derived::{
     },
     owner::DerivedOwner,
 };
-use crate::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use std::sync::Arc;
 
-pub(in crate::application::file_dag::derived::owner) fn completed(
+pub(crate) fn completed(
     owner: &DerivedOwner,
     graph: &GraphEntry,
     rows: Arc<ReachedVertices>,

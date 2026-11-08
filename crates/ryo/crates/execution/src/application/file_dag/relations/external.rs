@@ -1,9 +1,9 @@
 //! Explicit demanded source/external admission, never an internal-publication fallback.
 use super::*;
-use crate::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 impl RelationOwner {
     #[cfg(test)]
-    pub(in crate::application::file_dag) fn admit_relation<'a>(
+    pub(crate) fn admit_relation<'a>(
         &self,
         relation: Relation,
         rows: RepresentationInput<'a>,

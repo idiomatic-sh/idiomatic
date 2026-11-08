@@ -1,6 +1,6 @@
 //! Fusion across an owner-issued identity is refused; equal Extends of two rules compute once.
 use super::super::fixtures::operations::{corpus::compile_program, heads::FUNCTION};
-use crate::domain::executable_program::{
+use ryo_execution_domain::domain::executable_program::{
     fusion::types::{Barrier, Fusibility, Ineligible},
     types::{executable_program::value::ExecutableProgram, LogicalInstruction},
 };

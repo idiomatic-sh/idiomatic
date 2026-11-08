@@ -43,7 +43,7 @@ use ryo_values::domain::rows::types::RowCount;
 use ryo_values::domain::rows::types::Table;
 use crate::application::file_dag::program::prepared_execution::service::prepare;
 use crate::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
-use crate::domain::prepared_request::types::ObservationIdentity;
+use ryo_execution_domain::domain::prepared_request::types::ObservationIdentity;
 use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::query_bindings::types::ParameterBinding;

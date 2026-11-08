@@ -1,9 +1,8 @@
 //! Data of a validated restored frontier; behaviour lives beside it in `restored.rs`.
 use crate::application::file_dag::program::admission::ProducerRoot;
 use crate::application::file_dag::program::admission::RequiredPartitions;
-use crate::{
-    domain::completion::types::CoverageState, domain::executable_program::types::executable_program::value::ExecutableProgram,
-};
+use ryo_execution_domain::domain::completion::types::CoverageState;
+use ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram;
 use ryo_relations::domain::relations::types::CellKind;
 use std::sync::Arc;
 

@@ -5,26 +5,26 @@ use crate::application::file_dag::program::facade_runtime::project_execution::Pr
 use crate::application::file_dag::program::facade_runtime::source_admission::ProjectSources;
 use crate::application::file_dag::program::facade_runtime::source_admission::SourceInputs;
 use crate::application::file_dag::program::facade_runtime::source_admission::table_of;
-use crate::domain::rule_intent::types::EmitDemand;
-use crate::domain::rule_intent::types::ObservationDemand;
+use ryo_execution_domain::domain::rule_intent::types::EmitDemand;
+use ryo_execution_domain::domain::rule_intent::types::ObservationDemand;
 use crate::application::file_dag::program::observed_publication::types::ObservedPublication;
 use crate::application::file_dag::program::rule_outcome::types::ProjectObservation;
 use crate::application::file_dag::program::rule_outcome::types::RuleOutcome;
 use crate::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome;
 use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
-use crate::domain::rule_intent::types::RuleDemand;
-use crate::domain::coverage::types::RuleIndex;
-use crate::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
+use ryo_execution_domain::domain::coverage::types::RuleIndex;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use rustc_hash::FxHashMap;
 use std::rc::Rc;
 
 impl ProjectRun<'_> {
-    pub(in crate::application::file_dag::program::facade_runtime::project_execution) fn deliver(
+    pub(crate) fn deliver(
         &mut self,
         state: &crate::application::file_dag::program::runtime::service::RuntimeState,
         rule: RuleIndex,
         demand: RuleDemand,
-        roots: &[crate::domain::executable_program::types::RegionId],
+        roots: &[ryo_execution_domain::domain::executable_program::types::RegionId],
         symbols: &mut ryo_language::domain::symbols::types::Symbols,
     ) -> Result<RuleOutcome<ProjectOutputOutcome>, OperatingError> {
         let completion = self.completion(rule)?;
@@ -125,15 +125,15 @@ impl ProjectRun<'_> {
                         {
                             Ok((
                                 table,
-                                crate::domain::completion::types::CoverageState::Complete,
+                                ryo_execution_domain::domain::completion::types::CoverageState::Complete,
                             )) => ProjectObservation::Complete {
                                 table,
                                 publication: ObservedPublication::from_admitted(input),
                             },
                             Ok((
                                 table,
-                                crate::domain::completion::types::CoverageState::Partial { .. }
-                                | crate::domain::completion::types::CoverageState::Inapplicable {
+                                ryo_execution_domain::domain::completion::types::CoverageState::Partial { .. }
+                                | ryo_execution_domain::domain::completion::types::CoverageState::Inapplicable {
                                     ..
                                 },
                             )) => ProjectObservation::Partial {

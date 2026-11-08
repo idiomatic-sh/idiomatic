@@ -1,15 +1,15 @@
 //! Sole admitted acquisition and resource-lifetime boundary for every derived kind.
-pub(in crate::application::file_dag) mod semantics;
-pub(in crate::application::file_dag) mod service;
+pub(crate) mod semantics;
+pub(crate) mod service;
 
-pub(in crate::application::file_dag::derived::owner) mod scoped;
+pub(crate) mod scoped;
 
-pub(in crate::application::file_dag) mod population;
+pub(crate) mod population;
 
-pub(in crate::application::file_dag::derived::owner) mod graph;
+pub(crate) mod graph;
 
 
-pub(in crate::application::file_dag) mod admission;
+pub(crate) mod admission;
 
 #[cfg(test)]
-pub(in crate::application::file_dag) mod family;
+pub(crate) mod family;

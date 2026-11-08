@@ -1,11 +1,11 @@
 //! Touched population release and reusable metadata lifetime.
 use super::*;
 impl DerivedOwner {
-    pub(in crate::application::file_dag) fn pin(&self, population: PopulationId) {
+    pub(crate) fn pin(&self, population: PopulationId) {
         let mut state = self.state.borrow_mut();
         *state.pins.entry(population).or_default() += 1_usize;
     }
-    pub(in crate::application::file_dag) fn release(&self, population: PopulationId) {
+    pub(crate) fn release(&self, population: PopulationId) {
         let mut state = self.state.borrow_mut();
         let Some(count) = state.pins.get_mut(&population) else {
             return;
@@ -57,7 +57,7 @@ impl DerivedOwner {
         );
     }
     /// Population mutation ends every identity and every owned view before provider refill.
-    pub(in crate::application::file_dag) fn clear(&self) {
+    pub(crate) fn clear(&self) {
         self.file_prepared.set(FilePreparation::Unprepared);
         let mut state = self.state.borrow_mut();
         state.entries.clear();

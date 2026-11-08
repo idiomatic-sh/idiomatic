@@ -3,10 +3,10 @@
 use super::super::super::fixtures;
 use crate::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
 use crate::application::file_dag::acceptance::operator_contract_test::fixtures::values::KnownSyntax;
-use crate::domain::operating::errors::OperatingError;
-use crate::domain::operation_schema::fixtures::{bindings, operations, tables};
-use crate::domain::operation_schema::service::schema_of;
-use crate::domain::operation_schema::types::InputShape;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operation_schema::fixtures::{bindings, operations, tables};
+use ryo_execution_domain::domain::operation_schema::service::schema_of;
+use ryo_execution_domain::domain::operation_schema::types::InputShape;
 use ryo_language::domain::symbols::{
     service::intern_derived,
     types::{ByteSlice, Symbols},

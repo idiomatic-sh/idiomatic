@@ -2,11 +2,11 @@
 use super::{
     derived::owner::acquisition::admission::service::AcquiredView, relations::RelationOwner,
 };
-use crate::domain::{
+use ryo_execution_domain::domain::{
     derived_views::types::{contract::value::DerivedContract, DerivedInputs, DerivedScratch, ViewRequest},
     operating::errors::OperatingError,
 };
-use crate::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_derived::domain::closure_adjacency::types::ClosurePartition;
 use ryo_relations::domain::relations::types::Value;
 use std::{rc::Rc, sync::Arc};
@@ -28,7 +28,7 @@ pub(crate) struct PartitionedClosure<'f> {
     scratch: DerivedScratch,
 }
 impl<'f> PartitionedClosure<'f> {
-    pub(in crate::application::file_dag) fn advance(&mut self) -> Result<PartitionAdvance, OperatingError> {
+    pub(crate) fn advance(&mut self) -> Result<PartitionAdvance, OperatingError> {
         let ryo_derived::domain::contract::types::DerivedView::PartitionOrder(order) =
             self.ordered.view()?
         else {
@@ -88,7 +88,7 @@ impl<'f> PartitionedClosure<'f> {
         )?);
         Ok(PartitionAdvance::Advanced)
     }
-    pub(in crate::application::file_dag) fn take_current(
+    pub(crate) fn take_current(
         &mut self,
     ) -> Result<AcquiredView, OperatingError> {
         self.current.take().ok_or(OperatingError::NotRun)
@@ -105,9 +105,9 @@ impl<'f> PartitionedClosure<'f> {
 }
 
 #[cfg(test)]
-pub(in crate::application::file_dag) mod partitions_test;
+pub(crate) mod partitions_test;
 mod constants;
-pub(in crate::application::file_dag) mod schemas;
-pub(in crate::application::file_dag) mod types;
+pub(crate) mod schemas;
+pub(crate) mod types;
 use types::{PartitionAdvance, OrderCursor};
 

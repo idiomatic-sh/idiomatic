@@ -6,11 +6,11 @@ use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
 use ryo_operators::domain::contract::types::PortableOperatorFault;
 use std::sync::atomic::{AtomicUsize, Ordering};
-pub(in super::super) const REFUSAL: u32 = 60001;
+pub(crate) const REFUSAL: u32 = 60001;
 #[derive(Debug, Default)]
-pub(in super::super) struct Witness {
-    pub(in super::super) calls: AtomicUsize,
-    pub(in super::super) refuse: bool,
+pub(crate) struct Witness {
+    pub(crate) calls: AtomicUsize,
+    pub(crate) refuse: bool,
 }
 impl crate::outbound::operators::interface::OperatorsPort for Witness {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {

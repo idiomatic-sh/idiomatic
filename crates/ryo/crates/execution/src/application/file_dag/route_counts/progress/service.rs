@@ -4,7 +4,7 @@ use std::time::Instant;
 use ryo_language::domain::files::types::FilePath;
 use ryo_relations::domain::relations::types::Value;
 
-use crate::domain::operator::contract::views::{ProgressAmount, ProgressCounter};
+use ryo_execution_domain::domain::operator::contract::views::{ProgressAmount, ProgressCounter};
 
 use super::super::constants::{self, MAX_KEYS};
 use super::super::profile::service::with_state;
@@ -221,7 +221,7 @@ pub(crate) fn flush(profile: &RouteProfile, stage: RouteLabel) {
 }
 
 /// The file's profile as the observer a primitive reports its progress to.
-impl crate::domain::operator::contract::views::ProgressObserver for RouteProfile {
+impl ryo_execution_domain::domain::operator::contract::views::ProgressObserver for RouteProfile {
     fn observe(&self, counter: ProgressCounter, amount: ProgressAmount) {
         progress(self, counter, amount);
     }

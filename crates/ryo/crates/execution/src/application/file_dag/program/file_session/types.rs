@@ -1,9 +1,9 @@
 //! One file session: the input it is opened with and what it answers.
-use crate::domain::coverage::types::Partial;
-use crate::domain::kind_sets::types::vocabulary::value::PreparedVocabulary;
-use crate::domain::operating::errors::OperatingError;
-use crate::domain::operating::types::SemanticLookup;
-use crate::domain::rule_intent::types::FileRuleIntent;
+use ryo_execution_domain::domain::coverage::types::Partial;
+use ryo_execution_domain::domain::kind_sets::types::vocabulary::value::PreparedVocabulary;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operating::types::SemanticLookup;
+use ryo_execution_domain::domain::rule_intent::types::FileRuleIntent;
 use crate::outbound::facts::types::ResidentStability;
 use std::sync::Arc;
 /// Physical provider data; execution-owned projections and publications cannot be supplied here.
@@ -66,7 +66,7 @@ pub struct FileFinished {
 /// Output storage only; source file and rule digest come from the bound session.
 pub struct CaptureContext<'a> {
     pub worker: ryo_relations::domain::relations::types::WorkerNumber,
-    pub arena: crate::domain::finish::types::Arena<'a>,
+    pub arena: ryo_execution_domain::domain::finish::types::Arena<'a>,
     pub places: &'a mut Vec<ryo_relations::domain::relations::types::NamePlace>,
     pub words: &'a mut ryo_relations::domain::relations::types::Words,
 }
@@ -95,8 +95,8 @@ pub enum FileStop {
 pub enum RuleAfter {
     /// Its frontiers were captured, the kept ones kept and committed, and its steps counted.
     Ran {
-        captures: Vec<crate::domain::frontier_capture::types::FrontierCapture>,
-        fed: Box<[crate::domain::operator::types::RowsFed]>,
+        captures: Vec<ryo_execution_domain::domain::frontier_capture::types::FrontierCapture>,
+        fed: Box<[ryo_execution_domain::domain::operator::types::RowsFed]>,
     },
     /// The emitted root failed, so the file stops at it.
     Unreached,
@@ -112,7 +112,7 @@ pub enum EmittedRoot {
 }
 /// What one rule of a file came to, in the order it ran.
 pub struct RanRule {
-    pub rule: crate::domain::coverage::types::RuleIndex,
+    pub rule: ryo_execution_domain::domain::coverage::types::RuleIndex,
     pub emit: EmittedRoot,
     pub after: RuleAfter,
 }
@@ -133,7 +133,7 @@ pub struct FileRules {
 /// Where a rule of a file runs: the rule, the file and the first frontier bucket of every rule.
 #[derive(Clone, Copy)]
 pub struct RuleFile<'a> {
-    pub rule: crate::domain::coverage::types::RuleIndex,
+    pub rule: ryo_execution_domain::domain::coverage::types::RuleIndex,
     pub file: ryo_relations::domain::relations::types::FileId,
     pub first: &'a [ryo_values::domain::stored_facts::types::Bucket],
 }

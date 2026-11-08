@@ -6,20 +6,20 @@ use crate::application::file_dag::program::runtime::service::ProgramExecution;
 use crate::application::file_dag::program::runtime::types::InvocationFailure;
 use crate::application::file_dag::program::runtime::types::KernelInput;
 use crate::application::file_dag::program::runtime::types::KernelScratch;
-use crate::domain::completion::types::completion_policy::value::CompletionPolicy;
-use crate::domain::executable_program::types::instruction::value::Instruction;
-use crate::domain::executable_program::types::RegionId;
-use crate::domain::operating::errors::OperatingError;
-use crate::domain::operating::types::Emit;
-use crate::domain::operating::types::OperatorContext;
+use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
+use ryo_execution_domain::domain::executable_program::types::instruction::value::Instruction;
+use ryo_execution_domain::domain::executable_program::types::RegionId;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operating::types::Emit;
+use ryo_execution_domain::domain::operating::types::OperatorContext;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{FileId, Integer, Value};
 use std::{
     cell::{Cell, RefCell},
     rc::Rc};
 use {
-    crate::domain::coverage::types::RuleIndex,
-    crate::domain::table_scratch::types::OperatorScratch,
+    ryo_execution_domain::domain::coverage::types::RuleIndex,
+    ryo_execution_domain::domain::table_scratch::types::OperatorScratch,
     ryo_values::domain::files::types::SourceView};
 
 #[derive(Clone, Copy)]
@@ -66,7 +66,7 @@ impl KernelInvocation for RuntimeProbe {
     }
     fn ordered(
         &self,
-        _: &crate::domain::executable_program::types::OrderedExistence,
+        _: &ryo_execution_domain::domain::executable_program::types::OrderedExistence,
         _: &crate::application::file_dag::program::runtime::service::KernelPermit<'_>,
         _: &AdmittedInput,
         _: &mut OperatorContext<'_>,
@@ -184,13 +184,13 @@ impl Emit for Sink {
 pub(super) fn context<'a>(
     symbols: &'a mut Symbols,
     scratch: &'a mut OperatorScratch,
-    memo: &'a mut Vec<crate::domain::operating::types::Memo>,
+    memo: &'a mut Vec<ryo_execution_domain::domain::operating::types::Memo>,
 ) -> OperatorContext<'a> {
     OperatorContext {
-        phase: crate::domain::operating::types::AfterTheFiles::Before,
+        phase: ryo_execution_domain::domain::operating::types::AfterTheFiles::Before,
         semantic: None,
         prepared_matchers: None,
-        matcher: crate::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl),
+        matcher: ryo_execution_domain::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl),
         prepared_kinds: None,
         bindings: &[],
         symbols: symbols.into(),

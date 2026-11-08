@@ -4,7 +4,7 @@ use super::constants::{
 };
 use super::errors::RuleCompilationError;
 use super::types::{CachedPlan, PlanCache};
-use crate::domain::prepared_request::types::Compiled;
+use ryo_execution_domain::domain::prepared_request::types::Compiled;
 use crate::outbound::query_language::errors::QueryLanguageError;
 use crate::outbound::query_language::interface::QueryLanguagePort;
 use ryo_values::domain::hosted::service::declarations;
@@ -25,7 +25,7 @@ pub struct CompiledPlans(pub(super) Arc<Mutex<PlanCache>>);
 
 /// Request preparation retains its graph privately; callers may inspect source plans only.
 pub struct CompiledQueries {
-    pub(crate) inner: crate::domain::prepared_request::types::Compiled,
+    pub(crate) inner: ryo_execution_domain::domain::prepared_request::types::Compiled,
 }
 
 /// One cohesive compiler operation, sharing only bounded immutable plans across invocations.
@@ -70,8 +70,8 @@ impl RuleCompilation {
     ) -> Result<Compiled, RuleCompilationError> {
         check_ids(rules)?;
         let declared = declarations(hosted);
-        let schedule = crate::domain::file_program::service::observations::schedule(rules)?;
-        if let crate::domain::file_program::types::RuleSchedule::Dependencies { order, .. } =
+        let schedule = ryo_execution_domain::domain::file_program::service::observations::schedule(rules)?;
+        if let ryo_execution_domain::domain::file_program::types::RuleSchedule::Dependencies { order, .. } =
             &schedule
         {
             let mut plans: Vec<Option<ryo_values::domain::plans::types::Plan>> =
@@ -80,7 +80,7 @@ impl RuleCompilation {
             let mut observations = vec![Vec::new(); rules.len()];
             for index in order {
                 let rule = &rules[index.0];
-                let schemas = crate::domain::file_program::service::observations::schemas(
+                let schemas = ryo_execution_domain::domain::file_program::service::observations::schemas(
                     rule, rules, &plans,
                 )?;
                 let plan = self.compile_one(rule, &declared, &schemas.schemas)?;
@@ -127,7 +127,7 @@ impl RuleCompilation {
         hosted: &[HostRelation],
     ) -> Result<Compiled, RuleCompilationError> {
         let mut compiled = self.compile(rules, hosted)?;
-        let linked = crate::domain::file_program::service::link::link(
+        let linked = ryo_execution_domain::domain::file_program::service::link::link(
             std::mem::take(&mut compiled.plans),
             std::mem::take(&mut compiled.observations),
         )?;
@@ -135,7 +135,7 @@ impl RuleCompilation {
         compiled.observations = linked.bindings;
         // Scheduling independence does not erase the per-rule producer declarations.
         if compiled.observations.iter().all(Vec::is_empty) {
-            compiled.schedule = crate::domain::file_program::types::RuleSchedule::Independent;
+            compiled.schedule = ryo_execution_domain::domain::file_program::types::RuleSchedule::Independent;
         }
         Ok(compiled)
     }

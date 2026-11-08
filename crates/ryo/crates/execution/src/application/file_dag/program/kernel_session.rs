@@ -4,16 +4,14 @@ use crate::application::file_dag::program::runtime::service::KernelPermit;
 use crate::application::file_dag::program::runtime::types::InvocationFailure;
 use crate::application::file_dag::program::runtime::types::KernelInput;
 use crate::application::file_dag::program::runtime::types::KernelScratch;
-use crate::{
-    application::file_dag::{executor::PrimitiveExecutor, relations::RelationOwner},
-    domain::{
-        executable_program::types::instruction::value::Instruction,
-        operating::{
-            errors::OperatingError,
-            types::{Emit, OperatorContext},
-        },
-        table_model::types::Rows,
+use crate::application::file_dag::{executor::PrimitiveExecutor, relations::RelationOwner};
+use ryo_execution_domain::domain::{
+    executable_program::types::instruction::value::Instruction,
+    operating::{
+        errors::OperatingError,
+        types::{Emit, OperatorContext},
     },
+    table_model::types::Rows,
 };
 use ryo_relations::domain::relations::types::Relation;
 use std::rc::Rc;
@@ -73,7 +71,7 @@ impl KernelInvocation for KernelSession<'_, '_> {
     }
     fn ordered(
         &self,
-        shape: &crate::domain::executable_program::types::OrderedExistence,
+        shape: &ryo_execution_domain::domain::executable_program::types::OrderedExistence,
         permit: &KernelPermit<'_>,
         input: &super::admission::AdmittedInput,
         context: &mut OperatorContext<'_>,

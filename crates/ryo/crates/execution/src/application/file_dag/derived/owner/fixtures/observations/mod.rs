@@ -2,11 +2,11 @@
 use crate::application::file_dag::derived::owner::*;
 use ryo_relations::domain::relations::types::Relation;
 #[derive(Clone, Copy, Debug, Default)]
-pub(in crate::application::file_dag) struct IndexObservation {
+pub(crate) struct IndexObservation {
     pub available: bool,
 }
 impl DerivedOwner {
-    pub(in crate::application::file_dag) fn scoped_observation(
+    pub(crate) fn scoped_observation(
         &self,
     ) -> (usize, Weak<DerivedStorage>) {
         (
@@ -26,7 +26,7 @@ impl DerivedOwner {
             graph_early_stops: cache.graph_counts.early_stops.0,
         }
     }
-    pub(in crate::application::file_dag) fn index_observation(&self) -> IndexObservation {
+    pub(crate) fn index_observation(&self) -> IndexObservation {
         self.backend
             .borrow()
             .as_ref()
@@ -34,14 +34,14 @@ impl DerivedOwner {
                 available: true,
             })
     }
-    pub(in crate::application::file_dag) fn relation_eligible(&self, relation: Relation) -> bool {
+    pub(crate) fn relation_eligible(&self, relation: Relation) -> bool {
         self.backend
             .borrow()
             .as_ref()
             .is_some_and(|cache| cache.eligible.contains(&relation))
     }
 
-    pub(in crate::application::file_dag) fn no_invocation_index_handles(&self) -> bool {
+    pub(crate) fn no_invocation_index_handles(&self) -> bool {
         self.state.borrow().entries.values().all(|entry| {
             if entry._plan.kind != DerivedKind::Equality {
                 return true;
@@ -52,7 +52,7 @@ impl DerivedOwner {
         })
     }
 
-    pub(in crate::application::file_dag::derived::owner) fn first_index_weak(
+    pub(crate) fn first_index_weak(
         &self,
     ) -> Option<Weak<ryo_derived::domain::equality::types::KeyIndex>> {
         self.state.borrow().entries.values().find_map(|entry| {
@@ -66,13 +66,13 @@ impl DerivedOwner {
                 .map(|index| Arc::downgrade(&index.0))
         })
     }
-    pub(in crate::application::file_dag) fn shared_index_backings(&self) -> usize {
+    pub(crate) fn shared_index_backings(&self) -> usize {
         self.ledger
             .borrow()
             .backing_count(crate::application::file_dag::derived::ledger::types::BackingTag(11))
             .0
     }
-    pub(in crate::application::file_dag) fn publication_ownership_bytes(
+    pub(crate) fn publication_ownership_bytes(
         &self,
     ) -> (usize, usize, usize) {
         let state = self.ledger.borrow().snapshot();
@@ -84,7 +84,7 @@ impl DerivedOwner {
     }
     /// The observation follows one qualified producer's admitted populations.
     /// Ambiguous matching requirements are refused rather than picking a view.
-    pub(in crate::application::file_dag) fn population_view_witness(
+    pub(crate) fn population_view_witness(
         &self,
         populations: &[PopulationId],
         kind: DerivedKind,
@@ -109,7 +109,7 @@ impl DerivedOwner {
         }
         Ok(witness)
     }
-    pub(in crate::application::file_dag) fn view_witness(
+    pub(crate) fn view_witness(
         &self,
         kind: DerivedKind,
     ) -> Option<crate::application::file_dag::derived::owner::witness::service::BackingWitness>

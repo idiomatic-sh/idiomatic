@@ -1,7 +1,7 @@
 //! Reentrant delivery and retry use one genuine prepared program and file owner.
 use super::super::cases::test::table_of;
 use super::super::*;
-use crate::domain::operating::types::Memo;
+use ryo_execution_domain::domain::operating::types::Memo;
 use ryo_values::domain::plan_parts::types::{Operand, PlanComparison, QueryLiteral, Test};
 
 struct Callback<'a>(
@@ -20,7 +20,7 @@ impl RowSink for Callback<'_> {
 struct DeliveryLookup {
     calls: Counter<usize>,
 }
-impl crate::domain::operating::types::SemanticLookup for DeliveryLookup {
+impl ryo_execution_domain::domain::operating::types::SemanticLookup for DeliveryLookup {
     fn render_batch(
         &self,
         requests: &[ryo_language::domain::semantics::types::RenderRequest],

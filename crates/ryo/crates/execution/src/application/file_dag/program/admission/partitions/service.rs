@@ -4,7 +4,7 @@ use super::super::{
     RequiredPartitions,
 };
 use crate::application::file_dag::relations::RelationOwner;
-use crate::domain::{
+use ryo_execution_domain::domain::{
     coverage::types::RuleIndex, operating::errors::OperatingError,
     rule_intent::types::ApplicabilityReason,
 };
@@ -12,7 +12,7 @@ use ryo_relations::domain::relations::types::FileId;
 use std::sync::Arc;
 
 impl FileGeneration {
-    pub(in crate::application::file_dag::program) fn matches(
+    pub(crate) fn matches(
         &self,
         expected: &Self,
         generation: &Arc<()>,
@@ -26,10 +26,10 @@ impl FileGeneration {
             Agreement::Different
         }
     }
-    pub(in crate::application::file_dag::program) fn file(&self) -> FileId {
+    pub(crate) fn file(&self) -> FileId {
         self.file
     }
-    pub(in crate::application::file_dag::program) fn from_owner(
+    pub(crate) fn from_owner(
         file: FileId,
         owner: &RelationOwner,
     ) -> Self {
@@ -41,10 +41,10 @@ impl FileGeneration {
 }
 
 impl RequiredPartitions {
-    pub(in crate::application::file_dag::program) fn from_request(
+    pub(crate) fn from_request(
         request: &Arc<crate::application::file_dag::program::request_identity::RequestIdentity>,
         files: &[ryo_values::domain::files::types::CorpusInput],
-        covered: &[crate::domain::coverage::types::Covered],
+        covered: &[ryo_execution_domain::domain::coverage::types::Covered],
         skipped: &[ryo_values::domain::runs::types::Skipped],
         inapplicable: &[FileId],
     ) -> Result<Self, OperatingError> {
@@ -76,7 +76,7 @@ impl RequiredPartitions {
     }
     /// An explicit syntax rejection discharges transport, never completeness.
     /// Missing, unreadable, or unknown files cannot acquire this evidence.
-    pub(in crate::application::file_dag) fn skipped_files(
+    pub(crate) fn skipped_files(
         &self,
         program: &crate::application::file_dag::program::preparation::types::PreparedProgram,
         rule: RuleIndex,
@@ -100,15 +100,15 @@ impl RequiredPartitions {
         }
         Ok(files)
     }
-    pub(in crate::application) fn files(&self) -> &[FileId] {
+    pub(crate) fn files(&self) -> &[FileId] {
         &self.files
     }
     /// The files the edge named as having no frame for the rule: ungoverned, or read by no language.
-    pub(in crate::application) fn inapplicable(&self) -> &[FileId] {
+    pub(crate) fn inapplicable(&self) -> &[FileId] {
         &self.inapplicable
     }
     /// The project identity alone, as a shared execution holds it: no rule's evidence.
-    pub(in crate::application::file_dag::program) fn identity(&self) -> Self {
+    pub(crate) fn identity(&self) -> Self {
         Self {
             inapplicable: Box::new([]),
             ..self.clone()
@@ -117,7 +117,7 @@ impl RequiredPartitions {
 }
 
 impl Partition {
-    pub(in crate::application::file_dag::program) fn require_supply(
+    pub(crate) fn require_supply(
         &self,
         required: &Self,
     ) -> Result<(), OperatingError> {
@@ -126,7 +126,7 @@ impl Partition {
             PartitionSupply::Lacks => Err(OperatingError::NotRead),
         }
     }
-    pub(in crate::application::file_dag::program) fn supplies(
+    pub(crate) fn supplies(
         &self,
         required: &Self,
     ) -> PartitionSupply {
@@ -149,7 +149,7 @@ impl Partition {
 impl RequiredPartitions {
     /// Whether both name one project identity; the files a rule has no frame for are that rule's
     /// own evidence and are not compared.
-    pub(in crate::application::file_dag) fn same_request(&self, other: &Self) -> Agreement {
+    pub(crate) fn same_request(&self, other: &Self) -> Agreement {
         if self == other {
             Agreement::Same
         } else {
@@ -159,7 +159,7 @@ impl RequiredPartitions {
 }
 
 impl ApplicabilityProof {
-    pub(in crate::application::file_dag::program) fn for_file(
+    pub(crate) fn for_file(
         producer: RuleIndex,
         file: FileId,
         reason: ApplicabilityReason,

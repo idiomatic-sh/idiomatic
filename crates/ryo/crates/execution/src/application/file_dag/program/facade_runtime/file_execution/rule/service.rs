@@ -10,17 +10,17 @@ use crate::application::file_dag::program::facade_runtime::file_execution::readi
 use crate::application::file_dag::program::facade_runtime::source_admission::SourceInputs;
 use crate::application::file_dag::program::facade_runtime::source_admission::observation_table;
 use crate::application::file_dag::program::facade_runtime::types::DeclaredIntent;
-use crate::domain::rule_intent::types::DiagnosticDelivery;
-use crate::domain::rule_intent::types::EmitDemand;
-use crate::domain::rule_intent::types::ObservationDemand;
+use ryo_execution_domain::domain::rule_intent::types::DiagnosticDelivery;
+use ryo_execution_domain::domain::rule_intent::types::EmitDemand;
+use ryo_execution_domain::domain::rule_intent::types::ObservationDemand;
 use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
-use crate::domain::rule_intent::types::RuleDemand;
+use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
 use crate::application::file_dag::program::rule_outcome::types::RuleOutcome;
 use crate::application::file_dag::scope::ScopePartials;
-use crate::domain::completion::types::completion_policy::value::CompletionPolicy;
-use crate::domain::coverage::types::RuleIndex;
-use crate::domain::operating::errors::OperatingError;
-use crate::domain::table_model::types::Rows;
+use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
+use ryo_execution_domain::domain::coverage::types::RuleIndex;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::table_model::types::Rows;
 use ryo_relations::domain::relations::types::Relation;
 use std::rc::Rc;
 
@@ -145,7 +145,7 @@ impl FileRun<'_> {
                     continue;
                 }
                 let result = if completion.observation_admission(&root.reads)
-                    == crate::domain::completion::types::ObservationAdmission::Ready
+                    == ryo_execution_domain::domain::completion::types::ObservationAdmission::Ready
                 {
                     root.source.clone().and_then(|source| {
                         sources.admit_source(
