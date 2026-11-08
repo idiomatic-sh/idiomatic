@@ -23,7 +23,6 @@ use crate::domain::crossing::service::partials_for_reads;
 use crate::domain::render::types::Answering;
 use crate::outbound::corpus::interface::CorpusPort;
 use ryo_execution::inbound::use_cases::publication::interface::PublicationUseCase;
-use ryo_execution::inbound::use_cases::execution::interface::InputReadiness;
 use ryo_execution::inbound::use_cases::execution::interface::{AdmittedOutput, RuleSelection};
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationExecution;
@@ -50,7 +49,7 @@ use std::sync::Arc;
 /// Cross-file work sharing the caller's corpus resource.
 pub struct CrossFile {
     /// Renders each phase's answer and packs its publications.
-    completion: ProjectCompletion,
+    pub(super) completion: ProjectCompletion,
 }
 
 impl std::fmt::Debug for CrossFile {
@@ -307,21 +306,8 @@ fn prepare_project(
     symbols: &mut Symbols,
     todo: &Todo,
 ) -> Result<PreparedProject, CrossFileError> {
-    let readiness = stage.binding_readiness(todo.rule)?;
-    let dependencies = run.program.frontier_dependencies(todo.rule)?;
-    let frontier_ready = dependencies
-        .iter()
-        .map(|inputs| {
-            if inputs
-                .iter()
-                .all(|input| readiness.get(input).copied() == Some(InputReadiness::Ready))
-            {
-                InputReadiness::Ready
-            } else {
-                InputReadiness::Unavailable
-            }
-        })
-        .collect::<Vec<_>>();
+    // The stage proves which producers of the rule's frontiers are published; the engine reads that proof, not a choice of ours.
+    let frontier_ready = stage.frontier_readiness(todo.rule)?;
     let slot = stage.reserve(todo.rule)?;
     let bound = stage.bindings(todo.rule)?;
     let scope = stage.project_scope(

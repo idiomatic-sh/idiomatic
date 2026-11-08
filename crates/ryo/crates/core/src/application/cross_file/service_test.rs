@@ -62,6 +62,8 @@ enum Scenario {
     LaterPopulation,
     /// A refused frontier ordinal keeps its compiled source in each cohort.
     RefusedOrdinal,
+    /// The ordinary phase keeps each refusal with its occurrence, in declaration order.
+    OrdinaryOrder,
 }
 
 /// What a row of the cases asks of the service.
@@ -157,6 +159,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::DistinctPolicies => root_set_test::project_root_set_preserves_distinct_actual_population_policy_in_both_orders().map(|()| [0; 3]),
         Scenario::LaterPopulation => budget_test::project_budget_stops_a_later_population_after_actual_work_and_releases_the_phase().map(|()| [0; 3]),
         Scenario::RefusedOrdinal => budget_test::refused_frontier_ordinal_keeps_its_actual_compiled_source_in_each_cohort().map(|()| [0; 3]),
+        Scenario::OrdinaryOrder => budget_test::ordinary_phase_keeps_each_refusal_with_its_occurrence_in_declaration_order().map(|()| [0; 3]),
     }
 }
 
@@ -293,6 +296,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("refused_frontier_ordinal_keeps_its_actual_compiled_source_in_each_cohort"),
         word: Word::Succeeds,
         input: || Scenario::RefusedOrdinal,
+        expect: Expect::Value([0, 0, 0]),
+    },
+    Case {
+        name: CaseName("ordinary_phase_keeps_each_refusal_with_its_occurrence_in_declaration_order"),
+        word: Word::Succeeds,
+        input: || Scenario::OrdinaryOrder,
         expect: Expect::Value([0, 0, 0]),
     },
 ];

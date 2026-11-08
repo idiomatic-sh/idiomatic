@@ -1,5 +1,6 @@
 //! The declared-slot owner refuses omissions, substitutions and repeated accounting.
-use super::{errors::BatchPreparationError, service::Preparation, types::OccurrenceNumber};
+use super::{errors::BatchPreparationError, service::Preparation};
+use ryo_execution::inbound::use_cases::execution::interface::OccurrenceNumber;
 use crate::application::cross_file::errors::CrossFileError;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::answering::types::Todo;

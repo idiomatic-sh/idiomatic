@@ -52,7 +52,7 @@ use ryo_values::domain::{
 };
 
 /// No compiled rule in these programs has a file frontier or a project relation.
-struct NoFacts;
+pub(crate) struct NoFacts;
 impl FactsFinish for NoFacts {
     fn kept(&self, _: Bucket) -> Result<KeptBucket, FactsError> {
         panic!("a submission control has no file frontier to fetch")

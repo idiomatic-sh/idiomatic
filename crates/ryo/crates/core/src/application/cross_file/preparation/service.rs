@@ -1,10 +1,11 @@
 //! The application owns the declared inventory, preparation state and sealing.
 use super::{
     errors::BatchPreparationError,
-    types::{OccurrenceNumber, PreparedProject, ProjectOccurrenceCount},
+    types::{PreparedProject, ProjectOccurrenceCount},
 };
 use crate::{application::cross_file::errors::CrossFileError, domain::answering::types::Todo};
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
+use ryo_execution::inbound::use_cases::execution::interface::OccurrenceNumber;
 use std::sync::Arc;
 
 /// A stable occurrence, including when several declarations name the same rule.
@@ -42,6 +43,7 @@ pub(crate) struct SealedBatch {
     entries: Box<[DeclaredProjectPreparation]>,
 }
 impl Preparation {
+    #[cfg(test)]
     pub(crate) fn ordinary(todo: &[Todo]) -> Self {
         Self::declared(todo.iter().cloned())
     }

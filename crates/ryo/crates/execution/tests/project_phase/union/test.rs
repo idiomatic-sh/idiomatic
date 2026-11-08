@@ -308,7 +308,7 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
         "the real stage supplies members, not a whole-union packet"
     );
     let reads = project.reads.load(Ordering::SeqCst);
-    let ready = [InputReadiness::Unavailable];
+    let ready = ReadinessProof::stated(vec![InputReadiness::Unavailable]);
     let ordinary = request
         .prepare_frontiers(
             FrontierRequest {

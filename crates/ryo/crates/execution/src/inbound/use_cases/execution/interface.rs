@@ -4,7 +4,7 @@ use ryo_values::domain::files::types::CorpusInput;
 // The application handles and protocol traits the contract is made of.
 pub use ryo_execution_runtime::application::file_dag::frontiers::errors::PreparationError;
 pub use ryo_execution_runtime::application::file_dag::frontiers::types::BoundInput;
-pub use ryo_execution_runtime::application::file_dag::frontiers::types::InputReadiness;
+pub use ryo_execution_runtime::application::file_dag::frontiers::types::ReadinessProof;
 pub use ryo_execution_runtime::application::file_dag::frontiers::types::PreparedFrontiers;
 pub use ryo_execution_runtime::application::file_dag::frontiers::types::PublicationSlot;
 pub use ryo_execution_runtime::application::file_dag::observations::types::AdmittedOutput;
@@ -36,6 +36,11 @@ pub use ryo_execution_runtime::application::file_dag::program::project_phase::in
 pub use ryo_execution_runtime::application::file_dag::program::project_phase::interface::ProjectStage;
 pub use ryo_execution_runtime::application::file_dag::program::project_phase::types::FrontierDemand;
 pub use ryo_execution_runtime::application::file_dag::program::project_phase::types::FrontierRequest;
+pub use ryo_execution_runtime::application::file_dag::program::project_phase::types::OccurrenceNumber;
+pub use ryo_execution_runtime::application::file_dag::program::project_phase::types::OrdinaryPhase;
+pub use ryo_execution_runtime::application::file_dag::program::project_phase::types::OrdinaryRules;
+pub use ryo_execution_runtime::application::file_dag::program::project_phase::types::PhasePartials;
+pub use ryo_execution_runtime::application::file_dag::program::project_phase::types::PhaseStop;
 pub use ryo_execution_runtime::application::file_dag::program::project_phase::types::PhaseScope;
 pub use ryo_execution_runtime::application::file_dag::program::project_phase::types::ProjectInput;
 pub use ryo_execution_runtime::application::file_dag::program::project_phase::types::ProjectPhase;

@@ -1,5 +1,6 @@
 //! An observation stage: its reservations, installs and restored frontiers.
 use crate::application::file_dag::frontiers::types::BoundInput;
+use crate::application::file_dag::frontiers::types::ReadinessProof;
 use crate::application::file_dag::frontiers::types::InputReadiness;
 use crate::application::file_dag::frontiers::types::PublicationSlot;
 use crate::application::file_dag::observations::types::{AdmittedOutput, RuleSelection};
@@ -55,6 +56,25 @@ impl ObservationExecution for ObservationStage<'_> {
         OperatingError,
     > {
         self.publications.binding_readiness(rule)
+    }
+    fn frontier_readiness(&self, rule: RuleIndex) -> Result<ReadinessProof, OperatingError> {
+        let readiness = self.publications.binding_readiness(rule)?;
+        let dependencies = self.phase.request.program.frontier_dependencies(rule)?;
+        Ok(ReadinessProof(
+            dependencies
+                .iter()
+                .map(|inputs| {
+                    if inputs
+                        .iter()
+                        .all(|input| readiness.get(input).copied() == Some(InputReadiness::Ready))
+                    {
+                        InputReadiness::Ready
+                    } else {
+                        InputReadiness::Unavailable
+                    }
+                })
+                .collect(),
+        ))
     }
     fn arenas(&self) -> &[ryo_values::domain::stored_facts::types::ArenaBytes] {
         self.publications.arenas()

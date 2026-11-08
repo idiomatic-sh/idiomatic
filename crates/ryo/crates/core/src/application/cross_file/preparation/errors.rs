@@ -1,5 +1,5 @@
 //! Invalid project preparation cannot be submitted to the engine.
-use super::types::OccurrenceNumber;
+use ryo_execution::inbound::use_cases::execution::interface::OccurrenceNumber;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 pub(crate) enum BatchPreparationError {
     #[error("project occurrence {0:?} was not prepared")]
