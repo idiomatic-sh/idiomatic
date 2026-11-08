@@ -9,8 +9,6 @@ import sys
 
 LOCK = "/workspaces/.cargo-build.lock"
 TARGET_ROOT = "/workspaces/idiomatic-target"
-SHARED_TARGET = "/workspaces/idiomatic-benchmark-guards/target"
-SHARED_UNTIL = "ryo-yj2e"
 CHECK_TARGET = "/workspaces/idiomatic-check-target"
 FIXTURE_FIX = "cli/tests/replay/imports.rs"
 CARGO_BUILDS = {"build", "test", "bench", "clippy", "run", "check", "doc"}
@@ -151,10 +149,6 @@ def own_target(dirs):
     return TARGET_ROOT + "/" + names.pop() if len(names) == 1 else None
 
 
-def measurement_only(dirs):
-    return all(os.path.abspath(d).startswith(MEASUREMENT) for d in dirs)
-
-
 def cargo_rules(words, before, dirs):
     at = cargo_index(words)
     if at is None:
@@ -165,8 +159,7 @@ def cargo_rules(words, before, dirs):
     target = os.path.normpath(target) if target else target
     checking = sub == "check" and is_check_target(target)
     own = own_target(dirs)
-    shared = target == SHARED_TARGET and measurement_only(dirs)
-    if target is not None and target != own and not shared and not checking:
+    if target is not None and target != own and not checking:
         return ("cargo --target-dir must be " + TARGET_ROOT + "/<this worktree's name>" +
                 (" (here " + own + ")" if own else "") +
                 ": one target per worktree, so no build reuses another tree's units (or " + CHECK_TARGET +
@@ -331,9 +324,6 @@ def main():
     if found:
         print("Blocked: " + found, file=sys.stderr)
         return 2
-    if SHARED_TARGET in command and has_cargo_command(COMMENT.sub("", command)):
-        print("Deprecated: " + SHARED_TARGET + " is accepted only for " + MEASUREMENT + "* trees until " +
-              SHARED_UNTIL + " is done; use " + TARGET_ROOT + "/<this worktree's name>", file=sys.stderr)
     return 0
 
 

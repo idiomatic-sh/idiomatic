@@ -137,15 +137,12 @@ class GuardShell(unittest.TestCase):
                 self.assertEqual(result.returncode, 2)
                 self.assertIn("(here /workspaces/idiomatic-target/integration)", result.stderr)
 
-    def test_shared_target_is_deprecated_only_for_measurement_trees(self):
-        command = LOCK + "cargo build --target-dir /workspaces/idiomatic-benchmark-guards/target"
-        result = run_hook("guard_shell.py", {"tool_input": {"command": command}, "cwd": "/workspaces/ryo-perf-x"})
-        self.assertEqual(result.returncode, 0)
-        self.assertIn("Deprecated:", result.stderr)
-        self.assertIn("ryo-yj2e", result.stderr)
+    def test_measurement_trees_build_only_into_their_own_target(self):
         self.assertEqual(shell(LOCK + "cargo build --target-dir /workspaces/idiomatic-target/ryo-perf-x",
                                "/workspaces/ryo-perf-x"), 0)
         self.assertEqual(shell(LOCK + "cargo build --target-dir /workspaces/idiomatic-target/ryo-perf-y",
+                               "/workspaces/ryo-perf-x"), 2)
+        self.assertEqual(shell(LOCK + "cargo build --target-dir /workspaces/idiomatic-benchmark-guards/target",
                                "/workspaces/ryo-perf-x"), 2)
 
     def test_hidden_cargo_is_allowed_in_an_integration_tree(self):
