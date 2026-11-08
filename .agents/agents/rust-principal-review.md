@@ -37,5 +37,12 @@ Two artifacts:
    `checkpoint` is the number N, `"landing-N"` or `"perf:<branch>"`; `items` holds all seven items in order; `verdict` is FAIL when any item is FAIL.
 2. A Markdown report beside the contract review's in the session scratchpad: one section per item with its verdict, the file:line evidence and, for each FAIL, the required change.
 
+## Open-source hygiene (advisory)
+On the diff the review also reports, from the output of the standard tools the PM supplies (the Asymptote `api`, `lint` and `check` groups in [asymptote.toml](../../crates/ryo/asymptote.toml)); it reads that output and does not re-derive it. These are notes in the Markdown report, not items: they never change the seven-item verdict or the JSON schema.
+- Public API: items added, removed or widened (`api` group).
+- Docs: missing docs or broken intra-doc links on public items (`cargo-doc`, `check` group).
+- Dependencies: changes against the cargo-deny and cargo-machete output (`lint` group).
+- Semver: relevant changes, advisory until distribution, when cargo-semver-checks joins the release group.
+
 ## On FAIL
 Each failed item's findings become beads (one per finding class, all instances listed, with file:line). The landing does not push: `.claude/hooks/guard_shell.py` refuses any `git push` naming `claude/ryo-consolidation` unless HEAD's `rust-review.json` has verdict PASS and a source that is an ancestor of HEAD. The landing pushes only after the findings are repaired and a fresh review passes, or after the owner overrules the FAIL in writing; the overrule is quoted in the bead, the FAIL `rust-review.json` stays committed, and the owner, not an agent, pushes.
