@@ -140,30 +140,30 @@ Branch `claude/w7-review-repairs-ix` from checkpoint 324 `14a8352416`, for the c
   - P7 review README upkeep, deletions 320 to 321, inventory 8 to 9: "Close full TM, contracts, independent review and normal CI" and "One implementation per kind for every registry, or a named port" (standing).
   - P7 the owner's hold on the push for the 322 FAIL: the owner's row under "Owner decisions pending" (323 and 324 are PASS; restating or closing it is the owner's).
 
-### Current ownership checkpoint — source `316497ef75`, validation325
+### Current ownership checkpoint — source `4b674e1e9f`, validation326
 
 Written by `evidence/checkpoint/run.py` from [validation.json](evidence/checkpoint/validation.json); do not edit by hand. Review: [checkpoint](audits/2026-11-06-derived/ownership/checkpoint.json).
 
 | Check | Result |
 |---|---|
-| Source | `316497ef75` |
-| Validation | validation325 (raw logs in the directory named `ryo-contract-validation325-20261108`, kept outside the repository) |
+| Source | `4b674e1e9f` |
+| Validation | validation326 (raw logs in the directory named `ryo-contract-validation326-20261108`, kept outside the repository) |
 | execution library | 270 PASS / 0 failed (the engine after landing 1, as at validation324; its domain and store are their own crates (the two rows below)) |
 | execution domain library | 136 PASS / 0 failed |
 | execution store library | 81 PASS / 0 failed |
-| core library | 120 PASS / 1 failed (lint::use_case_test::succeeds, one red row a_removed_file_leaves_no_unknown_or_skip_behind_in_any_store, as at validation324; owned by "Repair every deferred output failure; rerun all 413 and full corpus.") |
-| benchmark library | 221 PASS / 1 failed (verify_cases process_capture succeeds, one red row (a metadata failure preserves the process bytes and cannot be admitted), as at validation324; owned by "Close full TM, contracts, independent review and normal CI.") |
+| core library | 120 PASS / 1 failed (lint::use_case_test::succeeds, one red row a_removed_file_leaves_no_unknown_or_skip_behind_in_any_store, as at validation325; owned by "Repair every deferred output failure; rerun all 413 and full corpus.") |
+| benchmark library | 221 PASS / 1 failed (verify_cases process_capture succeeds, one red row (a metadata failure preserves the process bytes and cannot be admitted), as at validation325; owned by "Close full TM, contracts, independent review and normal CI.") |
 | sdk passed | 29 |
 | other libraries passed | 187 |
-| libraries total | 1079 PASS / 2 failed (validation324 1079/2; the same two reds) |
+| libraries total | 1079 PASS / 2 failed (validation325 1079/2; the same two reds) |
 | execution boundary | 97 PASS / 0 failed (102 at validation323 less the five source-reading rows landing 1 deletes (source_boundary activation rejects, derived census, runtime authority; submission census trait methods and prepared frontiers), each replaced as the ownership record's table states) |
 | activation | 11 PASS / 0 failed (11 actual cases, the facts-finish dhat control among them) |
 | bdd | scenarios 7, failed 0 |
 | core bdd | scenarios 18, failed 0 |
 | ruff sharing | 1 PASS / 0 failed |
-| ruff canary | 1 PASS / 0 failed (112 = 110 N999 + 2 invalid-syntax, the split asserted, the answer of validation323) |
-| ruff | 13 PASS / 0 failed (validation324 11/1: engine_test::succeeds is green (the two I001 rows: an antijoin's file key is read from its answer), and engine_test::rejected_syntax_consumer_test (new, the Django unknowns second pass) is green) |
-| ruff rule phases | exit 1, note the staging guard exits 1 (durable verifier output or identities were not preserved), red since 321; both causes were in the harness (the guard expected the command without the case-receipt argument added on 2026-11-04, and rebuilt frozen moved candidates from the live queries), repaired by Review repairs X, whose self-test exits 0; owned by "Close full TM, contracts, independent review and normal CI." |
+| ruff canary | 1 PASS / 0 failed (112 = 110 N999 + 2 invalid-syntax, the split asserted, the answer of validation323; now on the benchmark worker pool at rayon default size (10 threads here; one worker at validation325): the same answer) |
+| ruff | 13 PASS / 0 failed (as at validation325 (13/0); the engine tests that run through the benchmark local engine now run its files on rayon default size (one worker at validation325): the same answers) |
+| ruff rule phases | exit 0, note the staging guard self-test exits 0 (red from 321 to 325); both causes were in the harness (the guard expected the command without the case-receipt argument added on 2026-11-04, and rebuilt frozen moved candidates from the live queries), repaired by Review repairs X; owned by "Close full TM, contracts, independent review and normal CI." |
 | doctests | execution 14, core 1, sdk 3, values 4, derived 11, failed 0, note as at validation324: execution 14 (16 at validation323 less the two compile_fail probes the split made vacuous) |
 | tm import cli | pass |
 | tm cli source findings | 0 |
@@ -171,8 +171,8 @@ Written by `evidence/checkpoint/run.py` from [validation.json](evidence/checkpoi
 | core allocation | exit 101, phase 7 |
 | cli replay | 75 PASS / 3 failed |
 | cli replay reds | 3: `behavior::ruff_rules_feed_every_catalog_feature_a_thousand_rows`; `cache::every_recorded_rule_gives_over_ruff_the_rows_a_warm_run_gives_again_from_a_small_store`; `peak::a_warm_unchanged_run_over_ruff_peaks_within_its_bound` |
-| cli replay note | the reds of validation324: feed (operation:Closure, Cycles, Scope fed fewer than 1,000 rows); cache, the store of ruff 78,525,063 bytes against 75,000,000, the bytes of validation324; warm peak 113,012,736 bytes against 100,000,000 (115,310,592 at validation324); behavior owned by "Consolidate the kernels: run the differential parity and the canary with and without each of the five join/select kernels and delete every kernel the evidence shows superseded."; cache owned by "Repair every deferred output failure; rerun all 413 and full corpus."; peak owned by "Decode lazy packed frontiers once per population, not once per root, and compile ordered existence without the eager request-level pass." |
-| cli cost | 1 PASS / 3 failed / 3 not run (the ruff rows of ratchet.toml hold best 1 and are not seeded (cold 9,658 ms / CPU 57,975 ms, peak 580 MB, warm 552 ms, edit 2,635 ms measured); the Django and one-file rows are not available without RYO_PREFLIGHT_WORKER; owned by "Acceptance: 413/413 on the current engine, full Django (2,875 files, all 413 rules) with unknown 0 and unread 0, sub-second cold wall with low peak RSS, warm and edit faster, Rust regression guards within bounds.") |
+| cli replay note | the reds of validation325: feed (operation:Closure, Cycles, Scope fed fewer than 1,000 rows); cache, the store of ruff 78,525,063 bytes against 75,000,000, the bytes of validation325; warm peak 113,549,312 bytes against 100,000,000 (113,012,736 at validation325); behavior owned by "Consolidate the kernels: run the differential parity and the canary with and without each of the five join/select kernels and delete every kernel the evidence shows superseded."; cache owned by "Repair every deferred output failure; rerun all 413 and full corpus."; peak owned by "Decode lazy packed frontiers once per population, not once per root, and compile ordered existence without the eager request-level pass." |
+| cli cost | 1 PASS / 3 failed / 3 not run (the ruff rows of ratchet.toml hold best 1 and are not seeded (cold 9,539 ms / CPU 55,653 ms, peak 585 MB, warm 521 ms, edit 2,659 ms measured); the Django and one-file rows are not available without RYO_PREFLIGHT_WORKER; owned by "Acceptance: 413/413 on the current engine, full Django (2,875 files, all 413 rules) with unknown 0 and unread 0, sub-second cold wall with low peak RSS, warm and edit faster, Rust regression guards within bounds.") |
 | cli other targets | blocks (dhat run, no panic), call_count 1/1, command_line 7/7, command_tree 11/11, readme 1/1 |
 | conformance | targets 10, exit 0 |
 | harness hooks | 45 PASS / 0 failed |
