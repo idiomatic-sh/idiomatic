@@ -272,7 +272,33 @@ fn an_absent_input_is_a_typed_reason_not_a_pass() {
         workload::inputs_at(pinned.path(), None).expect_err("an empty digest is not staged"),
         workload::NotAvailable::RequestNotStaged(receipt.clone())
     );
-    std::fs::write(&receipt, r#"{"staged_digest": "04f6c9d8"}"#).expect("a staged receipt");
+    std::fs::write(&receipt, r#"{"staged_digest": "04f6c9d8"}"#)
+        .expect("a receipt with no staged files");
+    assert_eq!(
+        workload::inputs_at(pinned.path(), None).expect_err("the digest is not the staged files'"),
+        workload::NotAvailable::StagedDiffers(receipt.clone())
+    );
+    let profile = pinned.path().join("profile");
+    std::fs::create_dir_all(profile.join("rules")).expect("a staged profile");
+    std::fs::write(profile.join("benchmark.toml"), "x").expect("a staged benchmark.toml");
+    std::fs::write(profile.join("rules").join("a.toml"), "y").expect("a staged rule");
+    // The digest and the request's sha256 that `verify_profiles.py --stage-request` gives these files.
+    let digest = "b5a200e1c5b27eb35d2aabb6a58ca4ae82e5babace94d03c37c6e9bac5eff83b";
+    let request = "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a";
+    let other = "0".repeat(64);
+    for (staged, sha) in [(digest, other.as_str()), (other.as_str(), request)] {
+        let text =
+            serde_json::json!({ "staged_digest": staged, "request_sha256": sha }).to_string();
+        std::fs::write(&receipt, text).expect("a receipt that differs");
+        assert_eq!(
+            workload::inputs_at(pinned.path(), None)
+                .expect_err("the receipt differs from the files"),
+            workload::NotAvailable::StagedDiffers(receipt.clone())
+        );
+    }
+    let text =
+        serde_json::json!({ "staged_digest": digest, "request_sha256": request }).to_string();
+    std::fs::write(&receipt, text).expect("a staged receipt");
     assert_eq!(
         workload::inputs_at(pinned.path(), None).expect_err("no worker is named"),
         workload::NotAvailable::WorkerNotNamed
