@@ -1,7 +1,7 @@
 //! The `repository` service: free functions named by verb over the files of a run, with no IO and no ports.
 
 use super::constants::{COMPILED_PLAN_LABEL, RELATION_SCHEMA_LABEL, SOURCE_SELECTION_LABEL};
-use super::types::{DigestColumn, DigestRelation, SchemaCount};
+use super::types::{DigestColumn, DigestRelation, IdentityHasher, SchemaCount};
 use crate::domain::keeping::service::configuration_bytes;
 use crate::domain::keeping::types::{Configuration, DigestInput, DigestPart, HostedText};
 use ryo_language::domain::files::types::FilePath;
@@ -107,13 +107,13 @@ pub(crate) fn source_selection_identity(
 }
 
 /// The identity of the plan a rule executes: the lowered plan after the handover rewrites (regrouping, narrowing, pushing), not
-/// its source text. Every field of the plan is spelled, so a build whose rewrites put other steps at a frontier position, or keep
-/// other columns, names another plan, and what a store kept under the old one is not used again.
+/// its source text, as the label then the bytes the plan's derived `Hash` feeds. The derive covers every field, those added later
+/// too, so a build whose rewrites put other steps at a frontier position, or keep other columns, names another plan, and what a
+/// store kept under the old one is not used again.
 #[must_use]
 pub(crate) fn plan_identity(plan: &Plan) -> DigestInput {
-    use std::io::Write as _;
-    let mut bytes = DigestInput(COMPILED_PLAN_LABEL.as_bytes().to_vec());
-    // Writing into a vector cannot fail.
-    let _written = write!(bytes.0, "{plan:?}");
-    bytes
+    use std::hash::Hash as _;
+    let mut hasher = IdentityHasher(DigestInput(COMPILED_PLAN_LABEL.as_bytes().to_vec()));
+    plan.hash(&mut hasher);
+    hasher.0
 }

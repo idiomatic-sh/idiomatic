@@ -246,7 +246,7 @@ pub enum QueryLiteral {
 }
 
 /// The heading of a column of the answer.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub struct Heading(pub Box<str>);
 
 /// What an operation reads: up to three inputs, as many as the operation names.
@@ -283,7 +283,7 @@ pub struct ObservationBindingId(pub u32);
 
 /// Where a step runs: in the worker that has the file, or once after the workers on the rows they
 /// handed over.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum StepScope {
     /// On one file's rows, in the worker.
     PerFile,
