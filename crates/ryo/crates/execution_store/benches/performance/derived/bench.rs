@@ -1,4 +1,4 @@
-//! The execution crate's derived workload.
+//! The execution store crate's derived workload.
 //!
 //! The derived hex's adapters back to back: the semantics the factory builds, and the port over them, each prepare an equality request,
 //! build its payload from the rows and view it, so the faster is chosen by measurement.

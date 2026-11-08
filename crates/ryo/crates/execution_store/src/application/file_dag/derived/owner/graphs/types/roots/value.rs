@@ -40,10 +40,7 @@ pub struct DemandAnswers<'a> {
 }
 impl<'a> DemandAnswers<'a> {
     /// The demand answers of one owner over its cache.
-    pub fn new(
-        owner: &'a DerivedOwner,
-        cache: &'a mut CacheBackend,
-    ) -> Self {
+    pub fn new(owner: &'a DerivedOwner, cache: &'a mut CacheBackend) -> Self {
         Self { owner, cache }
     }
     /// Only a completed positive closure is retained. Unknown roots and local

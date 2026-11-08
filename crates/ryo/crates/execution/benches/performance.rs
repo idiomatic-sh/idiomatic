@@ -1,8 +1,5 @@
 //! The execution crate's workloads.
 
-#[path = "performance/derived/bench.rs"]
-mod derived;
-
 #[path = "performance/facts/bench.rs"]
 mod facts;
 

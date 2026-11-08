@@ -29,6 +29,12 @@ ryo_execution_domain = { package = "idiomatic-sh-ryo-execution-domain", path = "
 ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.1.2", features = ["fixtures"] }
 ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations", version = "0.1.2", features = ["fixtures"] }
 ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.1.2", features = ["fixtures"] }
+divan.workspace = true
+
+[[bench]]
+name = "performance"
+path = "benches/performance.rs"
+harness = false
 
 [features]
 fixtures = ["ryo_execution_domain/fixtures", "ryo_values/fixtures", "ryo_relations/fixtures", "ryo_language/fixtures"]
