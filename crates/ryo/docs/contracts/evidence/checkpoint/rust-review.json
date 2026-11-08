@@ -2,7 +2,7 @@
  "checkpoint": 329,
  "source": "d55490390356dab2fd5000cc9bd812eadaacd7e6",
  "base": "90a0a472b2",
- "scope": "diff 90a0a472b2..d554903903 (first pass 518a419546, repairs 779f4a960f and d554903903, ryo-jnr7)",
+ "scope": "diff 90a0a472b2..d554903903 (first pass 518a419546, repairs 779f4a960f and d554903903)",
  "verdict": "PASS",
  "items": [
   {"item": 1, "verdict": "PASS", "evidence": "Second-pass evidence stands: BatchOccurrenceBinding owns and PhaseOccurrence borrows (cross_file/types.rs:60-67, project_phase/types.rs:64-74); the parts structs add no Arc. evaluate_rules (batch_test.rs:45-91) borrows its inputs and hands borrowed PhaseOccurrences to the phase, with no clone to escape a lifetime."},
