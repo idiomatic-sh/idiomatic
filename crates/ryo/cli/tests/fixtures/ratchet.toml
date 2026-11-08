@@ -47,7 +47,7 @@ best = 979
 tolerance-percent = 5
 
 [django-one-file-413.wall-milliseconds]
-best = 10143
+best = 6871
 tolerance-percent = 5
 
 [django-one-file-413.peak-megabytes]
