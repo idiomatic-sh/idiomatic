@@ -173,7 +173,7 @@ impl FileRun<'_> {
         Rc::downgrade(&self.owner)
     }
     /// Read-only test telemetry from actual common-program dispatch and retirement.
-    #[cfg(any(test, feature = "fixtures"))]
+    #[cfg(test)]
     pub(crate) fn route_observation(
         &self,
         rule: RuleIndex,

@@ -72,7 +72,9 @@ pub struct CompactTable {
     pub frames: Vec<CompactFrame>,
     pub rows: crate::domain::rows::types::RowCount,
     pub cells: CellCount,
-    pub row_offsets: Vec<PackedOffset>,
+    /// Where each row starts, counted from the start of the frame its first cell is in (`CompactFrame::first_row`): four
+    /// bytes a row, where a position in the whole backing takes eight.
+    pub row_offsets: Vec<FrameOffset>,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CompactFrame {
@@ -80,6 +82,8 @@ pub struct CompactFrame {
     pub end: PackedOffset,
     pub cells: CellCount,
     pub base: ryo_relations::domain::relations::types::PlaceNumber,
+    /// How many rows start before this frame: the first row that starts in it, when any does.
+    pub first_row: crate::domain::rows::types::RowIndex,
 }
 
 /// One byte cursor supplies exact immutable frame offsets; no second packed copy.
@@ -99,6 +103,10 @@ pub struct PackedSlice<'a>(pub &'a [u8]);
 /// A byte position in packed words.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub struct PackedOffset(pub usize);
+
+/// A byte position in packed words, counted from the start of one frame.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
+pub struct FrameOffset(pub u32);
 
 /// Cells in a compact table or one of its frames.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

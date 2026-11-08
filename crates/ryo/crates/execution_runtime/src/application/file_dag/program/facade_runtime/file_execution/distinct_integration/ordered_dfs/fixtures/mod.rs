@@ -145,6 +145,23 @@ pub(crate) fn execute_request(
     delivery: bool,
     observed: &mut ExecutionObservation,
 ) -> Result<Table, OperatingError> {
+    execute_bound_request(plan, vec![], hosts, providers, symbols, source, delivery, observed)
+}
+/// The same request with the plan's parameter bindings.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "execute_request's plan, inputs, source, delivery and observation, plus the plan's bindings"
+)]
+pub(crate) fn execute_bound_request(
+    plan: Plan,
+    bindings: Vec<ryo_values::domain::query_bindings::types::ParameterBinding>,
+    hosts: &[HostRelation],
+    providers: &[(Relation, Table)],
+    symbols: &mut Symbols,
+    source: &[u8],
+    delivery: bool,
+    observed: &mut ExecutionObservation,
+) -> Result<Table, OperatingError> {
     let target = plan.emit.step.0 as usize;
     let derived = ryo_execution_store::application::file_dag::fixtures::program_derived_port();
     let prepared = crate::application::file_dag::program::preparation::service::prepare(
@@ -152,7 +169,7 @@ pub(crate) fn execute_request(
             schedule: RuleSchedule::Independent,
             observations: vec![vec![]],
             plans: vec![plan],
-            bindings: vec![vec![]],
+            bindings: vec![bindings],
         },
         &[rule()],
         &[Digest([0; 16])],

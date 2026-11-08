@@ -7,7 +7,7 @@ use crate::domain::rows::types::RowIndex;
 use crate::domain::table_words::service::{canonical_words, rebased};
 use crate::domain::table_words::types::{
     Admitted, CellCount, ColumnCount, CompactBacking, CompactCursor, CompactFrame, CompactStorage,
-    CompactTable, DecodeMode, PackedOffset, PackedSlice, StorageAddress, StorageLength,
+    CompactTable, DecodeMode, FrameOffset, PackedOffset, PackedSlice, StorageAddress, StorageLength,
     StoragePart, TableShape, WordSpelling,
 };
 use ryo_language::domain::words::service::{decode_kind, decode_places, decode_value};
@@ -77,7 +77,12 @@ pub fn admit_compact(
         if readable {
             for cell in 0..cells.unwrap_or(0) {
                 if !kinds.is_empty() && (total_cells + cell) % kinds.len() == 0 {
-                    row_offsets.push(cursor.offset);
+                    // A row is found again from its frame's start: a frame past four GiB is not readable.
+                    let Ok(within) = u32::try_from(cursor.offset.0 - start.0) else {
+                        readable = false;
+                        break;
+                    };
+                    row_offsets.push(FrameOffset(within));
                 }
                 let Some(value) = decode_value(&mut cursor) else {
                     readable = false;
@@ -124,6 +129,7 @@ pub fn admit_compact(
             end: cursor.offset,
             cells: CellCount(cells.unwrap_or(0)),
             base,
+            first_row: RowIndex(offsets_before),
         });
     }
     if mode == DecodeMode::Complete && !complete {
@@ -183,14 +189,25 @@ fn compact_values(
     if count.0 == 0 {
         return Some(());
     }
-    let offset = *input.row_offsets.get(row.0)?;
+    let Ok(within) = usize::try_from(input.row_offsets.get(row.0)?.0) else {
+        return None;
+    };
+    // The frame the row starts in is the last that no later row starts before: frames in which no row starts come
+    // before it or carry a larger first row.
     let mut frame_at = input
         .frames
-        .partition_point(|frame| frame.start <= offset)
+        .partition_point(|frame| frame.first_row.0 <= row.0)
         .checked_sub(1)?;
     let mut cursor = CompactCursor {
         bytes: PackedSlice(&input.words.0.0),
-        offset,
+        offset: PackedOffset(
+            input
+                .frames
+                .get(frame_at)?
+                .start
+                .0
+                .checked_add(within)?,
+        ),
     };
     for column in 0..count.0 {
         while cursor.offset == input.frames.get(frame_at)?.end {

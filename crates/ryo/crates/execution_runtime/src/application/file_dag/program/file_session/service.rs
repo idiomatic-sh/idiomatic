@@ -127,18 +127,6 @@ impl FileSession<'_, '_> {
     pub fn owner_lifetime(&self) -> std::rc::Weak<ryo_execution_store::application::file_dag::relations::RelationOwner> {
         self.parts.inner.owner_lifetime()
     }
-    /// Read-only telemetry of a rule's step, from actual common-program dispatch and retirement.
-    ///
-    /// # Errors
-    ///
-    /// Refuses a rule or step the program never ran.
-    pub fn route_observation(
-        &self,
-        rule: RuleIndex,
-        step: ryo_values::domain::plan_parts::types::StepId,
-    ) -> Result<ryo_execution_domain::domain::operating::fixtures::ExecutionObservation, OperatingError> {
-        self.parts.inner.route_observation(rule, step)
-    }
     /// The derived owner's resource counts of this file.
     #[must_use]
     pub fn resource_fixture_counts(

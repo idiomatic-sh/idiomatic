@@ -169,8 +169,7 @@ pub(crate) fn execute(
         &Elements::default(),
         &mut symbols,
         &read,
-    )
-    .map(|(table, _)| table);
+    );
     (result, [counts[0].get(), counts[1].get()])
 }
 pub(crate) fn layout_error(kind: OperationKind) -> OperatingError {

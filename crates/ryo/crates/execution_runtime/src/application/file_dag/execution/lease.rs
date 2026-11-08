@@ -69,7 +69,7 @@ fn evaluate_once(
     #[cfg(feature = "diagnostic-row-progress")]
     let _progress_invocation =
         workspace.progress_origin().resume();
-    #[cfg(any(test, feature = "fixtures"))]
+    #[cfg(test)]
     resources.observe(workspace);
     let parts = workspace.parts();
     let semantic_failure = std::sync::OnceLock::new();
@@ -219,7 +219,7 @@ fn evaluate_once(
             ),
         },
     };
-    #[cfg(any(test, feature = "fixtures"))]
+    #[cfg(test)]
     let mut registered_calls = 0;
     let outcome = with_primitive_context(
         views,
@@ -230,7 +230,7 @@ fn evaluate_once(
         parts.work,
         |context| {
             let request = ExecutableLease::new(permit, context, operation, input, &mut output);
-            #[cfg(any(test, feature = "fixtures"))]
+            #[cfg(test)]
             {
                 registered_calls += 1;
             }
@@ -246,7 +246,7 @@ fn evaluate_once(
     );
     drop(output);
     drop(predicate);
-    #[cfg(any(test, feature = "fixtures"))]
+    #[cfg(test)]
     {
         workspace.observation_mut().registered_calls += registered_calls;
         resources.observe(workspace);

@@ -114,8 +114,7 @@ fn stored_prefix_keeps_static_error_order_and_source_identity() {
             &Elements::default(),
             &mut symbols,
             &read,
-        )
-        .map(|(table, _)| table);
+        );
         if bad_layout {
             assert_eq!(result, Err(layout_error(OperationKind::Project)));
             assert_eq!(reads.get(), 1, "static refusal commits no provider reread");

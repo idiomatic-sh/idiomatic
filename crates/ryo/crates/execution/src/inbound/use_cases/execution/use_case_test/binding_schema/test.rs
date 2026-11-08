@@ -63,8 +63,7 @@ fn execution_boundary(scenario: Scenario) -> Result<Value, Failure> {
         &[&empty],
         bindings.to_vec(),
         &mut symbols,
-    )?
-    .0;
+    )?;
     assert_eq!(answer.count.0, 0);
     let populated = Table {
         kinds: kinds.to_vec(),
