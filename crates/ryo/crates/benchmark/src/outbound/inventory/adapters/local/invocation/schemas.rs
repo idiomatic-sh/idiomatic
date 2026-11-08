@@ -31,6 +31,10 @@ struct InvocationSchema {
     tool: Option<String>,
     version: Option<String>,
     state: Option<String>,
+    /// How a record derived from an earlier capture was rebound to the current settings context, with the original it names;
+    /// provenance a reader keeps beside the record, never a process identity.
+    #[serde(rename = "context_derivation", default)]
+    _context_derivation: Option<serde::de::IgnoredAny>,
 }
 
 /// The parts of the normalized settings that raw metadata re-derives.

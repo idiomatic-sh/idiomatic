@@ -12,20 +12,23 @@ pub(in crate::outbound::lint_store::adapters::postcard) enum FrontierAffectedSch
     RepositoryKinds { column: u32, kinds: Vec<String> },
 }
 
-/// Where a frontier's words came from: the file, the bucket, the rule and its input, and what was uncertain of it, none when complete.
+/// Where a frontier's words came from: the file, the bucket, the rule and its input, the rule's digest by its place in the
+/// section's table of digests, and what was uncertain of it, none when complete.
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub(in crate::outbound::lint_store::adapters::postcard) struct FrontierProofSchema {
     file: u32,
     bucket: u32,
     rule: u32,
     input: u32,
-    rule_digest: [u8; 16],
+    digest: u32,
     partial: Option<Vec<FrontierAffectedSchema>>,
 }
 
 /// The section of what the files of `stored` handed but their words.
+/// The proof's rule digest is written as `digest`, its place in the section's table of digests.
 pub(in crate::outbound::lint_store::adapters::postcard) fn proof_schema(
     row: &ryo_values::domain::stores::types::StoredFrontierProof,
+    digest: u32,
 ) -> FrontierProofSchema {
     use ryo_values::domain::records::types::FrontierCoverage;
     FrontierProofSchema {
@@ -33,7 +36,7 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn proof_schema(
         bucket: row.bucket.0,
         rule: row.proof.rule.0,
         input: row.proof.input.0,
-        rule_digest: row.proof.rule_digest.0,
+        digest,
         partial: match &row.proof.coverage {
             FrontierCoverage::Complete => None,
             FrontierCoverage::Partial(affected) => {
@@ -97,8 +100,10 @@ fn affected_row(
     }
 }
 
+/// The proof `row` names, its rule digest read from `digests`, the section's table of digests.
 pub(in crate::outbound::lint_store::adapters::postcard) fn proof_row(
     row: &FrontierProofSchema,
+    digests: &[[u8; 16]],
 ) -> Result<ryo_values::domain::stores::types::StoredFrontierProof, postcard::Error> {
     use ryo_values::domain::records::types::{FrontierCoverage, FrontierProof};
     let coverage = match &row.partial {
@@ -119,7 +124,11 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn proof_row(
         proof: FrontierProof {
             rule: ryo_values::domain::records::types::ProducerRule(row.rule),
             input: ryo_values::domain::records::types::FrontierOrdinal(row.input),
-            rule_digest: Digest(row.rule_digest),
+            rule_digest: Digest(
+                *digests
+                    .get(usize::try_from(row.digest).map_err(|_| postcard::Error::DeserializeBadEncoding)?)
+                    .ok_or(postcard::Error::DeserializeBadEncoding)?,
+            ),
             coverage,
         },
     })
