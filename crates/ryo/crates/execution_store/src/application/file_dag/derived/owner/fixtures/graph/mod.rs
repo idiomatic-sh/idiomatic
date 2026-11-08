@@ -1,25 +1,25 @@
 //! Test setup uses the production owner, original-row admission and physical dispatch.
+#[cfg(test)]
 use ryo_derived::domain::vertices::types::VertexId;
 use ryo_values::domain::plan_parts::types::InputNumber;
+use crate::application::file_dag::derived::owner::graphs::types::handles::service::{DomainHandle, GraphHandle};
+#[cfg(test)]
 use crate::application::file_dag::derived::owner::graphs::{
     service::slot,
-    types::{
-        handles::service::{DomainHandle, GraphHandle, RootAnswer},
-        roots::value::DemandAnswers,
-    },
+    types::{handles::service::RootAnswer, roots::value::DemandAnswers},
 };
 use crate::application::file_dag::derived::owner::*;
 use crate::application::file_dag::{
     relations::{RelationOwner, handle::service::PublishedInput},
     workspace::InvocationWorkspace,
 };
-use ryo_execution_domain::domain::{
-    coverage::types::Partial,
-    stored_graph::types::{GraphWalk, Orientation},
-    table_model::types::Rows,
-};
+use ryo_execution_domain::domain::{coverage::types::Partial, table_model::types::Rows};
+#[cfg(test)]
+use ryo_execution_domain::domain::stored_graph::types::{GraphWalk, Orientation};
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
-use ryo_relations::domain::relations::types::{Relation, Value};
+use ryo_relations::domain::relations::types::Relation;
+#[cfg(test)]
+use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, Direction, Input, StepId, StepScope},
     plans::types::{Emit, Operation, Plan, PlanStep},
@@ -162,7 +162,7 @@ impl GraphFixture {
         Ok((workspace, publication))
     }
     /// Acquires the graph of `rows` between `endpoints`, keyed by `keys`.
-    pub fn acquire(
+    pub(crate) fn acquire(
         &self,
         input: Input,
         rows: &Rows<'_>,
@@ -261,7 +261,8 @@ impl GraphFixture {
             .map(Some)
     }
     /// Reaches the fixture graph from its roots.
-    pub fn reach(
+    #[cfg(test)]
+    pub(crate) fn reach(
         &self,
         access: &GraphHandle,
         partition: &[Value],
@@ -272,7 +273,8 @@ impl GraphFixture {
         DemandAnswers::new(self.owner.derived(), &mut cache).reach(access, partition, root, walk)
     }
     /// The nearest vertex from `root` in `orientation` over an acquired graph.
-    pub fn nearest(
+    #[cfg(test)]
+    pub(crate) fn nearest(
         &self,
         access: &GraphHandle,
         domain: &DomainHandle,
@@ -362,7 +364,8 @@ impl GraphFixture {
             == Room::Fits
     }
     /// The bytes the graph retains.
-    pub fn graph_cost(&self, graph: &GraphHandle) -> usize {
+    #[cfg(test)]
+    pub(crate) fn graph_cost(&self, graph: &GraphHandle) -> usize {
         let backend = self.owner.derived().backend.borrow();
         let cache = backend.as_ref().unwrap();
         let metadata = slot(&cache.graphs).unwrap().metadata.0;

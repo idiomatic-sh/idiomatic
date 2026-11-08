@@ -34,13 +34,13 @@ use std::sync::Arc;
 
 /// The owner supplies both the retained storage and every admission decision.
 /// Mutable backend access ends before a downstream row can emit.
-pub struct DemandAnswers<'a> {
+pub(crate) struct DemandAnswers<'a> {
     owner: &'a DerivedOwner,
     cache: &'a mut CacheBackend,
 }
 impl<'a> DemandAnswers<'a> {
     /// The demand answers of one owner over its cache.
-    pub fn new(owner: &'a DerivedOwner, cache: &'a mut CacheBackend) -> Self {
+    pub(crate) fn new(owner: &'a DerivedOwner, cache: &'a mut CacheBackend) -> Self {
         Self { owner, cache }
     }
     /// Only a completed positive closure is retained. Unknown roots and local
@@ -116,7 +116,7 @@ impl<'a> DemandAnswers<'a> {
         self.admit(access, VertexId(root), walk)
     }
     /// One-step or closure traversal for an axis row; the owner alone records its walk work.
-    pub fn axis(
+    pub(crate) fn axis(
         &mut self,
         access: &GraphHandle,
         root: VertexId,
@@ -142,7 +142,7 @@ impl<'a> DemandAnswers<'a> {
         Ok(())
     }
     /// The nearest vertex from `root` in `orientation`, answered from the cache when it holds it.
-    pub fn nearest(
+    pub(crate) fn nearest(
         &mut self,
         access: &GraphHandle,
         domain: &DomainHandle,

@@ -114,7 +114,8 @@ impl ResourceFixture {
     }
 }
 /// Observe backing lifetime without retaining a lease or exposing mutable storage.
-pub fn weak_storage(
+#[cfg(test)]
+pub(crate) fn weak_storage(
     view: &crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView,
 ) -> Weak<
     crate::application::file_dag::derived::owner::acquisition::semantics::storage::DerivedStorage,

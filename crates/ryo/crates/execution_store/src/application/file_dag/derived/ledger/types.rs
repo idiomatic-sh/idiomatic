@@ -101,7 +101,7 @@ pub(crate) struct Ledger {
 
 /// One physical handle, shared by consumers through an outer `Arc`.
 #[derive(Debug)]
-pub struct ResourceLease {
+pub(crate) struct ResourceLease {
     pub(super) ledger: Rc<RefCell<Ledger>>,
     pub(super) keys: Vec<BackingKey>,
     pub(super) class: LeaseClass,

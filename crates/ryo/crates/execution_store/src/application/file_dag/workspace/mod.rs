@@ -176,7 +176,7 @@ impl InvocationWorkspace {
 
 /// Only the workspace can bind an original graph row view to its admission.
 /// The graph path never receives independently replaceable raw rows and proof.
-pub struct GraphInput<'a> {
+pub(crate) struct GraphInput<'a> {
     rows: &'a ryo_execution_domain::domain::table_model::types::Rows<'a>,
     proof: BorrowedInput<'a>,
     relation: Option<ryo_relations::domain::relations::types::Relation>,
@@ -195,24 +195,24 @@ impl<'a> GraphInput<'a> {
             .admit_view(plan, self.owner, &[&self.proof])
     }
     /// The rows of the graph input.
-    pub fn rows(&self) -> &ryo_execution_domain::domain::table_model::types::Rows<'a> {
+    pub(crate) fn rows(&self) -> &ryo_execution_domain::domain::table_model::types::Rows<'a> {
         self.rows
     }
     /// The derived-view owner of the graph input.
-    pub fn owner(&self) -> &super::derived::owner::DerivedOwner {
+    pub(crate) fn owner(&self) -> &super::derived::owner::DerivedOwner {
         self.owner.derived()
     }
     pub(super) fn canonical_backing(&self) -> super::relations::types::BackingForm {
         self.proof.canonical_backing()
     }
     /// The population the graph input was admitted under.
-    pub fn population(
+    pub(crate) fn population(
         &self,
     ) -> Result<super::derived::population::types::PopulationId, OperatingError> {
         self.proof.backing_population(self.owner)
     }
     /// The source relation of the graph input, when it came from one.
-    pub fn relation(&self) -> Option<ryo_relations::domain::relations::types::Relation> {
+    pub(crate) fn relation(&self) -> Option<ryo_relations::domain::relations::types::Relation> {
         self.relation
     }
 }
