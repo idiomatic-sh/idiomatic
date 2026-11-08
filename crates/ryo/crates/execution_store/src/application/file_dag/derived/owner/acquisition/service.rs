@@ -8,6 +8,7 @@ use super::population::types::StoredColumns;
 use crate::application::file_dag::route_counts::{self, types::BuildRoute};
 
 impl DerivedOwner {
+    /// Acquires the stored view `plan` names over admitted inputs, building it or reusing a retained one.
     pub fn acquire_stored(
         &self,
         plan: &Arc<DerivedContract>,

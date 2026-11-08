@@ -5,6 +5,7 @@ impl DerivedOwner {
         let mut state = self.state.borrow_mut();
         *state.pins.entry(population).or_default() += 1_usize;
     }
+    /// Releases every view of `population`.
     pub fn release(&self, population: PopulationId) {
         let mut state = self.state.borrow_mut();
         let Some(count) = state.pins.get_mut(&population) else {

@@ -16,6 +16,7 @@ use super::types::PartitionCapacity;
 use super::types::StorageIdentity;
 use crate::application::file_dag::derived::constants;
 use crate::application::file_dag::derived::owner::acquisition::population::types::Construction;
+/// A view the owner leased to one invocation: its contract, its storage and the lease that keeps it alive.
 #[derive(Clone, Debug)]
 pub struct AcquiredView {
     plan: Arc<DerivedContract>,
@@ -73,6 +74,7 @@ impl AcquiredView {
     pub(in crate::application::file_dag) fn construction(&self) -> Construction {
         self.construction
     }
+    /// The contract the view was acquired under.
     pub fn contract(&self) -> &DerivedContract {
         &self.plan
     }
@@ -150,6 +152,7 @@ impl AdmittedViewInputs<'_> {
 }
 
 impl AcquiredView {
+    /// The lease that keeps the view alive.
     pub fn lease(
         &self,
     ) -> &Arc<ResourceLease> {

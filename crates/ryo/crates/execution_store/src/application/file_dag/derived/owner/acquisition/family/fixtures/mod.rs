@@ -71,6 +71,7 @@ enum Release {
     /// A fake exit that releases nothing; the control that proves a leak is detected.
     Forgetful,
 }
+/// Runs one acquisition family's scenario and answers the kind it acquired.
 pub fn exercise(
     kind: DerivedKind,
     scenario: Scenario,

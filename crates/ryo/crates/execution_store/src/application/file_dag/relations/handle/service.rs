@@ -9,6 +9,7 @@ struct RequiredLeases {
     normalized: RefCell<Option<Arc<ResourceLease>>>,
     normalized_in_initial: NormalizationCharge,
 }
+/// A publication of a relation result the owner leased: its record, pinned for its holder.
 #[derive(Clone, Debug)]
 pub struct PublishedInput {
     record: Arc<RelationResult>,
@@ -36,7 +37,8 @@ impl PublishedInput {
     pub(crate) fn as_ref(&self) -> &RelationResult {
         &self.record
     }
-    #[cfg(test)]
+    /// The published record.
+    #[cfg(any(test, feature = "fixtures"))]
     pub fn record(&self) -> &Arc<RelationResult> {
         &self.record
     }
@@ -55,7 +57,8 @@ impl PublishedInput {
     ) {
         *self.leases.normalized.borrow_mut() = Some(lease);
     }
-    #[cfg(test)]
+    /// Whether `other` leases the same record.
+    #[cfg(any(test, feature = "fixtures"))]
     pub fn same_record(&self, other: &Self) -> crate::application::file_dag::relations::types::Sameness {
         if Arc::ptr_eq(&self.record, &other.record) {
             crate::application::file_dag::relations::types::Sameness::Same

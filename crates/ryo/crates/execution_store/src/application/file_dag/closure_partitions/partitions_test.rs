@@ -1,3 +1,4 @@
+//! The proofs of the partitioned closure cursor, and the working capacity they and the engine's observations read.
 use super::PartitionedClosure;
 use super::constants::LIVE_PARTITION_VIEW;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;

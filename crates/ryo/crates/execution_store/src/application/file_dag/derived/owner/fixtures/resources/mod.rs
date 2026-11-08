@@ -11,12 +11,14 @@ use ryo_derived::domain::equality::types::KeyIndex;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::rc::Rc;
+/// What a resource fixture's owner holds and counted.
 #[derive(Clone, Copy, Debug)]
 pub struct Snapshot {
     pub graph_builds: u64,
     pub graph_reuses: u64,
     pub graph_early_stops: u64,
 }
+/// A relation owner over a recording port, with the resource acquisitions a proof drives.
 pub struct ResourceFixture {
     owner: Rc<RelationOwner>,
 }
@@ -55,9 +57,11 @@ impl ResourceFixture {
             .unwrap();
         Some(Self { owner })
     }
+    /// The fixture's relation owner.
     pub fn owner(&self) -> &Rc<RelationOwner> {
         &self.owner
     }
+    /// Acquires the key index of `rows` over `columns`.
     pub fn index(
         &self,
         relation: Relation,
@@ -121,6 +125,7 @@ pub struct RecordedDerived {
     builds: std::sync::Mutex<Vec<ryo_derived::domain::request::types::DerivedRequest>>,
 }
 impl RecordedDerived {
+    /// The requests the port was asked to build, in order.
     pub fn builds(
         &self,
     ) -> Vec<ryo_derived::domain::request::types::DerivedRequest> {

@@ -13,6 +13,7 @@ use ryo_execution_domain::domain::operator::contract::types::{AxisWorkspace, Dfs
 use ryo_execution_domain::domain::table_model::types::Rows;
 use ryo_execution_domain::domain::table_reach::types::Walk;
 use ryo_relations::domain::relations::types::{Position, Value};
+/// One invocation's mutable allocations and the admitted publications it reads, released when it ends.
 pub struct InvocationWorkspace {
     work: ryo_execution_domain::domain::operator::contract::types::WorkCounters,
     #[cfg(feature = "diagnostic-row-progress")]
@@ -35,6 +36,7 @@ pub struct InvocationWorkspace {
 }
 
 impl InvocationWorkspace {
+    /// The workspace of one invocation of `contract`, its allocations begun for the invocation.
     pub fn for_contract(
         owner: std::rc::Rc<super::relations::RelationOwner>,
         contract: &ryo_execution_domain::domain::operator::contract::types::OperatorContract,
@@ -112,9 +114,11 @@ impl InvocationWorkspace {
 }
 
 impl InvocationWorkspace {
+    /// Releases the admitted publications.
     pub fn release_inputs(&mut self) {
         self.publications.clear();
     }
+    /// Holds `publications` as the invocation's admitted inputs.
     pub fn capture_admitted(
         &mut self,
         publications: Vec<super::relations::handle::service::PublishedInput>,
@@ -122,6 +126,7 @@ impl InvocationWorkspace {
         self.publications = publications.into_iter().map(Some).collect();
     }
 
+    /// The relation owner the invocation reads through.
     pub fn owner(&self) -> &super::relations::RelationOwner {
         &self.relation_owner
     }
@@ -194,20 +199,24 @@ impl<'a> GraphInput<'a> {
             .derived()
             .admit_view(plan, self.owner, &[&self.proof])
     }
+    /// The rows of the graph input.
     pub fn rows(&self) -> &ryo_execution_domain::domain::table_model::types::Rows<'a> {
         self.rows
     }
+    /// The derived-view owner of the graph input.
     pub fn owner(&self) -> &super::derived::owner::DerivedOwner {
         self.owner.derived()
     }
     pub(super) fn canonical_backing(&self) -> super::relations::types::BackingForm {
         self.proof.canonical_backing()
     }
+    /// The population the graph input was admitted under.
     pub fn population(
         &self,
     ) -> Result<super::derived::population::types::PopulationId, OperatingError> {
         self.proof.backing_population(self.owner)
     }
+    /// The source relation of the graph input, when it came from one.
     pub fn relation(&self) -> Option<ryo_relations::domain::relations::types::Relation> {
         self.relation
     }
@@ -253,6 +262,7 @@ impl<'a, 'f> InputAdmissions<'a, 'f> {
     pub(super) fn owner_handle(&self) -> std::rc::Rc<super::relations::RelationOwner> {
         self.workspace.owner_handle()
     }
+    /// The input at `place`.
     pub fn input(&self, place: InputNumber) -> Result<RepresentationInput<'f>, OperatingError> {
         self.inputs
             .get(place.0)
@@ -261,6 +271,7 @@ impl<'a, 'f> InputAdmissions<'a, 'f> {
                 position: place.0 + 1,
             })
     }
+    /// The rows of the input at `place`.
     pub fn rows(&self, place: InputNumber) -> Result<RepresentationInput<'f>, OperatingError> {
         Ok(self.proof(place)?.rows())
     }
@@ -279,6 +290,7 @@ impl<'a, 'f> InputAdmissions<'a, 'f> {
         }
         Ok(cell.get().expect(EXPECT_DEMANDED_INPUT))
     }
+    /// The partitioned closure of `input`, built from its shared ordering.
     pub fn partitioned(
         &self,
         order: &PreparedViewUse,
@@ -299,6 +311,7 @@ impl<'a, 'f> InputAdmissions<'a, 'f> {
             self.owner_handle(),
         )
     }
+    /// The native lookup view of the tree input, when the input is a tree.
     pub fn try_native_lookup(
         &self,
         use_: &PreparedViewUse,
@@ -324,6 +337,7 @@ impl<'a, 'f> InputAdmissions<'a, 'f> {
             &mut self.workspace.derived_scratch.borrow_mut(),
         )
     }
+    /// Acquires the row view `use_` names.
     pub fn acquire_rows(
         &self,
         use_: &PreparedViewUse,
@@ -336,6 +350,7 @@ impl<'a, 'f> InputAdmissions<'a, 'f> {
             ViewInputs::Rows,
         )
     }
+    /// Acquires the derived view `use_` names over `supplied`.
     pub fn acquire_derived(
         &self,
         use_: &PreparedViewUse,

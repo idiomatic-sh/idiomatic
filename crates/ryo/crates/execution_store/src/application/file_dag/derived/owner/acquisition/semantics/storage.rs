@@ -11,6 +11,7 @@ use ryo_derived::domain::contract::types::DerivedView;
 use ryo_derived::domain::contract::types::prepared_derived::value::PreparedDerived;
 use std::sync::Arc;
 
+/// The built payload of a view and the prepared request it was built from.
 #[derive(Debug)]
 pub struct DerivedStorage {
     port: Arc<dyn DerivedPort>,
@@ -33,6 +34,7 @@ impl DerivedStorage {
             graph_identity,
         }
     }
+    /// The view over the built payload.
     pub fn view(
         &self,
     ) -> Result<DerivedView<'_>, OperatingError> {
@@ -40,6 +42,7 @@ impl DerivedStorage {
             .view(&self.plan, &self.payload)
             .map_err(portable_fault)
     }
+    /// The built payload.
     pub fn payload(&self) -> &DerivedPayload {
         &self.payload
     }

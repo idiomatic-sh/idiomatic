@@ -2,6 +2,7 @@
 use crate::application::file_dag::relations::*;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 impl RelationOwner {
+    /// Publishes the rows of a source relation.
     pub fn source(
         &self,
         relation: Relation,
@@ -86,6 +87,7 @@ impl RelationOwner {
             normalized: OnceLock::new(),
         }))
     }
+    /// Publishes a computed table.
     pub fn computed(&self, table: Table) -> Result<PublishedInput, OperatingError> {
         let input = RepresentationInput::Computed(&table);
         let contract = input.contract()?;

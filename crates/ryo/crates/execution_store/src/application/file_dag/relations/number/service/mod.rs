@@ -10,6 +10,7 @@ pub struct AdmittedNumber<'a> {
 }
 
 impl AdmittedNumber<'_> {
+    /// The publication the numeric admission pinned.
     pub fn publication(&self) -> &PublishedInput {
         self.publication
     }

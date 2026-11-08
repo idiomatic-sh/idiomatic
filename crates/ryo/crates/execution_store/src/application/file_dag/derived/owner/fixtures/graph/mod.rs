@@ -26,6 +26,7 @@ use ryo_values::domain::{
 };
 use std::rc::Rc;
 
+/// A derived owner over a fake port, with the graph acquisitions a proof drives.
 pub struct GraphFixture {
     pub(in crate::application::file_dag::derived::owner::fixtures) owner: Rc<RelationOwner>,
     wanted: Vec<Relation>,
@@ -160,6 +161,7 @@ impl GraphFixture {
         workspace.capture_admitted(vec![publication.clone()]);
         Ok((workspace, publication))
     }
+    /// Acquires the graph of `rows` between `endpoints`, keyed by `keys`.
     pub fn acquire(
         &self,
         input: Input,
@@ -268,6 +270,7 @@ impl GraphFixture {
         let mut cache = self.owner.derived().graph_cache()?;
         DemandAnswers::new(self.owner.derived(), &mut cache).reach(access, partition, root, walk)
     }
+    /// The nearest vertex from `root` in `orientation` over an acquired graph.
     pub fn nearest(
         &self,
         access: &GraphHandle,
@@ -284,6 +287,7 @@ impl GraphFixture {
         *local = answers;
         found.map(|found| found.map(|vertex| vertex.0))
     }
+    /// Acquires the key index of `rows` over `columns`.
     pub fn index(
         &self,
         relation: Relation,

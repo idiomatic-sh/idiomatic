@@ -5,6 +5,7 @@ use crate::application::file_dag::relations::*;
 use ryo_execution_domain::domain::table_model::types::PublishedRelation;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 impl RelationOwner {
+    /// Admits a numeric source for the producer that requires it, the one way to mint the witness.
     pub fn admit_number<'a>(
         &self,
         publication: &'a PublishedInput,

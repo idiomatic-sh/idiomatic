@@ -3,6 +3,7 @@ use crate::application::file_dag::relations::types::NormalizationCharge;
 use crate::application::file_dag::relations::*;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 impl RelationOwner {
+    /// The cell kinds of a publication.
     pub fn publication_kinds<'a>(
         &self,
         publication: &'a PublishedInput,
@@ -67,6 +68,7 @@ impl RelationOwner {
             }
         }
     }
+    /// The rows of a published result, read through `read` when they are a source's.
     pub fn resolve<'r, 'f>(
         &self,
         result: &'r dyn PublishedRelation,
@@ -138,6 +140,7 @@ impl RelationOwner {
         }
         outcome
     }
+    /// The rows of a publication in their normalized form.
     pub fn normalize<'r, 'f>(
         &self,
         publication: &'r PublishedInput,

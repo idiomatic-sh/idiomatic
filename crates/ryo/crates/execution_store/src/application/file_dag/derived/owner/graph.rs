@@ -13,6 +13,7 @@ use ryo_execution_domain::domain::{
 };
 use ryo_relations::domain::relations::types::Value;
 impl DerivedOwner {
+    /// Prepares the cached graph an axis or reach operator reads, when its program caches one.
     pub fn prepare_graph(
         &self,
         contract: &OperatorContract,
@@ -73,6 +74,7 @@ impl DerivedOwner {
         }
         super::acquisition::graph::service::domain(plan, graph, input, cache)
     }
+    /// The cached graph's answer for one row.
     pub fn graph_row<'a>(
         &self,
         graph: &'a mut CachedGraph,

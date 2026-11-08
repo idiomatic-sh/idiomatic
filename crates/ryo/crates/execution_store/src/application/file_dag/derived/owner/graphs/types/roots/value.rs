@@ -39,6 +39,7 @@ pub struct DemandAnswers<'a> {
     cache: &'a mut CacheBackend,
 }
 impl<'a> DemandAnswers<'a> {
+    /// The demand answers of one owner over its cache.
     pub fn new(
         owner: &'a DerivedOwner,
         cache: &'a mut CacheBackend,
@@ -143,6 +144,7 @@ impl<'a> DemandAnswers<'a> {
         }
         Ok(())
     }
+    /// The nearest vertex from `root` in `orientation`, answered from the cache when it holds it.
     pub fn nearest(
         &mut self,
         access: &GraphHandle,

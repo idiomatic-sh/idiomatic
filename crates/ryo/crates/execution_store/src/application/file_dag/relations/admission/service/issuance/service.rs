@@ -7,6 +7,7 @@ use crate::application::file_dag::relations::*;
 use ryo_execution_domain::domain::table_model::types::PublishedRelation;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 impl<'a> BorrowedInput<'a> {
+    /// Checks that `publication` is the one this input was admitted from.
     pub fn require_publication(
         &self,
         owner: &RelationOwner,
@@ -45,15 +46,19 @@ impl<'a> BorrowedInput<'a> {
     ) -> crate::application::file_dag::relations::types::BackingForm {
         self.canonical_backing
     }
+    /// The physical shape of the admitted rows.
     pub fn physical_shape(&self) -> PhysicalShape {
         self.shape
     }
+    /// The generation the input was admitted under.
     pub fn generation_guard(&self) -> Arc<()> {
         Arc::clone(&self.origin.generation)
     }
+    /// The admitted rows.
     pub fn rows(&self) -> RepresentationInput<'a> {
         self.rows
     }
+    /// The population and relation the input was admitted under, while `owner` still holds its generation.
     pub fn identity(
         &self,
         owner: &RelationOwner,
@@ -72,6 +77,7 @@ impl<'a> BorrowedInput<'a> {
 }
 
 impl RelationOwner {
+    /// Admits the rows of a publication as a borrowed input of the current generation.
     pub fn admit<'a>(
         &self,
         result: &dyn PublishedRelation,
@@ -80,6 +86,7 @@ impl RelationOwner {
         self.inspect_available(result, input)?
     }
 
+    /// Admits the rows of a publication when they are available, answering the refusal otherwise.
     pub fn inspect_available<'a>(
         &self,
         result: &dyn PublishedRelation,

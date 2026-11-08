@@ -7,7 +7,7 @@ use ryo_execution_domain::domain::coverage::types::{Partial, RuleIndex};
 use ryo_relations::domain::relations::types::Relation;
 impl DerivedOwner {
     /// Configure the real installed backend for required-versus-optional controls.
-    #[cfg(test)]
+    #[cfg(any(test, feature = "fixtures"))]
     pub fn set_optional_limit(
         &self,
         limit: crate::application::file_dag::derived::owner::index::types::ByteLimit,
@@ -20,6 +20,7 @@ impl DerivedOwner {
 }
 
 impl DerivedOwner {
+    /// Sets the owner up for one file of the program: the views its demanded rules read.
     pub fn prepare_program_file(
         &self,
         prepared: &RequestDerived,

@@ -56,6 +56,7 @@ impl GraphHandle {
     pub(in crate::application::file_dag::derived::owner) fn raw_graph(&self) -> &Arc<CompactGraph> {
         &self.graph
     }
+    /// The view the graph handle was acquired as.
     pub fn acquired(&self) -> &AcquiredView {
         &self.acquired
     }
@@ -137,6 +138,7 @@ pub struct RootAnswer {
     _lease: Arc<ResourceLease>,
 }
 impl RootAnswer {
+    /// A root answer over reached vertices, kept alive by its graph's storage and lease.
     pub fn new(
         rows: Arc<ReachedVertices>,
         graph: Arc<DerivedStorage>,

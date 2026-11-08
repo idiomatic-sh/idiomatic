@@ -57,6 +57,7 @@ fn new_progress() -> RouteProgressState {
 }
 
 impl FileScope {
+    /// Opens the profile of `file`; it records only when the route trace is on.
     pub fn begin(file: impl Into<RouteFileIndex>) -> Self {
         let file = file.into();
         let enabled = resource_routes_activity();

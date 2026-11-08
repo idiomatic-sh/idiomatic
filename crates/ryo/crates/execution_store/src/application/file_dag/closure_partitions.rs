@@ -28,6 +28,7 @@ pub struct PartitionedClosure<'f> {
     scratch: DerivedScratch,
 }
 impl<'f> PartitionedClosure<'f> {
+    /// Moves to the next partition, building it from the shared ordering, or answers that none is left.
     pub fn advance(&mut self) -> Result<PartitionAdvance, OperatingError> {
         let ryo_derived::domain::contract::types::DerivedView::PartitionOrder(order) =
             self.ordered.view()?
@@ -88,11 +89,13 @@ impl<'f> PartitionedClosure<'f> {
         )?);
         Ok(PartitionAdvance::Advanced)
     }
+    /// Takes the current partition's view out of the cursor, for the invocation to hold.
     pub fn take_current(
         &mut self,
     ) -> Result<AcquiredView, OperatingError> {
         self.current.take().ok_or(OperatingError::NotRun)
     }
+    /// The partition the cursor is on.
     pub fn current(&self) -> Result<&ClosurePartition, OperatingError> {
         let current = self.current.as_ref().ok_or(OperatingError::NotRun)?;
         match current.view()? {

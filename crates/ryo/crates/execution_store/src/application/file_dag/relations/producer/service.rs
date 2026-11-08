@@ -2,6 +2,7 @@
 use crate::application::file_dag::relations::*;
 use crate::application::file_dag::relations::publication::types::ProducerScope;
 impl RelationOwner {
+    /// The population identity of the project scope.
     pub fn project_identity(
         &self,
     ) -> Result<PopulationId, OperatingError> {
@@ -81,6 +82,7 @@ impl RelationOwner {
             RelationBody::Computed(_) | RelationBody::Compact(_) => self.result_population(result),
         }
     }
+    /// Pins the derived views of `result` to its publication.
     pub fn pin_derived(&self, result: &RelationResult) {
         let population = self.result_population(result);
         self.derived.pin(population);
@@ -90,7 +92,7 @@ impl RelationOwner {
         }
     }
     /// Read-only evidence for the actual producer in the actual population.
-    #[cfg(test)]
+    #[cfg(any(test, feature = "fixtures"))]
     pub fn producer_view_witness(
         &self,
         scope: ProducerScope,

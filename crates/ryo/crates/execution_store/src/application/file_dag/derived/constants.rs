@@ -1,4 +1,5 @@
 //! Diagnostic vocabulary for actual derived activation boundaries and visits.
+/// The tracing target of the derived activation events.
 pub const TARGET: &str = "ryo::diagnostic::activation";
 pub(super) const BEGIN: &str = "begin";
 pub(super) const END: &str = "end";
@@ -10,10 +11,12 @@ pub(super) const GRAPH_HIT: &str = "graph_hit";
 pub const RULE_METADATA: &str = "rule_metadata";
 /// Diagnostic and expectation vocabulary of the derived owner.
 pub(in crate::application::file_dag) const TARGET_GRAPH: &str = "ryo::diagnostic::graph";
+/// The tracing target of the resource-route counts.
 pub const TARGET_RESOURCE_ROUTES: &str =
     ryo_values::domain::table_words::constants::RESOURCE_ROUTES_TARGET;
 pub(in crate::application::file_dag) const TARGET_STORED_JOIN: &str =
     "ryo::diagnostic::stored_join";
+/// The tracing target of the lifecycle memory events.
 pub const TARGET_LIFECYCLE_MEMORY: &str =
     ryo_values::domain::table_words::constants::LIFECYCLE_TARGET;
 pub(in crate::application::file_dag) const EVENT_OWNER_FOOTPRINT: &str = "owner_footprint";

@@ -20,6 +20,7 @@ use std::sync::Arc;
 
 use ryo_execution_domain::domain::operator::contract::types::RequestOperators;
 
+/// Prepares every operation of the request once, against the catalog's relation schemas, shared by all file workers.
 pub fn prepare(
     plans: &[Plan],
     bindings: &[Vec<ParameterBinding>],
@@ -28,6 +29,7 @@ pub fn prepare(
 ) -> Result<RequestOperators, OperatingError> {
     prepare_with_schemas(plans, bindings, hosted, &kinds, semantic)
 }
+/// Prepares every operation of the request once, against the schemas `relation_kinds` answers.
 pub fn prepare_with_schemas<'s>(
     plans: &[Plan],
     bindings: &[Vec<ParameterBinding>],

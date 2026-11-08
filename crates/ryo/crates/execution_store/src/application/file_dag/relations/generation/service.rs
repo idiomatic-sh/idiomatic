@@ -13,6 +13,7 @@ impl GenerationLease {
     pub(in crate::application::file_dag::relations) fn invalidate(&self) {
         self.live.store(false, std::sync::atomic::Ordering::Release);
     }
+    /// Whether the generation is still live.
     pub fn is_live(&self) -> crate::application::file_dag::relations::types::Liveness {
         if self.live.load(std::sync::atomic::Ordering::Acquire) {
             crate::application::file_dag::relations::types::Liveness::Live

@@ -6,6 +6,7 @@ pub(in crate::application::file_dag) struct IndexObservation {
     pub available: bool,
 }
 impl DerivedOwner {
+    /// The scoped builds counted, and the storage of the last one.
     pub fn scoped_observation(
         &self,
     ) -> (usize, Weak<DerivedStorage>) {
@@ -15,6 +16,7 @@ impl DerivedOwner {
         )
     }
 
+    /// The counts the resource fixture reads.
     pub fn resource_fixture_counts(
         &self,
     ) -> crate::application::file_dag::derived::owner::fixtures::resources::Snapshot {
@@ -26,6 +28,7 @@ impl DerivedOwner {
             graph_early_stops: cache.graph_counts.early_stops.0,
         }
     }
+    /// What the owner's index acquisitions observed.
     pub fn index_observation(&self) -> IndexObservation {
         self.backend
             .borrow()
@@ -72,6 +75,7 @@ impl DerivedOwner {
             .backing_count(crate::application::file_dag::derived::ledger::types::BackingTag(11))
             .0
     }
+    /// The publication, ownership and retained bytes the owner accounts for.
     pub fn publication_ownership_bytes(
         &self,
     ) -> (usize, usize, usize) {
@@ -109,6 +113,7 @@ impl DerivedOwner {
         }
         Ok(witness)
     }
+    /// The backing witness of the retained view of `kind`, when one is retained.
     pub fn view_witness(
         &self,
         kind: DerivedKind,

@@ -47,6 +47,7 @@ struct SourceViews {
     views: FxHashMap<SourceDescriptor, PublishedInput>,
 }
 
+/// The relation owner of one file generation: it publishes relations, admits borrowed inputs and issues the generation they are bound to.
 pub struct RelationOwner {
     #[cfg(test)]
     pub(super) identity_checks: Cell<CheckCount>,
@@ -65,6 +66,7 @@ pub struct RelationOwner {
     routes: super::route_counts::types::RouteProfile,
 }
 impl RelationOwner {
+    /// The derived-view owner of this generation.
     pub fn derived(&self) -> &super::derived::owner::DerivedOwner {
         &self.derived
     }
@@ -80,12 +82,15 @@ impl RelationOwner {
     ) -> &mut super::derived::owner::DerivedOwner {
         &mut self.derived
     }
+    /// The generation of the resident population, for a proof to keep and present back.
     pub fn generation_guard(&self) -> Arc<()> {
         Arc::clone(&self.generation.borrow())
     }
+    /// The revocation lease of the resident population.
     pub fn generation_liveness(&self) -> Arc<GenerationLease> {
         Arc::clone(&self.generation_live.borrow())
     }
+    /// Whether `generation` is the resident population's generation.
     pub fn matches_generation(
         &self,
         generation: &Arc<()>,
@@ -158,7 +163,8 @@ impl RelationOwner {
             routes,
         }
     }
-    #[cfg(test)]
+    /// Whether this owner's publications may be reused across invocations.
+    #[cfg(any(test, feature = "fixtures"))]
     pub fn stable(&self) -> ReuseEligibility {
         self.stable
     }

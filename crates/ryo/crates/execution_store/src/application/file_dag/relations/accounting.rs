@@ -68,6 +68,7 @@ impl RelationOwner {
             bytes: table_bytes(table),
         }
     }
+    /// Publishes `record` with its backing accounted to the ledger.
     pub fn publication(
         &self,
         record: Arc<RelationResult>,

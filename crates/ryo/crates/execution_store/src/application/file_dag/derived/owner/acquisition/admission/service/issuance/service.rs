@@ -75,6 +75,7 @@ use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 }
 
 impl DerivedOwner {
+    /// Admits the inputs of a view against the relation owner's proofs, the one way to view inputs for an acquisition.
     pub fn admit_view<'a>(
         &self,
         plan: &Arc<DerivedContract>,

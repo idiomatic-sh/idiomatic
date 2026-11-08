@@ -101,6 +101,7 @@ struct State {
     peak_required_views: ViewCount,
     required_backend_bytes: ByteCount,
 }
+/// The file-local owner of derived views: it acquires, retains, accounts for and releases them.
 pub struct DerivedOwner {
     identity: Arc<()>,
     semantic: types::DerivedAccess,
@@ -116,7 +117,8 @@ pub struct DerivedOwner {
     routes: crate::application::file_dag::route_counts::types::RouteProfile,
 }
 impl DerivedOwner {
-    #[cfg(test)]
+    /// Prepares the contract of a view request against its input schemas.
+    #[cfg(any(test, feature = "fixtures"))]
     pub fn prepare_view(
         &self,
         request: &ViewRequest,
@@ -144,16 +146,19 @@ impl DerivedOwner {
             routes,
         }
     }
+    /// How many views were built, reused and refused.
     pub fn counts(&self) -> BuildCounts {
         let state = self.state.borrow();
         BuildCounts(state.builds, state.hits, state.refusals)
     }
+    /// The working bytes the owner's views hold now.
     pub fn working_bytes(&self) -> ByteCount {
         self.state.borrow().required_bytes
     }
     pub(in crate::application::file_dag) fn peak_working_bytes(&self) -> ByteCount {
         self.state.borrow().peak_required_bytes
     }
+    /// The bytes the owner retains across invocations.
     pub fn retained_bytes(&self) -> ByteCount {
         self.state.borrow().retained_bytes
     }
@@ -163,6 +168,7 @@ impl DerivedOwner {
     pub(in crate::application::file_dag) fn peak_required_views(&self) -> ViewCount {
         self.state.borrow().peak_required_views
     }
+    /// The bytes the owner holds in all.
     pub fn owned_bytes(&self) -> ByteCount {
         let state = self.state.borrow();
         ByteCount(

@@ -8,6 +8,7 @@ pub(in crate::application::file_dag) mod types;
 use std::{rc::Rc, sync::Arc};
 use types::ScopePermit;
 
+/// The partial facts a scope evaluates and publishes under: a file's, or the project's.
 pub enum ScopePartials<'a> {
     File {
         evaluation: &'a [ryo_execution_domain::domain::coverage::types::Partial],

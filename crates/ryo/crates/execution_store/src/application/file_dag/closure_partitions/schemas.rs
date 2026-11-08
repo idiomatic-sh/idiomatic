@@ -52,6 +52,7 @@ pub(in crate::application::file_dag) fn from_prepared<'f>(
         scratch: ryo_execution_domain::domain::derived_views::types::DerivedScratch::default(),
     })
 }
+/// A partitioned closure over a publication, for the proofs of its cursor.
 #[cfg(any(test, feature = "fixtures"))]
 pub fn prepare<'f>(
     publication: &crate::application::file_dag::relations::handle::service::PublishedInput,
