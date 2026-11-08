@@ -64,7 +64,7 @@ The pass is the workspace check with all features and all targets, `--keep-going
   Coverage at both: selected 1,187,375, evaluated 1,186,980, skipped 395 (every skip at `tests/test_runner_apps/tagged/tests_syntax_error.py`, `syntax-rejected`); store 1,778,454,983 bytes. The output bytes (sha256 `53b163f4bda83afa...`, 992,711 bytes) are those of the 325 receipt. Against 325 at one thread (3,383.4 s, 6.61 GB): one thread is 19% faster in wall (perf iteration 2's per-file cuts) with 0.61 GB less peak; default threads is 6.7 times faster in wall for 1.20 times the CPU, with 0.39 GB more peak than 325 at one thread (1.00 GB more than one thread here).
 - **Landing 1 follow-ups (unchanged here):** `missing_debug_implementations` 109 sites across the workspace (68 in the three engine crates), never-used items 65 (execution 28, store 35, derived 2); they stay with their row.
 - **The 322 hold:** lifted; the decision and its words, quoted, are under "Owner decisions".
-- **Principal Rust review:** requested on this record's head (diff `dcd94840fc..` this head); the verdict lands as `evidence/checkpoint/rust-review.json` before the push.
+- **Principal Rust review:** PASS on all seven items, first pass (diff `dcd94840fc..57f25dd99b`, `evidence/checkpoint/rust-review.json`). Its four notes (not failures) are left for the landing 1 follow-ups row rather than taking another check pass: check `unnecessary_lazy_evaluations` on the lazy refusals over fieldless variants (if clippy reports it, keep the change with a reasoned `#[expect]` citing the drop-glue measurement); trailing whitespace at `kernel_session/evaluation/service.rs` lines 228 and 251; `executable_program/value.rs:118` still builds `OperatingError::NotRead` eagerly; `CompletionPolicy::for_rule` repeats `rebind`'s scope match.
 
 **Cycle metrics:**
 
@@ -79,7 +79,7 @@ The pass is the workspace check with all features and all targets, `--keep-going
 | Lines under `crates/ryo` | +327 / -146 (Rust +174 / -116) |
 | Full Django 413 cold | exit 0, unknown 0; default threads 502.3 s, 7.00 GB; one thread 2,729.6 s, 6.00 GB (3,383.4 s, 6.61 GB at 325) |
 | Contract review | pending |
-| Rust gate review | requested |
+| Rust gate review | PASS on all seven items, first pass (diff `dcd94840fc..57f25dd99b`) |
 
 ### Review repairs X
 
@@ -363,6 +363,7 @@ One row per checkpoint, landing and perf branch, copied from its `rust-review.js
 | Checkpoint 323 | diff `d13686afb5..aa54b1472a` | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
 | Checkpoint 324 (landing 1) | diff `7d93840b19..d82b98cbcb` | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS (second pass; the first, of `afd1f9e45d`, was FAIL on item 6: a vacuous `compile_fail` doctest) |
 | Checkpoint 325 | diff `14a8352416..0a02582a09` | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS (first pass) |
+| Checkpoint 326 | diff `dcd94840fc..57f25dd99b` | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS (first pass) |
 
 Earlier `36b0cdbea`/validation297 and300 findings remain source-bound in the [initial](audits/2026-11-06-derived/review.json) and [successor](audits/2026-11-06-derived/successor.json) reviews. The current checkpoint supersedes their repaired functional blockers without approving a whole phase or category.
 
