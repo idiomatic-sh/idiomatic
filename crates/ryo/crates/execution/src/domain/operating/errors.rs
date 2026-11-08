@@ -10,7 +10,7 @@ pub enum OperatingError {
     Spelling(#[from] crate::domain::spelling::errors::SpellingError),
     /// Request declaration errors are preserved before any file is read.
     #[error(transparent)]
-    ObservationConfiguration(#[from] crate::domain::file_program::errors::FileProgramError),
+    ObservationConfiguration(#[from] crate::domain::rule_intent::errors::RuleIntentError),
     /// An explicit bound producer did not publish a complete result in this generation.
     #[error("named producer is incomplete: {reason}")]
     ObservationIncomplete { reason: String },

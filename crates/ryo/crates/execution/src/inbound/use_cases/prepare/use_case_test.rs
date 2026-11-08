@@ -6,7 +6,7 @@ use super::{
 };
 use crate::application::file_dag::program::prepared_execution::interface::PreparedExecution;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::file_program::errors::FileProgramError;
+use crate::domain::rule_intent::errors::RuleIntentError;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::prepared_request::types::ObservationIdentity;
 use super::interface::{ExecutionCompilation as _, PreparedQueries as _, QueryCompilation, RuleCompilationError};
@@ -56,7 +56,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || request(vec![vec![]]),
         expect: Expect::Error(OperatingError::ObservationConfiguration(
-            FileProgramError::InvalidReference,
+            RuleIntentError::InvalidReference,
         )),
     },
 ];

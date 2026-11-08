@@ -1,7 +1,8 @@
-//! Request-graph named binding configuration refusals.
+//! The `rule_intent` concept's failures: the refusals of a request's declared rules and their named bindings, made before
+//! any file is read.
 /// A configuration error, never an absent successful publication.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
-pub enum FileProgramError {
+pub enum RuleIntentError {
     #[error("too many named roots or input bindings")]
     TooManyOutputs,
     #[error("named-root plan or input reference is invalid")]

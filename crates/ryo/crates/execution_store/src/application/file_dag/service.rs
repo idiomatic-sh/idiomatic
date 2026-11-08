@@ -18,7 +18,7 @@ use ryo_values::domain::plans::{
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use std::sync::Arc;
 
-use ryo_execution_domain::domain::operator::contract::types::RequestOperators;
+use ryo_execution_domain::domain::file_program::types::RequestOperators;
 
 /// Prepares every operation of the request once, against the catalog's relation schemas, shared by all file workers.
 pub fn prepare(

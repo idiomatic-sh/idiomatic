@@ -1,7 +1,7 @@
 //! Pure named-root dependency resolution; the existing application graph owns execution and resources.
 use crate::domain::coverage::types::RuleIndex;
 use crate::domain::file_program::constants::{EXPECT_BINDING_INDEX, EXPECT_OUTPUT_INDEX};
-use crate::domain::file_program::errors::FileProgramError;
+use crate::domain::rule_intent::errors::RuleIntentError;
 use crate::domain::rule_intent::types::FrontierPurpose;
 use crate::domain::file_program::types::{
     PreparedObservationInputs, ResolvedObservationBinding, ResolvedObservationProducer,
@@ -15,7 +15,7 @@ use ryo_values::domain::runs::types::RuleId;
 use std::collections::{BTreeMap, BTreeSet};
 
 /// Resolve only declared dependency edges. No providers or operators are executed here.
-pub(crate) fn schedule(rules: &[RuleSpec]) -> Result<RuleSchedule, FileProgramError> {
+pub(crate) fn schedule(rules: &[RuleSpec]) -> Result<RuleSchedule, RuleIntentError> {
     if rules.iter().all(|rule| rule.observations.is_empty()) {
         return Ok(RuleSchedule::Independent);
     }
@@ -29,7 +29,7 @@ pub(crate) fn schedule(rules: &[RuleSpec]) -> Result<RuleSchedule, FileProgramEr
         let mut names = BTreeSet::new();
         for binding in &rule.observations {
             if !names.insert(&binding.name) {
-                return Err(FileProgramError::DuplicateBinding {
+                return Err(RuleIntentError::DuplicateBinding {
                     rule: rule.id.0.to_string(),
                     name: binding.name.0.to_string(),
                 });
@@ -38,20 +38,20 @@ pub(crate) fn schedule(rules: &[RuleSpec]) -> Result<RuleSchedule, FileProgramEr
                 match producer {
                     ObservationProducer::Output { rule: id, .. } => {
                         let Some(&producer) = index.get(id) else {
-                            return Err(FileProgramError::UnknownProducer {
+                            return Err(RuleIntentError::UnknownProducer {
                                 consumer: rule.id.0.to_string(),
                                 producer: id.0.to_string(),
                             });
                         };
                         if producer == consumer {
-                            return Err(FileProgramError::SelfDependency {
+                            return Err(RuleIntentError::SelfDependency {
                                 rule: id.0.to_string(),
                             });
                         }
                         needs[consumer].insert(producer);
                     }
                     ObservationProducer::NoQuery { rule: id } if index.contains_key(id) => {
-                        return Err(FileProgramError::ExecutableNoQuery {
+                        return Err(RuleIntentError::ExecutableNoQuery {
                             rule: id.0.to_string(),
                         });
                     }
@@ -71,7 +71,7 @@ pub(crate) fn schedule(rules: &[RuleSpec]) -> Result<RuleSchedule, FileProgramEr
             .map(|(at, _)| RuleIndex(at))
             .collect();
         if ready.is_empty() {
-            return Err(FileProgramError::Cycle);
+            return Err(RuleIntentError::Cycle);
         }
         for rule in &ready {
             done[rule.0] = true;
@@ -87,7 +87,7 @@ pub(crate) fn schemas<P: std::borrow::Borrow<Plan>>(
     consumer: &RuleSpec,
     rules: &[RuleSpec],
     compiled: &[Option<P>],
-) -> Result<PreparedObservationInputs, FileProgramError> {
+) -> Result<PreparedObservationInputs, RuleIntentError> {
     let mut schemas = Vec::new();
     let mut bindings = Vec::new();
     for (local, binding) in consumer.observations.iter().enumerate() {
@@ -108,12 +108,12 @@ pub(crate) fn schemas<P: std::borrow::Borrow<Plan>>(
             let at = rules
                 .iter()
                 .position(|candidate| candidate.id == *rule)
-                .ok_or_else(|| FileProgramError::UnknownProducer {
+                .ok_or_else(|| RuleIntentError::UnknownProducer {
                     consumer: consumer.id.0.to_string(),
                     producer: rule.0.to_string(),
                 })?;
             let plan = compiled.get(at).and_then(Option::as_ref).ok_or_else(|| {
-                FileProgramError::NotCompiled {
+                RuleIntentError::NotCompiled {
                     rule: rule.0.to_string(),
                 }
             })?;
@@ -123,12 +123,12 @@ pub(crate) fn schemas<P: std::borrow::Borrow<Plan>>(
                 .iter()
                 .enumerate()
                 .find(|(_, observed)| observed.name == *output)
-                .ok_or_else(|| FileProgramError::MissingOutput {
+                .ok_or_else(|| RuleIntentError::MissingOutput {
                     producer: rule.0.to_string(),
                     output: output.0.to_string(),
                 })?;
             if observed.columns != binding.columns {
-                return Err(FileProgramError::IncompatibleObservationColumns {
+                return Err(RuleIntentError::IncompatibleObservationColumns {
                     consumer: consumer.id.0.to_string(),
                     producer: rule.0.to_string(),
                     output: output.0.to_string(),
@@ -138,7 +138,7 @@ pub(crate) fn schemas<P: std::borrow::Borrow<Plan>>(
                 scope = StepScope::CrossFile;
             }
             let output_index =
-                u32::try_from(output_index).map_err(|_| FileProgramError::TooManyOutputs)?;
+                u32::try_from(output_index).map_err(|_| RuleIntentError::TooManyOutputs)?;
             producers.push(ResolvedObservationProducer::Output {
                 rule: RuleIndex(at),
                 output: ryo_values::domain::records::types::ObservationIndex(output_index),
@@ -149,7 +149,7 @@ pub(crate) fn schemas<P: std::borrow::Borrow<Plan>>(
             columns: binding.columns.clone(),
             scope,
         };
-        let local = u32::try_from(local).map_err(|_| FileProgramError::TooManyOutputs)?;
+        let local = u32::try_from(local).map_err(|_| RuleIntentError::TooManyOutputs)?;
         bindings.push(ResolvedObservationBinding {
             input: ryo_values::domain::plan_parts::types::ObservationBindingId(local),
             schema: schema.clone(),
@@ -356,13 +356,13 @@ pub(crate) fn request<'a>(
     schedule: &'a RuleSchedule,
     bindings: &'a [Vec<ResolvedObservationBinding>],
     layout: ryo_values::domain::records::types::ObservationReadinessLayout,
-) -> Result<crate::domain::file_program::types::ObservationRequest<'a>, FileProgramError> {
+) -> Result<crate::domain::file_program::types::ObservationRequest<'a>, RuleIntentError> {
     use crate::domain::file_program::types::ObservationRequest;
     if bindings.is_empty() {
         return Ok(ObservationRequest::Independent);
     }
     match schedule {
         RuleSchedule::Dependencies { .. } => Ok(ObservationRequest::Bound { layout, bindings }),
-        RuleSchedule::Independent => Err(FileProgramError::InvalidReference),
+        RuleSchedule::Independent => Err(RuleIntentError::InvalidReference),
     }
 }

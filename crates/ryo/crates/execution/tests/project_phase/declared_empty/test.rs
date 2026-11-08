@@ -1,5 +1,5 @@
 //! Closed empty declarations remain typed populations; absent declarations remain refusals.
-use ryo_execution::inbound::use_cases::execution::interface::FileProgramError;
+use ryo_execution::inbound::use_cases::execution::interface::RuleIntentError;
 use ryo_execution::application::file_dag::frontiers::types::InputReadiness;
 use ryo_execution::outbound::facts::types::ResidentStability;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
@@ -296,7 +296,7 @@ fn missing_declarations_outputs_and_mismatched_schemas_are_not_closed_empty() {
     assert!(matches!(
         engine.prepare(missing_slot),
         Err(OperatingError::ObservationConfiguration(
-            FileProgramError::InvalidReference
+            RuleIntentError::InvalidReference
         ))
     ));
     let mut mismatch = declared();
@@ -315,7 +315,7 @@ fn missing_declarations_outputs_and_mismatched_schemas_are_not_closed_empty() {
     assert!(matches!(
         engine.prepare(unknown),
         Err(OperatingError::ObservationConfiguration(
-            FileProgramError::UnknownProducer { .. }
+            RuleIntentError::UnknownProducer { .. }
         ))
     ));
     let mut missing_output = declared();
@@ -331,7 +331,7 @@ fn missing_declarations_outputs_and_mismatched_schemas_are_not_closed_empty() {
     assert!(matches!(
         engine.prepare(missing_output),
         Err(OperatingError::ObservationConfiguration(
-            FileProgramError::MissingOutput { .. }
+            RuleIntentError::MissingOutput { .. }
         ))
     ));
 }

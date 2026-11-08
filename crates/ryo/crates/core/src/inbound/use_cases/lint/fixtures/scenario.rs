@@ -130,7 +130,7 @@ pub(crate) fn scenario(scenario: Scenario) -> Result<(usize, usize), LintError> 
         )),
         Scenario::ObservationBindingsRefused => Err(LintError::from(
             ryo_execution::inbound::use_cases::prepare::interface::RuleCompilationError::Observations(
-                ryo_execution::inbound::use_cases::execution::interface::FileProgramError::Cycle,
+                ryo_execution::inbound::use_cases::execution::interface::RuleIntentError::Cycle,
             ),
         )),
         Scenario::Lint(given) => {

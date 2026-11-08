@@ -56,7 +56,7 @@ pub use crate::domain::coverage::types::LackingKind;
 pub use crate::domain::coverage::types::Partial;
 pub use crate::domain::coverage::types::Partials;
 pub use crate::domain::coverage::types::RuleIndex;
-pub use crate::domain::file_program::errors::FileProgramError;
+pub use crate::domain::rule_intent::errors::RuleIntentError;
 pub use crate::domain::file_program::types::ObservedFrontierRoot;
 pub use crate::domain::frontier_capture::types::CapturedFrontier;
 pub use crate::domain::frontier_capture::types::FrontierCapture;

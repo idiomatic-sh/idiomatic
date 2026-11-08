@@ -11,7 +11,7 @@ use super::types::{
     RequestGraph, ResolvedAlternative, ResolvedShape, SchemaValidity,
 };
 use crate::domain::coverage::types::RuleIndex;
-use crate::domain::operator::contract::types::RequestOperators;
+use crate::domain::file_program::types::RequestOperators;
 use crate::domain::self_join_recogniser::types::Decline;
 
 use ryo_values::domain::plan_parts::types::StepScope;
@@ -27,7 +27,7 @@ use std::sync::Arc;
 #[cfg(test)]
 pub(crate) fn compile_prepared(
     plans: &[Plan],
-    operators: &crate::domain::operator::contract::types::RequestOperators,
+    operators: &crate::domain::file_program::types::RequestOperators,
 ) -> RequestGraph {
     compile_prepared_observations(plans, operators, ObservationRequest::Independent)
 }
@@ -35,7 +35,7 @@ pub(crate) fn compile_prepared(
 /// Extend the same graph with named producer edges after all real contracts are prepared.
 pub(crate) fn compile_prepared_observations(
     plans: &[Plan],
-    operators: &crate::domain::operator::contract::types::RequestOperators,
+    operators: &crate::domain::file_program::types::RequestOperators,
     observations: ObservationRequest<'_>,
 ) -> RequestGraph {
     let bound_offsets = binding_offsets(plans, observations);

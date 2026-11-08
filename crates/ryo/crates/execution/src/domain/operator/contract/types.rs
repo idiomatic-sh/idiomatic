@@ -91,8 +91,12 @@ pub(crate) struct SemanticContract {
 pub(crate) struct OperationSemantics {
     pub contract: SemanticContract,
     pub effects: Effects,
-    pub absence: crate::domain::contributor_rows::types::AbsenceMask,
+    pub absence: AbsenceMask,
 }
+
+/// The operands, by their place, whose absence of rows an operator trusts: the bit of an operand is `1 << place`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct AbsenceMask(pub u8);
 
 /// Inputs whose rows may trigger evaluation in this mode.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -162,7 +166,7 @@ pub(crate) struct OperatorContract {
     /// Payload-independent collected layout; row-lazy refusals are not raised by it.
     pub output_kinds: Result<Vec<CellKind>, OperatingError>,
     /// Input-position bitset: absence-dependent outputs require these populations complete.
-    pub absence_inputs: crate::domain::contributor_rows::types::AbsenceMask,
+    pub absence_inputs: AbsenceMask,
     pub workspace: WorkspaceProgram,
     pub resources: super::resources::ResourceProgram,
     pub empty_results: Vec<EmptyResult>,
@@ -313,17 +317,6 @@ pub(crate) struct DistinctWorkspace {
 /// How many operations a request prepared.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct PreparationCount(pub usize);
-
-/// Prepared metadata belongs to the request; workers only borrow this immutable value.
-#[derive(Debug)]
-pub(crate) struct RequestOperators {
-    /// Original-plan shape metadata owned by this exact immutable request, never file state:
-    /// one slot per rule, compiled when the request graph first resolves that rule's regions.
-    pub ordered_existence:
-        Vec<std::sync::OnceLock<crate::domain::self_join_recogniser::types::Program>>,
-    pub rules: Vec<Vec<std::sync::Arc<OperatorContract>>>,
-    pub preparations: PreparationCount,
-}
 
 /// Exact semantic program bound once; a primitive cannot substitute comparisons.
 #[derive(Clone, Debug)]

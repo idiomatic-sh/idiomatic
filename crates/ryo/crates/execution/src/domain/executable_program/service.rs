@@ -22,7 +22,7 @@ pub(crate) fn compile(
     plans: &[Plan],
     graph: RequestGraph,
     partitions: &dyn ProducerPartitions,
-    prepared: &crate::domain::operator::contract::types::RequestOperators,
+    prepared: &crate::domain::file_program::types::RequestOperators,
 ) -> Result<ExecutableProgram, OperatingError> {
     let count = graph.nodes.len();
     let mut origins = vec![None; count];

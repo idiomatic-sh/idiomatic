@@ -1,7 +1,7 @@
 //! Exhaustive semantic declarations; strategy, cache admission and lifetimes are not kinds.
 use super::types::*;
 use crate::domain::operating::errors::OperatingError;
-use crate::domain::contributor_rows::types::AbsenceMask;
+use crate::domain::operator::contract::types::AbsenceMask;
 use ryo_values::domain::query_operators::types::OperationKind;
 
 /// One semantic input and dependency contract, independent of output delivery.

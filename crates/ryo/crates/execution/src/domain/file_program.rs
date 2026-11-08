@@ -3,7 +3,6 @@ mod constants;
 pub(crate) mod service;
 pub(crate) mod types;
 
-pub(crate) mod errors;
 
 #[cfg(test)]
 pub(crate) mod fixtures;

@@ -5,9 +5,8 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::{
     coverage::types::RuleIndex,
     file_program::types::{
-        ObservationRequest, ResolvedObservationBinding, ResolvedObservationProducer,
+        ObservationRequest, RequestOperators, ResolvedObservationBinding, ResolvedObservationProducer,
     },
-    operator::contract::types::RequestOperators,
 };
 use ryo_relations::domain::relations::types::{CellKind, Relation};
 use ryo_values::domain::plan_parts::types::{Input, StepId};
