@@ -5,9 +5,8 @@ use std::sync::Arc;
 /// ```compile_fail,E0603
 /// use ryo_execution::application::file_dag::execution::CommonOperatorEngine;
 /// ```
-/// ```compile_fail,E0603
-/// use ryo_execution::domain::executable_program::service::compile;
-/// ```
+/// The program compiler (`compile`) lives in `ryo_execution_domain`; `idiomatic.arch/library-surface` keeps it from
+/// every crate outside the engine crates.
 /// The store's owners (`ryo_execution_store::application::file_dag::relations::RelationOwner` and the rest) are
 /// public to the engine crates; `idiomatic.arch/library-surface` keeps every other crate to the store's derived port.
 /// There is no production strategy selector: the removed public kernel-strategy

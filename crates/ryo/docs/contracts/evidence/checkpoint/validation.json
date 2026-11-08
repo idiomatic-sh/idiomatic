@@ -262,13 +262,13 @@
       "note": "the staging guard exits 1 (durable verifier output or identities were not preserved), red since 321, the benchmark TM row"
     },
     "doctests": {
-      "execution": 15,
+      "execution": 14,
       "core": 1,
       "sdk": 3,
       "values": 4,
       "derived": 11,
       "failed": 0,
-      "note": "execution 16 at validation323 less the compile_fail import of the store's RelationOwner, which the domain/store split makes public to the engine crates (library-surface keeps it from every other crate)"
+      "note": "execution 16 at validation323 less two compile_fail probes the split makes vacuous: the import of the store's RelationOwner (public to the engine crates; library-surface keeps it from every other crate) and the import of ryo_execution::domain::...::compile (the path no longer exists; compile lives in ryo_execution_domain); execution doctests rerun after the second removal (rerun-doctest-review324.log)"
     },
     "tm_import_cli": "pass",
     "tm_cli_source_findings": 0,
