@@ -5,9 +5,9 @@ use ryo_execution_runtime::application::file_dag::observations::types::AdmittedO
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use super::super::*;
-use ryo_execution_runtime::application::file_dag::program::observation_stage::interface::ObservationExecution;
-use ryo_execution_runtime::application::file_dag::program::observation_stage::interface::ObservationPublication;
-use ryo_execution_runtime::application::file_dag::program::project_phase::interface::ProjectRootExecution;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationExecution;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationPublication;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution;
 use ryo_values::domain::{
     observations::types::*,
     plan_parts::types::ObservationBindingId,

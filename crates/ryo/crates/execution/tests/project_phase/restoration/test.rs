@@ -15,8 +15,8 @@ use ryo_values::domain::{
 
 #[test]
 fn restored_named_frontier_keeps_skipped_partition_provenance_despite_complete_readiness() {
-    use ryo_execution_runtime::application::file_dag::program::observation_stage::interface::ObservationExecution;
-    use ryo_execution_runtime::application::file_dag::program::observation_stage::interface::ObservationPublication;
+    use ryo_execution::inbound::use_cases::execution::interface::ObservationExecution;
+    use ryo_execution::inbound::use_cases::execution::interface::ObservationPublication;
     use ryo_values::domain::plan_parts::types::ObservationBindingId;
     for rejected in [false, true] {
         let engine = engine();

@@ -5,7 +5,7 @@ use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use crate::boundary_fixture::authored_request;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
+use ryo_execution::inbound::use_cases::execution::interface::FileExecution;
 use ryo_execution::inbound::use_cases::execution::interface::WalkPassCount;
 use ryo_execution::inbound::use_cases::execution::interface::WalkSourceRows;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;

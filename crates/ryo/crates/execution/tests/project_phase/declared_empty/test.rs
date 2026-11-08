@@ -8,7 +8,7 @@ use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareReque
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use super::super::*;
-use ryo_execution_runtime::application::file_dag::program::observation_stage::interface::ObservationExecution;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationExecution;
 use ryo_values::domain::{
     observations::types::{
         BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn,

@@ -1,8 +1,8 @@
 //! Actual two-file named restoration and absence publication, including a
 //! downstream projection that would erase the completeness key if fused early.
 use crate::boundary_fixture::Observed as _;
-use ryo_execution_runtime::application::file_dag::program::observation_stage::interface::ObservationExecution as _;
-use ryo_execution_runtime::application::file_dag::program::observation_stage::interface::ObservationPublication as _;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationExecution as _;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationPublication as _;
 use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityReason;
 use ryo_execution::inbound::use_cases::execution::interface::FileObservationReadiness;
 use ryo_execution::inbound::use_cases::execution::interface::Partial;

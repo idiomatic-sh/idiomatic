@@ -10,11 +10,11 @@ use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use crate::boundary_fixture::corpus;
-use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ExecutionRequest;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution_runtime::application::file_dag::program::observation_stage::interface::ObservationExecution;
-use ryo_execution_runtime::application::file_dag::program::project_phase::interface::ProjectRootExecution;
-use ryo_execution_runtime::application::file_dag::program::project_phase::interface::ProjectStage;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationExecution;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
 use ryo_execution_runtime::application::file_dag::frontiers::errors::PreparationError;
 use ryo_execution_runtime::application::file_dag::frontiers::types::PreparedFrontiers;
 use ryo_execution_runtime::application::file_dag::program::observation_stage::types::ObservationStage;

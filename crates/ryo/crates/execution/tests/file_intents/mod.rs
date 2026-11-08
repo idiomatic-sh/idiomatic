@@ -8,7 +8,7 @@ use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareReque
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use super::*;
-use ryo_execution_runtime::application::file_dag::program::prepared_execution::interface::PreparedExecution;
+use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution;
 use ryo_execution_runtime::application::file_dag::program::preparation::types::Demand;
 use ryo_relations::domain::relations::types::{Words, WorkerNumber};
 

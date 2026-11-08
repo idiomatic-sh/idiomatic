@@ -1,9 +1,9 @@
 //! One project observation union: its members feed the semantic calls, a refused frontier prevents them, and hosted text joins by spelling.
 use super::super::*;
 use super::fixtures::UnionSemanticCalls;
-use ryo_execution_runtime::application::file_dag::program::observation_stage::interface::ObservationExecution;
-use ryo_execution_runtime::application::file_dag::program::observation_stage::interface::ObservationPublication;
-use ryo_execution_runtime::application::file_dag::program::prepared_execution::interface::PreparedExecution;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationExecution;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationPublication;
+use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution;
 use ryo_values::domain::observations::types::{
     BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn,
     ObservationColumnName, ObservationName, ObservationProducer, PlanObservation,

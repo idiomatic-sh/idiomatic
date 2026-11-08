@@ -1,7 +1,7 @@
 //! The execution feature enters the real public request owner.
 use crate::Behavior;
 use cucumber::{given, then, when};
-use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ExecutionRequest;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::prepare::interface::ObservationIdentity;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;

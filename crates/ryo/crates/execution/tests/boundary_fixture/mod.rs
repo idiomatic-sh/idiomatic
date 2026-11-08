@@ -2,7 +2,7 @@
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution_runtime::application::file_dag::program::project_phase::interface::ProjectRootExecution;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution;
 use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
 use ryo_execution_runtime::application::file_dag::program::project_phase::types::ProjectInput;
 use ryo_execution_runtime::application::file_dag::program::project_phase::types::ProjectTask;

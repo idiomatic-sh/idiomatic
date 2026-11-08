@@ -9,6 +9,7 @@ pub use ryo_execution_runtime::application::file_dag::frontiers::types::Prepared
 pub use ryo_execution_runtime::application::file_dag::frontiers::types::PublicationSlot;
 pub use ryo_execution_runtime::application::file_dag::observations::types::AdmittedOutput;
 pub use ryo_execution_runtime::application::file_dag::observations::types::RuleSelection;
+pub use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::EmittedRoot;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::FileEnd;

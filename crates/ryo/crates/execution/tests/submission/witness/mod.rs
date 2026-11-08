@@ -1,14 +1,14 @@
 //! The witness that implements every method of each entry trait.
 use ryo_execution_runtime::outbound::facts::interface::FactsFinish;
-use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ExecutionRequest;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
-use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
+use ryo_execution::inbound::use_cases::execution::interface::FileExecution;
 use ryo_execution::inbound::use_cases::execution::interface::InvocationStateCounts;
-use ryo_execution_runtime::application::file_dag::program::observation_stage::interface::ObservationExecution;
-use ryo_execution_runtime::application::file_dag::program::observation_stage::interface::ObservationPublication;
-use ryo_execution_runtime::application::file_dag::program::project_phase::interface::ProjectRootExecution;
-use ryo_execution_runtime::application::file_dag::program::project_phase::interface::ProjectStage;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationExecution;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationPublication;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
 use ryo_execution::inbound::use_cases::execution::interface::ReadinessCounts;
 use ryo_execution::inbound::use_cases::execution::interface::WalkCounts;
 use ryo_execution_runtime::application::file_dag::frontiers::errors::PreparationError;

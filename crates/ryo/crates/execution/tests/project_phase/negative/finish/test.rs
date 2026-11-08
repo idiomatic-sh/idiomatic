@@ -3,9 +3,9 @@ use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl
 use super::super::super::source_facts::fixtures::ProjectFacts;
 use super::super::fixtures::NoFileFrontiers;
 use crate::boundary_fixture::{corpus, demand, engine, prepared, project_root};
-use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ExecutionRequest;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution_runtime::application::file_dag::program::project_phase::interface::ProjectStage;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
 use ryo_execution_runtime::application::file_dag::program::project_phase::types::ProjectInput;
 use ryo_execution_runtime::application::file_dag::program::project_phase::types::FrontierDemand;
 use ryo_execution_runtime::application::file_dag::program::project_phase::types::FrontierRequest;

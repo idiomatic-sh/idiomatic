@@ -2,9 +2,9 @@ use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use super::program::{corpus, engine, prepared};
 use super::subscriber::{Activation, Sample};
-use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ExecutionRequest;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
+use ryo_execution::inbound::use_cases::execution::interface::FileExecution;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;

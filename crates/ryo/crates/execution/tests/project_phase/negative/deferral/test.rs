@@ -7,10 +7,10 @@ use super::super::fixtures::NoFileFrontiers;
 use crate::boundary_fixture::{
     authored_request, corpus, demand, engine, prepared, project_root, source,
 };
-use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ExecutionRequest;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
-use ryo_execution_runtime::application::file_dag::program::project_phase::interface::ProjectStage;
+use ryo_execution::inbound::use_cases::execution::interface::FileExecution;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
