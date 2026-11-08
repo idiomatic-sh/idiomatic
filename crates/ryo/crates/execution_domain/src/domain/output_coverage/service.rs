@@ -5,8 +5,8 @@ use crate::domain::completion::service::{
     after_select, any_of, lacks_of, partial_any, partial_of_lacks, remapped,
 };
 use crate::domain::completion::types::{CoverageState, FileLacks, MissingRows};
-use crate::domain::lineage::service::{anchor_at, anchor_through, pairing};
-use crate::domain::lineage::types::{ColumnAnchor, KeyPairing};
+use ryo_values::domain::lineage::service::{anchor_at, anchor_through, pairing};
+use ryo_values::domain::lineage::types::{ColumnAnchor, KeyPairing};
 use crate::domain::operating::errors::OperatingError;
 use ryo_relations::domain::relations::types::FileId;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn};

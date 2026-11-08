@@ -21,7 +21,7 @@ pub enum ColumnAnchor {
 
 /// Whether the keys of two operands pair a column of each that lies in its row's file.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum KeyPairing {
+pub enum KeyPairing {
     /// Some key pairs a column of each operand that lies in its row's file: the rows the keys match come from one file.
     SameFile,
     /// No key proves that the rows it matches come from one file.

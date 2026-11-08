@@ -45,7 +45,6 @@ pub mod completion;
 pub mod contributor_rows;
 pub mod frontier_coverage;
 pub mod output_coverage;
-pub mod lineage;
 
 pub mod source_partitions;
 

@@ -8,7 +8,7 @@ use super::types::{
     RuleProgram, SourcePartition,
 };
 use crate::domain::file_program::types::{GraphObservations, ResolvedObservationProducer};
-use crate::domain::lineage::types::Lineage;
+use ryo_values::domain::lineage::types::Lineage;
 use crate::domain::operating::errors::OperatingError;
 use ryo_values::domain::plan_parts::types::StepScope;
 
@@ -128,7 +128,7 @@ fn region_lineage(
             .last()
             .map(|instruction| instruction.contract().output_kinds.as_ref())
         {
-            Some(Ok(kinds)) => crate::domain::lineage::service::one_file(kinds),
+            Some(Ok(kinds)) => ryo_values::domain::lineage::service::one_file(kinds),
             Some(Err(_)) | None => Lineage::Mixed,
         }
     } else {
@@ -144,13 +144,13 @@ fn region_lineage(
                 break;
             };
             lineage = Some(match lineage {
-                None => crate::domain::lineage::service::of_step(
+                None => ryo_values::domain::lineage::service::of_step(
                     instruction.operation(),
                     &operands,
                     kinds,
                 ),
                 // A continuation reads the row of the instruction before it.
-                Some(previous) => crate::domain::lineage::service::of_step(
+                Some(previous) => ryo_values::domain::lineage::service::of_step(
                     instruction.operation(),
                     std::slice::from_ref(&previous),
                     kinds,
@@ -171,7 +171,7 @@ fn source_lineage(
     known: &mut [Option<Lineage>],
 ) -> Lineage {
     match source {
-        InputSource::Relation(relation) => crate::domain::lineage::service::one_file(
+        InputSource::Relation(relation) => ryo_values::domain::lineage::service::one_file(
             ryo_relations::domain::relations::service::kinds(relation),
         ),
         InputSource::Region(id) => region_lineage(id, regions, sources, known),

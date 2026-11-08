@@ -173,13 +173,13 @@ pub(crate) enum SearchMatch {
     Differs,
 }
 
-/// Whether a row's columns say which file the row came from.
+/// Whether the planner keeps a step on a row's columns in each file.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum FileOrigin {
-    /// A column is a file, a node or a span.
-    Stated,
+    /// A column is held in its file: a file or a node, which states it, or a span, a place in the one file a per-file step reads.
+    Held,
     /// No column is.
-    Unstated,
+    Loose,
 }
 
 /// How the pairs of the same-sets idiom were pushed.

@@ -4,6 +4,7 @@ pub mod compact_table;
 pub mod descriptions;
 pub mod files;
 pub mod hosted;
+pub mod lineage;
 pub mod observations;
 pub mod plan_parts;
 pub mod plans;

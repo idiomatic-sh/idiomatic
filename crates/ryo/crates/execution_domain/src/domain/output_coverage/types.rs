@@ -26,7 +26,7 @@ pub struct InputCoverage<'a> {
     /// How completely the operand's rows were read.
     pub coverage: CoverageState,
     /// Where the operand's rows come from: which of its columns lie in the file a row comes from.
-    pub lineage: crate::domain::lineage::types::Lineage,
+    pub lineage: ryo_values::domain::lineage::types::Lineage,
 }
 
 /// Whether the lineage of a join's operands proves where the rows missing from one of them would lie.

@@ -2,7 +2,7 @@
 //! it reads, never through a step's key alone, and through the operands' lineage.
 use crate::domain::completion::service::partial_any;
 use crate::domain::completion::types::CoverageState;
-use crate::domain::lineage::types::Lineage;
+use ryo_values::domain::lineage::types::Lineage;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::output_coverage::types::OperandOrdinal;
 use ryo_relations::domain::relations::types::FileId;
@@ -223,7 +223,7 @@ fn the_placement_of_an_antijoin(left: Lineage, key: &[u32]) -> Result<Placement,
 
 /// The lineage of node, file and number rows that come from one file each: a relation's, or a per-file step's.
 fn one_file() -> Lineage {
-    crate::domain::lineage::service::one_file(&[
+    ryo_values::domain::lineage::service::one_file(&[
         ryo_relations::domain::relations::types::CellKind::Node,
         ryo_relations::domain::relations::types::CellKind::File,
         ryo_relations::domain::relations::types::CellKind::Number,

@@ -165,8 +165,8 @@ impl ExecutableProgram {
     }
     /// Where the rows of one input of a region come from: a relation's from one file each, a region's or a named
     /// observation's as the compiler found, anything else from no one file.
-    pub fn source_lineage(&self, source: InputSource) -> crate::domain::lineage::types::Lineage {
-        use crate::domain::lineage::types::Lineage;
+    pub fn source_lineage(&self, source: InputSource) -> ryo_values::domain::lineage::types::Lineage {
+        use ryo_values::domain::lineage::types::Lineage;
         let of_region = |id: RegionId| {
             self.regions
                 .get(id.0)
@@ -174,7 +174,7 @@ impl ExecutableProgram {
                 .unwrap_or_default()
         };
         match source {
-            InputSource::Relation(relation) => crate::domain::lineage::service::one_file(
+            InputSource::Relation(relation) => ryo_values::domain::lineage::service::one_file(
                 ryo_relations::domain::relations::service::kinds(relation),
             ),
             InputSource::Region(id) => of_region(id),

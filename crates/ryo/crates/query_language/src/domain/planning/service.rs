@@ -4,6 +4,8 @@
 use ryo_relations::domain::relations::service::provenance_of;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_relations::domain::relations::types::Provenance;
+use ryo_values::domain::lineage::service::anchor_of;
+use ryo_values::domain::lineage::types::ColumnAnchor;
 
 use crate::domain::lowering::types::{
     Builder, FileOrigin, LoweredStep, PlannedColumn, ScopedInput, StepLabel,
@@ -56,37 +58,40 @@ pub(crate) fn inputs_of(operation: &plans::Operation) -> Vec<parts::Input> {
     }
 }
 
-/// Whether a row holding these fields says which file it came from: it has a file or a node, or a span, which is
-/// a place in one file and so means that file wherever rows of two files could meet on it.
+/// Whether a row holding these fields is kept in its file: one of them is held in its file.
 pub(crate) fn keyed(fields: &[PlannedColumn]) -> FileOrigin {
     if fields
         .iter()
-        .any(|field| stated_by(field.kind) == FileOrigin::Stated)
+        .any(|field| held_in_file(field.kind) == FileOrigin::Held)
     {
-        FileOrigin::Stated
+        FileOrigin::Held
     } else {
-        FileOrigin::Unstated
+        FileOrigin::Loose
     }
 }
 
-/// Whether a value of this kind says which file it is of: a file, a node, or a span, which is a place in one file.
-pub(crate) fn stated_by(kind: CellKind) -> FileOrigin {
-    if matches!(kind, CellKind::File | CellKind::Node | CellKind::Span) {
-        FileOrigin::Stated
+/// Whether a step whose inputs are all per-file may combine rows on a value of this kind in each file alone: a value that states
+/// its row's file by the one lineage rule (`anchor_of`), or a span. A span states no file, but inside the rows of one file it is a
+/// place in that file, and the planner keeps a step on it in each file. That is a choice of where a step runs, never a proof that
+/// two rows come from one file: a rewrite that moves a step after the files into each file reads the lineage rule alone, under
+/// which a key of spans proves nothing.
+fn held_in_file(kind: CellKind) -> FileOrigin {
+    if anchor_of(kind) == ColumnAnchor::InFile || kind == CellKind::Span {
+        FileOrigin::Held
     } else {
-        FileOrigin::Unstated
+        FileOrigin::Loose
     }
 }
 
-/// Whether one of these columns of the fields is a file, a node or a span.
+/// Whether one of these columns of the fields is held in its file.
 pub(crate) fn keyed_on(fields: &[PlannedColumn], columns: &[parts::ColumnIndex]) -> FileOrigin {
     if columns
         .iter()
-        .any(|index| stated_by(column_of(fields, *index).kind) == FileOrigin::Stated)
+        .any(|index| held_in_file(column_of(fields, *index).kind) == FileOrigin::Held)
     {
-        FileOrigin::Stated
+        FileOrigin::Held
     } else {
-        FileOrigin::Unstated
+        FileOrigin::Loose
     }
 }
 
@@ -124,7 +129,7 @@ pub(crate) fn scope_of(
         | plans::Operation::Rank { .. }
         | plans::Operation::Words { .. } => true,
         plans::Operation::Project { .. } => {
-            keyed(out) == FileOrigin::Stated || keyed(first) == FileOrigin::Unstated
+            keyed(out) == FileOrigin::Held || keyed(first) == FileOrigin::Loose
         }
         plans::Operation::OrderedMatch {
             left_on, right_on, ..
@@ -135,16 +140,16 @@ pub(crate) fn scope_of(
         | plans::Operation::Antijoin {
             left_on, right_on, ..
         } => {
-            keyed_on(first, left_on) == FileOrigin::Stated
-                && keyed_on(second, right_on) == FileOrigin::Stated
+            keyed_on(first, left_on) == FileOrigin::Held
+                && keyed_on(second, right_on) == FileOrigin::Held
         }
         plans::Operation::Union { .. }
         | plans::Operation::Intersection { .. }
         | plans::Operation::Difference { .. } => {
-            keyed(first) == FileOrigin::Stated && keyed(second) == FileOrigin::Stated
+            keyed(first) == FileOrigin::Held && keyed(second) == FileOrigin::Held
         }
         plans::Operation::GroupCount { keys, .. } | plans::Operation::GroupDigest { keys, .. } => {
-            keyed_on(first, keys) == FileOrigin::Stated
+            keyed_on(first, keys) == FileOrigin::Held
         }
         plans::Operation::OrderedDfs {
             root,
@@ -153,18 +158,18 @@ pub(crate) fn scope_of(
             edge_keys,
             ..
         } => {
-            (keyed_on(first, &[*root]) == FileOrigin::Stated
-                || keyed_on(first, root_keys) == FileOrigin::Stated)
-                && (keyed_on(second, &[*source]) == FileOrigin::Stated
-                    || keyed_on(second, edge_keys) == FileOrigin::Stated)
+            (keyed_on(first, &[*root]) == FileOrigin::Held
+                || keyed_on(first, root_keys) == FileOrigin::Held)
+                && (keyed_on(second, &[*source]) == FileOrigin::Held
+                    || keyed_on(second, edge_keys) == FileOrigin::Held)
         }
-        plans::Operation::Axis { id, .. } => keyed_on(first, &[*id]) == FileOrigin::Stated,
+        plans::Operation::Axis { id, .. } => keyed_on(first, &[*id]) == FileOrigin::Held,
         plans::Operation::Closure { source, keys, .. } => {
-            keyed_on(first, &[*source]) == FileOrigin::Stated
-                || keyed_on(first, keys) == FileOrigin::Stated
+            keyed_on(first, &[*source]) == FileOrigin::Held
+                || keyed_on(first, keys) == FileOrigin::Held
         }
         plans::Operation::Cycles { source, .. } => {
-            keyed_on(first, &[*source]) == FileOrigin::Stated
+            keyed_on(first, &[*source]) == FileOrigin::Held
         }
         // The host's rows are the same for every file, so they are made once, after the files.
         plans::Operation::Rows { .. } | plans::Operation::Hosted { .. } => false,

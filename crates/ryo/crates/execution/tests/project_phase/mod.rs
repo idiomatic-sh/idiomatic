@@ -121,3 +121,5 @@ mod named_selection;
 mod text_identity;
 
 mod union;
+
+mod rewrites;

@@ -1,12 +1,12 @@
 //! The `lineage` service's cases: which steps keep their rows in one file, and which of their columns lie in it.
-use super::service::{of_step, one_file};
-use super::types::{ColumnAnchor, Lineage};
+use super::service::{anchor_of, of_step, one_file, pairing};
+use super::types::{ColumnAnchor, KeyPairing, Lineage};
 use ryo_relations::domain::relations::types::CellKind;
-use ryo_values::cases::{Case, CaseName, Expect, Word, run};
-use ryo_values::domain::plan_parts::types::{
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::plan_parts::types::{
     ColumnIndex, Input as PlanInput, JoinColumn, Side, StepId,
 };
-use ryo_values::domain::plans::types::Operation;
+use crate::domain::plans::types::Operation;
 
 /// What a row of the cases proves.
 #[derive(Clone, Copy)]
@@ -17,6 +17,9 @@ enum Scenario {
     AJoinKeyedByFileKeepsItsRowsInOneFile,
     /// A join on a byte offset may combine the rows of two files.
     AJoinOnAByteOffsetMayCombineTwoFiles,
+    /// A span holds no file, so a join keyed by spans alone may combine the rows of two files, and a key pairs a file of one
+    /// operand only with the file of the other at the same position.
+    AJoinKeyedBySpansAloneMayCombineTwoFiles,
     /// A join with a hosted relation holding no file, whose answer takes every file and node column from the other operand,
     /// keeps that operand's rows in their file; one taking a file or node column of each operand does not.
     AJoinTakingEveryFileColumnFromOneOperandKeepsItsFile,
@@ -93,10 +96,40 @@ fn subject(input: Input) {
             ),
             Lineage::Mixed
         ),
+        Scenario::AJoinKeyedBySpansAloneMayCombineTwoFiles => {
+            assert_eq!(anchor_of(CellKind::Span), Elsewhere);
+            let spans = one_file(&[CellKind::Span, CellKind::File]);
+            assert_eq!(
+                pairing(&spans, &[ColumnIndex(0)], &spans, &[ColumnIndex(0)], &[]),
+                KeyPairing::Unproven,
+                "equal spans of two files are equal"
+            );
+            assert_eq!(
+                pairing(
+                    &spans,
+                    &[ColumnIndex(1), ColumnIndex(0)],
+                    &spans,
+                    &[ColumnIndex(0), ColumnIndex(1)],
+                    &[]
+                ),
+                KeyPairing::Unproven,
+                "a file paired with a span proves nothing"
+            );
+            assert_eq!(
+                pairing(
+                    &spans,
+                    &[ColumnIndex(0), ColumnIndex(1)],
+                    &spans,
+                    &[ColumnIndex(0), ColumnIndex(1)],
+                    &[]
+                ),
+                KeyPairing::SameFile
+            );
+        }
         Scenario::AJoinTakingEveryFileColumnFromOneOperandKeepsItsFile => {
             let configuration = of_step(
                 &Operation::Hosted {
-                    relation: ryo_values::domain::plan_parts::types::HostedNumber(0),
+                    relation: crate::domain::plan_parts::types::HostedNumber(0),
                 },
                 &[],
                 &[CellKind::Symbol],
@@ -213,6 +246,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(()),
     },
     Case {
+        name: CaseName("a_join_keyed_by_spans_alone_may_combine_two_files"),
+        word: Word::Succeeds,
+        input: || Scenario::AJoinKeyedBySpansAloneMayCombineTwoFiles,
+        expect: Expect::Value(()),
+    },
+    Case {
         name: CaseName("a_join_taking_every_file_column_from_one_operand_keeps_its_file"),
         word: Word::Succeeds,
         input: || Scenario::AJoinTakingEveryFileColumnFromOneOperandKeepsItsFile,
@@ -236,7 +275,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 /// column names; with two file columns, or none, no column says which file it comes from.
 fn hosted(kinds: &[CellKind]) -> Lineage {
     let hosted = Operation::Hosted {
-        relation: ryo_values::domain::plan_parts::types::HostedNumber(0),
+        relation: crate::domain::plan_parts::types::HostedNumber(0),
     };
     of_step(&hosted, &[Lineage::Mixed], kinds)
 }

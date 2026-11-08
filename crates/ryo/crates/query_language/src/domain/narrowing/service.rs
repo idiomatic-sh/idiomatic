@@ -6,14 +6,16 @@ use crate::domain::inlining::service::columns_read;
 use crate::domain::inlining::service::projection_column;
 use crate::domain::inlining::service::reading_through;
 use crate::domain::lineage::service::column_kind;
+use crate::domain::lineage::service::file_lineage;
 use crate::domain::lineage::service::value_origins;
+use crate::domain::lineage::types::LineageMemo;
 use crate::domain::lineage::types::ValueOrigin;
-use crate::domain::lowering::types::FileOrigin;
 use crate::domain::planning::service::planned_scope;
-use crate::domain::planning::service::stated_by;
 use crate::domain::rewriting::types::Planned;
 use crate::domain::rewriting::types::StepIndex;
 use ryo_relations::domain::relations::types::CellKind;
+use ryo_values::domain::lineage::service::anchor_at;
+use ryo_values::domain::lineage::types::ColumnAnchor;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::JoinColumn;
@@ -41,12 +43,15 @@ pub(crate) fn narrow_lookups_roots(
     roots: &mut [StepId],
 ) -> Vec<PlanStep> {
     let mut place = 0;
+    let mut memo = LineageMemo::default();
     while place < steps.len() {
-        let found = narrowed(&steps, StepIndex(place));
+        let found = narrowed(&steps, &mut memo, StepIndex(place));
         let Some(Narrowed { local, kept, made }) = found else {
             place += 1;
             continue;
         };
+        // The steps move, so what was found of them no longer holds.
+        memo = LineageMemo::default();
         let width = made.len();
         let count = u32::try_from(width).unwrap_or(u32::MAX);
         let first = u32::try_from(place).unwrap_or(u32::MAX);
@@ -78,21 +83,19 @@ pub(crate) fn narrow_lookups_roots(
     steps
 }
 
-/// Whether the values of every origin say which file they are of.
-fn origins_state_file(steps: &[PlanStep], origins: &[ValueOrigin]) -> FileOrigin {
-    if origins.iter().all(|origin| {
-        column_kind(steps, origin.input, origin.column)
-            .is_some_and(|kind| stated_by(kind) == FileOrigin::Stated)
-    }) {
-        FileOrigin::Stated
-    } else {
-        FileOrigin::Unstated
-    }
+/// Whether `column` of the rows of `input` states the file of its row, by the one lineage rule.
+fn states_file(
+    steps: &[PlanStep],
+    memo: &mut LineageMemo,
+    input: Input,
+    column: ColumnIndex,
+) -> ColumnAnchor {
+    anchor_at(&file_lineage(steps, memo, input), column)
 }
 
 /// The per-file input of the join at `place` and the steps that narrow it: one projection of the values of each origin, their union,
 /// and the join of the input with it.
-fn narrowed(steps: &[PlanStep], place: StepIndex) -> Option<Narrowed> {
+fn narrowed(steps: &[PlanStep], memo: &mut LineageMemo, place: StepIndex) -> Option<Narrowed> {
     let step = steps.get(place.0)?;
     if step.scope != StepScope::CrossFile {
         return None;
@@ -121,21 +124,25 @@ fn narrowed(steps: &[PlanStep], place: StepIndex) -> Option<Narrowed> {
             | (StepScope::CrossFile, StepScope::CrossFile) => return None,
         };
     let kept = columns_read(&step.operation, local)?;
-    // A node key first, then a file key: a node meets fewer rows.
+    // A node key first, then a file key: a node meets fewer rows. A value of the other input meets a row of `local` only in its own
+    // file when both the key and every origin of the value state their row's file.
     let (local_key, origins) = [CellKind::Node, CellKind::File].iter().find_map(|wanted| {
         local_keys
             .iter()
             .zip(crossing_keys)
             .find_map(|(local_key, crossing_key)| {
-                if column_kind(steps, local, *local_key) != Some(*wanted) {
+                if column_kind(steps, memo, local, *local_key) != Some(*wanted)
+                    || states_file(steps, memo, local, *local_key) != ColumnAnchor::InFile
+                {
                     return None;
                 }
-                let origins = value_origins(steps, crossing, *crossing_key)?;
-                let narrows = origins_state_file(steps, &origins) == FileOrigin::Stated
-                    && !origins.contains(&ValueOrigin {
-                        input: local,
-                        column: *local_key,
-                    });
+                let origins = value_origins(steps, memo, crossing, *crossing_key)?;
+                let narrows = origins.iter().all(|origin| {
+                    states_file(steps, memo, origin.input, origin.column) == ColumnAnchor::InFile
+                }) && !origins.contains(&ValueOrigin {
+                    input: local,
+                    column: *local_key,
+                });
                 narrows.then_some((*local_key, origins))
             })
     })?;
