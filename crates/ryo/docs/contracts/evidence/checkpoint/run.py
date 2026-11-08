@@ -240,11 +240,12 @@ def reruns_without_log(texts,v):
   if not logs or not all((Path(v['raw_identity'])/x).is_file() for x in logs): bad.append(where+': cites a rerun with no raw log in '+v['raw_identity']+': '+text[:110])
  return bad
 REPAIR='Repair every deferred output failure; rerun all 413 and full corpus.'
+PERF2='Perf iteration 2 (from checkpoint 324 `14a8352416`, branch `claude/p2-per-file-and-parallel`, head `5574e0fbcd`): the per-file executor cost, and files on every core.'
 CLOSE='Close full TM, contracts, independent review and normal CI.'
 OWNERS={
  'core_library':REPAIR,
  'benchmark_library':CLOSE,
- 'ruff_rule_phases':CLOSE,
+ 'core_allocation':PERF2,
  'cli_cost':'Acceptance: 413/413 on the current engine, full Django (2,875 files, all 413 rules) with unknown 0 and unread 0, sub-second cold wall with low peak RSS, warm and edit faster, Rust regression guards within bounds.',
  'behavior::ruff_rules_feed_every_catalog_feature_a_thousand_rows':'Consolidate the kernels: run the differential parity and the canary with and without each of the five join/select kernels and delete every kernel the evidence shows superseded.',
  'cache::every_recorded_rule_gives_over_ruff_the_rows_a_warm_run_gives_again_from_a_small_store':REPAIR,
@@ -254,13 +255,21 @@ OWNED=re.compile(r'(?:; )?(?:[a-z_]+ )?owned by "[^"]*"')
 def owned(note,clauses):
  """The note without its owner clauses, then one `owned by "<row title>"` clause per owner."""
  return '; '.join([x for x in [OWNED.sub('',note).strip('; ')] if x]+clauses)
+LISTED=('libraries_total','cli_replay')
+def red(x):
+ """A result that failed a row or exited non-zero; `libraries_total` and `cli_replay` total reds that `core_library`, `benchmark_library` and `cli_replay_reds` list one by one."""
+ return isinstance(x,dict) and (x.get('failed',0)>0 or x.get('exit',0)!=0)
 def own(v,readme_text):
- """Each red that OWNERS names gets its owning row's exact title in its validation.json note; a title that is no README row is reported. Returns (changed, problems)."""
+ """Each red result carries its owning row's exact title in its validation.json note, from OWNERS; a green result carries none. A red with no owner and a title that is no README row are reported. Returns (changed, problems)."""
  results=v['results']; bad=[]; before=json.dumps(results)
  for key,title in OWNERS.items():
   if '[ ] '+title not in readme_text and '[x] '+title not in readme_text: bad.append('owner of '+key+' is no README row: '+title[:80])
  for key,x in results.items():
-  if key in OWNERS and isinstance(x,dict): x['note']=owned(x.get('note',''),['owned by "'+OWNERS[key]+'"'])
+  if not isinstance(x,dict) or key in LISTED: continue
+  if red(x):
+   if key in OWNERS: x['note']=owned(x.get('note',''),['owned by "'+OWNERS[key]+'"'])
+   else: bad.append('red '+key+' has no owner in OWNERS')
+  elif 'note' in x: x['note']=owned(x['note'],[])
  reds=results.get('cli_replay_reds',[])
  if reds: results['cli_replay_note']=owned(results.get('cli_replay_note',''),[r.split('::')[0]+' owned by "'+OWNERS[r]+'"' for r in reds if r in OWNERS])
  bad+=['red '+r+' has no owner in OWNERS' for r in reds if r not in OWNERS]

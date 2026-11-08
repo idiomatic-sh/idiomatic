@@ -23,6 +23,7 @@ def self_test() -> int:
     if code:
         return code
     manifest, = state
+    profile_guard_staging_tests.staged_request_self_test()
     with tempfile.TemporaryDirectory(prefix='ryo-ruff-profile-guards-') as temporary:
         code, state = profile_guard_staging_tests.guards_5(fake_runner, manifest, root, temporary)
         if code:

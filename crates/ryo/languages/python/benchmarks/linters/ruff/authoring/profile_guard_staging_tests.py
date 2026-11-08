@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import sys
 import tarfile
+import tempfile
 from pathlib import Path
 import tomllib
 from authoring import profile_config
@@ -15,6 +16,29 @@ from authoring import profile_proofs
 from authoring import profile_sources
 from authoring import profile_staging
 from authoring import profile_worker
+
+
+def staged_request_self_test() -> None:
+    """`stage_measurement_request` stages the measured source, takes every rule-side field from it and records the digest of what it staged."""
+    with tempfile.TemporaryDirectory(prefix='ryo-staged-request-') as temporary:
+        pinned = Path(temporary) / 'pinned.json'
+        pinned.write_text(json.dumps({'rules': '/stale/rules', 'selected_rules': ['STALE'], 'files': ['a.py'], 'performance': {'diagnostics': True, 'stale': 1}}), encoding='utf-8')
+        output = Path(temporary) / 'staged'
+        receipt = profile_staging.stage_measurement_request(pinned, 'HEAD', output, Path(temporary) / 'cache')
+        request = json.loads((output / 'request.json').read_text(encoding='utf-8'))
+        profile = tomllib.loads((output / 'profile' / 'benchmark.toml').read_text(encoding='utf-8'))
+        if receipt != json.loads((output / 'staged.json').read_text(encoding='utf-8')) or receipt['staged_digest'] != profile_staging.staged_digest(output / 'profile'):
+            raise AssertionError('the staging receipt does not record the digest of the staged files')
+        if request['rules'] != str(output / 'profile' / 'rules') or request['selected_rules'] != profile['defaults'] or request['performance'] != {'diagnostics': True} or request['files'] != ['a.py']:
+            raise AssertionError('a staged request kept a rule-side field of the pinned request or lost its corpus side')
+        if receipt['request_sha256'] != profile_config.sha256(output / 'request.json') or receipt['pinned_request_sha256'] != profile_config.sha256(pinned):
+            raise AssertionError('the staging receipt does not bind the request and the pinned request by hash')
+        try:
+            profile_staging.stage_measurement_request(pinned, 'HEAD', output, Path(temporary) / 'cache')
+        except FileExistsError:
+            pass
+        else:
+            raise AssertionError('a staged directory was staged over')
 
 
 def guards_5(fake_runner, manifest, root, temporary) -> tuple[int, tuple]:

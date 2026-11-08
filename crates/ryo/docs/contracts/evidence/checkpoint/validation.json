@@ -255,7 +255,7 @@
     },
     "ruff_rule_phases": {
       "exit": 0,
-      "note": "the staging guard self-test exits 0 (red from 321 to 325); both causes were in the harness (the guard expected the command without the case-receipt argument added on 2026-11-04, and rebuilt frozen moved candidates from the live queries), repaired by Review repairs X; owned by \"Close full TM, contracts, independent review and normal CI.\""
+      "note": "the staging guard self-test exits 0 (red from 321 to 325); both causes were in the harness (the guard expected the command without the case-receipt argument added on 2026-11-04, and rebuilt frozen moved candidates from the live queries), repaired by Review repairs X"
     },
     "doctests": {
       "execution": 14,
@@ -269,7 +269,11 @@
     "tm_import_cli": "pass",
     "tm_cli_source_findings": 0,
     "tm_guards": "pass",
-    "core_allocation": {"exit": 101, "phase": 7},
+    "core_allocation": {
+      "exit": 101,
+      "phase": 7,
+      "note": "owned by \"Perf iteration 2 (from checkpoint 324 `14a8352416`, branch `claude/p2-per-file-and-parallel`, head `5574e0fbcd`): the per-file executor cost, and files on every core.\""
+    },
     "cli_replay": {"passed": 75, "failed": 3},
     "cli_replay_reds": ["behavior::ruff_rules_feed_every_catalog_feature_a_thousand_rows", "cache::every_recorded_rule_gives_over_ruff_the_rows_a_warm_run_gives_again_from_a_small_store", "peak::a_warm_unchanged_run_over_ruff_peaks_within_its_bound"],
     "cli_replay_note": "the reds of validation325: feed (operation:Closure, Cycles, Scope fed fewer than 1,000 rows); cache, the store of ruff 78,525,063 bytes against 75,000,000, the bytes of validation325; warm peak 113,549,312 bytes against 100,000,000 (113,012,736 at validation325); behavior owned by \"Consolidate the kernels: run the differential parity and the canary with and without each of the five join/select kernels and delete every kernel the evidence shows superseded.\"; cache owned by \"Repair every deferred output failure; rerun all 413 and full corpus.\"; peak owned by \"Decode lazy packed frontiers once per population, not once per root, and compile ordered existence without the eager request-level pass.\"",
