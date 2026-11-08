@@ -269,3 +269,91 @@ pub(crate) fn removed_file_leaves_nothing() -> Result<(usize, usize), LintError>
     }
     Ok((0, 0))
 }
+
+/// What one lint of `files` with the cross-file rule under accepted-syntax applicability answers, over `kept_in`, when the language
+/// leaves the acceptance of `undetermined` undetermined and accepts every other file: the rows, what was undecided and what was
+/// skipped, or why the lint failed.
+fn undetermined_lint(
+    files: &[(&'static str, &'static str)],
+    undetermined: &[&str],
+    applicability: ryo_values::domain::runs::types::RuleApplicability,
+    kept_in: Arc<dyn crate::outbound::lint_store::interface::LintStorePort>,
+) -> Result<(Vec<crate::outbound::row_sink::types::KeptRow>, String, String), LintError> {
+    let mut given = Given {
+        files: files.to_vec(),
+        query: Arc::new(ryo_execution::outbound::query_language::fixtures::fake::QueryLanguageFake::counting_across_files()),
+        kept_in: Some(kept_in),
+        ..violations()
+    };
+    given.language.undetermined_syntax = undetermined
+        .iter()
+        .map(|path| FilePath((*path).into()))
+        .collect();
+    let mut asked = request(&given);
+    asked.rules[0].applicability = applicability;
+    let world = world(given);
+    let report = world.use_case.lint(asked)?;
+    let rows = std::mem::take(
+        &mut *world
+            .collected
+            .0
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner),
+    )
+    .rows;
+    Ok((
+        rows,
+        format!("{:?}", report.unknowns),
+        format!("{:?}", report.skipped),
+    ))
+}
+
+/// A file whose syntax acceptance the language leaves undetermined is Unknown to the cross-file rule that asks for accepted syntax,
+/// cold and when another file is edited: the lint finishes instead of refusing the rule's frontier, the file is undecided once
+/// with its reason, and it is never skipped.
+pub(crate) fn an_undetermined_file_answers_unknown_and_the_lint_finishes() -> Result<(usize, usize), LintError> {
+    use ryo_values::domain::runs::types::RuleApplicability::AcceptedSyntax;
+    let edited = [("a.rs", "fn changed() {}"), THREE[1], THREE[2]];
+    for kind in ["memory", "postcard", "discard"] {
+        let directory = tempfile::tempdir().expect("a directory");
+        let kept_in = store_of(kind, directory.path());
+        for (run, files) in [&THREE[..], &edited[..]].into_iter().enumerate() {
+            let (_, undecided, skipped) =
+                undetermined_lint(files, &["b.rs"], AcceptedSyntax, Arc::clone(&kept_in))?;
+            assert!(
+                undecided.contains("rule skipped: syntax acceptance undetermined"),
+                "{kind} run {run}: the undetermined file is undecided with its reason: {undecided}"
+            );
+            assert_eq!(
+                undecided.matches("\"b.rs\"").count(),
+                1,
+                "{kind} run {run}: the undetermined file is undecided once: {undecided}"
+            );
+            assert_eq!(skipped, "[]", "{kind} run {run}: an undetermined file is not skipped");
+        }
+    }
+    Ok((1, 0))
+}
+
+/// Files whose syntax the language accepts are not touched by the refusal path: with every file accepted, the cross-file rule that
+/// asks for accepted syntax answers the rows a rule that always applies answers, cold and edited, and nothing is undecided.
+pub(crate) fn accepted_files_answer_as_a_rule_that_always_applies() -> Result<(usize, usize), LintError> {
+    use ryo_values::domain::runs::types::RuleApplicability::{AcceptedSyntax, Always};
+    let edited = [("a.rs", "fn changed() {}"), THREE[1], THREE[2]];
+    for kind in ["memory", "postcard"] {
+        let directory = tempfile::tempdir().expect("a directory");
+        let kept_in = store_of(kind, directory.path());
+        for (run, files) in [&THREE[..], &edited[..]].into_iter().enumerate() {
+            // The language determines acceptance and accepts every file of the run: the one path it leaves undetermined is no
+            // file of the run.
+            let accepted =
+                undetermined_lint(files, &["elsewhere.rs"], AcceptedSyntax, Arc::clone(&kept_in))?;
+            let oracle = undetermined_lint(files, &[], Always, store_of("discard", directory.path()))?;
+            assert_eq!(accepted.0, oracle.0, "{kind} run {run}: the rows");
+            assert_eq!(accepted.1, "[]", "{kind} run {run}: nothing undecided");
+            assert_eq!(accepted.1, oracle.1, "{kind} run {run}: what was undecided");
+            assert_eq!(accepted.2, "[]", "{kind} run {run}: nothing skipped");
+        }
+    }
+    Ok((1, 0))
+}
