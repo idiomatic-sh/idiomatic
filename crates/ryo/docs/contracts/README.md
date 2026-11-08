@@ -51,6 +51,8 @@ Checkpoint 329 merges three branches into checkpoint 328 (`90a0a472b2`), each as
 
   Both outputs are byte-identical to 328's (sha256 `53b163f4bda83afaac6c5b7ff7c11bba65532c1de6f664bc75fabc52cbb547b4`, 992,711 bytes); coverage selected 1,187,375, evaluated 1,186,980, skipped 395. Store 1,757,210,648 bytes (unchanged from 328). The other trees' builds kept the machine's load at 6 to 7 during both runs, so the walls carry that noise: run 2 against 328 (328.3 s, 2,641.2 s CPU, 6.78 GB): wall -0.2%, CPU +0.2%, peak 0.00 GB.
 
+- **Rust gate:** PASS on the third pass (first pass FAIL 2,4; second pass FAIL 4).
+
 **Cycle metrics:**
 
 | Metric | Checkpoint 329 |
@@ -59,7 +61,7 @@ Checkpoint 329 merges three branches into checkpoint 328 (`90a0a472b2`), each as
 | Compile passes | 1 check pass (errors 0) and the validation's test build |
 | Full Django 413 cold | exit 0, unknown 0; default threads 327.5 s, 6.78 GB (328.3 s, 6.78 GB at 328), output bytes identical |
 | Contract review | pending |
-| Rust gate review | pending |
+| Rust gate review | PASS on the third pass, at `d554903903` ([rust-review.json](evidence/checkpoint/rust-review.json)) |
 
 ### Engine fixes after landing 2
 
