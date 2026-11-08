@@ -14,11 +14,11 @@ use ryo_values::domain::plans::types::{Operation, PlanStep};
 #[derive(Clone, Copy)]
 enum Scenario {
     /// The only reader of a union of a join keyed on the file is a filter.
-    AFilteredUnion,
+    FilteredUnion,
     /// The only reader of a join keyed on the file is a filter of a column of its right input.
-    AFilteredJoin,
+    FilteredJoin,
     /// A union is read by a filter and by a join.
-    AUnionReadWhole,
+    UnionReadWhole,
 }
 
 /// Whether the plan came back as the row expects it.
@@ -33,7 +33,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             "a_filter_of_a_union_of_a_join_keyed_on_the_file_is_made_on_both_its_inputs_and_into_the_join",
         ),
         word: Word::Succeeds,
-        input: || Scenario::AFilteredUnion,
+        input: || Scenario::FilteredUnion,
         expect: Expect::Value(true),
     },
     Case {
@@ -41,13 +41,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             "a_filter_of_a_join_keyed_on_the_file_on_a_column_of_its_right_input_is_made_on_that_input",
         ),
         word: Word::Succeeds,
-        input: || Scenario::AFilteredJoin,
+        input: || Scenario::FilteredJoin,
         expect: Expect::Value(true),
     },
     Case {
         name: CaseName("a_union_another_step_reads_whole_stays_as_it_is"),
         word: Word::Succeeds,
-        input: || Scenario::AUnionReadWhole,
+        input: || Scenario::UnionReadWhole,
         expect: Expect::Value(true),
     },
 ];
@@ -113,7 +113,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         right: Reads::Step(StepId(1)),
     });
     let (before, emitted, after, emits) = match scenario {
-        Scenario::AFilteredUnion => (
+        Scenario::FilteredUnion => (
             vec![
                 functions(),
                 comments(),
@@ -138,7 +138,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             ],
             StepId(5),
         ),
-        Scenario::AFilteredJoin => (
+        Scenario::FilteredJoin => (
             vec![
                 functions(),
                 comments(),
@@ -154,7 +154,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             ],
             StepId(3),
         ),
-        Scenario::AUnionReadWhole => {
+        Scenario::UnionReadWhole => {
             let steps = vec![
                 functions(),
                 comments(),

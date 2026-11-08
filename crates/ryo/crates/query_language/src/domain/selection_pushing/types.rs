@@ -23,3 +23,21 @@ pub(crate) struct SplitComparisons {
     /// The rest, as columns of the join's answer.
     pub rest: Vec<PlanComparison>,
 }
+
+/// Whether filters made before a step pay for a copy of it for each filter.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum FilterGain {
+    /// The step pairs every row of a file with every row of it, or unites such rows: the filters move before it.
+    Pays,
+    /// Anything else: the filters stay where they are.
+    Stays,
+}
+
+/// Whether a comparison tests a column of the rows.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Tested {
+    /// It names a column.
+    AColumn,
+    /// It names constants only.
+    ConstantsOnly,
+}

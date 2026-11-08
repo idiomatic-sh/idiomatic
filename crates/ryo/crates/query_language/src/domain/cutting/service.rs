@@ -4,6 +4,8 @@ use crate::domain::inlining::service::columns_read;
 use crate::domain::inlining::service::projection_column;
 use crate::domain::inlining::service::reading_through;
 use crate::domain::inlining::types::StepReading;
+use crate::domain::narrowing::service::{narrow_lookups, narrow_lookups_roots};
+use crate::domain::regrouping::service::{regroup_joins, regroup_joins_roots};
 use crate::domain::rewriting::types::Planned;
 use ryo_relations::domain::relations::service::provenance_of;
 use ryo_relations::domain::relations::types::Provenance;
@@ -17,21 +19,37 @@ use ryo_values::domain::plans::service::each_input;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::plans::types::PlanStep;
 
+/// The plan with the rows a file hands over made as few as the steps after the files ask: the per-file inputs of each join after the
+/// files joined in each file, each per-file input of a join after the files narrowed to the rows its key can meet, then each per-file
+/// step cut to the distinct rows of the columns asked of it, and each relation to its columns asked.
+#[must_use]
+pub(crate) fn cut_handover(steps: Vec<PlanStep>, emitted: StepId) -> Planned {
+    let Planned { steps, emitted } = regroup_joins(steps, emitted);
+    let Planned { steps, emitted } = narrow_lookups(steps, emitted);
+    let Planned { steps, emitted } = reduced_frontier(steps, emitted);
+    cut_relations(steps, emitted)
+}
+
+/// The same rewrites with every externally observable root protected and renumbered together.
+pub(crate) fn cut_handover_roots(steps: Vec<PlanStep>, roots: &mut [StepId]) -> Vec<PlanStep> {
+    let steps = regroup_joins_roots(steps, roots);
+    let steps = narrow_lookups_roots(steps, roots);
+    let steps = reduced_frontier_roots(steps, roots);
+    cut_relations_roots(steps, roots)
+}
+
 /// The plan with, for each per-file step that only cross-file steps read through some of its columns, one projection
 /// of those columns without repeats: the rows a file hands over are the distinct ones the cross-file steps ask for, not
 /// one for each place in the file. Not done when a count of rows (not of distinct values) comes after the files, which
 /// would count the repeats.
 #[must_use]
-pub(crate) fn reduced_frontier(steps: Vec<PlanStep>, mut emitted: StepId) -> Planned {
+fn reduced_frontier(steps: Vec<PlanStep>, mut emitted: StepId) -> Planned {
     let steps = reduced_frontier_roots(steps, std::slice::from_mut(&mut emitted));
     Planned { steps, emitted }
 }
 
 /// The same rewrite with every externally observable root protected and renumbered together.
-pub(crate) fn reduced_frontier_roots(
-    mut steps: Vec<PlanStep>,
-    roots: &mut [StepId],
-) -> Vec<PlanStep> {
+fn reduced_frontier_roots(mut steps: Vec<PlanStep>, roots: &mut [StepId]) -> Vec<PlanStep> {
     if steps.iter().any(|step| {
         step.scope == StepScope::CrossFile
             && matches!(step.operation, Operation::GroupCount { distinct: None, .. })

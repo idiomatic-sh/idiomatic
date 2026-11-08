@@ -12,6 +12,7 @@ use crate::domain::lowering::types::FileOrigin;
 use crate::domain::planning::service::planned_scope;
 use crate::domain::planning::service::stated_by;
 use crate::domain::rewriting::types::Planned;
+use crate::domain::rewriting::types::StepIndex;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input;
@@ -41,7 +42,8 @@ pub(crate) fn narrow_lookups_roots(
 ) -> Vec<PlanStep> {
     let mut place = 0;
     while place < steps.len() {
-        let Some(Narrowed { local, kept, made }) = narrowed(&steps, place) else {
+        let found = narrowed(&steps, StepIndex(place));
+        let Some(Narrowed { local, kept, made }) = found else {
             place += 1;
             continue;
         };
@@ -77,17 +79,21 @@ pub(crate) fn narrow_lookups_roots(
 }
 
 /// Whether the values of every origin say which file they are of.
-fn origins_state_file(steps: &[PlanStep], origins: &[ValueOrigin]) -> bool {
-    origins.iter().all(|origin| {
+fn origins_state_file(steps: &[PlanStep], origins: &[ValueOrigin]) -> FileOrigin {
+    if origins.iter().all(|origin| {
         column_kind(steps, origin.input, origin.column)
             .is_some_and(|kind| stated_by(kind) == FileOrigin::Stated)
-    })
+    }) {
+        FileOrigin::Stated
+    } else {
+        FileOrigin::Unstated
+    }
 }
 
 /// The per-file input of the join at `place` and the steps that narrow it: one projection of the values of each origin, their union,
 /// and the join of the input with it.
-fn narrowed(steps: &[PlanStep], place: usize) -> Option<Narrowed> {
-    let step = steps.get(place)?;
+fn narrowed(steps: &[PlanStep], place: StepIndex) -> Option<Narrowed> {
+    let step = steps.get(place.0)?;
     if step.scope != StepScope::CrossFile {
         return None;
     }
@@ -125,7 +131,7 @@ fn narrowed(steps: &[PlanStep], place: usize) -> Option<Narrowed> {
                     return None;
                 }
                 let origins = value_origins(steps, crossing, *crossing_key)?;
-                let narrows = origins_state_file(steps, &origins)
+                let narrows = origins_state_file(steps, &origins) == FileOrigin::Stated
                     && !origins.contains(&ValueOrigin {
                         input: local,
                         column: *local_key,
@@ -133,10 +139,7 @@ fn narrowed(steps: &[PlanStep], place: usize) -> Option<Narrowed> {
                 narrows.then_some((*local_key, origins))
             })
     })?;
-    let first = u32::try_from(place).ok()?;
-    let at = |offset: usize| -> Option<Input> {
-        Some(Input::Step(StepId(first + u32::try_from(offset).ok()?)))
-    };
+    let first = StepId(u32::try_from(place.0).unwrap_or(u32::MAX));
     let mut made: Vec<PlanStep> = origins
         .iter()
         .map(|origin| PlanStep {
@@ -148,13 +151,17 @@ fn narrowed(steps: &[PlanStep], place: usize) -> Option<Narrowed> {
             scope: StepScope::PerFile,
         })
         .collect();
-    let mut values = at(0)?;
-    for offset in 1..origins.len() {
-        let union = at(made.len())?;
+    // Each projection after the first is united with the values before it.
+    let mut values = Input::Step(first);
+    for projected in 1..origins.len() {
+        let union = place_after(first, &made);
+        let projection = Input::Step(StepId(
+            first.0 + u32::try_from(projected).unwrap_or(u32::MAX),
+        ));
         made.push(PlanStep {
             operation: Operation::Union {
                 left: values,
-                right: at(offset)?,
+                right: projection,
             },
             scope: StepScope::PerFile,
         });
@@ -180,4 +187,11 @@ fn narrowed(steps: &[PlanStep], place: usize) -> Option<Narrowed> {
         scope: StepScope::PerFile,
     });
     Some(Narrowed { local, kept, made })
+}
+
+/// The place the next step made before the join at `first` takes, after `made`.
+fn place_after(first: StepId, made: &[PlanStep]) -> Input {
+    Input::Step(StepId(
+        first.0 + u32::try_from(made.len()).unwrap_or(u32::MAX),
+    ))
 }

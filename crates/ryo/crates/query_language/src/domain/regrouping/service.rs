@@ -8,6 +8,8 @@ use crate::domain::lineage::service::column_kind;
 use crate::domain::lowering::types::FileOrigin;
 use crate::domain::planning::service::planned_scope;
 use crate::domain::planning::service::stated_by;
+use crate::domain::pushing::service::index_among;
+use crate::domain::pushing::types::ColumnPrefixLength;
 use crate::domain::rewriting::types::Planned;
 use crate::domain::rewriting::types::StepIndex;
 use ryo_values::domain::plan_parts::service::column_in;
@@ -158,12 +160,6 @@ fn push_new(columns: &mut Vec<ColumnIndex>, column: ColumnIndex) {
     }
 }
 
-/// The place of `column` among `columns`, after `offset` columns before them.
-fn place_among(columns: &[ColumnIndex], column: ColumnIndex, offset: usize) -> Option<ColumnIndex> {
-    let at = columns.iter().position(|each| *each == column)?;
-    u32::try_from(offset + at).ok().map(ColumnIndex)
-}
-
 /// The columns an answer keeps of one input, in order.
 fn kept_from(side: Side, columns: &[ColumnIndex]) -> impl Iterator<Item = JoinColumn> + '_ {
     columns.iter().map(move |column| JoinColumn {
@@ -178,7 +174,7 @@ fn regrouped(steps: &[PlanStep], place: StepIndex) -> Option<Regrouped> {
     if step.scope != StepScope::CrossFile {
         return None;
     }
-    let at = Input::Step(StepId(u32::try_from(place.0).ok()?));
+    let at = Input::Step(StepId(u32::try_from(place.0).unwrap_or(u32::MAX)));
     regrouped_on(steps, &step.operation, Side::Left, at)
         .or_else(|| regrouped_on(steps, &step.operation, Side::Right, at))
 }
@@ -277,8 +273,8 @@ fn regrouped_on(steps: &[PlanStep], outer: &Operation, side: Side, at: Input) ->
                 view: view.clone(),
                 reach: None,
             },
-            0,
-            local_kept.len(),
+            ColumnPrefixLength(0),
+            ColumnPrefixLength(local_kept.len()),
         ),
         Side::Right => (
             Operation::Join {
@@ -293,16 +289,16 @@ fn regrouped_on(steps: &[PlanStep], outer: &Operation, side: Side, at: Input) ->
                 view: Vec::new(),
                 reach: None,
             },
-            other_kept.len(),
-            0,
+            ColumnPrefixLength(other_kept.len()),
+            ColumnPrefixLength(0),
         ),
     };
     let inner_side = opposite(split.crossing_side);
     let inner_keys = split
         .local_keys
         .iter()
-        .map(|key| place_among(&local_kept, *key, local_offset))
-        .collect::<Option<Vec<_>>>()?;
+        .map(|key| index_among(&local_kept, *key, local_offset))
+        .collect::<Vec<_>>();
     let mut answer = Vec::new();
     for column in output {
         answer.push(if column.side == side {
@@ -312,21 +308,21 @@ fn regrouped_on(steps: &[PlanStep], outer: &Operation, side: Side, at: Input) ->
             } else {
                 JoinColumn {
                     side: inner_side,
-                    column: place_among(
+                    column: index_among(
                         &local_kept,
                         source_column(split.local_view, made.column)?,
                         local_offset,
-                    )?,
+                    ),
                 }
             }
         } else {
             JoinColumn {
                 side: inner_side,
-                column: place_among(&other_kept, column.column, other_offset)?,
+                column: index_among(&other_kept, column.column, other_offset),
             }
         });
     }
-    let outer = match split.crossing_side {
+    let regrouped = match split.crossing_side {
         Side::Left => Operation::Join {
             left: split.crossing,
             right: at,
@@ -348,5 +344,8 @@ fn regrouped_on(steps: &[PlanStep], outer: &Operation, side: Side, at: Input) ->
             reach: None,
         },
     };
-    Some(Regrouped { inner, outer })
+    Some(Regrouped {
+        inner,
+        outer: regrouped,
+    })
 }
