@@ -231,6 +231,12 @@ class RustReviewPush(unittest.TestCase):
         self.assertEqual(result.returncode, 2)
         self.assertIn("not an ancestor of", result.stderr)
 
+    def test_a_ref_name_as_source_is_refused(self):
+        for source in ("HEAD", "claude/checkpoint-9", self.base[:12]):
+            with self.subTest(source=source):
+                self.commit_review("PASS", source)
+                self.assertEqual(self.push().returncode, 2)
+
     def test_refused_when_not_json(self):
         path = os.path.join(self.tree, self.REVIEW)
         os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -445,6 +451,24 @@ class PerfGate(unittest.TestCase):
         result = self.push()
         self.assertEqual(result.returncode, 2)
         self.assertIn("only crates/ryo/docs/contracts/evidence/ files changed since", result.stderr)
+
+    def test_after_source_must_be_a_full_sha_not_a_ref_name(self):
+        self.diagnosis()
+        with open(os.path.join(self.tree, "engine.rs"), "w", encoding="utf-8") as handle:
+            handle.write("p13\n")
+        git(self.tree, "add", "engine.rs")
+        git(self.tree, "commit", "-q", "-m", "perf(engine): p13, 12s to 4s")
+        for source in ("HEAD", "claude/p6-speed", "HEAD~0", "HEAD^{}", git(self.tree, "rev-parse", "HEAD")[:12]):
+            with self.subTest(source=source):
+                self.write("after.json", {"before": [], "after": [], "identical_output": True, "source": source})
+                self.assertEqual(self.push().returncode, 2)
+
+    def test_expanded_or_matching_push_operands_are_refused(self):
+        for command in ['git push origin "$(git branch --show-current)"', "git push origin :", "git push origin +:",
+                        "git push origin claude/*:claude/*", "git push origin $B"]:
+            with self.subTest(command=command):
+                done = run_hook("guard_shell.py", {"tool_input": {"command": command}, "cwd": self.tree})
+                self.assertEqual(done.returncode, 2)
 
     def test_push_all_and_mirror_are_refused(self):
         for command in ["git push --all origin", "git push --mirror", "env git push origin --all"]:

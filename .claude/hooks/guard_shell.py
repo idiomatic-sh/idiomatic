@@ -298,11 +298,21 @@ def consolidation_targets(tree, push):
     return [t for t in push_targets(tree, push) if t[2] == CONSOLIDATION]
 
 
+def full_sha(value):
+    """True for a 40-character hex sha; evidence names its source this way, never by ref name."""
+    return isinstance(value, str) and re.fullmatch(r"[0-9a-f]{40}", value) is not None
+
+
 def bulk_push(words, here):
     """git push --all / --mirror would push refs no gate has looked at; this repository refuses them."""
     push = git_verb(words, "push")
     if push is not None and any(a in ("--all", "--mirror", "--branches") for a in push[1]):
         return "git push --all/--mirror/--branches pushes refs no gate checked; push each branch by name"
+    if push is not None:
+        for operand in (a for a in push[1] if not a.startswith("-")):
+            if SHELL_EXPANDED.search(operand) or operand.lstrip("+") == ":":
+                return ("git push operand " + operand + " is shell-expanded, a pattern or the matching refspec; "
+                        "write the branch name")
     return None
 
 
@@ -331,8 +341,8 @@ def rust_review(words, here):
                     ", not \"PASS\"; repair its findings and run the rust-review subagent again, or the owner "
                     "overrules and pushes")
         reviewed = review.get("source")
-        if not isinstance(reviewed, str) or not reviewed or reviewed.startswith("-"):
-            return refused + RUST_REVIEW + " at " + source + " names no reviewed \"source\" sha"
+        if not full_sha(reviewed):
+            return refused + RUST_REVIEW + " at " + source + " names no reviewed \"source\" as a full 40-character sha"
         if git_out(tree, "merge-base", "--is-ancestor", reviewed, sha)[0] != 0:
             return (refused + "the reviewed source " + reviewed + " in " + RUST_REVIEW +
                     " is not an ancestor of " + source + "; run the rust-review subagent on the tree being pushed")
@@ -389,7 +399,7 @@ def previous_reviews(words, here):
             if not isinstance(review, dict) or "verdict" not in review:
                 return refused + EVIDENCE + name + " at " + source + " has no \"verdict\"; " + run
             reviewed = review.get("source")
-            if not isinstance(reviewed, str) or not reviewed or reviewed.startswith("-") or \
+            if not full_sha(reviewed) or \
                     not stands_for(tree, reviewed, head, EVIDENCE):
                 return (refused + "the source " + repr(reviewed) + " in " + EVIDENCE + name +
                         " is not the previous landed head " + head +
@@ -458,7 +468,7 @@ def perf_gate(words, here):
 
 def names_pushed_work(tree, source, sha, commits):
     """True when source is a commit of the pushed range that is sha or has only evidence files changed before sha."""
-    found = rev(tree, source) if isinstance(source, str) else None
+    found = rev(tree, source) if full_sha(source) else None
     return found is not None and found in commits and stands_for(tree, found, sha, EVIDENCE_ROOT)
 
 
@@ -479,7 +489,7 @@ def perf_problem(tree, remote, sha, branch, perf):
         doc = doc if isinstance(doc, dict) else {}
         source = doc.get("source")
         hypotheses = doc.get("hypotheses")
-        if not isinstance(source, str) or not source or source.startswith("-") or \
+        if not full_sha(source) or \
                 git_out(tree, "merge-base", "--is-ancestor", source, first)[0] != 0:
             problems.append(path + " has a \"source\" that is not an ancestor of the first perf commit")
         elif not any(isinstance(h, dict) and h.get("verdict") in ("confirmed", "refuted")
@@ -601,7 +611,7 @@ def branch_review(words, here):
             review = json.loads(text)
         except ValueError:
             return refused + path + " at HEAD is not JSON" + run
-        if not isinstance(review, dict) or review.get("source") != sha:
+        if not isinstance(review, dict) or not full_sha(review.get("source")) or review.get("source") != sha:
             return refused + "the source in " + path + " is not the branch head " + sha + run
         if review.get("reviewer") != "leak-review" or "verdict" not in review:
             return refused + path + " lacks \"reviewer\": \"leak-review\" or a \"verdict\"" + run
