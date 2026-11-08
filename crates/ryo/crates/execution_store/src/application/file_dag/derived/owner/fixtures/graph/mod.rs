@@ -28,20 +28,20 @@ use std::rc::Rc;
 
 /// A derived owner over a fake port, with the graph acquisitions a proof drives.
 pub struct GraphFixture {
-    pub(in crate::application::file_dag::derived::owner::fixtures) owner: Rc<RelationOwner>,
+    pub(crate) owner: Rc<RelationOwner>,
     wanted: Vec<Relation>,
     partials: Vec<Partial>,
     limit: usize,
 }
 impl GraphFixture {
-    pub(in crate::application::file_dag) fn new(
+    pub(crate) fn new(
         wanted: &[Relation],
         partials: &[Partial],
         limit: usize,
     ) -> Self {
         Self::with_identity(wanted, partials, limit, true, 1024)
     }
-    pub(in crate::application::file_dag) fn with_identity(
+    pub(crate) fn with_identity(
         wanted: &[Relation],
         partials: &[Partial],
         limit: usize,
@@ -180,7 +180,7 @@ impl GraphFixture {
         self.acquire_prepared(&plan, input, rows)
     }
     /// A demand whose plan belongs to another family: the production entry must refuse it.
-    pub(in crate::application::file_dag) fn acquire_wrong(
+    pub(crate) fn acquire_wrong(
         &self,
         input: Input,
         rows: &Rows<'_>,
@@ -193,7 +193,7 @@ impl GraphFixture {
         );
         self.acquire_prepared(&plan, input, rows)
     }
-    pub(in crate::application::file_dag) fn acquire_prepared(
+    pub(crate) fn acquire_prepared(
         &self,
         plan: &Arc<DerivedContract>,
         input: Input,
@@ -214,7 +214,7 @@ impl GraphFixture {
     }
     /// Required bytes the owner keeps for the admitted source of `rows` until the generation
     /// retires: what a demand's exit returns to, since the exit does not retire the source.
-    pub(in crate::application::file_dag) fn source_floor(
+    pub(crate) fn source_floor(
         &self,
         input: Input,
         rows: &Rows<'_>,
@@ -232,7 +232,7 @@ impl GraphFixture {
         drop(publication);
         Ok(self.owner.derived().publication_ownership_bytes().0)
     }
-    pub(in crate::application::file_dag) fn domain(
+    pub(crate) fn domain(
         &self,
         graph: &GraphHandle,
         input: Input,
@@ -260,7 +260,7 @@ impl GraphFixture {
             .acquire_graph_domain(&plan, graph, &source, &mut cache)
             .map(Some)
     }
-    pub(in crate::application::file_dag) fn reach(
+    pub(crate) fn reach(
         &self,
         access: &GraphHandle,
         partition: &[Value],
@@ -325,7 +325,7 @@ impl GraphFixture {
             }),
         )
     }
-    pub(in crate::application::file_dag) fn set_limit(&mut self, limit: usize) {
+    pub(crate) fn set_limit(&mut self, limit: usize) {
         self.limit = limit;
         self.owner
             .derived()
@@ -335,18 +335,18 @@ impl GraphFixture {
             .unwrap();
     }
     /// Whether a graph demand can reach the cache of the owner now.
-    pub(in crate::application::file_dag) fn cache_ready(&self) -> Result<(), OperatingError> {
+    pub(crate) fn cache_ready(&self) -> Result<(), OperatingError> {
         self.owner.derived().graph_cache().map(|_| ())
     }
     /// Retire the generation: the owner drops its cache until the file is prepared again.
     pub fn retire(&self) {
         self.owner.derived().clear();
     }
-    pub(in crate::application::file_dag) fn clear(&self) {
+    pub(crate) fn clear(&self) {
         self.owner.release_population();
         self.setup();
     }
-    pub(in crate::application::file_dag) fn reclaim(&self, cost: usize) -> bool {
+    pub(crate) fn reclaim(&self, cost: usize) -> bool {
         let mut backend = self.owner.derived().backend.borrow_mut();
         self.owner
             .derived()
@@ -358,7 +358,7 @@ impl GraphFixture {
             .unwrap()
             == Room::Fits
     }
-    pub(in crate::application::file_dag) fn graph_cost(&self, graph: &GraphHandle) -> usize {
+    pub(crate) fn graph_cost(&self, graph: &GraphHandle) -> usize {
         let backend = self.owner.derived().backend.borrow();
         let cache = backend.as_ref().unwrap();
         let metadata = slot(&cache.graphs).unwrap().metadata.0;

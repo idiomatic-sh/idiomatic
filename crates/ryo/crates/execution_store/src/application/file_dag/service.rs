@@ -4,7 +4,7 @@ use super::relations::{
     RelationOwner,
     types::{PinnedViewCount, ReuseEligibility},
 };
-pub(in crate::application::file_dag) mod types;
+pub(crate) mod types;
 use std::{rc::Rc, sync::Arc};
 use types::ScopePermit;
 

@@ -57,7 +57,7 @@ impl DerivedOwner {
 }
 
 impl RequestDerived {
-    pub(in crate::application::file_dag) fn wanted(
+    pub(crate) fn wanted(
         &self,
         demanded: &[RuleIndex],
     ) -> Result<Vec<Relation>, OperatingError> {

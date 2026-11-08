@@ -22,7 +22,7 @@ pub struct GraphHandle {
     acquired: AcquiredView,
 }
 impl GraphHandle {
-    pub(in crate::application::file_dag::derived::owner) fn new(
+    pub(crate) fn new(
         owner: &crate::application::file_dag::derived::owner::DerivedOwner,
         acquired: AcquiredView,
         orientation: Orientation,
@@ -42,28 +42,28 @@ impl GraphHandle {
             acquired,
         })
     }
-    pub(in crate::application::file_dag) fn graph(&self) -> &CompactGraph {
+    pub(crate) fn graph(&self) -> &CompactGraph {
         #[cfg(test)]
         self.acquired.view().expect(constants::EXPECT_GRAPH_LEASE);
         &self.graph
     }
-    pub(in crate::application::file_dag) fn orientation(&self) -> Orientation {
+    pub(crate) fn orientation(&self) -> Orientation {
         self.orientation
     }
-    pub(in crate::application::file_dag::derived::owner) fn sharing(&self) -> GraphSharing {
+    pub(crate) fn sharing(&self) -> GraphSharing {
         self.sharing
     }
-    pub(in crate::application::file_dag::derived::owner) fn raw_graph(&self) -> &Arc<CompactGraph> {
+    pub(crate) fn raw_graph(&self) -> &Arc<CompactGraph> {
         &self.graph
     }
     /// The view the graph handle was acquired as.
     pub fn acquired(&self) -> &AcquiredView {
         &self.acquired
     }
-    pub(in crate::application::file_dag::derived::owner) fn backings(&self) -> &Arc<[Backing]> {
+    pub(crate) fn backings(&self) -> &Arc<[Backing]> {
         self.acquired.backings()
     }
-    pub(in crate::application::file_dag) fn validate_owner(
+    pub(crate) fn validate_owner(
         &self,
         owner: &crate::application::file_dag::derived::owner::DerivedOwner,
     ) -> Result<(), ryo_execution_domain::domain::operating::errors::OperatingError> {
@@ -78,7 +78,7 @@ pub struct DomainHandle {
     _lease: Arc<ResourceLease>,
 }
 impl DomainHandle {
-    pub(in crate::application::file_dag::derived::owner) fn new(
+    pub(crate) fn new(
         owner: &crate::application::file_dag::derived::owner::DerivedOwner,
         parent: &GraphHandle,
         acquired: AcquiredView,
@@ -105,17 +105,17 @@ impl DomainHandle {
             _lease: lease,
         })
     }
-    pub(in crate::application::file_dag) fn members(&self) -> DenseMarks<'_> {
+    pub(crate) fn members(&self) -> DenseMarks<'_> {
         #[cfg(test)]
         self.acquired
             .view()
             .expect(constants::EXPECT_MEMBERSHIP_LEASE);
         DenseMarks(self.domain.members.0.as_slice())
     }
-    pub(in crate::application::file_dag::derived::owner) fn raw_domain(&self) -> &Arc<GraphDomain> {
+    pub(crate) fn raw_domain(&self) -> &Arc<GraphDomain> {
         &self.domain
     }
-    pub(in crate::application::file_dag) fn validate_owner(
+    pub(crate) fn validate_owner(
         &self,
         owner: &crate::application::file_dag::derived::owner::DerivedOwner,
         graph: &GraphHandle,
@@ -177,11 +177,11 @@ impl RootAnswer {
         }))
     }
     #[cfg(test)]
-    pub(in crate::application::file_dag) fn data_identity(&self) -> DataIdentity {
+    pub(crate) fn data_identity(&self) -> DataIdentity {
         DataIdentity(Arc::as_ptr(&self.rows).cast())
     }
     #[cfg(test)]
-    pub(in crate::application::file_dag) fn weak(&self) -> std::sync::Weak<ReachedVertices> {
+    pub(crate) fn weak(&self) -> std::sync::Weak<ReachedVertices> {
         Arc::downgrade(&self.rows)
     }
 }

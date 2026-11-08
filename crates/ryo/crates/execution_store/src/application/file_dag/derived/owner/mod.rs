@@ -37,9 +37,9 @@ pub mod types;
 /// Runtime semantic dependencies that are not columns: candidate filter and exact dense ordering.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub struct ViewContext {
-    pub(in crate::application::file_dag) candidate: Option<graph_key::PreparedIdentity>,
-    pub(in crate::application::file_dag) literals: Option<Arc<[ryo_values::domain::plan_parts::types::LiteralText]>>,
-    pub(in crate::application::file_dag) membership_order: Option<MembershipOrder>,
+    pub(crate) candidate: Option<graph_key::PreparedIdentity>,
+    pub(crate) literals: Option<Arc<[ryo_values::domain::plan_parts::types::LiteralText]>>,
+    pub(crate) membership_order: Option<MembershipOrder>,
 }
 impl ViewContext {
     /// The context of a membership view whose members keep the dense order `order`.
@@ -50,7 +50,7 @@ impl ViewContext {
         }
     }
     #[cfg(test)]
-    pub(in crate::application::file_dag) fn for_predicate(plan: &Arc<DerivedContract>) -> Self {
+    pub(crate) fn for_predicate(plan: &Arc<DerivedContract>) -> Self {
         Self {
             candidate: Some(graph_key::PreparedIdentity::new(plan)),
             ..Self::default()
@@ -127,7 +127,7 @@ impl DerivedOwner {
         super::prepare::view(self.semantic.clone(), request, schemas)
     }
 
-    pub(in crate::application::file_dag) fn new(
+    pub(crate) fn new(
         max_entries: EntryLimit,
         semantic: impl Into<types::DerivedAccess>,
         routes: crate::application::file_dag::route_counts::types::RouteProfile,
@@ -155,17 +155,17 @@ impl DerivedOwner {
     pub fn working_bytes(&self) -> ByteCount {
         self.state.borrow().required_bytes
     }
-    pub(in crate::application::file_dag) fn peak_working_bytes(&self) -> ByteCount {
+    pub(crate) fn peak_working_bytes(&self) -> ByteCount {
         self.state.borrow().peak_required_bytes
     }
     /// The bytes the owner retains across invocations.
     pub fn retained_bytes(&self) -> ByteCount {
         self.state.borrow().retained_bytes
     }
-    pub(in crate::application::file_dag) fn required_backend_overlap(&self) -> ByteCount {
+    pub(crate) fn required_backend_overlap(&self) -> ByteCount {
         self.state.borrow().required_backend_bytes
     }
-    pub(in crate::application::file_dag) fn peak_required_views(&self) -> ViewCount {
+    pub(crate) fn peak_required_views(&self) -> ViewCount {
         self.state.borrow().peak_required_views
     }
     /// The bytes the owner holds in all.
@@ -179,7 +179,7 @@ impl DerivedOwner {
                 .saturating_sub(state.overlap_bytes.0),
         )
     }
-    pub(in crate::application::file_dag) fn metadata_bytes(&self) -> ByteCount {
+    pub(crate) fn metadata_bytes(&self) -> ByteCount {
         use crate::application::file_dag::derived::ledger::{
             capacity::{saturating, table},
             types::SlotCount,
@@ -220,7 +220,7 @@ impl DerivedOwner {
 
 #[cfg(test)]
 impl DerivedOwner {
-    pub(in crate::application::file_dag) fn released_entries(&self) -> ReleasedEntries {
+    pub(crate) fn released_entries(&self) -> ReleasedEntries {
         self.state.borrow().released_entries
     }
 }

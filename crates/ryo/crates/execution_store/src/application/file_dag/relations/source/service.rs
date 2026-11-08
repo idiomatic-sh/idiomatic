@@ -10,7 +10,7 @@ impl RelationOwner {
     ) -> Result<PublishedInput, OperatingError> {
         self.source_borrowed(relation, RepresentationInput::from(rows))
     }
-    pub(in crate::application::file_dag::relations) fn source_borrowed(
+    pub(crate) fn source_borrowed(
         &self,
         relation: Relation,
         raw: RepresentationInput<'_>,

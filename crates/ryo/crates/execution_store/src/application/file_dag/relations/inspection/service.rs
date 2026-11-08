@@ -18,7 +18,7 @@ impl RelationOwner {
             }
         })
     }
-    pub(in crate::application::file_dag::relations) fn private<'a>(
+    pub(crate) fn private<'a>(
         &self,
         result: &'a dyn PublishedRelation,
     ) -> Result<&'a RelationResult, OperatingError> {
@@ -30,14 +30,14 @@ impl RelationOwner {
         Ok(record)
     }
 
-    pub(in crate::application::file_dag::relations) fn generation(&self, result: &RelationResult) -> Result<(), OperatingError> {
+    pub(crate) fn generation(&self, result: &RelationResult) -> Result<(), OperatingError> {
         if self.matches_generation(&result.generation) == crate::application::file_dag::relations::types::Sameness::Same {
             Ok(())
         } else {
             Err(OperatingError::NotRead)
         }
     }
-    pub(in crate::application::file_dag::relations) fn matches_current(&self, result: &RelationResult, input: RepresentationInput<'_>) -> Sameness {
+    pub(crate) fn matches_current(&self, result: &RelationResult, input: RepresentationInput<'_>) -> Sameness {
         #[cfg(test)]
         self.identity_checks
             .set(CheckCount(self.identity_checks.get().0 + 1));
@@ -102,7 +102,7 @@ impl RelationOwner {
         }
         self.inspect_current(result, input)
     }
-    pub(in crate::application::file_dag::relations) fn inspect_current(
+    pub(crate) fn inspect_current(
         &self,
         result: &RelationResult,
         input: RepresentationInput<'_>,

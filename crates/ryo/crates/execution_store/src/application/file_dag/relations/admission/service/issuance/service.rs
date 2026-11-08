@@ -27,21 +27,21 @@ impl<'a> BorrowedInput<'a> {
     /// Physical source identity bound once with this immutable, generation-checked input.
     /// Selected projections keep their own population for ordinary views while
     /// canonical graph columns can share the source backing identity.
-    pub(in crate::application::file_dag) fn backing_population(
+    pub(crate) fn backing_population(
         &self,
         owner: &RelationOwner,
     ) -> Result<PopulationId, OperatingError> {
         self.identity(owner)?;
         Ok(self.backing_population)
     }
-    pub(in crate::application::file_dag) fn graph_relation(
+    pub(crate) fn graph_relation(
         &self,
         owner: &RelationOwner,
     ) -> Result<Option<Relation>, OperatingError> {
         self.identity(owner)?;
         Ok(self.backing_relation)
     }
-    pub(in crate::application::file_dag) fn canonical_backing(
+    pub(crate) fn canonical_backing(
         &self,
     ) -> crate::application::file_dag::relations::types::BackingForm {
         self.canonical_backing

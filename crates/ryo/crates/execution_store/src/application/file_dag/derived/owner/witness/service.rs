@@ -18,7 +18,7 @@ pub struct BackingWitness {
     backing: Weak<dyn Any>,
 }
 impl BackingWitness {
-    pub(in crate::application::file_dag::derived::owner) fn new(backing: Weak<dyn Any>) -> Self {
+    pub(crate) fn new(backing: Weak<dyn Any>) -> Self {
         Self { backing }
     }
     /// Whether the backing is still held.

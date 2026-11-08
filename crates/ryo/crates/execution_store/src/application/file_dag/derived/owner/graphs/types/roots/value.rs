@@ -45,7 +45,7 @@ impl<'a> DemandAnswers<'a> {
     }
     /// Only a completed positive closure is retained. Unknown roots and local
     /// traversal scratch never become successful memo records.
-    pub(in crate::application::file_dag) fn reach(
+    pub(crate) fn reach(
         &mut self,
         access: &GraphHandle,
         partition: &[Value],

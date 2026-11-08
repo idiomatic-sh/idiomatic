@@ -7,12 +7,12 @@ pub struct GenerationLease {
     live: std::sync::atomic::AtomicBool,
 }
 impl GenerationLease {
-    pub(in crate::application::file_dag::relations) fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             live: std::sync::atomic::AtomicBool::new(true),
         }
     }
-    pub(in crate::application::file_dag::relations) fn invalidate(&self) {
+    pub(crate) fn invalidate(&self) {
         self.live.store(false, std::sync::atomic::Ordering::Release);
     }
     /// Whether two leases are one generation. The owner issues a fresh lease for each population and every proof

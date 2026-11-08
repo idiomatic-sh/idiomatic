@@ -7,6 +7,6 @@ pub(crate) mod reclamation;
 
 pub(crate) mod reserve;
 
-pub(in crate::application::file_dag::derived::owner) mod retained;
+pub(crate) mod retained;
 
 pub mod handles;

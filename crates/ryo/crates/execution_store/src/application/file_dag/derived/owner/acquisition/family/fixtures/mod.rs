@@ -57,11 +57,11 @@ fn numbers() -> Table {
 }
 /// A production exit that returned with its lease still charged.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in crate::application::file_dag) struct Leaked {
+pub(crate) struct Leaked {
     /// Required bytes before the view was acquired.
-    pub(in crate::application::file_dag) before: usize,
+    pub(crate) before: usize,
     /// Required bytes after the exit ran, before any fixture-side release.
-    pub(in crate::application::file_dag) after: usize,
+    pub(crate) after: usize,
 }
 /// Who releases the pins at the last consumer's exit.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

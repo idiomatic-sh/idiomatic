@@ -46,13 +46,13 @@ impl DerivedStorage {
     pub fn payload(&self) -> &DerivedPayload {
         &self.payload
     }
-    pub(in crate::application::file_dag::derived::owner) fn graph_identity(
+    pub(crate) fn graph_identity(
         &self,
     ) -> Option<&Arc<GraphIdentity>> {
         self.graph_identity.as_ref()
     }
     /// Describe the exact physical allocations; admission and lease classes remain with the owner.
-    pub(in crate::application::file_dag::derived::owner) fn backings(
+    pub(crate) fn backings(
         this: &Arc<Self>,
     ) -> Result<Arc<[crate::application::file_dag::derived::ledger::types::Backing]>, OperatingError>
     {

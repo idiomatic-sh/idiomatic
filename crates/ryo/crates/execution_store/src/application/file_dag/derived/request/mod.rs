@@ -347,7 +347,7 @@ impl RequestViews {
         self.plans.push((plan).clone());
         Ok(plan)
     }
-    pub(in crate::application::file_dag) fn intern(
+    pub(crate) fn intern(
         &mut self,
         request: &ViewRequest,
         schemas: &[InputShape<'_>],
@@ -372,7 +372,7 @@ impl RequestViews {
         Ok(plan)
     }
     #[cfg(test)]
-    pub(in crate::application::file_dag) fn count(&self) -> types::PlanCount {
+    pub(crate) fn count(&self) -> types::PlanCount {
         types::PlanCount(self.plans.len())
     }
 }
@@ -380,6 +380,6 @@ impl RequestViews {
 #[cfg(test)]
 mod test;
 
-pub(in crate::application::file_dag) mod types;
+pub(crate) mod types;
 
 use ryo_derived::domain::request::types::DerivedKind;

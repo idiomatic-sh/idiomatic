@@ -3,7 +3,7 @@ use super::super::*;
 use crate::application::file_dag::derived::owner::DerivedOwner;
 use crate::application::file_dag::derived::owner::acquisition::population::types::Construction;
 impl AcquisitionOrigin {
-    pub(in crate::application::file_dag::derived::owner::acquisition) fn validate(
+    pub(crate) fn validate(
         &self,
         owner: &DerivedOwner,
         plan: &Arc<DerivedContract>,
@@ -19,7 +19,7 @@ impl AcquisitionOrigin {
 }
 
 impl AdmittedViewInputs<'_> {
-    pub(in crate::application::file_dag::derived::owner::acquisition) fn validate(
+    pub(crate) fn validate(
         &self,
         owner: &DerivedOwner,
         plan: &Arc<DerivedContract>,
@@ -102,7 +102,7 @@ impl DerivedOwner {
             sources: AcquisitionSources::Rows(proofs.iter().map(|proof| proof.rows()).collect()),
         })
     }
-    pub(in crate::application::file_dag) fn admit_partition<'a>(
+    pub(crate) fn admit_partition<'a>(
         &self,
         plan: &Arc<DerivedContract>,
         owner: &crate::application::file_dag::relations::RelationOwner,
@@ -137,7 +137,7 @@ impl DerivedOwner {
         }
         Ok(admitted)
     }
-    pub(in crate::application::file_dag::derived::owner::acquisition) fn admit_graph<'a>(
+    pub(crate) fn admit_graph<'a>(
         &self,
         plan: &Arc<DerivedContract>,
         input: &crate::application::file_dag::workspace::GraphInput<'a>,
@@ -147,7 +147,7 @@ impl DerivedOwner {
         }
         self.graph_sources(plan, input)
     }
-    pub(in crate::application::file_dag::derived::owner::acquisition) fn admit_domain<'a>(
+    pub(crate) fn admit_domain<'a>(
         &self,
         plan: &Arc<DerivedContract>,
         input: &crate::application::file_dag::workspace::GraphInput<'a>,
@@ -181,12 +181,12 @@ impl DerivedOwner {
 }
 
 impl AdmittedViewInputs<'_> {
-    pub(in crate::application::file_dag::derived::owner::acquisition) fn lifetime(
+    pub(crate) fn lifetime(
         &self,
     ) -> AcquisitionLifetime {
         self.origin.lifetime
     }
-    pub(in crate::application::file_dag::derived::owner::acquisition) fn validate_origin(
+    pub(crate) fn validate_origin(
         &self,
         owner: &DerivedOwner,
         plan: &Arc<DerivedContract>,
@@ -196,7 +196,7 @@ impl AdmittedViewInputs<'_> {
 }
 
 impl DerivedOwner {
-    pub(in crate::application::file_dag::derived::owner::acquisition) fn complete_view(
+    pub(crate) fn complete_view(
         &self,
         plan: &Arc<DerivedContract>,
         storage: Arc<DerivedStorage>,
@@ -219,7 +219,7 @@ impl DerivedOwner {
 }
 
 impl AcquiredView {
-    pub(in crate::application::file_dag::derived::owner) fn validate_owner(
+    pub(crate) fn validate_owner(
         &self,
         owner: &DerivedOwner,
     ) -> Result<(), OperatingError> {

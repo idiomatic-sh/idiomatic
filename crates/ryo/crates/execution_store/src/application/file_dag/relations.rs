@@ -16,9 +16,9 @@ use std::{
 use rustc_hash::FxHashMap;
 mod accounting;
 pub mod types;
-pub(in crate::application::file_dag) mod inspection;
-pub(in crate::application::file_dag) mod producer;
-pub(in crate::application::file_dag) mod source;
+pub(crate) mod inspection;
+pub(crate) mod producer;
+pub(crate) mod source;
 pub mod generation;
 pub mod publication;
 use admission::service::BorrowedInput;
@@ -75,7 +75,7 @@ impl RelationOwner {
         &self.routes
     }
     #[cfg(test)]
-    pub(in crate::application::file_dag) fn derived_mut(
+    pub(crate) fn derived_mut(
         &mut self,
     ) -> &mut super::derived::owner::DerivedOwner {
         &mut self.derived
@@ -111,7 +111,7 @@ impl RelationOwner {
     }
     /// An owner whose work records into `routes`.
     #[cfg(test)]
-    pub(in crate::application) fn recording(
+    pub(crate) fn recording(
         stable: ReuseEligibility,
         semantic: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
         routes: super::route_counts::types::RouteProfile,
@@ -119,7 +119,7 @@ impl RelationOwner {
         Self::with_limits(stable, PinnedViewCount(1024), semantic, routes)
     }
     #[cfg(test)]
-    pub(in crate::application) fn for_request(
+    pub(crate) fn for_request(
         stable: ReuseEligibility,
         views: PinnedViewCount,
         semantic: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
@@ -172,7 +172,7 @@ impl RelationOwner {
 #[cfg(test)]
 mod owner_test;
 
-pub(in crate::application::file_dag) fn same_admitted_rows(
+pub(crate) fn same_admitted_rows(
     left: RepresentationInput<'_>,
     right: RepresentationInput<'_>,
 ) -> Sameness {

@@ -2,7 +2,7 @@
 use crate::application::file_dag::derived::owner::*;
 use ryo_relations::domain::relations::types::Relation;
 #[derive(Clone, Copy, Debug, Default)]
-pub(in crate::application::file_dag) struct IndexObservation {
+pub(crate) struct IndexObservation {
     pub available: bool,
 }
 impl DerivedOwner {
@@ -37,14 +37,14 @@ impl DerivedOwner {
                 available: true,
             })
     }
-    pub(in crate::application::file_dag) fn relation_eligible(&self, relation: Relation) -> bool {
+    pub(crate) fn relation_eligible(&self, relation: Relation) -> bool {
         self.backend
             .borrow()
             .as_ref()
             .is_some_and(|cache| cache.eligible.contains(&relation))
     }
 
-    pub(in crate::application::file_dag) fn no_invocation_index_handles(&self) -> bool {
+    pub(crate) fn no_invocation_index_handles(&self) -> bool {
         self.state.borrow().entries.values().all(|entry| {
             if entry._plan.kind != DerivedKind::Equality {
                 return true;
@@ -55,7 +55,7 @@ impl DerivedOwner {
         })
     }
 
-    pub(in crate::application::file_dag::derived::owner) fn first_index_weak(
+    pub(crate) fn first_index_weak(
         &self,
     ) -> Option<Weak<ryo_derived::domain::equality::types::KeyIndex>> {
         self.state.borrow().entries.values().find_map(|entry| {
@@ -69,7 +69,7 @@ impl DerivedOwner {
                 .map(|index| Arc::downgrade(&index.0))
         })
     }
-    pub(in crate::application::file_dag) fn shared_index_backings(&self) -> usize {
+    pub(crate) fn shared_index_backings(&self) -> usize {
         self.ledger
             .borrow()
             .backing_count(crate::application::file_dag::derived::ledger::types::BackingTag(11))
@@ -88,7 +88,7 @@ impl DerivedOwner {
     }
     /// The observation follows one qualified producer's admitted populations.
     /// Ambiguous matching requirements are refused rather than picking a view.
-    pub(in crate::application::file_dag) fn population_view_witness(
+    pub(crate) fn population_view_witness(
         &self,
         populations: &[PopulationId],
         kind: DerivedKind,

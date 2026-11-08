@@ -1,7 +1,7 @@
 //! Exact typed static request equality; evaluated only during request preparation.
 //! Its hash counterpart is `prepare::identity::hash_request`; both must follow the same fields.
 use ryo_execution_domain::domain::derived_views::types::ViewRequest;
-pub(in crate::application::file_dag::derived) mod types;
+pub(crate) mod types;
 use types::StaticRequest;
 impl PartialEq for StaticRequest<'_> {
     fn eq(&self, other: &Self) -> bool {

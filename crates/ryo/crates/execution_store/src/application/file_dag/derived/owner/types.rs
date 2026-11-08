@@ -22,7 +22,7 @@ impl DerivedAccess {
         Arc::new(self.port.prepare(request, schemas))
     }
     /// The builder is reachable only inside the owner tree.
-    pub(in crate::application::file_dag::derived::owner) fn port(&self) -> &Arc<dyn DerivedPort> {
+    pub(crate) fn port(&self) -> &Arc<dyn DerivedPort> {
         &self.port
     }
 }
@@ -92,7 +92,7 @@ pub enum PinState {
 
 /// What reclaiming optional payload could free, and whether pinned payload blocked more.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in crate::application::file_dag::derived) struct ReclaimOutlook {
+pub(crate) struct ReclaimOutlook {
     pub available: Option<crate::application::file_dag::derived::ledger::types::Credit>,
     pub pinned: PinState,
 }

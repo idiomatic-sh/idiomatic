@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 /// The population, source relation and generation an input was admitted under.
 #[derive(Clone)]
-pub(in crate::application::file_dag) struct AdmissionOrigin {
+pub(crate) struct AdmissionOrigin {
     pub population: PopulationId,
     pub relation: Option<Relation>,
     pub generation: Arc<crate::application::file_dag::relations::generation::service::GenerationLease>,
@@ -14,8 +14,8 @@ pub(in crate::application::file_dag) struct AdmissionOrigin {
 /// The population and source relation an input was admitted under, without its generation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct AdmissionIdentity {
-    pub(in crate::application::file_dag::relations) population: PopulationId,
-    pub(in crate::application::file_dag::relations) relation: Option<Relation>,
+    pub(crate) population: PopulationId,
+    pub(crate) relation: Option<Relation>,
 }
 impl AdmissionIdentity {
     /// The population the input was admitted under.
