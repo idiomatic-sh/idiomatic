@@ -12,8 +12,12 @@ use std::time::Instant;
 
 /// The Django canary request the runbook names: the sealed corpus and the cold request that lists its files.
 pub(crate) const DJANGO_REQUEST: &str = "/tmp/ryo-event-ready-django213-20261105/cold-request.json";
-/// The one rule of the Django canary (110 N999 and 2 invalid-syntax diagnostics at the runbook baseline).
+/// The one rule of the Django canary.
 pub(crate) const DJANGO_RULE: &str = "N999";
+/// The frontend's rule for a file the parser rejects, reported beside the canary's rule.
+pub(crate) const FRONTEND_RULE: &str = "invalid-syntax";
+/// The Django canary's diagnostics per rule at the runbook baseline: 110 N999 and 2 invalid-syntax, 112 in all.
+pub(crate) const DJANGO_SPLIT: [(&str, u64); 2] = [(DJANGO_RULE, 110), (FRONTEND_RULE, 2)];
 
 /// What the one path did with one workload.
 #[derive(Clone, Debug)]
@@ -79,7 +83,7 @@ pub(crate) fn measured(
         )]),
         None,
         ryo_benchmark::outbound::engine::types::FrontendDiagnosticProjection {
-            rule: ryo::linter::RuleId::try_from("invalid-syntax")?,
+            rule: ryo::linter::RuleId::try_from(FRONTEND_RULE)?,
             query: ryo::query::RyoQlQuery::try_from(
                 crate::frontend_projection::constants::FRONTEND_DIAGNOSTIC_QUERY,
             )?,
@@ -149,11 +153,21 @@ pub(crate) fn recorded_django_diagnostics() -> Result<u64, Box<dyn std::error::E
 /// How many diagnostics a worker report holds: every entry of its `diagnostics` list, the rule's and the frontend's
 /// `invalid-syntax` alike, which is what the checkpoint measurement counted (110 N999 and 2 invalid-syntax over Django).
 pub(crate) fn diagnostics(report: &str) -> Result<u64, Box<dyn std::error::Error>> {
-    let report: serde_json::Value = serde_json::from_str(report)?;
-    let entries = report["diagnostics"]
-        .as_array()
-        .ok_or("the worker report holds no diagnostics list")?;
-    Ok(u64::try_from(entries.len())?)
+    Ok(u64::try_from(entries(report)?.len())?)
+}
+
+/// How many diagnostics of one rule a worker report holds.
+pub(crate) fn diagnostics_of(report: &str, rule: &str) -> Result<u64, Box<dyn std::error::Error>> {
+    Ok(u64::try_from(entries(report)?.iter().filter(|entry| entry["rule"] == rule).count())?)
+}
+
+/// The entries of a worker report's `diagnostics` list.
+fn entries(report: &str) -> Result<Vec<serde_json::Value>, Box<dyn std::error::Error>> {
+    let mut report: serde_json::Value = serde_json::from_str(report)?;
+    match report["diagnostics"].take() {
+        serde_json::Value::Array(entries) => Ok(entries),
+        _ => Err("the worker report holds no diagnostics list".into()),
+    }
 }
 
 /// Writes the one path's row into the results directory beside its README.
