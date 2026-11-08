@@ -15,7 +15,7 @@ use crate::domain::workers::types::{CrossReading, ProjectHandle};
 use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution as _;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
-use ryo_execution::outbound::facts::interface::FactsWorker;
+use ryo_execution_runtime::outbound::facts::interface::FactsWorker;
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::row_texts::types::PlacedRule;
 use ryo_values::domain::runs::types::RuleId;

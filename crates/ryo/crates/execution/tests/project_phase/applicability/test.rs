@@ -2,7 +2,7 @@
 use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityReason;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution::outbound::facts::types::ResidentStability;
+use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use super::super::*;
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::{
@@ -113,8 +113,8 @@ fn exercise(case: Case) {
                 source: ryo_values::domain::files::types::SourceView(b"abc"),
                 elements: &elements,
                 read: &read,
-                semantic: ryo_execution::application::file_dag::program::file_session::types::SemanticSupport::Absent,
-                kinds: ryo_execution::application::file_dag::program::file_session::types::KindSupport::Absent,
+                semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+                kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
             },
             &mut symbols,
         )
@@ -160,8 +160,8 @@ fn exercise(case: Case) {
                     source: ryo_values::domain::files::types::SourceView(b"def broken(:"),
                     elements: &elements,
                     read: &forbidden_read,
-                    semantic: ryo_execution::application::file_dag::program::file_session::types::SemanticSupport::Absent,
-                    kinds: ryo_execution::application::file_dag::program::file_session::types::KindSupport::Absent,
+                    semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+                    kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
                 },
                 &mut symbols,
             )
@@ -295,8 +295,8 @@ fn wholly_skipped_frontier_is_unavailable_without_fabricating_a_schema_or_rows()
                 source: ryo_values::domain::files::types::SourceView(b"def broken(:"),
                 elements: &elements,
                 read: &read,
-                semantic: ryo_execution::application::file_dag::program::file_session::types::SemanticSupport::Absent,
-                kinds: ryo_execution::application::file_dag::program::file_session::types::KindSupport::Absent,
+                semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+                kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
             },
             &mut symbols,
         )

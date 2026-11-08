@@ -1,6 +1,6 @@
 //! Test support for `cross_file`: the worlds, plans and frontier rows its cases are stated over.
 #![cfg(test)]
-use ryo_execution::outbound::operators::interface::OperatorsPort as _;
+use ryo_execution_runtime::outbound::operators::interface::OperatorsPort as _;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
@@ -105,7 +105,7 @@ pub(super) fn counting_plan(subject: u32, key: Vec<ColumnIndex>) -> Plan {
 pub(super) fn world(plan: Plan) -> World {
     world_with(
         vec![plan],
-        Arc::new(ryo_execution::outbound::operators::factory::use_case(
+        Arc::new(ryo_execution_runtime::outbound::operators::factory::use_case(
             ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
         )),
     )
@@ -113,7 +113,7 @@ pub(super) fn world(plan: Plan) -> World {
 
 pub(super) fn world_with(
     plans: Vec<Plan>,
-    operators: Arc<dyn ryo_execution::outbound::operators::interface::OperatorsPort>,
+    operators: Arc<dyn ryo_execution_runtime::outbound::operators::interface::OperatorsPort>,
 ) -> World {
     let applicability =
         vec![ryo_values::domain::runs::types::RuleApplicability::Always; plans.len()];
@@ -122,7 +122,7 @@ pub(super) fn world_with(
 
 pub(super) fn world_with_applicability(
     plans: Vec<Plan>,
-    operators: Arc<dyn ryo_execution::outbound::operators::interface::OperatorsPort>,
+    operators: Arc<dyn ryo_execution_runtime::outbound::operators::interface::OperatorsPort>,
     applicability: &[ryo_values::domain::runs::types::RuleApplicability],
 ) -> World {
     use ryo_execution::outbound::matching::interface::MatchingPort as _;
@@ -172,7 +172,7 @@ pub(super) fn world_with_applicability(
     let engine = PrepareUseCaseImpl::new(
         operators,
         ryo_execution::derived(),
-        Arc::new(ryo_execution::outbound::digest::factory::blake3()),
+        Arc::new(ryo_execution_runtime::outbound::digest::factory::blake3()),
     );
     let program = Arc::new(
         engine
@@ -259,13 +259,13 @@ pub(super) fn prepared_in(
     rows: &[(FileId, Table)],
     symbols: &mut Symbols,
 ) -> Result<(PhaseScope, PreparedFrontiers), RuleRequestsError> {
-    use ryo_execution::outbound::facts::interface::FactsPort as _;
-    use ryo_execution::outbound::facts::types::WordsToKeep;
+    use ryo_execution_runtime::outbound::facts::interface::FactsPort as _;
+    use ryo_execution_runtime::outbound::facts::types::WordsToKeep;
     use ryo_values::domain::{
         records::types::{FrontierCoverage, FrontierProof},
         stored_facts::types::Bucket,
     };
-    let facts_port = ryo_execution::outbound::facts::fixtures::fake::FactsFake::default();
+    let facts_port = ryo_execution_runtime::outbound::facts::fixtures::fake::FactsFake::default();
     let mut workers = Vec::new();
     let proof = FrontierProof {
         rule: ryo_values::domain::records::types::ProducerRule(rule.0 as u32),
@@ -356,7 +356,7 @@ pub(super) struct ProjectCalls {
     pub(super) aggregates: std::sync::atomic::AtomicUsize,
 }
 
-impl ryo_execution::outbound::operators::interface::OperatorsPort for ProjectCalls {
+impl ryo_execution_runtime::outbound::operators::interface::OperatorsPort for ProjectCalls {
     fn operators(
         &self,
         mut call: ryo_operators::inbound::use_cases::operators::types::OperatorCall<'_>,

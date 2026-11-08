@@ -1,15 +1,15 @@
 //! Recursive producers and roots use the actual injected semantic capability, with terminal refusal.
-use crate::application::file_dag::program::file_session::interface::FileExecution as _;
-use crate::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
-use crate::outbound::operators::interface::OperatorsPort as _;
+use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution as _;
+use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
+use ryo_execution_runtime::outbound::operators::interface::OperatorsPort as _;
 use super::super::super::fixtures::requests::{Authored, Preparation};
-use crate::outbound::facts::types::ResidentStability;
+use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use crate::inbound::use_cases::execution::interface::ExecutionUseCase;
 use super::super::super::fixtures;
-use crate::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
-use crate::application::file_dag::program::file_session::types::FileInput;
-use crate::application::file_dag::program::file_session::types::SourceLanguage;
-use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
+use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
+use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
 use crate::inbound::use_cases::execution::interface::CaptureIntent;
 use crate::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use crate::inbound::use_cases::execution::interface::EmitDemand;
@@ -54,7 +54,7 @@ struct ObservedSemantics {
     projects: AtomicUsize,
     appends: AtomicUsize,
 }
-impl crate::outbound::operators::interface::OperatorsPort for ObservedSemantics {
+impl ryo_execution_runtime::outbound::operators::interface::OperatorsPort for ObservedSemantics {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
         let refuse = match &call {
             OperatorCall::Evaluate {
@@ -182,8 +182,8 @@ fn subject(refusal: Input) -> Result<Value, Failure> {
             source: ryo_values::domain::files::types::SourceView(b""),
             elements: &elements,
             read: &no_provider,
-            semantic: crate::application::file_dag::program::file_session::types::SemanticSupport::Absent,
-            kinds: crate::application::file_dag::program::file_session::types::KindSupport::Absent,
+            semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+            kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
         },
         &mut symbols,
     )?;

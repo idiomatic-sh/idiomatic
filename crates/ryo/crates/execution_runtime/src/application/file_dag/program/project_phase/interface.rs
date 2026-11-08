@@ -15,8 +15,8 @@ use ryo_values::domain::files::types::CorpusInput;
 use ryo_values::domain::runs::types::Skipped;
 /// Project rules are collected only; no row callback delivery exists on this route.
 /// ```compile_fail,E0599
-/// use ryo_execution::application::file_dag::program::file_session::interface::FileExecution;
-/// use ryo_execution::application::file_dag::program::project_phase::{
+/// use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
+/// use ryo_execution_runtime::application::file_dag::program::project_phase::{
 ///     interface::{ProjectRootExecution, ProjectStage},
 ///     types::ProjectPhase,
 /// };
@@ -26,11 +26,11 @@ use ryo_values::domain::runs::types::Skipped;
 /// ```
 /// The authorized route, declared roots through the phase, compiles.
 /// ```
-/// use ryo_execution::application::file_dag::program::project_phase::{
+/// use ryo_execution_runtime::application::file_dag::program::project_phase::{
 ///     interface::ProjectRootExecution,
 ///     types::{ProjectPhase, ProjectTask},
 /// };
-/// use ryo_execution::application::file_dag::program::rule_outcome::types::{ProjectBatch, ProjectOutputOutcome, RuleOutcome};
+/// use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::{ProjectBatch, ProjectOutputOutcome, RuleOutcome};
 /// use ryo_execution::inbound::use_cases::execution::interface::{OperatingError, RuleIndex};
 /// use ryo_language::domain::symbols::types::Symbols;
 /// fn evaluate(

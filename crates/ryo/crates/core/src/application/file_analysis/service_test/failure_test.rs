@@ -11,8 +11,8 @@ use ryo_execution::inbound::use_cases::metadata::interface::Mask;
 use ryo_execution::inbound::use_cases::metadata::interface::Needs;
 use ryo_execution::inbound::use_cases::metadata::interface::RelationRead;
 use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
-use ryo_execution::outbound::digest::fixtures::fake::DigestFake;
-use ryo_execution::outbound::facts::fixtures::fake::FactsFake;
+use ryo_execution_runtime::outbound::digest::fixtures::fake::DigestFake;
+use ryo_execution_runtime::outbound::facts::fixtures::fake::FactsFake;
 use ryo_language::domain::files::types::FilePath;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::files::types::CorpusEntry;
@@ -32,7 +32,7 @@ use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
 use super::visit_test::visited_inputs;
 use super::visit_test::visited_inputs_with_rule_demands;
-use ryo_execution::outbound::facts::interface::FactsPort;
+use ryo_execution_runtime::outbound::facts::interface::FactsPort;
 pub(super) fn read_failure_demand_retries_unchanged_metadata_and_clears_reused_worker_bytes() -> Result<usize, FileAnalysisError> {
     for fail_at in [0, 1, 2] {
         let corpus = Arc::new(ChangingRead {

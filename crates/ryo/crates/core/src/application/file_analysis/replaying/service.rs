@@ -12,7 +12,7 @@ use crate::domain::workers::types::Held;
 use crate::domain::workers::types::Ready;
 use crate::domain::workers::types::ReadyBucket;
 use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
-use ryo_execution::outbound::facts::types::WordsToKeep;
+use ryo_execution_runtime::outbound::facts::types::WordsToKeep;
 use ryo_relations::domain::relations::types::FileId;
 use ryo_relations::domain::relations::types::Words;
 use ryo_values::domain::plan_parts::types::InputNumber;

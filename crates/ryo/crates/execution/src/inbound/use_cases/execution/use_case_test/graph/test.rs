@@ -5,7 +5,7 @@ use super::super::super::fixtures;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_values::domain::rows::errors::RowsError;
 
-use crate::application::file_dag::testing::CompleteTableRows;
+use ryo_execution_runtime::application::file_dag::testing::CompleteTableRows;
 use ryo_execution_domain::domain::stored_graph::types::traversal::value::GraphTraversal;
 use ryo_execution_domain::domain::stored_graph::types::{ExaminedVertices, ExpandedVertices, GraphIdentity, GraphWalk, Orientation, RelationPopulation, VisitEpoch};
 use ryo_execution_domain::domain::table_model::types::Rows;

@@ -4,10 +4,10 @@ use std::sync::Arc;
 
 use ryo_execution::inbound::use_cases::publication::interface::PublicationUseCase;
 use ryo_execution::inbound::use_cases::prepare::interface::DerivedAccess;
-use ryo_execution::outbound::digest::fixtures::fake::DigestFake;
-use ryo_execution::outbound::digest::interface::DigestPort;
-use ryo_execution::outbound::facts::interface::FactsPort;
-use ryo_execution::outbound::operators::interface::OperatorsPort;
+use ryo_execution_runtime::outbound::digest::fixtures::fake::DigestFake;
+use ryo_execution_runtime::outbound::digest::interface::DigestPort;
+use ryo_execution_runtime::outbound::facts::interface::FactsPort;
+use ryo_execution_runtime::outbound::operators::interface::OperatorsPort;
 
 /// The engine's publication use case.
 #[must_use]
@@ -24,13 +24,13 @@ pub fn digest() -> Arc<dyn DigestPort> {
 /// The facts port over the engine's in-memory fact store.
 #[must_use]
 pub fn facts() -> Arc<dyn FactsPort> {
-    Arc::new(ryo_execution::outbound::facts::factory::memory())
+    Arc::new(ryo_execution_runtime::outbound::facts::factory::memory())
 }
 
 /// The operators port over the engine's operators use case.
 #[must_use]
 pub fn operators() -> Arc<dyn OperatorsPort> {
-    Arc::new(ryo_execution::outbound::operators::factory::use_case(
+    Arc::new(ryo_execution_runtime::outbound::operators::factory::use_case(
         ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(
             Arc::new(ryo_operators::outbound::matching::factory::use_case()),
         ),

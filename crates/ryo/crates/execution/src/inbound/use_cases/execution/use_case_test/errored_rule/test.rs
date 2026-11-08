@@ -3,13 +3,13 @@
 //! its rows: compilation and preparation succeed, and the error is the second rule's alone. Each rule's written text is
 //! compiled through the query-language port and its parameters bound from its written spec; the provider hands over the
 //! plans (RyoQL refuses both authoring errors itself, so a provider is the author that can hand them over).
-use crate::application::file_dag::program::file_session::interface::FileExecution as _;
-use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
-use crate::outbound::facts::types::ResidentStability;
-use crate::application::file_dag::program::file_session::types::{FileInput, SourceLanguage, SourceRows};
-use crate::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
+use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution as _;
+use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
+use ryo_execution_runtime::outbound::facts::types::ResidentStability;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::{FileInput, SourceLanguage, SourceRows};
+use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
 use super::super::super::{fixtures, interface::*};
-use crate::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
+use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
 use crate::outbound::query_language::{
     errors::QueryLanguageError, fixtures::fake::QueryLanguageFake, interface::QueryLanguagePort,
 };
@@ -41,14 +41,14 @@ use ryo_values::domain::plan_parts::types::StepId;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::rows::types::RowCount;
 use ryo_values::domain::rows::types::Table;
-use crate::application::file_dag::program::prepared_execution::service::prepare;
-use crate::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
+use ryo_execution_runtime::application::file_dag::program::prepared_execution::service::prepare;
+use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
 use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::stored_facts::types::Digest;
 use std::collections::BTreeMap;
-use crate::application::file_dag::acceptance::operator_contract_test::fixtures::inputs::text;
+use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs::text;
 
 /// Which authoring error the second rule carries.
 #[derive(Clone, Copy)]
@@ -237,8 +237,8 @@ fn an_errored_rule_answers_its_error_while_its_sibling_delivers_rows(authored: A
                 source: ryo_values::domain::files::types::SourceView(b""),
                 elements: &elements,
                 read: &read,
-                semantic: crate::application::file_dag::program::file_session::types::SemanticSupport::Absent,
-                kinds: crate::application::file_dag::program::file_session::types::KindSupport::Absent,
+                semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+                kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
             },
             &mut symbols,
         )

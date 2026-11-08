@@ -88,8 +88,8 @@ fn project_grouping_reads_only_actual_captured_function_names() {
                     source: ryo_values::domain::files::types::SourceView(b"mainother"),
                     elements: &elements,
                     read: &read,
-                    semantic: ryo_execution::application::file_dag::program::file_session::types::SemanticSupport::Absent,
-                    kinds: ryo_execution::application::file_dag::program::file_session::types::KindSupport::Absent,
+                    semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+                    kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
                 },
                 &mut symbols,
             )

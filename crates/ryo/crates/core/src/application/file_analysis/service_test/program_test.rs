@@ -10,7 +10,7 @@ use ryo_execution::inbound::use_cases::prepare::interface::ObservationIdentity;
 use ryo_execution::inbound::use_cases::prepare::types::PlanSource;
 use ryo_execution::inbound::use_cases::prepare::types::PrepareRequest;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
-use ryo_execution::outbound::facts::fixtures::fake::FactsFake;
+use ryo_execution_runtime::outbound::facts::fixtures::fake::FactsFake;
 use ryo_language::domain::elements::types::SyntaxAcceptance;
 use ryo_language::domain::files::types::FilePath;
 use ryo_relations::domain::relations::types::Relation;
@@ -43,7 +43,7 @@ use super::super::types::RequestVisitSetting;
 use super::super::types::RuleGate;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
-use ryo_execution::outbound::facts::interface::FactsPort;
+use ryo_execution_runtime::outbound::facts::interface::FactsPort;
 use ryo_execution::outbound::matching::interface::MatchingPort;
 pub(super) fn prepared_test_program(
     plans: &[Plan],
@@ -60,10 +60,10 @@ pub(super) fn prepared_test_program(
     };
     let engine = PrepareUseCaseImpl::new(
         Arc::new(
-            ryo_execution::outbound::operators::factory::use_case(ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case()))),
+            ryo_execution_runtime::outbound::operators::factory::use_case(ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case()))),
         ),
         ryo_execution::derived(),
-        Arc::new(ryo_execution::outbound::digest::factory::blake3()),
+        Arc::new(ryo_execution_runtime::outbound::digest::factory::blake3()),
     );
     let program = Arc::new(
         engine

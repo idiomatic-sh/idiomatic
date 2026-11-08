@@ -10,7 +10,7 @@ use crate::outbound::row_sink::interface::RowSinkPort;
 use crate::outbound::row_sink;
 use crate::outbound::scheduler::interface::SchedulerPort;
 use crate::outbound::scheduler::types::WorkerCount;
-use ryo_execution::outbound::digest::fixtures::fake::DigestFake;
+use ryo_execution_runtime::outbound::digest::fixtures::fake::DigestFake;
 use ryo_execution::outbound::matching::fixtures::fake::MatchingFake;
 use ryo_execution::outbound::query_language::fixtures::fake::QueryLanguageFake;
 use ryo_language::domain::files::types::FilePath;
@@ -54,7 +54,7 @@ pub(crate) fn scheduled_world_with_query(
     >,
 ) -> World {
     let memory = Arc::new(given.memory);
-    let operators = Arc::new(ryo_execution::outbound::operators::factory::use_case(
+    let operators = Arc::new(ryo_execution_runtime::outbound::operators::factory::use_case(
         ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
     ));
     scheduled_world_with_query_resources(
@@ -75,7 +75,7 @@ pub(crate) fn scheduled_world_with_query_resources(
         dyn ryo_execution::outbound::query_language::interface::QueryLanguagePort,
     >,
     analysis_memory: Arc<dyn crate::outbound::memory::interface::MemoryPort>,
-    operators: Arc<dyn ryo_execution::outbound::operators::interface::OperatorsPort>,
+    operators: Arc<dyn ryo_execution_runtime::outbound::operators::interface::OperatorsPort>,
 ) -> World {
     let collected = row_sink::factory::CollectorConnection::default();
     let kept: Arc<dyn RowSinkPort> = Arc::new(row_sink::factory::collect(collected.clone()));
@@ -120,7 +120,7 @@ pub(crate) fn scheduled_world_with_query_resources(
         let analysis_language: Arc<dyn crate::outbound::language::interface::LanguagePort> =
             Arc::<LanguageFake>::clone(&language);
         let analysis_digest: Arc<
-            dyn ryo_execution::outbound::digest::interface::DigestPort,
+            dyn ryo_execution_runtime::outbound::digest::interface::DigestPort,
         > = Arc::new(DigestFake);
         LintUseCaseImpl::new(
             crate::application::file_analysis::service::FileAnalysis::new(

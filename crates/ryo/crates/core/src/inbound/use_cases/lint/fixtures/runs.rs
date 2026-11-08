@@ -16,8 +16,8 @@ use crate::outbound::row_sink::interface::RowSinkPort;
 use crate::outbound::row_sink;
 use crate::outbound::scheduler::fixtures::fake::SchedulerFake;
 use crate::outbound::scheduler::interface::SchedulerPort;
-use ryo_execution::outbound::facts::interface::FactsPort;
-use ryo_execution::outbound::facts;
+use ryo_execution_runtime::outbound::facts::interface::FactsPort;
+use ryo_execution_runtime::outbound::facts;
 use ryo_execution::outbound::matching;
 use ryo_execution::outbound::query_language;
 use ryo_query_language::inbound::use_cases::compile::use_case::CompileUseCaseImpl;
@@ -120,8 +120,8 @@ pub(super) fn use_case_over(
         let analysis_memory: Arc<dyn crate::outbound::memory::interface::MemoryPort> =
             Arc::new(MemoryFake::default());
         let analysis_digest: Arc<
-            dyn ryo_execution::outbound::digest::interface::DigestPort,
-        > = Arc::new(ryo_execution::outbound::digest::fixtures::fake::DigestFake);
+            dyn ryo_execution_runtime::outbound::digest::interface::DigestPort,
+        > = Arc::new(ryo_execution_runtime::outbound::digest::fixtures::fake::DigestFake);
         LintUseCaseImpl::new(
             crate::application::file_analysis::service::FileAnalysis::new(
                 Arc::clone(&analysis_corpus),
@@ -139,7 +139,7 @@ pub(super) fn use_case_over(
                 Arc::new(typecheck()),
             )),
             Arc::clone(&analysis_memory),
-            Arc::new(ryo_execution::outbound::operators::factory::use_case(
+            Arc::new(ryo_execution_runtime::outbound::operators::factory::use_case(
                 ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
             )),
             ryo_execution::derived(),

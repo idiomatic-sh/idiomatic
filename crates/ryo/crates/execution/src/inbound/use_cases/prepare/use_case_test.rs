@@ -4,7 +4,7 @@ use super::{
     types::{PlanSource, PrepareRequest},
     use_case::PrepareUseCaseImpl,
 };
-use crate::application::file_dag::program::prepared_execution::interface::PreparedExecution;
+use ryo_execution_runtime::application::file_dag::program::prepared_execution::interface::PreparedExecution;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::rule_intent::errors::RuleIntentError;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
@@ -63,12 +63,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn subject(input: Input) -> Result<Value, Failure> {
     let prepare = PrepareUseCaseImpl::new(
         Arc::new(
-            crate::outbound::operators::factory::use_case(ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(Arc::new(
+            ryo_execution_runtime::outbound::operators::factory::use_case(ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(Arc::new(
                 ryo_operators::outbound::matching::factory::use_case(),
             ))),
         ),
         Arc::new(ryo_execution_store::outbound::derived::factory::semantics()),
-        Arc::new(crate::outbound::digest::factory::blake3()),
+        Arc::new(ryo_execution_runtime::outbound::digest::factory::blake3()),
     );
     prepare.prepare(input).map(|program| program.rule_count().0)
 }
@@ -151,7 +151,7 @@ fn pattern_builds() -> Result<[usize; 2], RuleCompilationError> {
     };
     let patterns: Vec<String> = (0..413).map(|place| format!("p{place}x")).collect();
     let rules: Vec<RuleSpec> = patterns.iter().map(|pattern| matching(pattern)).collect();
-    let digest = crate::outbound::digest::factory::blake3();
+    let digest = ryo_execution_runtime::outbound::digest::factory::blake3();
     let plans = |rules: &[RuleSpec]| {
         QueryCompilation::new(compiler(Arc::new(ryo_query_language::outbound::syntax::factory::winnow())))
             .compile(rules, &[], &digest)
@@ -211,7 +211,7 @@ fn session_parses() -> Result<[usize; 2], RuleCompilationError> {
         inner: Arc::new(ryo_query_language::outbound::syntax::factory::winnow()),
         modules: AtomicUsize::new(0),
     });
-    let digest = crate::outbound::digest::factory::blake3();
+    let digest = ryo_execution_runtime::outbound::digest::factory::blake3();
     let compiled = QueryCompilation::new(compiler(Arc::<CountingSyntax>::clone(&syntax)))
         .compile(&over(modules.clone()), &[], &digest)?;
     let parsed = syntax.modules.load(Ordering::SeqCst);

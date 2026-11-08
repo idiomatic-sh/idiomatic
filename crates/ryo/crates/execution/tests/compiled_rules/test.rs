@@ -40,7 +40,7 @@ fn public_compiled_independent_rules_keep_exact_per_rule_source_declarations() {
     let compiler =
         QueryCompilation::new(Arc::new(AuthoredQueryProvider(crate::boundary_fixture::plans_of(&raw)[0].clone())));
     let compiled = compiler
-        .compile(&raw.rules, &raw.hosted, &ryo_execution::outbound::digest::fixtures::fake::DigestFake)
+        .compile(&raw.rules, &raw.hosted, &ryo_execution_runtime::outbound::digest::fixtures::fake::DigestFake)
         .expect("compile independent rules");
     let program = engine
         .prepare(PrepareRequest { plans: PlanSource::Compiled(compiled), rules: raw.rules, digests: raw.digests, hosted: raw.hosted, observations: ObservationIdentity::Independent })
@@ -80,8 +80,8 @@ fn public_compiled_independent_rules_keep_exact_per_rule_source_declarations() {
                 source: ryo_values::domain::files::types::SourceView(b"abc"),
                 elements: &elements,
                 read: &read,
-                semantic: ryo_execution::application::file_dag::program::file_session::types::SemanticSupport::Absent,
-                kinds: ryo_execution::application::file_dag::program::file_session::types::KindSupport::Absent,
+                semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+                kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
             },
             &mut symbols,
         )
@@ -101,7 +101,7 @@ fn public_compiled_independent_rules_keep_exact_per_rule_source_declarations() {
 
     let raw = authored_request(2);
     let compiled = compiler
-        .compile(&raw.rules, &raw.hosted, &ryo_execution::outbound::digest::fixtures::fake::DigestFake)
+        .compile(&raw.rules, &raw.hosted, &ryo_execution_runtime::outbound::digest::fixtures::fake::DigestFake)
         .expect("compile second request");
     let mut substituted = raw.rules;
     substituted.pop();
@@ -194,8 +194,8 @@ fn closure_runs_every_partition_and_empty_input_through_the_owner() {
                         source: ryo_values::domain::files::types::SourceView(b"abc"),
                         elements: &elements,
                         read: &read,
-                        semantic: ryo_execution::application::file_dag::program::file_session::types::SemanticSupport::Absent,
-                        kinds: ryo_execution::application::file_dag::program::file_session::types::KindSupport::Absent,
+                        semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+                        kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
                     },
                     &mut symbols,
                 )
@@ -266,7 +266,7 @@ fn closure_runs_every_partition_and_empty_input_through_the_owner() {
 
 #[test]
 fn independent_compilation_preserves_unused_steps_and_original_frontier_order() {
-    use ryo_execution::application::file_dag::program::prepared_execution::interface::PreparedExecution;
+    use ryo_execution_runtime::application::file_dag::program::prepared_execution::interface::PreparedExecution;
     use ryo_execution::application::rule_compilation::service::QueryCompilation;
     use ryo_execution::application::rule_compilation::service::PreparedQueries;
     use ryo_values::domain::plan_parts::types::RepeatedRows;
@@ -298,7 +298,7 @@ fn independent_compilation_preserves_unused_steps_and_original_frontier_order() 
     let original = crate::boundary_fixture::plans(&mut raw)[0].clone();
     let compiler = QueryCompilation::new(Arc::new(AuthoredQueryProvider(original.clone())));
     let compiled = compiler
-        .compile(&raw.rules, &raw.hosted, &ryo_execution::outbound::digest::fixtures::fake::DigestFake)
+        .compile(&raw.rules, &raw.hosted, &ryo_execution_runtime::outbound::digest::fixtures::fake::DigestFake)
         .expect("independent compile");
     assert_eq!(
         compiled.plans(),

@@ -10,8 +10,8 @@ use crate::outbound::language::fixtures::fake::LanguageFake;
 use crate::outbound::language::types::ProjectNotes;
 use crate::outbound::language::types::ProjectToRead;
 use crate::outbound::memory::fixtures::fake::MemoryFake;
-use ryo_execution::outbound::digest::fixtures::fake::DigestFake;
-use ryo_execution::outbound::facts::fixtures::fake::FactsFake;
+use ryo_execution_runtime::outbound::digest::fixtures::fake::DigestFake;
+use ryo_execution_runtime::outbound::facts::fixtures::fake::FactsFake;
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_language::inbound::use_cases::project::types::ManifestFile;
@@ -21,7 +21,7 @@ use std::sync::Arc;
 use std::sync::atomic::Ordering;
 use super::errors::FileAnalysisError;
 use super::service::FileAnalysis;
-use ryo_execution::outbound::facts::interface::FactsPort;
+use ryo_execution_runtime::outbound::facts::interface::FactsPort;
 #[cfg(test)]
 mod capture_test;
 #[cfg(test)]

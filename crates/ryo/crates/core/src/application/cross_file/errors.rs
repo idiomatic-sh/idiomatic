@@ -12,7 +12,7 @@ pub(crate) enum CrossFileError {
     #[error(transparent)]
     Rules(#[from] ryo_values::domain::rule_requests::errors::RuleRequestsError),
     #[error(transparent)]
-    Facts(#[from] ryo_execution::outbound::facts::errors::FactsError),
+    Facts(#[from] ryo_execution_runtime::outbound::facts::errors::FactsError),
     #[error(transparent)]
     Scheduler(#[from] crate::outbound::scheduler::errors::SchedulerError),
 }

@@ -3,8 +3,8 @@ use super::constants::{
     COMPILED_PREFIX_TARGET, COMPILED_SUBPLAN_TARGET, NORMALIZATION, RECORD_PLAN, RECORD_PREFIX,
     RECORD_RULE, RECORD_STEP, SCOPE_PER_FILE,
 };
-use crate::outbound::digest::interface::DigestPort;
-use crate::outbound::digest::types::DigestBytes;
+use ryo_execution_runtime::outbound::digest::interface::DigestPort;
+use ryo_execution_runtime::outbound::digest::types::DigestBytes;
 use ryo_relations::domain::relations::{service::kinds, types::Relation};
 use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::plan_parts::{

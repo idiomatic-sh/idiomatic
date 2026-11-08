@@ -93,7 +93,7 @@ impl PreparedReporting for PreparedExecutionProgram {
 }
 
 /// The program of a request prepared over the engine's operators and derived views.
-pub(crate) fn prepare(
+pub fn prepare(
     compiled: Compiled,
     rules: &[RuleSpec],
     digests: &[Digest],

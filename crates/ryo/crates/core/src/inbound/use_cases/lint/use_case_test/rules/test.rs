@@ -13,7 +13,7 @@ use crate::outbound::language::fixtures::fake::LanguageFake;
 use crate::outbound::memory::fixtures::fake::MemoryFake;
 use crate::outbound::row_sink::fixtures::fake::Ends;
 use crate::outbound::scheduler::fixtures::fake::SchedulerFake;
-use ryo_execution::outbound::facts::fixtures::fake::FactsFake;
+use ryo_execution_runtime::outbound::facts::fixtures::fake::FactsFake;
 use ryo_execution::outbound::query_language::fixtures::fake::QueryLanguageFake;
 use ryo_values::domain::plan_parts::types::ParameterName;
 use ryo_values::domain::query_bindings::types::ParameterType;

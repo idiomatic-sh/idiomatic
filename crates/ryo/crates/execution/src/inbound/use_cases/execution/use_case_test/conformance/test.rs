@@ -1,6 +1,6 @@
 //! Every operation executes through the real prepare/open_file/collect-or-deliver protocol.
-use crate::application::file_dag::program::file_session::interface::FileExecution as _;
-use crate::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
+use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution as _;
+use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
 use crate::inbound::use_cases::execution::interface::ExecutionUseCase as _;
 use ryo_values::cases::Case;
 use ryo_values::cases::CaseName;
@@ -9,13 +9,13 @@ use ryo_values::cases::Word;
 use ryo_values::cases::run;
 use super::super::super::fixtures::requests::Authored;
 use super::super::super::fixtures::requests::Preparation;
-use crate::outbound::facts::types::ResidentStability;
-use crate::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
+use ryo_execution_runtime::outbound::facts::types::ResidentStability;
+use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
 use super::super::super::fixtures as owner_fixtures;
-use crate::application::file_dag::program::file_session::types::FileInput;
-use crate::application::file_dag::program::file_session::types::SourceLanguage;
-use crate::application::file_dag::program::file_session::types::SourceRows;
-use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
+use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
 use crate::inbound::use_cases::execution::interface::CaptureIntent;
 use crate::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use crate::inbound::use_cases::execution::interface::EmitDemand;
@@ -26,8 +26,8 @@ use crate::inbound::use_cases::execution::interface::RuleDemand;
 use crate::inbound::use_cases::execution::interface::RuleIndex;
 use crate::inbound::use_cases::execution::interface::SemanticLookup;
 use ryo_execution_domain::domain::prepared_request::types::ObservationIdentity;
-use crate::outbound::operators::interface::OperatorsPort;
-use crate::application::file_dag::acceptance::operator_contract_test::fixtures::*;
+use ryo_execution_runtime::outbound::operators::interface::OperatorsPort;
+use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::*;
 use ryo_execution_domain::domain::operating::fixtures::ExecutionObservation;
 use ryo_execution_domain::domain::operator::service::prepare_operator;
 use ryo_language::domain::elements::types::Elements;
@@ -249,10 +249,10 @@ pub(crate) fn compare_delivery_with_port(
         elements: &elements,
         read: &read,
         semantic: match semantic {
-            Some(lookup) => crate::application::file_dag::program::file_session::types::SemanticSupport::Supplied(lookup),
-            None => crate::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+            Some(lookup) => ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Supplied(lookup),
+            None => ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
         },
-        kinds: crate::application::file_dag::program::file_session::types::KindSupport::Absent,
+        kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
     };
     let collected_intent = [FileRuleIntent::Run {
         diagnostic: DiagnosticDelivery::Collected,

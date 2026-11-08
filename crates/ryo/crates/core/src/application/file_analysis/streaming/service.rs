@@ -22,7 +22,7 @@ use crate::outbound::row_sink::types::{AnswerCounts, LentCell};
 use crate::outbound::scheduler::errors::SchedulerError;
 use crate::outbound::scheduler::interface::SchedulerPort;
 use crate::outbound::scheduler::types::{JobCount, JobNumber, WorkerCount};
-use ryo_execution::outbound::facts::interface::{FactsPort, FactsWorker};
+use ryo_execution_runtime::outbound::facts::interface::{FactsPort, FactsWorker};
 use ryo_language::domain::files::types::FilePath;
 use ryo_relations::domain::relations::types::WorkerNumber;
 use ryo_values::domain::files::types::CorpusInput;

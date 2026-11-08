@@ -8,7 +8,7 @@ use ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl
 
 #[derive(Debug, Default)]
 pub(super) struct UnionSemanticCalls(pub(super) AtomicUsize);
-impl ryo_execution::outbound::operators::interface::OperatorsPort for UnionSemanticCalls {
+impl ryo_execution_runtime::outbound::operators::interface::OperatorsPort for UnionSemanticCalls {
     fn operators(
         &self,
         call: OperatorCall<'_>,

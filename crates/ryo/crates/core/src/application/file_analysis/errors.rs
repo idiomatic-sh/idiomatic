@@ -3,7 +3,7 @@ use crate::domain::admission::errors::AdmissionError;
 use crate::domain::budget::errors::BudgetError;
 use crate::outbound::language::errors::LanguageError;
 use crate::outbound::memory::errors::MemoryError;
-use ryo_execution::outbound::facts::errors::FactsError;
+use ryo_execution_runtime::outbound::facts::errors::FactsError;
 use ryo_values::domain::rule_requests::errors::RuleRequestsError;
 /// Why an analysis could not finish.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]

@@ -1,20 +1,20 @@
 //! Real relation, region, observation and member roots, including direct bound capture.
-use ryo_execution::application::file_dag::program::file_session::interface::FileExecution as _;
-use ryo_execution::application::file_dag::program::prepared_execution::interface::PreparedExecution as _;
-use ryo_execution::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
-use ryo_execution::outbound::facts::types::ResidentStability;
+use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution as _;
+use ryo_execution_runtime::application::file_dag::program::prepared_execution::interface::PreparedExecution as _;
+use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
+use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use crate::boundary_fixture::{authored_request, corpus, engine, source};
-use ryo_execution::application::file_dag::program::file_session::types::CaptureContext;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
 use ryo_execution::inbound::use_cases::execution::interface::FrontierPurpose;
 use ryo_values::domain::plan_parts::types::InputNumber;
-use ryo_execution::application::file_dag::program::file_session::types::FileInput;
-use ryo_execution::application::file_dag::program::file_session::types::SourceLanguage;
-use ryo_execution::application::file_dag::program::file_session::types::SourceRows;
-use ryo_execution::application::file_dag::program::rule_outcome::types::RootOutcome;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
+use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
 use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityRefusal;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
@@ -182,8 +182,8 @@ fn direct_bound_root_and_union_share_the_actual_member_before_producer_delivery(
                     source: ryo_values::domain::files::types::SourceView(b"abc"),
                     elements: &elements,
                     read: &read,
-                    semantic: ryo_execution::application::file_dag::program::file_session::types::SemanticSupport::Absent,
-                    kinds: ryo_execution::application::file_dag::program::file_session::types::KindSupport::Absent,
+                    semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+                    kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
                 },
                 &mut symbols,
             )
@@ -306,8 +306,8 @@ fn a_refused_named_member_cannot_be_replaced_with_a_typed_empty_or_provider_retr
                 source: ryo_values::domain::files::types::SourceView(b"abc"),
                 elements: &elements,
                 read: &read,
-                semantic: ryo_execution::application::file_dag::program::file_session::types::SemanticSupport::Absent,
-                kinds: ryo_execution::application::file_dag::program::file_session::types::KindSupport::Absent,
+                semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+                kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
             },
             &mut symbols,
         )

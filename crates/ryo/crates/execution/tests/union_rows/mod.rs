@@ -1,6 +1,6 @@
 //! Both declared Union populations drive the same owner-held invocation.
-use ryo_execution::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
-use ryo_execution::outbound::facts::types::ResidentStability;
+use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
+use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
@@ -91,8 +91,8 @@ fn union_consumes_both_populations_in_order_with_one_distinct_scope() {
                         source: ryo_values::domain::files::types::SourceView(b"abc"),
                         elements: &elements,
                         read: &read,
-                        semantic: ryo_execution::application::file_dag::program::file_session::types::SemanticSupport::Absent,
-                        kinds: ryo_execution::application::file_dag::program::file_session::types::KindSupport::Absent,
+                        semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+                        kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
                     },
                     &mut symbols,
                 )
@@ -154,8 +154,8 @@ fn union_stops_on_right_delivery_refusal_and_retries_with_a_new_distinct_scope()
                 source: ryo_values::domain::files::types::SourceView(b"abc"),
                 elements: &elements,
                 read: &read,
-                semantic: ryo_execution::application::file_dag::program::file_session::types::SemanticSupport::Absent,
-                kinds: ryo_execution::application::file_dag::program::file_session::types::KindSupport::Absent,
+                semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+                kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
             },
             &mut symbols,
         )
@@ -265,8 +265,8 @@ fn union_preserves_left_source_refusal_and_demands_right_after_empty_left() {
                     source: ryo_values::domain::files::types::SourceView(b"abc"),
                     elements: &elements,
                     read: &read,
-                    semantic: ryo_execution::application::file_dag::program::file_session::types::SemanticSupport::Absent,
-                    kinds: ryo_execution::application::file_dag::program::file_session::types::KindSupport::Absent,
+                    semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+                    kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
                 },
                 &mut symbols,
             )

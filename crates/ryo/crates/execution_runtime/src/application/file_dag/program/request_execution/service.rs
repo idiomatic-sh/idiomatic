@@ -375,7 +375,7 @@ fn rest_of_rule(
 }
 
 /// A request begins over the prepared program's kernels and shared services.
-pub(crate) fn begin(program: &PreparedExecutionProgram, corpus: &[CorpusInput]) -> RequestExecution {
+pub fn begin(program: &PreparedExecutionProgram, corpus: &[CorpusInput]) -> RequestExecution {
     RequestExecution {
         program: Arc::clone(&program.inner),
         services: Arc::new(ProgramServices::new(

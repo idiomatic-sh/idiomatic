@@ -13,7 +13,7 @@ use ryo_values::domain::rule_requests::service::{bind, check_ids};
 use ryo_values::domain::rule_requests::types::RuleSpec;
 use std::sync::{Arc, Mutex, PoisonError};
 use crate::application::rule_compilation::types::PreparedRuleIdentities;
-use crate::outbound::digest::interface::DigestPort;
+use ryo_execution_runtime::outbound::digest::interface::DigestPort;
 
 
 /// The plan compiled so far for each rule id, shared by every use case built over them: a program that lints many projects with the

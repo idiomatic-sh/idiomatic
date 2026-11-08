@@ -1,8 +1,8 @@
 //! Thin public orchestration over the one private execution owner.
 use super::interface::ExecutionUseCase;
-use crate::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
-use crate::application::file_dag::program::request_execution::service::begin;
-use crate::application::file_dag::program::request_execution::types::RequestExecution;
+use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
+use ryo_execution_runtime::application::file_dag::program::request_execution::service::begin;
+use ryo_execution_runtime::application::file_dag::program::request_execution::types::RequestExecution;
 use ryo_values::domain::files::types::CorpusInput;
 
 /// Begins request executions; every kernel and service comes with the prepared program.

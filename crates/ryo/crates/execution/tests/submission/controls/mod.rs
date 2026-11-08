@@ -1,11 +1,11 @@
 //! A control for every entry method: an incomplete, extra or undeclared root is refused.
-use ryo_execution::application::file_dag::observations::types::RuleSelection;
+use ryo_execution_runtime::application::file_dag::observations::types::RuleSelection;
 use super::inventory::{
     CAPTURES, DELIVERIES, DEMANDS, REASONS, REFUSALS, assert_inventory, capture_place,
     delivery_place, demand_place, every_intent, intent_place, reason_place, refusal_place,
 };
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
-use ryo_execution::outbound::facts::types::ResidentStability;
+use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use super::routes::{file_route, project_route, run_file_route};
 use super::witness::{ALL, Method, Witness, implements_every_entry_trait};
 use crate::boundary_fixture::{corpus, demand, engine, prepared_rules};
@@ -13,22 +13,22 @@ use crate::file_intents::named_request;
 use crate::project_phase::negative::fixtures::{
     Entry, Held, foreign_phase_outcome, prepare_for, with_held,
 };
-use ryo_execution::application::file_dag::program::request_execution::interface::ExecutionRequest;
+use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
-use ryo_execution::application::file_dag::program::file_session::interface::FileExecution;
-use ryo_execution::application::file_dag::program::observation_stage::interface::ObservationExecution;
-use ryo_execution::application::file_dag::program::observation_stage::interface::ObservationPublication;
-use ryo_execution::application::file_dag::program::project_phase::interface::ProjectRootExecution;
-use ryo_execution::application::file_dag::program::project_phase::interface::ProjectStage;
-use ryo_execution::application::file_dag::frontiers::errors::PreparationError;
-use ryo_execution::application::file_dag::frontiers::types::PreparedFrontiers;
-use ryo_execution::application::file_dag::frontiers::types::PublicationSlot;
-use ryo_execution::application::file_dag::program::file_session::types::CaptureContext;
-use ryo_execution::application::file_dag::program::file_session::types::FileInput;
-use ryo_execution::application::file_dag::program::file_session::types::SourceLanguage;
-use ryo_execution::application::file_dag::program::prepared_execution::interface::PreparedExecution;
-use ryo_execution::application::file_dag::program::prepared_execution::interface::PreparedReporting;
+use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
+use ryo_execution_runtime::application::file_dag::program::observation_stage::interface::ObservationExecution;
+use ryo_execution_runtime::application::file_dag::program::observation_stage::interface::ObservationPublication;
+use ryo_execution_runtime::application::file_dag::program::project_phase::interface::ProjectRootExecution;
+use ryo_execution_runtime::application::file_dag::program::project_phase::interface::ProjectStage;
+use ryo_execution_runtime::application::file_dag::frontiers::errors::PreparationError;
+use ryo_execution_runtime::application::file_dag::frontiers::types::PreparedFrontiers;
+use ryo_execution_runtime::application::file_dag::frontiers::types::PublicationSlot;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
+use ryo_execution_runtime::application::file_dag::program::prepared_execution::interface::PreparedExecution;
+use ryo_execution_runtime::application::file_dag::program::prepared_execution::interface::PreparedReporting;
 use ryo_execution::application::rule_compilation::service::ExecutionCompilation;
 use ryo_execution::application::rule_compilation::service::PreparedQueries;
 use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityReason;
@@ -165,8 +165,8 @@ pub(super) fn file_session_undeclared_rule() {
                 source: ryo_values::domain::files::types::SourceView(b"abc"),
                 elements: &elements,
                 read: &read,
-                semantic: ryo_execution::application::file_dag::program::file_session::types::SemanticSupport::Absent,
-                kinds: ryo_execution::application::file_dag::program::file_session::types::KindSupport::Absent,
+                semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+                kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
             },
             &mut symbols,
         )

@@ -17,6 +17,7 @@ name = "ryo_core"
 [dependencies]
 ryo_matching = { package = "idiomatic-sh-ryo-matching", path = "../matching", version = "0.1.2" }
 ryo_execution = { package = "idiomatic-sh-ryo-execution", path = "../execution", version = "0.1.2" }
+ryo_execution_runtime = { package = "idiomatic-sh-ryo-execution-runtime", path = "../execution_runtime", version = "0.1.2" }
 ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations", version = "0.1.2" }
 thiserror.workspace = true
 ignore.workspace = true

@@ -392,7 +392,7 @@ fn measure_corpus(
     let ran = super::base::lint_report_with_languages(
         root,
         rules,
-        Arc::new(ryo_execution::outbound::facts::factory::memory()),
+        Arc::new(ryo_execution_runtime::outbound::facts::factory::memory()),
         Arc::new(ryo_core::outbound::lint_store::fixtures::fake::LintStoreFake::default()),
         Vec::new(),
         false,

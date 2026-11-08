@@ -5,7 +5,7 @@ use crate::outbound::memory::fixtures::fake::MemoryFake;
 use crate::outbound::row_sink::fixtures::fake::Ends;
 use crate::outbound::row_sink;
 use crate::outbound::scheduler::fixtures::fake::SchedulerFake;
-use ryo_execution::outbound::facts::fixtures::fake::FactsFake;
+use ryo_execution_runtime::outbound::facts::fixtures::fake::FactsFake;
 use ryo_execution::outbound::query_language::fixtures::fake::QueryLanguageFake;
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::inbound::use_cases::project::types::RootPath;

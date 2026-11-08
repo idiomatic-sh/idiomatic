@@ -20,8 +20,8 @@ use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::prepare::types::PrepareRequest;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::DerivedAccess;
-use ryo_execution::outbound::digest::interface::DigestPort;
-use ryo_execution::outbound::operators::interface::OperatorsPort;
+use ryo_execution_runtime::outbound::digest::interface::DigestPort;
+use ryo_execution_runtime::outbound::operators::interface::OperatorsPort;
 use ryo_execution::outbound::query_language::interface::QueryLanguagePort;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 

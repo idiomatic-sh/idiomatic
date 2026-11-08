@@ -1,15 +1,15 @@
 //! Shared tree positions keep native join projection refusal and replay, and pure projections share one scan.
-use ryo_execution::outbound::operators::interface::OperatorsPort as _;
+use ryo_execution_runtime::outbound::operators::interface::OperatorsPort as _;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use super::super::super::fixtures::*;
 use super::super::super::no_catalog;
 use crate::boundary_fixture::{authored_request, corpus, demand};
-use ryo_execution::application::file_dag::program::request_execution::interface::ExecutionRequest;
+use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution::application::file_dag::program::file_session::interface::FileExecution;
-use ryo_execution::application::file_dag::program::rule_outcome::types::RootOutcome;
+use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
+use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
@@ -38,7 +38,7 @@ fn shared_tree_positions_keep_native_join_projection_refusal_and_replay() {
         calls: AtomicUsize,
         refuse: bool,
     }
-    impl ryo_execution::outbound::operators::interface::OperatorsPort for ObservedJoin {
+    impl ryo_execution_runtime::outbound::operators::interface::OperatorsPort for ObservedJoin {
         fn operators(
             &self,
             call: OperatorCall<'_>,
@@ -69,7 +69,7 @@ fn shared_tree_positions_keep_native_join_projection_refusal_and_replay() {
                 Arc::new(
                     ryo_execution_store::outbound::derived::factory::semantics(),
                 ),
-                Arc::new(ryo_execution::outbound::digest::factory::blake3()),
+                Arc::new(ryo_execution_runtime::outbound::digest::factory::blake3()),
             );
             let mut authored = authored_request(1);
             let comparisons = if empty {

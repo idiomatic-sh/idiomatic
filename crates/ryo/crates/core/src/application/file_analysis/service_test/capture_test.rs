@@ -8,7 +8,7 @@ use crate::outbound::lint_store::interface::ReadStore;
 use crate::outbound::memory::fixtures::fake::MemoryFake;
 use ryo_execution::inbound::use_cases::metadata::interface::PlacedScopes;
 use ryo_execution::inbound::use_cases::metadata::interface::ScopePlacement;
-use ryo_execution::outbound::facts::fixtures::fake::FactsFake;
+use ryo_execution_runtime::outbound::facts::fixtures::fake::FactsFake;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_relations::domain::relations::types::WorkerNumber;
 use ryo_values::domain::files::types::FileNumber;
@@ -44,13 +44,13 @@ use super::program_test::prepared_test_program;
 use super::super::errors::FileAnalysisError;
 use super::super::service::FileAnalysis;
 use super::super::types::RequestVisitSetting;
-use ryo_execution::outbound::facts::interface::FactsPort;
+use ryo_execution_runtime::outbound::facts::interface::FactsPort;
 use ryo_execution::outbound::matching::interface::MatchingPort;
 pub(super) fn a_bad_last_captured_bucket_calls_no_digest_even_after_a_valid_rule_bucket() -> Result<usize, FileAnalysisError> {
     use super::super::types::{FileVisit, Worker};
 
     use crate::domain::visit::types::{Keeping, Noting, RoleRead};
-    use ryo_execution::outbound::digest::fixtures::fake::DigestCounting;
+    use ryo_execution_runtime::outbound::digest::fixtures::fake::DigestCounting;
     use ryo_relations::domain::relations::types::{
         CellKind, FileId, Integer, Name, NamePlace, Offset, Origin, PlaceNumber, TextHash, Value,
         Words,

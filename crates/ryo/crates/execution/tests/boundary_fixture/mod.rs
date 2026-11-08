@@ -2,13 +2,13 @@
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution::application::file_dag::program::project_phase::interface::ProjectRootExecution;
-use ryo_execution::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
-use ryo_execution::application::file_dag::program::project_phase::types::ProjectInput;
-use ryo_execution::application::file_dag::program::project_phase::types::ProjectTask;
-use ryo_execution::application::file_dag::program::rule_outcome::types::ProjectBatch;
-use ryo_execution::application::file_dag::program::rule_outcome::types::RuleOutcome;
-use ryo_execution::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome;
+use ryo_execution_runtime::application::file_dag::program::project_phase::interface::ProjectRootExecution;
+use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
+use ryo_execution_runtime::application::file_dag::program::project_phase::types::ProjectInput;
+use ryo_execution_runtime::application::file_dag::program::project_phase::types::ProjectTask;
+use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::ProjectBatch;
+use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RuleOutcome;
+use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome;
 use ryo_execution::inbound::use_cases::execution::interface::EmitDemand;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
@@ -36,7 +36,7 @@ pub(crate) fn engine() -> PrepareUseCaseImpl {
     PrepareUseCaseImpl::new(
         Arc::new(ryo_execution::inbound::use_cases::execution::fixtures::operators()),
         Arc::new(ryo_execution::inbound::use_cases::execution::fixtures::derived()),
-        Arc::new(ryo_execution::outbound::digest::factory::blake3()),
+        Arc::new(ryo_execution_runtime::outbound::digest::factory::blake3()),
     )
 }
 pub(crate) fn prepared(engine: &PrepareUseCaseImpl) -> PreparedExecutionProgram {
@@ -211,7 +211,7 @@ pub(crate) trait Observed {
     fn observed(self, reason: &str) -> std::sync::Arc<ryo_values::domain::records::types::FrontierReadiness>;
 }
 
-impl Observed for ryo_execution::application::file_dag::program::file_session::types::FinishedReadiness {
+impl Observed for ryo_execution_runtime::application::file_dag::program::file_session::types::FinishedReadiness {
     fn observed(self, reason: &str) -> std::sync::Arc<ryo_values::domain::records::types::FrontierReadiness> {
         match self {
             Self::Observed(readiness) => readiness,

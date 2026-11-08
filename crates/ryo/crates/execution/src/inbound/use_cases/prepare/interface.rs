@@ -1,6 +1,6 @@
 //! What the `prepare` use case promises its callers, in the core's own vocabulary.
 use super::types::PrepareRequest;
-use crate::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
+use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 
 // The compiled queries and the compilation the contract is made of.

@@ -9,7 +9,7 @@ use crate::outbound::lint_store::errors::LintStoreError;
 use crate::outbound::memory::errors::MemoryError;
 use crate::outbound::row_sink::errors::RowSinkError;
 use crate::outbound::scheduler::errors::SchedulerError;
-use ryo_execution::outbound::facts::errors::FactsError;
+use ryo_execution_runtime::outbound::facts::errors::FactsError;
 use ryo_values::domain::program::types::RefusedQuery;
 use ryo_values::domain::rule_requests::errors::RuleRequestsError;
 
