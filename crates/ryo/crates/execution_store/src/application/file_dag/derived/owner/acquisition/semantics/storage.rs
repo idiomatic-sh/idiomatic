@@ -12,7 +12,7 @@ use ryo_derived::domain::contract::types::prepared_derived::value::PreparedDeriv
 use std::sync::Arc;
 
 #[derive(Debug)]
-pub(in crate::application::file_dag) struct DerivedStorage {
+pub struct DerivedStorage {
     port: Arc<dyn DerivedPort>,
     plan: Arc<PreparedDerived>,
     payload: Arc<DerivedPayload>,
@@ -33,14 +33,14 @@ impl DerivedStorage {
             graph_identity,
         }
     }
-    pub(in crate::application::file_dag::derived::owner) fn view(
+    pub fn view(
         &self,
     ) -> Result<DerivedView<'_>, OperatingError> {
         self.port
             .view(&self.plan, &self.payload)
             .map_err(portable_fault)
     }
-    pub(in crate::application::file_dag::derived::owner) fn payload(&self) -> &DerivedPayload {
+    pub fn payload(&self) -> &DerivedPayload {
         &self.payload
     }
     pub(in crate::application::file_dag::derived::owner) fn graph_identity(

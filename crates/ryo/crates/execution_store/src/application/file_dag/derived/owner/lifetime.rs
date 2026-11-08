@@ -5,7 +5,7 @@ impl DerivedOwner {
         let mut state = self.state.borrow_mut();
         *state.pins.entry(population).or_default() += 1_usize;
     }
-    pub(in crate::application::file_dag) fn release(&self, population: PopulationId) {
+    pub fn release(&self, population: PopulationId) {
         let mut state = self.state.borrow_mut();
         let Some(count) = state.pins.get_mut(&population) else {
             return;

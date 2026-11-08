@@ -10,7 +10,7 @@ struct RequiredLeases {
     normalized_in_initial: NormalizationCharge,
 }
 #[derive(Clone, Debug)]
-pub(crate) struct PublishedInput {
+pub struct PublishedInput {
     record: Arc<RelationResult>,
     leases: Arc<RequiredLeases>,
 }
@@ -37,7 +37,7 @@ impl PublishedInput {
         &self.record
     }
     #[cfg(test)]
-    pub(in crate::application::file_dag::relations) fn record(&self) -> &Arc<RelationResult> {
+    pub fn record(&self) -> &Arc<RelationResult> {
         &self.record
     }
     pub(in crate::application::file_dag::relations) fn normalization_charged(&self) -> NormalizationCharge {
@@ -56,7 +56,7 @@ impl PublishedInput {
         *self.leases.normalized.borrow_mut() = Some(lease);
     }
     #[cfg(test)]
-    pub(crate) fn same_record(&self, other: &Self) -> crate::application::file_dag::relations::types::Sameness {
+    pub fn same_record(&self, other: &Self) -> crate::application::file_dag::relations::types::Sameness {
         if Arc::ptr_eq(&self.record, &other.record) {
             crate::application::file_dag::relations::types::Sameness::Same
         } else {

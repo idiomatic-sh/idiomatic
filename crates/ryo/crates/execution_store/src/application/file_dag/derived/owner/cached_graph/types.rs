@@ -7,7 +7,7 @@ use ryo_execution_domain::domain::stored_graph::types::GraphWalk;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Direction};
 
-pub(crate) enum CachedGraph {
+pub enum CachedGraph {
     Reach(ReachGraph),
     Axis(AxisGraph),
 }

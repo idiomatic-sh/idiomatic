@@ -18,7 +18,7 @@ use std::sync::Arc;
 pub(super) mod identity;
 use identity::types::StaticRequest;
 use types::InputPositions;
-pub(in crate::application::file_dag) struct RequestViews {
+pub struct RequestViews {
     semantic: crate::application::file_dag::derived::owner::types::DerivedAccess,
     plans: Vec<Arc<DerivedContract>>,
     bindings: Vec<Arc<PreparedViewUse>>,
@@ -36,7 +36,7 @@ impl RequestViews {
         }
     }
     /// Bind finite semantic requirements once per compiled operator. No rows or cache are read here.
-    pub(in crate::application::file_dag) fn bind(
+    pub fn bind(
         &mut self,
         contract: &mut OperatorContract,
     ) -> Result<(), OperatingError> {

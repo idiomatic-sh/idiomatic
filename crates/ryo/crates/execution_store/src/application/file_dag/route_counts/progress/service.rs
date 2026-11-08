@@ -15,12 +15,12 @@ use super::super::types::{
     RouteTally,
 };
 
-pub(crate) fn file_name(profile: &RouteProfile, name: &FilePath) {
+pub fn file_name(profile: &RouteProfile, name: &FilePath) {
     let name = RouteFileName(name.0.to_string());
     let _named = with_state(profile, |state| state.progress.name = name);
     flush(profile, RouteLabel(constants::STAGE_SCOPE_START));
 }
-pub(crate) fn row_file(profile: &RouteProfile, row: &[Value], paths: &[FilePath]) {
+pub fn row_file(profile: &RouteProfile, row: &[Value], paths: &[FilePath]) {
     let file = row.iter().find_map(|value| match value {
         Value::File(file) => Some(file),
         _ => None,
@@ -50,7 +50,7 @@ fn counter_label(counter: ProgressCounter) -> RouteLabel {
         ProgressCounter::JoinCandidatePairs => constants::COUNTER_JOIN_CANDIDATE_PAIRS,
     })
 }
-pub(crate) fn progress(profile: &RouteProfile, counter: ProgressCounter, amount: ProgressAmount) {
+pub fn progress(profile: &RouteProfile, counter: ProgressCounter, amount: ProgressAmount) {
     let label = counter_label(counter);
     let flush_now = with_state(profile, |state| {
         let key = RouteKey {

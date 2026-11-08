@@ -138,9 +138,9 @@ pub(crate) struct RouteState {
 /// The profile of one file, opened by its scope and handed down to every part that records
 /// into it; it holds no state when the scope does not record.
 #[derive(Clone, Debug, Default)]
-pub(crate) struct RouteProfile(pub Option<std::sync::Arc<std::sync::Mutex<RouteState>>>);
+pub struct RouteProfile(pub Option<std::sync::Arc<std::sync::Mutex<RouteState>>>);
 
-pub(crate) struct FileScope {
+pub struct FileScope {
     pub profile: RouteProfile,
 }
 pub(crate) struct OriginScope {

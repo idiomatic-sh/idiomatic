@@ -9,12 +9,12 @@ use std::sync::Arc;
 /// semantics to prepare a contract; only the owner can reach the port, so no holder can build,
 /// and every view is built through admission, the ledger and a lease.
 #[derive(Clone, Debug)]
-pub(crate) struct DerivedAccess {
+pub struct DerivedAccess {
     port: Arc<dyn DerivedPort>,
 }
 impl DerivedAccess {
     /// Request-time metadata only: preparing never builds or retains a view.
-    pub(in crate::application::file_dag) fn prepare(
+    pub fn prepare(
         &self,
         request: DerivedRequest,
         schemas: Vec<Vec<ryo_relations::domain::relations::types::CellKind>>,
@@ -22,7 +22,7 @@ impl DerivedAccess {
         Arc::new(self.port.prepare(request, schemas))
     }
     /// The builder is reachable only inside the owner tree.
-    pub(in crate::application::file_dag::derived::owner) fn port(&self) -> &Arc<dyn DerivedPort> {
+    pub fn port(&self) -> &Arc<dyn DerivedPort> {
         &self.port
     }
 }

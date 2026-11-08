@@ -17,12 +17,12 @@ use std::{
 };
 use rustc_hash::FxHashMap;
 mod accounting;
-pub(crate) mod types;
+pub mod types;
 pub(in crate::application::file_dag) mod inspection;
 pub(in crate::application::file_dag) mod producer;
 pub(in crate::application::file_dag) mod source;
-pub(in crate::application::file_dag) mod generation;
-pub(crate) mod publication;
+pub mod generation;
+pub mod publication;
 use admission::service::BorrowedInput;
 use generation::service::GenerationLease;
 use handle::service::PublishedInput;
@@ -33,13 +33,13 @@ use publication::types::{
 };
 use types::{CheckCount, PinnedViewCount, ReuseEligibility, Sameness};
 use ryo_values::domain::rows::types::Table;
-pub(in crate::application::file_dag) mod admission;
+pub mod admission;
 mod external;
-pub(in crate::application::file_dag) mod handle;
+pub mod handle;
 mod identity;
 
-pub(in crate::application::file_dag) mod number;
-pub(in crate::application::file_dag) mod packed;
+pub mod number;
+pub mod packed;
 
 struct SourceViews {
     population: SourceDescriptor,
@@ -47,7 +47,7 @@ struct SourceViews {
     views: FxHashMap<SourceDescriptor, PublishedInput>,
 }
 
-pub(crate) struct RelationOwner {
+pub struct RelationOwner {
     #[cfg(test)]
     pub(super) identity_checks: Cell<CheckCount>,
     derived: super::derived::owner::DerivedOwner,
@@ -65,11 +65,11 @@ pub(crate) struct RelationOwner {
     routes: super::route_counts::types::RouteProfile,
 }
 impl RelationOwner {
-    pub(in crate::application::file_dag) fn derived(&self) -> &super::derived::owner::DerivedOwner {
+    pub fn derived(&self) -> &super::derived::owner::DerivedOwner {
         &self.derived
     }
     /// The route profile the opening scope handed down, for this owner's work to record into.
-    pub(in crate::application::file_dag) fn routes(
+    pub fn routes(
         &self,
     ) -> &super::route_counts::types::RouteProfile {
         &self.routes
@@ -80,13 +80,13 @@ impl RelationOwner {
     ) -> &mut super::derived::owner::DerivedOwner {
         &mut self.derived
     }
-    pub(in crate::application::file_dag) fn generation_guard(&self) -> Arc<()> {
+    pub fn generation_guard(&self) -> Arc<()> {
         Arc::clone(&self.generation.borrow())
     }
-    pub(in crate::application::file_dag) fn generation_liveness(&self) -> Arc<GenerationLease> {
+    pub fn generation_liveness(&self) -> Arc<GenerationLease> {
         Arc::clone(&self.generation_live.borrow())
     }
-    pub(in crate::application::file_dag) fn matches_generation(
+    pub fn matches_generation(
         &self,
         generation: &Arc<()>,
     ) -> Sameness {
@@ -105,8 +105,9 @@ impl RelationOwner {
     ) -> Self {
         Self::with_limits(ReuseEligibility::from(permit), views, semantic, routes)
     }
-    #[cfg(test)]
-    pub(in crate::application) fn new(
+    /// An owner over `semantic` with the default pin limit and no route recording, for the proofs of the store and the engine.
+    #[cfg(any(test, feature = "fixtures"))]
+    pub fn new(
         stable: ReuseEligibility,
         semantic: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
     ) -> Self {
@@ -158,11 +159,11 @@ impl RelationOwner {
         }
     }
     #[cfg(test)]
-    pub(super) fn stable(&self) -> ReuseEligibility {
+    pub fn stable(&self) -> ReuseEligibility {
         self.stable
     }
     /// Explicitly ends the immutable resident-population lease before release or refill.
-    pub(super) fn release_population(&self) {
+    pub fn release_population(&self) {
         self.derived.clear();
         self.producer_populations.borrow_mut().clear();
         self.sources.borrow_mut().clear();

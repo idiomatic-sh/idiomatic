@@ -3,7 +3,7 @@
 #[cfg(test)]
 mod nearest;
 pub(crate) mod service;
-pub(crate) mod types;
+pub mod types;
 
 #[cfg(test)]
 pub(super) mod test;

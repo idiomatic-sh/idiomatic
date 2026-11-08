@@ -37,7 +37,7 @@ pub(in crate::application::file_dag) struct Snapshot {
     pub retained_view_bytes: usize,
 }
 impl GraphFixture {
-    pub(in crate::application::file_dag) fn snapshot(&self) -> Snapshot {
+    pub fn snapshot(&self) -> Snapshot {
         let backend = self.owner.derived().backend.borrow();
         let cache = backend.as_ref().unwrap();
         let c = &cache.graph_counts;

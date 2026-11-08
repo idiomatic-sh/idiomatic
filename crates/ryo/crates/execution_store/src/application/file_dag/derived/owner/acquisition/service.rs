@@ -8,7 +8,7 @@ use super::population::types::StoredColumns;
 use crate::application::file_dag::route_counts::{self, types::BuildRoute};
 
 impl DerivedOwner {
-    pub(in crate::application::file_dag) fn acquire_stored(
+    pub fn acquire_stored(
         &self,
         plan: &Arc<DerivedContract>,
         admitted: &AdmittedViewInputs<'_>,
@@ -27,7 +27,7 @@ impl DerivedOwner {
             stored,
         )
     }
-    pub(in crate::application::file_dag) fn acquire_stored_with_route(
+    pub fn acquire_stored_with_route(
         &self,
         route: BuildRoute,
         plan: &Arc<DerivedContract>,
@@ -49,7 +49,7 @@ impl DerivedOwner {
             backend.as_mut(),
         )
     }
-    pub(in crate::application::file_dag) fn try_acquire_rows(
+    pub fn try_acquire_rows(
         &self,
         plan: &Arc<DerivedContract>,
         admitted: &AdmittedViewInputs<'_>,

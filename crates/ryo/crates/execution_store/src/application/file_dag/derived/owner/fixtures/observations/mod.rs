@@ -6,7 +6,7 @@ pub(in crate::application::file_dag) struct IndexObservation {
     pub available: bool,
 }
 impl DerivedOwner {
-    pub(in crate::application::file_dag) fn scoped_observation(
+    pub fn scoped_observation(
         &self,
     ) -> (usize, Weak<DerivedStorage>) {
         (
@@ -15,7 +15,7 @@ impl DerivedOwner {
         )
     }
 
-    pub(crate) fn resource_fixture_counts(
+    pub fn resource_fixture_counts(
         &self,
     ) -> crate::application::file_dag::derived::owner::fixtures::resources::Snapshot {
         let backend = self.backend.borrow();
@@ -26,7 +26,7 @@ impl DerivedOwner {
             graph_early_stops: cache.graph_counts.early_stops.0,
         }
     }
-    pub(in crate::application::file_dag) fn index_observation(&self) -> IndexObservation {
+    pub fn index_observation(&self) -> IndexObservation {
         self.backend
             .borrow()
             .as_ref()
@@ -72,7 +72,7 @@ impl DerivedOwner {
             .backing_count(crate::application::file_dag::derived::ledger::types::BackingTag(11))
             .0
     }
-    pub(in crate::application::file_dag) fn publication_ownership_bytes(
+    pub fn publication_ownership_bytes(
         &self,
     ) -> (usize, usize, usize) {
         let state = self.ledger.borrow().snapshot();
@@ -109,7 +109,7 @@ impl DerivedOwner {
         }
         Ok(witness)
     }
-    pub(in crate::application::file_dag) fn view_witness(
+    pub fn view_witness(
         &self,
         kind: DerivedKind,
     ) -> Option<crate::application::file_dag::derived::owner::witness::service::BackingWitness>

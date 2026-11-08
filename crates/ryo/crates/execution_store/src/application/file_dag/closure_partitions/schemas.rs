@@ -52,8 +52,8 @@ pub(in crate::application::file_dag) fn from_prepared<'f>(
         scratch: ryo_execution_domain::domain::derived_views::types::DerivedScratch::default(),
     })
 }
-#[cfg(test)]
-pub(crate) fn prepare<'f>(
+#[cfg(any(test, feature = "fixtures"))]
+pub fn prepare<'f>(
     publication: &crate::application::file_dag::relations::handle::service::PublishedInput,
     input: RepresentationInput<'f>,
     keys: &[ryo_values::domain::plan_parts::types::ColumnIndex],

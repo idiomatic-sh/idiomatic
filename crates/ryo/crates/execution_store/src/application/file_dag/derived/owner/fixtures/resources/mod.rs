@@ -12,12 +12,12 @@ use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::rc::Rc;
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct Snapshot {
+pub struct Snapshot {
     pub graph_builds: u64,
     pub graph_reuses: u64,
     pub graph_early_stops: u64,
 }
-pub(crate) struct ResourceFixture {
+pub struct ResourceFixture {
     owner: Rc<RelationOwner>,
 }
 impl ResourceFixture {
@@ -55,10 +55,10 @@ impl ResourceFixture {
             .unwrap();
         Some(Self { owner })
     }
-    pub(crate) fn owner(&self) -> &Rc<RelationOwner> {
+    pub fn owner(&self) -> &Rc<RelationOwner> {
         &self.owner
     }
-    pub(crate) fn index(
+    pub fn index(
         &self,
         relation: Relation,
         rows: &Rows<'_>,
@@ -117,11 +117,11 @@ pub(crate) fn weak_storage(
 /// Passive observation of actual portable builds; every call delegates to the
 /// production derived use case. No evaluator, scheduling or owner lives here.
 #[derive(Debug, Default)]
-pub(in crate::application::file_dag) struct RecordedDerived {
+pub struct RecordedDerived {
     builds: std::sync::Mutex<Vec<ryo_derived::domain::request::types::DerivedRequest>>,
 }
 impl RecordedDerived {
-    pub(in crate::application::file_dag) fn builds(
+    pub fn builds(
         &self,
     ) -> Vec<ryo_derived::domain::request::types::DerivedRequest> {
         self.builds.lock().expect("recorded semantic calls").clone()

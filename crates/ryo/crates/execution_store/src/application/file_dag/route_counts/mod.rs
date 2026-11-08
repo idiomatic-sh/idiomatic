@@ -2,11 +2,11 @@
 mod constants;
 mod profile;
 #[cfg(feature = "diagnostic-row-progress")]
-pub(crate) mod progress;
+pub mod progress;
 mod schemas;
 #[cfg(test)]
 mod test;
-pub(crate) mod types;
+pub mod types;
 
 use std::collections::HashMap;
 
@@ -57,7 +57,7 @@ fn new_progress() -> RouteProgressState {
 }
 
 impl FileScope {
-    pub(crate) fn begin(file: impl Into<RouteFileIndex>) -> Self {
+    pub fn begin(file: impl Into<RouteFileIndex>) -> Self {
         let file = file.into();
         let enabled = resource_routes_activity();
         #[cfg(feature = "diagnostic-row-progress")]
@@ -84,7 +84,7 @@ impl FileScope {
         Self { profile }
     }
     /// The profile this scope opened, for the parts of the file to record into.
-    pub(crate) fn profile(&self) -> &RouteProfile {
+    pub fn profile(&self) -> &RouteProfile {
         &self.profile
     }
 }
@@ -152,7 +152,7 @@ pub(crate) fn capture(profile: &RouteProfile) -> CapturedOrigin {
     }
 }
 #[cfg(feature = "diagnostic-row-progress")]
-pub(crate) fn resume(captured: &CapturedOrigin) -> OriginScope {
+pub fn resume(captured: &CapturedOrigin) -> OriginScope {
     scope(&captured.profile, |current| {
         if let Some(origin) = captured.origin {
             *current = origin;
@@ -174,7 +174,7 @@ pub(super) fn scope(profile: &RouteProfile, change: impl FnOnce(&mut RouteOrigin
         previous,
     }
 }
-pub(crate) fn rule(
+pub fn rule(
     profile: &RouteProfile,
     rule: impl Into<RouteRuleIndex>,
     name: &RuleId,
@@ -194,7 +194,7 @@ pub(crate) fn rule(
         origin.node = None;
     })
 }
-pub(crate) fn node(profile: &RouteProfile, node: impl Into<RouteNodeIndex>) -> OriginScope {
+pub fn node(profile: &RouteProfile, node: impl Into<RouteNodeIndex>) -> OriginScope {
     let node = node.into();
     scope(profile, |origin| {
         origin.node = Some(node);
@@ -204,7 +204,7 @@ pub(crate) fn node(profile: &RouteProfile, node: impl Into<RouteNodeIndex>) -> O
         }
     })
 }
-pub(crate) fn consumer(profile: &RouteProfile, consumer: impl Into<RouteLabel>) -> OriginScope {
+pub fn consumer(profile: &RouteProfile, consumer: impl Into<RouteLabel>) -> OriginScope {
     let consumer = consumer.into();
     scope(profile, |origin| origin.consumer = Some(consumer))
 }

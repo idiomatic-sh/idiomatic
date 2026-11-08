@@ -68,7 +68,7 @@ impl RelationOwner {
             bytes: table_bytes(table),
         }
     }
-    pub(super) fn publication(
+    pub fn publication(
         &self,
         record: Arc<RelationResult>,
     ) -> Result<PublishedInput, OperatingError> {

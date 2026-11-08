@@ -21,7 +21,7 @@ impl CachedGraph {
     /// inputs at the operation's declared lazy acquisition boundary. A program the graph
     /// route cannot serve returns `None` so the ordinary/native typed backend runs; the
     /// owner cache is required and never decides the route.
-    pub(in crate::application::file_dag::derived::owner) fn prepare(
+    pub fn prepare(
         contract: &ryo_execution_domain::domain::operator::contract::types::OperatorContract,
         admission: &crate::application::file_dag::workspace::InvocationWorkspace,
         program: &ResourceProgram,
@@ -142,7 +142,7 @@ impl CachedGraph {
 
     /// A completed demand result borrows only this invocation's value buffers.
     /// Root and nearest memo admission occurs before a downstream row can emit.
-    pub(in crate::application::file_dag::derived::owner) fn row<'a>(
+    pub fn row<'a>(
         &'a mut self,
         left: &[Value],
         owner: &DerivedOwner,

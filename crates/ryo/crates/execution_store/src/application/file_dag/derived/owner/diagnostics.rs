@@ -3,7 +3,7 @@ use super::*;
 use crate::application::file_dag::derived::constants;
 use ryo_relations::domain::relations::types::FileId;
 impl DerivedOwner {
-    pub(in crate::application::file_dag) fn report(&self, file: FileId) {
+    pub fn report(&self, file: FileId) {
         tracing::trace!(target: constants::TARGET_RESOURCE_ROUTES, event = constants::EVENT_OWNER_FOOTPRINT, file = file.0,
             required_bytes = self.working_bytes().0, peak_required_bytes = self.peak_working_bytes().0,
             retained_bytes = self.retained_bytes().0, required_backend_bytes = self.required_backend_overlap().0,

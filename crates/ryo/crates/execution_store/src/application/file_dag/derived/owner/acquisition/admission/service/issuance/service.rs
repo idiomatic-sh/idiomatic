@@ -75,7 +75,7 @@ use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 }
 
 impl DerivedOwner {
-    pub(in crate::application::file_dag) fn admit_view<'a>(
+    pub fn admit_view<'a>(
         &self,
         plan: &Arc<DerivedContract>,
         owner: &crate::application::file_dag::relations::RelationOwner,
@@ -101,7 +101,7 @@ impl DerivedOwner {
             sources: AcquisitionSources::Rows(proofs.iter().map(|proof| proof.rows()).collect()),
         })
     }
-    pub(in crate::application::file_dag) fn admit_partition<'a>(
+    pub fn admit_partition<'a>(
         &self,
         plan: &Arc<DerivedContract>,
         owner: &crate::application::file_dag::relations::RelationOwner,

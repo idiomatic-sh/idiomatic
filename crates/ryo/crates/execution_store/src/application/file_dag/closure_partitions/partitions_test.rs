@@ -17,7 +17,7 @@ fn working_cells(closure: &PartitionedClosure<'_>) -> usize {
 }
 
 /// Reserved Value buffers; shared ordering remains charged independently.
-pub(in crate::application::file_dag) fn working_capacity(closure: &PartitionedClosure<'_>) -> usize {
+pub fn working_capacity(closure: &PartitionedClosure<'_>) -> usize {
     closure.current.as_ref().map_or(0, |_| {
         let current = closure.current().expect(LIVE_PARTITION_VIEW);
         let capacities = ryo_derived::domain::closure_adjacency::service::capacities(current);

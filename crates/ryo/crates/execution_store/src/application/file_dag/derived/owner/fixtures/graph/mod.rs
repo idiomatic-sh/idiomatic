@@ -26,7 +26,7 @@ use ryo_values::domain::{
 };
 use std::rc::Rc;
 
-pub(in crate::application::file_dag) struct GraphFixture {
+pub struct GraphFixture {
     pub(in crate::application::file_dag::derived::owner::fixtures) owner: Rc<RelationOwner>,
     wanted: Vec<Relation>,
     partials: Vec<Partial>,
@@ -160,7 +160,7 @@ impl GraphFixture {
         workspace.capture_admitted(vec![publication.clone()]);
         Ok((workspace, publication))
     }
-    pub(in crate::application::file_dag) fn acquire(
+    pub fn acquire(
         &self,
         input: Input,
         rows: &Rows<'_>,
@@ -258,7 +258,7 @@ impl GraphFixture {
             .acquire_graph_domain(&plan, graph, &source, &mut cache)
             .map(Some)
     }
-    pub(in crate::application::file_dag) fn reach(
+    pub fn reach(
         &self,
         access: &GraphHandle,
         partition: &[Value],
@@ -268,7 +268,7 @@ impl GraphFixture {
         let mut cache = self.owner.derived().graph_cache()?;
         DemandAnswers::new(self.owner.derived(), &mut cache).reach(access, partition, root, walk)
     }
-    pub(in crate::application::file_dag) fn nearest(
+    pub fn nearest(
         &self,
         access: &GraphHandle,
         domain: &DomainHandle,
@@ -284,7 +284,7 @@ impl GraphFixture {
         *local = answers;
         found.map(|found| found.map(|vertex| vertex.0))
     }
-    pub(in crate::application::file_dag) fn index(
+    pub fn index(
         &self,
         relation: Relation,
         rows: &Rows<'_>,
@@ -335,7 +335,7 @@ impl GraphFixture {
         self.owner.derived().graph_cache().map(|_| ())
     }
     /// Retire the generation: the owner drops its cache until the file is prepared again.
-    pub(in crate::application::file_dag) fn retire(&self) {
+    pub fn retire(&self) {
         self.owner.derived().clear();
     }
     pub(in crate::application::file_dag) fn clear(&self) {

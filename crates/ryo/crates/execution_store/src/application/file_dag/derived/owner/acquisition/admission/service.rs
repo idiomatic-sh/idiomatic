@@ -17,7 +17,7 @@ use super::types::StorageIdentity;
 use crate::application::file_dag::derived::constants;
 use crate::application::file_dag::derived::owner::acquisition::population::types::Construction;
 #[derive(Clone, Debug)]
-pub(crate) struct AcquiredView {
+pub struct AcquiredView {
     plan: Arc<DerivedContract>,
     storage: Arc<DerivedStorage>,
     lease: Arc<ResourceLease>,
@@ -73,7 +73,7 @@ impl AcquiredView {
     pub(in crate::application::file_dag) fn construction(&self) -> Construction {
         self.construction
     }
-    pub(in crate::application::file_dag) fn contract(&self) -> &DerivedContract {
+    pub fn contract(&self) -> &DerivedContract {
         &self.plan
     }
     #[cfg(test)]
@@ -85,12 +85,12 @@ impl AcquiredView {
     /// is the only release). The test-only `assert_required` re-derives that from the ledger;
     /// it is not unconditional because it takes a `RefCell` borrow, scans the lease keys and
     /// does one hash lookup per backing on every read, which production reads must not pay.
-    pub(in crate::application::file_dag) fn view(&self) -> Result<DerivedView<'_>, OperatingError> {
+    pub fn view(&self) -> Result<DerivedView<'_>, OperatingError> {
         #[cfg(test)]
         self.lease.assert_required(&self.backings);
         self.storage.view()
     }
-    pub(in crate::application::file_dag::derived::owner) fn storage(&self) -> &Arc<DerivedStorage> {
+    pub fn storage(&self) -> &Arc<DerivedStorage> {
         &self.storage
     }
     pub(in crate::application::file_dag::derived::owner) fn backings(&self) -> &Arc<[Backing]> {
@@ -150,7 +150,7 @@ impl AdmittedViewInputs<'_> {
 }
 
 impl AcquiredView {
-    pub(in crate::application::file_dag::derived::owner::acquisition) fn lease(
+    pub fn lease(
         &self,
     ) -> &Arc<ResourceLease> {
         &self.lease

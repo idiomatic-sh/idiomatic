@@ -3,7 +3,7 @@ use crate::application::file_dag::relations::types::NormalizationCharge;
 use crate::application::file_dag::relations::*;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 impl RelationOwner {
-    pub(in crate::application::file_dag) fn publication_kinds<'a>(
+    pub fn publication_kinds<'a>(
         &self,
         publication: &'a PublishedInput,
     ) -> Result<&'a [CellKind], OperatingError> {
@@ -67,7 +67,7 @@ impl RelationOwner {
             }
         }
     }
-    pub(in crate::application::file_dag) fn resolve<'r, 'f>(
+    pub fn resolve<'r, 'f>(
         &self,
         result: &'r dyn PublishedRelation,
         read: &dyn Fn(Relation) -> Result<Rows<'f>, OperatingError>,
@@ -89,7 +89,7 @@ impl RelationOwner {
         }
     }
     /// The caller invokes this only at its already declared physical demand gate.
-    pub(in crate::application::file_dag) fn inspect(
+    pub fn inspect(
         &self,
         result: &dyn PublishedRelation,
         input: RepresentationInput<'_>,
@@ -138,7 +138,7 @@ impl RelationOwner {
         }
         outcome
     }
-    pub(in crate::application::file_dag) fn normalize<'r, 'f>(
+    pub fn normalize<'r, 'f>(
         &self,
         publication: &'r PublishedInput,
         rows: Rows<'f>,

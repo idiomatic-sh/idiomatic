@@ -11,7 +11,7 @@ use ryo_values::domain::plan_parts::types::InputNumber;
 use ryo_values::domain::rows::types::Table;
 
 impl InvocationWorkspace {
-    pub(in crate::application::file_dag) fn inputs<'a, 'f>(
+    pub fn inputs<'a, 'f>(
         &'a self,
         inputs: &'a [RepresentationInput<'f>],
     ) -> InputAdmissions<'a, 'f> {
@@ -21,7 +21,7 @@ impl InvocationWorkspace {
             proofs: std::array::from_fn(|_| std::cell::OnceCell::new()),
         }
     }
-    pub(super) fn admit<'a>(
+    pub fn admit<'a>(
         &self,
         place: InputNumber,
         rows: RepresentationInput<'a>,

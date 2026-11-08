@@ -2,7 +2,7 @@
 mod demand;
 mod refusing;
 mod request;
-pub(in crate::application::file_dag) mod route;
+pub mod route;
 use self::demand::demand;
 use self::request::{observed, request};
 use crate::application::file_dag::{
@@ -28,7 +28,7 @@ use std::{rc::Rc, sync::Arc};
 /// How the last consumer of one family leaves: each scenario ends with the owner generation
 /// retired, and `exercise` asserts that no required, optional or unique byte remains charged.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in crate::application::file_dag) enum Scenario {
+pub enum Scenario {
     /// The view is acquired, read and dropped.
     Succeeds,
     /// The demand is withdrawn after admission and before any acquisition.
@@ -71,7 +71,7 @@ enum Release {
     /// A fake exit that releases nothing; the control that proves a leak is detected.
     Forgetful,
 }
-pub(in crate::application::file_dag) fn exercise(
+pub fn exercise(
     kind: DerivedKind,
     scenario: Scenario,
 ) -> Result<DerivedKind, OperatingError> {
@@ -85,7 +85,7 @@ pub(in crate::application::file_dag) fn exercise(
 /// The negative control: the same exit with a release that never happens must be observed as a
 /// leak by the ledger before the fixture retires the generation. `None` means the exit was not
 /// reached (a scenario that retires the generation first) or nothing stayed charged.
-pub(in crate::application::file_dag) fn exercise_forgetful(
+pub fn exercise_forgetful(
     kind: DerivedKind,
     scenario: Scenario,
 ) -> Option<Leaked> {

@@ -15,7 +15,7 @@ use ryo_derived::domain::adjacency::types::compact_graph::value::CompactGraph;
 use std::{ops::Deref, sync::Arc};
 
 /// An actual completed adjacency and its required lease, issued together.
-pub(in crate::application::file_dag) struct GraphHandle {
+pub struct GraphHandle {
     graph: Arc<CompactGraph>,
     orientation: Orientation,
     sharing: GraphSharing,
@@ -42,7 +42,7 @@ impl GraphHandle {
             acquired,
         })
     }
-    pub(in crate::application::file_dag) fn graph(&self) -> &CompactGraph {
+    pub fn graph(&self) -> &CompactGraph {
         #[cfg(test)]
         self.acquired.view().expect(constants::EXPECT_GRAPH_LEASE);
         &self.graph
@@ -53,10 +53,10 @@ impl GraphHandle {
     pub(in crate::application::file_dag::derived::owner) fn sharing(&self) -> GraphSharing {
         self.sharing
     }
-    pub(in crate::application::file_dag::derived::owner) fn raw_graph(&self) -> &Arc<CompactGraph> {
+    pub fn raw_graph(&self) -> &Arc<CompactGraph> {
         &self.graph
     }
-    pub(in crate::application::file_dag::derived::owner) fn acquired(&self) -> &AcquiredView {
+    pub fn acquired(&self) -> &AcquiredView {
         &self.acquired
     }
     pub(in crate::application::file_dag::derived::owner) fn backings(&self) -> &Arc<[Backing]> {
@@ -70,7 +70,7 @@ impl GraphHandle {
     }
 }
 /// Membership never exposes a cloneable graph/domain allocation to a consumer.
-pub(in crate::application::file_dag) struct DomainHandle {
+pub struct DomainHandle {
     acquired: AcquiredView,
     parent: AcquiredView,
     domain: Arc<GraphDomain>,
@@ -104,14 +104,14 @@ impl DomainHandle {
             _lease: lease,
         })
     }
-    pub(in crate::application::file_dag) fn members(&self) -> DenseMarks<'_> {
+    pub fn members(&self) -> DenseMarks<'_> {
         #[cfg(test)]
         self.acquired
             .view()
             .expect(constants::EXPECT_MEMBERSHIP_LEASE);
         DenseMarks(self.domain.members.0.as_slice())
     }
-    pub(in crate::application::file_dag::derived::owner) fn raw_domain(&self) -> &Arc<GraphDomain> {
+    pub fn raw_domain(&self) -> &Arc<GraphDomain> {
         &self.domain
     }
     pub(in crate::application::file_dag) fn validate_owner(
@@ -131,13 +131,13 @@ impl DomainHandle {
 /// A completed dense answer keeps both its immutable source space and its
 /// required lease; callers cannot detach the Arc payload from that lease.
 #[derive(Debug)]
-pub(in crate::application::file_dag) struct RootAnswer {
+pub struct RootAnswer {
     rows: Arc<ReachedVertices>,
     _graph: Arc<DerivedStorage>,
     _lease: Arc<ResourceLease>,
 }
 impl RootAnswer {
-    pub(in crate::application::file_dag::derived::owner) fn new(
+    pub fn new(
         rows: Arc<ReachedVertices>,
         graph: Arc<DerivedStorage>,
         lease: Arc<ResourceLease>,
@@ -149,7 +149,7 @@ impl RootAnswer {
         }
     }
     /// Decode in the exact immutable dense space that completed this answer.
-    pub(in crate::application::file_dag) fn values(
+    pub fn values(
         &self,
     ) -> Result<
         impl Iterator<

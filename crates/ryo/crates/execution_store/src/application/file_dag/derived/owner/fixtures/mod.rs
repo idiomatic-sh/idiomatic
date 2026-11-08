@@ -107,7 +107,7 @@ pub(in crate::application::file_dag) fn prepare_view(
     )
 }
 
-pub(in crate::application::file_dag) mod graph;
+pub mod graph;
 mod graph_snapshot;
 mod observations;
-pub(in crate::application::file_dag) mod resources;
+pub mod resources;

@@ -21,9 +21,9 @@ use types::{
     ViewCount,
 };
 
-pub(in crate::application::file_dag) mod acquisition;
+pub mod acquisition;
 mod backings;
-pub(crate) mod cached_graph;
+pub mod cached_graph;
 mod diagnostics;
 mod footprint;
 mod graph;
@@ -32,11 +32,11 @@ mod graph_retention;
 mod leases;
 mod lifetime;
 mod setup;
-pub(crate) mod types;
+pub mod types;
 
 /// Runtime semantic dependencies that are not columns: candidate filter and exact dense ordering.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
-pub(in crate::application::file_dag) struct ViewContext {
+pub struct ViewContext {
     pub candidate: Option<graph_key::PreparedIdentity>,
     pub literals: Option<Arc<[ryo_values::domain::plan_parts::types::LiteralText]>>,
     pub membership_order: Option<MembershipOrder>,
@@ -94,7 +94,7 @@ struct State {
     peak_required_views: ViewCount,
     required_backend_bytes: ByteCount,
 }
-pub(crate) struct DerivedOwner {
+pub struct DerivedOwner {
     identity: Arc<()>,
     semantic: types::DerivedAccess,
     next_scope: std::cell::Cell<ScopeId>,
@@ -110,7 +110,7 @@ pub(crate) struct DerivedOwner {
 }
 impl DerivedOwner {
     #[cfg(test)]
-    pub(in crate::application::file_dag) fn prepare_view(
+    pub fn prepare_view(
         &self,
         request: &ViewRequest,
         schemas: &[ryo_execution_domain::domain::operation_schema::types::InputShape<'_>],
@@ -137,17 +137,17 @@ impl DerivedOwner {
             routes,
         }
     }
-    pub(in crate::application::file_dag) fn counts(&self) -> BuildCounts {
+    pub fn counts(&self) -> BuildCounts {
         let state = self.state.borrow();
         BuildCounts(state.builds, state.hits, state.refusals)
     }
-    pub(in crate::application::file_dag) fn working_bytes(&self) -> ByteCount {
+    pub fn working_bytes(&self) -> ByteCount {
         self.state.borrow().required_bytes
     }
     pub(in crate::application::file_dag) fn peak_working_bytes(&self) -> ByteCount {
         self.state.borrow().peak_required_bytes
     }
-    pub(in crate::application::file_dag) fn retained_bytes(&self) -> ByteCount {
+    pub fn retained_bytes(&self) -> ByteCount {
         self.state.borrow().retained_bytes
     }
     pub(in crate::application::file_dag) fn required_backend_overlap(&self) -> ByteCount {
@@ -156,7 +156,7 @@ impl DerivedOwner {
     pub(in crate::application::file_dag) fn peak_required_views(&self) -> ViewCount {
         self.state.borrow().peak_required_views
     }
-    pub(in crate::application::file_dag) fn owned_bytes(&self) -> ByteCount {
+    pub fn owned_bytes(&self) -> ByteCount {
         let state = self.state.borrow();
         ByteCount(
             state
@@ -232,12 +232,12 @@ mod test;
 
 use ryo_derived::domain::request::types::DerivedKind;
 
-pub(in crate::application::file_dag) mod cache;
-pub(in crate::application::file_dag) mod graphs;
-pub(in crate::application::file_dag) mod index;
+pub mod cache;
+pub mod graphs;
+pub mod index;
 
-#[cfg(test)]
-pub(in crate::application::file_dag) mod witness;
+#[cfg(any(test, feature = "fixtures"))]
+pub mod witness;
 
-#[cfg(test)]
-pub(in crate::application::file_dag) mod fixtures;
+#[cfg(any(test, feature = "fixtures"))]
+pub mod fixtures;

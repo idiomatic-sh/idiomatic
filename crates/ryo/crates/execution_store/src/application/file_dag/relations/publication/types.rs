@@ -53,7 +53,7 @@ pub(in crate::application::file_dag) struct ProducerPopulation {
 
 /// A typed invocation namespace; publications retain their actual population after it ends.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub(in crate::application::file_dag) enum ProducerScope {
+pub enum ProducerScope {
     File,
     Project(PopulationId),
 }

@@ -7,7 +7,7 @@ use crate::application::file_dag::relations::*;
 use ryo_execution_domain::domain::table_model::types::PublishedRelation;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 impl<'a> BorrowedInput<'a> {
-    pub(in crate::application::file_dag) fn require_publication(
+    pub fn require_publication(
         &self,
         owner: &RelationOwner,
         publication: &dyn PublishedRelation,
@@ -45,16 +45,16 @@ impl<'a> BorrowedInput<'a> {
     ) -> crate::application::file_dag::relations::types::BackingForm {
         self.canonical_backing
     }
-    pub(in crate::application::file_dag) fn physical_shape(&self) -> PhysicalShape {
+    pub fn physical_shape(&self) -> PhysicalShape {
         self.shape
     }
-    pub(in crate::application::file_dag) fn generation_guard(&self) -> Arc<()> {
+    pub fn generation_guard(&self) -> Arc<()> {
         Arc::clone(&self.origin.generation)
     }
-    pub(in crate::application::file_dag) fn rows(&self) -> RepresentationInput<'a> {
+    pub fn rows(&self) -> RepresentationInput<'a> {
         self.rows
     }
-    pub(in crate::application::file_dag) fn identity(
+    pub fn identity(
         &self,
         owner: &RelationOwner,
     ) -> Result<crate::application::file_dag::relations::admission::types::AdmissionIdentity, OperatingError> {
@@ -72,7 +72,7 @@ impl<'a> BorrowedInput<'a> {
 }
 
 impl RelationOwner {
-    pub(in crate::application::file_dag) fn admit<'a>(
+    pub fn admit<'a>(
         &self,
         result: &dyn PublishedRelation,
         input: RepresentationInput<'a>,
@@ -80,7 +80,7 @@ impl RelationOwner {
         self.inspect_available(result, input)?
     }
 
-    pub(in crate::application::file_dag) fn inspect_available<'a>(
+    pub fn inspect_available<'a>(
         &self,
         result: &dyn PublishedRelation,
         input: RepresentationInput<'a>,

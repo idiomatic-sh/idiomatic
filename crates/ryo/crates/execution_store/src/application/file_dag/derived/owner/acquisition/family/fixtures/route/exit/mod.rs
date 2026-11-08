@@ -3,7 +3,7 @@ use ryo_derived::domain::request::types::DerivedKind;
 
 /// How the last consumer of a family leaves through its production entry.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in crate::application::file_dag) enum Exit {
+pub enum Exit {
     /// The view is acquired, read and dropped.
     Succeeds,
     /// The demand is withdrawn after the request is prepared and before the view is read.

@@ -1,12 +1,12 @@
 //! One file-local acquisition owner for engine-prepared immutable derived views.
-pub(crate) mod owner;
-pub(crate) mod prepare;
-pub(super) mod request;
+pub mod owner;
+pub mod prepare;
+pub mod request;
 
 pub(super) mod ledger;
 
-pub(in crate::application::file_dag) mod prepared;
+pub mod prepared;
 
-pub(in crate::application::file_dag) mod population;
+pub mod population;
 
-pub(in crate::application::file_dag) mod constants;
+pub mod constants;

@@ -19,7 +19,7 @@ pub(in crate::application::file_dag::derived::owner) const MAX_RETAINED_POSITION
 
 /// A file-local owner: dropping it releases all admitted allocations without eviction.
 #[derive(Debug)]
-pub(in crate::application::file_dag) struct CacheBackend {
+pub struct CacheBackend {
     /// An active eligible graph consumer may request bounded adjacency admission.
     pub(in crate::application::file_dag::derived::owner) graph_enabled: GraphAdmission,
     /// Charged graph/domain/memo bytes within `bytes`.
@@ -56,7 +56,7 @@ pub(in crate::application::file_dag) struct CacheBackend {
 }
 
 impl CacheBackend {
-    pub(in crate::application::file_dag::derived::owner) fn observe_graph_walk(
+    pub fn observe_graph_walk(
         &mut self,
         expanded: ExpandedVertices,
         examined: ExaminedVertices,

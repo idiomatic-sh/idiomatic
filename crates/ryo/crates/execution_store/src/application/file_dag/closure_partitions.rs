@@ -13,7 +13,7 @@ use std::{rc::Rc, sync::Arc};
 
 /// Ordering metadata can be shared across consumers; only the current partition
 /// owns values/adjacency. Advancing releases the previous partition's logical contents.
-pub(crate) struct PartitionedClosure<'f> {
+pub struct PartitionedClosure<'f> {
     input: RepresentationInput<'f>,
     proof: super::relations::admission::service::BorrowedInput<'f>,
     owner: Rc<RelationOwner>,
@@ -28,7 +28,7 @@ pub(crate) struct PartitionedClosure<'f> {
     scratch: DerivedScratch,
 }
 impl<'f> PartitionedClosure<'f> {
-    pub(in crate::application::file_dag) fn advance(&mut self) -> Result<PartitionAdvance, OperatingError> {
+    pub fn advance(&mut self) -> Result<PartitionAdvance, OperatingError> {
         let ryo_derived::domain::contract::types::DerivedView::PartitionOrder(order) =
             self.ordered.view()?
         else {
@@ -88,12 +88,12 @@ impl<'f> PartitionedClosure<'f> {
         )?);
         Ok(PartitionAdvance::Advanced)
     }
-    pub(in crate::application::file_dag) fn take_current(
+    pub fn take_current(
         &mut self,
     ) -> Result<AcquiredView, OperatingError> {
         self.current.take().ok_or(OperatingError::NotRun)
     }
-    pub(crate) fn current(&self) -> Result<&ClosurePartition, OperatingError> {
+    pub fn current(&self) -> Result<&ClosurePartition, OperatingError> {
         let current = self.current.as_ref().ok_or(OperatingError::NotRun)?;
         match current.view()? {
             ryo_derived::domain::contract::types::DerivedView::ClosureAdjacency(partition) => {
@@ -104,10 +104,10 @@ impl<'f> PartitionedClosure<'f> {
     }
 }
 
-#[cfg(test)]
-pub(in crate::application::file_dag) mod partitions_test;
+#[cfg(any(test, feature = "fixtures"))]
+pub mod partitions_test;
 mod constants;
-pub(in crate::application::file_dag) mod schemas;
-pub(in crate::application::file_dag) mod types;
+pub mod schemas;
+pub mod types;
 use types::{PartitionAdvance, OrderCursor};
 

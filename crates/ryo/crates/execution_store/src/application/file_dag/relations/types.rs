@@ -10,7 +10,7 @@ pub(in crate::application::file_dag) struct CheckCount(pub u64);
 
 /// Whether two borrows are the same admitted allocation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Sameness {
+pub enum Sameness {
     Same,
     Different,
 }
@@ -31,14 +31,14 @@ pub(in crate::application::file_dag) enum BackingForm {
 
 /// Whether a generation's admissions may still be consumed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in crate::application::file_dag) enum Liveness {
+pub enum Liveness {
     Live,
     Released,
 }
 
 /// Whether the resident source of a file may serve a later request.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum ReuseEligibility {
+pub enum ReuseEligibility {
     Eligible,
     Ineligible,
 }

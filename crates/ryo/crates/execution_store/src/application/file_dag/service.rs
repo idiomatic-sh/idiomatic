@@ -20,7 +20,7 @@ use std::sync::Arc;
 
 use ryo_execution_domain::domain::operator::contract::types::RequestOperators;
 
-pub(crate) fn prepare(
+pub fn prepare(
     plans: &[Plan],
     bindings: &[Vec<ParameterBinding>],
     hosted: &[HostRelation],
@@ -28,7 +28,7 @@ pub(crate) fn prepare(
 ) -> Result<RequestOperators, OperatingError> {
     prepare_with_schemas(plans, bindings, hosted, &kinds, semantic)
 }
-pub(crate) fn prepare_with_schemas<'s>(
+pub fn prepare_with_schemas<'s>(
     plans: &[Plan],
     bindings: &[Vec<ParameterBinding>],
     hosted: &[HostRelation],

@@ -13,7 +13,7 @@ use ryo_execution_domain::domain::operator::contract::types::{AxisWorkspace, Dfs
 use ryo_execution_domain::domain::table_model::types::Rows;
 use ryo_execution_domain::domain::table_reach::types::Walk;
 use ryo_relations::domain::relations::types::{Position, Value};
-pub(crate) struct InvocationWorkspace {
+pub struct InvocationWorkspace {
     pub work: ryo_execution_domain::domain::operator::contract::types::WorkCounters,
     #[cfg(feature = "diagnostic-row-progress")]
     pub progress_origin: super::route_counts::types::CapturedOrigin,
@@ -35,7 +35,7 @@ pub(crate) struct InvocationWorkspace {
 }
 
 impl InvocationWorkspace {
-    pub(in crate::application::file_dag) fn for_contract(
+    pub fn for_contract(
         owner: std::rc::Rc<super::relations::RelationOwner>,
         contract: &ryo_execution_domain::domain::operator::contract::types::OperatorContract,
     ) -> Self {
@@ -68,7 +68,7 @@ impl InvocationWorkspace {
     }
 
     #[cfg(test)]
-    pub(crate) fn measured(&self) -> ryo_execution_domain::domain::operating::fixtures::ExecutionObservation {
+    pub fn measured(&self) -> ryo_execution_domain::domain::operating::fixtures::ExecutionObservation {
         let mut observed = self.observation;
         observed.regexes = self
             .predicates
@@ -111,17 +111,17 @@ impl InvocationWorkspace {
 }
 
 impl InvocationWorkspace {
-    pub(in crate::application::file_dag) fn release_inputs(&mut self) {
+    pub fn release_inputs(&mut self) {
         self.publications.clear();
     }
-    pub(in crate::application::file_dag) fn capture_admitted(
+    pub fn capture_admitted(
         &mut self,
         publications: Vec<super::relations::handle::service::PublishedInput>,
     ) {
         self.publications = publications.into_iter().map(Some).collect();
     }
 
-    pub(super) fn owner(&self) -> &super::relations::RelationOwner {
+    pub fn owner(&self) -> &super::relations::RelationOwner {
         &self.relation_owner
     }
     pub(super) fn owner_handle(&self) -> std::rc::Rc<super::relations::RelationOwner> {
@@ -131,7 +131,7 @@ impl InvocationWorkspace {
 
 /// Only the workspace can bind an original graph row view to its admission.
 /// The graph path never receives independently replaceable raw rows and proof.
-pub(super) struct GraphInput<'a> {
+pub struct GraphInput<'a> {
     rows: &'a ryo_execution_domain::domain::table_model::types::Rows<'a>,
     proof: BorrowedInput<'a>,
     relation: Option<ryo_relations::domain::relations::types::Relation>,
@@ -149,21 +149,21 @@ impl<'a> GraphInput<'a> {
             .derived()
             .admit_view(plan, self.owner, &[&self.proof])
     }
-    pub(super) fn rows(&self) -> &ryo_execution_domain::domain::table_model::types::Rows<'a> {
+    pub fn rows(&self) -> &ryo_execution_domain::domain::table_model::types::Rows<'a> {
         self.rows
     }
-    pub(super) fn owner(&self) -> &super::derived::owner::DerivedOwner {
+    pub fn owner(&self) -> &super::derived::owner::DerivedOwner {
         self.owner.derived()
     }
     pub(super) fn canonical_backing(&self) -> super::relations::types::BackingForm {
         self.proof.canonical_backing()
     }
-    pub(super) fn population(
+    pub fn population(
         &self,
     ) -> Result<super::derived::population::types::PopulationId, OperatingError> {
         self.proof.backing_population(self.owner)
     }
-    pub(super) fn relation(&self) -> Option<ryo_relations::domain::relations::types::Relation> {
+    pub fn relation(&self) -> Option<ryo_relations::domain::relations::types::Relation> {
         self.relation
     }
 }
@@ -185,7 +185,7 @@ impl InvocationWorkspace {
 }
 
 /// Sources are supplied only by admitted inputs, never independently by a view caller.
-pub(super) enum ViewInputs<'a, 's> {
+pub enum ViewInputs<'a, 's> {
     Rows,
     MembershipValues,
     MembershipNative,
@@ -199,7 +199,7 @@ pub(super) enum ViewInputs<'a, 's> {
 }
 /// One immutable demand scope, not a retained cache. At most three registered
 /// operator inputs are held; only demanded slots acquire a proof.
-pub(super) struct InputAdmissions<'a, 'f> {
+pub struct InputAdmissions<'a, 'f> {
     workspace: &'a InvocationWorkspace,
     inputs: &'a [RepresentationInput<'f>],
     proofs: [std::cell::OnceCell<BorrowedInput<'f>>; 3],
@@ -208,7 +208,7 @@ impl<'a, 'f> InputAdmissions<'a, 'f> {
     pub(super) fn owner_handle(&self) -> std::rc::Rc<super::relations::RelationOwner> {
         self.workspace.owner_handle()
     }
-    pub(super) fn input(&self, place: InputNumber) -> Result<RepresentationInput<'f>, OperatingError> {
+    pub fn input(&self, place: InputNumber) -> Result<RepresentationInput<'f>, OperatingError> {
         self.inputs
             .get(place.0)
             .copied()
@@ -216,7 +216,7 @@ impl<'a, 'f> InputAdmissions<'a, 'f> {
                 position: place.0 + 1,
             })
     }
-    pub(super) fn rows(&self, place: InputNumber) -> Result<RepresentationInput<'f>, OperatingError> {
+    pub fn rows(&self, place: InputNumber) -> Result<RepresentationInput<'f>, OperatingError> {
         Ok(self.proof(place)?.rows())
     }
     fn proof(&self, place: InputNumber) -> Result<&BorrowedInput<'f>, OperatingError> {
@@ -234,7 +234,7 @@ impl<'a, 'f> InputAdmissions<'a, 'f> {
         }
         Ok(cell.get().expect(EXPECT_DEMANDED_INPUT))
     }
-    pub(super) fn partitioned(
+    pub fn partitioned(
         &self,
         order: &PreparedViewUse,
         closure: &PreparedViewUse,
@@ -254,7 +254,7 @@ impl<'a, 'f> InputAdmissions<'a, 'f> {
             self.owner_handle(),
         )
     }
-    pub(super) fn try_native_lookup(
+    pub fn try_native_lookup(
         &self,
         use_: &PreparedViewUse,
     ) -> Result<
@@ -279,7 +279,7 @@ impl<'a, 'f> InputAdmissions<'a, 'f> {
             &mut self.workspace.derived_scratch.borrow_mut(),
         )
     }
-    pub(super) fn acquire_rows(
+    pub fn acquire_rows(
         &self,
         use_: &PreparedViewUse,
         context: &mut OperatorContext<'_>,
@@ -291,7 +291,7 @@ impl<'a, 'f> InputAdmissions<'a, 'f> {
             ViewInputs::Rows,
         )
     }
-    pub(super) fn acquire_derived(
+    pub fn acquire_derived(
         &self,
         use_: &PreparedViewUse,
         identity: super::derived::owner::ViewContext,

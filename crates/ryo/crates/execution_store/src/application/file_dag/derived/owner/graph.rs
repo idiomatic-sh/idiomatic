@@ -13,7 +13,7 @@ use ryo_execution_domain::domain::{
 };
 use ryo_relations::domain::relations::types::Value;
 impl DerivedOwner {
-    pub(in crate::application::file_dag) fn prepare_graph(
+    pub fn prepare_graph(
         &self,
         contract: &OperatorContract,
         admission: &InvocationWorkspace,
@@ -44,7 +44,7 @@ impl DerivedOwner {
             .map_err(|_| OperatingError::NotRun)
     }
     /// Only admitted original inputs enter the physical graph adapter.
-    pub(in crate::application::file_dag) fn acquire_graph(
+    pub fn acquire_graph(
         &self,
         plan: &Arc<DerivedContract>,
         input: &crate::application::file_dag::workspace::GraphInput<'_>,
@@ -58,7 +58,7 @@ impl DerivedOwner {
         }
         super::acquisition::graph::service::acquire(plan, input, cache)
     }
-    pub(in crate::application::file_dag) fn acquire_graph_domain(
+    pub fn acquire_graph_domain(
         &self,
         plan: &Arc<DerivedContract>,
         graph: &crate::application::file_dag::derived::owner::graphs::types::handles::service::GraphHandle,
@@ -73,7 +73,7 @@ impl DerivedOwner {
         }
         super::acquisition::graph::service::domain(plan, graph, input, cache)
     }
-    pub(in crate::application::file_dag) fn graph_row<'a>(
+    pub fn graph_row<'a>(
         &self,
         graph: &'a mut CachedGraph,
         row: &[Value],
