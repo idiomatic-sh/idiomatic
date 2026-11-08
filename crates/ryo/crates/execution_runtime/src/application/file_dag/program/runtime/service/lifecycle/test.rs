@@ -181,6 +181,44 @@ fn downstream_error_keeps_publication_and_retry_does_not_repeat_semantics() {
 }
 
 #[test]
+fn a_region_evaluated_in_its_preparation_is_counted_once_as_a_dispatched_one_is() {
+    use ryo_execution_domain::domain::readiness::types::{ReadinessCounts, ReadinessEvents};
+    // `Plain` declines the shared walk, so its region is evaluated inside its preparation poll; `Joined` waits for its
+    // cohort and is evaluated by a dispatched action. The queue counts both the same: one preparation, one evaluation.
+    for mode in [RuntimeProbeMode::Plain, RuntimeProbeMode::Joined] {
+        let CompiledCase { execution, roots } = compiled();
+        let probe = RuntimeProbe::new(Rc::clone(&execution), mode);
+        let mut input = TestInputs::new(&execution);
+        let mut symbols = Symbols::default();
+        let mut scratch = OperatorScratch::default();
+        let mut memo = vec![];
+        let mut context = context(&mut symbols, &mut scratch, &mut memo);
+        let policy = CompletionPolicy::file(RuleIndex(0), FileId(0), &[]);
+        assert!(matches!(
+            execution.invoke(
+                execution.file_state(),
+                roots[0],
+                &mut input,
+                &probe,
+                &policy,
+                &mut context
+            ),
+            Ok(InvocationOutcome::Published(_))
+        ));
+        assert_eq!(probe.calls.get(), EvaluationCount(1));
+        assert_eq!(
+            execution.readiness_counts(),
+            ReadinessCounts {
+                preparations: ReadinessEvents(1),
+                evaluations: ReadinessEvents(1),
+                suspensions: ReadinessEvents(0),
+                wakeups: ReadinessEvents(0),
+            }
+        );
+    }
+}
+
+#[test]
 fn reached_slots_initialize_reader_obligations_once() {
     let CompiledCase { execution, roots } = compiled();
     execution.activate_file_roots(&roots).unwrap();

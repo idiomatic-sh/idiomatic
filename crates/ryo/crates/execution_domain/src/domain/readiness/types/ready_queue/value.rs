@@ -11,7 +11,8 @@ use rustc_hash::FxHashMap;
 enum State {
     Unseen,
     Queued,
-    Polling,
+    /// The action the region was dispatched with; an evaluation inside a preparation poll turns it into `Evaluate`.
+    Polling(ReadinessAction),
     Waiting(RegionId),
     Ready,
     Terminal,
@@ -90,8 +91,19 @@ impl ReadyQueue {
         self.entries
             .get_mut(&id)
             .ok_or(OperatingError::NotRun)?
-            .state = State::Polling;
+            .state = State::Polling(action);
         Ok(Some(action))
+    }
+    /// Records that the preparation poll of `id` went on to evaluate it, as a region that joins no shared walk does: the queue
+    /// counts that evaluation once, as it counts the evaluations it dispatches, so it stays the only writer of the count.
+    pub fn evaluated_in_preparation(&mut self, id: RegionId) -> Result<(), OperatingError> {
+        let entry = self.entries.get_mut(&id).ok_or(OperatingError::NotRun)?;
+        if !matches!(entry.state, State::Polling(ReadinessAction::Prepare(_))) {
+            return Err(OperatingError::NotRun);
+        }
+        entry.state = State::Polling(ReadinessAction::Evaluate(id));
+        self.counts.evaluations.0 += 1;
+        Ok(())
     }
     /// Records the outcome of polling a region.
     pub fn observe(
@@ -101,7 +113,7 @@ impl ReadyQueue {
     ) -> Result<(), OperatingError> {
         if !matches!(
             self.entries.get(&id).map(|entry| entry.state),
-            Some(State::Polling)
+            Some(State::Polling(_))
         ) {
             return Err(OperatingError::NotRun);
         }

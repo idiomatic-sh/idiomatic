@@ -133,6 +133,69 @@ fn preparation_terminal_wakes_admissions_before_the_ready_cohort() {
     queue.observe(RegionId(0), Outcome::Terminal).unwrap();
     assert_eq!(queue.next(), Ok(None));
 }
+/// Runs `script` to the end: each step is the action the queue must dispatch, whether its poll evaluated the region in
+/// preparation, and the outcome the poll answers.
+fn run_script(queue: &mut ReadyQueue, script: &[(Action, bool, Outcome)]) {
+    for &(action, inline, outcome) in script {
+        assert_eq!(queue.next(), Ok(Some(action)));
+        let id = match action {
+            Action::Prepare(id) | Action::Evaluate(id) => id,
+        };
+        if inline {
+            queue.evaluated_in_preparation(id).unwrap();
+        }
+        queue.observe(id, outcome).unwrap();
+    }
+    assert_eq!(queue.next(), Ok(None));
+}
+fn an_evaluation_in_preparation_is_counted_once_by_the_queue() {
+    // A region that joins no shared walk is evaluated inside its preparation poll and suspends on nested demand; its
+    // resumed evaluation is dispatched. The counts equal those of the same region evaluated only by dispatch.
+    let mut inline = ReadyQueue::new(RegionCount(2), &[RegionId(0)]).unwrap();
+    run_script(
+        &mut inline,
+        &[
+            (Action::Prepare(RegionId(0)), true, Outcome::Waiting(RegionId(1))),
+            (Action::Prepare(RegionId(1)), true, Outcome::Terminal),
+            (Action::Prepare(RegionId(0)), false, Outcome::Ready),
+            (Action::Evaluate(RegionId(0)), false, Outcome::Terminal),
+        ],
+    );
+    let mut dispatched = ReadyQueue::new(RegionCount(2), &[RegionId(0)]).unwrap();
+    run_script(
+        &mut dispatched,
+        &[
+            (Action::Prepare(RegionId(0)), false, Outcome::Ready),
+            (Action::Evaluate(RegionId(0)), false, Outcome::Waiting(RegionId(1))),
+            (Action::Prepare(RegionId(1)), false, Outcome::Ready),
+            (Action::Evaluate(RegionId(1)), false, Outcome::Terminal),
+            (Action::Prepare(RegionId(0)), false, Outcome::Ready),
+            (Action::Evaluate(RegionId(0)), false, Outcome::Terminal),
+        ],
+    );
+    assert_eq!(inline.counts().evaluations.0, 3);
+    assert_eq!(inline.counts().suspensions.0, 1);
+    assert_eq!(inline.counts().wakeups.0, 1);
+    assert_eq!(inline.counts().preparations.0, 3);
+    assert_eq!(dispatched.counts().evaluations, inline.counts().evaluations);
+    assert_eq!(dispatched.counts().suspensions, inline.counts().suspensions);
+    assert_eq!(dispatched.counts().wakeups, inline.counts().wakeups);
+}
+fn an_evaluation_in_preparation_is_recorded_only_for_a_preparation_poll() {
+    let mut queue = ReadyQueue::new(RegionCount(1), &[RegionId(0)]).unwrap();
+    // Not polling: nothing to record.
+    assert_eq!(queue.evaluated_in_preparation(RegionId(0)), Err(OperatingError::NotRun));
+    assert_eq!(queue.next(), Ok(Some(Action::Prepare(RegionId(0)))));
+    queue.evaluated_in_preparation(RegionId(0)).unwrap();
+    // The poll is an evaluation now: a second record would count it twice.
+    assert_eq!(queue.evaluated_in_preparation(RegionId(0)), Err(OperatingError::NotRun));
+    queue.observe(RegionId(0), Outcome::Ready).unwrap();
+    assert_eq!(queue.next(), Ok(Some(Action::Evaluate(RegionId(0)))));
+    // A dispatched evaluation is already counted.
+    assert_eq!(queue.evaluated_in_preparation(RegionId(0)), Err(OperatingError::NotRun));
+    queue.observe(RegionId(0), Outcome::Terminal).unwrap();
+    assert_eq!(queue.counts().evaluations.0, 2);
+}
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 fn large_unreached_program_has_only_actual_readiness_entries() {
     let mut queue = ReadyQueue::new(RegionCount(10_000_000), &[RegionId(7), RegionId(7)]).unwrap();
@@ -204,6 +267,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("unreached nodes stay unpolled and cycles refuse"),
         word: Word::Succeeds,
         input: || undiscovered_nodes_are_never_admitted_and_cycles_refuse,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("an evaluation in preparation is counted once by the queue"),
+        word: Word::Succeeds,
+        input: || an_evaluation_in_preparation_is_counted_once_by_the_queue,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("an evaluation in preparation is recorded only for a preparation poll"),
+        word: Word::Succeeds,
+        input: || an_evaluation_in_preparation_is_recorded_only_for_a_preparation_poll,
         expect: Expect::Value(()),
     },
 ];

@@ -34,8 +34,10 @@ impl ProgramExecution {
         kernels: &dyn KernelInvocation,
         completion: &ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy,
         context: &mut OperatorContext<'_>,
-        prepare_only: PollMode,
+        mode: &mut PollMode,
     ) -> Result<InvocationOutcome, OperatingError> {
+        // The mode the poll was dispatched with; `mode` answers `Evaluate` when a preparation poll went on to evaluate.
+        let prepare_only = *mode;
         self.validate_state(state)?;
         if inputs.population_scope() != state.scope {
             return Err(OperatingError::NotRead);
@@ -99,18 +101,18 @@ impl ProgramExecution {
         };
         let first = region.instructions().first();
         let mut admitted = std::mem::take(&mut progress.inputs);
+        let mut call = Poll {
+            id,
+            region,
+            completion,
+            kernels,
+            prepare_only,
+            inputs,
+            context,
+            progress: &mut progress,
+            frames: &mut cleanup.scratch,
+        };
         let result: Result<InvocationOutcome, InvocationFailure> = (|| {
-            let mut call = Poll {
-                id,
-                region,
-                completion,
-                kernels,
-                prepare_only,
-                inputs,
-                context,
-                progress: &mut progress,
-                frames: &mut cleanup.scratch,
-            };
             if let Some(outcome) = self.blocked(&mut call)? {
                 return Ok(outcome);
             }
@@ -122,6 +124,7 @@ impl ProgramExecution {
             }
             self.evaluate(&mut call, &admitted)
         })();
+        *mode = call.prepare_only;
         progress.inputs = admitted;
         cleanup.admission = Some(progress);
         let result = match cleanup.admission.as_ref().and_then(|state| state.waiting) {

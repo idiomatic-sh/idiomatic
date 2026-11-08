@@ -274,15 +274,24 @@ pub(crate) fn prepare_for(
         literal_pattern,
         predicates,
         effects,
-        // Derived and physical text belong to the file, not to a rule: only a binding or the request's own
-        // source makes equal operations of different rules answer differently.
-        reuse: if effects != Effects::RequestSource && super::resources::binding_dependent(operation) == super::resources::BindingUse::Independent {
-            ReuseScope::Request
-        } else {
-            ReuseScope::Rule
-        },
+        reuse: reuse_scope(effects, super::resources::binding_dependent(operation)),
         identity: operation.clone(),
     })
+}
+
+/// Where equal operations share one result. Derived and physical text belong to the file, not to a rule: only a binding or
+/// the request's own source makes equal operations of different rules answer differently. Every effect chooses here, so a
+/// new one cannot be request-shared by default.
+fn reuse_scope(effects: Effects, bindings: super::resources::BindingUse) -> ReuseScope {
+    let shareable = match effects {
+        Effects::Pure | Effects::DerivedText | Effects::PhysicalSourceText => true,
+        Effects::RequestSource => false,
+    };
+    if shareable && bindings == super::resources::BindingUse::Independent {
+        ReuseScope::Request
+    } else {
+        ReuseScope::Rule
+    }
 }
 
 /// Preserve the engine's original downstream error ahead of a portable interruption marker.

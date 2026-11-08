@@ -50,7 +50,13 @@ impl ProgramExecution {
                     ReadinessAction::Prepare(id) => (id, PollMode::PrepareOnly),
                     ReadinessAction::Evaluate(id) => (id, PollMode::Evaluate),
                 };
-                let outcome = match self.poll(state, id, inputs, kernels, completion, context, mode)
+                let mut polled = mode;
+                let answer = self.poll(state, id, inputs, kernels, completion, context, &mut polled);
+                // A region that joins no shared walk is evaluated in its preparation poll; the queue owns that count too.
+                if mode == PollMode::PrepareOnly && polled == PollMode::Evaluate {
+                    queue.evaluated_in_preparation(id)?;
+                }
+                let outcome = match answer
                 {
                     Ok(InvocationOutcome::Suspended(dependency)) => {
                         ReadinessOutcome::Waiting(dependency)
