@@ -338,6 +338,95 @@ class PreviousReviewsPush(unittest.TestCase):
         self.assertIsNone(module.previous_reviews(words, self.tree))
 
 
+class PerfGate(unittest.TestCase):
+    DIR = "crates/ryo/docs/contracts/evidence/perf/p6/"
+
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.dir.cleanup)
+        self.tree = repo(self.dir.name, "tree", "claude/ryo-consolidation")
+        git(self.tree, "commit", "-q", "--allow-empty", "-m", "base")
+        self.base = git(self.tree, "rev-parse", "HEAD")
+        git(self.tree, "checkout", "-q", "-b", "claude/p6-speed")
+
+    def write(self, name, body):
+        path = os.path.join(self.tree, self.DIR + name)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump(body, handle)
+        git(self.tree, "add", self.DIR + name)
+        git(self.tree, "commit", "-q", "-m", "docs: evidence " + name)
+
+    def diagnosis(self, source=None, verdict="refuted", levers=("l1",)):
+        self.write("diagnosis.json", {"source": source or self.base, "hypotheses": [{"claim": "lock", "verdict": verdict}],
+                                      "levers": [{"id": l, "evidence": "e"} for l in levers]})
+
+    def perf(self, message="perf(engine): cache facts (lever l1)"):
+        git(self.tree, "commit", "-q", "--allow-empty", "-m", message)
+
+    def push(self):
+        return run_hook("guard_shell.py", {"tool_input": {"command": "git push origin claude/p6-speed"}, "cwd": self.tree})
+
+    def test_no_perf_commit_passes(self):
+        git(self.tree, "commit", "-q", "--allow-empty", "-m", "fix: 3s typo")
+        self.assertEqual(self.push().returncode, 0)
+
+    def test_perf_without_diagnosis_is_refused(self):
+        self.perf()
+        result = self.push()
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("perf-diagnosis.md", result.stderr)
+        self.assertIn("diagnosis.json", result.stderr)
+
+    def test_diagnosis_without_verdicts_is_refused(self):
+        self.diagnosis(verdict="maybe")
+        self.perf()
+        result = self.push()
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("no hypothesis with a verdict", result.stderr)
+
+    def test_diagnosis_without_levers_is_refused(self):
+        self.diagnosis(levers=())
+        self.perf()
+        self.assertIn("no lever", self.push().stderr)
+
+    def test_stale_source_is_refused(self):
+        git(self.tree, "checkout", "-q", "-b", "side", self.base)
+        git(self.tree, "commit", "-q", "--allow-empty", "-m", "elsewhere")
+        elsewhere = git(self.tree, "rev-parse", "HEAD")
+        git(self.tree, "checkout", "-q", "claude/p6-speed")
+        self.diagnosis(source=elsewhere)
+        self.perf()
+        result = self.push()
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("not an ancestor of the first perf commit", result.stderr)
+
+    def test_claimed_number_without_after_is_refused(self):
+        self.diagnosis()
+        self.perf("perf(engine): cache facts (l1), 12s to 8s")
+        result = self.push()
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("after.json", result.stderr)
+
+    def test_all_present_passes(self):
+        self.diagnosis()
+        self.perf("perf(engine): cache facts (l1), 12s to 8s")
+        self.write("after.json", {"before": [], "after": [], "identical_output": True})
+        self.assertEqual(self.push().returncode, 0)
+
+    def test_number_free_perf_needs_only_the_diagnosis(self):
+        self.diagnosis()
+        self.perf()
+        self.assertEqual(self.push().returncode, 0)
+
+    def test_commits_already_in_consolidation_are_not_rechecked(self):
+        git(self.tree, "checkout", "-q", "claude/ryo-consolidation")
+        self.perf()
+        git(self.tree, "checkout", "-q", "claude/p6-speed")
+        git(self.tree, "merge", "-q", "--ff-only", "claude/ryo-consolidation")
+        self.assertEqual(self.push().returncode, 0)
+
+
 class Acceptance(unittest.TestCase):
     def setUp(self):
         self.dir = tempfile.TemporaryDirectory()

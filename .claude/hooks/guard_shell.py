@@ -323,6 +323,96 @@ def previous_reviews(words, here):
     return None
 
 
+PERF_DIR = "crates/ryo/docs/contracts/evidence/perf/"
+PERF_SUBJECT = re.compile(r"perf(\([^)]*\))?!?:")
+PERF_NUMBER = re.compile(r"\d\s?(ms|s|MB|GB|%)(?!\w)")
+PERF_AGENT = ".agents/agents/perf-diagnosis.md"
+
+
+def pushed_branch(tree, push):
+    """The remote and destination branch of a push: its operands, or the current branch when it names none."""
+    operands = [a for a in push[1] if not a.startswith("-")]
+    remote = operands[0] if operands else "origin"
+    if len(operands) > 1:
+        return remote, operands[-1].lstrip("+").rsplit(":", 1)[-1].replace("refs/heads/", "", 1)
+    return remote, git_out(tree, "symbolic-ref", "--short", "HEAD")[1].strip()
+
+
+def pushed_commits(tree, remote, branch):
+    """(sha, message) of the commits a push adds, oldest first; commits in claude/ryo-consolidation are never included."""
+    base = None
+    code, out = git_out(tree, "rev-parse", "--verify", "-q", "refs/remotes/" + remote + "/" + branch)
+    if code == 0 and out.strip():
+        base = out.strip()
+    exclude = []
+    for ref in ("refs/heads/" + CONSOLIDATION, "refs/remotes/" + remote + "/" + CONSOLIDATION):
+        if git_out(tree, "rev-parse", "--verify", "-q", ref)[0] == 0:
+            exclude.append(ref)
+    if base is None:
+        if not exclude:
+            return []
+        base = git_out(tree, "merge-base", "HEAD", exclude[0])[1].strip()
+        if not base:
+            return []
+    args = ["log", "--reverse", "--format=%H%x1f%B%x1e", base + "..HEAD"]
+    for ref in exclude:
+        args += ["--not", ref]
+    code, out = git_out(tree, *args)
+    rows = [row.strip("\n").split("\x1f", 1) for row in out.split("\x1e") if row.strip()]
+    return [(row[0].strip(), row[1] if len(row) > 1 else "") for row in rows]
+
+
+def perf_gate(words, here):
+    """A push with a `perf` commit needs a perf diagnosis (and, for claimed numbers, an after.json) in the pushed tree."""
+    push = git_push(words)
+    if push is None:
+        return None
+    tree = os.path.join(here, push[0]) if push[0] else here
+    remote, branch = pushed_branch(tree, push)
+    perf = [(sha, msg) for sha, msg in pushed_commits(tree, remote, branch)
+            if PERF_SUBJECT.match(msg.lstrip().split("\n", 1)[0])]
+    if not perf:
+        return None
+    first = perf[0][0]
+    refused = "push of " + branch + " refused: perf commit " + first[:10] + " "
+    point = "; run the perf-diagnosis agent (" + PERF_AGENT + ")"
+    code, listing = git_out(tree, "ls-tree", "-r", "--name-only", "HEAD", PERF_DIR)
+    diagnoses = [f for f in listing.split("\n") if re.fullmatch(re.escape(PERF_DIR) + r"[^/]+/diagnosis\.json", f)]
+    problems = []
+    for path in diagnoses:
+        try:
+            doc = json.loads(git_out(tree, "show", "HEAD:" + path)[1])
+        except ValueError:
+            problems.append(path + " is not JSON")
+            continue
+        doc = doc if isinstance(doc, dict) else {}
+        source = doc.get("source")
+        hypotheses = doc.get("hypotheses")
+        if not isinstance(source, str) or not source or source.startswith("-") or \
+                git_out(tree, "merge-base", "--is-ancestor", source, first)[0] != 0:
+            problems.append(path + " has a \"source\" that is not an ancestor of the first perf commit")
+        elif not any(isinstance(h, dict) and h.get("verdict") in ("confirmed", "refuted")
+                     for h in (hypotheses if isinstance(hypotheses, list) else [])):
+            problems.append(path + " has no hypothesis with a verdict (confirmed or refuted)")
+        elif not doc.get("levers") or not isinstance(doc.get("levers"), list):
+            problems.append(path + " has no lever")
+        else:
+            if not PERF_NUMBER.search("\n".join(msg for _, msg in perf)):
+                return None
+            after = path.rsplit("/", 1)[0] + "/after.json"
+            code, text = git_out(tree, "show", "HEAD:" + after)
+            try:
+                record = json.loads(text) if code == 0 else None
+            except ValueError:
+                record = None
+            if isinstance(record, dict) and all(k in record for k in ("before", "after", "identical_output")):
+                return None
+            problems.append("a perf commit claims a number but " + after + " lacks before, after and identical_output")
+    if not diagnoses:
+        return refused + "has no " + PERF_DIR + "<iteration>/diagnosis.json in the pushed tree" + point
+    return refused + "; ".join(problems) + point
+
+
 def integration_tree(directory):
     if os.path.abspath(directory).startswith(MEASUREMENT):
         return True
@@ -364,7 +454,7 @@ def reason(command, cwd=None):
         if len(words) > 1 and words[0] == "cd":
             here = os.path.join(here, os.path.expanduser(words[1]))
         for found in (stash(words), removal(words), cargo_rules(words, before, dirs), tm_fix(words, clean),
-                      rust_review(words, here), previous_reviews(words, here)):
+                      rust_review(words, here), previous_reviews(words, here), perf_gate(words, here)):
             if found:
                 return found
         before += segment + " "
