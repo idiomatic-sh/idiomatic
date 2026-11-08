@@ -1409,9 +1409,9 @@ dependencies = [
  "dhat",
  "divan",
  "hashbrown 0.17.1",
- "heck",
  "idiomatic-sh-ryo-derived",
  "idiomatic-sh-ryo-execution",
+ "idiomatic-sh-ryo-execution-domain",
  "idiomatic-sh-ryo-language",
  "idiomatic-sh-ryo-matching",
  "idiomatic-sh-ryo-operators",
@@ -1419,8 +1419,6 @@ dependencies = [
  "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-values",
  "ignore",
- "memchr",
- "num-bigint 0.4.8",
  "postcard",
  "rayon",
  "rustc-hash 2.1.3",
@@ -1432,6 +1430,25 @@ dependencies = [
  "toml 1.1.4+spec-1.1.0",
  "tracing",
  "unicode-width",
+]
+
+[[package]]
+name = "idiomatic-sh-ryo-execution-domain"
+version = "0.1.2"
+dependencies = [
+ "hashbrown 0.17.1",
+ "heck",
+ "idiomatic-sh-ryo-derived",
+ "idiomatic-sh-ryo-language",
+ "idiomatic-sh-ryo-matching",
+ "idiomatic-sh-ryo-operators",
+ "idiomatic-sh-ryo-relations",
+ "idiomatic-sh-ryo-values",
+ "memchr",
+ "num-bigint 0.4.8",
+ "rustc-hash 2.1.3",
+ "thiserror 2.0.20",
+ "tracing",
 ]
 
 [[package]]
