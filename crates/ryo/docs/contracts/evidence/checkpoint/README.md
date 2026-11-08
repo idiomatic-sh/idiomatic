@@ -26,9 +26,9 @@ count and the file-level ownership cycle count (computed from
 `ownership_edges.log`) are recorded in `validation.json` beside the commands.
 
 `run.py` takes the build locks, refuses a dirty tree, replaces `{worktree}` in
-each command's `--target-dir /workspaces/idiomatic-target/{worktree}` with the
-worktree's name (one cargo target per worktree, so no command runs units another
-tree built), writes `identity.json`
+each command's target directory (`idiomatic-target/{worktree}` in the workspace
+mount) with the worktree's name (one cargo target per worktree, so no command
+runs units another tree built), writes `identity.json`
 (source revision plus the expanded command list) beside itself, runs each command in
 order, and writes `<name>.log` and `<name>.json` (exit code, elapsed seconds) to
 the output directory. That directory is the first argument; the default is a

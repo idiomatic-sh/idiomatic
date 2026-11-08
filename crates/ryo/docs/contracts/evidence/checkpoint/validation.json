@@ -245,7 +245,11 @@
     },
     "activation": {"passed": 11, "failed": 0, "note": "11 actual cases, the facts-finish dhat control among them"},
     "bdd": {"scenarios": 7, "failed": 0},
-    "core_bdd": {"scenarios": 18, "failed": 0},
+    "core_bdd": {
+      "scenarios": 18,
+      "failed": 0,
+      "note": "not a result for 142fe40a98: the binary took units another worktree built in the shared target; it runs again at 328 on the tree's own target"
+    },
     "ruff_sharing": {"passed": 1, "failed": 0},
     "ruff_canary": {
       "passed": 1,
@@ -276,7 +280,7 @@
     "core_allocation": {
       "exit": 101,
       "phase": 7,
-      "note": "owned by \"Perf iteration 2 (from checkpoint 324 `14a8352416`, branch `claude/p2-per-file-and-parallel`, head `5574e0fbcd`): the per-file executor cost, and files on every core.\""
+      "note": "not a result for 142fe40a98: the binary took units another worktree built in the shared target; it runs again at 328 on the tree's own target; owned by \"Measure full-Django cold/warm/edit and Rust regressions; meet final objective.\""
     },
     "cli_replay": {"passed": 75, "failed": 3},
     "cli_replay_reds": ["behavior::ruff_rules_feed_every_catalog_feature_a_thousand_rows", "cache::every_recorded_rule_gives_over_ruff_the_rows_a_warm_run_gives_again_from_a_small_store", "peak::a_warm_unchanged_run_over_ruff_peaks_within_its_bound"],
