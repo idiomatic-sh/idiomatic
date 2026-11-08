@@ -228,7 +228,7 @@ fn stored_and_compact_direct_join_composite_reordered_empty_and_unlike_keys_do_n
                 (12, 9, false, 1),
             ],
             4 => vec![],
-            _ => unreachable!(),
+            _ => panic!("the fixture lists every case it builds"),
         };
         let expected = bag
             .into_iter()

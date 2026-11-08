@@ -189,7 +189,7 @@ fn reach_join_keeps_lazy_acquisition_exact_cycle_order_duplicates_and_refusals()
     );
     let mut op = operation(&[0], &[0], &[(Side::Right, 1)], vec![], &[]);
     let Operation::Join { reach, .. } = &mut op else {
-        unreachable!()
+        panic!("the fixture builds a Join")
     };
     *reach = Some(ReachLookup {
         source: ColumnIndex(0),

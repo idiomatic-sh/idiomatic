@@ -224,7 +224,7 @@ pub(crate) fn plan(scenario: Scenario) -> Plan {
                     scope: StepScope::PerFile,
                 },
             ],
-            _ => unreachable!(),
+            _ => panic!("the fixture lists every case it builds"),
         };
     }
     let last = StepId((steps.len() - 1) as u32);

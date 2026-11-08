@@ -138,7 +138,7 @@ pub(in crate::inbound::use_cases::execution::use_case_test) fn over_the_tree(
         ..
     } = &mut operation
     else {
-        unreachable!()
+        panic!("the fixture builds an Axis")
     };
     *from_input = Source::Step(ryo_values::domain::plan_parts::types::StepId(0));
     *edges = Source::Relation(Relation::SyntaxChild);

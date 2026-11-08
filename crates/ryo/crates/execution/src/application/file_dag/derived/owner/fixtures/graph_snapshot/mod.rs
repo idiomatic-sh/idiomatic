@@ -79,7 +79,7 @@ impl GraphFixture {
                 .iter()
                 .map(|entry| match &entry._plan.request {
                     ViewRequest::Equality { columns } => columns.clone(),
-                    _ => unreachable!("filtered equality entry"),
+                    _ => panic!("filtered equality entry"),
                 })
                 .collect(),
             required_bytes: s.required_bytes.0,

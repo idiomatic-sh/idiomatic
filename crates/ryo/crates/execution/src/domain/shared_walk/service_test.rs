@@ -167,7 +167,7 @@ fn distinct_single_consumer_predicates_share_the_walk() {
 fn with_invalid(name: &str, first: bool) -> Plan {
     let mut each = plan(name);
     let Operation::Select { comparisons, .. } = &mut each.steps[0].operation else {
-        unreachable!()
+        panic!("the fixture builds a Select")
     };
     let at = if first { 0 } else { comparisons.len() };
     comparisons.insert(
@@ -212,7 +212,7 @@ fn memo_builds_an_erroring_predicate_once_and_reuses_hits() {
 pub(crate) fn add_pattern(plans: &mut [Plan; 4], parameter: u32) {
     for rule in [0, 2] {
         let Operation::Select { comparisons, .. } = &mut plans[rule].steps[0].operation else {
-            unreachable!();
+            panic!("the fixture builds a Select");
         };
         comparisons.push(PlanComparison {
             test: Test::Matches,
@@ -243,7 +243,7 @@ fn different_kind_errors_keep_the_first_source_row() {
     let mut plans = plans();
     for rule in [0, 2] {
         let Operation::Select { comparisons, .. } = &mut plans[rule].steps[0].operation else {
-            unreachable!();
+            panic!("the fixture builds a Select");
         };
         *comparisons = vec![
             PlanComparison {

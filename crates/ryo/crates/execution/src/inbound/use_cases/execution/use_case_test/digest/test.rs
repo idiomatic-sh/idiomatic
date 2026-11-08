@@ -75,7 +75,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
                 && output.cells[2] == Cell::Number(Integer(1))
                 && output.cells[5] == Cell::Number(Integer(2)),
         )),
-        _ => unreachable!("missing input or column must fail before publishing groups"),
+        _ => panic!("missing input or column must fail before publishing groups"),
     }
 }
 const CASES: &[Case<Input, Value, Failure>] = &[

@@ -321,7 +321,7 @@ fn malformed_provider_is_normalized_by_the_real_owner_before_joining_its_complet
         &mut steps,
     );
     let Operation::Select { kept, .. } = &steps[1].operation else {
-        unreachable!()
+        panic!("the fixture builds a Select")
     };
     right.columns[kept[1].0 as usize].0.truncate(2);
     let mut join = operation(&[0], &[0], &[(Side::Right, 1)], vec![], &[]);
@@ -331,7 +331,7 @@ fn malformed_provider_is_normalized_by_the_real_owner_before_joining_its_complet
         ..
     } = &mut join
     else {
-        unreachable!()
+        panic!("the fixture builds a Join")
     };
     *from = l;
     *other = r;

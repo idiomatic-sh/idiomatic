@@ -64,7 +64,7 @@ fn exercise(refusal: Refusal, fused: bool) {
     plan.emit.step = StepId(2);
     if fused {
         let Operation::Select { kept, .. } = &mut plan.steps[2].operation else {
-            unreachable!()
+            panic!("the fixture builds a Select")
         };
         kept.clear(); // All four columns still pass through; this is the actual fusible shape.
     }

@@ -200,7 +200,7 @@ fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
                 "the real provider's original refusal must survive consumer cleanup"
             ),
             FinalConsumer::SkippedAtStart => {
-                unreachable!("upfront exclusion is handled before execution")
+                panic!("upfront exclusion is handled before execution")
             }
             FinalConsumer::Completes => {
                 let RootOutcome::Complete(second) = second.emit else {

@@ -279,7 +279,7 @@ pub(crate) fn observe(omit: bool) -> Coverage {
                 publication,
             } = &file.partials
             else {
-                unreachable!()
+                panic!("the fixture opens a file scope")
             };
             let completion =
                 CompletionPolicy::file_inputs(RuleIndex(0), file.file, evaluation, publication);
