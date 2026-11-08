@@ -143,7 +143,7 @@ fn unknown_index() -> Result<Value, Failure> {
         "only".to_owned(),
         QueryBundle::from(QueryText("".into())),
     )];
-    match CompileRulesUseCaseImpl::named(
+    match crate::application::rule_compilation::service::named(
         &rules,
         ryo_execution_domain::domain::kind_check::types::RulePlace(1),
     ) {

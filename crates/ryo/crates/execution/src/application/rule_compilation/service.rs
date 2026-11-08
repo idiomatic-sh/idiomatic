@@ -283,3 +283,14 @@ pub(crate) fn observed(
 ) {
     super::observing::compiled(rules, plans, bindings, hosted, digest);
 }
+
+/// The rule at `place` of the request, or the refusal for a place the compiler reported past its rules.
+pub(crate) fn named(
+    rules: &[RuleSpec],
+    place: ryo_execution_domain::domain::kind_check::types::RulePlace,
+) -> Result<&RuleSpec, RuleCompilationError> {
+    rules.get(place.0).ok_or(RuleCompilationError::UnknownRuleIndex {
+        index: place.0,
+        rules: rules.len(),
+    })
+}
