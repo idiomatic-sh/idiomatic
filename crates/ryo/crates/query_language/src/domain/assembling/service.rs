@@ -8,9 +8,7 @@ use ryo_relations::domain::terms::types::Vocabulary;
 
 use crate::domain::calling::service::lower_call;
 use crate::domain::capture_pushing::service::{push_below_captures, push_below_captures_roots};
-use crate::domain::cutting::service::{
-    cut_relations, cut_relations_roots, reduced_frontier, reduced_frontier_roots,
-};
+use crate::domain::cutting::service::{cut_handover, cut_handover_roots};
 use crate::domain::fusing::service::{fuse_keyed_reaches, fuse_selects};
 use crate::domain::inlining::service::inline_views;
 use crate::domain::lowering::errors::LoweringError;
@@ -21,6 +19,7 @@ use crate::domain::pushing::service::{push_lookups, push_lookups_roots};
 use crate::domain::resolving::service::{position, read_source, step_named, step_of};
 use crate::domain::rewriting::types::Planned;
 use crate::domain::selecting::service::lower_select;
+use crate::domain::selection_pushing::service::{push_selections, push_selections_roots};
 use crate::domain::syntax::constants::{parameter_kind_named, relation_cell_kind_named};
 use crate::domain::walking::service::{fuse_descents, fuse_neighbours};
 use ryo_values::domain::hosted::types as hosted;
@@ -168,8 +167,8 @@ pub(crate) fn lower_with_observations(
         );
         let Planned { steps, emitted } = without_unused(pushed, named);
         let Planned { steps, emitted } = push_below_captures(steps, emitted);
-        let Planned { steps, emitted } = reduced_frontier(steps, emitted);
-        let Planned { steps, emitted } = cut_relations(steps, emitted);
+        let Planned { steps, emitted } = push_selections(steps, emitted);
+        let Planned { steps, emitted } = cut_handover(steps, emitted);
         // Full-scan/exported consumers remain ordinary; pruning removes only fully replaced closure chains.
         let Planned { steps, emitted } =
             without_unused(fuse_keyed_reaches(steps, &[emitted]), emitted);
@@ -184,8 +183,8 @@ pub(crate) fn lower_with_observations(
         let steps = push_lookups_roots(steps, &mut roots);
         let steps = without_unused_roots(steps, &mut roots);
         let steps = push_below_captures_roots(steps, &mut roots);
-        let steps = reduced_frontier_roots(steps, &mut roots);
-        let steps = cut_relations_roots(steps, &mut roots);
+        let steps = push_selections_roots(steps, &mut roots);
+        let steps = cut_handover_roots(steps, &mut roots);
         let steps = fuse_keyed_reaches(steps, &roots);
         let steps = without_unused_roots(steps, &mut roots);
         let observations = observed

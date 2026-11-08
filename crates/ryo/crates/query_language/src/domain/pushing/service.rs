@@ -159,7 +159,7 @@ fn kept_columns(
 }
 
 /// Where `column` is among `columns`, after `offset` columns before them.
-fn index_among(
+pub(crate) fn index_among(
     columns: &[ColumnIndex],
     column: ColumnIndex,
     offset: ColumnPrefixLength,

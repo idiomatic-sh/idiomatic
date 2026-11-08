@@ -61,8 +61,17 @@ pub(crate) fn inputs_of(operation: &plans::Operation) -> Vec<parts::Input> {
 pub(crate) fn keyed(fields: &[PlannedColumn]) -> FileOrigin {
     if fields
         .iter()
-        .any(|field| matches!(field.kind, CellKind::File | CellKind::Node | CellKind::Span))
+        .any(|field| stated_by(field.kind) == FileOrigin::Stated)
     {
+        FileOrigin::Stated
+    } else {
+        FileOrigin::Unstated
+    }
+}
+
+/// Whether a value of this kind says which file it is of: a file, a node, or a span, which is a place in one file.
+pub(crate) fn stated_by(kind: CellKind) -> FileOrigin {
+    if matches!(kind, CellKind::File | CellKind::Node | CellKind::Span) {
         FileOrigin::Stated
     } else {
         FileOrigin::Unstated
@@ -71,12 +80,10 @@ pub(crate) fn keyed(fields: &[PlannedColumn]) -> FileOrigin {
 
 /// Whether one of these columns of the fields is a file, a node or a span.
 pub(crate) fn keyed_on(fields: &[PlannedColumn], columns: &[parts::ColumnIndex]) -> FileOrigin {
-    if columns.iter().any(|index| {
-        matches!(
-            column_of(fields, *index).kind,
-            CellKind::File | CellKind::Node | CellKind::Span
-        )
-    }) {
+    if columns
+        .iter()
+        .any(|index| stated_by(column_of(fields, *index).kind) == FileOrigin::Stated)
+    {
         FileOrigin::Stated
     } else {
         FileOrigin::Unstated
@@ -190,6 +197,27 @@ pub(crate) fn frontier_of(steps: &[plans::PlanStep]) -> Vec<parts::Input> {
         }
     }
     frontier
+}
+
+/// Where the rows of `input` of a planned step are made: a relation's in each file, unless the project's manifests make it; a step's
+/// where it runs; none for a bound input, whose scope the plan does not hold.
+pub(crate) fn planned_scope(
+    steps: &[plans::PlanStep],
+    input: parts::Input,
+) -> Option<ryo_values::domain::plan_parts::types::StepScope> {
+    match input {
+        parts::Input::Relation(relation) => {
+            Some(if provenance_of(relation) == Provenance::Manifests {
+                ryo_values::domain::plan_parts::types::StepScope::CrossFile
+            } else {
+                ryo_values::domain::plan_parts::types::StepScope::PerFile
+            })
+        }
+        parts::Input::BoundObservation(_) => None,
+        parts::Input::Step(id) => {
+            ryo_values::domain::plan_parts::service::step_in(steps, id).map(|step| step.scope)
+        }
+    }
 }
 
 /// Where an input's rows are produced, and the columns they have: a relation's rows are one
