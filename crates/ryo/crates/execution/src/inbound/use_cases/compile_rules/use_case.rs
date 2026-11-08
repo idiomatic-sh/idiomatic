@@ -24,6 +24,18 @@ impl std::fmt::Debug for CompileRulesUseCaseImpl {
 }
 
 impl CompileRulesUseCaseImpl {
+    /// The rule at `place` of the request, or the refusal for a place the compiler reported past its rules.
+    pub(super) fn named(
+        rules: &[ryo_values::domain::rule_requests::types::RuleSpec],
+        place: ryo_execution_domain::domain::kind_check::types::RulePlace,
+    ) -> Result<&ryo_values::domain::rule_requests::types::RuleSpec, RuleCompilationError> {
+        rules
+            .get(place.0)
+            .ok_or(RuleCompilationError::UnknownRuleIndex {
+                index: place.0,
+                rules: rules.len(),
+            })
+    }
     /// A use case over the query compiler and the digest, with a plan cache of its own.
     #[must_use]
     pub fn new(query_language: Arc<dyn QueryLanguagePort>, digest: Arc<dyn DigestPort>) -> Self {
@@ -77,7 +89,7 @@ impl CompileRulesUseCase for CompileRulesUseCaseImpl {
             PatternMatcher(&matching),
         ) {
             Some(unknown) => {
-                let rule = named(rules, unknown.rule.0)?;
+                let rule = Self::named(rules, unknown.rule)?;
                 Err(RuleCompilationError::UnknownKind {
                     id: rule.id.clone(),
                     reason: unknown_message(&unknown.word, vocabularies).message,
@@ -86,17 +98,4 @@ impl CompileRulesUseCase for CompileRulesUseCaseImpl {
             None => Ok(CompiledRules { inner }),
         }
     }
-}
-
-/// The rule at `index` of the request, or the refusal for an index the compiler reported past its rules.
-pub(super) fn named(
-    rules: &[ryo_values::domain::rule_requests::types::RuleSpec],
-    index: usize,
-) -> Result<&ryo_values::domain::rule_requests::types::RuleSpec, RuleCompilationError> {
-    rules
-        .get(index)
-        .ok_or(RuleCompilationError::UnknownRuleIndex {
-            index,
-            rules: rules.len(),
-        })
 }

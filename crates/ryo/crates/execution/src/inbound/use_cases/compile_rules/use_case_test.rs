@@ -143,7 +143,10 @@ fn unknown_index() -> Result<Value, Failure> {
         "only".to_owned(),
         QueryBundle::from(QueryText("".into())),
     )];
-    match super::use_case::named(&rules, 1) {
+    match CompileRulesUseCaseImpl::named(
+        &rules,
+        ryo_execution_domain::domain::kind_check::types::RulePlace(1),
+    ) {
         Err(RuleCompilationError::UnknownRuleIndex { index, rules }) => Ok([index, rules]),
         Err(other) => Err(other),
         Ok(found) => Ok([0, usize::from(found.id.0.is_empty())]),
