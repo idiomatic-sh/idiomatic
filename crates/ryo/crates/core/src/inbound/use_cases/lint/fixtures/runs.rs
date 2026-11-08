@@ -142,9 +142,7 @@ pub(super) fn use_case_over(
             Arc::new(ryo_execution::outbound::operators::factory::use_case(
                 ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
             )),
-            Arc::new(ryo_execution_store::outbound::derived::factory::use_case(
-                ryo_execution_store::outbound::derived::factory::semantics(),
-            )),
+            ryo_execution::derived(),
             scheduler,
             crate::outbound::scheduler::types::WorkerCount(1),
             rows,

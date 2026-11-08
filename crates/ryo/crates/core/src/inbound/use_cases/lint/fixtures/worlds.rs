@@ -137,9 +137,7 @@ pub(crate) fn scheduled_world_with_query_resources(
             query_language,
             Arc::clone(&analysis_memory),
             operators,
-            Arc::new(ryo_execution_store::outbound::derived::factory::use_case(
-                ryo_execution_store::outbound::derived::factory::semantics(),
-            )),
+            ryo_execution::derived(),
             scheduler,
             workers,
             ports,

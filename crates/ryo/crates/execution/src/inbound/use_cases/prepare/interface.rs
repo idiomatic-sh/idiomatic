@@ -13,6 +13,8 @@ pub use crate::application::rule_compilation::service::QueryCompilation;
 pub use crate::application::rule_compilation::types::PreparedRuleIdentities;
 // Canonical inbound signature vocabulary from private pure concepts.
 pub use ryo_execution_domain::domain::prepared_request::types::ObservationIdentity;
+// The derived capability a prepared program holds; an edge hands it to the use case, so callers outside the engine crates never name the store.
+pub use ryo_execution_store::application::file_dag::derived::owner::types::DerivedAccess;
 
 /// What `prepare` offers its callers.
 pub trait PrepareUseCase {

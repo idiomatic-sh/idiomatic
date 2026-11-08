@@ -42,7 +42,7 @@ use ryo_execution::inbound::use_cases::execution::interface::Counting;
 use ryo_execution::inbound::use_cases::metadata::interface::{MetadataUseCase as _, Needs};
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase as _;
 use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
-use ryo_execution_store::outbound::derived::interface::DerivedPort;
+use ryo_execution::inbound::use_cases::prepare::interface::DerivedAccess;
 use ryo_execution::outbound::digest::interface::DigestPort;
 use ryo_execution::outbound::facts::interface::FactsPort;
 use ryo_execution::outbound::matching::interface::MatchingPort;
@@ -83,7 +83,7 @@ pub struct LintUseCaseImpl {
     memory: Arc<dyn MemoryPort>,
     /// Pure primitive meanings supplied by the composition edge.
     operators: Arc<dyn OperatorsPort>,
-    derived: Arc<dyn DerivedPort>,
+    derived: DerivedAccess,
     /// Takes the findings the rules write.
     rows: Arc<dyn RowSinkPort>,
     /// Digests the rules and files whose results the store keeps between runs.
@@ -117,7 +117,7 @@ impl LintUseCaseImpl {
         query_language: Arc<dyn QueryLanguagePort>,
         memory: Arc<dyn MemoryPort>,
         operators: Arc<dyn OperatorsPort>,
-        derived: Arc<dyn DerivedPort>,
+        derived: impl Into<DerivedAccess>,
         scheduler: Arc<dyn SchedulerPort>,
         workers: WorkerCount,
         rows: Arc<dyn RowSinkPort>,
@@ -150,7 +150,7 @@ impl LintUseCaseImpl {
             compilation: Compilation::new(query_language),
             memory,
             operators,
-            derived,
+            derived: derived.into(),
             rows,
             digest,
             store,
@@ -253,7 +253,7 @@ impl LintUseCase for LintUseCaseImpl {
         let unknown = self.language.unknown_reasons();
         let execution = Execution::new(
             Arc::clone(&self.operators),
-            Arc::clone(&self.derived),
+            self.derived.clone(),
             Arc::clone(&self.digest),
         );
         let digests: Vec<_> = stored_rules.iter().map(|rule| rule.digest).collect();
