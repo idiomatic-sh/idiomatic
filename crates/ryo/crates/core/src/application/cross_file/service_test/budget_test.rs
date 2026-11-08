@@ -1,7 +1,7 @@
 //! The memory budget stops a later population, and a refused frontier keeps its compiled source.
 use ryo_execution_runtime::outbound::operators::interface::OperatorsPort as _;
 use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
-use super::batch_test::evaluate_prepared;
+use super::batch_test::evaluate_rules;
 use crate::application::cross_file::fixtures::ProjectCalls;
 use crate::application::cross_file::fixtures::counting_plan;
 use crate::application::cross_file::fixtures::crossing;
@@ -68,34 +68,28 @@ pub(super) fn project_budget_stops_a_later_population_after_actual_work_and_rele
         for cell in &mut different[0].1.cells {
             *cell = Cell::Node(node_id(FileId(0), Position(9)));
         }
-        let mut scopes = Vec::new();
-        let mut frontiers = Vec::new();
-        let mut todos = Vec::new();
-        for rule in order {
-            let source = if rule == 0 { &original } else { &different };
-            let (scope, frontier) = prepared_in(
-                &rules,
-                &phase,
-                RuleIndex(rule),
-                &rules.covered,
-                source,
-                &mut symbols,
-            )
-            .unwrap();
-            scopes.push(scope);
-            frontiers.push(frontier);
-            todos.push(Todo {
+        let todos = order
+            .iter()
+            .map(|&rule| Todo {
                 rule: RuleIndex(rule),
                 id: rules.ids[rule].clone(),
-            });
-        }
-        let guarded = evaluate_prepared(&crossing(&rules), &todos, scopes, frontiers, &phase, &mut symbols, |rule| {
-            Ok(crate::domain::budget::service::within(
-                memory.resident_bytes()?,
-                memory.budget()?,
-                || vec![rules.ids[rule.0].clone()],
-            )?)
-        });
+            })
+            .collect::<Vec<_>>();
+        // The budget's own check is the phase's guard: the production refusal path of the phase call.
+        let guarded = evaluate_rules(
+            &rules,
+            &phase,
+            &todos,
+            &[(RuleIndex(0), &original), (RuleIndex(1), &different)],
+            &mut symbols,
+            |rule| {
+                Ok(crate::domain::budget::service::within(
+                    memory.resident_bytes()?,
+                    memory.budget()?,
+                    || vec![rules.ids[rule.0].clone()],
+                )?)
+            },
+        );
         let ProjectBatch::Refused { completed, error } = guarded else {
             panic!("later cohort must be refused")
         };
@@ -256,7 +250,7 @@ pub(super) fn ordinary_phase_keeps_each_refusal_with_its_occurrence_in_declarati
         vec![plan.clone(), plan],
         Arc::new(ProjectCalls::default()),
     );
-    let (facts, project) = kept_facts(&rules, RuleIndex(0), &frontier_rows());
+    let (facts, project) = kept_facts(&rules, &[(RuleIndex(0), &frontier_rows())]);
     let project_symbols = Symbols::default();
     // Rule 0 twice, then rule 1, whose frontier has no first bucket.
     let todo = [

@@ -1,12 +1,10 @@
 //! A set of project roots prepares once and delivers in order.
 use super::batch_test::assert_count_findings;
 use super::batch_test::completed_batch;
-use super::batch_test::evaluate_prepared;
+use super::batch_test::evaluate_rules;
 use crate::application::cross_file::fixtures::ProjectCalls;
 use crate::application::cross_file::fixtures::counting_plan;
-use crate::application::cross_file::fixtures::crossing;
 use crate::application::cross_file::fixtures::frontier_rows;
-use crate::application::cross_file::fixtures::prepared_in;
 use crate::application::cross_file::fixtures::todo;
 use crate::application::cross_file::fixtures::world_with;
 use crate::application::cross_file::fixtures::world_with_applicability;
@@ -30,35 +28,16 @@ pub(super) fn project_root_set_prepares_shared_publications_once_before_ordered_
         let rules = world_with(vec![plan.clone(), plan], calls.clone());
         let phase = rules.request.project_phase().unwrap();
         let mut symbols = Symbols::default();
-        let mut scopes = Vec::new();
-        let mut frontiers = Vec::new();
-        let mut todos = Vec::new();
-        for rule in order {
-            let (scope, frontier) = prepared_in(
-                &rules,
-                &phase,
-                RuleIndex(rule),
-                &rules.covered,
-                &frontier_rows(),
-                &mut symbols,
-            )
-            .unwrap();
-            scopes.push(scope);
-            frontiers.push(frontier);
-            todos.push(Todo {
+        let todos = order
+            .iter()
+            .map(|&rule| Todo {
                 rule: RuleIndex(rule),
                 id: rules.ids[rule].clone(),
-            });
-        }
-        let results = completed_batch(evaluate_prepared(
-            &crossing(&rules),
-            &todos,
-            scopes,
-            frontiers,
-            &phase,
-            &mut symbols,
-            |_| Ok(()),
-        ));
+            })
+            .collect::<Vec<_>>();
+        let rows = frontier_rows();
+        let kept: [(RuleIndex, &[_]); 2] = [(RuleIndex(0), &rows), (RuleIndex(1), &rows)];
+        let results = completed_batch(evaluate_rules(&rules, &phase, &todos, &kept, &mut symbols, |_| Ok(())));
         assert_eq!(results.len(), todos.len());
         let mut previous = Vec::new();
         for (todo, result) in todos.iter().zip(results) {
@@ -78,30 +57,7 @@ pub(super) fn project_root_set_prepares_shared_publications_once_before_ordered_
         assert_eq!(calls.aggregates.load(Ordering::SeqCst), 2);
         assert_eq!(phase.state_counts().slots.0, 1);
         let before_replay = phase.readiness_counts();
-        let mut again_scopes = Vec::new();
-        let mut again_frontiers = Vec::new();
-        for todo in &todos {
-            let (scope, frontier) = prepared_in(
-                &rules,
-                &phase,
-                todo.rule,
-                &rules.covered,
-                &frontier_rows(),
-                &mut symbols,
-            )
-            .unwrap();
-            again_scopes.push(scope);
-            again_frontiers.push(frontier);
-        }
-        let repeated = completed_batch(evaluate_prepared(
-            &crossing(&rules),
-            &todos,
-            again_scopes,
-            again_frontiers,
-            &phase,
-            &mut symbols,
-            |_| Ok(()),
-        ));
+        let repeated = completed_batch(evaluate_rules(&rules, &phase, &todos, &kept, &mut symbols, |_| Ok(())));
         assert_eq!(repeated.len(), previous.len());
         for (result, previous) in repeated.into_iter().zip(&previous) {
             assert_eq!(result.unwrap().crossed.rendered.as_ref(), Some(previous));
@@ -151,36 +107,15 @@ pub(super) fn project_root_set_preserves_distinct_actual_population_policy_in_bo
         let phase = rules.request.project_phase().unwrap();
         let mut symbols = Symbols::default();
         let rows = frontier_rows();
-        let mut scopes = Vec::new();
-        let mut frontiers = Vec::new();
-        let mut todos = Vec::new();
-        for rule in order {
-            let source = if rule == 0 { &rows[..1] } else { &rows[..] };
-            let (scope, frontier) = prepared_in(
-                &rules,
-                &phase,
-                RuleIndex(rule),
-                &rules.covered,
-                source,
-                &mut symbols,
-            )
-            .unwrap();
-            scopes.push(scope);
-            frontiers.push(frontier);
-            todos.push(Todo {
+        let todos = order
+            .iter()
+            .map(|&rule| Todo {
                 rule: RuleIndex(rule),
                 id: rules.ids[rule].clone(),
-            });
-        }
-        let results = completed_batch(evaluate_prepared(
-            &crossing(&rules),
-            &todos,
-            scopes,
-            frontiers,
-            &phase,
-            &mut symbols,
-            |_| Ok(()),
-        ));
+            })
+            .collect::<Vec<_>>();
+        let kept: [(RuleIndex, &[_]); 2] = [(RuleIndex(0), &rows[..1]), (RuleIndex(1), &rows[..])];
+        let results = completed_batch(evaluate_rules(&rules, &phase, &todos, &kept, &mut symbols, |_| Ok(())));
         assert_eq!(results.len(), order.len());
         for (rule, result) in order.into_iter().zip(results) {
             let result = result.unwrap().crossed;
