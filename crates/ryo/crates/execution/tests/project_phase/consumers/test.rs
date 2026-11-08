@@ -1,13 +1,10 @@
 //! Same producer proof, distinct resolved input slots, one project batch protocol.
-use ryo_execution_runtime::application::file_dag::program::project_phase::types::ProjectTask;
-use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::ProjectBatch;
 use ryo_execution_runtime::application::file_dag::observations::types::AdmittedOutput;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use super::super::*;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationExecution;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationPublication;
-use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution;
 use ryo_values::domain::{
     observations::types::*,
     plan_parts::types::ObservationBindingId,
@@ -96,54 +93,39 @@ fn two_project_consumers_bind_their_own_slots_to_the_same_producer_in_both_order
         let mut stage = request.observations(&mut arenas).unwrap();
         let mut symbols = Symbols::default();
         let partials = Partials::default();
-        let producer_scope = stage
-            .project_scope(
-                RuleIndex(0),
-                &corpus,
-                &covered,
-                &[],
-                &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
-                &ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(),
-            )
-            .unwrap();
         let slot = stage.reserve(RuleIndex(0)).unwrap();
-        let ordinary = request
-            .prepare_frontiers(
-                FrontierRequest {
-                    scope: &producer_scope,
+        let first = [Bucket(0), Bucket(1), Bucket(2)];
+        let inapplicable = vec![ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(); 3];
+        let mut produced = crate::boundary_fixture::project_root(
+            &stage,
+            PhaseOccurrences {
+                occurrences: &[PhaseOccurrence {
                     rule: RuleIndex(0),
-                    first: Bucket(0),
-                    facts: &stored,
-                    project: &project,
-                    project_symbols: &project_symbols,
-                    demand: FrontierDemand::Diagnostic,
-                },
-                &mut symbols,
-            )
-            .unwrap();
-        let ProjectBatch::Complete(mut produced) = stage.evaluate(
-            vec![ProjectTask {
-                rule: RuleIndex(0),
-                demand: RuleDemand {
-                    emit: EmitDemand::Disabled,
-                    observations: ObservationDemand::Required,
-                },
-                input: ProjectInput {
-                    scope: &producer_scope,
-                    evaluation: &partials,
-                    publication: &partials,
-                    ordinary,
                     bound: &[],
-                    arenas: stage.arenas(),
-                },
-            }],
+                    slot,
+                    demand: FrontierDemand::Diagnostic,
+                }],
+                first: &first,
+                corpus: &corpus,
+                covered: &covered,
+                skipped: &[],
+                inapplicable: &inapplicable,
+                facts: &stored,
+                project: &project,
+                project_symbols: &project_symbols,
+                arenas: stage.arenas(),
+            },
+            &partials,
+            &partials,
             &mut symbols,
-            |_| Ok::<(), std::convert::Infallible>(()),
-        ) else {
-            panic!("producer guard cannot refuse")
-        };
-        let mut produced = produced.pop().unwrap().unwrap();
-        assert!(matches!(produced.emit, RootOutcome::NoQuery));
+        )
+        .unwrap();
+        // The phase call always demands the emit; that an undemanded emit answers `NoQuery` is proved in the runtime by
+        // `project_phase::service_test::a_root_whose_emit_is_not_demanded_answers_no_query`.
+        assert!(
+            !matches!(produced.emit, RootOutcome::Failed(_) | RootOutcome::Unknown(_)),
+            "the phase call evaluates the producer's own emit beside its publication"
+        );
         let ProjectOutputOutcome {
             output,
             outcome: root,
@@ -195,57 +177,38 @@ fn two_project_consumers_bind_their_own_slots_to_the_same_producer_in_both_order
             .unwrap();
         stage.finish(RuleIndex(0)).unwrap();
         let reads = project.reads.load(Ordering::SeqCst);
-        let mut scopes = vec![];
-        let mut frontiers = vec![];
-        let mut bindings = vec![];
-        for rule in order {
-            let scope = stage
-                .project_scope(RuleIndex(rule), &corpus, &covered, &[], &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(), &ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default())
-                .unwrap();
-            let ordinary = request
-                .prepare_frontiers(
-                    FrontierRequest {
-                        scope: &scope,
-                        rule: RuleIndex(rule),
-                        first: Bucket(u32::try_from(rule).unwrap()),
-                        facts: &stored,
-                        project: &project,
-                        project_symbols: &project_symbols,
-                        demand: FrontierDemand::Diagnostic,
-                    },
-                    &mut symbols,
-                )
-                .unwrap();
-            bindings.push(stage.bindings(RuleIndex(rule)).unwrap());
-            scopes.push(scope);
-            frontiers.push(ordinary);
-        }
-        let tasks = order
-            .into_iter()
-            .zip(&scopes)
-            .zip(frontiers)
+        let bindings: Vec<_> = order
+            .iter()
+            .map(|rule| stage.bindings(RuleIndex(*rule)).unwrap())
+            .collect();
+        let occurrences: Vec<PhaseOccurrence<'_>> = order
+            .iter()
             .zip(&bindings)
-            .map(|(((rule, scope), ordinary), bound)| ProjectTask {
-                rule: RuleIndex(rule),
-                demand: RuleDemand {
-                    emit: EmitDemand::Enabled,
-                    observations: ObservationDemand::NotRequired,
-                },
-                input: ProjectInput {
-                    scope,
-                    evaluation: &partials,
-                    publication: &partials,
-                    ordinary,
-                    bound,
-                    arenas: stage.arenas(),
-                },
+            .map(|(rule, bound)| PhaseOccurrence {
+                rule: RuleIndex(*rule),
+                bound,
+                slot: PublicationSlot::Unused,
+                demand: FrontierDemand::Diagnostic,
             })
             .collect();
-        let ProjectBatch::Complete(results) = stage.evaluate(tasks, &mut symbols, |_| {
-            Ok::<(), std::convert::Infallible>(())
-        }) else {
-            panic!("consumer guard cannot refuse")
-        };
+        let results = crate::boundary_fixture::project_roots(
+            &stage,
+            PhaseOccurrences {
+                occurrences: &occurrences,
+                first: &first,
+                corpus: &corpus,
+                covered: &covered,
+                skipped: &[],
+                inapplicable: &inapplicable,
+                facts: &stored,
+                project: &project,
+                project_symbols: &project_symbols,
+                arenas: stage.arenas(),
+            },
+            &partials,
+            &partials,
+            &mut symbols,
+        );
         assert_eq!(results.len(), 2);
         for result in results {
             let result = result.unwrap();
@@ -262,9 +225,8 @@ fn two_project_consumers_bind_their_own_slots_to_the_same_producer_in_both_order
             "both consumers reuse the same admitted producer"
         );
         assert_eq!(stored.reads.load(Ordering::SeqCst), 0);
+        drop(occurrences);
         drop(bindings);
-        drop(scopes);
-        drop(producer_scope);
         stage.finish(RuleIndex(1)).unwrap();
         stage.finish(RuleIndex(2)).unwrap();
         stage

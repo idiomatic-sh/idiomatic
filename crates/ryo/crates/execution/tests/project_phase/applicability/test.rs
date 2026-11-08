@@ -208,25 +208,20 @@ fn exercise(case: Case) {
         skipped.push(skipped[0].clone());
     }
     let phase = request.project_phase().unwrap();
+    let inapplicable = [ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles(
+        if matches!(case, Case::MissingWhileAnotherFileIsInapplicable) {
+            vec![FileId(0)]
+        } else {
+            Vec::new()
+        },
+    )];
+    let refused = [ryo_execution::inbound::use_cases::execution::interface::RefusedFiles(match case {
+        Case::UndeterminedSyntax => vec![FileId(1)],
+        Case::RefusedFileWithAFrame => vec![FileId(0)],
+        _ => Vec::new(),
+    })];
     let scope = phase
-        .project_scope(
-            RuleIndex(0),
-            &corpus,
-            &[],
-            &skipped,
-            &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles(
-                if matches!(case, Case::MissingWhileAnotherFileIsInapplicable) {
-                    vec![FileId(0)]
-                } else {
-                    Vec::new()
-                },
-            ),
-            &ryo_execution::inbound::use_cases::execution::interface::RefusedFiles(match case {
-                Case::UndeterminedSyntax => vec![FileId(1)],
-                Case::RefusedFileWithAFrame => vec![FileId(0)],
-                _ => Vec::new(),
-            }),
-        )
+        .project_scope(RuleIndex(0), &corpus, &[], &skipped, &inapplicable[0], &refused[0])
         .unwrap();
     let project = ProjectFacts::new(Relation::ModuleIdentity);
     let project_symbols = Symbols::default();
@@ -246,20 +241,26 @@ fn exercise(case: Case) {
         assert!(ordinary.is_err(), "invalid transport accepted: {case:?}");
         return;
     }
-    let ordinary = ordinary.expect("explicit rejection or refusal accounts for absent transport");
+    drop(ordinary.expect("explicit rejection or refusal accounts for absent transport"));
+    drop(scope);
     let partials = Partials::default();
     let RootOutcome::Partial { table, affected } = crate::boundary_fixture::project_root(
         &phase,
-        RuleIndex(0),
-        demand(),
-        ProjectInput {
-            scope: &scope,
-            evaluation: &partials,
-            publication: &partials,
-            ordinary,
-            bound: &[],
+        PhaseOccurrences {
+            occurrences: &[ordinary_occurrence(RuleIndex(0))],
+            first: &[Bucket(0)],
+            corpus: &corpus,
+            covered: &[],
+            skipped: &skipped,
+            inapplicable: &inapplicable,
+            refused: &refused,
+            facts: &stored,
+            project: &project,
+            project_symbols: &project_symbols,
             arenas: &[],
         },
+        &partials,
+        &partials,
         &mut symbols,
     )
     .unwrap()
@@ -328,49 +329,29 @@ fn wholly_skipped_frontier_is_unavailable_without_fabricating_a_schema_or_rows()
         reason: SkipReason::SyntaxRejected,
     }];
     let phase = request.project_phase().unwrap();
-    let scope = phase
-        .project_scope(
-            RuleIndex(0),
-            &corpus,
-            &[],
-            &skipped,
-            &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
-            &ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(),
-        )
-        .unwrap();
     let stored = CapturedFacts {
         captures: vec![],
         reads: AtomicUsize::new(0),
     };
     let project = ProjectFacts::new(Relation::ModuleIdentity);
     let project_symbols = Symbols::default();
-    let ordinary = request
-        .prepare_frontiers(
-            FrontierRequest {
-                demand: FrontierDemand::Diagnostic,
-                scope: &scope,
-                rule: RuleIndex(0),
-                first: Bucket(0),
-                facts: &stored,
-                project: &project,
-                project_symbols: &project_symbols,
-            },
-            &mut symbols,
-        )
-        .unwrap();
     let partials = Partials::default();
     let outcome = crate::boundary_fixture::project_root(
         &phase,
-        RuleIndex(0),
-        demand(),
-        ProjectInput {
-            scope: &scope,
-            evaluation: &partials,
-            publication: &partials,
-            ordinary,
-            bound: &[],
+        PhaseOccurrences {
+            occurrences: &[ordinary_occurrence(RuleIndex(0))],
+            first: &[Bucket(0)],
+            corpus: &corpus,
+            covered: &[],
+            skipped: &skipped,
+            inapplicable: &[ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default()],
+            facts: &stored,
+            project: &project,
+            project_symbols: &project_symbols,
             arenas: &[],
         },
+        &partials,
+        &partials,
         &mut symbols,
     );
     assert!(matches!(outcome.unwrap().emit,

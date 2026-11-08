@@ -9,7 +9,6 @@ use crate::application::file_dag::program::observation_stage::interface::Observa
 use crate::application::file_dag::program::observation_stage::types::ObservationStage;
 use crate::application::file_dag::program::project_phase::interface::{ProjectRootExecution, ProjectStage};
 use crate::application::file_dag::program::project_phase::types::PhaseScope;
-use crate::application::file_dag::program::project_phase::types::ProjectTask;
 use crate::application::file_dag::program::project_phase::types::{OccurrenceNumber, PhaseOccurrences, PhasePartials, PhaseStop};
 use crate::application::file_dag::program::rule_outcome::types::ProjectBatch;
 use crate::application::file_dag::program::rule_outcome::types::RuleOutcome;
@@ -28,14 +27,6 @@ use ryo_values::domain::records::types::CrossPublicationTransfer;
 use ryo_values::domain::runs::types::Skipped;
 use ryo_values::domain::stored_facts::types::Bucket;
 impl ProjectRootExecution for ObservationStage<'_> {
-    fn evaluate<E>(
-        &self,
-        tasks: Vec<ProjectTask<'_>>,
-        symbols: &mut Symbols,
-        guard: impl FnMut(RuleIndex) -> Result<(), E>,
-    ) -> ProjectBatch<Result<RuleOutcome<ProjectOutputOutcome>, OperatingError>, E> {
-        self.phase.evaluate(tasks, symbols, guard)
-    }
     fn evaluate_occurrences<H, T, E>(
         &self,
         phase: PhaseOccurrences<'_>,

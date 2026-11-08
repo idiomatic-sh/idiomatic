@@ -94,7 +94,7 @@ impl ExecutionRequest for RequestExecution {
         input: FileInput<'a, 'facts>,
         symbols: &mut Symbols,
     ) -> Result<FileSession<'a, 'facts>, OperatingError> {
-        self.open_session(input, symbols)
+        self.open_session(input, symbols).map(|parts| FileSession { parts })
     }
     fn run_file(
         &self,
@@ -117,12 +117,13 @@ impl ExecutionRequest for RequestExecution {
     }
 }
 impl RequestExecution {
-    /// Opens one file's session: the engine's own route under `run_file`, sealed to the crate.
+    /// Opens one file's session: the engine's own route under `run_file`, sealed to the crate. It answers the session's crate-private
+    /// parts, so widening it to `pub` fails the crate's own build (`private_interfaces`).
     pub(crate) fn open_session<'a, 'facts: 'a>(
         &'a self,
         input: FileInput<'a, 'facts>,
         symbols: &mut Symbols,
-    ) -> Result<FileSession<'a, 'facts>, OperatingError> {
+    ) -> Result<SessionParts<'a, 'facts>, OperatingError> {
         let mut vocabulary = match input.kinds {
             KindSupport::Prepared(vocabulary) => Some(vocabulary),
             KindSupport::Absent => None,
@@ -157,17 +158,16 @@ impl RequestExecution {
             },
             vocabulary,
         )?;
-        Ok(FileSession {
-            parts: SessionParts {
-                inner,
-                program: Arc::clone(&self.program),
-                read: input.read,
-                elements: input.elements,
-                file: input.file,
-            },
+        Ok(SessionParts {
+            inner,
+            program: Arc::clone(&self.program),
+            read: input.read,
+            elements: input.elements,
+            file: input.file,
         })
     }
-    /// Sessions exist only inside `ProjectRootExecution::evaluate`, one per declared root.
+    /// Sessions exist only inside the crate-private `ProjectPhase::evaluate`, one per declared root, which only
+/// `ProjectRootExecution::evaluate_occurrences` calls.
     pub(crate) fn open_project<'a>(
         &'a self,
         input: ProjectInput<'a>,
@@ -250,7 +250,7 @@ fn run_file(
         symbols,
     );
     let mut session = match opened {
-        Ok(session) => session,
+        Ok(parts) => FileSession { parts },
         Err(error) => {
             return FileRules {
                 rules,

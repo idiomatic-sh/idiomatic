@@ -29,19 +29,21 @@ pub struct PhaseScope {
     pub(crate) publication:
         std::rc::Rc<crate::application::file_dag::program::facade_runtime::types::PublicationScope>,
 }
-pub struct ProjectInput<'a> {
-    pub scope: &'a PhaseScope,
-    pub evaluation: &'a Partials,
-    pub publication: &'a Partials,
-    pub ordinary: PreparedFrontiers,
-    pub bound: &'a [BoundInput],
-    pub arenas: &'a [ryo_values::domain::stored_facts::types::ArenaBytes],
+/// The prepared inputs of one project task: crate-private, as the root evaluation that takes them is.
+pub(crate) struct ProjectInput<'a> {
+    pub(crate) scope: &'a PhaseScope,
+    pub(crate) evaluation: &'a Partials,
+    pub(crate) publication: &'a Partials,
+    pub(crate) ordinary: PreparedFrontiers,
+    pub(crate) bound: &'a [BoundInput],
+    pub(crate) arenas: &'a [ryo_values::domain::stored_facts::types::ArenaBytes],
 }
-/// Actual, already prepared inputs and declared roots for one project task.
-pub struct ProjectTask<'a> {
-    pub rule: RuleIndex,
-    pub demand: RuleDemand,
-    pub input: ProjectInput<'a>,
+/// Actual, already prepared inputs and declared roots for one project task: crate-private, so no caller outside the runtime
+/// assembles a root of its own.
+pub(crate) struct ProjectTask<'a> {
+    pub(crate) rule: RuleIndex,
+    pub(crate) demand: RuleDemand,
+    pub(crate) input: ProjectInput<'a>,
 }
 #[derive(Clone, Copy)]
 pub enum FrontierDemand<'a> {

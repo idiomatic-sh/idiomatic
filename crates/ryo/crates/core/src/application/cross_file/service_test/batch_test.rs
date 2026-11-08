@@ -3,23 +3,20 @@ use crate::application::cross_file::completion::types::CrossedWithPublications;
 use crate::application::cross_file::errors::CrossFileError;
 use crate::application::cross_file::fixtures::{World, crossing, kept_facts, service};
 use crate::application::cross_file::service::phase_partials;
-use crate::application::cross_file::types::ProjectCrossing;
 use crate::domain::answering::types::Todo;
-use ryo_execution::inbound::use_cases::execution::interface::EmitDemand;
 use ryo_execution::inbound::use_cases::execution::interface::FrontierDemand;
 use ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles;
-use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
 use ryo_execution::inbound::use_cases::execution::interface::PhaseOccurrence;
 use ryo_execution::inbound::use_cases::execution::interface::PhaseOccurrences;
-use ryo_execution::inbound::use_cases::execution::interface::PhaseScope;
+use ryo_execution::inbound::use_cases::execution::interface::OccurrenceNumber;
+use ryo_execution::inbound::use_cases::execution::interface::PhasePartials;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectOutputOutcome;
+use ryo_execution::inbound::use_cases::execution::interface::RuleOutcome;
+use ryo_execution::inbound::use_cases::metadata::interface::Covered;
 use ryo_execution::inbound::use_cases::execution::interface::PhaseStop;
-use ryo_execution::inbound::use_cases::execution::interface::PreparedFrontiers;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectBatch;
-use ryo_execution::inbound::use_cases::execution::interface::ProjectInput;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution;
-use ryo_execution::inbound::use_cases::execution::interface::ProjectTask;
 use ryo_execution::inbound::use_cases::execution::interface::PublicationSlot;
-use ryo_execution::inbound::use_cases::execution::interface::RuleDemand;
 use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::FileId;
@@ -91,47 +88,111 @@ pub(super) fn evaluate_rules(
     )
 }
 
-/// One occurrence a case prepared over coverage of its own: its one task evaluated through the phase, then completed.
-pub(super) fn evaluate_fixture(
-    crossing: &ProjectCrossing<'_>,
-    todo: &Todo,
-    frontier: PreparedFrontiers,
+/// The one occurrence of `rule` through the production phase call, scoped over `covered` with `rows` kept in the rule's own first
+/// bucket and evaluated with `partials`, its outcome as the engine answered it.
+pub(super) fn evaluate_outcome(
+    world: &World,
+    phase: &impl ProjectRootExecution,
+    rule: RuleIndex,
+    rows: &[(FileId, Table)],
+    covered: &[Covered],
+    mut partials: impl FnMut() -> Result<PhasePartials, CrossFileError>,
     symbols: &mut Symbols,
-    scope: PhaseScope,
+) -> Result<RuleOutcome<ProjectOutputOutcome>, PhaseStop<CrossFileError>> {
+    evaluate_one(world, phase, rule, rows, covered, symbols, |_| partials(), |_, outcome, _, _| Ok(outcome))
+}
+
+/// One occurrence a case scopes over coverage of its own: evaluated through the production phase call, then completed.
+pub(super) fn evaluate_fixture(
+    world: &World,
+    todo: &Todo,
+    rows: &[(FileId, Table)],
+    covered: &[Covered],
+    symbols: &mut Symbols,
     phase: &impl ProjectRootExecution,
 ) -> Result<crate::domain::answering::types::Crossed, RuleRequestsError> {
+    let crossing = crossing(world);
     let refused = |error: CrossFileError| match error {
         CrossFileError::Rules(error) => error,
         error => failed(&todo.id, &error),
     };
-    let partials = phase_partials(crossing, todo).map_err(refused)?;
-    let task = ProjectTask {
-        rule: todo.rule,
-        demand: RuleDemand {
-            emit: EmitDemand::Enabled,
-            observations: ObservationDemand::Required,
-        },
-        input: ProjectInput {
-            scope: &scope,
-            evaluation: &partials.evaluation,
-            publication: &partials.publication,
-            ordinary: frontier,
+    let done = evaluate_one(
+        world,
+        phase,
+        todo.rule,
+        rows,
+        covered,
+        symbols,
+        |_| phase_partials(&crossing, todo),
+        |_, outcome, slot, symbols: &mut Symbols| service().complete_occurrence(&crossing, todo, outcome, slot, symbols),
+    );
+    done.map(|result| result.crossed)
+        .map_err(|stop| refused(crate::application::cross_file::service::stopped(todo, stop)))
+}
+
+/// The one occurrence of `rule` through the production phase call, its outcome handed to `complete`.
+fn evaluate_one<T>(
+    world: &World,
+    phase: &impl ProjectRootExecution,
+    rule: RuleIndex,
+    rows: &[(FileId, Table)],
+    covered: &[Covered],
+    symbols: &mut Symbols,
+    partials: impl FnMut(OccurrenceNumber) -> Result<PhasePartials, CrossFileError>,
+    complete: impl FnMut(OccurrenceNumber, RuleOutcome<ProjectOutputOutcome>, PublicationSlot, &mut Symbols) -> Result<T, CrossFileError>,
+) -> Result<T, PhaseStop<CrossFileError>> {
+    let mut done = evaluate_all(world, phase, &[rule], &[(rule, rows)], covered, symbols, partials, complete);
+    assert_eq!(done.len(), 1, "one declared occurrence has one result");
+    done.pop().expect("the exact result count was checked")
+}
+
+/// The declared occurrences of `rules`, in order, through the production phase call, over one facts port that keeps each rule's
+/// `kept` rows in that rule's own first bucket, scoped over `covered`; each outcome handed to `complete`.
+pub(super) fn evaluate_all<T>(
+    world: &World,
+    phase: &impl ProjectRootExecution,
+    rules: &[RuleIndex],
+    kept: &[(RuleIndex, &[(FileId, Table)])],
+    covered: &[Covered],
+    symbols: &mut Symbols,
+    partials: impl FnMut(OccurrenceNumber) -> Result<PhasePartials, CrossFileError>,
+    complete: impl FnMut(OccurrenceNumber, RuleOutcome<ProjectOutputOutcome>, PublicationSlot, &mut Symbols) -> Result<T, CrossFileError>,
+) -> Vec<Result<T, PhaseStop<CrossFileError>>> {
+    let (facts, project) = kept_facts(world, kept);
+    let first = (0..world.ids.len())
+        .map(|each| Bucket(u32::try_from(each).expect("a fixture rule numbers its bucket")))
+        .collect::<Vec<_>>();
+    let inapplicable = vec![InapplicableFiles::default(); world.ids.len()];
+    let project_symbols = Symbols::default();
+    let occurrences = rules
+        .iter()
+        .map(|rule| PhaseOccurrence {
+            rule: *rule,
             bound: &[],
-            arenas: crossing.arenas,
+            slot: PublicationSlot::Unused,
+            demand: FrontierDemand::Diagnostic,
+        })
+        .collect::<Vec<_>>();
+    let batch = phase.evaluate_occurrences(
+        PhaseOccurrences {
+            occurrences: &occurrences,
+            first: &first,
+            corpus: &world.files,
+            covered,
+            skipped: &world.skipped,
+            inapplicable: &inapplicable,
+            facts: facts.as_ref(),
+            project: project.as_ref(),
+            project_symbols: &project_symbols,
+            arenas: &world.arenas,
         },
-    };
-    let ProjectBatch::Complete(mut outcomes) = phase.evaluate(vec![task], symbols, |_| Ok::<(), CrossFileError>(())) else {
-        panic!("the fixture declares no memory limit")
-    };
-    assert_eq!(outcomes.len(), 1, "one authored task has one result");
-    let outcome = outcomes
-        .pop()
-        .expect("the exact result count was checked")
-        .map_err(|error| failed(&todo.id, &error))?;
-    service()
-        .complete_occurrence(crossing, todo, outcome, PublicationSlot::Unused, symbols)
-        .map(|result| result.crossed)
-        .map_err(refused)
+        symbols,
+        |_| Ok::<(), CrossFileError>(()),
+        partials,
+        |_| Ok(()),
+        complete,
+    );
+    completed_batch(batch)
 }
 
 /// Independent Findings-layout oracle for the authored count emit (no keys or headings).

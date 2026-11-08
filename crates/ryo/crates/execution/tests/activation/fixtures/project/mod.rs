@@ -12,16 +12,11 @@ use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
-use ryo_execution_runtime::application::file_dag::program::project_phase::types::ProjectInput;
-use ryo_execution_runtime::application::file_dag::program::project_phase::types::ProjectTask;
-use ryo_execution_runtime::application::file_dag::program::project_phase::types::FrontierDemand;
-use ryo_execution_runtime::application::file_dag::program::project_phase::types::FrontierRequest;
+use ryo_execution_runtime::application::file_dag::frontiers::types::PublicationSlot;
+use ryo_execution_runtime::application::file_dag::program::project_phase::types::{FrontierDemand, PhaseOccurrence, PhaseOccurrences, PhasePartials};
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::ProjectBatch;
 use ryo_execution::inbound::use_cases::execution::interface::Covered;
-use ryo_execution::inbound::use_cases::execution::interface::EmitDemand;
-use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
 use ryo_execution::inbound::use_cases::execution::interface::Partials;
-use ryo_execution::inbound::use_cases::execution::interface::RuleDemand;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{ColumnsView, FileId, Relation};
@@ -83,53 +78,42 @@ pub(crate) fn measure_project(
         tracing::dispatcher::with_default(&dispatch, || {
             tracing::trace!(target: "ryo::diagnostic::activation", event = "begin");
             let phase = request.project_phase().unwrap();
-            let mut scopes = Vec::with_capacity(demanded.len());
-            let mut frontiers = Vec::with_capacity(demanded.len());
-            for &rule in demanded {
-                let scope = phase
-                    .project_scope(RuleIndex(rule), &corpus, &covered, &[], &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(), &ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default())
-                    .unwrap();
-                frontiers.push(
-                    request
-                        .prepare_frontiers(
-                            FrontierRequest {
-                                demand: FrontierDemand::Diagnostic,
-                                scope: &scope,
-                                rule: RuleIndex(rule),
-                                first: Bucket(0),
-                                facts: &NoFacts,
-                                project: &NoFacts,
-                                project_symbols: &project_symbols,
-                            },
-                            &mut symbols,
-                        )
-                        .unwrap(),
-                );
-                scopes.push(scope);
-            }
-            let tasks = demanded
+            let occurrences: Vec<PhaseOccurrence<'_>> = demanded
                 .iter()
-                .zip(&scopes)
-                .zip(frontiers)
-                .map(|((&rule, scope), ordinary)| ProjectTask {
+                .map(|&rule| PhaseOccurrence {
                     rule: RuleIndex(rule),
-                    demand: RuleDemand {
-                        emit: EmitDemand::Enabled,
-                        observations: ObservationDemand::NotRequired,
-                    },
-                    input: ProjectInput {
-                        scope,
-                        evaluation: &partials,
-                        publication: &partials,
-                        ordinary,
-                        bound: &[],
-                        arenas: &[],
-                    },
+                    bound: &[],
+                    slot: PublicationSlot::Unused,
+                    demand: FrontierDemand::Diagnostic,
                 })
                 .collect();
-            let ProjectBatch::Complete(outcomes) = phase.evaluate(tasks, &mut symbols, |_| {
-                Ok::<(), std::convert::Infallible>(())
-            }) else {
+            let first = vec![Bucket(0); total];
+            let inapplicable =
+                vec![ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(); total];
+            let ProjectBatch::Complete(outcomes) = phase.evaluate_occurrences(
+                PhaseOccurrences {
+                    occurrences: &occurrences,
+                    first: &first,
+                    corpus: &corpus,
+                    covered: &covered,
+                    skipped: &[],
+                    inapplicable: &inapplicable,
+                    facts: &NoFacts,
+                    project: &NoFacts,
+                    project_symbols: &project_symbols,
+                    arenas: &[],
+                },
+                &mut symbols,
+                |_| Ok::<(), std::convert::Infallible>(()),
+                |_| {
+                    Ok(PhasePartials {
+                        evaluation: partials.clone(),
+                        publication: partials.clone(),
+                    })
+                },
+                |_| Ok(()),
+                |_, outcome, _, _| Ok(outcome),
+            ) else {
                 panic!("an infallible guard cannot refuse")
             };
             assert_eq!(outcomes.len(), demanded.len());
@@ -138,7 +122,6 @@ pub(crate) fn measure_project(
             }
             intrusion(total);
             tracing::trace!(target: "ryo::diagnostic::activation", event = "end");
-            drop(scopes);
             phase.finish().unwrap();
         });
         request.finish();

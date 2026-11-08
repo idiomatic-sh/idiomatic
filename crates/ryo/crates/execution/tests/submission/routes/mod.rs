@@ -5,13 +5,9 @@ use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use super::inventory::every_intent;
 use crate::boundary_fixture::{corpus, engine, prepared_rules};
 use crate::file_intents::named_request;
-use crate::project_phase::negative::fixtures::{Entry, Root, submit};
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::FileExecution;
-use ryo_execution::inbound::use_cases::execution::interface::ObservationExecution;
-use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution;
-use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::FileEnd;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
@@ -22,7 +18,6 @@ use ryo_execution_runtime::application::file_dag::program::file_session::types::
 use ryo_execution_runtime::application::file_dag::program::request_execution::types::RequestExecution;
 use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
-use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_language::domain::{elements::types::Elements, symbols::types::Symbols};
 use ryo_relations::domain::relations::types::FileId;
 
@@ -141,49 +136,4 @@ pub(super) fn run_file_route() {
             request.finish();
         }
     }
-}
-/// Project routes: ordinary and named roots; collected delivery and the host guard callback.
-pub(super) fn project_route(entry: Entry) {
-    let engine = engine();
-    let root = |rule| Root {
-        declared: rule,
-        named: rule,
-    };
-    let extra = Root {
-        declared: 0,
-        named: 3,
-    };
-    let complete = submit(&engine, entry, 3, &[root(0), root(1), root(2)], None);
-    assert_eq!(complete.outcomes.len(), 3);
-    let omitted = submit(&engine, entry, 3, &[root(0), root(2)], None);
-    assert_eq!(omitted.outcomes.len(), 2);
-    assert!(!omitted.guarded.contains(&RuleIndex(1)));
-    let collected = submit(&engine, entry, 3, &[root(0), extra, root(2)], None);
-    assert_eq!(collected.outcomes.len(), 3);
-    assert!(matches!(collected.outcomes[1], Err(OperatingError::NotRun)));
-    let callback = submit(
-        &engine,
-        entry,
-        3,
-        &[root(0), extra, root(2)],
-        Some(RuleIndex(3)),
-    );
-    assert!(matches!(
-        callback.refused,
-        Some(OperatingError::WrongBinding)
-    ));
-    assert_eq!(callback.outcomes.len(), 1);
-    // In range, but the session declared rule 0: refused, never run undeclared.
-    let undeclared = Root {
-        declared: 0,
-        named: 1,
-    };
-    let mismatch = submit(&engine, entry, 3, &[root(0), undeclared, root(2)], None);
-    assert_eq!(mismatch.outcomes.len(), 3);
-    assert!(mismatch.outcomes[0].is_ok() && mismatch.outcomes[2].is_ok());
-    assert!(matches!(mismatch.outcomes[1], Err(OperatingError::NotRead)));
-    // A declared root submitted twice keeps one outcome per submission.
-    let twice = submit(&engine, entry, 3, &[root(0), root(0)], None);
-    assert_eq!(twice.outcomes.len(), 2);
-    assert!(twice.outcomes.iter().all(Result::is_ok));
 }

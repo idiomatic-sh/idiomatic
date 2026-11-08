@@ -4,8 +4,8 @@ use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution;
 use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
-use ryo_execution_runtime::application::file_dag::program::project_phase::types::ProjectInput;
-use ryo_execution_runtime::application::file_dag::program::project_phase::types::ProjectTask;
+use ryo_execution_runtime::application::file_dag::program::project_phase::types::{PhaseOccurrence, PhaseOccurrences, PhasePartials, PhaseStop};
+use ryo_execution::inbound::use_cases::execution::interface::Partials;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::ProjectBatch;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RuleOutcome;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome;
@@ -146,37 +146,60 @@ pub(crate) fn named_functions(symbols: &mut Symbols) -> Table {
     table
 }
 
-/// The inputs are declared roots for one rule, evaluated as one batch through the phase or
-/// stage: the only route that opens a project session. Identical roots share one invocation.
+/// The declared occurrences of `phase`, evaluated as one batch through the phase or stage's one phase call, each over the same
+/// partials (`evaluation` for the diagnostic, `publication` for what it publishes): the only route that opens a project session.
+/// Each answer is the occurrence's outcome, or the engine's refusal of it.
 pub(crate) fn project_roots<R: ProjectRootExecution>(
     root: &R,
-    rule: RuleIndex,
-    demand: RuleDemand,
-    inputs: Vec<ProjectInput<'_>>,
+    phase: PhaseOccurrences<'_>,
+    evaluation: &Partials,
+    publication: &Partials,
     symbols: &mut Symbols,
 ) -> Vec<Result<RuleOutcome<ProjectOutputOutcome>, OperatingError>> {
-    let tasks = inputs
-        .into_iter()
-        .map(|input| ProjectTask {
-            rule,
-            demand,
-            input,
+    let batch = root.evaluate_occurrences(
+        phase,
+        symbols,
+        |_| Ok::<(), OperatingError>(()),
+        |_| {
+            Ok(PhasePartials {
+                evaluation: evaluation.clone(),
+                publication: publication.clone(),
+            })
+        },
+        |_| Ok(()),
+        |_, outcome, _, _| Ok(outcome),
+    );
+    let ProjectBatch::Complete(done) = batch else {
+        panic!("the guard admits every occurrence")
+    };
+    done.into_iter()
+        .map(|each| match each {
+            Ok(outcome) => Ok(outcome),
+            Err(PhaseStop::Operating(error)) => Err(error),
+            Err(other) => panic!("the occurrence is scoped and its frontiers prepared: {other:?}"),
         })
-        .collect();
-    match root.evaluate(tasks, symbols, |_| Ok::<(), OperatingError>(())) {
-        ProjectBatch::Complete(done) => done,
-        ProjectBatch::Refused { error, .. } => panic!("the guard admits every root: {error:?}"),
+        .collect()
+}
+/// An ordinary occurrence of `rule`: nothing bound, no slot reserved, its frontiers prepared for the diagnostic.
+pub(crate) fn ordinary_occurrence(rule: RuleIndex) -> PhaseOccurrence<'static> {
+    PhaseOccurrence {
+        rule,
+        bound: &[],
+        slot: ryo_execution_runtime::application::file_dag::frontiers::types::PublicationSlot::Unused,
+        demand: ryo_execution_runtime::application::file_dag::program::project_phase::types::FrontierDemand::Diagnostic,
     }
 }
-/// One declared root through [`project_roots`].
+/// The one occurrence of `phase` through [`project_roots`].
 pub(crate) fn project_root<R: ProjectRootExecution>(
     root: &R,
-    rule: RuleIndex,
-    demand: RuleDemand,
-    input: ProjectInput<'_>,
+    phase: PhaseOccurrences<'_>,
+    evaluation: &Partials,
+    publication: &Partials,
     symbols: &mut Symbols,
 ) -> Result<RuleOutcome<ProjectOutputOutcome>, OperatingError> {
-    project_roots(root, rule, demand, vec![input], symbols).remove(0)
+    let mut done = project_roots(root, phase, evaluation, publication, symbols);
+    assert_eq!(done.len(), 1, "one occurrence has one answer");
+    done.remove(0)
 }
 
 /// The authored plans of a request a control builds, for the control to edit before it prepares.

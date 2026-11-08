@@ -112,7 +112,8 @@ enum BuildSchema {
 #[derive(Debug, Default, Deserialize)]
 struct LibrarySchema {
     /// The library's root file, when not `src/lib.rs`.
-    path: Option<String>,
+    path: Option<String>,    /// The library's crate name, when not the package's.
+    name: Option<String>,
 }
 
 /// A `[[bin]]`, `[[example]]`, `[[test]]` or `[[bench]]`.
@@ -323,6 +324,7 @@ impl TryFrom<ManifestSchema> for Manifest {
             workspace: section(schema.workspace.map(workspace_section)),
             lib: section(schema.lib.map(|lib| LibrarySection {
                 path: text(lib.path, WrittenPath),
+                name: text(lib.name, TargetName),
             })),
             bins: schema.bin.into_iter().map(target).collect(),
             examples: schema.example.into_iter().map(target).collect(),

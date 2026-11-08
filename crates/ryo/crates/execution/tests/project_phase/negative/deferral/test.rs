@@ -5,7 +5,7 @@ use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use super::super::super::source_facts::fixtures::ProjectFacts;
 use super::super::fixtures::NoFileFrontiers;
 use crate::boundary_fixture::{
-    authored_request, corpus, demand, engine, prepared, project_root, source,
+    authored_request, corpus, demand, engine, prepared, source,
 };
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
@@ -15,9 +15,7 @@ use ryo_execution_runtime::application::file_dag::program::file_session::types::
 use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
-use ryo_execution_runtime::application::file_dag::program::project_phase::types::ProjectInput;
-use ryo_execution_runtime::application::file_dag::program::project_phase::types::FrontierDemand;
-use ryo_execution_runtime::application::file_dag::program::project_phase::types::FrontierRequest;
+use ryo_execution_runtime::application::file_dag::program::project_phase::types::PhaseOccurrences;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::Covered;
@@ -52,46 +50,26 @@ fn a_file_emit_defers_at_project_scope_but_its_real_file_failure_is_not_deferred
         partial: vec![],
     }];
     let phase = request.project_phase().unwrap();
-    let scope = phase
-        .project_scope(
-            RuleIndex(0),
-            &corpus,
-            &covered,
-            &[],
-            &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
-            &ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(),
-        )
-        .unwrap();
     let project = ProjectFacts::new(Relation::ModuleIdentity);
     let mut symbols = Symbols::default();
     let project_symbols = Symbols::default();
-    let ordinary = request
-        .prepare_frontiers(
-            FrontierRequest {
-                demand: FrontierDemand::Diagnostic,
-                scope: &scope,
-                rule: RuleIndex(0),
-                first: Bucket(0),
-                facts: &NoFileFrontiers,
-                project: &project,
-                project_symbols: &project_symbols,
-            },
-            &mut symbols,
-        )
-        .unwrap();
     let partials = Partials::default();
-    let result = project_root(
+    let result = crate::boundary_fixture::project_root(
         &phase,
-        RuleIndex(0),
-        demand(),
-        ProjectInput {
-            scope: &scope,
-            evaluation: &partials,
-            publication: &partials,
-            ordinary,
-            bound: &[],
+        PhaseOccurrences {
+            occurrences: &[crate::boundary_fixture::ordinary_occurrence(RuleIndex(0))],
+            first: &[Bucket(0)],
+            corpus: &corpus,
+            covered: &covered,
+            skipped: &[],
+            inapplicable: &[ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default()],
+            facts: &NoFileFrontiers,
+            project: &project,
+            project_symbols: &project_symbols,
             arenas: &[],
         },
+        &partials,
+        &partials,
         &mut symbols,
     )
     .unwrap();
@@ -103,7 +81,6 @@ fn a_file_emit_defers_at_project_scope_but_its_real_file_failure_is_not_deferred
     ));
     assert!(result.counts.fed.iter().all(|count| count.0 == [0; 3]));
     assert_eq!(project.reads.load(Ordering::SeqCst), 0);
-    drop(scope);
     phase.finish().unwrap();
 
     let elements = ryo_language::domain::elements::types::Elements::default();

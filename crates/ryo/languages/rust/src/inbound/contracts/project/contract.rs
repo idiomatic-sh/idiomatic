@@ -18,7 +18,7 @@ use ryo::languages::{
 use crate::domain::links::collections::links::analyzed_source::item::AnalyzedSourceItem;
 use crate::domain::links::collections::links::file_package::item::FilePackageItem;
 use crate::domain::links::collections::links::source_dependency::item::SourceDependencyItem;
-use crate::domain::links::service::{declared_in, draw, examine, facts_in, gaps_in, merged};
+use crate::domain::links::service::{declared_in, draw, examine, externs_in, facts_in, gaps_in, merged};
 use crate::domain::links::types::{Linked, Run};
 use crate::domain::manifests::collections::manifests::manifest_diagnostic::item::ManifestDiagnosticItem;
 use crate::domain::manifests::collections::manifests::package_dependency::item::PackageDependencyItem;
@@ -127,7 +127,14 @@ impl ProjectContract {
             Ok(each) => Some(declared_in(&each)),
             Err(NotesError::NotANote) => None,
         });
-        let names: BTreeSet<Segment> = declared.into_iter().flatten().flatten().collect();
+        let externs = externs_in(packages);
+        // A path that starts with the name of a library of the repository names a module of it, as one that starts with a module's name.
+        let names: BTreeSet<Segment> = declared
+            .into_iter()
+            .flatten()
+            .flatten()
+            .chain(externs.by_package.values().flat_map(|each| each.keys().cloned()))
+            .collect();
         let facts = self.spread(&request.notes, &|_, note| match self.notes.note_in(note) {
             Ok(each) => Some(facts_in(each, &names)),
             Err(NotesError::NotANote) => None,
@@ -143,7 +150,7 @@ impl ProjectContract {
             .map(|each| (each.directory, each.trees))
             .collect();
         let examined = self.spread(files, &|place, file| {
-            examine(run, &owners, &trees, place, file)
+            examine(run, &owners, &trees, &externs, place, file)
         });
         merged(run, gaps_in(&trees), examined)
     }

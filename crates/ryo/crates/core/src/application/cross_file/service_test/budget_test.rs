@@ -1,12 +1,10 @@
 //! The memory budget stops a later population, and a refused frontier keeps its compiled source.
-use ryo_execution_runtime::outbound::operators::interface::OperatorsPort as _;
 use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use super::batch_test::evaluate_rules;
 use crate::application::cross_file::fixtures::ProjectCalls;
 use crate::application::cross_file::fixtures::counting_plan;
 use crate::application::cross_file::fixtures::crossing;
 use crate::application::cross_file::fixtures::frontier_rows;
-use crate::application::cross_file::fixtures::prepared_in;
 use crate::application::cross_file::fixtures::service;
 use crate::application::cross_file::fixtures::world_with;
 use crate::application::cross_file::fixtures::world_with_applicability;
@@ -21,7 +19,6 @@ use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
-use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
 use ryo_operators::domain::contract::types::PortableOperatorFault;
 use ryo_relations::domain::relations::service::node_id;
 use ryo_relations::domain::relations::types::FileId;
@@ -123,14 +120,9 @@ pub(super) fn project_budget_stops_a_later_population_after_actual_work_and_rele
 
 pub(super) fn refused_frontier_ordinal_keeps_its_actual_compiled_source_in_each_cohort()
 -> Result<(), RuleRequestsError> {
-    use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution;
-    use ryo_execution::inbound::use_cases::execution::interface::EmitDemand;
-    use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
     use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
-    use ryo_execution::inbound::use_cases::execution::interface::ProjectInput;
-    use ryo_execution::inbound::use_cases::execution::interface::ProjectTask;
+    use ryo_execution::inbound::use_cases::execution::interface::PhasePartials;
     use ryo_execution::inbound::use_cases::execution::interface::RootOutcome;
-    use ryo_execution::inbound::use_cases::execution::interface::RuleDemand;
     use ryo_values::domain::runs::types::{RuleApplicability, SkipReason, Skipped};
     for order in [[0, 1], [1, 0]] {
         let calls = Arc::new(ProjectCalls::default());
@@ -157,53 +149,27 @@ pub(super) fn refused_frontier_ordinal_keeps_its_actual_compiled_source_in_each_
         rules.covered.clear();
         let phase = rules.request.project_phase().unwrap();
         let mut symbols = Symbols::default();
-        let mut scopes = vec![];
-        let mut frontiers = vec![];
-        let mut policies = vec![];
-        for rule in order {
-            let (scope, frontier) = prepared_in(
-                &rules,
-                &phase,
-                RuleIndex(rule),
-                &rules.covered,
-                &[],
-                &mut symbols,
-            )
-            .unwrap();
-            scopes.push(scope);
-            frontiers.push(frontier);
-            policies.push(partials_for(&MetadataUseCaseImpl, &crossing(&rules).domain, RuleIndex(rule)));
-        }
-        let tasks = order
-            .into_iter()
-            .zip(&scopes)
-            .zip(frontiers)
-            .zip(&policies)
-            .map(|(((rule, scope), ordinary), policy)| ProjectTask {
-                rule: RuleIndex(rule),
-                demand: RuleDemand {
-                    emit: EmitDemand::Enabled,
-                    observations: ObservationDemand::NotRequired,
-                },
-                input: ProjectInput {
-                    scope,
-                    evaluation: policy,
-                    publication: policy,
-                    ordinary,
-                    bound: &[],
-                    arenas: &rules.arenas,
-                },
-            })
-            .collect();
-        let ProjectBatch::Complete(results) = phase.evaluate(tasks, &mut symbols, |_| {
-            Ok::<(), std::convert::Infallible>(())
-        }) else {
-            unreachable!()
-        };
+        let declared = order.map(RuleIndex);
+        let policies = declared.map(|rule| partials_for(&MetadataUseCaseImpl, &crossing(&rules).domain, rule));
+        let results = super::batch_test::evaluate_all(
+            &rules,
+            &phase,
+            &declared,
+            &[],
+            &rules.covered,
+            &mut symbols,
+            |occurrence| {
+                Ok(PhasePartials {
+                    evaluation: policies[occurrence.0].clone(),
+                    publication: policies[occurrence.0].clone(),
+                })
+            },
+            |_, outcome, _, _| Ok(outcome),
+        );
         assert_eq!(results.len(), 2);
         for result in results {
             assert!(
-                matches!(result.unwrap().emit, RootOutcome::Unknown(OperatingError::ObservationIncomplete { ref reason }) if reason == "every source partition was explicitly skipped")
+                matches!(result.expect("the occurrence is evaluated").emit, RootOutcome::Unknown(OperatingError::ObservationIncomplete { ref reason }) if reason == "every source partition was explicitly skipped")
             );
         }
         assert_eq!(calls.reductions.load(Ordering::SeqCst), 0);
@@ -213,7 +179,6 @@ pub(super) fn refused_frontier_ordinal_keeps_its_actual_compiled_source_in_each_
             2,
             "same local #1 refusal belongs to different compiled frontier roots"
         );
-        drop(scopes);
         phase.finish().unwrap();
     }
     Ok(())

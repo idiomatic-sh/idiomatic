@@ -5,9 +5,7 @@ use super::batch_test::assert_count_findings;
 use super::batch_test::evaluate_fixture;
 use crate::application::cross_file::fixtures::ProjectCalls;
 use crate::application::cross_file::fixtures::counting_plan;
-use crate::application::cross_file::fixtures::crossing;
 use crate::application::cross_file::fixtures::frontier_rows;
-use crate::application::cross_file::fixtures::prepared_in;
 use crate::application::cross_file::fixtures::todo;
 use crate::application::cross_file::fixtures::world_with;
 use crate::domain::answering::types::Todo;
@@ -34,27 +32,11 @@ pub(super) fn ordinary_project_rules_share_one_preparation_and_reject_another_ge
         let mut first_rendered = None;
         let mut first_payload = None;
         for rule in order {
-            let (scope, frontier) = prepared_in(
-                &rules,
-                &phase,
-                RuleIndex(rule),
-                &rules.covered,
-                &frontier_rows(),
-                &mut symbols,
-            )
-            .unwrap();
-            let result = evaluate_fixture(
-                &crossing(&rules),
-                &Todo {
-                    rule: RuleIndex(rule),
-                    id: rules.ids[rule].clone(),
-                },
-                frontier,
-                &mut symbols,
-                scope,
-                &phase,
-            )
-            .unwrap();
+            let declared = Todo {
+                rule: RuleIndex(rule),
+                id: rules.ids[rule].clone(),
+            };
+            let result = evaluate_fixture(&rules, &declared, &frontier_rows(), &rules.covered, &mut symbols, &phase).unwrap();
             let rendered = result.rendered.expect("actual core project rendering");
             assert_eq!(result.fed.len(), 2);
             let payload = assert_count_findings(
@@ -91,59 +73,11 @@ pub(super) fn ordinary_project_rules_share_one_preparation_and_reject_another_ge
             rules: vec![RuleIndex(0)],
             partial: vec![],
         }];
-        let different = phase
-            .project_scope(
-                RuleIndex(1),
-                &rules.files,
-                &changed,
-                &[],
-                &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
-                &ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(),
-            )
-            .unwrap();
-        let (_, old_frontier) = prepared_in(
-            &rules,
-            &phase,
-            RuleIndex(1),
-            &rules.covered,
-            &frontier_rows(),
-            &mut symbols,
-        )
-        .unwrap();
-        let result = evaluate_fixture(
-            &crossing(&rules),
-            &Todo {
-                rule: RuleIndex(1),
-                id: rules.ids[1].clone(),
-            },
-            old_frontier,
-            &mut symbols,
-            different,
-            &phase,
-        );
-        assert!(
-            matches!(result, Err(error) if error == ryo_values::domain::rule_requests::service::failed(&rules.ids[1], &OperatingError::NotRead))
-        );
-        let (changed_scope, changed_frontier) = prepared_in(
-            &rules,
-            &phase,
-            RuleIndex(1),
-            &changed,
-            &frontier_rows(),
-            &mut symbols,
-        )
-        .unwrap();
-        let result = evaluate_fixture(
-            &crossing(&rules),
-            &Todo {
-                rule: RuleIndex(1),
-                id: rules.ids[1].clone(),
-            },
-            changed_frontier,
-            &mut symbols,
-            changed_scope,
-            &phase,
-        );
+        let second = Todo {
+            rule: RuleIndex(1),
+            id: rules.ids[1].clone(),
+        };
+        let result = evaluate_fixture(&rules, &second, &frontier_rows(), &changed, &mut symbols, &phase);
         assert!(
             matches!(result, Err(error) if error == ryo_values::domain::rule_requests::service::failed(
                 &rules.ids[1], &OperatingError::WrongOperation,
@@ -152,15 +86,6 @@ pub(super) fn ordinary_project_rules_share_one_preparation_and_reject_another_ge
         );
         assert_eq!(calls.reductions.load(Ordering::SeqCst), 1);
         assert_eq!(calls.aggregates.load(Ordering::SeqCst), 2);
-        let (_, foreign) = prepared_in(
-            &rules,
-            &phase,
-            RuleIndex(0),
-            &rules.covered,
-            &frontier_rows(),
-            &mut symbols,
-        )
-        .unwrap();
         phase.finish().unwrap();
 
         let engine = PrepareUseCaseImpl::new(
@@ -170,46 +95,7 @@ pub(super) fn ordinary_project_rules_share_one_preparation_and_reject_another_ge
         );
         rules.request = ExecutionUseCaseImpl::new().execution(&rules.program, &rules.files);
         let phase = rules.request.project_phase().unwrap();
-        let scope = phase
-            .project_scope(
-                RuleIndex(0),
-                &rules.files,
-                &rules.covered,
-                &[],
-                &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
-                &ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(),
-            )
-            .unwrap();
-        let failed = evaluate_fixture(
-            &crossing(&rules),
-            &todo(0),
-            foreign,
-            &mut symbols,
-            scope,
-            &phase,
-        );
-        assert!(
-            matches!(failed, Err(error) if error == ryo_values::domain::rule_requests::service::failed(&rules.ids[0], &OperatingError::NotRead))
-        );
-        assert_eq!(calls.reductions.load(Ordering::SeqCst), 1);
-        let (scope, frontier) = prepared_in(
-            &rules,
-            &phase,
-            RuleIndex(0),
-            &rules.covered,
-            &frontier_rows(),
-            &mut symbols,
-        )
-        .unwrap();
-        let result = evaluate_fixture(
-            &crossing(&rules),
-            &todo(0),
-            frontier,
-            &mut symbols,
-            scope,
-            &phase,
-        )
-        .unwrap();
+        let result = evaluate_fixture(&rules, &todo(0), &frontier_rows(), &rules.covered, &mut symbols, &phase).unwrap();
         assert_eq!(result.rendered, first_rendered);
         assert_eq!(
             calls.reductions.load(Ordering::SeqCst),

@@ -60,6 +60,8 @@ pub(crate) struct DeclaredNote<'a> {
     pub inline: NoteFlag,
     /// The value of its `#[path = "…"]`, when it has one.
     pub path: Option<NotePath>,
+    /// Whether it is declared under `#[cfg(test)]`: built only for the package's unit tests, with its dev-dependencies.
+    pub test_only: NoteFlag,
 }
 
 /// A path a file writes.
@@ -76,4 +78,7 @@ pub(crate) struct WrittenNote<'a> {
     pub end: NoteOffset,
     /// The path as the file writes it, its whitespace left out: the text from `start` to `end`.
     pub text: NoteName<'a>,
+    /// The name a `use` leaf binds in its module: its `as` name, or else its last segment; none for a glob, an `as _` or a path
+    /// that is not a `use` leaf.
+    pub bound: Option<NoteName<'a>>,
 }

@@ -6,12 +6,12 @@ use super::inventory::{
 };
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
-use super::routes::{file_route, project_route, run_file_route};
+use super::routes::{file_route, run_file_route};
 use super::witness::{ALL, Method, Witness, implements_every_entry_trait};
 use crate::boundary_fixture::{corpus, demand, engine, prepared_rules};
 use crate::file_intents::named_request;
 use crate::project_phase::negative::fixtures::{
-    Entry, Held, NoFacts, foreign_phase_outcome, prepare_for, with_held,
+    Entry, Held, NoFacts, prepare_for, with_held,
 };
 use ryo_execution::inbound::use_cases::execution::interface::OccurrenceNumber;
 use ryo_execution::inbound::use_cases::execution::interface::FrontierDemand;
@@ -30,21 +30,13 @@ use ryo_execution::inbound::use_cases::execution::interface::ObservationPublicat
 use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
 use ryo_execution_runtime::application::file_dag::frontiers::errors::PreparationError;
-use ryo_execution_runtime::application::file_dag::frontiers::types::PreparedFrontiers;
 use ryo_execution_runtime::application::file_dag::frontiers::types::PublicationSlot;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
-use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution;
-use ryo_execution::inbound::use_cases::execution::interface::PreparedReporting;
-use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityReason;
-use ryo_values::domain::runs::types::ApplicabilityRefusal;
-use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
-use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
 use ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles;
 use ryo_execution::inbound::use_cases::execution::interface::RefusedFiles;
-use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use std::collections::BTreeSet;
@@ -63,8 +55,7 @@ pub(super) fn control(method: Method) -> Control {
         Method::RequestRunFile => Control::Refuses(run_file_route),
         Method::RequestObservations => Control::Refuses(observations_need_a_named_program),
         Method::RequestPrepareFrontiers => Control::Refuses(frontiers_of_an_undeclared_rule),
-        Method::RequestProjectPhase => Control::Refuses(a_scope_belongs_to_its_own_phase),
-        Method::RootsEvaluate => Control::Refuses(evaluate_routes),
+        Method::RequestProjectPhase => Control::Refuses(each_phase_owns_its_publication),
         Method::RootsEvaluateOccurrences => Control::Refuses(occurrence_of_an_undeclared_rule),
         Method::StageProjectScope => Control::Refuses(|| scope_of_an_undeclared_rule(Entry::Phase)),
         Method::ObservedProjectScope => {
@@ -92,10 +83,6 @@ pub(super) fn control(method: Method) -> Control {
         Method::ObservedArenas => Control::AcceptsNoRoot("reads published arenas"),
         Method::ObservedFinishStage => Control::AcceptsNoRoot("releases the stage"),
     }
-}
-pub(super) fn evaluate_routes() {
-    project_route(Entry::Phase);
-    project_route(Entry::Stage);
 }
 pub(super) fn observations_need_a_named_program() {
     let engine = engine();
@@ -193,11 +180,22 @@ pub(super) fn occurrence_of_an_undeclared_rule() {
         assert!(phase.finish().is_ok(), "the phase is released once its occurrences are completed");
     });
 }
-pub(super) fn a_scope_belongs_to_its_own_phase() {
-    assert!(matches!(
-        foreign_phase_outcome(&engine()),
-        Err(OperatingError::NotRead)
-    ));
+/// Each phase a request opens owns its own publication: a scope one phase still holds makes that phase's finish refuse, and leaves
+/// another phase of the same request free to finish.
+pub(super) fn each_phase_owns_its_publication() {
+    with_held(&engine(), Entry::Phase, 3, |request, _, corpus, covered| {
+        let held = request.project_phase().expect("the first phase opens");
+        let other = request.project_phase().expect("the second phase opens");
+        let scope = held
+            .project_scope(RuleIndex(0), corpus, covered, &[], &InapplicableFiles::default())
+            .expect("a declared rule has a scope");
+        assert!(other.finish().is_ok(), "another phase's scope does not hold this phase's publication");
+        assert!(
+            matches!(held.finish(), Err(OperatingError::NotRead)),
+            "an outstanding scope keeps its own phase's publication shared"
+        );
+        drop(scope);
+    });
 }
 pub(super) fn scope_of_an_undeclared_rule(entry: Entry) {
     with_held(&engine(), entry, 3, |_, held, corpus, covered| {

@@ -64,8 +64,6 @@ templates = [
   { template = "idiomatic.ryo/program-runtime-proof", file = "tests/boundary_fixture/mod.rs", description = "Actual compiled-program lifecycle controls and their colocated owner fixture." },
   { template = "idiomatic.ryo/program-runtime-proof", file = "tests/project_phase/negative/deferral/mod.rs", description = "Actual compiled-program lifecycle controls and their colocated owner fixture." },
   { template = "idiomatic.ryo/program-runtime-proof", file = "tests/project_phase/negative/deferral/test.rs", description = "Actual compiled-program lifecycle controls and their colocated owner fixture." },
-  { template = "idiomatic.ryo/program-runtime-proof", file = "tests/project_phase/negative/roots/mod.rs", description = "Actual compiled-program lifecycle controls and their colocated owner fixture." },
-  { template = "idiomatic.ryo/program-runtime-proof", file = "tests/project_phase/negative/roots/test.rs", description = "Actual compiled-program lifecycle controls and their colocated owner fixture." },
   { template = "idiomatic.ryo/program-runtime-proof", file = "tests/project_phase/negative/finish/mod.rs", description = "Actual compiled-program lifecycle controls and their colocated owner fixture." },
   { template = "idiomatic.ryo/program-runtime-proof", file = "tests/project_phase/negative/finish/test.rs", description = "Actual compiled-program lifecycle controls and their colocated owner fixture." },
   { alias = "public-cohort-proof", template = "idiomatic.ryo/program-runtime-proof", file = "tests/shared_walk/cohort/test.rs", description = "Public file-owner admitted-cohort scratch, result slots and dormant declaration controls." },

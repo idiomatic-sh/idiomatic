@@ -7,7 +7,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use super::constants::OUTPUTS;
 use super::errors::PackagesError;
 use super::types::{
-    Analysis, Cause, Dependency, Diagnosed, Packages, Refusal, Stage, WorkspacePackageMembership,
+    Analysis, Cause, Dependency, Diagnosed, Library, Packages, Refusal, Stage, WorkspacePackageMembership,
 };
 use crate::domain::dependencies::service::declared_of;
 use crate::domain::dependencies::types::{DeclaredDependency, Shared};
@@ -16,7 +16,7 @@ use crate::domain::paths::constants::{MANIFEST, SEPARATOR};
 use crate::domain::paths::service::{directory_of, lexical_join, name_of};
 use crate::domain::paths::types::Section;
 use crate::domain::paths::types::{Placement, Relative, RepoPath};
-use crate::domain::targets::service::targets_of;
+use crate::domain::targets::service::{library_name, library_of, targets_of};
 use crate::domain::targets::types::Inheritance;
 use crate::domain::targets::types::Manifest;
 use crate::domain::workspaces::service::{
@@ -158,6 +158,15 @@ pub(crate) fn read(manifests: &[RepoPath], looking: &mut Looking) -> Packages {
                     package,
                     &mut looking.directories,
                 ));
+            if let Some(root) = library_of(&directory, &each, package, &mut looking.directories) {
+                drop(packages.libraries.insert(
+                    member.clone(),
+                    Library {
+                        root,
+                        name: library_name(&each, package),
+                    },
+                ));
+            }
             packages.members.push(WorkspacePackageMembership {
                 workspace: root.clone(),
                 package: member.clone(),

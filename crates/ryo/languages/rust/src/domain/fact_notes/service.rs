@@ -3,7 +3,7 @@
 
 use crate::domain::module_tree::constants::{CRATE, SELF, SUPER};
 use crate::domain::module_tree::types::{
-    Body, Cleanliness, EnclosingBlock, Facts, ModDeclaration, Segment, Spelling, Written,
+    Body, Cleanliness, EnclosingBlock, Facts, Gate, ModDeclaration, Segment, Spelling, Written,
 };
 use crate::domain::paths::types::Section;
 use crate::domain::targets::types::WrittenPath;
@@ -40,6 +40,7 @@ pub(crate) fn note_of(facts: &Facts) -> Note<'_> {
                 name: NoteName(Cow::Borrowed(&declared.name)),
                 inline: NoteFlag(declared.body == Body::Inline),
                 path: path(&declared.path),
+                test_only: NoteFlag(declared.gate == Gate::Test),
             })
             .collect(),
         written: facts
@@ -59,6 +60,7 @@ pub(crate) fn note_of(facts: &Facts) -> Note<'_> {
                 start: NoteOffset(written.start.0),
                 end: NoteOffset(written.end.0),
                 text: NoteName(Cow::Borrowed(&written.text.0)),
+                bound: written.bound.as_ref().map(|each| NoteName(Cow::Borrowed(each))),
             })
             .collect(),
     }
@@ -93,23 +95,39 @@ pub(crate) fn facts_of(note: Note<'_>, names: &dyn Fn(&Segment) -> Naming) -> Fa
                 Body::File
             },
             path: path(each.path),
+            gate: if each.test_only.0 { Gate::Test } else { Gate::Always },
         })
+        .collect();
+    // A name a `use` of the file binds names what that `use` names: a path that starts with it is kept to be resolved through it.
+    let bound: Vec<&str> = note
+        .written
+        .iter()
+        .filter_map(|each| each.bound.as_ref().map(|name| &*name.0))
+        .collect();
+    let keeps = |first: &NoteName<'_>| {
+        [CRATE, SELF, SUPER].contains(&&*first.0)
+            || bound.contains(&&*first.0)
+            || names(&segment(first.clone())) == Naming::Known
+    };
+    // A `use` leaf that binds a name is kept wherever it is rooted: rooted outside the repository (`use std::fmt as helper`), it
+    // names nothing, and still shadows the dependency of that name.
+    let kept: Vec<bool> = note
+        .written
+        .iter()
+        .map(|each| each.bound.is_some() || each.segments.first().is_some_and(&keeps))
         .collect();
     let written = note
         .written
         .into_iter()
-        .filter(|each| {
-            each.segments.first().is_some_and(|first| {
-                [CRATE, SELF, SUPER].contains(&&*first.0)
-                    || names(&segment(first.clone())) == Naming::Known
-            })
-        })
+        .zip(kept)
+        .filter_map(|(each, kept)| kept.then_some(each))
         .map(|each| Written {
             segments: each.segments.into_iter().map(segment).collect(),
             enclosing: each.enclosing.into_iter().map(segment).collect(),
             start: Offset(each.start.0),
             end: Offset(each.end.0),
             text: Spelling(each.text.0.into()),
+            bound: each.bound.map(segment),
         })
         .collect();
     Facts {

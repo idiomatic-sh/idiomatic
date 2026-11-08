@@ -1,7 +1,8 @@
 // the cases share one injected dependency scenario to prove retained-data loading, resident lookups, ordered output, and each required port failure; keeping the fixtures and the complete case table beside the application operation makes the same boundary visible in every case.
 //! The `cross_file` service's cases, on values alone.
 
-use super::fixtures::{counting_plan, crossing, frontier_rows, prepared, todo, world};
+use super::fixtures::{counting_plan, frontier_rows, todo, world};
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest as _;
 use crate::cases::{Case, CaseName, Expect, Selection, Word, run};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::rule_requests::errors::RuleRequestsError;
@@ -44,8 +45,6 @@ enum Scenario {
     CurrentRoots,
     /// Rejected syntax blocks the cross-file complements without inventing a partial diagnostic.
     RejectedSyntax,
-    /// A project evaluation rejects frontiers admitted by another request.
-    ForeignFrontiers,
     /// Ordinary project rules share one preparation and reject another generation.
     SharedPreparation,
     /// An ordinary phase keeps the populations and the partiality of its rules separate.
@@ -89,15 +88,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::CrossCounts => {
             let rules = world(counting_plan(1, Vec::new()));
             let mut cross = Symbols::default();
-            let (_phase, scope, frontier) = prepared(&rules, &frontier_rows(), &mut cross)?;
-            let done = batch_test::evaluate_fixture(
-                &crossing(&rules),
-                &todo(0),
-                frontier,
-                &mut cross,
-                scope,
-                &_phase,
-            )?;
+            let phase = rules.request.project_phase().expect("one project phase");
+            let done = batch_test::evaluate_fixture(&rules, &todo(0), &frontier_rows(), &rules.covered, &mut cross, &phase)?;
             Ok([
                 done.rendered
                     .as_ref()
@@ -111,15 +103,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::CrossNoRule => {
             let rules = world(counting_plan(1, Vec::new()));
             let mut cross = Symbols::default();
-            let (_phase, scope, frontier) = prepared(&rules, &frontier_rows(), &mut cross)?;
-            let done = batch_test::evaluate_fixture(
-                &crossing(&rules),
-                &todo(3),
-                frontier,
-                &mut cross,
-                scope,
-                &_phase,
-            )?;
+            let phase = rules.request.project_phase().expect("one project phase");
+            let done = batch_test::evaluate_fixture(&rules, &todo(3), &frontier_rows(), &rules.covered, &mut cross, &phase)?;
             Ok([
                 done.rendered
                     .as_ref()
@@ -131,15 +116,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::CrossNothingHanded => {
             let rules = world(counting_plan(1, Vec::new()));
             let mut cross = Symbols::default();
-            let (_phase, scope, frontier) = prepared(&rules, &[], &mut cross)?;
-            let done = batch_test::evaluate_fixture(
-                &crossing(&rules),
-                &todo(0),
-                frontier,
-                &mut cross,
-                scope,
-                &_phase,
-            )?;
+            let phase = rules.request.project_phase().expect("one project phase");
+            let done = batch_test::evaluate_fixture(&rules, &todo(0), &[], &rules.covered, &mut cross, &phase)?;
             Ok([
                 done.rendered
                     .as_ref()
@@ -150,7 +128,6 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         }
         Scenario::CurrentRoots => single_rule_test::current_project_roots_keep_the_original_two_group_four_cell_result().map(|()| [0; 3]),
         Scenario::RejectedSyntax => single_rule_test::rejected_syntax_blocks_cross_file_complements_without_inventing_partial_diagnostics().map(|()| [0; 3]),
-        Scenario::ForeignFrontiers => single_rule_test::project_evaluation_rejects_frontiers_from_another_request().map(|()| [0; 3]),
         Scenario::SharedPreparation => generation_test::ordinary_project_rules_share_one_preparation_and_reject_another_generation().map(|()| [0; 3]),
         Scenario::SeparatePopulations => population_test::ordinary_phase_keeps_valid_rule_populations_and_partiality_separate().map(|()| [0; 3]),
         Scenario::DistinctPayloads => population_test::equal_policies_do_not_alias_distinct_admitted_frontier_payloads().map(|()| [0; 3]),
@@ -234,12 +211,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         ),
         word: Word::Succeeds,
         input: || Scenario::RejectedSyntax,
-        expect: Expect::Value([0, 0, 0]),
-    },
-    Case {
-        name: CaseName("project_evaluation_rejects_frontiers_from_another_request"),
-        word: Word::Succeeds,
-        input: || Scenario::ForeignFrontiers,
         expect: Expect::Value([0, 0, 0]),
     },
     Case {

@@ -174,51 +174,39 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
     let mut arenas = vec![];
     let mut stage = request.observations(&mut arenas).unwrap();
     let mut symbols = Symbols::default();
-    let producer_scope = stage
-        .project_scope(
-            RuleIndex(0),
-            &corpus,
-            &covered,
-            &[],
-            &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
-            &ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(),
-        )
-        .unwrap();
     let slot = stage.reserve(RuleIndex(0)).unwrap();
-    let ordinary = request
-        .prepare_frontiers(
-            FrontierRequest {
-                demand: FrontierDemand::Diagnostic,
-                scope: &producer_scope,
-                rule: RuleIndex(0),
-                first: Bucket(0),
-                facts: &stored,
-                project: &project,
-                project_symbols: &project_symbols,
-            },
-            &mut symbols,
-        )
-        .unwrap();
     let partials = Partials::default();
+    let inapplicable = vec![ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(); 2];
     let mut result = crate::boundary_fixture::project_root(
         &stage,
-        RuleIndex(0),
-        RuleDemand {
-            emit: EmitDemand::Disabled,
-            observations: ObservationDemand::Required,
-        },
-        ProjectInput {
-            scope: &producer_scope,
-            evaluation: &partials,
-            publication: &partials,
-            ordinary,
-            bound: &[],
+        PhaseOccurrences {
+            occurrences: &[PhaseOccurrence {
+                rule: RuleIndex(0),
+                bound: &[],
+                slot,
+                demand: FrontierDemand::Diagnostic,
+            }],
+            first: &[Bucket(0), Bucket(1)],
+            corpus: &corpus,
+            covered: &covered,
+            skipped: &[],
+            inapplicable: &inapplicable,
+            facts: &stored,
+            project: &project,
+            project_symbols: &project_symbols,
             arenas: stage.arenas(),
         },
+        &partials,
+        &partials,
         &mut symbols,
     )
     .unwrap();
-    assert!(matches!(result.emit, RootOutcome::NoQuery));
+    // The phase call always demands the emit; that an undemanded emit answers `NoQuery` is proved in the runtime by
+    // `project_phase::service_test::a_root_whose_emit_is_not_demanded_answers_no_query`.
+    assert!(
+        !matches!(result.emit, RootOutcome::Failed(_) | RootOutcome::Unknown(_)),
+        "the phase call evaluates the producer's own emit beside its publication"
+    );
     let ProjectOutputOutcome {
         output,
         outcome: observed,
@@ -291,16 +279,6 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
         )
         .unwrap();
     stage.finish(RuleIndex(0)).unwrap();
-    let consumer_scope = stage
-        .project_scope(
-            RuleIndex(1),
-            &corpus,
-            &covered,
-            &[],
-            &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
-            &ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(),
-        )
-        .unwrap();
     let bound = stage.bindings(RuleIndex(1)).unwrap();
     assert_eq!(
         bound.len(),
@@ -309,49 +287,39 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
     );
     let reads = project.reads.load(Ordering::SeqCst);
     let ready = ReadinessProof::stated(vec![InputReadiness::Unavailable]);
-    let ordinary = request
-        .prepare_frontiers(
-            FrontierRequest {
+    let result = crate::boundary_fixture::project_root(
+        &stage,
+        PhaseOccurrences {
+            occurrences: &[PhaseOccurrence {
+                rule: RuleIndex(1),
+                bound: &bound,
+                slot: PublicationSlot::Unused,
                 demand: if refused {
                     FrontierDemand::Observations { ready: &ready }
                 } else {
                     FrontierDemand::Diagnostic
                 },
-                scope: &consumer_scope,
-                rule: RuleIndex(1),
-                first: Bucket(1),
-                facts: &stored,
-                project: &project,
-                project_symbols: &project_symbols,
-            },
-            &mut symbols,
-        )
-        .unwrap();
+            }],
+            first: &[Bucket(0), Bucket(1)],
+            corpus: &corpus,
+            covered: &covered,
+            skipped: &[],
+            inapplicable: &inapplicable,
+            facts: &stored,
+            project: &project,
+            project_symbols: &project_symbols,
+            arenas: stage.arenas(),
+        },
+        &partials,
+        &partials,
+        &mut symbols,
+    )
+    .unwrap();
     assert_eq!(
         stored.reads.load(Ordering::SeqCst),
         0,
         "no union bytes were supplied by a file frontier"
     );
-    assert_eq!(
-        union_semantic_calls.0.load(Ordering::SeqCst),
-        0,
-        "preparing member handles and an ordinary frontier does not invoke Union semantics"
-    );
-    let result = crate::boundary_fixture::project_root(
-        &stage,
-        RuleIndex(1),
-        demand(),
-        ProjectInput {
-            scope: &consumer_scope,
-            evaluation: &partials,
-            publication: &partials,
-            ordinary,
-            bound: &bound,
-            arenas: stage.arenas(),
-        },
-        &mut symbols,
-    )
-    .unwrap();
     if refused {
         assert!(
             matches!(result.emit, RootOutcome::Unknown(OperatingError::ObservationIncomplete { ref reason })
@@ -393,8 +361,6 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
     );
     drop(bound);
     stage.finish(RuleIndex(1)).unwrap();
-    drop(producer_scope);
-    drop(consumer_scope);
     stage.finish_stage().unwrap();
     request.finish();
 }
