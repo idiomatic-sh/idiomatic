@@ -54,7 +54,7 @@ The pass is the workspace check with all features and all targets, `--keep-going
 - **Acceptance blocks on the merged tree** (without each block's worktree-state and branch-head lines): review repairs IX exit 0 (`tm` over its changed `.rs` and `.py` files 0; core, the SDK and the command line name no execution store; `run.py --check` exit 0; no ignore added). The second pass: `tm` over its nine `.rs` files at their 325 paths 0, its three domain controls present, `rejected_syntax_consumer_test` green in validation325, no ignore or allow added: exit 0. The ratchet: `perf-323.md` present, the one-file wall best 6,871 ms.
 - **Django receipt (full Django 413 cold, 2,875 files x 413 rules, `RAYON_NUM_THREADS=1`, fresh store, under the build lock):** the release `ruff` bench worker built from `316497ef75`; the request is the 323 request with its rules directory copied from this tree's `languages/python/benchmarks/linters/ruff` (`rules`, `fragments`, `benchmark.toml`) and each rule's applicability read from that `benchmark.toml` (E501, W191 and ERA001 `always`; RUF100 `accepted-syntax`). Exit 0; coverage selected 1,187,375, evaluated 1,186,980, skipped 395 (every skip at `tests/test_runner_apps/tagged/tests_syntax_error.py`, `syntax-rejected`), unknown_or_unread 0; 8,804 diagnostics. Wall 3,383.4 s, CPU 3,382.1 s (user 3,321.4, sys 60.7), peak RSS 6,607,908 KB (6.61 GB); store 1,778,454,983 bytes; 1-minute load 1.69 at start. Against the second pass's run on its own source (3,427.7 s, 6.59 GB, 8,804 diagnostics, 395 skips): the same answer.
 - **Landing 1 follow-ups (unchanged here):** `missing_debug_implementations` 109 sites across the workspace (68 in the three engine crates), never-used items 65 (execution 28, store 35, derived 2). Each wants a manual `Debug` or a feature gate per item, not a merge-time edit; they stay with their row.
-- **Principal Rust review:** pending (the report card row below).
+- **Principal Rust review:** PASS on all seven items, first pass (diff `14a8352416..0a02582a09`, `evidence/checkpoint/rust-review.json`).
 
 **Cycle metrics:**
 
@@ -69,7 +69,7 @@ The pass is the workspace check with all features and all targets, `--keep-going
 | Lines under `crates/ryo` | +678 / -213 (Rust +484 / -63) |
 | Full Django 413 cold | exit 0, unknown 0, 3,383.4 s, 6.61 GB |
 | Contract review | pending |
-| Rust gate review | pending |
+| Rust gate review | PASS on all seven items, first pass (diff `14a8352416..0a02582a09`) |
 
 ### Review repairs IX
 
@@ -331,7 +331,7 @@ One row per checkpoint, landing and perf branch, copied from its `rust-review.js
 | Checkpoint 322 | `05d5c56a83` | FAIL | FAIL | FAIL | FAIL | FAIL | FAIL | FAIL | FAIL |
 | Checkpoint 323 | diff `d13686afb5..aa54b1472a` | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
 | Checkpoint 324 (landing 1) | diff `7d93840b19..d82b98cbcb` | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS (second pass; the first, of `afd1f9e45d`, was FAIL on item 6: a vacuous `compile_fail` doctest) |
-| Checkpoint 325 | diff `14a8352416..HEAD` | pending | pending | pending | pending | pending | pending | pending | pending |
+| Checkpoint 325 | diff `14a8352416..0a02582a09` | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS (first pass) |
 
 Earlier `36b0cdbea`/validation297 and300 findings remain source-bound in the [initial](audits/2026-11-06-derived/review.json) and [successor](audits/2026-11-06-derived/successor.json) reviews. The current checkpoint supersedes their repaired functional blockers without approving a whole phase or category.
 

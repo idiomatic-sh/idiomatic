@@ -1,52 +1,13 @@
-{
- "checkpoint": 324,
- "source": "d82b98cbcbb11c3e8cdc75cda168c44c8d1e734c",
- "base": "7d93840b1989ca529d5b0f1b64e342d0bc50c313",
- "scope": "gate (diff-scoped), landing 1, re-review after the item-6 repair (afd1f9e45d..d82b98cbcb)",
- "verdict": "PASS",
+{"checkpoint": 325, "source": "0a02582a09f793e629cd3702d23126a114e7efe2", "base": "14a8352416a886c3df0257d7d9f7e1dfdda3e7ec", "scope": "diff 14a8352416..0a02582a09", "verdict": "PASS",
  "items": [
-  {
-   "item": 1,
-   "verdict": "PASS",
-   "evidence": "Arc<()> in execution*/src 19 -> 3 (the 3 left are crate-private fields: execution/src/application/file_dag/program/request_identity.rs:15, execution_store/.../derived/owner/mod.rs:106, .../acquisition/admission/service.rs:118); pub(in 882 -> 43; RefCell< 33 -> 32; Mutex< 12 -> 12. No token is forgeable across the new crate lines: GenerationLease::new is pub(crate) (execution_store/src/application/file_dag/relations/generation/service.rs:10), PopulationId's field is pub(crate) (execution_store/.../derived/population/types.rs:5), ResourceLease fields pub(super) (.../derived/ledger/types.rs:105-108), ExecutableProgram::new sealed pub(in crate::domain::executable_program) (execution_domain/.../executable_program/value.rs:25), CacheBackend's 13 fields pub(in ...derived::owner) (.../owner/cache/types.rs:24-55). Arc in the now-public store signatures (RelationOwner::current_generation/matches_generation relations.rs:84-93, AcquiredView::lease, RootAnswer::new) carries a typed, store-issued lease, never a constructor; library-surface (crates/ryo/tastemaker.toml:16) keeps both crates from every non-engine crate except DerivedPort and its two factories. Note, not a FAIL: project_execution.rs:107 now Arc::clone(frontiers.ordinary.sources()) where 323 moved the owned field (one refcount per project open; Arc::clone count 84 -> 84). Unchanged since the afd1f9e45d review: the repair commit d82b98cbcb touches no .rs line other than the doc comment of prepared_execution/types.rs (git diff afd1f9e45d..d82b98cbcb --stat -- '*.rs': 1 file, 2+/3-)."
-  },
-  {
-   "item": 2,
-   "verdict": "PASS",
-   "evidence": "Source-reading test files (census|probe|allowlist|tests/source_boundary) 39 -> 12; no added line in crates/ryo outside docs uses include_str! of a .rs, read_to_string of source, trybuild or a new compile_fail (only the two README doc includes). The deleted probes are replaced by visibility (PreparedFrontiers fields pub(in frontiers), frontiers/types.rs:38-45), exhaustive *_place matches (tests/submission/controls/census/test.rs) and library-surface where Rust has no cross-crate restricted visibility. Unchanged since the afd1f9e45d review: the repair commit d82b98cbcb touches no .rs line other than the doc comment of prepared_execution/types.rs (git diff afd1f9e45d..d82b98cbcb --stat -- '*.rs': 1 file, 2+/3-)."
-  },
-  {
-   "item": 3,
-   "verdict": "PASS",
-   "evidence": "Moves only on the hot path: ClosureParts::get on AcquiredPartitions (execution/src/application/file_dag/invocation.rs:151-169) is byte-for-byte the 323 impl on Vec<AcquiredView>; std HashMap/HashSet in engine production 22 -> 22; no new allocation in a per-row loop in the diff; release profile lto = \"fat\", codegen-units = 1 (crates/ryo/Cargo.toml:276-278), so the new cross-crate calls need no #[inline]. Unchanged since the afd1f9e45d review: the repair commit d82b98cbcb touches no .rs line other than the doc comment of prepared_execution/types.rs (git diff afd1f9e45d..d82b98cbcb --stat -- '*.rs': 1 file, 2+/3-)."
-  },
-  {
-   "item": 4,
-   "verdict": "PASS",
-   "evidence": "AcquiredPartitions (invocation.rs:138) is a newtype that replaces the Vec<AcquiredView> field (323 invocation.rs:60), one ClosureParts impl in the tree; WorkspaceParts (execution_store/src/application/file_dag/workspace/types.rs:9) holds only &/&mut borrows of the workspace's own fields (workspace/mod.rs:159), no second owner. Type names defined in two of the three crates (Eligibility, Program, Route, Exit, Scenario, and the per-crate cases.rs Case/Expect/Word) are fixture or template types that already coexisted at 323; no duplicate introduced by the move. Unchanged since the afd1f9e45d review: the repair commit d82b98cbcb touches no .rs line other than the doc comment of prepared_execution/types.rs (git diff afd1f9e45d..d82b98cbcb --stat -- '*.rs': 1 file, 2+/3-)."
-  },
-  {
-   "item": 5,
-   "verdict": "PASS",
-   "evidence": "Hasher impls / FxHash constants in crates/ryo 2 -> 2 (no new hand-written hashing); Cargo.lock changes only add the two path crates; memchr, num-bigint, heck move with the code to execution_domain/Cargo.toml. Unchanged since the afd1f9e45d review: the repair commit d82b98cbcb touches no .rs line other than the doc comment of prepared_execution/types.rs (git diff afd1f9e45d..d82b98cbcb --stat -- '*.rs': 1 file, 2+/3-)."
-  },
-  {
-   "item": 6,
-   "verdict": "PASS",
-   "evidence": "Repaired in d82b98cbcb: the vacuous ```compile_fail,E0603 use ryo_execution::domain::executable_program::service::compile;``` doctest is deleted from crates/ryo/crates/execution/src/application/file_dag/program/prepared_execution/types.rs and replaced at :8-9 by a doc line naming the replacing guarantee (compile lives in ryo_execution_domain; idiomatic.arch/library-surface, crates/ryo/tastemaker.toml:16, keeps every non-engine crate from naming ryo_execution_domain). The record lists it under 'Probe tests deleted' (crates/ryo/docs/contracts/README.md:49) with the reason. rerun-doctest-review324.log:8166-8189 shows Doc-tests ryo_execution 2 + 12 = 14 passed, 0 failed, and its line numbers (5,14,17,22,26,32,35,38,47,54,58) match the file at d82b98cbcb with no line-8 probe. Every changed expectation states its reason: validation.json doctests.execution 15 -> 14 with the note naming both removed probes; README doctests 34 -> 33 (execution 14) and the by-name comparison 'less the store probe and the domain compile probe'; Arc::ptr_eq 59 -> 47 corrects the record to the measured count. Earlier findings stand: RelationOwner doctest and project_boundary removals stated; other test assertion changes are path rewrites, the RuleIntentError rename and new store service_test rows."
-  },
-  {
-   "item": 7,
-   "verdict": "PASS",
-   "evidence": "No unsafe (forbid), no new unwrap/expect on a production line (diff of execution*/src excluding tests/fixtures adds none; one expect removed at invocation/index.rs), no #[allow]/#[expect] added in source (the one #![allow(dead_code)] is negative-fixture text of crate 0.13.1 bdd-runner scenario 'file-allow', identical at 0.13.0:2899). The 3 production unreachable! became typed plans (89a8d69746); 31 test arms became panic! in test/fixture files and the cfg(test) fn invocation/observation.rs:4 (panic in tests, not control flow). Warnings left (validation libraries.log 323 -> 324): missing Debug 87 -> 108, never-used 33 -> 65 (the store's fixtures only the engine's tests use), total warnings 2,574 -> 2,454; not an item-7 criterion, recorded as a follow-up. Unchanged since the afd1f9e45d review: the repair commit d82b98cbcb touches no .rs line other than the doc comment of prepared_execution/types.rs (git diff afd1f9e45d..d82b98cbcb --stat -- '*.rs': 1 file, 2+/3-)."
-  }
+  {"item": 1, "verdict": "PASS", "evidence": "Arc<()> 3 -> 3 (unchanged in the diff; 7 -> 7 over all crates/ryo .rs, 1 -> 1 in execution/src). crates/ryo/crates/execution/src/lib.rs:15 derived() replaces five copies of the edge composition use_case(semantics()) with one; it returns the existing owner-issued DerivedAccess (execution_store/.../owner/types.rs:12), re-exported at execution/src/inbound/use_cases/prepare/interface.rs:17, not a new type or path. impl Into<DerivedAccess> (core engine/service.rs:123, lint/use_case.rs:120, execution prepare/use_case.rs:23) admits exactly the pre-existing From<Arc<dyn DerivedPort>>/From<Arc<T>> (owner/types.rs:29,34) plus identity; the port stays pub(crate) (types.rs:25), and core/sdk/cli lose the store dependency, so callers can do less, not more. lint/use_case.rs:256 self.derived.clone() is the same one-Arc clone as the Arc::clone it replaces."},
+  {"item": 2, "verdict": "PASS", "evidence": "Source-reading test files 12 -> 12; no new probe, trybuild or compile-fail test. The store boundary for core/sdk/cli is enforced by dropping ryo_execution_store from cli/Cargo.toml, core/Cargo.toml and sdk/Cargo.toml (the compiler), not by a test. rejected_syntax_consumer_test.rs reads benchmark.toml and .ryoql rule data, not Rust source."},
+  {"item": 3, "verdict": "PASS", "evidence": "No per-row allocation added. execution_domain coverage/service.rs:181-190 drop_inapplicable returns before the row loop for absence-free operators via semantics(kind_of(op)), a Copy-returning match (operator/contract/service.rs:8): less work per operator. lineage/service.rs:126 file_side iterates without allocating; joined (lineage/service.rs:140-178) runs per plan step and keeps one collect per path as before. benchmark local/adapter.rs:153,207 build one BTreeSet and one filtered Vec per engine run, not per row. coverage file_key (service.rs:76) drops the zip with right_on. No SipHash map, no dyn added."},
+  {"item": 4, "verdict": "PASS", "evidence": "No second struct: DerivedAccess pre-exists in the store owner; ryo_execution::derived() is a composition function over the store's own factories (execution_store/src/outbound/derived/factory.rs:13,23), and the five edge copies it replaces are deleted (cli query/run/composition.rs:92, sdk linter/lint and query/run composition.rs, core lint fixtures/engine.rs:42, cli replay base.rs/counting.rs). Execution-internal tests still call the store factories directly, inside the engine crates, as at 324."},
+  {"item": 5, "verdict": "PASS", "evidence": "Hand FxHash 2 -> 2 (no hash constant or Hasher in the diff). BTreeSet/Vec from std; the tastemaker rule versions are TOML queries, not Rust mechanisms."},
+  {"item": 6, "verdict": "PASS", "evidence": "ratchet.toml:50 best 10143 -> 6871 cites the quiet median of three in perf-323.md line 156 (stated in the 325 record, README.md Joins bullet). New ruff control rejected_syntax_consumer_test.rs:212-213 states its expectation is Ruff 0.16.5 --select PT020,PT025,PT026,RUF100 --target-version py310 on the same files (PT025 5:1, PT026 9:1, RUF100 12:12; PT020 suppressed). Domain controls coverage/service_test.rs (2, 1, 1) and lineage/service_test.rs state their premise in each Scenario doc and the cause in records.md. schemas_test.rs:138 from_ref is mechanical; _verified_6 adds a negative row. Core tests switching semantics() to derived() keep their premise: factory::use_case is the identity (factory.rs:23)."},
+  {"item": 7, "verdict": "PASS", "evidence": "unreachable! 0 -> 0 in execution/src (51 -> 51 over crates/ryo). The only new unwrap/expect are in the test rejected_syntax_consumer_test.rs; production adds none (coverage/service.rs keeps the existing unwrap_or(usize::MAX)). No unsafe, no #[allow] added. Note: dead_code_pub_in_binary on ryo_execution::derived (execution/src/lib.rs:15) in execution's own test binary is a warning, not an allow; it is the 324 class of 32 and the item names no warning, so it is not a FAIL; the cheapest clean-up is to have one execution test composing the derived port call ryo_execution::derived() (e.g. inbound/use_cases/prepare/use_case_test.rs:70) instead of the store factory."}
  ],
- "notes": [
-  "Both record inaccuracies of the previous review are fixed: AcquiredPartitions 'defined in execution' (README:50) and Arc::ptr_eq 59 -> 47 (README:46).",
-  "Follow-ups recorded in README (no verdict impact): missing_debug_implementations 87 -> 108, never-used 33 -> 65, error-variants-reached internal-crates mode should count dependent engine crates' tests.",
-  "The doctest rerun log (03:55:35Z) predates the commit (03:56:03Z) by 28 s; its doctest line numbers match the committed file exactly, so it ran on the committed text.",
-  "HEAD d82b98cbcb and git status --porcelain empty, before and after."
- ],
- "reviewer": "rust-principal-review",
- "date": "2026-11-08T04:10:00Z"
-}
+ "counts": {"Arc<()>": "3 -> 3", "pub(in": "43 -> 43 (diff adds 0)", "RefCell<": "32 -> 32 (diff adds 0)", "Mutex<": "12 -> 12 (diff adds 0)", "unreachable!": "0 -> 0", "source-reading test files": "12 -> 12", "hand FxHash": "2 -> 2"},
+ "tree": {"head_before": "0a02582a09f793e629cd3702d23126a114e7efe2", "porcelain_before": "", "head_after": "0a02582a09f793e629cd3702d23126a114e7efe2", "porcelain_after": ""},
+ "reviewer": "rust-principal-review", "date": "2026-11-08T00:00:00Z"}
