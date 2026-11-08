@@ -1,3 +1,9 @@
+---
+name: contract-migration
+description: Contract migration worker; the PM launches it to move contract implementations into their owning crates in batch repairs
+tools: Read, Grep, Glob, Bash, Edit, Write
+model: opus
+---
 # Contract migration agent
 
 Batch repairs by default: address the full diagnostic set across implementation,

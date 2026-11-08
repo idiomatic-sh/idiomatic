@@ -137,15 +137,12 @@ class GuardShell(unittest.TestCase):
                 self.assertEqual(result.returncode, 2)
                 self.assertIn("(here /workspaces/idiomatic-target/integration)", result.stderr)
 
-    def test_shared_target_is_deprecated_only_for_measurement_trees(self):
-        command = LOCK + "cargo build --target-dir /workspaces/idiomatic-benchmark-guards/target"
-        result = run_hook("guard_shell.py", {"tool_input": {"command": command}, "cwd": "/workspaces/ryo-perf-x"})
-        self.assertEqual(result.returncode, 0)
-        self.assertIn("Deprecated:", result.stderr)
-        self.assertIn("ryo-yj2e", result.stderr)
+    def test_measurement_trees_build_only_into_their_own_target(self):
         self.assertEqual(shell(LOCK + "cargo build --target-dir /workspaces/idiomatic-target/ryo-perf-x",
                                "/workspaces/ryo-perf-x"), 0)
         self.assertEqual(shell(LOCK + "cargo build --target-dir /workspaces/idiomatic-target/ryo-perf-y",
+                               "/workspaces/ryo-perf-x"), 2)
+        self.assertEqual(shell(LOCK + "cargo build --target-dir /workspaces/idiomatic-benchmark-guards/target",
                                "/workspaces/ryo-perf-x"), 2)
 
     def test_hidden_cargo_is_allowed_in_an_integration_tree(self):
@@ -210,13 +207,13 @@ class RustReviewPush(unittest.TestCase):
         git(self.tree, "add", self.REVIEW)
         git(self.tree, "commit", "-q", "-m", "review")
 
-    def push(self, command="git push origin claude/ryo-consolidation"):
+    def push(self, command="git push origin HEAD:claude/ryo-consolidation"):
         return run_hook("guard_shell.py", {"tool_input": {"command": command}, "cwd": self.tree})
 
     def test_refused_without_the_review(self):
         result = self.push()
         self.assertEqual(result.returncode, 2)
-        self.assertIn("HEAD carries no " + self.REVIEW, result.stderr)
+        self.assertIn("carries no " + self.REVIEW, result.stderr)
 
     def test_refused_on_fail(self):
         self.commit_review("FAIL", self.base)
@@ -232,7 +229,13 @@ class RustReviewPush(unittest.TestCase):
         self.commit_review("PASS", elsewhere)
         result = self.push()
         self.assertEqual(result.returncode, 2)
-        self.assertIn("not an ancestor of HEAD", result.stderr)
+        self.assertIn("not an ancestor of", result.stderr)
+
+    def test_a_ref_name_as_source_is_refused(self):
+        for source in ("HEAD", "claude/checkpoint-9", self.base[:12]):
+            with self.subTest(source=source):
+                self.commit_review("PASS", source)
+                self.assertEqual(self.push().returncode, 2)
 
     def test_refused_when_not_json(self):
         path = os.path.join(self.tree, self.REVIEW)
@@ -245,26 +248,441 @@ class RustReviewPush(unittest.TestCase):
 
     def test_allowed_with_pass_and_an_ancestor_source(self):
         self.commit_review("PASS", self.base)
-        for command in ["git push origin claude/ryo-consolidation", "git push origin HEAD:claude/ryo-consolidation",
+        for command in ["git push origin HEAD:claude/ryo-consolidation", "git push origin HEAD:claude/ryo-consolidation",
                         "git push -q origin +HEAD:refs/heads/claude/ryo-consolidation",
-                        "cd . && git -C . push origin claude/ryo-consolidation"]:
+                        "cd . && git -C . push origin HEAD:claude/ryo-consolidation"]:
             with self.subTest(command=command):
                 self.assertEqual(self.push(command).returncode, 0)
 
     def test_every_refspec_form_is_guarded(self):
-        for command in ["git push origin HEAD:claude/ryo-consolidation", "git push -u origin claude/ryo-consolidation",
-                        "git push origin +x:refs/heads/claude/ryo-consolidation", "x && git push origin claude/ryo-consolidation",
-                        "git -C " + self.tree + " push origin claude/ryo-consolidation"]:
+        for command in ["git push origin HEAD:claude/ryo-consolidation", "git push -u origin HEAD:claude/ryo-consolidation",
+                        "git push origin +x:refs/heads/claude/ryo-consolidation", "x && git push origin HEAD:claude/ryo-consolidation",
+                        "git -C " + self.tree + " push origin HEAD:claude/ryo-consolidation"]:
             with self.subTest(command=command):
                 self.assertEqual(run_hook("guard_shell.py", {"tool_input": {"command": command}}).returncode
                                  if command.startswith("git -C") else self.push(command).returncode, 2)
 
     def test_other_branches_are_unaffected(self):
         for command in ["git push origin claude/checkpoint-9", "git push -u origin claude/w4-rust-reviewer",
-                        "git push", "git push origin claude/ryo-consolidation-notes", "git log claude/ryo-consolidation",
-                        "git commit -m 'git push origin claude/ryo-consolidation'"]:
+                        "git push", "git push origin HEAD:claude/ryo-consolidation-notes", "git log claude/ryo-consolidation",
+                        "git commit -m 'git push origin HEAD:claude/ryo-consolidation'"]:
             with self.subTest(command=command):
                 self.assertEqual(self.push(command).returncode, 0)
+
+
+class PreviousReviewsPush(unittest.TestCase):
+    EVIDENCE = "crates/ryo/docs/contracts/evidence/checkpoint/"
+    NAMES = ["contract-review.json", "leak-review.json", "tm-steward.json"]
+
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.dir.cleanup)
+        self.remote = os.path.join(self.dir.name, "remote.git")
+        subprocess.run(["git", "init", "-q", "--bare", "-b", "claude/ryo-consolidation", self.remote], check=True)
+        self.tree = repo(self.dir.name, "tree", "claude/checkpoint-9")
+        git(self.tree, "commit", "-q", "--allow-empty", "-m", "previous landed head")
+        self.previous = git(self.tree, "rev-parse", "HEAD")
+        git(self.tree, "remote", "add", "origin", self.remote)
+        git(self.tree, "push", "-q", "origin", "HEAD:claude/ryo-consolidation")
+        git(self.tree, "commit", "-q", "--allow-empty", "-m", "checkpoint work")
+        self.write("rust-review.json", {"verdict": "PASS", "source": git(self.tree, "rev-parse", "HEAD")})
+
+    def write(self, name, body):
+        path = os.path.join(self.tree, self.EVIDENCE, name)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump(body, handle)
+        git(self.tree, "add", path)
+        git(self.tree, "commit", "-q", "-m", "evidence " + name)
+
+    def all_reviews(self, source=None, skip=()):
+        for name in self.NAMES:
+            if name not in skip:
+                self.write(name, {"verdict": "BLOCKING", "source": source or self.previous})
+
+    def push(self):
+        return run_hook("guard_shell.py", {"tool_input": {"command": "git push origin HEAD:claude/ryo-consolidation"},
+                                           "cwd": self.tree})
+
+    def test_allowed_with_all_three_even_when_blocking(self):
+        self.all_reviews()
+        self.assertEqual(self.push().returncode, 0)
+
+    def test_each_missing_review_is_refused_by_name(self):
+        for name in self.NAMES:
+            with self.subTest(name=name):
+                self.setUp()
+                self.all_reviews(skip=(name,))
+                result = self.push()
+                self.assertEqual(result.returncode, 2)
+                self.assertIn("carries no " + self.EVIDENCE + name, result.stderr)
+                self.assertIn("subagent", result.stderr)
+
+    def test_stale_source_is_refused(self):
+        git(self.tree, "commit", "-q", "--allow-empty", "-m", "elsewhere")
+        stale = git(self.tree, "rev-parse", "HEAD")
+        self.all_reviews(source=stale)
+        result = self.push()
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("is not the previous landed head", result.stderr)
+
+    def test_missing_verdict_is_refused(self):
+        self.all_reviews()
+        self.write("leak-review.json", {"source": self.previous})
+        self.assertIn('no "verdict"', self.push().stderr)
+
+    def test_bootstrap_head_needs_only_the_contract_review(self):
+        # the bootstrap sha cannot be forged, so point the constant at this remote head
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("guard_shell", os.path.join(HERE, "guard_shell.py"))
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        module.BOOTSTRAP_HEAD = self.previous[:10]
+        words = ["git", "push", "origin", "HEAD:claude/ryo-consolidation"]
+        self.assertIn("contract-review.json", module.previous_reviews(words, self.tree))
+        self.write("contract-review.json", {"verdict": "PASS", "source": self.previous})
+        self.assertIsNone(module.previous_reviews(words, self.tree))
+
+
+class PerfGate(unittest.TestCase):
+    DIR = "crates/ryo/docs/contracts/evidence/perf/p6/"
+
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.dir.cleanup)
+        self.tree = repo(self.dir.name, "tree", "claude/ryo-consolidation")
+        git(self.tree, "commit", "-q", "--allow-empty", "-m", "base")
+        self.base = git(self.tree, "rev-parse", "HEAD")
+        git(self.tree, "checkout", "-q", "-b", "claude/p6-speed")
+
+    def write(self, name, body):
+        path = os.path.join(self.tree, self.DIR + name)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump(body, handle)
+        git(self.tree, "add", self.DIR + name)
+        git(self.tree, "commit", "-q", "-m", "docs: evidence " + name)
+
+    def diagnosis(self, source=None, verdict="refuted", levers=("l1",)):
+        self.write("diagnosis.json", {"source": source or self.base, "hypotheses": [{"claim": "lock", "verdict": verdict}],
+                                      "levers": [{"id": l, "evidence": "e"} for l in levers]})
+
+    def perf(self, message="perf(engine): cache facts (lever l1)"):
+        git(self.tree, "commit", "-q", "--allow-empty", "-m", message)
+
+    def push(self):
+        return run_hook("guard_shell.py", {"tool_input": {"command": "git push origin claude/p6-speed"}, "cwd": self.tree})
+
+    def test_redirections_are_not_push_operands(self):
+        self.perf()
+        for tail in (" 2>&1", " 2>/dev/null", " >out.log", " > out.log 2>&1", " >> out.log"):
+            with self.subTest(tail=tail):
+                done = run_hook("guard_shell.py", {"tool_input": {"command": "git push origin claude/p6-speed" + tail},
+                                                   "cwd": self.tree})
+                self.assertEqual(done.returncode, 2)
+                self.assertIn("push of claude/p6-speed refused", done.stderr)
+
+    def test_remote_consolidation_perf_commits_are_not_pushed(self):
+        git(self.tree, "checkout", "-q", "-b", "claude/other", self.base)
+        git(self.tree, "commit", "-q", "--allow-empty", "-m", "perf(engine): remote only 3s")
+        git(self.tree, "update-ref", "refs/remotes/origin/claude/ryo-consolidation", "HEAD")
+        git(self.tree, "checkout", "-q", "claude/p6-speed")
+        git(self.tree, "commit", "-q", "--allow-empty", "-m", "fix: unrelated")
+        self.assertEqual(self.push().returncode, 0)
+
+    def test_stale_diagnosis_from_an_older_iteration_is_refused(self):
+        git(self.tree, "checkout", "-q", "claude/ryo-consolidation")
+        self.DIR = "crates/ryo/docs/contracts/evidence/perf/p5/"
+        self.diagnosis()
+        self.DIR = "crates/ryo/docs/contracts/evidence/perf/p6/"
+        git(self.tree, "checkout", "-q", "claude/p6-speed")
+        git(self.tree, "merge", "-q", "--ff-only", "claude/ryo-consolidation")
+        self.perf()
+        result = self.push()
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("added in the pushed range", result.stderr)
+
+    def test_after_must_be_identical_and_name_a_commit_in_range(self):
+        self.diagnosis()
+        self.perf("perf(engine): cache facts (l1), 12s to 8s")
+        head = git(self.tree, "rev-parse", "HEAD")
+        for body in ({"identical_output": False, "source": head}, {"identical_output": True},
+                     {"identical_output": True, "source": self.base}):
+            with self.subTest(body=body):
+                self.write("after.json", {"before": [], "after": [], **body})
+                self.assertEqual(self.push().returncode, 2)
+
+    def test_the_pushed_ref_is_checked_not_head(self):
+        self.perf()
+        git(self.tree, "checkout", "-q", "claude/ryo-consolidation")
+        for command in ["git push origin claude/p6-speed", "git push origin claude/p6-speed:claude/p6-speed"]:
+            with self.subTest(command=command):
+                done = run_hook("guard_shell.py", {"tool_input": {"command": command}, "cwd": self.tree})
+                self.assertEqual(done.returncode, 2)
+
+    def test_bare_push_and_head_push_check_the_current_branch(self):
+        self.perf()
+        for command in ["git push", "git push origin", "git push origin HEAD", "git push -u origin HEAD"]:
+            with self.subTest(command=command):
+                done = run_hook("guard_shell.py", {"tool_input": {"command": command}, "cwd": self.tree})
+                self.assertEqual(done.returncode, 2)
+
+    def test_wrappers_do_not_hide_the_push(self):
+        self.perf()
+        for command in ["env git push origin claude/p6-speed", "command git push origin claude/p6-speed",
+                        "env -i A=1 git push origin claude/p6-speed", "bash -c 'git push origin claude/p6-speed'",
+                        "sh -c \"env git push origin claude/p6-speed\"", "nohup git push origin claude/p6-speed"]:
+            with self.subTest(command=command):
+                done = run_hook("guard_shell.py", {"tool_input": {"command": command}, "cwd": self.tree})
+                self.assertEqual(done.returncode, 2)
+
+    def test_a_later_number_claim_cannot_ride_an_older_after(self):
+        self.diagnosis()
+        with open(os.path.join(self.tree, "engine.rs"), "w", encoding="utf-8") as handle:
+            handle.write("p11\n")
+        git(self.tree, "add", "engine.rs")
+        git(self.tree, "commit", "-q", "-m", "perf(engine): p11, 12s to 8s")
+        self.write("after.json", {"before": [], "after": [], "identical_output": True,
+                                  "source": git(self.tree, "rev-parse", "HEAD")})
+        self.assertEqual(self.push().returncode, 0)
+        with open(os.path.join(self.tree, "engine.rs"), "w", encoding="utf-8") as handle:
+            handle.write("p13\n")
+        git(self.tree, "commit", "-q", "-am", "perf(engine): p13, 12s to 4s")
+        result = self.push()
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("only crates/ryo/docs/contracts/evidence/ files changed since", result.stderr)
+
+    def test_after_source_must_be_a_full_sha_not_a_ref_name(self):
+        self.diagnosis()
+        with open(os.path.join(self.tree, "engine.rs"), "w", encoding="utf-8") as handle:
+            handle.write("p13\n")
+        git(self.tree, "add", "engine.rs")
+        git(self.tree, "commit", "-q", "-m", "perf(engine): p13, 12s to 4s")
+        for source in ("HEAD", "claude/p6-speed", "HEAD~0", "HEAD^{}", git(self.tree, "rev-parse", "HEAD")[:12]):
+            with self.subTest(source=source):
+                self.write("after.json", {"before": [], "after": [], "identical_output": True, "source": source})
+                self.assertEqual(self.push().returncode, 2)
+
+    def test_expanded_or_matching_push_operands_are_refused(self):
+        for command in ['git push origin "$(git branch --show-current)"', "git push origin :", "git push origin +:",
+                        "git push origin claude/*:claude/*", "git push origin $B"]:
+            with self.subTest(command=command):
+                done = run_hook("guard_shell.py", {"tool_input": {"command": command}, "cwd": self.tree})
+                self.assertEqual(done.returncode, 2)
+
+    def test_push_all_and_mirror_are_refused(self):
+        for command in ["git push --all origin", "git push --mirror", "env git push origin --all"]:
+            with self.subTest(command=command):
+                done = run_hook("guard_shell.py", {"tool_input": {"command": command}, "cwd": self.tree})
+                self.assertEqual(done.returncode, 2)
+
+    def test_login_shell_c_is_unwrapped(self):
+        self.perf()
+        for command in ["bash -lc 'git push origin claude/p6-speed'", "sh -ec 'git push origin claude/p6-speed'"]:
+            with self.subTest(command=command):
+                done = run_hook("guard_shell.py", {"tool_input": {"command": command}, "cwd": self.tree})
+                self.assertEqual(done.returncode, 2)
+        done = run_hook("guard_shell.py", {"tool_input": {"command": "bash -lc 'cargo build'"}, "cwd": self.tree})
+        self.assertEqual(done.returncode, 2)
+
+    def test_no_perf_commit_passes(self):
+        git(self.tree, "commit", "-q", "--allow-empty", "-m", "fix: 3s typo")
+        self.assertEqual(self.push().returncode, 0)
+
+    def test_perf_without_diagnosis_is_refused(self):
+        self.perf()
+        result = self.push()
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("perf-diagnosis subagent", result.stderr)
+        self.assertIn("diagnosis.json", result.stderr)
+
+    def test_diagnosis_without_verdicts_is_refused(self):
+        self.diagnosis(verdict="maybe")
+        self.perf()
+        result = self.push()
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("no hypothesis with a verdict", result.stderr)
+
+    def test_diagnosis_without_levers_is_refused(self):
+        self.diagnosis(levers=())
+        self.perf()
+        self.assertIn("no lever", self.push().stderr)
+
+    def test_stale_source_is_refused(self):
+        git(self.tree, "checkout", "-q", "-b", "side", self.base)
+        git(self.tree, "commit", "-q", "--allow-empty", "-m", "elsewhere")
+        elsewhere = git(self.tree, "rev-parse", "HEAD")
+        git(self.tree, "checkout", "-q", "claude/p6-speed")
+        self.diagnosis(source=elsewhere)
+        self.perf()
+        result = self.push()
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("not an ancestor of the first perf commit", result.stderr)
+
+    def test_claimed_number_without_after_is_refused(self):
+        self.diagnosis()
+        self.perf("perf(engine): cache facts (l1), 12s to 8s")
+        result = self.push()
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("after.json", result.stderr)
+
+    def test_all_present_passes(self):
+        self.diagnosis()
+        self.perf("perf(engine): cache facts (l1), 12s to 8s")
+        self.write("after.json", {"before": [], "after": [], "identical_output": True,
+                                  "source": git(self.tree, "rev-parse", "HEAD~1")})
+        self.assertEqual(self.push().returncode, 0)
+
+    def test_number_free_perf_needs_only_the_diagnosis(self):
+        self.diagnosis()
+        self.perf()
+        self.assertEqual(self.push().returncode, 0)
+
+    def test_commits_already_in_consolidation_are_not_rechecked(self):
+        git(self.tree, "checkout", "-q", "claude/ryo-consolidation")
+        self.perf()
+        git(self.tree, "checkout", "-q", "claude/p6-speed")
+        git(self.tree, "merge", "-q", "--ff-only", "claude/ryo-consolidation")
+        self.assertEqual(self.push().returncode, 0)
+
+
+class ConsolidationRef(unittest.TestCase):
+    REVIEW = RustReviewPush.REVIEW
+
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.dir.cleanup)
+        self.tree = repo(self.dir.name, "tree", "claude/ryo-consolidation")
+        git(self.tree, "commit", "-q", "--allow-empty", "-m", "base")
+
+    def run_in(self, command):
+        return run_hook("guard_shell.py", {"tool_input": {"command": command}, "cwd": self.tree})
+
+    def test_bare_and_head_pushes_from_consolidation_are_gated(self):
+        for command in ["git push", "git push origin", "git push origin HEAD", "env git push origin HEAD",
+                        "bash -c 'git push origin HEAD'"]:
+            with self.subTest(command=command):
+                done = self.run_in(command)
+                self.assertEqual(done.returncode, 2)
+                self.assertIn("rust-review subagent", done.stderr)
+
+    def test_the_pushed_ref_is_gated_not_head(self):
+        git(self.tree, "checkout", "-q", "-b", "claude/checkpoint-9")
+        path = os.path.join(self.tree, self.REVIEW)
+        os.makedirs(os.path.dirname(path))
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump({"verdict": "PASS", "source": git(self.tree, "rev-parse", "HEAD")}, handle)
+        git(self.tree, "add", self.REVIEW)
+        git(self.tree, "commit", "-q", "-m", "review")
+        self.assertEqual(self.run_in("git push origin claude/ryo-consolidation").returncode, 2)
+        self.assertEqual(self.run_in("git push origin HEAD:claude/ryo-consolidation").returncode, 0)
+
+    def test_previous_review_block_names_its_subagents(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("guard_shell", os.path.join(HERE, "guard_shell.py"))
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        self.assertEqual([agent for _, agent in module.PREVIOUS_REVIEWS], ["contract-review", "leak-review", "tm-steward"])
+
+
+class BranchMerge(unittest.TestCase):
+    EVIDENCE = "crates/ryo/docs/contracts/evidence/branches/claude-w1-x.json"
+
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.dir.cleanup)
+        self.tree = repo(self.dir.name, "tree", "claude/checkpoint-9")
+        git(self.tree, "commit", "-q", "--allow-empty", "-m", "base")
+        git(self.tree, "checkout", "-q", "-b", "claude/w1-x")
+        git(self.tree, "commit", "-q", "--allow-empty", "-m", "work")
+        self.head = git(self.tree, "rev-parse", "HEAD")
+        git(self.tree, "checkout", "-q", "claude/checkpoint-9")
+
+    def evidence(self, **fields):
+        body = {"source": self.head, "verdict": "PASS", "reviewer": "leak-review"}
+        body.update(fields)
+        path = os.path.join(self.tree, self.EVIDENCE)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump(body, handle)
+        git(self.tree, "add", self.EVIDENCE)
+        git(self.tree, "commit", "-q", "-m", "docs: leak review")
+
+    def merge(self, ref="claude/w1-x"):
+        return run_hook("guard_shell.py", {"tool_input": {"command": "git merge --no-ff -m x " + ref}, "cwd": self.tree})
+
+    def run_in(self, command):
+        return run_hook("guard_shell.py", {"tool_input": {"command": command}, "cwd": self.tree})
+
+    def test_shell_expanded_or_unresolvable_refs_are_refused(self):
+        self.evidence()
+        for command in ['B=claude/w1-x; git merge "$B"', "git merge $(git rev-parse claude/w1-x)",
+                        "git merge claude/w1-*", "git merge claude/nope", "git merge", "git merge `echo claude/w1-x`"]:
+            with self.subTest(command=command):
+                self.assertEqual(self.run_in(command).returncode, 2)
+
+    def test_wrapped_merges_are_gated(self):
+        for command in ["env git merge claude/w1-x", "command git merge claude/w1-x",
+                        "bash -c 'git merge claude/w1-x'", "sh -c \"env FOO=1 git merge claude/w1-x\""]:
+            with self.subTest(command=command):
+                self.assertEqual(self.run_in(command).returncode, 2)
+
+    def test_pull_is_refused_in_a_checkpoint_tree_only(self):
+        for command in ["git pull", "git pull . claude/w1-x", "env git pull origin claude/w1-x"]:
+            with self.subTest(command=command):
+                self.assertEqual(self.run_in(command).returncode, 2)
+        git(self.tree, "checkout", "-q", "claude/w1-x")
+        self.assertEqual(self.run_in("git pull").returncode, 0)
+
+    def test_a_moved_branch_old_sha_is_refused(self):
+        self.evidence()
+        git(self.tree, "checkout", "-q", "claude/w1-x")
+        git(self.tree, "commit", "-q", "--allow-empty", "-m", "more work")
+        git(self.tree, "checkout", "-q", "claude/checkpoint-9")
+        self.assertEqual(self.run_in("git merge " + self.head).returncode, 2)
+        self.assertEqual(self.run_in("git merge claude/w1-x").returncode, 2)
+
+    def test_detached_head_at_a_checkpoint_counts(self):
+        git(self.tree, "checkout", "-q", "--detach")
+        self.assertEqual(self.run_in("git merge claude/w1-x").returncode, 2)
+
+    def test_merge_control_options_pass(self):
+        self.assertEqual(self.run_in("git merge --abort").returncode, 0)
+
+    def test_missing_file_is_refused_naming_file_and_agent(self):
+        done = self.merge()
+        self.assertEqual(done.returncode, 2)
+        self.assertIn(self.EVIDENCE, done.stderr)
+        self.assertIn("leak-review subagent", done.stderr)
+
+    def test_stale_source_is_refused(self):
+        self.evidence(source="0" * 40)
+        self.assertEqual(self.merge().returncode, 2)
+
+    def test_fail_verdict_is_refused(self):
+        self.evidence(verdict="FAIL")
+        self.assertEqual(self.merge().returncode, 2)
+
+    def test_wrong_reviewer_or_missing_verdict_is_refused(self):
+        self.evidence(reviewer="someone")
+        self.assertEqual(self.merge().returncode, 2)
+
+    def test_pass_is_allowed_by_name_or_sha(self):
+        self.evidence()
+        self.assertEqual(self.merge().returncode, 0)
+        self.assertEqual(self.merge(self.head).returncode, 0)
+
+    def test_exempt_refs(self):
+        git(self.tree, "branch", "claude/ryo-consolidation", self.head)
+        git(self.tree, "branch", "claude/checkpoint-8", self.head)
+        git(self.tree, "branch", "claude/ancestor", "HEAD")
+        for ref in ("claude/ryo-consolidation", "claude/checkpoint-8", "claude/ancestor"):
+            with self.subTest(ref=ref):
+                self.assertEqual(self.merge(ref).returncode, 0)
+
+    def test_other_trees_are_not_gated(self):
+        git(self.tree, "checkout", "-q", "-b", "claude/w2-y")
+        self.assertEqual(self.merge().returncode, 0)
 
 
 class Acceptance(unittest.TestCase):
