@@ -69,10 +69,10 @@ fn evaluate_once(
     emit: &mut dyn Emit,
 ) -> Result<(), OperatingError> {
     #[cfg(feature = "diagnostic-row-progress")]
-    let routes = workspace.progress_origin().profile.clone();
+    let routes = workspace.progress_origin().profile().clone();
     #[cfg(feature = "diagnostic-row-progress")]
     let _progress_invocation =
-        ryo_execution_store::application::file_dag::route_counts::resume(workspace.progress_origin());
+        workspace.progress_origin().resume();
     #[cfg(test)]
     resources.observe(workspace);
     let mut parts = workspace.parts();
@@ -91,12 +91,8 @@ fn evaluate_once(
     };
     #[cfg(feature = "diagnostic-row-progress")]
     if let Some(row) = row {
-        ryo_execution_store::application::file_dag::route_counts::progress::service::row_file(
-            &routes,
-            row,
-            context.paths,
-        );
-        ryo_execution_store::application::file_dag::route_counts::progress::service::progress(
+        routes.row_file(row, context.paths);
+        crate::domain::operator::contract::views::ProgressObserver::observe(
             &routes,
             crate::domain::operator::contract::views::ProgressCounter::InputRows,
             crate::domain::operator::contract::views::ProgressAmount(1),

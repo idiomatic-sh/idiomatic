@@ -32,7 +32,7 @@ ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", ve
 
 [features]
 fixtures = ["ryo_execution_domain/fixtures", "ryo_values/fixtures", "ryo_relations/fixtures", "ryo_language/fixtures"]
-diagnostic-row-progress = []
+diagnostic-row-progress = ["ryo_execution_domain/diagnostic-row-progress"]
 
 [lints]
 workspace = true

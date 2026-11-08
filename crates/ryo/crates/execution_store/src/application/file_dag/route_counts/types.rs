@@ -3,21 +3,23 @@ use std::{collections::HashMap, fmt};
 
 /// Text label of one route, family, counter, namespace or consumer.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub(crate) struct RouteLabel(pub &'static str);
+pub struct RouteLabel(pub(crate) &'static str);
 impl From<&'static str> for RouteLabel {
     fn from(text: &'static str) -> Self {
         Self(text)
     }
 }
+/// The index of the rule a route is recorded under.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub(crate) struct RouteRuleIndex(pub usize);
+pub struct RouteRuleIndex(pub(crate) usize);
 impl From<usize> for RouteRuleIndex {
     fn from(index: usize) -> Self {
         Self(index)
     }
 }
+/// The program node a route is recorded under.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub(crate) struct RouteNodeIndex(pub usize);
+pub struct RouteNodeIndex(pub(crate) usize);
 impl From<usize> for RouteNodeIndex {
     fn from(index: usize) -> Self {
         Self(index)
@@ -47,8 +49,9 @@ impl From<[Option<usize>; 2]> for RoutePopulations {
         Self(ids.map(|id| id.map(RoutePopulationId)))
     }
 }
+/// The index of the file a profile counts.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct RouteFileIndex(pub usize);
+pub struct RouteFileIndex(pub(crate) usize);
 impl From<usize> for RouteFileIndex {
     fn from(index: usize) -> Self {
         Self(index)
@@ -138,22 +141,24 @@ pub(crate) struct RouteState {
 /// The profile of one file, opened by its scope and handed down to every part that records
 /// into it; it holds no state when the scope does not record.
 #[derive(Clone, Debug, Default)]
-pub struct RouteProfile(pub Option<std::sync::Arc<std::sync::Mutex<RouteState>>>);
+pub struct RouteProfile(pub(super) Option<std::sync::Arc<std::sync::Mutex<RouteState>>>);
 
+/// The profile of one file while its scope is open; it reports the file's counts when it closes.
 pub struct FileScope {
-    pub profile: RouteProfile,
+    pub(super) profile: RouteProfile,
 }
-pub(crate) struct OriginScope {
-    pub profile: RouteProfile,
-    pub previous: Option<RouteOrigin>,
+/// The origin a profile records under until this scope ends, when the previous one is restored.
+pub struct OriginScope {
+    pub(super) profile: RouteProfile,
+    pub(super) previous: Option<RouteOrigin>,
 }
 
 /// The origin a profile had when an invocation began, with the profile it belongs to.
 #[cfg(feature = "diagnostic-row-progress")]
 #[derive(Clone)]
-pub(crate) struct CapturedOrigin {
-    pub profile: RouteProfile,
-    pub origin: Option<RouteOrigin>,
+pub struct CapturedOrigin {
+    pub(super) profile: RouteProfile,
+    pub(super) origin: Option<RouteOrigin>,
 }
 /// Display path of the file under profile.
 #[cfg(feature = "diagnostic-row-progress")]

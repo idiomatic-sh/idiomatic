@@ -75,13 +75,9 @@ impl FileRun<'_> {
         if owns_file_root {
             self.prepare_walk(read, symbols)?;
         }
-        let _rule_origin = ryo_execution_store::application::file_dag::route_counts::rule(
-            self.routes.profile(),
-            rule.0,
-            self.program.rule_id(rule)?,
-        );
+        let _rule_origin = self.routes.profile().rule(rule.0, self.program.rule_id(rule)?);
         let _consumer_origin =
-            ryo_execution_store::application::file_dag::route_counts::consumer(self.routes.profile(), FILE_RULE_CONSUMER);
+            self.routes.profile().consumer(FILE_RULE_CONSUMER);
         let mut context = self.context.borrow(symbols, self.program, rule)?;
         let context = &mut context;
         let metadata = self.program.rule_metadata(rule)?;

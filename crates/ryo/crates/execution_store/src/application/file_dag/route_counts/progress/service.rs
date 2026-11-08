@@ -15,30 +15,34 @@ use super::super::types::{
     RouteTally,
 };
 
-pub fn file_name(profile: &RouteProfile, name: &FilePath) {
-    let name = RouteFileName(name.0.to_string());
-    let _named = with_state(profile, |state| state.progress.name = name);
-    flush(profile, RouteLabel(constants::STAGE_SCOPE_START));
-}
-pub fn row_file(profile: &RouteProfile, row: &[Value], paths: &[FilePath]) {
-    let file = row.iter().find_map(|value| match value {
-        Value::File(file) => Some(file),
-        _ => None,
-    });
-    let _attributed = with_state(profile, |state| {
-        match file {
-            Some(file)
-                if state.progress.row_file.as_ref().map(|known| known.file.0) != Some(file.0) =>
-            {
-                state.progress.row_file = paths.get(file.0 as usize).map(|path| RouteRowFile {
-                    file: ryo_relations::domain::relations::types::FileId(file.0),
-                    path: RouteFileName(path.0.to_string()),
-                });
+impl RouteProfile {
+    /// Names the file this profile counts, and reports that its scope started.
+    pub fn file_name(&self, name: &FilePath) {
+        let name = RouteFileName(name.0.to_string());
+        let _named = with_state(self, |state| state.progress.name = name);
+        flush(self, RouteLabel(constants::STAGE_SCOPE_START));
+    }
+    /// Attributes the rows counted next to the file `row` names, among `paths`.
+    pub fn row_file(&self, row: &[Value], paths: &[FilePath]) {
+        let file = row.iter().find_map(|value| match value {
+            Value::File(file) => Some(file),
+            _ => None,
+        });
+        let _attributed = with_state(self, |state| {
+            match file {
+                Some(file)
+                    if state.progress.row_file.as_ref().map(|known| known.file.0) != Some(file.0) =>
+                {
+                    state.progress.row_file = paths.get(file.0 as usize).map(|path| RouteRowFile {
+                        file: ryo_relations::domain::relations::types::FileId(file.0),
+                        path: RouteFileName(path.0.to_string()),
+                    });
+                }
+                None => state.progress.row_file = None,
+                _ => {}
             }
-            None => state.progress.row_file = None,
-            _ => {}
-        }
-    });
+        });
+    }
 }
 fn counter_label(counter: ProgressCounter) -> RouteLabel {
     RouteLabel(match counter {
@@ -50,7 +54,7 @@ fn counter_label(counter: ProgressCounter) -> RouteLabel {
         ProgressCounter::JoinCandidatePairs => constants::COUNTER_JOIN_CANDIDATE_PAIRS,
     })
 }
-pub fn progress(profile: &RouteProfile, counter: ProgressCounter, amount: ProgressAmount) {
+fn progress(profile: &RouteProfile, counter: ProgressCounter, amount: ProgressAmount) {
     let label = counter_label(counter);
     let flush_now = with_state(profile, |state| {
         let key = RouteKey {

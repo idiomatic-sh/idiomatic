@@ -152,12 +152,19 @@ pub(crate) fn capture(profile: &RouteProfile) -> CapturedOrigin {
     }
 }
 #[cfg(feature = "diagnostic-row-progress")]
-pub fn resume(captured: &CapturedOrigin) -> OriginScope {
-    scope(&captured.profile, |current| {
-        if let Some(origin) = captured.origin {
-            *current = origin;
-        }
-    })
+impl CapturedOrigin {
+    /// The profile this origin was captured from.
+    pub fn profile(&self) -> &RouteProfile {
+        &self.profile
+    }
+    /// Records under the captured origin again until the returned scope ends.
+    pub fn resume(&self) -> OriginScope {
+        scope(&self.profile, |current| {
+            if let Some(origin) = self.origin {
+                *current = origin;
+            }
+        })
+    }
 }
 pub(super) fn scope(profile: &RouteProfile, change: impl FnOnce(&mut RouteOrigin)) -> OriginScope {
     let previous = with_state(profile, |state| {
@@ -174,39 +181,40 @@ pub(super) fn scope(profile: &RouteProfile, change: impl FnOnce(&mut RouteOrigin
         previous,
     }
 }
-pub fn rule(
-    profile: &RouteProfile,
-    rule: impl Into<RouteRuleIndex>,
-    name: &RuleId,
-) -> OriginScope {
-    let rule = rule.into();
-    let _named = with_state(profile, |state| {
-        if !state.rules.contains_key(&rule) {
-            if state.rules.len() < MAX_KEYS {
-                let _previous = state.rules.insert(rule, RouteRuleName(name.0.to_string()));
-            } else {
-                state.overflow.0 += 1;
+impl RouteProfile {
+    /// Records under `rule` until the returned scope ends.
+    pub fn rule(&self, rule: impl Into<RouteRuleIndex>, name: &RuleId) -> OriginScope {
+        let rule = rule.into();
+        let _named = with_state(self, |state| {
+            if !state.rules.contains_key(&rule) {
+                if state.rules.len() < MAX_KEYS {
+                    let _previous = state.rules.insert(rule, RouteRuleName(name.0.to_string()));
+                } else {
+                    state.overflow.0 += 1;
+                }
             }
-        }
-    });
-    scope(profile, |origin| {
-        origin.rule = Some(rule);
-        origin.node = None;
-    })
-}
-pub fn node(profile: &RouteProfile, node: impl Into<RouteNodeIndex>) -> OriginScope {
-    let node = node.into();
-    scope(profile, |origin| {
-        origin.node = Some(node);
-        #[cfg(feature = "diagnostic-row-progress")]
-        {
-            origin.namespace = RouteLabel(constants::DAG_NAMESPACE);
-        }
-    })
-}
-pub fn consumer(profile: &RouteProfile, consumer: impl Into<RouteLabel>) -> OriginScope {
-    let consumer = consumer.into();
-    scope(profile, |origin| origin.consumer = Some(consumer))
+        });
+        scope(self, |origin| {
+            origin.rule = Some(rule);
+            origin.node = None;
+        })
+    }
+    /// Records under the program node `node` until the returned scope ends.
+    pub fn node(&self, node: impl Into<RouteNodeIndex>) -> OriginScope {
+        let node = node.into();
+        scope(self, |origin| {
+            origin.node = Some(node);
+            #[cfg(feature = "diagnostic-row-progress")]
+            {
+                origin.namespace = RouteLabel(constants::DAG_NAMESPACE);
+            }
+        })
+    }
+    /// Records under the consumer `consumer` until the returned scope ends.
+    pub fn consumer(&self, consumer: impl Into<RouteLabel>) -> OriginScope {
+        let consumer = consumer.into();
+        scope(self, |origin| origin.consumer = Some(consumer))
+    }
 }
 pub(crate) fn identity(
     profile: &RouteProfile,

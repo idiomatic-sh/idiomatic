@@ -61,13 +61,9 @@ impl FileRun<'_> {
             );
         }
         self.prepare_walk(read, symbols)?;
-        let _rule_origin = ryo_execution_store::application::file_dag::route_counts::rule(
-            self.routes.profile(),
-            rule.0,
-            self.program.rule_id(rule)?,
-        );
+        let _rule_origin = self.routes.profile().rule(rule.0, self.program.rule_id(rule)?);
         let _consumer_origin =
-            ryo_execution_store::application::file_dag::route_counts::consumer(self.routes.profile(), FILE_STREAM_CONSUMER);
+            self.routes.profile().consumer(FILE_STREAM_CONSUMER);
         let mut context = self.context.borrow(symbols, self.program, rule)?;
         let context = &mut context;
         let completion = match &self.partials {

@@ -106,10 +106,7 @@ pub(crate) fn open_file<'a>(
     let routes = ryo_execution_store::application::file_dag::route_counts::types::FileScope::begin(file.0 as usize);
     #[cfg(feature = "diagnostic-row-progress")]
     if let Some(path) = services.request.path(file) {
-        ryo_execution_store::application::file_dag::route_counts::progress::service::file_name(
-            routes.profile(),
-            path,
-        );
+        routes.profile().file_name(path);
     }
     let owner = open_program_owner(
         program.program(),

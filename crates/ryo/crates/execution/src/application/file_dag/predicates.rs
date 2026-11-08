@@ -29,7 +29,7 @@ pub(crate) struct BoundPredicate<'a> {
 impl PredicateProgram for BoundPredicate<'_> {
     fn holds(&mut self, row: &[Value], symbols: &Symbols) -> Result<Verdict, OperatingError> {
         #[cfg(feature = "diagnostic-row-progress")]
-        ryo_execution_store::application::file_dag::route_counts::progress::service::progress(
+        crate::domain::operator::contract::views::ProgressObserver::observe(
             self.progress,
             crate::domain::operator::contract::views::ProgressCounter::PredicateEvaluations,
             crate::domain::operator::contract::views::ProgressAmount(1),

@@ -7,7 +7,7 @@ use super::types::{
     BuildRoute, RouteCount, RouteNodeIndex, RouteOrigin, RouteOwnerId, RouteOwnership, RoutePlanId,
     RouteProfile, RouteRuleIndex, RouteRuleName, RouteState, RouteTally,
 };
-use super::{event, identity, node, observe, owner, rule};
+use super::{event, identity, observe, owner};
 use crate::application::file_dag::derived::constants::{OWNER_HIT, OWNER_REQUEST};
 use crate::application::file_dag::derived::owner::acquisition::population::types::Construction;
 use ryo_derived::domain::contract::types::DerivedView;
@@ -45,8 +45,8 @@ fn capture(run: impl FnOnce(&RouteProfile)) -> RouteState {
 #[test]
 fn physical_build_is_once_and_original_error_survives_nested_scopes() {
     let state = capture(|profile| {
-        let _rule = rule(profile, 3, &RuleId(EXAMPLE_RULE.into()));
-        let _node = node(profile, 19);
+        let _rule = profile.rule(3, &RuleId(EXAMPLE_RULE.into()));
+        let _node = profile.node(19);
         let _owner = owner(profile, 7);
         event(profile, OWNER_REQUEST, KIND_EQUALITY);
         let outcome: Result<(), &str> =
@@ -94,8 +94,8 @@ fn physical_build_is_once_and_original_error_survives_nested_scopes() {
 fn cross_rule_origin_is_attributed_and_disabled_recording_allocates_no_state() {
     let state = capture(|profile| {
         for number in [1, 2] {
-            let _rule = rule(profile, number, &RuleId(EXAMPLE_RULE.into()));
-            let _node = node(profile, 41);
+            let _rule = profile.rule(number, &RuleId(EXAMPLE_RULE.into()));
+            let _node = profile.node(41);
             observe(profile, SCOPED_BUILD, KIND_MEMBERSHIP, || Ok::<_, ()>(())).unwrap();
         }
     });
@@ -122,7 +122,7 @@ fn cross_rule_origin_is_attributed_and_disabled_recording_allocates_no_state() {
 fn bounded_capture_reports_overflow_instead_of_claiming_complete_counts() {
     let state = capture(|profile| {
         for number in 0..MAX_KEYS + 3 {
-            let _node = node(profile, number);
+            let _node = profile.node(number);
             event(profile, "owner_request", "Equality");
         }
     });
@@ -133,8 +133,8 @@ fn bounded_capture_reports_overflow_instead_of_claiming_complete_counts() {
 #[test]
 fn owner_identity_distinguishes_live_population_keys_and_rules_are_named_once() {
     let state = capture(|profile| {
-        let _rule = rule(profile, 2, &RuleId(QUERY_NAME.into()));
-        let _node = node(profile, 41);
+        let _rule = profile.rule(2, &RuleId(QUERY_NAME.into()));
+        let _node = profile.node(41);
         let _owner = owner(profile, 17);
         for population in [3, 4] {
             let _identity = identity(profile, 29, [Some(population), None]);
@@ -189,8 +189,8 @@ use ryo_execution_domain::domain::table_model::types::RepresentationInput;
         .unwrap(),
     );
     let state = capture(|profile| {
-        let _rule = rule(profile, 2, &RuleId(QUERY_TWO.into()));
-        let _node = node(profile, 41);
+        let _rule = profile.rule(2, &RuleId(QUERY_TWO.into()));
+        let _node = profile.node(41);
         let owner = RelationOwner::recording(
             crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
             crate::application::file_dag::fixtures::program_derived_port(),
