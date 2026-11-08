@@ -132,53 +132,36 @@ fn project_grouping_reads_only_actual_captured_function_names() {
         partial: vec![],
     });
     let phase = request.project_phase().unwrap();
-    let scope = phase
-        .project_scope(
-            RuleIndex(0),
-            &corpus,
-            &covered,
-            &[],
-            &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
-        )
-        .unwrap();
     let project_symbols = Symbols::default();
     let mut symbols = Symbols::default();
-    let ordinary = request
-        .prepare_frontiers(
-            FrontierRequest {
-                demand: FrontierDemand::Diagnostic,
-                scope: &scope,
-                rule: RuleIndex(0),
-                first: Bucket(0),
-                facts: &stored,
-                project: &project,
-                project_symbols: &project_symbols,
-            },
-            &mut symbols,
-        )
-        .expect("admit exact persisted frame");
+    let partials = Partials::default();
+    let arenas = [ArenaBytes(arena)];
+    let outcome = crate::boundary_fixture::project_root(
+        &phase,
+        PhaseOccurrences {
+            occurrences: &[crate::boundary_fixture::ordinary_occurrence(RuleIndex(0))],
+            first: &[Bucket(0)],
+            corpus: &corpus,
+            covered: &covered,
+            skipped: &[],
+            inapplicable: &[ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default()],
+            facts: &stored,
+            project: &project,
+            project_symbols: &project_symbols,
+            arenas: &arenas,
+        },
+        &partials,
+        &partials,
+        &mut symbols,
+    );
+    // The exact persisted frame is admitted once, with no unrelated project facts.
     assert_eq!(
         project.reads.load(Ordering::SeqCst),
         0,
         "no unrelated project facts"
     );
     assert_eq!(stored.reads.load(Ordering::SeqCst), 1);
-    let partials = Partials::default();
-    let arenas = [ArenaBytes(arena)];
-    let RootOutcome::Complete(result) = crate::boundary_fixture::project_root(
-        &phase,
-        RuleIndex(0),
-        demand(),
-        ProjectInput {
-            scope: &scope,
-            evaluation: &partials,
-            publication: &partials,
-            ordinary,
-            bound: &[],
-            arenas: &arenas,
-        },
-        &mut symbols,
-    )
+    let RootOutcome::Complete(result) = outcome
     .unwrap()
     .emit
     else {
@@ -200,7 +183,6 @@ fn project_grouping_reads_only_actual_captured_function_names() {
     actual.sort_unstable();
     expected.sort_unstable();
     assert_eq!(actual, expected);
-    drop(scope);
     phase.finish().unwrap();
     request.finish();
 }

@@ -7,17 +7,10 @@ use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use super::service::CrossFile;
 use super::types::ProjectCrossing;
 use crate::domain::answering::types::Todo;
-use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution;
-use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
-use ryo_execution::inbound::use_cases::execution::interface::FrontierDemand;
-use ryo_execution::inbound::use_cases::execution::interface::FrontierRequest;
 use ryo_execution::inbound::use_cases::prepare::interface::ObservationIdentity;
-use ryo_execution::inbound::use_cases::execution::interface::PreparedFrontiers;
 use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
-use ryo_execution::inbound::use_cases::execution::interface::ProjectPhase;
-use ryo_execution::inbound::use_cases::execution::interface::PhaseScope;
 use ryo_execution::inbound::use_cases::metadata::interface::Covered;
 use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
 use ryo_execution::inbound::use_cases::metadata::interface::Needs;
@@ -25,7 +18,6 @@ use ryo_execution::inbound::use_cases::metadata::interface::Partial;
 use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use ryo_language::domain::files::types::FilePath;
-use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_relations::domain::relations::types::FileId;
 use ryo_relations::domain::relations::types::Relation;
@@ -42,7 +34,6 @@ use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::plans::types::PlanStep;
 use ryo_values::domain::rows::types::Table;
-use ryo_values::domain::rule_requests::errors::RuleRequestsError;
 use ryo_values::domain::runs::types::RuleId;
 use ryo_values::domain::stored_facts::types::ArenaBytes;
 use ryo_values::domain::table_words::service::encode_table;
@@ -240,17 +231,6 @@ pub(super) fn crossing(world: &World) -> ProjectCrossing<'_> {
     }
 }
 
-pub(super) fn prepared<'a>(
-    world: &'a World,
-    rows: &[(FileId, ryo_values::domain::rows::types::Table)],
-    symbols: &mut Symbols,
-) -> Result<(ProjectPhase<'a>, PhaseScope, PreparedFrontiers), RuleRequestsError> {
-    let phase = world.request.project_phase().expect("one project phase");
-    let (scope, frontiers) =
-        prepared_in(world, &phase, RuleIndex(0), &world.covered, rows, symbols)?;
-    Ok((phase, scope, frontiers))
-}
-
 /// Finished facts and a project worker beside them.
 type KeptFacts = (Box<dyn FactsFinish>, Box<dyn FactsWorker>);
 /// The facts of each rule's `rows` kept in that rule's own bucket (`Bucket(rule)`) for its frontier, finished as one port, with a
@@ -284,45 +264,6 @@ pub(super) fn kept_facts(world: &World, kept: &[(RuleIndex, &[(FileId, Table)])]
         .expect("facts finish");
     let project = facts_port.worker().expect("project facts");
     (facts, project)
-}
-
-pub(super) fn prepared_in(
-    world: &World,
-    phase: &ProjectPhase<'_>,
-    rule: RuleIndex,
-    covered: &[Covered],
-    rows: &[(FileId, Table)],
-    symbols: &mut Symbols,
-) -> Result<(PhaseScope, PreparedFrontiers), RuleRequestsError> {
-    use ryo_values::domain::stored_facts::types::Bucket;
-    let (facts, project) = kept_facts(world, &[(rule, rows)]);
-    let scope = phase
-        .project_scope(
-            rule,
-            &world.files,
-            covered,
-            &world.skipped,
-            &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
-        )
-        .expect("project scope");
-    let frontiers = world
-        .request
-        .prepare_frontiers(
-            FrontierRequest {
-                demand: FrontierDemand::Diagnostic,
-                scope: &scope,
-                rule,
-                first: Bucket(u32::try_from(rule.0).expect("a fixture rule numbers its bucket")),
-                facts: facts.as_ref(),
-                project: project.as_ref(),
-                project_symbols: &Symbols::default(),
-            },
-            symbols,
-        )
-        .map_err(|error| {
-            ryo_values::domain::rule_requests::service::failed(&world.ids[rule.0], &error)
-        })?;
-    Ok((scope, frontiers))
 }
 
 pub(super) fn todo(rule: usize) -> Todo {

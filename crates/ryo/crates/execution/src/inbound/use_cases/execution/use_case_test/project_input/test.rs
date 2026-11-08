@@ -12,18 +12,14 @@ use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_execution_runtime::outbound::facts::types::WordsToKeep;
 use super::super::super::fixtures;
 use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
-use ryo_execution_runtime::application::file_dag::program::project_phase::types::ProjectInput;
-use ryo_execution_runtime::application::file_dag::program::project_phase::types::ProjectTask;
+use ryo_execution_runtime::application::file_dag::program::project_phase::types::{PhaseOccurrence, PhaseOccurrences, PhasePartials};
+use ryo_execution_runtime::application::file_dag::frontiers::types::PublicationSlot;
 use ryo_execution_runtime::application::file_dag::program::project_phase::types::FrontierDemand;
-use ryo_execution_runtime::application::file_dag::program::project_phase::types::FrontierRequest;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::ProjectBatch;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
 use crate::inbound::use_cases::execution::interface::Covered;
-use crate::inbound::use_cases::execution::interface::EmitDemand;
-use crate::inbound::use_cases::execution::interface::ObservationDemand;
 use crate::inbound::use_cases::execution::interface::OperatingError;
 use crate::inbound::use_cases::execution::interface::Partials;
-use crate::inbound::use_cases::execution::interface::RuleDemand;
 use crate::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{ColumnsView, FileId, Relation};
@@ -99,57 +95,44 @@ fn project_step_without_a_declared_handover_cannot_read_a_per_file_source() -> R
         partial: vec![],
     }];
     let phase = request.project_phase().unwrap();
-    let scope = phase
-        .project_scope(
-            RuleIndex(0),
-            &corpus,
-            &covered,
-            &[],
-            &crate::inbound::use_cases::execution::interface::InapplicableFiles::default(),
-        )
-        .unwrap();
     let facts = UnavailableFacts::default();
     let mut symbols = Symbols::default();
     let project_symbols = Symbols::default();
-    let partials = Partials::default();
-    // Two declared roots of the one rule: the refusal repeats without reacquiring the provider.
-    let tasks = (0..2)
-        .map(|_| ProjectTask {
-            rule: RuleIndex(0),
-            demand: RuleDemand {
-                emit: EmitDemand::Enabled,
-                observations: ObservationDemand::NotRequired,
-            },
-            input: ProjectInput {
-                scope: &scope,
-                evaluation: &partials,
-                publication: &partials,
-                ordinary: request
-                    .prepare_frontiers(
-                        FrontierRequest {
-                            demand: FrontierDemand::Diagnostic,
-                            scope: &scope,
-                            rule: RuleIndex(0),
-                            first: Bucket(0),
-                            facts: &facts,
-                            project: &facts,
-                            project_symbols: &project_symbols,
-                        },
-                        &mut symbols,
-                    )
-                    .unwrap(),
-                bound: &[],
-                arenas: &[],
-            },
-        })
-        .collect();
-    let ProjectBatch::Complete(outcomes) = phase.evaluate(tasks, &mut symbols, |_| {
-        Ok::<(), OperatingError>(())
-    }) else {
-        panic!("the guard admits the declared roots")
+    let occurrence = PhaseOccurrence {
+        rule: RuleIndex(0),
+        bound: &[],
+        slot: PublicationSlot::Unused,
+        demand: FrontierDemand::Diagnostic,
+    };
+    // Two declared occurrences of the one rule: the refusal repeats without reacquiring the provider.
+    let ProjectBatch::Complete(outcomes) = phase.evaluate_occurrences(
+        PhaseOccurrences {
+            occurrences: &[occurrence, occurrence],
+            first: &[Bucket(0)],
+            corpus: &corpus,
+            covered: &covered,
+            skipped: &[],
+            inapplicable: &[crate::inbound::use_cases::execution::interface::InapplicableFiles::default()],
+            facts: &facts,
+            project: &facts,
+            project_symbols: &project_symbols,
+            arenas: &[],
+        },
+        &mut symbols,
+        |_| Ok::<(), OperatingError>(()),
+        |_| {
+            Ok(PhasePartials {
+                evaluation: Partials::default(),
+                publication: Partials::default(),
+            })
+        },
+        |_| Ok(()),
+        |_, outcome, _, _| Ok(outcome),
+    ) else {
+        panic!("the guard admits the declared occurrences")
     };
     for outcome in outcomes {
-        let outcome = outcome.unwrap();
+        let outcome = outcome.expect("the occurrence is scoped, prepared and evaluated");
         assert!(
             matches!(outcome.emit, RootOutcome::Failed(OperatingError::NotRead)),
             "a missing file handover must refuse rather than become a complete empty source"
@@ -161,7 +144,6 @@ fn project_step_without_a_declared_handover_cannot_read_a_per_file_source() -> R
         0,
         "a project invocation cannot reacquire the missing per-file provider"
     );
-    drop(scope);
     phase.finish().unwrap();
     request.finish();
     Ok(())

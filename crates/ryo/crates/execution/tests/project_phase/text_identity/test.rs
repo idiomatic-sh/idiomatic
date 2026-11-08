@@ -100,9 +100,6 @@ fn project_text_identity_does_not_depend_on_inherited_arenas() {
                     partial: vec![],
                 }];
                 let phase = request.project_phase().unwrap();
-                let scope = phase
-                    .project_scope(RuleIndex(0), &corpus, &covered, &[], &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default())
-                    .unwrap();
                 let stored = CapturedFacts {
                     captures: vec![],
                     reads: AtomicUsize::new(0),
@@ -110,33 +107,23 @@ fn project_text_identity_does_not_depend_on_inherited_arenas() {
                 let project = ProjectFacts::new(Relation::ModuleIdentity);
                 let project_symbols = Symbols::default();
                 let mut symbols = Symbols::default();
-                let ordinary = request
-                    .prepare_frontiers(
-                        FrontierRequest {
-                            demand: FrontierDemand::Diagnostic,
-                            scope: &scope,
-                            rule: RuleIndex(0),
-                            first: Bucket(0),
-                            facts: &stored,
-                            project: &project,
-                            project_symbols: &project_symbols,
-                        },
-                        &mut symbols,
-                    )
-                    .unwrap();
                 let partials = Partials::default();
                 let result = crate::boundary_fixture::project_root(
                     &phase,
-                    RuleIndex(0),
-                    demand(),
-                    ProjectInput {
-                        scope: &scope,
-                        evaluation: &partials,
-                        publication: &partials,
-                        ordinary,
-                        bound: &[],
+                    PhaseOccurrences {
+                        occurrences: &[crate::boundary_fixture::ordinary_occurrence(RuleIndex(0))],
+                        first: &[Bucket(0)],
+                        corpus: &corpus,
+                        covered: &covered,
+                        skipped: &[],
+                        inapplicable: &[ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default()],
+                        facts: &stored,
+                        project: &project,
+                        project_symbols: &project_symbols,
                         arenas: &arenas,
                     },
+                    &partials,
+                    &partials,
                     &mut symbols,
                 )
                 .unwrap();

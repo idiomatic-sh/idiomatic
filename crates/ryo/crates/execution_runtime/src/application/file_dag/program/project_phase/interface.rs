@@ -1,6 +1,5 @@
 //! What a project phase offers a caller.
 use crate::application::file_dag::program::project_phase::types::PhaseScope;
-use crate::application::file_dag::program::project_phase::types::ProjectTask;
 use crate::application::file_dag::program::project_phase::types::{OccurrenceNumber, PhaseOccurrences, PhasePartials, PhaseStop};
 use crate::application::file_dag::frontiers::types::PublicationSlot;
 use crate::application::file_dag::program::rule_outcome::types::ProjectBatch;
@@ -26,32 +25,12 @@ use ryo_values::domain::runs::types::Skipped;
 ///     project.emit_rows();
 /// }
 /// ```
-/// The authorized route, declared roots through the phase, compiles.
-/// ```
-/// use ryo_execution_runtime::application::file_dag::program::project_phase::{
-///     interface::ProjectRootExecution,
-///     types::{ProjectPhase, ProjectTask},
-/// };
-/// use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::{ProjectBatch, ProjectOutputOutcome, RuleOutcome};
-/// use ryo_execution_domain::domain::coverage::types::RuleIndex;
-/// use ryo_execution_domain::domain::operating::errors::OperatingError;
-/// use ryo_language::domain::symbols::types::Symbols;
-/// fn evaluate(
-///     phase: &ProjectPhase<'_>,
-///     tasks: Vec<ProjectTask<'_>>,
-///     symbols: &mut Symbols,
-/// ) -> ProjectBatch<Result<RuleOutcome<ProjectOutputOutcome>, OperatingError>, OperatingError> {
-///     phase.evaluate(tasks, symbols, |_: RuleIndex| Ok(()))
-/// }
+/// A caller cannot hand the phase tasks of its own: the root evaluation and its task are crate-private, and the declared
+/// occurrences through `evaluate_occurrences` are the one phase call.
+/// ```compile_fail,E0603
+/// use ryo_execution_runtime::application::file_dag::program::project_phase::types::ProjectTask;
 /// ```
 pub trait ProjectRootExecution {
-    /// Bind all actual tasks, prepare compatible root cohorts, then deliver in declaration order.
-    fn evaluate<E>(
-        &self,
-        tasks: Vec<ProjectTask<'_>>,
-        symbols: &mut Symbols,
-        guard: impl FnMut(RuleIndex) -> Result<(), E>,
-    ) -> ProjectBatch<Result<RuleOutcome<ProjectOutputOutcome>, OperatingError>, E>;
     /// One batch of declared occurrences in one call, the ordinary phase's and each observation batch's: each occurrence scoped
     /// and its frontiers prepared for its demand once `before` admits it, the prepared ones evaluated with their bound inputs and
     /// the `partials` they see under `guard`, and each outcome handed to `complete` with its publication slot, in declaration

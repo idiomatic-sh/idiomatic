@@ -1,21 +1,16 @@
 //! Project populations stay separate by rule, payload and reached region.
-use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use super::batch_test::assert_count_findings;
 use super::batch_test::evaluate_fixture;
 use crate::application::cross_file::fixtures::ProjectCalls;
 use crate::application::cross_file::fixtures::counting_plan;
 use crate::application::cross_file::fixtures::crossing;
 use crate::application::cross_file::fixtures::frontier_rows;
-use crate::application::cross_file::fixtures::prepared_in;
 use crate::application::cross_file::fixtures::todo;
 use crate::application::cross_file::fixtures::world_with;
 use crate::application::cross_file::fixtures::world_with_applicability;
 use crate::domain::answering::types::Todo;
-use crate::domain::crossing::service::partials_for;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
-use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
-use ryo_execution::inbound::use_cases::execution::interface::ProjectBatch;
 use ryo_execution::inbound::use_cases::metadata::interface::Covered;
 use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
 use ryo_language::domain::symbols::types::Symbols;
@@ -67,27 +62,11 @@ pub(super) fn ordinary_phase_keeps_valid_rule_populations_and_partiality_separat
             // Both scopes receive the same complete request table. Only A has
             // positive skip provenance; B must retain the second file's rows.
             let source = if rule == 0 { &rows[..1] } else { &rows[..] };
-            let (scope, frontier) = prepared_in(
-                &rules,
-                &phase,
-                RuleIndex(rule),
-                &rules.covered,
-                source,
-                &mut symbols,
-            )
-            .unwrap();
-            let done = evaluate_fixture(
-                &crossing(&rules),
-                &Todo {
-                    rule: RuleIndex(rule),
-                    id: rules.ids[rule].clone(),
-                },
-                frontier,
-                &mut symbols,
-                scope,
-                &phase,
-            )
-            .unwrap();
+            let declared = Todo {
+                rule: RuleIndex(rule),
+                id: rules.ids[rule].clone(),
+            };
+            let done = evaluate_fixture(&rules, &declared, source, &rules.covered, &mut symbols, &phase).unwrap();
             let rendered = done
                 .rendered
                 .expect("valid population renders through the actual core route");
@@ -137,53 +116,25 @@ pub(super) fn equal_policies_do_not_alias_distinct_admitted_frontier_payloads()
         let mut results = vec![None, None];
         for (at, rule) in order.into_iter().enumerate() {
             let source = if rule == 0 { &original } else { &changed };
-            let (scope, frontier) = prepared_in(
+            use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
+            use ryo_execution::inbound::use_cases::execution::interface::RootOutcome;
+            let crossing = crossing(&rules);
+            let declared = Todo {
+                rule: RuleIndex(rule),
+                id: rules.ids[rule].clone(),
+            };
+            let outcome = super::batch_test::evaluate_outcome(
                 &rules,
                 &phase,
                 RuleIndex(rule),
-                &rules.covered,
                 source,
+                &rules.covered,
+                || crate::application::cross_file::service::phase_partials(&crossing, &declared),
                 &mut symbols,
-            )
-            .unwrap();
-            use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution;
-            use ryo_execution::inbound::use_cases::execution::interface::EmitDemand;
-            use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
-            use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
-            use ryo_execution::inbound::use_cases::execution::interface::ProjectInput;
-            use ryo_execution::inbound::use_cases::execution::interface::ProjectTask;
-            use ryo_execution::inbound::use_cases::execution::interface::RootOutcome;
-            use ryo_execution::inbound::use_cases::execution::interface::RuleDemand;
-            let evaluation = partials_for(&MetadataUseCaseImpl, &crossing(&rules).domain, RuleIndex(rule));
-            let reads = rules.program.observation_reads(RuleIndex(rule)).unwrap();
-            let publication = crate::domain::crossing::service::partials_for_reads(&MetadataUseCaseImpl, 
-                &crossing(&rules).domain,
-                RuleIndex(rule),
-                &reads,
             );
-            let ProjectBatch::Complete(mut outcomes) = phase.evaluate(
-                vec![ProjectTask {
-                    rule: RuleIndex(rule),
-                    demand: RuleDemand {
-                        emit: EmitDemand::Enabled,
-                        observations: ObservationDemand::Required,
-                    },
-                    input: ProjectInput {
-                        scope: &scope,
-                        evaluation: &evaluation,
-                        publication: &publication,
-                        ordinary: frontier,
-                        bound: &[],
-                        arenas: &rules.arenas,
-                    },
-                }],
-                &mut symbols,
-                |_| Ok::<(), std::convert::Infallible>(()),
-            ) else {
-                unreachable!()
-            };
+            let mut outcomes = vec![outcome];
             assert_eq!(outcomes.len(), 1);
-            let table = match outcomes.pop().unwrap().unwrap().emit {
+            let table = match outcomes.pop().unwrap().expect("the occurrence is evaluated").emit {
                 RootOutcome::Complete(table) | RootOutcome::Partial { table, .. } => table,
                 RootOutcome::Failed(error) | RootOutcome::Unknown(error) => {
                     panic!("actual prepared population refused: {error}")
@@ -203,27 +154,11 @@ pub(super) fn equal_policies_do_not_alias_distinct_admitted_frontier_payloads()
                     Cell::Number(ryo_relations::domain::relations::types::Integer(1)),
                 ]
             );
-            let (scope, frontier) = prepared_in(
-                &rules,
-                &phase,
-                RuleIndex(rule),
-                &rules.covered,
-                source,
-                &mut symbols,
-            )
-            .unwrap();
-            let done = evaluate_fixture(
-                &crossing(&rules),
-                &Todo {
-                    rule: RuleIndex(rule),
-                    id: rules.ids[rule].clone(),
-                },
-                frontier,
-                &mut symbols,
-                scope,
-                &phase,
-            )
-            .unwrap();
+            let declared = Todo {
+                rule: RuleIndex(rule),
+                id: rules.ids[rule].clone(),
+            };
+            let done = evaluate_fixture(&rules, &declared, source, &rules.covered, &mut symbols, &phase).unwrap();
             assert!(done.unknowns.is_empty());
             let rendered = done.rendered.unwrap();
             assert_count_findings(
@@ -292,24 +227,7 @@ pub(super) fn many_distinct_project_populations_allocate_only_reached_region_sta
             rows[0].1.cells.push(repeated);
             rows[0].1.count.0 += 1;
         }
-        let (scope, frontier) = prepared_in(
-            &rules,
-            &phase,
-            RuleIndex(0),
-            &rules.covered,
-            &rows,
-            &mut symbols,
-        )
-        .unwrap();
-        let result = evaluate_fixture(
-            &crossing(&rules),
-            &todo(0),
-            frontier,
-            &mut symbols,
-            scope,
-            &phase,
-        )
-        .unwrap();
+        let result = evaluate_fixture(&rules, &todo(0), &rows, &rules.covered, &mut symbols, &phase).unwrap();
         assert_eq!(result.rendered.as_ref().unwrap().order.len(), 2);
         let state = phase.state_counts();
         assert_eq!(state.populations.0, population + 1);

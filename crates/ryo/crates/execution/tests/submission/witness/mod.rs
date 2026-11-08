@@ -24,11 +24,9 @@ use ryo_execution_runtime::application::file_dag::program::file_session::types::
 use ryo_execution_runtime::outbound::facts::interface::FactsWorker;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::FileSession;
 use ryo_execution_runtime::application::file_dag::program::observation_stage::types::ObservationStage;
-use ryo_execution_runtime::application::file_dag::program::observed_publication::types::ObservedPublication;
 use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
 use ryo_execution_runtime::application::file_dag::program::project_phase::types::ProjectPhase;
 use ryo_execution_runtime::application::file_dag::program::project_phase::types::PhaseScope;
-use ryo_execution_runtime::application::file_dag::program::project_phase::types::ProjectTask;
 use ryo_execution_runtime::application::file_dag::program::project_phase::types::FrontierRequest;
 use ryo_execution_runtime::application::file_dag::program::project_phase::types::OccurrenceNumber;
 use ryo_execution_runtime::application::file_dag::program::project_phase::types::PhaseOccurrences;
@@ -76,7 +74,6 @@ methods!(
     RequestOpenFile,
     RequestRunFile,
     RequestProjectPhase,
-    RootsEvaluate,
     RootsEvaluateOccurrences,
     RootsReadinessCounts,
     StageStateCounts,
@@ -167,14 +164,6 @@ impl ExecutionRequest for Witness {
     }
 }
 impl ProjectRootExecution for Witness {
-    fn evaluate<E>(
-        &self,
-        _: Vec<ProjectTask<'_>>,
-        _: &mut Symbols,
-        _: impl FnMut(RuleIndex) -> Result<(), E>,
-    ) -> ProjectBatch<Result<RuleOutcome<ProjectOutputOutcome>, OperatingError>, E> {
-        witness(Method::RootsEvaluate)
-    }
     fn evaluate_occurrences<H, T, E>(
         &self,
         _: PhaseOccurrences<'_>,

@@ -5,5 +5,3 @@ mod deferral;
 mod finish;
 #[cfg(test)]
 pub(crate) mod fixtures;
-#[cfg(test)]
-mod roots;

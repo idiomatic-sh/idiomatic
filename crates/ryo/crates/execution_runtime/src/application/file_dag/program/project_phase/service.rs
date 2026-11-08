@@ -30,27 +30,6 @@ use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::files::types::CorpusInput;
 use ryo_values::domain::runs::types::Skipped;
 impl ProjectRootExecution for ProjectPhase<'_> {
-    fn evaluate<E>(
-        &self,
-        tasks: Vec<ProjectTask<'_>>,
-        symbols: &mut Symbols,
-        guard: impl FnMut(RuleIndex) -> Result<(), E>,
-    ) -> ProjectBatch<Result<RuleOutcome<ProjectOutputOutcome>, OperatingError>, E> {
-        let mut roots = Vec::with_capacity(tasks.len());
-        for task in tasks {
-            let run = if std::rc::Rc::ptr_eq(&self.publication, &task.input.scope.publication) {
-                self.request.open_project(task.input, symbols)
-            } else {
-                Err(OperatingError::NotRead)
-            };
-            roots.push(facade_runtime::project_execution::ProjectRoot {
-                rule: task.rule,
-                demand: task.demand,
-                run,
-            });
-        }
-        facade_runtime::project_execution::evaluate_roots(roots, symbols, guard)
-    }
     fn evaluate_occurrences<H, T, E>(
         &self,
         phase: PhaseOccurrences<'_>,
@@ -191,6 +170,29 @@ impl ProjectStage for ProjectPhase<'_> {
     }
 }
 impl ProjectPhase<'_> {
+    /// Bind all actual tasks, prepare compatible root cohorts, then deliver in declaration order. Crate-private: a caller hands the
+    /// phase its declared occurrences through `evaluate_occurrences`, never tasks of its own.
+    pub(crate) fn evaluate<E>(
+        &self,
+        tasks: Vec<ProjectTask<'_>>,
+        symbols: &mut Symbols,
+        guard: impl FnMut(RuleIndex) -> Result<(), E>,
+    ) -> ProjectBatch<Result<RuleOutcome<ProjectOutputOutcome>, OperatingError>, E> {
+        let mut roots = Vec::with_capacity(tasks.len());
+        for task in tasks {
+            let run = if std::rc::Rc::ptr_eq(&self.publication, &task.input.scope.publication) {
+                self.request.open_project(task.input, symbols)
+            } else {
+                Err(OperatingError::NotRead)
+            };
+            roots.push(facade_runtime::project_execution::ProjectRoot {
+                rule: task.rule,
+                demand: task.demand,
+                run,
+            });
+        }
+        facade_runtime::project_execution::evaluate_roots(roots, symbols, guard)
+    }
     /// One admitted occurrence: scoped over the files its rule applies to, and its frontiers prepared for its demand from its
     /// rule's first bucket.
     fn prepare_occurrence<'o, E>(

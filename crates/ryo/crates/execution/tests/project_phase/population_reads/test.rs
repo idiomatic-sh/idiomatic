@@ -205,20 +205,25 @@ fn two_declared_roots_of_one_population_read_the_provider_once() {
             "another population reads the provider again"
         );
         assert_eq!(project.reads.load(Ordering::SeqCst), 2);
+        drop((first, second));
         let partials = Partials::default();
-        let input = |ordinary| ProjectInput {
-            scope: &scope,
-            evaluation: &partials,
-            publication: &partials,
-            ordinary,
-            bound: &[],
-            arenas: &[],
-        };
+        let root = crate::boundary_fixture::ordinary_occurrence(RuleIndex(0));
         let mut outcomes = crate::boundary_fixture::project_roots(
             &phase,
-            RuleIndex(0),
-            demand(),
-            vec![input(first), input(second)],
+            PhaseOccurrences {
+                occurrences: &[root, root],
+                first: &[Bucket(0)],
+                corpus: &corpus,
+                covered: &covered,
+                skipped: &[],
+                inapplicable: &[ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default()],
+                facts: &stored,
+                project: &project,
+                project_symbols: &project_symbols,
+                arenas: &[],
+            },
+            &partials,
+            &partials,
             &mut symbols,
         );
         let again = outcomes.pop().unwrap().unwrap();

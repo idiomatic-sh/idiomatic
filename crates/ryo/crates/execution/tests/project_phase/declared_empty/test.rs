@@ -2,7 +2,6 @@
 use ryo_execution::inbound::use_cases::execution::interface::RuleIntentError;
 use ryo_execution_runtime::application::file_dag::frontiers::types::InputReadiness;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
-use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
@@ -141,44 +140,32 @@ fn declared_empty_observation_defers_in_file_and_publishes_typed_empty_in_projec
         Some(&InputReadiness::Ready)
     );
     let bound = stage.bindings(RuleIndex(0)).unwrap();
-    let scope = stage
-        .project_scope(
-            RuleIndex(0),
-            &corpus,
-            &covered,
-            &[],
-            &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
-        )
-        .unwrap();
     let project_symbols = Symbols::default();
     let partials = Partials::default();
-    // Two declared roots of the one rule share the invocation; each prepares its own frontiers.
-    let inputs = (0..2)
-        .map(|_| ProjectInput {
-            scope: &scope,
-            evaluation: &partials,
-            publication: &partials,
-            ordinary: request
-                .prepare_frontiers(
-                    FrontierRequest {
-                        demand: FrontierDemand::Diagnostic,
-                        scope: &scope,
-                        rule: RuleIndex(0),
-                        first: Bucket(0),
-                        facts: &stored,
-                        project: &project,
-                        project_symbols: &project_symbols,
-                    },
-                    &mut symbols,
-                )
-                .unwrap(),
-            bound: &bound,
+    let inapplicable = [ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default()];
+    // Two declared occurrences of the one rule share the invocation; each prepares its own frontiers.
+    let occurrence = PhaseOccurrence {
+        bound: &bound,
+        ..crate::boundary_fixture::ordinary_occurrence(RuleIndex(0))
+    };
+    for outcome in crate::boundary_fixture::project_roots(
+        &stage,
+        PhaseOccurrences {
+            occurrences: &[occurrence, occurrence],
+            first: &[Bucket(0)],
+            corpus: &corpus,
+            covered: &covered,
+            skipped: &[],
+            inapplicable: &inapplicable,
+            facts: &stored,
+            project: &project,
+            project_symbols: &project_symbols,
             arenas: stage.arenas(),
-        })
-        .collect();
-    for outcome in
-        crate::boundary_fixture::project_roots(&stage, RuleIndex(0), demand(), inputs, &mut symbols)
-    {
+        },
+        &partials,
+        &partials,
+        &mut symbols,
+    ) {
         let RootOutcome::Complete(table) = outcome.unwrap().emit else {
             panic!("authoritatively empty union must complete in its declared phase")
         };
@@ -231,44 +218,28 @@ fn project_refuses(input: PrepareRequest, expected: &str, ready: InputReadiness)
         Some(&ready)
     );
     let bound = stage.bindings(RuleIndex(0)).unwrap();
-    let scope = stage
-        .project_scope(
-            RuleIndex(0),
-            &corpus,
-            &covered,
-            &[],
-            &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
-        )
-        .unwrap();
     let mut symbols = Symbols::default();
     let project_symbols = Symbols::default();
-    let ordinary = request
-        .prepare_frontiers(
-            FrontierRequest {
-                demand: FrontierDemand::Diagnostic,
-                scope: &scope,
-                rule: RuleIndex(0),
-                first: Bucket(0),
-                facts: &stored,
-                project: &project,
-                project_symbols: &project_symbols,
-            },
-            &mut symbols,
-        )
-        .unwrap();
     let partials = Partials::default();
     let outcome = crate::boundary_fixture::project_root(
         &stage,
-        RuleIndex(0),
-        demand(),
-        ProjectInput {
-            scope: &scope,
-            evaluation: &partials,
-            publication: &partials,
-            ordinary,
-            bound: &bound,
+        PhaseOccurrences {
+            occurrences: &[PhaseOccurrence {
+                bound: &bound,
+                ..crate::boundary_fixture::ordinary_occurrence(RuleIndex(0))
+            }],
+            first: &[Bucket(0)],
+            corpus: &corpus,
+            covered: &covered,
+            skipped: &[],
+            inapplicable: &[ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default()],
+            facts: &stored,
+            project: &project,
+            project_symbols: &project_symbols,
             arenas: stage.arenas(),
         },
+        &partials,
+        &partials,
         &mut symbols,
     );
     assert!(matches!(outcome.unwrap().emit,

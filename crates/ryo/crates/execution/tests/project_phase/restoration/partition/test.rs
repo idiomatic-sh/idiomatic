@@ -174,45 +174,27 @@ pub(super) fn exercise_with(
         )
         .unwrap();
     let mut symbols = Symbols::default();
-    let scope = stage
-        .project_scope(
-            RuleIndex(1),
-            &corpus,
-            &[],
-            &skipped,
-            &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
-        )
-        .unwrap();
     let slot = stage.reserve(RuleIndex(1)).unwrap();
-    let ordinary = request
-        .prepare_frontiers(
-            FrontierRequest {
-                demand: FrontierDemand::Diagnostic,
-                scope: &scope,
-                rule: RuleIndex(1),
-                first: Bucket(10),
-                facts: &stored,
-                project: &project_facts,
-                project_symbols: &project_symbols,
-            },
-            &mut symbols,
-        )
-        .unwrap();
+    let first = [Bucket(0), Bucket(10), Bucket(20)];
     let mut outcome = crate::boundary_fixture::project_root(
         &stage,
-        RuleIndex(1),
-        RuleDemand {
-            emit: EmitDemand::Disabled,
-            observations: ObservationDemand::Required,
-        },
-        ProjectInput {
-            scope: &scope,
-            evaluation: &partials,
-            publication: &publication_partials,
-            ordinary,
-            bound: &[],
+        PhaseOccurrences {
+            occurrences: &[PhaseOccurrence {
+                slot,
+                ..crate::boundary_fixture::ordinary_occurrence(RuleIndex(1))
+            }],
+            first: &first,
+            corpus: &corpus,
+            covered: &[],
+            skipped: &skipped,
+            inapplicable: &vec![ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(); 3],
+            facts: &stored,
+            project: &project_facts,
+            project_symbols: &project_symbols,
             arenas: stage.arenas(),
         },
+        &partials,
+        &publication_partials,
         &mut symbols,
     )
     .unwrap();
@@ -287,18 +269,6 @@ pub(super) fn exercise_with(
         .install(RuleIndex(1), slot, transfer, vec![AdmittedOutput { output, publication }])
         .unwrap();
     stage.finish(RuleIndex(1)).unwrap();
-    drop(scope);
-    let scope = stage
-        .project_scope(
-            RuleIndex(2),
-            &corpus,
-            &[],
-            &skipped,
-            &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles(
-                inapplicable.to_vec(),
-            ),
-        )
-        .unwrap();
     let bound = stage.bindings(RuleIndex(2)).unwrap();
     assert_eq!(
         stage
@@ -307,37 +277,32 @@ pub(super) fn exercise_with(
             .get(&ObservationBindingId(0)),
         Some(&InputReadiness::Ready)
     );
-    // One acquisition of the frontier sources serves both declared roots of the one population.
-    let prepared = request
-        .prepare_frontiers(
-            FrontierRequest {
-                demand: FrontierDemand::Diagnostic,
-                scope: &scope,
-                rule: RuleIndex(2),
-                first: Bucket(20),
-                facts: &stored,
-                project: &project_facts,
-                project_symbols: &project_symbols,
-            },
-            &mut symbols,
-        )
-        .unwrap();
-    let inputs = [prepared.clone(), prepared]
-        .into_iter()
-        .map(|ordinary| ProjectInput {
-            scope: &scope,
-            evaluation: &partials,
-            publication: &partials,
-            ordinary,
-            bound: &bound,
-            arenas: stage.arenas(),
-        })
-        .collect();
+    // One acquisition of the frontier sources serves both declared occurrences of the one population.
+    let consumer = PhaseOccurrence {
+        bound: &bound,
+        ..crate::boundary_fixture::ordinary_occurrence(RuleIndex(2))
+    };
+    let consumer_inapplicable = [
+        ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
+        ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
+        ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles(inapplicable.to_vec()),
+    ];
     let outcomes = crate::boundary_fixture::project_roots(
         &stage,
-        RuleIndex(2),
-        demand(),
-        inputs,
+        PhaseOccurrences {
+            occurrences: &[consumer, consumer],
+            first: &first,
+            corpus: &corpus,
+            covered: &[],
+            skipped: &skipped,
+            inapplicable: &consumer_inapplicable,
+            facts: &stored,
+            project: &project_facts,
+            project_symbols: &project_symbols,
+            arenas: stage.arenas(),
+        },
+        &partials,
+        &partials,
         &mut symbols,
     );
     for outcome in outcomes {
@@ -391,7 +356,6 @@ pub(super) fn exercise_with(
         "two declared roots of one population read the provider once"
     );
     drop(bound);
-    drop(scope);
     stage.finish(RuleIndex(2)).unwrap();
     stage.finish_stage().unwrap();
     request.finish();
