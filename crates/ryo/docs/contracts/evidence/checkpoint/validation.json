@@ -1,144 +1,132 @@
 {
-  "source": "4df6abaca2fb9b8e24bf35261477ceae87bb60ab",
+  "source": "340808449fa966f5a51f9eeb809d4e2b43c7c59f",
   "scope": "Ownership consolidation checkpoint 330 (perf iterations 4 and 5: the Django peak 6.78 to 3.33 GB; the engine edits after 329: unknown rule index refused, project-batch-owner 0.1.1, the two-reviewer charter; validated once on the tree's own target)",
   "checks": {
     "libraries": {
-      "source": "4df6abaca2fb9b8e24bf35261477ceae87bb60ab",
+      "source": "340808449fa966f5a51f9eeb809d4e2b43c7c59f",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-execution", "-p", "idiomatic-sh-ryo-execution-domain", "-p", "idiomatic-sh-ryo-execution-store", "-p", "idiomatic-sh-ryo-execution-runtime", "-p", "idiomatic-sh-ryo-core", "-p", "idiomatic-sh-ryo-sdk", "-p", "idiomatic-sh-ryo-values", "-p", "idiomatic-sh-ryo-query_language", "-p", "idiomatic-sh-ryo-operators", "-p", "idiomatic-sh-ryo-matching", "-p", "idiomatic-sh-ryo-derived", "--lib", "--no-fail-fast", "-p", "idiomatic-sh-ryo-benchmark", "--", "--test-threads=6"],
       "exit": 101,
-      "elapsed_seconds": 3.4386038780212402
+      "elapsed_seconds": 17.0766704082489
     },
     "boundary": {
-      "source": "4df6abaca2fb9b8e24bf35261477ceae87bb60ab",
+      "source": "340808449fa966f5a51f9eeb809d4e2b43c7c59f",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-execution", "--test", "boundary_contract", "--", "--test-threads=6"],
       "exit": 0,
-      "elapsed_seconds": 0.18947148323059082
+      "elapsed_seconds": 0.1921706199645996
     },
     "activation": {
-      "source": "4df6abaca2fb9b8e24bf35261477ceae87bb60ab",
+      "source": "340808449fa966f5a51f9eeb809d4e2b43c7c59f",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-execution", "--test", "activation"],
       "exit": 0,
-      "elapsed_seconds": 0.8934447765350342
+      "elapsed_seconds": 0.8820798397064209
     },
     "bdd": {
-      "source": "4df6abaca2fb9b8e24bf35261477ceae87bb60ab",
+      "source": "340808449fa966f5a51f9eeb809d4e2b43c7c59f",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-execution", "--test", "bdd"],
       "exit": 0,
-      "elapsed_seconds": 0.18305158615112305
+      "elapsed_seconds": 0.1832265853881836
     },
     "doctest": {
-      "source": "4df6abaca2fb9b8e24bf35261477ceae87bb60ab",
+      "source": "340808449fa966f5a51f9eeb809d4e2b43c7c59f",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-execution", "-p", "idiomatic-sh-ryo-execution-domain", "-p", "idiomatic-sh-ryo-execution-store", "-p", "idiomatic-sh-ryo-execution-runtime", "--doc"],
       "exit": 0,
-      "elapsed_seconds": 1.3344287872314453
-    },
-    "ruff_sharing": {
-      "source": "4df6abaca2fb9b8e24bf35261477ceae87bb60ab",
-      "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-python", "--test", "ruff_sharing", "--", "--test-threads=6", "--skip", "the_one_path_answers_the_django_canary_as_recorded"],
-      "exit": 0,
-      "elapsed_seconds": 12.55073094367981
-    },
-    "ruff_canary": {
-      "source": "4df6abaca2fb9b8e24bf35261477ceae87bb60ab",
-      "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-python", "--test", "ruff_sharing", "--", "the_one_path_answers_the_django_canary_as_recorded"],
-      "exit": 0,
-      "elapsed_seconds": 1.8191978931427002
+      "elapsed_seconds": 0.9463555812835693
     },
     "ruff": {
-      "source": "4df6abaca2fb9b8e24bf35261477ceae87bb60ab",
+      "source": "340808449fa966f5a51f9eeb809d4e2b43c7c59f",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-python", "--test", "ruff", "--no-fail-fast", "--", "--test-threads=6"],
       "exit": 0,
-      "elapsed_seconds": 12.646624326705933
+      "elapsed_seconds": 12.242825984954834
     },
     "ruff_rule_phases": {
-      "source": "4df6abaca2fb9b8e24bf35261477ceae87bb60ab",
+      "source": "340808449fa966f5a51f9eeb809d4e2b43c7c59f",
       "command": ["python3", "-I", "crates/ryo/languages/python/benchmarks/linters/ruff/verify_profiles.py", "--self-test"],
       "exit": 0,
-      "elapsed_seconds": 69.26047778129578
+      "elapsed_seconds": 62.435370683670044
     },
     "core_bdd": {
-      "source": "4df6abaca2fb9b8e24bf35261477ceae87bb60ab",
+      "source": "340808449fa966f5a51f9eeb809d4e2b43c7c59f",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-core", "--test", "bdd"],
       "exit": 0,
-      "elapsed_seconds": 0.23747777938842773
+      "elapsed_seconds": 0.22299718856811523
     },
     "core_allocation": {
-      "source": "4df6abaca2fb9b8e24bf35261477ceae87bb60ab",
+      "source": "340808449fa966f5a51f9eeb809d4e2b43c7c59f",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-core", "--test", "allocation"],
       "exit": 101,
-      "elapsed_seconds": 1.8134644031524658
+      "elapsed_seconds": 1.5345776081085205
     },
     "doctest_values": {
-      "source": "4df6abaca2fb9b8e24bf35261477ceae87bb60ab",
+      "source": "340808449fa966f5a51f9eeb809d4e2b43c7c59f",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-values", "--doc"],
       "exit": 0,
-      "elapsed_seconds": 0.3357529640197754
+      "elapsed_seconds": 0.45042920112609863
     },
     "doctest_core": {
-      "source": "4df6abaca2fb9b8e24bf35261477ceae87bb60ab",
+      "source": "340808449fa966f5a51f9eeb809d4e2b43c7c59f",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-core", "--doc"],
       "exit": 0,
-      "elapsed_seconds": 0.5402991771697998
+      "elapsed_seconds": 0.4745063781738281
     },
     "doctest_sdk": {
-      "source": "4df6abaca2fb9b8e24bf35261477ceae87bb60ab",
+      "source": "340808449fa966f5a51f9eeb809d4e2b43c7c59f",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-sdk", "--doc"],
       "exit": 0,
-      "elapsed_seconds": 1.6206657886505127
+      "elapsed_seconds": 1.5106632709503174
     },
     "doctest_derived": {
-      "source": "4df6abaca2fb9b8e24bf35261477ceae87bb60ab",
+      "source": "340808449fa966f5a51f9eeb809d4e2b43c7c59f",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-derived", "--doc"],
       "exit": 0,
-      "elapsed_seconds": 0.46856141090393066
+      "elapsed_seconds": 0.4135403633117676
     },
     "tm_import_cli": {
-      "source": "4df6abaca2fb9b8e24bf35261477ceae87bb60ab",
+      "source": "340808449fa966f5a51f9eeb809d4e2b43c7c59f",
       "command": ["cargo", "test", "--manifest-path", "crates/tastemaker/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "-p", "idiomatic-sh-tastemaker", "--no-default-features", "--features", "rust,toml", "--test", "replay", "imports::visibility_scopes_do_not_authorize_real_imports_types_or_calls", "--", "--exact"],
       "exit": 0,
-      "elapsed_seconds": 0.7991693019866943
+      "elapsed_seconds": 0.6070268154144287
     },
     "tm_cli_source": {
-      "source": "4df6abaca2fb9b8e24bf35261477ceae87bb60ab",
+      "source": "340808449fa966f5a51f9eeb809d4e2b43c7c59f",
       "command": ["tm", "--root", "crates/tastemaker", "check", "--fix", "cli/tests/replay/imports.rs", "--format", "json"],
       "exit": 0,
-      "elapsed_seconds": 0.4490089416503906
+      "elapsed_seconds": 0.4070901870727539
     },
     "conformance": {
-      "source": "4df6abaca2fb9b8e24bf35261477ceae87bb60ab",
+      "source": "340808449fa966f5a51f9eeb809d4e2b43c7c59f",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-css", "-p", "idiomatic-sh-ryo-go", "-p", "idiomatic-sh-ryo-html", "-p", "idiomatic-sh-ryo-javascript", "-p", "idiomatic-sh-ryo-json", "-p", "idiomatic-sh-ryo-markdown", "-p", "idiomatic-sh-ryo-python", "-p", "idiomatic-sh-ryo-rust", "-p", "idiomatic-sh-ryo-toml", "-p", "idiomatic-sh-ryo-typescript", "--test", "conformance", "--no-fail-fast"],
       "exit": 0,
-      "elapsed_seconds": 158.47884368896484
+      "elapsed_seconds": 149.98652124404907
     },
     "cli_tests": {
-      "source": "4df6abaca2fb9b8e24bf35261477ceae87bb60ab",
+      "source": "340808449fa966f5a51f9eeb809d4e2b43c7c59f",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo", "--test", "replay", "--test", "blocks", "--test", "call_count", "--test", "command_line", "--test", "command_tree", "--test", "readme", "--no-fail-fast", "--", "--skip", "cost::"],
       "exit": 101,
-      "elapsed_seconds": 1035.9134068489075
+      "elapsed_seconds": 1032.3774785995483
     },
     "cli_cost": {
-      "source": "4df6abaca2fb9b8e24bf35261477ceae87bb60ab",
+      "source": "340808449fa966f5a51f9eeb809d4e2b43c7c59f",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo", "--test", "replay", "cost::", "--", "--test-threads=1", "--nocapture"],
       "exit": 101,
-      "elapsed_seconds": 590.8399751186371
+      "elapsed_seconds": 34.47350454330444
     },
     "bench_build": {
-      "source": "4df6abaca2fb9b8e24bf35261477ceae87bb60ab",
+      "source": "340808449fa966f5a51f9eeb809d4e2b43c7c59f",
       "command": ["cargo", "bench", "--no-run", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo", "--bench", "lint", "-p", "idiomatic-sh-ryo-core", "--benches"],
       "exit": 0,
-      "elapsed_seconds": 102.2299964427948
+      "elapsed_seconds": 70.0966522693634
     },
     "no_print": {
-      "source": "4df6abaca2fb9b8e24bf35261477ceae87bb60ab",
+      "source": "340808449fa966f5a51f9eeb809d4e2b43c7c59f",
       "command": ["cargo", "clippy", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-execution", "-p", "idiomatic-sh-ryo-execution-domain", "-p", "idiomatic-sh-ryo-execution-store", "-p", "idiomatic-sh-ryo-execution-runtime", "-p", "idiomatic-sh-ryo-core", "--lib", "--no-deps", "--", "-A", "clippy::all", "-A", "clippy::pedantic", "-A", "clippy::nursery", "-A", "clippy::restriction", "-A", "clippy::cargo", "-A", "dead_code", "-A", "unused", "-D", "clippy::print_stderr", "-D", "clippy::print_stdout"],
       "exit": 0,
-      "elapsed_seconds": 94.38401770591736
+      "elapsed_seconds": 0.3176121711730957
     },
     "tm_source": {
-      "source": "4df6abaca2fb9b8e24bf35261477ceae87bb60ab",
+      "source": "340808449fa966f5a51f9eeb809d4e2b43c7c59f",
       "command": ["tm", "--root", "crates/ryo", "check", "crates/execution_runtime/src/application/file_dag/program", "crates/execution_runtime/src/application/file_dag/invocation", "crates/execution_store/src/application/file_dag/derived", "crates/execution_domain/src/domain/shared_walk", "crates/execution/tests/shared_walk", "crates/execution_domain/src/domain/executable_program", "crates/execution_domain/src/domain/step_classes", "crates/execution_domain/src/domain/completion", "crates/execution_domain/src/domain/coverage", "crates/execution_domain/src/domain/frontiers", "crates/execution_runtime/src/application/file_dag/frontiers", "crates/core/src/application/file_analysis", "crates/core/src/inbound/use_cases/lint", "crates/core/src/domain/storing", "crates/core/src/outbound/lint_store", "crates/execution_domain/src/domain/trust", "--format", "json"],
       "exit": 0,
-      "elapsed_seconds": 32.91046190261841,
+      "elapsed_seconds": 28.21280789375305,
       "findings": {
         "total": 0,
         "suppressed": 2,
@@ -165,66 +153,66 @@
       }
     },
     "tm_guards": {
-      "source": "4df6abaca2fb9b8e24bf35261477ceae87bb60ab",
+      "source": "340808449fa966f5a51f9eeb809d4e2b43c7c59f",
       "command": ["tm", "--root", "crates/ryo", "validate", "rule/program-implementation-boundary", "rule/shared-walk-owner", "rule/collection-members", "rule/runtime-authority", "template/value", "template/value-module", "template/value-test", "--format", "json"],
       "exit": 0,
-      "elapsed_seconds": 0.07163667678833008
+      "elapsed_seconds": 0.15628433227539062
     },
     "tm_validate_all": {
-      "source": "4df6abaca2fb9b8e24bf35261477ceae87bb60ab",
+      "source": "340808449fa966f5a51f9eeb809d4e2b43c7c59f",
       "command": ["sh", "-c", "echo workspace crates_ryo; tm --root crates/ryo validate --format json; a=$?; echo workspace repository_root; tm validate --format json; b=$?; exit $((a|b))"],
       "exit": 0,
-      "elapsed_seconds": 499.6819546222687
+      "elapsed_seconds": 0.2854118347167969
     },
     "ownership_edges": {
-      "source": "4df6abaca2fb9b8e24bf35261477ceae87bb60ab",
+      "source": "340808449fa966f5a51f9eeb809d4e2b43c7c59f",
       "command": ["ryo", "query", "run", "--root", "crates/ryo", "--text", "let nodes = select id, kind, file, span from \"syntax-tree\" where text = \"\" and glob_any(file, \"crates/{execution,execution_domain,execution_runtime,execution_store}/src/**\");\nlet paths = select * from nodes where kind = \"path\";\nlet visibility = select * from nodes where kind = \"visibility\";\nlet nested = axis(from=visibility, relation=\"syntax-child\", direction=descendant, domain=paths);\nlet restricted = select r.file as source, r.span as span from nested as l join paths as r on l.related = r.id;\nlet declared = select source, target, written, span from \"source-dependency\" where glob_any(source, \"crates/{execution,execution_domain,execution_runtime,execution_store}/src/**\");\nlet dependencies = antijoin(left=declared, right=restricted, left-on=[\"source\",\"span\"], right-on=[\"source\",\"span\"]);\nemit dependencies subject source key(source,target,written,span);\n", "--limit", "100000", "--format", "json"],
       "exit": 0,
-      "elapsed_seconds": 115.03896498680115
+      "elapsed_seconds": 2.2427175045013428
     },
     "harness_hooks": {
-      "source": "4df6abaca2fb9b8e24bf35261477ceae87bb60ab",
+      "source": "340808449fa966f5a51f9eeb809d4e2b43c7c59f",
       "command": ["sh", "-c", "cd .claude/hooks && python3 -I -m unittest -v"],
       "exit": 0,
-      "elapsed_seconds": 12.64958930015564
+      "elapsed_seconds": 16.353387355804443
     },
     "tm_validate_no_heap_accounting": {
-      "source": "4df6abaca2fb9b8e24bf35261477ceae87bb60ab",
+      "source": "340808449fa966f5a51f9eeb809d4e2b43c7c59f",
       "command": ["tm", "validate", "rule/no-heap-accounting@0.2.0", "spec/idiomatic-rust@0.1.2", "--format", "json"],
       "exit": 0,
-      "elapsed_seconds": 350.8321979045868
+      "elapsed_seconds": 0.09772849082946777
     },
     "checkpoint_check": {
-      "source": "4df6abaca2fb9b8e24bf35261477ceae87bb60ab",
+      "source": "340808449fa966f5a51f9eeb809d4e2b43c7c59f",
       "command": ["python3", "-I", "crates/ryo/docs/contracts/evidence/checkpoint/run_test.py", "-v"],
       "exit": 0,
-      "elapsed_seconds": 114.65316867828369
+      "elapsed_seconds": 0.167938232421875
     },
     "python_lib": {
-      "source": "4df6abaca2fb9b8e24bf35261477ceae87bb60ab",
+      "source": "340808449fa966f5a51f9eeb809d4e2b43c7c59f",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-python", "--lib"],
       "exit": 0,
-      "elapsed_seconds": 447.07421040534973
+      "elapsed_seconds": 0.9137978553771973
     },
     "language_lib": {
-      "source": "4df6abaca2fb9b8e24bf35261477ceae87bb60ab",
+      "source": "340808449fa966f5a51f9eeb809d4e2b43c7c59f",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-language", "--lib"],
       "exit": 0,
-      "elapsed_seconds": 150.47924137115479
+      "elapsed_seconds": 0.3473062515258789
     }
   },
   "results": {
-    "execution_library": {
-      "passed": 73,
+    "execution_library": {"passed": 73, "failed": 0, "note": "execution 73 + runtime 213 = 286 (273 at validation330)"},
+    "execution_domain_library": {
+      "passed": 135,
       "failed": 0,
-      "note": "execution after landing 2 and perf iteration 4: its file DAG application is in the runtime crate; execution 73 + runtime 200 = 273 (270 at validation329)"
+      "note": "136 at validation330; the lineage concept moved from execution_domain to values (claude/w12-lineage)"
     },
-    "execution_domain_library": {"passed": 136, "failed": 0},
     "execution_store_library": {"passed": 81, "failed": 0},
     "core_library": {
-      "passed": 119,
+      "passed": 120,
       "failed": 0,
-      "note": "the removed-file row a_removed_file_leaves_no_unknown_or_skip_behind_in_any_store passes since the Phase 1 tail (its fixture runs the cold run's language for the oracle and warm runs)"
+      "note": "the removed-file row a_removed_file_leaves_no_unknown_or_skip_behind_in_any_store passes since the Phase 1 tail; 120 at validation331 (119 at 330)"
     },
     "benchmark_library": {
       "passed": 221,
@@ -234,9 +222,9 @@
     "sdk_passed": 29,
     "other_libraries_passed": 191,
     "libraries_total": {
-      "passed": 1085,
+      "passed": 1099,
       "failed": 1,
-      "note": "1080/1 at validation329; counted from libraries.log: benchmark 221/1, core 119, derived 35, execution 73, domain 136, runtime 200, store 81, matching 5, operators 61, query_language 97, sdk 29, values 28"
+      "note": "1085/1 at validation330; counted from libraries.log (tests.json): benchmark 221/1, core 120, derived 35, execution 73, domain 135, runtime 213, store 81, matching 5, operators 61, query_language 97, sdk 29, values 29"
     },
     "execution_boundary": {
       "passed": 97,
@@ -246,7 +234,6 @@
     "activation": {"passed": 11, "failed": 0, "note": "11 actual cases, the facts-finish dhat control among them"},
     "bdd": {"scenarios": 7, "failed": 0},
     "core_bdd": {"scenarios": 18, "failed": 0, "note": "the 327 erratum's owed run, on the tree's own target"},
-    "ruff_sharing": {"passed": 1, "failed": 0},
     "ruff_canary": {
       "passed": 1,
       "failed": 0,
@@ -262,14 +249,14 @@
       "note": "the staging guard self-test exits 0 (red from 321 to 325); both causes were in the harness (the guard expected the command without the case-receipt argument added on 2026-11-04, and rebuilt frozen moved candidates from the live queries), repaired by Review repairs X"
     },
     "doctests": {
-      "execution": 4,
-      "execution_runtime": 4,
+      "execution": 0,
+      "execution_runtime": 5,
       "core": 1,
       "sdk": 3,
-      "values": 4,
+      "values": 5,
       "derived": 11,
       "failed": 0,
-      "note": "the doctest target's 14 execution-side doctests of validation327 are now execution 4 (domain and store included) and the runtime 4: its two API examples and its two compile_fail,E0599 probes (FileExecution, ProjectRootExecution), first run here; landing 2 retired ten privacy and removed-name probes that the crate boundary replaces"
+      "note": "counted from tests.json of validation331: the doctest target answers the runtime 5 (execution, domain and store 0); values 5 (4 at 330, FrameOffset gained its doctest at the 330 Rust gate)"
     },
     "tm_import_cli": "pass",
     "tm_cli_source_findings": 0,
@@ -279,14 +266,14 @@
       "phase": 7,
       "note": "the 327 erratum's owed run, on the tree's own target: a file allocates 1,698 to 1,700 blocks beyond the parser library; owned by \"Measure full-Django cold/warm/edit and Rust regressions; meet final objective.\""
     },
-    "cli_replay": {"passed": 77, "failed": 1},
-    "cli_replay_reds": ["peak::a_warm_unchanged_run_over_ruff_peaks_within_its_bound"],
-    "cli_replay_note": "the red of validation329 is the warm peak; the feed row ruff_rules_feed_every_catalog_feature_a_thousand_rows passes (its stale entry is removed; it failed at validation328 on the shared walk per-step count); the cache row passes (store of ruff 72,522,094 bytes at the Phase 1 tail, under 75,000,000: each proof's rule digest kept once); warm peak 114,876,416 bytes against 100,000,000 (`cli_tests.log:9484`; 114,536,448 at validation328); peak owned by \"Decode lazy packed frontiers once per population, not once per root, and compile ordered existence without the eager request-level pass.\"",
+    "cli_replay": {"passed": 75, "failed": 3},
+    "cli_replay_reds": ["behavior::ruff_findings_equal_the_expected_findings", "behavior::every_recorded_rule_gives_the_recorded_rows", "peak::a_warm_unchanged_run_over_ruff_peaks_within_its_bound"],
+    "cli_replay_note": "two new reds, both import-fan-in over the ruff corpus: 67 rows against the 32 recorded (cli_tests.log:8844, :8903). The Rust provider's source-dependency now resolves paths into in-repository dependencies (repairs XIV, cross-crate edges), so import-fan-in counts cross-crate imports it could not see before; these are the new real findings the relation fix exposes, listed and not rebound (expected rows unchanged), owned by the repairs XIV bead. Warm peak 117,547,008 bytes against 100,000,000 (cli_tests.log:8908; 112,947,200 at validation330); behavior owned by \"Close full TM, contracts, independent review and normal CI.\"; behavior owned by \"Close full TM, contracts, independent review and normal CI.\"; peak owned by \"Decode lazy packed frontiers once per population, not once per root, and compile ordered existence without the eager request-level pass.\"",
     "cli_cost": {
       "passed": 4,
       "failed": 3,
       "not_run": 0,
-      "note": "the ruff rows of ratchet.toml hold best 1 and are not seeded (cold 9,039 ms, peak 589 MB, warm 542 ms measured); without RYO_PREFLIGHT_WORKER the three Django and one-file rows answer not available (passed, a typed reason); the staged runs with the receipt worker are the cli_cost_staged_*.log files of the raw directory; owned by \"Acceptance: 413/413 on the current engine, full Django (2,875 files, all 413 rules) with unknown 0 and unread 0, sub-second cold wall with low peak RSS, warm and edit faster, Rust regression guards within bounds.\""
+      "note": "the ruff rows of ratchet.toml hold best 1 and are not seeded (cold 10,257 ms, cold CPU 52,790 ms, peak 576 MB, warm 687 ms measured, cli_cost.log); without RYO_PREFLIGHT_WORKER the three Django and one-file rows answer not available (passed, a typed reason); owned by \"Acceptance: 413/413 on the current engine, full Django (2,875 files, all 413 rules) with unknown 0 and unread 0, sub-second cold wall with low peak RSS, warm and edit faster, Rust regression guards within bounds.\""
     },
     "cli_other_targets": "blocks (dhat run, no panic), call_count 1/1, command_line 7/7, command_tree 11/11, readme 1/1",
     "conformance": {"targets": 10, "exit": 0},
@@ -300,42 +287,46 @@
     },
     "tm_validate_all": {
       "crates_ryo": {"passed": 241, "failed": 0},
-      "repository_root": {"passed": 223, "failed": 0}
+      "repository_root": {"passed": 224, "failed": 0}
     },
-    "execution_runtime_library": {"passed": 200, "failed": 0}
+    "execution_runtime_library": {
+      "passed": 213,
+      "failed": 0,
+      "note": "200 at validation330; repairs XIV moved the project-phase negative tests into the runtime's project_phase/service_test.rs"
+    },
+    "values_library": {"passed": 29, "failed": 0}
   },
   "ownership_graph": {
-    "source": "4a982fa0a5ad0045ee5f2d32592fc69133b82c9c",
+    "source": "340808449fa966f5a51f9eeb809d4e2b43c7c59f",
     "raw": "ownership_edges.log (kept outside the repository)",
-    "occurrences": 4645,
+    "occurrences": 4741,
     "targeted_cycles": [],
     "other_cycles": 0,
-    "note": "file-level strongly connected components of the ownership edges over execution, execution_domain, execution_runtime and execution_store, computed from ownership_edges.log of validation328: 0 (0 at 327 over 4,873 occurrences in three crates; the file DAG application is now the runtime crate and edges across the crate line are not restricted-visibility paths)"
+    "note": "file-level strongly connected components of the ownership edges over execution, execution_domain, execution_runtime and execution_store, computed from ownership_edges.log of validation331 (745 files, 4,741 occurrences; 4,645 at 328): 0"
   },
   "evidence_reuse": [],
   "review": "../../audits/2026-11-06-derived/ownership/checkpoint.json",
   "new_performance_measurement": false,
-  "validation": 330,
-  "raw_identity": "/tmp/ryo-contract-validation330-20261108",
+  "validation": 331,
+  "raw_identity": "/tmp/ryo-contract-validation331-20261108",
   "tm_whole_tree": {
-    "command": "tm --root crates/ryo check --format json (no --fix; git status unchanged)",
-    "total": 18,
+    "command": "tm --root crates/ryo check --format json on 340808449f (the gate tm 0.1.0; no --fix; git status unchanged); tm_whole_tree.json and tm_whole_tree.err in the raw directory",
+    "total": 36,
     "suppressed": 6,
     "at_checkpoint_318": 3676,
-    "status": "measured whole-tree state at checkpoint 328 (on the validated source with the run.py-written files rebound; tm_whole_tree.json and tm_whole_tree.err in the raw directory); not a baseline and not a waiver",
-    "per_crate": {"crates/execution_domain": 18},
+    "at_checkpoint_330": 18,
+    "status": "measured whole-tree state at checkpoint 331 on the validated source; not a baseline and not a waiver",
+    "per_crate": {"crates/execution_domain": 18, "docs/contracts": 18},
     "module_cycles_findings": 0,
     "no_domain_concept_cycles_findings": 18,
-    "tm_validate": "crates/ryo: 241 versions hold, 0 do not; repository root: 223 hold, 0 do not",
+    "no_tracker_text_shipped_findings": 18,
+    "tm_validate": "crates/ryo: 241 versions hold, 0 do not; repository root: 224 hold, 0 do not",
     "unknown_findings": 0,
-    "at_checkpoint_323": 24,
     "owned": {
-      "no-domain-concept-cycles (execution_domain) 18": "the domain concept cycle row: a 15-concept model cycle and a 3-concept program cycle"
+      "no-domain-concept-cycles (execution_domain) 18": "the domain concept cycle row: a 15-concept model cycle and a 3-concept program cycle",
+      "no-tracker-text-shipped (docs/contracts/evidence/checkpoint/tm-steward.json) 18": "the 330 TM steward evidence names beads by id; the push hook requires the file; the spec excludes no review evidence (open, named in the 331 record)"
     },
-    "at_checkpoint_324": 18,
-    "at_checkpoint_325": 18,
-    "at_checkpoint_326": 18,
-    "at_checkpoint_327": 18
+    "new_at_330_fixed": "the 13 findings new at 330 (query_language README sections, UnknownRuleIndex test, file_owner_released, README:45/:107) are 0 on this source"
   },
   "tm_targets": {
     "tm_cli_source": {
