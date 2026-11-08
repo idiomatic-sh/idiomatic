@@ -53,8 +53,8 @@ def ruff_command(ruff: str, request: dict[str, object]) -> list[str]:
     return [ruff, 'check', '--isolated', '--no-cache', '--output-format', 'json', '--select', ','.join(request['selected_rules']), '--target-version', target, *request['files']]
 
 
-def compare(ryo: dict[str, object], ruff: list[dict[str, object]], request: dict[str, object], positions: Positions) -> tuple[list[dict[str, object]], dict[str, object]]:
-    """Per-rule rows and the cross-rule counts of a multiset match on (file, rule, line, column)."""
+def compare(ryo: dict[str, object], ruff: list[dict[str, object]], request: dict[str, object], positions: Positions) -> tuple[list[dict[str, object]], dict[str, object], dict[str, list[tuple[str, str, int, int]]]]:
+    """Per-rule rows, the cross-rule counts and every unmatched finding per rule, as (missing or extra, file, line, column), of a multiset match on (file, rule, line, column)."""
     selected = list(request['selected_rules'])
     chosen = set(selected)
     root = Path(request['root'])
@@ -77,6 +77,7 @@ def compare(ryo: dict[str, object], ruff: list[dict[str, object]], request: dict
         if positions.row_column(name, ruff_location_to_byte(positions.source(name), finding['location'])) != key[2:]:
             raise ValueError(f'ruff_location_to_byte disagrees with the Ruff position {key}')
         reference[key].append({'end': [finding['end_location']['row'], finding['end_location']['column']], 'message': finding['message']})
+    differing: dict[str, list[tuple[str, str, int, int]]] = {rule: [] for rule in selected}
     rows = {rule: {'rule': rule, 'ryo': 0, 'ruff': 0, 'matched': 0, 'missing': 0, 'extra': 0, 'end_differs': 0, 'missing_samples': [], 'extra_samples': [], 'end_differs_samples': []} for rule in selected}
     for key in sorted(set(candidate) | set(reference)):
         name, rule, line, column = key
@@ -92,9 +93,11 @@ def compare(ryo: dict[str, object], ruff: list[dict[str, object]], request: dict
                 row['end_differs_samples'].append({'file': name, 'line': line, 'column': column, 'ryo_end': end, 'ruff_end': observed['end']})
         for observed in theirs[matched:]:
             row['missing'] += 1
+            differing[rule].append(('missing', name, line, column))
             row['missing_samples'].append({'file': name, 'line': line, 'column': column, 'end': observed['end'], 'ruff_message': observed['message']})
         for end in ours[matched:]:
             row['extra'] += 1
+            differing[rule].append(('extra', name, line, column))
             row['extra_samples'].append({'file': name, 'line': line, 'column': column, 'end': end})
     for row in rows.values():
         for field in ('missing_samples', 'extra_samples', 'end_differs_samples'):
@@ -111,7 +114,7 @@ def compare(ryo: dict[str, object], ruff: list[dict[str, object]], request: dict
         'classes': dict(collections.Counter(row['class'] for row in ordered)),
         'rules_by_class': {kind: [row['rule'] for row in ordered if row['class'] == kind] for kind in ('ryo-missing', 'ryo-extra', 'both')},
     }
-    return ordered, counts
+    return ordered, counts, differing
 
 
 def rows_text(rows: list[dict[str, object]]) -> str:
@@ -131,23 +134,45 @@ def rows_text(rows: list[dict[str, object]]) -> str:
     return '[\n' + ',\n'.join(lines) + '\n]\n'
 
 
-def accepted_problems(rows: list[dict[str, object]], accepted: dict[str, object]) -> list[str]:
-    """Each difference the accepted file does not name with its exact counts, and each accepted entry that no longer differs."""
-    entries = {entry['rule']: entry for entry in accepted['differences']}
+def corpus_digest(request: dict[str, object]) -> str:
+    """The identity of the corpus a request reads: its file list and its context manifest's source, auxiliary and missing entries, never its location, rules or store."""
+    manifest = request['context_manifest']
+    corpus = {'files': request['files'], 'logical_root': manifest['logical_root'], 'source_files': manifest['source_files'], 'auxiliary_files': manifest['auxiliary_files'], 'missing': manifest['missing']}
+    return hashlib.sha256(json.dumps(corpus, sort_keys=True, separators=(',', ':')).encode('utf-8')).hexdigest()
+
+
+def load_accepted(text: str, request: dict[str, object]) -> dict[str, collections.Counter]:
+    """The accepted findings per rule; refuses a file written for another corpus, a rule named twice and a finding named twice."""
+    accepted = json.loads(text)
+    if accepted['corpus'] != corpus_digest(request):
+        raise ValueError(f"accepted differences are for corpus {accepted['corpus']}, the request reads corpus {corpus_digest(request)}")
+    entries: dict[str, collections.Counter] = {}
+    for entry in accepted['differences']:
+        if entry['rule'] in entries:
+            raise ValueError(f"accepted differences name {entry['rule']} twice")
+        findings = collections.Counter((finding['kind'], finding['file'], finding['line'], finding['column']) for finding in entry['findings'])
+        if not entry['reason'] or not findings or max(findings.values()) > 1 or any(kind not in ('missing', 'extra') for kind, *_ in findings):
+            raise ValueError(f"accepted differences for {entry['rule']} need a reason and distinct missing or extra findings")
+        entries[entry['rule']] = findings
+    return entries
+
+
+def accepted_problems(rows: list[dict[str, object]], differing: dict[str, list[tuple[str, str, int, int]]], accepted: dict[str, collections.Counter]) -> list[str]:
+    """Each unmatched finding the accepted file does not name, each accepted finding that no longer occurs, each end-position difference, and each accepted rule not selected."""
     problems = []
     for row in rows:
-        entry = entries.pop(row['rule'], None)
-        if entry is None:
-            if row['differences'] or row['end_differs']:
-                problems.append(f"{row['rule']}: {row['missing']} missing, {row['extra']} extra, {row['end_differs']} end positions differ; not accepted")
-        elif (row['missing'], row['extra'], row['end_differs']) != (entry['missing'], entry['extra'], 0):
-            problems.append(f"{row['rule']}: {row['missing']} missing, {row['extra']} extra, {row['end_differs']} end positions differ; accepted {entry['missing']} missing, {entry['extra']} extra")
-    problems.extend(f'{rule}: accepted but not selected' for rule in sorted(entries))
+        actual = collections.Counter(differing[row['rule']])
+        expected = accepted.get(row['rule'], collections.Counter())
+        problems.extend(f"{row['rule']}: {kind} {name}:{line}:{column} not accepted" for kind, name, line, column in sorted((actual - expected).elements()))
+        problems.extend(f"{row['rule']}: accepted {kind} {name}:{line}:{column} no longer occurs" for kind, name, line, column in sorted((expected - actual).elements()))
+        if row['end_differs']:
+            problems.append(f"{row['rule']}: {row['end_differs']} end positions differ")
+    selected = {row['rule'] for row in rows}
+    problems.extend(f'{rule}: accepted but not selected' for rule in sorted(set(accepted) - selected))
     return problems
 
 
-def summary(rows: list[dict[str, object]], counts: dict[str, object], accepted: dict[str, object], problems: list[str], identity: dict[str, object]) -> dict[str, object]:
-    reasons = {entry['rule']: entry['reason'] for entry in accepted['differences']}
+def summary(rows: list[dict[str, object]], counts: dict[str, object], reasons: dict[str, str], problems: list[str], identity: dict[str, object]) -> dict[str, object]:
     differences = [{'rule': row['rule'], 'class': row['class'], 'ryo': row['ryo'], 'ruff': row['ruff'], 'missing': row['missing'], 'extra': row['extra'],
                     **({'accepted': reasons[row['rule']]} if row['rule'] in reasons else {})} for row in rows if row['differences']]
     return {**identity, 'match_key': MATCH_KEY, 'normalisation': NORMALISATION, **counts, 'differences': differences, 'problems': problems, 'status': 'fail' if problems else 'pass'}
@@ -164,6 +189,8 @@ def run_ruff_parity(ruff: Path, request_path: Path, ryo_output: Path | None, wor
     request = json.loads(request_path.read_text(encoding='utf-8'))
     if not (request_path.parent / 'staged.json').is_file():
         raise ValueError(f'{request_path} is not a staged request: staged.json is missing beside it')
+    accepted_text = accepted_path.read_text(encoding='utf-8')
+    accepted = load_accepted(accepted_text, request)
     output_directory.mkdir(parents=True)
     ryo_run: dict[str, object]
     if worker is not None:
@@ -182,9 +209,9 @@ def run_ruff_parity(ruff: Path, request_path: Path, ryo_output: Path | None, wor
     (output_directory / 'ruff.json').write_bytes(completed.stdout)
     if completed.returncode not in (0, 1):
         raise ValueError(f'ruff exited {completed.returncode}: {completed.stderr.decode(errors="replace")[-2000:]}')
-    rows, counts = compare(json.loads(ryo_output.read_text(encoding='utf-8')), json.loads(completed.stdout), request, Positions(Path(request['root'])))
-    accepted = json.loads(accepted_path.read_text(encoding='utf-8'))
-    problems = accepted_problems(rows, accepted)
+    rows, counts, differing = compare(json.loads(ryo_output.read_text(encoding='utf-8')), json.loads(completed.stdout), request, Positions(Path(request['root'])))
+    problems = accepted_problems(rows, differing, accepted)
+    reasons = {entry['rule']: entry['reason'] for entry in json.loads(accepted_text)['differences']}
     staged = request_path.parent / 'staged.json'
     source = subprocess.run(['git', '-C', str(profile_config.REPOSITORY), 'rev-parse', 'HEAD'], check=True, capture_output=True, text=True).stdout.strip()
     identity = {
@@ -192,6 +219,7 @@ def run_ruff_parity(ruff: Path, request_path: Path, ryo_output: Path | None, wor
         'staged': json.loads(staged.read_text(encoding='utf-8')),
         'request_sha256': profile_config.sha256(request_path),
         'corpus': request['root'],
+        'corpus_digest': corpus_digest(request),
         'files': len(request['files']),
         'selected_rules': len(request['selected_rules']),
         'target': request['parser_configuration'],
@@ -202,7 +230,7 @@ def run_ruff_parity(ruff: Path, request_path: Path, ryo_output: Path | None, wor
         'accepted_differences': {'path': accepted_path.relative_to(profile_config.REPOSITORY).as_posix(), 'sha256': profile_config.sha256(accepted_path)},
     }
     (output_directory / 'per-rule.json').write_text(rows_text(rows), encoding='utf-8')
-    profile_config.atomic_json_write(output_directory / 'summary.json', summary(rows, counts, accepted, problems, identity))
+    profile_config.atomic_json_write(output_directory / 'summary.json', summary(rows, counts, reasons, problems, identity))
     print(f"ruff parity: {counts['classes'].get('identical', 0)} identical of {len(rows)} rules; {len(problems)} unaccepted", flush=True)
     for problem in problems:
         print(problem, flush=True)
