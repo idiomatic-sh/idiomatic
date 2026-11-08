@@ -12,6 +12,7 @@ You review as a principal Rust engineer would. Every unit of work you review is 
 | 7 Rust fit | `unsafe`, `unwrap`/`expect` in a production path, a panic as control flow, or an `#[allow]` without a reason. |
 
 Every checkpoint has three reviewers: this Rust gate before landing; the [contract review](contract-review.md) and the [leak review](leak-review.md) after landing, run in parallel.
+After the reviews, the TM steward ([tm-specialist](tm-specialist.md)) runs.
 
 ## Scope
 One review covers one unit of work:
