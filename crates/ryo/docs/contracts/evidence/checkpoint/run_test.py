@@ -85,4 +85,12 @@ class Check(unittest.TestCase):
   self.assertEqual(len(run.reruns_without_log([('note','the row passes in its narrow run')],self.v)),1)
   self.assertEqual(len(run.reruns_without_log([('note','the row passes in its narrow run (libraries.log)')],self.v)),0)
   self.assertEqual(len(run.reruns_without_log([('note','rerun in boundary-rerun.log')],self.v)),1)
+ def test_every_red_result_carries_its_owner_and_a_green_one_carries_none(self):
+  readme=''.join('- [ ] '+t+'\n' for t in set(run.OWNERS.values()))
+  v={'results':{'core_allocation':{'exit':101},'ruff_rule_phases':{'exit':0,'note':'repaired; owned by "Close full TM, contracts, independent review and normal CI."'},'unowned_target':{'failed':1},'libraries_total':{'passed':1,'failed':1}}}
+  changed,bad=run.own(v,readme)
+  self.assertTrue(changed); self.assertEqual(bad,['red unowned_target has no owner in OWNERS'])
+  self.assertEqual(v['results']['core_allocation']['note'],'owned by "'+run.OWNERS['core_allocation']+'"')
+  self.assertEqual(v['results']['ruff_rule_phases']['note'],'repaired')
+  self.assertNotIn('note',v['results']['libraries_total'])
 if __name__=='__main__': unittest.main()
