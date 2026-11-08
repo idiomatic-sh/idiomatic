@@ -38,7 +38,17 @@ Two artifacts:
 2. A Markdown report beside the contract review's in the session scratchpad: one section per item with its verdict, the file:line evidence and, for each FAIL, the required change.
 
 ## Open-source hygiene (advisory)
-On the diff the review also reports, from the output of the standard tools the PM supplies (the Asymptote `api`, `lint` and `check` groups in [asymptote.toml](../../crates/ryo/asymptote.toml)); it reads that output and does not re-derive it. These are notes in the Markdown report, not items: they never change the seven-item verdict or the JSON schema.
+The review is also made as a maintainer of widely used open-source Rust developer tools would make it (the standard set by cargo, ripgrep, uv/ruff and rust-analyzer). It advises, each advisory with file:line and the concrete fix, on:
+- API design per the Rust API Guidelines: naming, conversions, error types, no leaked internals, sealed or extensible traits used deliberately.
+- Error handling and messages a user can act on.
+- CLI and dev-tool ergonomics per the repo's adopted clig.dev guidance: exit codes, stderr and stdout, output both human and machine readable.
+- Crate and feature hygiene: minimal features, no default-feature bloat, MSRV and toolchain pins respected, dependency weight.
+- Docs: crate-level docs, examples on public items.
+- What an outside contributor would trip on.
+
+These are notes in the Markdown report, not items: they never change the seven-item verdict or the JSON schema, unless the finding already falls under one of the seven items.
+
+The tool-based notes below are read from the output of the standard tools the PM supplies (the Asymptote `api`, `lint` and `check` groups in [asymptote.toml](../../crates/ryo/asymptote.toml)); the review reads that output and does not re-derive it.
 - Public API: items added, removed or widened (`api` group).
 - Docs: missing docs or broken intra-doc links on public items (`cargo-doc`, `check` group).
 - Dependencies: changes against the cargo-deny and cargo-machete output (`lint` group).
