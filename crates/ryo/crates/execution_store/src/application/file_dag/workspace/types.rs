@@ -25,7 +25,4 @@ pub struct WorkspaceParts<'w> {
     pub downstream_scratch: &'w mut OperatorScratch,
     /// The downstream operators' memo.
     pub downstream_memo: &'w mut Vec<Memo>,
-    /// What the proofs observe of this invocation's work.
-    #[cfg(any(test, feature = "fixtures"))]
-    pub observation: &'w mut ryo_execution_domain::domain::operating::fixtures::ExecutionObservation,
 }

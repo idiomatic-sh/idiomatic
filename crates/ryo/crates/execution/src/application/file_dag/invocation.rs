@@ -141,10 +141,6 @@ impl AcquiredPartitions {
     pub(crate) fn push(&mut self, view: AcquiredView) {
         self.0.push(view);
     }
-    /// Whether no partition was acquired.
-    pub(crate) fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
     /// The acquired views, in partition order.
     pub(crate) fn iter(&self) -> std::slice::Iter<'_, AcquiredView> {
         self.0.iter()

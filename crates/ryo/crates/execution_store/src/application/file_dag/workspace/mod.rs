@@ -158,7 +158,7 @@ impl InvocationWorkspace {
         &mut self.observation
     }
     /// Every working allocation a kernel uses, each lent apart from the others so one evaluation can hold them
-    /// at once; the admitted publications stay with the workspace.
+    /// at once; the admitted publications and the proofs' observation stay with the workspace.
     pub fn parts(&mut self) -> types::WorkspaceParts<'_> {
         types::WorkspaceParts {
             owner: &self.relation_owner,
@@ -170,8 +170,6 @@ impl InvocationWorkspace {
             primitive: &mut self.primitive,
             downstream_scratch: &mut self.downstream_scratch,
             downstream_memo: &mut self.downstream_memo,
-            #[cfg(any(test, feature = "fixtures"))]
-            observation: &mut self.observation,
         }
     }
     pub(super) fn owner_handle(&self) -> std::rc::Rc<super::relations::RelationOwner> {

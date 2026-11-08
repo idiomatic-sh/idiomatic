@@ -224,7 +224,7 @@ fn evaluate_once(
         },
     };
     #[cfg(test)]
-    let registered_calls = &mut parts.observation.registered_calls;
+    let mut registered_calls = 0;
     let outcome = with_primitive_context(
         views,
         &mut *parts.primitive,
@@ -236,7 +236,7 @@ fn evaluate_once(
             let request = ExecutableLease::new(permit, context, operation, input, &mut output);
             #[cfg(test)]
             {
-                *registered_calls += 1;
+                registered_calls += 1;
             }
             match operators.execute(KernelCall::Registered { request }) {
                 Ok(KernelAnswer::Complete) => Ok(()),
@@ -251,7 +251,10 @@ fn evaluate_once(
     drop(output);
     drop(predicate);
     #[cfg(test)]
-    resources.observe(workspace);
+    {
+        workspace.observation_mut().registered_calls += registered_calls;
+        resources.observe(workspace);
+    }
     semantic_failure.into_inner().map_or(outcome, Err)
 }
 struct OutputBridge<'a> {
