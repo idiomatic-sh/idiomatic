@@ -40,7 +40,8 @@ Earlier integration records (checkpoints 319 to 325 and their branch records): [
 Checkpoint 330 merges perf iteration 4 (`claude/p4-memory`, merge `8d9239677d`) and perf iteration 5 (`claude/p5-plan-rewrites`, merge `2a0bec2965`) into checkpoint 329 (`74a799c116` and its Rust gate commits), plus the engine edits `f472801258` (unknown rule index refused, project-batch-owner 0.1.1, the two-reviewer charter, the heap profile interval and peak loop) and `4df6abaca2` (project-batch-owner 0.1.0 deleted, the 329 contract review evidence). validation330 ran on `4df6abaca2` (raw logs in `ryo-contract-validation330-20261108`) on the tree's own target.
 
 - **Checks:** the workspace check (all features, all targets) ran once, 0 errors, 4,630 warnings (4,646 at 329); one check pass.
-- **Validation:** libraries 1080 PASS / 1 failed, `core_bdd` 18 scenarios / 0 failed, `ruff` 13 / 0, execution boundary 97 / 0, whole-tree TM 18 findings with 6 suppressed, file-level ownership cycles 0. Known reds, as at 329: `process_capture` succeeds, `core_allocation` (exit 101), `cli_tests` warm peak, and the three `cli_cost` ruff ratchet rows.
+- **Validation:** libraries 1085 PASS / 1 failed (execution 73, core 119, runtime 200; 1080/1 at 329), `core_bdd` 18 scenarios / 0 failed, `ruff` 13 / 0, execution boundary 97 / 0, whole-tree TM 18 findings with 6 suppressed, file-level ownership cycles 0. Known reds, as at 329: `process_capture` succeeds, `core_allocation` (exit 101), `cli_tests` warm peak, and the three `cli_cost` ruff ratchet rows.
+- **Rust gate 330 repairs:** `UnknownRuleIndex` maps to core `LintError::Execution` (no fabricated `RuleId`), `FrameOffset` carries a doctest, validation.json rebound to the raw logs; error path and docs only, no Django rerun (core lib 119/0, values doctests 4/0, `cargo check --all-targets` on core and values clean).
 - **Django receipt (full Django 413 cold, 2,875 files x 413 rules, fresh store, under the measure and build locks, default threads):** the `ruff` bench worker built from `4df6abaca2` into `idiomatic-target/ryo-330` (`cargo bench --no-run -p idiomatic-sh-ryo-python --bench ruff`) and copied under the same lock to `/tmp/ryo-django330/worker-4df6abaca2`, sha256 `f1ba077013da3df5da94439a2468ff2379f7583ec87bc566a5549b365e6a59e5`, no `DBG ` string (`strings | grep -c` 0); `build.json` beside it ends with the provenance line (commit, sha256, build time 20:36:32Z after the commit time 19:24:10Z). The request was staged by `verify_profiles.py --stage-request /tmp/ryo-django329/request.json --source 4df6abaca2` (staged digest `0132c274d68dc22252b09d0551a36617652fd7ffecaff02a246e5bf0448027df`, 1,088 files, the same as 328 and 329), request sha256 `314aa80c2475fd30d8330e015a4594ff4d12e07f73f84dd576b1558bbf6591e8`.
 
   | Run | Exit | Output bytes | Wall s | CPU s (user + sys) | Peak RSS | Load at start |
@@ -126,14 +127,14 @@ Written by `evidence/checkpoint/run.py` from [validation.json](evidence/checkpoi
 |---|---|
 | Source | `4df6abaca2` |
 | Validation | validation330 (raw logs in the directory named `ryo-contract-validation330-20261108`, kept outside the repository) |
-| execution library | 72 PASS / 0 failed (execution after landing 2: its file DAG application moved to the runtime crate (the row below); execution 72 + runtime 198 = 270, the rows of validation327's execution library) |
+| execution library | 73 PASS / 0 failed (execution after landing 2 and perf iteration 4: its file DAG application is in the runtime crate; execution 73 + runtime 200 = 273 (270 at validation329)) |
 | execution domain library | 136 PASS / 0 failed |
 | execution store library | 81 PASS / 0 failed |
-| core library | 121 PASS / 0 failed (the removed-file row a_removed_file_leaves_no_unknown_or_skip_behind_in_any_store passes since the Phase 1 tail (its fixture runs the cold run's language for the oracle and warm runs)) |
+| core library | 119 PASS / 0 failed (the removed-file row a_removed_file_leaves_no_unknown_or_skip_behind_in_any_store passes since the Phase 1 tail (its fixture runs the cold run's language for the oracle and warm runs)) |
 | benchmark library | 221 PASS / 1 failed (verify_cases process_capture succeeds, one red row (a metadata failure preserves the process bytes and cannot be admitted), as at validation326 and validation327; owned by "Close full TM, contracts, independent review and normal CI.") |
 | sdk passed | 29 |
-| other libraries passed | 187 |
-| libraries total | 1080 PASS / 1 failed (validation327 1078/3; the removed-file row is green and the direct adapter ETXTBSY race did not recur) |
+| other libraries passed | 191 |
+| libraries total | 1085 PASS / 1 failed (1080/1 at validation329; counted from libraries.log: benchmark 221/1, core 119, derived 35, execution 73, domain 136, runtime 200, store 81, matching 5, operators 61, query_language 97, sdk 29, values 28) |
 | execution boundary | 97 PASS / 0 failed (102 at validation323 less the five source-reading rows landing 1 deletes (source_boundary activation rejects, derived census, runtime authority; submission census trait methods and prepared frontiers), each replaced as the ownership record's table states) |
 | activation | 11 PASS / 0 failed (11 actual cases, the facts-finish dhat control among them) |
 | bdd | scenarios 7, failed 0 |
@@ -158,7 +159,7 @@ Written by `evidence/checkpoint/run.py` from [validation.json](evidence/checkpoi
 | derived library | 35 PASS / 0 failed |
 | python and language libraries | 181 PASS / 0 failed (python 138/0 and language 43/0, now targets of the set (python_lib, language_lib)) |
 | tm validate all | crates ryo 241 PASS / 0 failed, repository root 223 PASS / 0 failed |
-| execution runtime library | 198 PASS / 0 failed |
+| execution runtime library | 200 PASS / 0 failed |
 | tm_cli_source findings | 0 (0 production, 0 test), 0 suppressed, 1 scoped directories |
 | tm_source findings | 0 (0 production, 0 test), 2 suppressed, 16 scoped directories |
 | Whole-tree TM | 18 findings, 6 suppressed (3676 at 318) |

@@ -1,6 +1,6 @@
 {
   "source": "4df6abaca2fb9b8e24bf35261477ceae87bb60ab",
-  "scope": "Ownership consolidation checkpoint 329 (landing 2: the execution runtime crate; the Phase 1 tail; review repairs XII: one cargo target per worktree; the observation of the moved invocation open under fixtures; validated once on the tree's own target)",
+  "scope": "Ownership consolidation checkpoint 330 (perf iterations 4 and 5: the Django peak 6.78 to 3.33 GB; the engine edits after 329: unknown rule index refused, project-batch-owner 0.1.1, the two-reviewer charter; validated once on the tree's own target)",
   "checks": {
     "libraries": {
       "source": "4df6abaca2fb9b8e24bf35261477ceae87bb60ab",
@@ -215,14 +215,14 @@
   },
   "results": {
     "execution_library": {
-      "passed": 72,
+      "passed": 73,
       "failed": 0,
-      "note": "execution after landing 2: its file DAG application moved to the runtime crate (the row below); execution 72 + runtime 198 = 270, the rows of validation327's execution library"
+      "note": "execution after landing 2 and perf iteration 4: its file DAG application is in the runtime crate; execution 73 + runtime 200 = 273 (270 at validation329)"
     },
     "execution_domain_library": {"passed": 136, "failed": 0},
     "execution_store_library": {"passed": 81, "failed": 0},
     "core_library": {
-      "passed": 121,
+      "passed": 119,
       "failed": 0,
       "note": "the removed-file row a_removed_file_leaves_no_unknown_or_skip_behind_in_any_store passes since the Phase 1 tail (its fixture runs the cold run's language for the oracle and warm runs)"
     },
@@ -232,11 +232,11 @@
       "note": "verify_cases process_capture succeeds, one red row (a metadata failure preserves the process bytes and cannot be admitted), as at validation326 and validation327; owned by \"Close full TM, contracts, independent review and normal CI.\""
     },
     "sdk_passed": 29,
-    "other_libraries_passed": 187,
+    "other_libraries_passed": 191,
     "libraries_total": {
-      "passed": 1080,
+      "passed": 1085,
       "failed": 1,
-      "note": "validation327 1078/3; the removed-file row is green and the direct adapter ETXTBSY race did not recur"
+      "note": "1080/1 at validation329; counted from libraries.log: benchmark 221/1, core 119, derived 35, execution 73, domain 136, runtime 200, store 81, matching 5, operators 61, query_language 97, sdk 29, values 28"
     },
     "execution_boundary": {
       "passed": 97,
@@ -302,7 +302,7 @@
       "crates_ryo": {"passed": 241, "failed": 0},
       "repository_root": {"passed": 223, "failed": 0}
     },
-    "execution_runtime_library": {"passed": 198, "failed": 0}
+    "execution_runtime_library": {"passed": 200, "failed": 0}
   },
   "ownership_graph": {
     "source": "4a982fa0a5ad0045ee5f2d32592fc69133b82c9c",

@@ -105,6 +105,13 @@ pub struct PackedSlice<'a>(pub &'a [u8]);
 pub struct PackedOffset(pub usize);
 
 /// A byte position in packed words, counted from the start of one frame.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_values::domain::table_words::types::FrameOffset;
+/// assert!(FrameOffset(4) < FrameOffset(12));
+/// ```
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub struct FrameOffset(pub u32);
 
