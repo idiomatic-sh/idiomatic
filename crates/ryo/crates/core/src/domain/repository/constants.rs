@@ -5,3 +5,6 @@ pub(crate) const RELATION_SCHEMA_LABEL: &str = "ryo-relation-catalog";
 
 /// Begins the bytes that say which source selection a request asked for.
 pub(crate) const SOURCE_SELECTION_LABEL: &str = "ryo-source-selection-primary-role";
+
+/// Begins the bytes that say which compiled plan a rule executes, after every rewrite that shapes what its frontier slots hold.
+pub(crate) const COMPILED_PLAN_LABEL: &str = "ryo-compiled-plan";

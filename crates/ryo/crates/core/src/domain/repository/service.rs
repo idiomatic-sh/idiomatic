@@ -1,6 +1,6 @@
 //! The `repository` service: free functions named by verb over the files of a run, with no IO and no ports.
 
-use super::constants::{RELATION_SCHEMA_LABEL, SOURCE_SELECTION_LABEL};
+use super::constants::{COMPILED_PLAN_LABEL, RELATION_SCHEMA_LABEL, SOURCE_SELECTION_LABEL};
 use super::types::{DigestColumn, DigestRelation, SchemaCount};
 use crate::domain::keeping::service::configuration_bytes;
 use crate::domain::keeping::types::{Configuration, DigestInput, DigestPart, HostedText};
@@ -9,6 +9,7 @@ use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::rule_requests::types::RuleSpec;
 use ryo_values::domain::files::service::input_path;
 use ryo_values::domain::files::types::CorpusInput;
+use ryo_values::domain::plans::types::Plan;
 
 /// What is read of the rules and the relations the host declares (as their lines, spelled once per run however many rules
 /// are digested) to say whether what the store kept of the rules can be used, as the bytes to digest.
@@ -102,5 +103,17 @@ pub(crate) fn source_selection_identity(
             bytes.0.extend_from_slice(name.0.as_bytes());
         }
     }
+    bytes
+}
+
+/// The identity of the plan a rule executes: the lowered plan after the handover rewrites (regrouping, narrowing, pushing), not
+/// its source text. Every field of the plan is spelled, so a build whose rewrites put other steps at a frontier position, or keep
+/// other columns, names another plan, and what a store kept under the old one is not used again.
+#[must_use]
+pub(crate) fn plan_identity(plan: &Plan) -> DigestInput {
+    use std::io::Write as _;
+    let mut bytes = DigestInput(COMPILED_PLAN_LABEL.as_bytes().to_vec());
+    // Writing into a vector cannot fail.
+    let _written = write!(bytes.0, "{plan:?}");
     bytes
 }

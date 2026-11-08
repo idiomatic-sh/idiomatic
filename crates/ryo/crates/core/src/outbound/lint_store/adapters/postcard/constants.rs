@@ -20,7 +20,7 @@ pub(super) const LENGTH: u64 = 8;
 
 /// Checked before positional postcard decoding; a store that does not carry it is a cache miss, and is rebuilt.
 pub(super) const TRAILER: &[u8] =
-    b"ryo-lint-store\0permissions\0observation-readiness\0project-entries\0project-path-kind\0frontier-proof\0proof-digests\0";
+    b"ryo-lint-store\0permissions\0observation-readiness\0project-entries\0project-path-kind\0frontier-proof\0proof-digests\0plan-identity\0";
 
 /// The text "frontier payload lacks its exact source proof".
 pub(super) const FRONTIER_PAYLOAD_LACKS_ITS_EXACT_SOURCE: &str =

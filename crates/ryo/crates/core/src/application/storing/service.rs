@@ -8,7 +8,7 @@ use crate::domain::budget::service::{fit, repository_size};
 use crate::domain::project::service::{project_rules, reads_project, with_consulted};
 use crate::domain::project::types::PlanReads;
 use crate::domain::render::types::Answering;
-use crate::domain::repository::service::{by_path, configuration};
+use crate::domain::repository::service::{by_path, configuration, plan_identity};
 use crate::domain::reporting::service::{skipped_from, with_gone};
 use crate::domain::storing::service::{decide as reuse_of, made_again, records_from};
 use crate::domain::workers::service::with_fresh;
@@ -155,8 +155,9 @@ impl Storing {
         })
     }
 
-    /// What each rule is, as one digest: its query, its parameters, the files it governs and what the host declared; for a rule that
-    /// reads what the project writes, what the manifests resolve to too. A rule whose digest changed is run again everywhere.
+    /// What each rule is, as one digest: its query, its parameters, the files it governs, what the host declared and the compiled plan
+    /// it executes (`plans`, after every rewrite); for a rule that reads what the project writes, what the manifests resolve to too. A
+    /// rule whose digest changed is run again everywhere: a store written under another plan is not used again.
     pub(crate) fn stored_rules(
         &self,
         rules: &[RuleSpec],
@@ -185,6 +186,7 @@ impl Storing {
                     hosted,
                     schema,
                     source_selection,
+                    self.digest.digest(DigestBytes(&plan_identity(plan).0)),
                 ]);
                 let own = if plan.observations.is_empty() {
                     own
