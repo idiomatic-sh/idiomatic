@@ -1,7 +1,8 @@
 //! The stored item reads the columns of a relation where the store keeps them and refuses every other representation.
+use crate::domain::table_model::types::PhysicalShape;
 use super::super::{
     interface::RepresentationsItem,
-    types::{CellRead, PhysicalShape},
+    types::CellRead,
 };
 use crate::domain::table_model::types::RepresentationInput;
 use super::item::StoredItem;

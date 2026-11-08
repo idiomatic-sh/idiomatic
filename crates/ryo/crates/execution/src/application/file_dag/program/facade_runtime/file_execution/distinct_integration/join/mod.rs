@@ -2,7 +2,7 @@
 use super::*;
 use ryo_execution_domain::domain::{
     table_cells::types::TreeRows,
-    table_model::{collections::representations::types::RepresentationKind, service::materialize},
+    table_model::{types::RepresentationKind, service::materialize},
 };
 use ryo_relations::{
     domain::relations::{

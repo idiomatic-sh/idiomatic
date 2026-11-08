@@ -1,4 +1,5 @@
 //! Exhaustive semantic declarations; strategy, cache admission and lifetimes are not kinds.
+use super::primitive::portable_fault;
 use super::types::*;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::contract::types::AbsenceMask;

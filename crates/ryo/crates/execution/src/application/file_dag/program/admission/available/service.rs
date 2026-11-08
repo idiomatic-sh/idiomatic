@@ -53,7 +53,7 @@ impl AvailableInput {
         )?;
         let admission = match inspected {
             Ok(physical) => {
-                let physical = if physical.physical_shape() == ryo_execution_domain::domain::table_model::collections::representations::types::PhysicalShape::ReadablePhysicalFallback {
+                let physical = if physical.physical_shape() == ryo_execution_domain::domain::table_model::types::PhysicalShape::ReadablePhysicalFallback {
                     // Freeze the readable prefix from this first supplied borrow in
                     // the existing generation-owned normalization record. Its refusal
                     // remains deferred to the declared admission boundary.

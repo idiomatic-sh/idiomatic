@@ -5,7 +5,7 @@ use ryo_relations::domain::relations::types::{CellKind, Value as Cell};
 
 use super::service::count_groups;
 use crate::domain::operating::errors::OperatingError;
-use crate::domain::operator::contract::types::PrimitiveSemantics;
+use crate::domain::operator::contract::primitive::PrimitiveSemantics;
 use crate::domain::table_groups::types::CountRoom;
 use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;

@@ -1,8 +1,7 @@
 //! Prepared metadata is request-owned; invocation capabilities borrow engine-owned data.
+use super::primitive::{PreparedInputs, PrimitiveSemantics};
 use super::views::{IndexedRows, PredicateProgram, ValidatedSource};
-use crate::domain::table_model::types::RepresentationInput;
 use crate::domain::operating::errors::OperatingError;
-use crate::domain::operating::types::InputPlace;
 use ryo_language::domain::symbols::types::QuerySymbols;
 use ryo_relations::domain::relations::types::{CellKind, Value};
 use ryo_values::domain::files::types::SourceView;
@@ -208,24 +207,6 @@ pub struct OperatorContract {
     pub identity: Operation,
 }
 
-/// Immutable inputs only. No Feed, callback, scheduler or owned/retained Arc is supplied.
-#[derive(Clone, Copy)]
-pub enum PreparedInputs<'a> {
-    /// One row of the triggering input with its immutable side inputs.
-    Row {
-        /// The input the row comes from.
-        input: InputPlace,
-        /// The row's cells.
-        row: &'a [Value],
-        /// The side inputs the row is evaluated against.
-        sides: &'a [RepresentationInput<'a>],
-    },
-    /// The whole inputs, each as one representation.
-    Views(&'a [RepresentationInput<'a>]),
-    /// The source the request supplies.
-    RequestSource(&'a RepresentationInput<'a>),
-}
-
 /// Read-only data borrowed from the application-owned invocation. No owner,
 /// scheduler, acquisition or release operation crosses this interface.
 pub trait PrimitiveResources {
@@ -322,48 +303,6 @@ pub struct PrimitiveLease<'a> {
     pub(super) predicate: &'a mut dyn PredicateProgram,
     pub(super) semantics: &'a dyn PrimitiveSemantics,
     pub(super) work: &'a WorkCounters,
-}
-
-/// Borrowed portable primitive meanings; the application supplies the implementation.
-/// No outbound adapter, cache owner or scheduler is reachable from a primitive.
-pub trait PrimitiveSemantics: Sync {
-    #[cfg(feature = "diagnostic-row-progress")]
-    fn progress(&self) -> &dyn super::views::ProgressObserver {
-        &super::views::IgnoredProgress
-    }
-
-    /// The injected operators the primitive evaluates through.
-    fn operators(
-        &self,
-        call: ryo_operators::inbound::use_cases::operators::types::OperatorCall<'_>,
-    ) -> Result<
-        ryo_operators::inbound::use_cases::operators::types::OperatorAnswer,
-        ryo_operators::domain::contract::types::PortableOperatorFault,
-    >;
-}
-
-/// The operating error a portable operator fault stands for.
-pub fn portable_fault(
-    error: ryo_operators::domain::contract::types::PortableOperatorFault,
-) -> OperatingError {
-    use ryo_operators::domain::contract::types::PortableOperatorFault;
-    match error {
-        PortableOperatorFault::Interrupted => OperatingError::WrongOperation,
-        PortableOperatorFault::NoSuchColumn { index } => {
-            ryo_values::domain::rows::errors::RowsError::NoSuchColumn { index: index.0 }.into()
-        }
-        PortableOperatorFault::ShapeMismatch => OperatingError::ShapeMismatch,
-        PortableOperatorFault::InvalidSpanBounds => OperatingError::InvalidSpanBounds,
-        PortableOperatorFault::InvalidSpan => OperatingError::InvalidSpan,
-        PortableOperatorFault::InvalidSourceMatchSpan => OperatingError::InvalidSourceMatchSpan,
-        PortableOperatorFault::UnboundKey => OperatingError::WrongBinding,
-        PortableOperatorFault::WrongBinding => OperatingError::WrongBinding,
-        PortableOperatorFault::Unbound => OperatingError::Unbound,
-        PortableOperatorFault::NotRun => OperatingError::NotRun,
-        PortableOperatorFault::MissingCapture
-        | PortableOperatorFault::WrongOperation
-        | PortableOperatorFault::UnsupportedRender => OperatingError::WrongOperation,
-    }
 }
 
 /// A narrow lease reborrow preserves source/derived symbols while downstream rows run.

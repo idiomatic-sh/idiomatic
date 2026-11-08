@@ -1,6 +1,7 @@
 //! The sole registered invocation representation retains private construction.
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_domain::domain::operator::contract::types::{PreparedInputs, PrimitiveLease, RowSink};
+use ryo_execution_domain::domain::operator::contract::primitive::PreparedInputs;
+use ryo_execution_domain::domain::operator::contract::types::{PrimitiveLease, RowSink};
 /// The executable lease belongs to the application invocation owner. A pure
 /// borrowed context cannot be promoted into a registered call by a sibling.
 pub(crate) struct ExecutableLease<'call, 'resources, 'scope> {

@@ -1,8 +1,9 @@
 //! The lease's own operations: the capabilities a primitive reaches through its borrowed context.
 use super::types::{
-    DistinctWorkspace, FoundRows, PrimitiveLease, PrimitiveSemantics, PrimitiveViews, PrimitiveWorkspace,
+    DistinctWorkspace, FoundRows, PrimitiveLease, PrimitiveViews, PrimitiveWorkspace,
     WorkCounters, WorkTotals,
 };
+use super::primitive::PrimitiveSemantics;
 use super::views::PredicateProgram;
 use crate::domain::operating::errors::OperatingError;
 use ryo_language::domain::symbols::types::QuerySymbols;

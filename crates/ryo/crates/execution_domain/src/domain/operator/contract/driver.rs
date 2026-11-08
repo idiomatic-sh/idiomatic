@@ -2,7 +2,8 @@
 //! operators' driver ports. Every kind's row meaning is the operators'; each strategy the engine keeps (an
 //! index probe, native tree candidates, its walks over trees, partitions and graphs) implements one port.
 use super::failure::{FailureLatch, LatchState};
-use super::types::{FoundRows, PreparedInputs, PrimitiveLease, PrimitiveResources, RowSink};
+use super::primitive::PreparedInputs;
+use super::types::{FoundRows, PrimitiveLease, PrimitiveResources, RowSink};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_model::types::Verdict;
 use crate::domain::table_texts::service::datum;

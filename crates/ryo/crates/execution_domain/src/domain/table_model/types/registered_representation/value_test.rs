@@ -2,7 +2,7 @@
 use crate::domain::{
     operating::errors::OperatingError,
     table_model::{
-        collections::representations::types::{RepresentationKind, RowRead},
+        collections::representations::types::RowRead, types::RepresentationKind,
         service::registered,
         types::RepresentationInput,
     },

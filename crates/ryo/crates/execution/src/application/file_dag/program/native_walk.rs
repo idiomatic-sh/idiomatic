@@ -166,7 +166,7 @@ impl FileWalk {
                     return Err(error);
                 }
                 Err(super::super::executor::KernelFault::Portable(error)) => {
-                    return Err(ryo_execution_domain::domain::operator::contract::types::portable_fault(
+                    return Err(ryo_execution_domain::domain::operator::contract::primitive::portable_fault(
                         error,
                     ));
                 }

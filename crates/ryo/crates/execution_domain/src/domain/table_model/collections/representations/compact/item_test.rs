@@ -1,7 +1,8 @@
 //! The compact item reads admitted packed rows and refuses every other representation.
+use crate::domain::table_model::types::PhysicalShape;
 use super::super::{
     interface::RepresentationsItem,
-    types::{CellRead, PhysicalShape},
+    types::CellRead,
 };
 use crate::domain::table_model::types::RepresentationInput;
 use super::item::CompactItem;

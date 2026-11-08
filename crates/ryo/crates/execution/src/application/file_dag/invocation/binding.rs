@@ -1,6 +1,6 @@
 //! A read-only binding to invocation-owned handles, without copying an all-kind bundle per row.
 use super::*;
-use ryo_execution_domain::domain::operator::contract::types::PrimitiveResources;
+use ryo_execution_domain::domain::operator::contract::resources::PrimitiveResources;
 
 impl PrimitiveResources for InvocationInputs<'_> {
     fn validate_declared(&self) -> Result<(), OperatingError> {

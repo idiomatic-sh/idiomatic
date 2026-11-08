@@ -3,8 +3,8 @@
 use ryo_relations::domain::relations::types::{CellKind, FactColumn, Integer, Value as Cell};
 use ryo_values::selects;
 
-use crate::domain::table_model::collections::representations::types::{
-    CellRead, PhysicalShape, RepresentationKind, RowRead};
+use crate::domain::table_model::collections::representations::types::{CellRead, RowRead};
+use crate::domain::table_model::types::{PhysicalShape, RepresentationKind};
 use crate::domain::table_model::service::{borrowed, kind, registered};
 use ryo_relations::domain::relations::service::to_bits;
 use std::sync::Arc;

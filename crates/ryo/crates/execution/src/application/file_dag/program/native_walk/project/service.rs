@@ -226,7 +226,7 @@ impl ProjectWalk {
                 Ok(KernelAnswer::Walk(batch)) => batch,
                 Err(KernelFault::Refused(error)) => return Err(error),
                 Err(KernelFault::Portable(error)) => {
-                    return Err(ryo_execution_domain::domain::operator::contract::types::portable_fault(
+                    return Err(ryo_execution_domain::domain::operator::contract::primitive::portable_fault(
                         error,
                     ));
                 }

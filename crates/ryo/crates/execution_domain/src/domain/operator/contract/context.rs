@@ -1,7 +1,8 @@
 //! The `contract` service: pure functions over the domain's types, with no IO and no ports.
 use super::types::{
-    PrimitiveLease, PrimitiveSemantics, PrimitiveViews, PrimitiveWorkspace, WorkCounters,
+    PrimitiveLease, PrimitiveViews, PrimitiveWorkspace, WorkCounters,
 };
+use super::primitive::PrimitiveSemantics;
 use super::views::PredicateProgram;
 use ryo_language::domain::symbols::types::QuerySymbols;
 

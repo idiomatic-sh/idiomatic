@@ -1,4 +1,5 @@
 //! A classified physical catalog handle; implementer storage never crosses this value.
+use crate::domain::table_model::types::{PhysicalShape, RepresentationKind};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_model::collections::representations::{
     compact::item::CompactItem,
@@ -6,7 +7,7 @@ use crate::domain::table_model::collections::representations::{
     interface::RepresentationsItem,
     stored::item::StoredItem,
     tree::item::TreeItem,
-    types::{CellRead, PhysicalShape, RelationContract, RepresentationKind, RowRead},
+    types::{CellRead, RelationContract, RowRead},
 };
 use crate::domain::table_model::types::RepresentationInput;
 use crate::domain::table_cells::types::TreeForm;

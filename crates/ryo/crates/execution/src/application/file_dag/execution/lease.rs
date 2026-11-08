@@ -9,7 +9,7 @@ use ryo_execution_domain::domain::operating::{
     types::{Emit, OperatorContext},
 };
 use ryo_execution_domain::domain::operator::contract::{
-    context::with_primitive_context, types::*, 
+    context::with_primitive_context, primitive::{portable_fault, PreparedInputs}, types::*,
 };
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_domain::domain::table_scratch::types::OperatorScratch;

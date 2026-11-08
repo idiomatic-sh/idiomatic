@@ -2,7 +2,7 @@
 use crate::application::file_dag::derived::population::types::PopulationId;
 use crate::application::file_dag::relations::admission::types::AdmissionOrigin;
 use ryo_execution_domain::domain::{
-    table_model::collections::representations::types::PhysicalShape,
+    table_model::types::PhysicalShape,
 };
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_relations::domain::relations::types::Relation;

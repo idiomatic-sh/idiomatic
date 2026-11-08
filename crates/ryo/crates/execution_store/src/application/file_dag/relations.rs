@@ -2,9 +2,7 @@
 use super::derived::population::types::PopulationId;
 
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
-use ryo_execution_domain::domain::table_model::collections::representations::types::{
-    PhysicalShape, RepresentationKind,
-};
+use ryo_execution_domain::domain::table_model::types::{PhysicalShape, RepresentationKind};
 use ryo_execution_domain::domain::table_model::{
     service::{kind, materialize, registered},
     types::{PublishedRelation, Rows},

@@ -2,7 +2,7 @@
 use self::constants::BRIDGE_NAME;
 use super::executor::{KernelCall, PrimitiveExecutor};
 use crate::application::file_dag::executor::{KernelAnswer, KernelFault};
-use ryo_execution_domain::domain::operator::contract::types::PrimitiveSemantics;
+use ryo_execution_domain::domain::operator::contract::primitive::PrimitiveSemantics;
 use crate::outbound::operators::interface::OperatorsPort;
 mod constants;
 pub(crate) mod lease;

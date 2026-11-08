@@ -1,4 +1,5 @@
 //! The registry of physical representations, through its production routes and every item.
+use crate::domain::table_model::types::{PhysicalShape, RepresentationKind};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
 use crate::domain::table_model::service::{borrowed, kind, registered};

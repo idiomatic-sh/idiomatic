@@ -3,7 +3,7 @@
 //! its strategies behind the operators' closure, depth-first, cycle and ordered-match driver ports.
 use super::driver::LeaseDriver;
 use super::views::PreparedAdjacency;
-use super::types::PreparedInputs;
+use super::primitive::PreparedInputs;
 use super::types::{ExaminedCount, ExpandedCount};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_reach::types::{Edges, OrderedVisit};

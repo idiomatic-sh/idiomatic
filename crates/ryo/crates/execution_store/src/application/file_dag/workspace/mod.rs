@@ -227,8 +227,8 @@ impl InvocationWorkspace {
     ) -> Result<Option<GraphInput<'a>>, OperatingError> {
         let proof = self.admit(place, RepresentationInput::from(rows))?;
         match proof.physical_shape() {
-            ryo_execution_domain::domain::table_model::collections::representations::types::PhysicalShape::ReadablePhysicalFallback => Ok(None),
-            ryo_execution_domain::domain::table_model::collections::representations::types::PhysicalShape::Complete => {
+            ryo_execution_domain::domain::table_model::types::PhysicalShape::ReadablePhysicalFallback => Ok(None),
+            ryo_execution_domain::domain::table_model::types::PhysicalShape::Complete => {
                 let relation = proof.graph_relation(self.owner())?;
                 Ok(Some(GraphInput { rows, proof, relation, owner: self.owner() }))
             },

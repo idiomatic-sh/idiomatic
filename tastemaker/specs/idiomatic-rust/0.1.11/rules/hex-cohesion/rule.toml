@@ -1,7 +1,8 @@
 description = "A core's use cases form one connected group: every use case reaches every other through the outbound ports, domain concepts and application services they name, directly or through other use cases."
-why = "A core whose use cases fall into groups that share nothing is two cores in one crate: each group has its own vocabulary and its own outside world, and only a file growing past the length limit used to show it. A use case names a part when a file of its directory (`inbound/use_cases/<use case>/`) holds a written path the provider resolves to a file of `outbound/<port>/`, `domain/<concept>/` or `application/<service>/` of the same crate, or to that part's module file (`source-dependency`). Two use cases naming one part are joined; the groups are what joining reaches transitively. The finding is reported once for each core, at its `inbound/use_cases.rs`. A use case that calls no port but names a domain concept another use case names is in that use case's group, so a core whose read-only use cases describe the concepts its other use cases work on stays one group. Not seen: a dependency through a macro invocation's tokens or a glob import the provider cannot resolve to a file; the files of tests, fixtures, acceptance steps and benches, which are left out of the edges."
+why = "A core whose use cases fall into groups that share nothing is two cores in one crate: each group has its own vocabulary and its own outside world, and only a file growing past the length limit used to show it. A use case names a part when a file of its directory (`inbound/use_cases/<use case>/`) holds a written path the provider resolves to a file of `outbound/<port>/`, `domain/<concept>/` or `application/<service>/` of the same crate, or to that part's module file (`source-dependency`); a part of a crate the product splits its engine into, which a file of the use case imports by a path rooted at a name in `internal-crates` (`static-import`), counts as the crate's own. Two use cases naming one part are joined; the groups are what joining reaches transitively. The finding is reported once for each core, at its `inbound/use_cases.rs`. A use case that calls no port but names a domain concept another use case names is in that use case's group, so a core whose read-only use cases describe the concepts its other use cases work on stays one group. Not seen: a dependency through a macro invocation's tokens or a glob import the provider cannot resolve to a file; the files of tests, fixtures, acceptance steps and benches, which are left out of the edges."
 
 query = '''
+param internal-crates: set<string>;
 let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
 let dependencies = project(from="source-dependency", columns=["source", "target"]);
 let kept = select * from dependencies where not glob_any(source, "{**/*_test.rs,**/tests/**,**/fixtures/**,**/fixtures.rs,**/benches/**,**/acceptance.rs}");
@@ -26,7 +27,15 @@ let concept-named = extend(from=concept-rows, values={"layer": "domain"});
 let service-named = extend(from=service-rows, values={"layer": "application"});
 let named-0 = union(left=port-named, right=concept-named);
 let named-all = union(left=named-0, right=service-named);
-let named = select * from named-all where root = troot;
+let local-named = select * from named-all where root = troot;
+let local-rows = project(from=local-named, columns=["root", "uc", "part", "layer"]);
+let imports = select l."file" as "source", l."target" as "target" from "static-import" as l;
+let kept-imports = select * from imports where not glob_any(source, "{**/*_test.rs,**/tests/**,**/fixtures/**,**/fixtures.rs,**/benches/**,**/acceptance.rs}");
+let use-case-imports = capture(from=kept-imports, path="source", pattern="{*root}/inbound/use_cases/{uc}/{*rest}", captures=["root", "uc", "rest"]);
+let internal-paths = capture(from=use-case-imports, path="target", pattern="{krate}::{layer}::{part}::{*trest}", captures=["krate", "layer", "part", "trest"]);
+let internal-parts = select * from internal-paths where krate in $internal-crates and (layer = "domain" or layer = "application" or layer = "outbound");
+let internal-named = project(from=internal-parts, columns=["root", "uc", "part", "layer"]);
+let named = union(left=local-rows, right=internal-named);
 let shared = select l."root" as "root", l."uc" as "left", r."uc" as "right" from named as l join named as r on l."root" = r."root" and l."layer" = r."layer" and l."part" = r."part";
 let files = select * from tree-nodes where kind = "source-file";
 let file-paths = project(from=files, columns=["id", "file", "span"]);
@@ -51,8 +60,13 @@ primary = "span"
 message = "the use cases of this core fall into groups that share no port, domain concept or application service: the core is more than one hex"
 help = "Split the core: move each group of use cases, with the ports, concepts and services only it names, into a core of its own, or, when the groups do belong together, name the concept they share in both."
 
+[params.internal-crates]
+type = "set<string>"
+description = "The library names of the crates a product splits its own domain or application into beneath its use cases, which only its engine crates depend on: a part of such a crate a use case names counts as a part of the use case's own crate; [] names none."
+
 [given]
 include = ['**/*.rs']
+params = { internal-crates = [] }
 files.'Cargo.toml' = '''
 [package]
 name = "fixture"
@@ -126,3 +140,111 @@ pub struct CountUseCaseImpl {
     pub names: Box<dyn NamesPort>,
 }
 '''
+
+[[scenarios]]
+id = 'shared-internal-crate-concept'
+scenario = 'Two use cases share a domain concept of the crate the product split its domain into, named in `internal-crates`: one connected group passes.'
+given.params = { internal-crates = ['app_domain'] }
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+app_domain = { path = "app_domain" }
+
+[workspace]
+members = ["app_domain"]
+'''
+given.files.'app_domain/Cargo.toml' = '''
+[package]
+name = "app_domain"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'app_domain/src/lib.rs' = '''
+pub mod domain;
+'''
+given.files.'app_domain/src/domain.rs' = '''
+pub mod coverage;
+'''
+given.files.'app_domain/src/domain/coverage.rs' = '''
+pub mod types;
+'''
+given.files.'app_domain/src/domain/coverage/types.rs' = '''
+pub struct RuleIndex(pub usize);
+'''
+given.files.'src/inbound/use_cases/greet/use_case.rs' = '''
+use crate::outbound::names::interface::NamesPort;
+use app_domain::domain::coverage::types::RuleIndex;
+
+pub struct GreetUseCaseImpl {
+    pub names: Box<dyn NamesPort>,
+    pub rule: RuleIndex,
+}
+'''
+given.files.'src/inbound/use_cases/count/use_case.rs' = '''
+use crate::outbound::clock::interface::ClockPort;
+use app_domain::domain::coverage::types::RuleIndex;
+
+pub struct CountUseCaseImpl {
+    pub clock: Box<dyn ClockPort>,
+    pub rule: RuleIndex,
+}
+'''
+
+[[scenarios]]
+id = 'shared-other-crate-concept'
+scenario = 'Two use cases share only a concept of a crate `internal-crates` does not name: a concept of another crate joins nothing, and the core is two hexes.'
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+app_domain = { path = "app_domain" }
+
+[workspace]
+members = ["app_domain"]
+'''
+given.files.'app_domain/Cargo.toml' = '''
+[package]
+name = "app_domain"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'app_domain/src/lib.rs' = '''
+pub mod domain;
+'''
+given.files.'app_domain/src/domain.rs' = '''
+pub mod coverage;
+'''
+given.files.'app_domain/src/domain/coverage.rs' = '''
+pub mod types;
+'''
+given.files.'app_domain/src/domain/coverage/types.rs' = '''
+pub struct RuleIndex(pub usize);
+'''
+given.files.'src/inbound/use_cases/greet/use_case.rs' = '''
+use crate::outbound::names::interface::NamesPort;
+use app_domain::domain::coverage::types::RuleIndex;
+
+pub struct GreetUseCaseImpl {
+    pub names: Box<dyn NamesPort>,
+    pub rule: RuleIndex,
+}
+'''
+given.files.'src/inbound/use_cases/count/use_case.rs' = '''
+use crate::outbound::clock::interface::ClockPort;
+use app_domain::domain::coverage::types::RuleIndex;
+
+pub struct CountUseCaseImpl {
+    pub clock: Box<dyn ClockPort>,
+    pub rule: RuleIndex,
+}
+'''
+then.findings = [
+  { path = 'src/inbound/use_cases.rs', line = 1 },
+]

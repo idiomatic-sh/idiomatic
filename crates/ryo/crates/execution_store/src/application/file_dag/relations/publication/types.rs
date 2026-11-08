@@ -4,7 +4,7 @@ use crate::application::file_dag::derived::ledger::types::BackingAddress;
 use ryo_execution_domain::domain::executable_program::types::RegionId;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::table_model::{
-    collections::representations::types::{PhysicalShape, RepresentationKind},
+    types::{PhysicalShape, RepresentationKind},
     types::PublishedRelation,
 };
 use ryo_relations::domain::relations::types::{CellKind, Relation};

@@ -4,7 +4,7 @@ use ryo_execution_domain::domain::{
     coverage::types::{Lacking, Partial},
     operating::errors::OperatingError,
     table_model::{
-        collections::representations::types::{PhysicalShape, RepresentationKind},
+        types::{PhysicalShape, RepresentationKind},
         types::{PublishedRelation, Rows},
     },
 };

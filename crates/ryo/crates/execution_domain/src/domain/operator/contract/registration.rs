@@ -22,7 +22,7 @@ impl RegisteredOperator {
     pub fn evaluate(
         &self,
         operation: &ryo_values::domain::plans::types::Operation,
-        inputs: super::types::PreparedInputs<'_>,
+        inputs: super::primitive::PreparedInputs<'_>,
         lease: &mut super::types::PrimitiveLease<'_>,
         output: &mut dyn super::types::RowSink,
     ) -> Result<(), crate::domain::operating::errors::OperatingError> {

@@ -13,7 +13,7 @@ pub struct ExecutionObservation {
     pub index_rows: usize,
     /// Actual borrowed representation behind the acquired equality resource.
     pub index_representation:
-        Option<crate::domain::table_model::collections::representations::types::RepresentationKind>,
+        Option<crate::domain::table_model::types::RepresentationKind>,
     pub index_cells: usize,
     pub index_capacity: usize,
     pub closure_partition_rows: usize,

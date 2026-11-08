@@ -1,6 +1,6 @@
 //! One invocation uses the existing owner and injected meaning; no retained strategy state.
 use ryo_execution_domain::domain::operator::contract::{
-    failure::FailureLatch, types::portable_fault, 
+    failure::FailureLatch, primitive::portable_fault,
 };
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_domain::domain::{operating::errors::OperatingError, self_join_recogniser::types::Extremum};
@@ -78,7 +78,7 @@ impl OrderedExistenceDriver for Driver<'_, '_> {
 /// The owner has already bound the exact numeric source. This function only
 /// drives the borrowed semantic algorithm and never publishes or schedules.
 pub(super) fn evaluate(
-    semantics: &dyn ryo_execution_domain::domain::operator::contract::types::PrimitiveSemantics,
+    semantics: &dyn ryo_execution_domain::domain::operator::contract::primitive::PrimitiveSemantics,
     shape: &ryo_execution_domain::domain::executable_program::types::OrderedExistence,
     admitted: &ryo_execution_store::application::file_dag::relations::number::service::AdmittedNumber<'_>,
     rows: RepresentationInput<'_>,
