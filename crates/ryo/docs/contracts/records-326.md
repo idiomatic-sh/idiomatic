@@ -1,6 +1,6 @@
 # Integration records from checkpoint 326
 
-The integration records from checkpoint 326 and the branch records they merged, newest checkpoint last; [records.md](records.md) holds checkpoints 319 to 325 (at its `file-length` limit), and the current checkpoint's record is in [the matrix](README.md).
+The integration records of checkpoints 326 and 327 and the branch records they merged, newest checkpoint last; [records.md](records.md) holds checkpoints 319 to 325 (at its `file-length` limit), and the current checkpoint's record is in [the matrix](README.md).
 
 ## Checkpoint 326 integration record
 
@@ -116,3 +116,59 @@ Branch `claude/w7-review-repairs-ix` from checkpoint 324 `14a8352416`, for the c
   - P7 cadence target and cause: repaired here (R2). The pass logs beside the validation logs: "Compile cadence: every error of a pass fixed in that pass" (integrator).
   - P7 review README upkeep, deletions 320 to 321, inventory 8 to 9: "Close full TM, contracts, independent review and normal CI" and "One implementation per kind for every registry, or a named port" (standing).
   - P7 the owner's hold on the push for the 322 FAIL: the owner's row under "Owner decisions pending" (323 and 324 are PASS; restating or closing it is the owner's).
+
+## Checkpoint 327 integration record
+
+Checkpoint 327 merges two branches into checkpoint 326 (`f3a9a7e95c`), each as a merge commit, in this order: review repairs XI (`claude/w9-review-repairs-xi` `be4dafcb5f`, merge `3b7e7ca1f4`) and perf iteration 3 (`claude/p3-fewer-polls` `7ae230667f`, merge `6b316e8b28`), then one integration fix (`142fe40a98`). validation327 ran on `142fe40a98` (raw logs in `ryo-contract-validation327-20261108`).
+
+- **Joins:** review repairs XI merges without conflict. Perf iteration 3 is cut from perf iteration 2's head (`b466ab2102`). One conflict, in this file: the branch added its "Perf iteration 3" row after the perf iteration 2 row, where XI had rewritten that row (`relation_partitions` recorded as an index). XI's perf iteration 2 row, then the perf iteration 3 row, then the ring row in 326's words.
+- **Integration fix (`142fe40a98`, the 327 brief item):** XI's `cli_cost` workload held the staged directory as a constant (the 326 receipt directory under the system temporary directory) in `cli/tests/fixtures/replay/workload.rs`. The constant is gone: the staged run is the directory of the worker that `RYO_PREFLIGHT_WORKER` (the one existing input) names, its `request.json` and the `staged.json` receipt beside it, so `inputs_at` refuses the request without a staged digest as XI wrote it. The worker now runs in the corpus root the request names (`root`); before, it ran in `<staged dir>/corpus`, which a `--stage-request` output directory does not have. No flag or variable added.
+- **The new `cli_cost` cases:** `an_absent_input_is_a_typed_reason_not_a_pass` passes in validation327. With `RYO_PREFLIGHT_WORKER` naming the receipt worker in the staged receipt directory below, the N999 and one-file rows run end to end on the staged request: N999 over Django wall 10,401 ms and CPU 10,370 ms hold (best 10,297 / 10,294), peak 1,056 MB against best 979 (red; perf iteration 3 measures the same 1,056 MB before its change, so not this checkpoint's); one file x 413 wall 3,429 ms and peak 860 MB beat best 6,871 ms / 1,139 MB by more than 5%, which the row reports as "lower `best`". `ratchet.toml` is not changed here: its bests are seeded under the Phase 7 acceptance row with the ruff rows. The full-Django cold-and-warm row (two one-thread runs) was not run.
+- **`core_allocation` owner:** the perf iteration 2 row, as XI chose; kept. Corrected by review repairs XII: the row "Measure full-Django cold/warm/edit and Rust regressions; meet final objective.", which decides its block limit.
+- **Lines under `crates/ryo` (the two merges and the fix against 326):** +222 / -85 over 24 files (Rust +151 / -70 over 17 files).
+- **Matrix upkeep:** the 326 record and the review repairs X and IX records move to [records-326.md](records-326.md) (records.md is at its `file-length` limit). validation.json's hand-kept notes are rebound to validation327 with the values the raw logs give.
+
+| Pass | Command | Errors reported | Errors fixed |
+|---|---|---|---|
+| 1 | workspace check (all features, all targets) | 0: clean | 0 |
+
+The pass is the workspace check with all features and all targets, `--keep-going` and JSON diagnostics, under the build lock (44 s); its log is in `check-passes/` of the validation directory. No warning falls on a line this checkpoint added. The full test build is validation327's first target.
+
+- **validation327 (rows, from `tests.json` and the raw logs):** libraries 1078 / 3: the two named reds of 326 (core `a_removed_file_leaves_no_unknown_or_skip_behind_in_any_store`, benchmark `process_capture`) and, in this run only, benchmark `direct::adapter_test::succeeds` (row "missing script interpreter is a launch failure" answered `ExecutableFileBusy` for `NotFound`: the ETXTBSY race of a script executed while another test thread holds its write descriptor; no benchmark file changed since 326; five reruns of the benchmark library under the lock give 221 / 1, `process_capture` alone). boundary 97 / 0; activation 11 / 0; bdd 7, core bdd 18; `ruff_sharing` 1 / 0; `ruff_canary` 1 / 0 (112); ruff 13 / 0; doctests 33 / 0; conformance exit 0; `ruff_rule_phases` exit 0; cli replay 75 / 3 (the same three reds; ruff store 78,525,063 bytes as at 326; warm peak 114,192,384 bytes against 113,549,312); `cli_cost` 1 / 3 with 3 not run (cold 9,326 ms, CPU 54,540 ms, peak 585 MB, warm 532 ms, edit 2,617 ms); python library 138 / 0; language 43 / 0; hooks 45 / 0; `checkpoint_check` 16 / 0; `no_print` exit 0; `bench_build` exit 0; `core_allocation` exit 101 (Phase 7); `tm_source` 0 findings, 2 suppressed; `tm_validate_all` exit 0.
+- **Erratum (review repairs XII): `core_bdd` 18 / 0 and `core_allocation` exit 101 are not results for `142fe40a98`.** Both test binaries took dependency units from the target directory shared across worktrees that another worktree had built with an uncommitted debug print: `core_allocation.log` holds 121 lines `DBG keep bucket …`, the literal is in both binaries and in no source of any worktree, and cargo judged the units fresh by mtime. Both are rerun at 328 on the tree's own target (method.md, "Build targets").
+- **Whole-tree TM:** 18 findings, 6 suppressed, all `no-domain-concept-cycles` in `crates/execution_domain` (the ring row), as at 326. File-level ownership cycles 0 over 4,873 edge occurrences (4,864 at 326).
+- **Acceptance blocks** (each at its frozen head in its own worktree, exit 0; on the merged tree without the worktree-state and branch-head lines, exit 0): review repairs XI (`run.py --check` exit 0, the record present, crates.md no longer says "all 13 runtime routes", `tm` over `docs/contracts` 0, no ignore added); perf iteration 3 (`tm` over its changed `.rs` files 0, `perf-p3.md` present, the README row present, no ignore added).
+- **Django receipt (full Django 413 cold, 2,875 files x 413 rules, fresh store, under the build lock, default threads):** the release `ruff` bench worker built from `142fe40a98` after touching the tree's sources (sha256 `c9d31c91ff56d78acead49a9bbed2f07cbfae201b5e95054cebe36957644ab42`). The request was staged by `verify_profiles.py --stage-request <the pinned 323 cold request> --source 142fe40a98 --output-dir <fresh directory>` (the worker copied into that directory): staged digest `04f6c9d81a6c4a6f1c5c26395b68b33fa0b05eee81ae19ad997ab767e1f11ea1` (1,088 files; the digest of 326: rules, fragments and `benchmark.toml` did not change), request sha256 `ce5f575eb48c5df597a2c13ed6c1ace48b1b097d0006161e307b5eeececf46d5` (326's differed in the cache path only).
+
+  | Threads | Exit | unknown_or_unread | Diagnostics | Skips | Wall s | CPU s (user + sys) | CPU / wall | Peak RSS | Load at start |
+  |---|---|---|---|---|---|---|---|---|---|
+  | default (10 cores) | 0 | 0 | 8,804 | 395 | 322.7 | 2,564.4 (2,503.3 + 61.1) | 7.95 | 6.79 GB (6,788,032 KB) | 1.37 |
+
+  Coverage: selected 1,187,375, evaluated 1,186,980, skipped 395 (syntax-rejected); store 1,778,454,983 bytes, as at 326. The output bytes are byte-identical to the 326 receipt (sha256 `53b163f4bda83afa...`, 992,711 bytes). Against 326 at default threads (502.3 s, 4,062.8 s CPU, 7.00 GB): wall -36%, CPU -37%, peak -0.21 GB (perf iteration 3's fewer polls and shared text steps). The one-thread run was not asked for at 327.
+- **Perf iteration 3's two lifecycle assertions** (`runtime/service/lifecycle/test.rs`), read at integration: frames now leave a region's slot when it publishes or fails, so (a) `nested_demand_preserves_both_frames_and_exact_semantic_failure` no longer reads each failed root's frame after the run (100 and 101) and asserts both slots hold none; the probe's in-call assertion stays, that the nested failure leaves the outer frame at its own value (100); the inner root's frame value is no longer asserted anywhere; (b) `downstream_error_keeps_publication_and_retry_does_not_repeat_semantics` asserts the published root holds no frames instead of one frame row; the retry's no-repeat assertions are unchanged. Named for the Rust review: (a) loses the inner-frame value check.
+- **Landing 1 follow-ups and the 326 Rust gate notes:** unchanged; they stay with their row.
+- **Principal Rust review:** PASS on all seven items, first pass (diff `f3a9a7e95c..dc9af4d4be`, `evidence/checkpoint/rust-review.json`); on the lifecycle test (a) it finds the inner frame separation still proven by the probe (the outer frame stays 100 after the nested call). Its two advisories (not failures) go to ryo-artq: the cost fixture should also require `staged.json`'s `request_sha256` to equal the sha256 of `request.json` (and staging should state or make the worker-beside-receipt placement); `evidence/inventory/items/execution.md:7` still lists the old `pub(super) enum Submission`, to regenerate.
+
+**Cycle metrics:**
+
+| Metric | Checkpoint 327 |
+|---|---|
+| Builders | 2 (review repairs XI, perf iteration 3) |
+| BLOCKED questions | 0 |
+| Time dispatch to FROZEN (first and last branch commit) | review repairs XI 10:10 to 10:13, perf iteration 3 09:21 to 10:43 (2026-11-08 UTC) |
+| Tokens per builder | not supplied to the integrator |
+| Compile passes | 1 check pass (errors 0) and the validation's test build |
+| Rows ticked by machine | 0 (`run.py --check` un-ticks no row) |
+| Lines under `crates/ryo` | +222 / -85 (Rust +151 / -70) |
+| Full Django 413 cold | exit 0, unknown 0; default threads 322.7 s, 6.79 GB (502.3 s, 7.00 GB at 326), output bytes identical |
+| Contract review | pending |
+| Rust gate review | PASS on all seven items, first pass (diff `f3a9a7e95c..dc9af4d4be`) |
+
+## Review repairs XI
+
+Branch `claude/w9-review-repairs-xi` from checkpoint 326 `f3a9a7e95c`, for the contract review of 326 (NOTE on all seven phases). Checked: `run.py --check`, `run_test.py` and the profile guards `--self-test`; no Rust test was run, `cargo check -p idiomatic-sh-ryo --tests` compiled the cost rows.
+
+- **R1, staging is enforced (`8bc1eb4e40`):** `verify_profiles.py --self-test` now runs `staged_request_self_test`, which stages from `HEAD` and checks the receipt digest against the staged files, that every rule-side field comes from the staged `benchmark.toml` and the corpus side from the pinned request, and that staging over a directory is refused. The `cli_cost` Django and one-file rows read `request.json` of a staged directory (the receipt's) and are not available (`RequestNotStaged`) without a `staged.json` that records a staged digest; they no longer cut a request from the pinned cold request.
+- **R2, owners (`6aa9a47c3c`):** `run.py` fails when a red result (a `failed` count above 0 or a non-zero exit) has no owner in `OWNERS`, and strips the owned-by clause from a green one. `core_allocation` (exit 101) is owned by the perf iteration 2 row; `ruff_rule_phases` (green) no longer carries a clause.
+- **R3, stale text:** README:9 and the Phase 1 row cite validation326; row "Prove actual413 sharing" cites validation326 (`ruff_sharing` and the five `walk_coverage` route and head controls pass in `tests.json`); the rows "Consolidate legal fusion", "Remove redundant intermediates", "Unify cold/warm/edit reuse" and "Prove file/project/configuration invalidation" are marked unverified at validation326; crates.md:12 says 9 kinds; the perf iteration 2 row records `relation_partitions` as a private index added.
+- **Standing from 326:** rows 237 and 240 (older validations), walk B, the fixtures-gated second `derived()` composition, `RAYON_NUM_THREADS` as an environment setting, the Rust gate whitespace and `ok_or` notes (ryo-artq), the review README branch table, the 320 to 321 deletions, and README:267 "8 flagged kinds".
