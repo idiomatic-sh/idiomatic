@@ -7,23 +7,30 @@ use std::sync::Arc;
 pub(crate) mod canonical_operation;
 pub(crate) mod fingerprint;
 
+/// A node of the per-file program, by its place among the request graph's nodes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct ProgramNodeId(pub usize);
 
+/// What a node of the per-file program reads.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum NodeInput {
+    /// A relation the language provides.
     Relation(Relation),
+    /// The output of another node.
     Node(ProgramNodeId),
     /// A named input reads already-published producer roots, never demands them under this rule.
     Observation(ObservationGraphInputId),
 }
 
+/// One node of the per-file program: the reads it trusts the absence of, its phase and its contracts.
 #[derive(Debug)]
 pub struct FileProgramNode {
+    /// The reads whose absence of rows the node trusts, or why they could not be known.
     pub needs: Result<
         Vec<crate::domain::trust::types::RelationRead>,
         crate::domain::operating::errors::OperatingError,
     >,
+    /// Whether the node runs for each file or for the project.
     pub phase: ryo_values::domain::plan_parts::types::StepScope,
     /// One semantic input and dependency contract for all output delivery.
     pub contract: Arc<crate::domain::operator::contract::types::OperatorContract>,
@@ -35,6 +42,7 @@ pub struct FileProgramNode {
     pub schema_valid: SchemaValidity,
 }
 
+/// The request's operations compiled into one graph: its observations, its derived sources and its nodes.
 #[derive(Debug)]
 pub struct RequestGraph {
     /// Every original step, including terminal and project steps. Invalid
@@ -46,6 +54,7 @@ pub struct RequestGraph {
     pub observations: Option<GraphObservations>,
     /// Producers of declared derived inputs, computed once for the whole request.
     pub derived_sources: DerivedSources,
+    /// The nodes of the graph, by node.
     pub nodes: Vec<FileProgramNode>,
 }
 
@@ -56,7 +65,9 @@ pub enum RuleSchedule {
     Independent,
     /// Original indices traversed once in dependency order and ready batches.
     Dependencies {
+        /// The rules in dependency order.
         order: Vec<crate::domain::coverage::types::RuleIndex>,
+        /// The rules of each ready batch, in order.
         batches: Vec<Vec<crate::domain::coverage::types::RuleIndex>>,
     },
 }
@@ -65,11 +76,14 @@ pub enum RuleSchedule {
 pub enum ResolvedObservationProducer {
     /// An actual named root in a compiled producer plan.
     Output {
+        /// The producing rule.
         rule: crate::domain::coverage::types::RuleIndex,
+        /// The named output of the producer.
         output: ryo_values::domain::records::types::ObservationIndex,
     },
     /// Explicit unavailable selected query, never a fake empty root.
     NoQuery {
+        /// The rule the selected query names.
         rule: ryo_values::domain::runs::types::RuleId,
     },
 }
@@ -98,7 +112,9 @@ pub enum ObservationRequest<'a> {
     Independent,
     /// Actual resolved bindings and original-index topology, never a second executor.
     Bound {
+        /// Where each rule's observations are made ready.
         layout: ryo_values::domain::records::types::ObservationReadinessLayout,
+        /// The resolved bindings of each rule.
         bindings: &'a [Vec<ResolvedObservationBinding>],
     },
 }
@@ -106,25 +122,33 @@ pub enum ObservationRequest<'a> {
 /// Stable local bound input qualified by its original consumer index.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct ObservationSlot {
+    /// The consuming rule.
     pub rule: crate::domain::coverage::types::RuleIndex,
+    /// The binding of the rule's input.
     pub input: ryo_values::domain::plan_parts::types::ObservationBindingId,
 }
 /// Actual prepared root location; unsupported admission never becomes complete-empty.
 #[derive(Clone, Debug)]
 pub enum GraphObservationRoot {
+    /// The root is produced for each file, by this node.
     PerFile(ProgramNodeId),
+    /// The root is produced across files.
     CrossFile,
+    /// The root could not be prepared.
     Unavailable,
 }
 /// One named root and its actual final-consumer accounting.
 #[derive(Clone, Debug)]
 pub struct GraphObservationOutput {
+    /// Where the root is produced.
     pub root: GraphObservationRoot,
+    /// The rules that consume the root last.
     pub consumers: Vec<crate::domain::coverage::types::RuleIndex>,
 }
 /// The existing request graph owns both typed binding edges and root lifetime declarations.
 #[derive(Debug)]
 pub struct GraphObservations {
+    /// Where each rule's observations are made ready.
     pub layout: ryo_values::domain::records::types::ObservationReadinessLayout,
     /// Request-qualified bound slots; graph edges carry a compact ID rather than widening every ordinary edge.
     pub slots: Vec<ObservationSlot>,
@@ -134,14 +158,18 @@ pub struct GraphObservations {
     pub frontiers: Vec<ObservedFrontierRoot>,
     /// Prepared outgoing retirement edges, indexed by original consumer rule.
     pub retire: Vec<Vec<ObservationRetirement>>,
+    /// The resolved input bindings of each rule, by rule.
     pub bindings: Vec<Vec<GraphObservationBinding>>,
+    /// The named outputs of each rule, by rule.
     pub outputs: Vec<Vec<GraphObservationOutput>>,
 }
 
 /// One resolved input and its request-prepared distinct-set combination contract.
 #[derive(Debug)]
 pub struct GraphObservationBinding {
+    /// The resolved input.
     pub input: ResolvedObservationBinding,
+    /// The contract that combines the input's producers into one distinct set, or why it could not be prepared.
     pub union: Result<
         Arc<crate::domain::operator::contract::types::OperatorContract>,
         crate::domain::operating::errors::OperatingError,
@@ -151,15 +179,20 @@ pub struct GraphObservationBinding {
 /// One unique consumer-to-producer-output lifetime edge, resolved once per request.
 #[derive(Clone, Copy, Debug)]
 pub struct ObservationRetirement {
+    /// The producing rule.
     pub producer: crate::domain::coverage::types::RuleIndex,
+    /// The producer's named output.
     pub output: ryo_values::domain::records::types::ObservationIndex,
 }
 
 /// A persisted named root uses an existing frontier bucket, not another row store.
 #[derive(Clone, Copy, Debug)]
 pub struct ObservedFrontierRoot {
+    /// The producing rule.
     pub producer: crate::domain::coverage::types::RuleIndex,
+    /// The producer's named output.
     pub output: ryo_values::domain::records::types::ObservationIndex,
+    /// The frontier the root is persisted in.
     pub frontier: ryo_values::domain::plan_parts::types::InputNumber,
 }
 
@@ -170,17 +203,24 @@ pub struct ObservationGraphInputId(pub usize);
 /// Request-owned binding to canonical producers, never template Step(0) equality.
 #[derive(Clone, Debug)]
 pub struct ResolvedShape {
+    /// The recognised shape.
     pub shape: Shape,
+    /// The node the shape reads.
     pub source: ProgramNodeId,
+    /// The join node the shape replaces.
     pub join: ProgramNodeId,
+    /// The select node the shape replaces.
     pub select: ProgramNodeId,
     /// Exact logical output layout consumed by the unchanged Project.
     pub output: Vec<ryo_values::domain::plan_parts::types::JoinColumn>,
 }
 
+/// What the recogniser resolved for a self join.
 #[derive(Clone, Debug)]
 pub enum ResolvedAlternative {
+    /// An ordered existence the engine can run.
     Eligible(ResolvedShape),
+    /// Why the self join stays a join.
     Declined(Decline),
 }
 

@@ -35,6 +35,7 @@ impl DemandProgram {
     ) -> Self {
         Self::new(Self::admissions(contract, used).into_boxed_slice())
     }
+    /// The admissions, in order.
     pub fn actions(&self) -> &[DemandAction] {
         &self.actions
     }

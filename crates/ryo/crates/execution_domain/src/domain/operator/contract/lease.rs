@@ -9,11 +9,13 @@ use ryo_language::domain::symbols::types::QuerySymbols;
 use ryo_relations::domain::relations::types::Value;
 
 impl WorkCounters {
+    /// Adds the rows an input was found to hold.
     pub fn found(&self, input: ryo_values::domain::plan_parts::types::InputNumber, rows: FoundRows) {
         if let Some(total) = self.0.get(input.0) {
             total.set(total.get().saturating_add(rows.0));
         }
     }
+    /// The totals counted so far, resetting the counters.
     pub fn take(&self) -> WorkTotals {
         WorkTotals(std::array::from_fn(|at| FoundRows(self.0[at].replace(0))))
     }

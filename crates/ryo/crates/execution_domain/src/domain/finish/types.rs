@@ -4,25 +4,45 @@ use ryo_language::domain::symbols::types::Symbols;
 /// The exact failed portability invariant; control flow never compares diagnostic text.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PublicationReason {
+    /// A reserved arena was named.
     ReservedArena,
+    /// A cross-file name's text differs from the one published.
     CrossNameMismatch,
+    /// A place cannot be represented portably.
     PlaceUnrepresentable,
+    /// A place is missing.
     PlaceMissing,
+    /// The source text is missing.
     SourceTextMissing,
+    /// A start position cannot be represented.
     StartUnrepresentable,
+    /// An end position cannot be represented.
     EndUnrepresentable,
+    /// A local range is missing.
     LocalRangeMissing,
+    /// A local text's hash differs.
     LocalHashMismatch,
+    /// A local text is not valid.
     LocalTextInvalid,
+    /// A normalized identity differs.
     NormalizedIdentityMismatch,
+    /// An inherited arena cannot be represented.
     InheritedArenaUnrepresentable,
+    /// An inherited range is missing.
     InheritedRangeMissing,
+    /// An inherited text differs.
     InheritedTextMismatch,
+    /// The log of portable places is full.
     PortablePlaceLogFull,
+    /// A producer's symbol was not escaped.
     ProducerSymbolUnescaped,
+    /// A cross-file place was not escaped.
     CrossPlaceUnescaped,
+    /// An escaped place cannot be represented.
     EscapedPlaceUnrepresentable,
+    /// An escaped place is missing.
     EscapedPlaceMissing,
+    /// An escaped arena is not stable.
     EscapedArenaUnstable,
 }
 

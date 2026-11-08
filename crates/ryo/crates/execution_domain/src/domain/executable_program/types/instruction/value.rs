@@ -35,18 +35,23 @@ impl Instruction {
             partition,
         }
     }
+    /// The instruction's logical number.
     pub fn logical(&self) -> LogicalInstruction {
         self.logical
     }
+    /// The rule that produces the instruction.
     pub fn producer(&self) -> RuleIndex {
         self.producer
     }
+    /// The operation the instruction evaluates.
     pub fn operation(&self) -> &Operation {
         &self.operation
     }
+    /// The prepared operator contract of the operation.
     pub fn contract(&self) -> &Arc<OperatorContract> {
         &self.contract
     }
+    /// The ordered admissions of the instruction's inputs.
     pub fn demand(&self) -> &DemandProgram {
         &self.demand
     }

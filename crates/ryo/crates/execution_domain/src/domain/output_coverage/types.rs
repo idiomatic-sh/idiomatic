@@ -18,8 +18,11 @@ pub(crate) enum OperandReads {
 /// One actually admitted operand's schema and physical completeness. MissingRows
 /// operands are intentionally absent when a lazy demand gate did not read them.
 pub struct InputCoverage<'a> {
+    /// The operand's place among the operation's operands.
     pub ordinal: OperandOrdinal,
+    /// The cell kinds of the operand's columns.
     pub kinds: &'a [ryo_relations::domain::relations::types::CellKind],
+    /// How completely the operand's rows were read.
     pub coverage: CoverageState,
     /// Where the operand's rows come from: which of its columns lie in the file a row comes from.
     pub lineage: crate::domain::lineage::types::Lineage,

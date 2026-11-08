@@ -21,6 +21,7 @@ use ryo_values::domain::{
 #[derive(Debug)]
 pub struct PreparedWalk {
     classes: Merge,
+    /// The walk route of each logical instruction, when it has one.
     pub physical: Vec<Option<WalkRoute>>,
     prefixes: Vec<Vec<PredicatePlace>>,
     predicates: Vec<PreparedPredicate>,
@@ -28,6 +29,7 @@ pub struct PreparedWalk {
 }
 
 impl PreparedWalk {
+    /// Prepares the shared walk of a request's plans and parameter bindings.
     pub fn compile(plans: &[Plan], bindings: &[Vec<ParameterBinding>]) -> Self {
         let mut prepared = Self {
             classes: merge(plans, bindings),
@@ -338,10 +340,12 @@ impl PreparedWalk {
         *self.physical.get(instruction.logical().0)?
     }
 
+    /// The classes of the walk.
     pub fn classes(&self) -> &[StepClass] {
         &self.classes.classes
     }
 
+    /// The class of each step of a rule, when the step has one.
     pub fn class_of(&self, rule: RuleIndex) -> Option<&[Option<ClassPlace>]> {
         self.classes.class_of.get(rule.0).map(Vec::as_slice)
     }

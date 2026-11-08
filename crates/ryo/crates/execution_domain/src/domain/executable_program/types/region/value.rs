@@ -72,36 +72,46 @@ impl Region {
     ) {
         self.source_partitions = partitions;
     }
+    /// The rule that produces the region.
     pub fn producer(&self) -> RuleIndex {
         self.producer
     }
+    /// The reads whose absence of rows the region trusts, or why they could not be known.
     pub fn needs(&self) -> &Result<Box<[RelationRead]>, OperatingError> {
         &self.needs
     }
+    /// Whether the region runs for each file or for the project.
     pub fn phase(&self) -> StepScope {
         self.phase
     }
+    /// The region's instructions, in order.
     pub fn instructions(&self) -> &[Instruction] {
         &self.instructions
     }
+    /// Where each of the region's inputs comes from.
     pub fn inputs(&self) -> &[InputSource] {
         &self.inputs
     }
     pub(crate) fn source_partitions(&self) -> &[SourcePartition] {
         &self.source_partitions
     }
+    /// How many readers consume the region.
     pub fn consumers(&self) -> ReaderMultiplicity {
         self.consumers
     }
+    /// The regions the region depends on.
     pub fn dependencies(&self) -> &[RegionId] {
         &self.dependencies
     }
+    /// How the region is evaluated.
     pub fn route(&self) -> &Route {
         &self.route
     }
+    /// Which file the rows of the region come from.
     pub fn lineage(&self) -> &Lineage {
         &self.lineage
     }
+    /// The last operation of the region, or why it has none.
     pub fn last_operation(&self) -> Result<&Operation, OperatingError> {
         self.instructions
             .last()

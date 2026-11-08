@@ -6,6 +6,7 @@ pub struct RowsFed(pub [u64; 3]);
 
 /// How many rows each step of a rule was fed, by the step's place.
 pub struct LogicalCounts {
+    /// The rows fed to each step, by the step's place.
     pub fed: Box<[RowsFed]>,
 }
 

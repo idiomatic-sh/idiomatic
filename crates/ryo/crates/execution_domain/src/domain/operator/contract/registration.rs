@@ -18,6 +18,7 @@ impl RegisteredOperator {
         }
         super::service::prepare_for(self.kind, operation, inputs, bindings)
     }
+    /// Evaluates an operation through the operators' one meaning of its kind.
     pub fn evaluate(
         &self,
         operation: &ryo_values::domain::plans::types::Operation,
@@ -31,6 +32,7 @@ impl RegisteredOperator {
         super::driver::evaluate(operation, inputs, lease, output)
     }
 }
+/// The registered operator of a kind.
 pub fn registered(kind: OperationKind) -> RegisteredOperator {
     RegisteredOperator { kind }
 }

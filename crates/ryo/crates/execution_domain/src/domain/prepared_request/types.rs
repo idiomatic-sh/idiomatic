@@ -14,8 +14,11 @@ pub struct Compiled {
     pub bindings: Vec<Vec<ParameterBinding>>,
 }
 
+/// How a request's observations are identified.
 #[derive(Clone, Copy, Debug)]
 pub enum ObservationIdentity {
+    /// The rules observe nothing.
     Independent,
+    /// The rules observe named outputs, laid out so.
     Named(ryo_values::domain::records::types::ObservationReadinessLayout),
 }

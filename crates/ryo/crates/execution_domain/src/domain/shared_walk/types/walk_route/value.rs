@@ -7,19 +7,30 @@ use ryo_values::domain::plan_parts::types::Input;
 /// requires choosing its source-walk barrier in this exhaustive classifier.
 #[derive(Clone, Copy, Debug)]
 pub enum WalkRoute {
+    /// The instruction joins a class of the shared walk.
     Shared(ClassPlace),
+    /// The instruction keeps its own walk, for this reason.
     Barrier(WalkBarrier),
 }
+/// Why an instruction keeps its own source walk.
 #[derive(Clone, Copy, Debug)]
 pub enum WalkBarrier {
+    /// Its representation was declined.
     Representation,
+    /// It depends on another instruction's rows.
     DependentInput,
+    /// It reads an observation.
     Observation,
+    /// It reads a row-varying input.
     RowSemantics,
+    /// It reads a derived view or an ordered existence.
     DerivedOrOrdered,
+    /// It reads a source the request owns.
     RequestOwnedSource,
+    /// It continues another instruction.
     Continuation,
 }
+/// The barrier that keeps an operation out of the shared walk, if any.
 pub fn source_barrier(
     operation: &ryo_values::domain::plans::types::Operation,
     inputs: &[crate::domain::executable_program::types::InputSource],

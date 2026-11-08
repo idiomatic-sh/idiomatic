@@ -15,6 +15,7 @@ use ryo_values::domain::{
     plan_parts::types::ColumnIndex,
     rows::types::{RowCount, RowIndex},
 };
+/// The representation registered for one kind, through which its rows are prepared and inspected.
 pub struct RegisteredRepresentation {
     kind: RepresentationKind,
 }
@@ -57,6 +58,7 @@ impl RegisteredRepresentation {
         }
         Ok(contract)
     }
+    /// Whether the contract's rows can be read in full.
     pub fn inspect(
         &self,
         contract: &RelationContract<'_>,
@@ -105,18 +107,21 @@ impl RegisteredRepresentation {
 }
 
 impl<'f> RepresentationInput<'f> {
+    /// The rows as one bulk representation.
     pub fn bulk(
         self,
     ) -> Result<RepresentationInput<'f>, OperatingError>
     {
         RegisteredRepresentation::new(RegisteredRepresentation::kind(self)).bulk(self)
     }
+    /// The contract the representation declares of its rows.
     pub fn contract(
         self,
     ) -> Result<RelationContract<'f>, OperatingError>
     {
         RegisteredRepresentation::new(RegisteredRepresentation::kind(self)).prepare(self)
     }
+    /// Checks that the rows' contract can be read in full.
     pub fn validate(self) -> Result<(), OperatingError> {
         let contract = self.contract()?;
         if RegisteredRepresentation::new(contract.kind).inspect(&contract)? == PhysicalShape::Complete {
@@ -125,6 +130,7 @@ impl<'f> RepresentationInput<'f> {
             Err(OperatingError::ShapeMismatch)
         }
     }
+    /// One cell of the rows, or nothing when it is not physically present.
     pub fn cell(
         self,
         row: RowIndex,
@@ -135,6 +141,7 @@ impl<'f> RepresentationInput<'f> {
             Ok(CellRead::MissingPhysical) | Err(_) => None,
         }
     }
+    /// One row of the rows, read into the buffer, or nothing when it is not physically present.
     pub fn read<'r>(
         self,
         row: RowIndex,
@@ -160,6 +167,7 @@ impl<'f> RepresentationInput<'f> {
     }
     // Metadata-only compatibility for existing domain algorithms. Validation is
     // never triggered by a cardinality/schema request.
+    /// How many rows there are.
     pub fn count(self) -> RowCount {
         match self {
             Self::Stored(view) => RowCount(view.columns.first().map_or(0, |column| column.0.len())),
@@ -170,6 +178,7 @@ impl<'f> RepresentationInput<'f> {
             Self::Compact(table) => ryo_values::domain::compact_table::service::compact_rows(table),
         }
     }
+    /// The cell kinds of the columns.
     pub fn kinds(self) -> &'f [CellKind] {
         match self {
             Self::Stored(view) => view.kinds,

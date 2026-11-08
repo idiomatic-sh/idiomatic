@@ -242,6 +242,7 @@ pub fn compile(
     Ok(program)
 }
 
+/// The ordered existence a route evaluates, when it is one.
 pub fn ordered_existence(route: &super::types::Route) -> Option<&OrderedExistence> {
     match route {
         super::types::Route::OrderedExistence(shape) => Some(shape),

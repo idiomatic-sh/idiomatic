@@ -7,13 +7,20 @@ use ryo_operators::domain::ordered_existence::types::PartitionExtremum;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_operators::types::OperationKind;
 
+/// How the physical kernel of an instruction is reached.
 pub enum PhysicalRoute<'a> {
+    /// Through the registered operator.
     Registered,
+    /// Through an ordered existence.
     Ordered(&'a OrderedExistence),
 }
+/// What a physical evaluation is bound to: the request's parameters, the regular expression's identity and the source's length.
 pub struct PhysicalBinding<'a> {
+    /// The request's parameter bindings.
     pub bindings: &'a [ryo_values::domain::query_bindings::types::ParameterBinding],
+    /// The identity of the compiled regular expression, when the operation matches one.
     pub regex_identity: Option<RegexIdentity>,
+    /// The length of the source in bytes.
     pub source_len: ryo_operators::domain::contract::types::SourceByteLength,
 }
 /// The proof that one operator call is the compiled meaning of its instruction; only [`authorize`] makes one.

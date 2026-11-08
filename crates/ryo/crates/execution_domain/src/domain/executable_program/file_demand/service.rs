@@ -122,6 +122,7 @@ fn compile_mode(
         observations: named_outputs.into_boxed_slice(),
     })
 }
+/// Compiles a rule's file demand in every demand mode from the program, its observations and its frontiers.
 pub fn compile(
     program: &ExecutableProgram,
     rule: RuleIndex,

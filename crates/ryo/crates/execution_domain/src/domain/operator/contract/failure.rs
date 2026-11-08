@@ -4,13 +4,17 @@ use crate::domain::operating::errors::OperatingError;
 /// Whether the latch has recorded a failure.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum LatchState {
+    /// A failure was recorded.
     Failed,
+    /// No failure was recorded.
     Open,
 }
 
+/// The first failure an evaluation records, kept until it is taken.
 #[derive(Default)]
 pub struct FailureLatch(Option<OperatingError>);
 impl FailureLatch {
+    /// Whether a failure was recorded.
     pub fn failed(&self) -> LatchState {
         if self.0.is_some() {
             LatchState::Failed
@@ -39,6 +43,7 @@ impl FailureLatch {
             self.0 = Some(error);
         }
     }
+    /// The recorded failure, leaving the latch open.
     pub fn take(&mut self) -> Option<OperatingError> {
         self.0.take()
     }

@@ -4,6 +4,7 @@ use crate::domain::completion::types::{CoverageState, FileLacks, MissingRows};
 use crate::domain::operating::errors::OperatingError;
 use ryo_relations::domain::relations::types::FileId;
 
+/// The coverage a file frontier carries, from the coverage of its rows.
 pub fn file_frontier_coverage(
     coverage: CoverageState,
     file: FileId,

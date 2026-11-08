@@ -33,6 +33,7 @@ impl CompletionPolicy {
     pub fn file(rule: RuleIndex, file: FileId, partials: &[Partial]) -> Self {
         Self::file_inputs(rule, file, partials, partials)
     }
+    /// The policy of one rule over one file: evaluation and publication are blocked before running while their inputs are partial.
     pub fn file_inputs(
         rule: RuleIndex,
         file: FileId,
@@ -45,6 +46,7 @@ impl CompletionPolicy {
             publication: CompletionBehavior::BlockBeforeRun(publication.into()),
         }
     }
+    /// The policy of one rule over the project: rows from partial inputs are dropped after they are collected.
     pub fn project_inputs(
         rule: RuleIndex,
         evaluation: &Partials,
@@ -58,6 +60,7 @@ impl CompletionPolicy {
             )),
         }
     }
+    /// The coverage a blocked scope reports.
     pub fn blocked_coverage(&self) -> CoverageState {
         match self.scope {
             ScopeIdentity::File { file, .. } => {
@@ -68,6 +71,7 @@ impl CompletionPolicy {
             }
         }
     }
+    /// The coverage of the reads, as the policy decides it.
     pub fn coverage(&self, reads: &[RelationRead]) -> CoverageState {
         let files = match &self.publication {
             CompletionBehavior::BlockBeforeRun(partials)
@@ -138,6 +142,7 @@ impl CompletionPolicy {
                 .collect(),
         )
     }
+    /// Whether the reads permit observation publication.
     pub fn observation_admission(&self, reads: &[RelationRead]) -> ObservationAdmission {
         let ready = match &self.publication {
             CompletionBehavior::BlockBeforeRun(partials) => {
@@ -151,6 +156,7 @@ impl CompletionPolicy {
             ObservationAdmission::Incomplete
         }
     }
+    /// Drops the rows the policy withholds from an operation's answer.
     pub fn filter_rows(
         &self,
         operation: &Operation,
@@ -164,6 +170,7 @@ impl CompletionPolicy {
             drop_inapplicable(operation, &kinds, rows, &skipped_files(partials));
         }
     }
+    /// Whether the needed reads permit a region to run.
     pub fn region_admission(&self, needs: &[RelationRead]) -> RegionAdmission {
         let allowed = match &self.behavior {
             CompletionBehavior::BlockBeforeRun(partials) => {
@@ -177,6 +184,7 @@ impl CompletionPolicy {
             RegionAdmission::Blocked
         }
     }
+    /// The same policy for another rule.
     pub fn for_rule(&self, rule: RuleIndex) -> Self {
         let scope = match self.scope {
             ScopeIdentity::File { file, .. } => ScopeIdentity::File { rule, file },

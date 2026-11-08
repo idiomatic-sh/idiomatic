@@ -5,7 +5,9 @@ use ryo_relations::domain::relations::types::Value;
 /// partition keys followed by the source; destinations retain typed sort order.
 #[derive(Clone, Copy)]
 pub struct ReachResult<'a> {
+    /// The partition keys followed by the source the reach was asked for.
     pub request: &'a [Value],
+    /// The destinations reached, in typed sort order.
     pub destinations: &'a [Value],
 }
 
@@ -13,6 +15,7 @@ pub struct ReachResult<'a> {
 /// Direct neighbors preserve physical multiplicity and encounter order.
 #[derive(Clone, Copy)]
 pub struct AxisResult<'a> {
+    /// The direct neighbors, with their physical multiplicity and in encounter order.
     pub destinations: &'a [Value],
 }
 
@@ -20,6 +23,8 @@ pub struct AxisResult<'a> {
 /// application before a primitive or downstream emitter receives this value.
 #[derive(Clone, Copy)]
 pub enum CachedGraphRow<'a> {
+    /// A reach answer.
     Reach(ReachResult<'a>),
+    /// An axis answer.
     Axis(AxisResult<'a>),
 }

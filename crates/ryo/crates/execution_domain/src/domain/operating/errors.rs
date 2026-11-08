@@ -6,6 +6,7 @@ use ryo_values::domain::rows::errors::RowsError;
 /// Why an operator could not compute its rows.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 pub enum OperatingError {
+    /// A spelling check failed.
     #[error(transparent)]
     Spelling(#[from] crate::domain::spelling::errors::SpellingError),
     /// Request declaration errors are preserved before any file is read.
@@ -13,7 +14,10 @@ pub enum OperatingError {
     ObservationConfiguration(#[from] crate::domain::file_program::errors::FileProgramError),
     /// An explicit bound producer did not publish a complete result in this generation.
     #[error("named producer is incomplete: {reason}")]
-    ObservationIncomplete { reason: String },
+    ObservationIncomplete {
+        /// Why the producer's result is incomplete.
+        reason: String,
+    },
     /// A semantic request named a stale or foreign syntax node.
     #[error(transparent)]
     SemanticRender(#[from] SemanticsError),

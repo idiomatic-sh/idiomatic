@@ -83,6 +83,7 @@ pub enum Verdict {
 /// implementation carries no authority: the application verifies its private
 /// record and current population epoch before admission or resolution.
 pub trait PublishedRelation: std::any::Any + std::fmt::Debug + Send + Sync {
+    /// The relation as `Any`, for the application to recover its private record.
     fn as_any(&self) -> &dyn std::any::Any;
 }
 pub mod registered_representation;
@@ -90,9 +91,13 @@ pub mod registered_representation;
 /// The representation a physical row source is held in.
 #[derive(Clone, Copy)]
 pub enum RepresentationInput<'a> {
+    /// Stored columns.
     Stored(ColumnsView<'a>),
+    /// The rows of a syntax tree.
     Tree(TreeRows<'a>),
+    /// A computed table.
     Computed(&'a Table),
+    /// A compact table of packed words.
     Compact(&'a ryo_values::domain::table_words::types::CompactTable),
 }
 

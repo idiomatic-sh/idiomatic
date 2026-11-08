@@ -16,6 +16,7 @@ use ryo_values::domain::{
     rows::types::Table,
 };
 
+/// Counts the rows of each group of a table through the operators.
 pub fn count_groups(
     table: &Table,
     on: On<'_>,
@@ -36,6 +37,7 @@ pub fn count_groups(
     });
     written_result(answer, None)
 }
+/// Digests one column of each group of a table through the operators.
 pub fn digest_groups(
     table: &Table,
     keys: &[ColumnIndex],

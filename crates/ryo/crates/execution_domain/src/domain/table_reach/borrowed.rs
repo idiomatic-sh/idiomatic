@@ -6,6 +6,7 @@ use crate::domain::{
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
+/// Appends the direct destinations of one start through the indexed edges.
 pub fn follow(
     edges: &IndexedRows<'_>,
     to: ColumnIndex,
@@ -22,6 +23,7 @@ pub fn follow(
     }
 }
 
+/// Walks every vertex reachable from one start, breadth first.
 pub fn reach_breadth(
     edges: &IndexedRows<'_>,
     to: ColumnIndex,

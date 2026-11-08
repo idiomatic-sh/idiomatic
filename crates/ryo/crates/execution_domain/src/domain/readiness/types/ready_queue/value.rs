@@ -31,6 +31,7 @@ pub struct ReadyQueue {
     counts: ReadinessCounts,
 }
 impl ReadyQueue {
+    /// A queue over the regions of a program, starting from its roots.
     pub fn new(
         region_count: RegionCount,
         roots: &[RegionId],
@@ -90,6 +91,7 @@ impl ReadyQueue {
             .state = State::Polling;
         Ok(Some(action))
     }
+    /// Records the outcome of polling a region.
     pub fn observe(
         &mut self,
         id: RegionId,
@@ -174,6 +176,7 @@ impl ReadyQueue {
     pub(super) fn reached_entries(&self) -> crate::domain::readiness::types::ReadinessEntryCount {
         crate::domain::readiness::types::ReadinessEntryCount(self.entries.len())
     }
+    /// The work the queue performed.
     pub fn counts(&self) -> ReadinessCounts {
         self.counts
     }

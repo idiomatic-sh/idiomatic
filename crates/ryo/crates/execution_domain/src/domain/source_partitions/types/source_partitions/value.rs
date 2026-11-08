@@ -26,6 +26,7 @@ pub struct SourcePartitions {
     hosted: HostedCount,
 }
 impl SourcePartitions {
+    /// Declares the producer partitions of a compiled request's rules, plans, bindings, host relations and observations.
     pub fn new(
         rules: &[RuleSpec],
         plans: &[Result<&Plan, OperatingError>],

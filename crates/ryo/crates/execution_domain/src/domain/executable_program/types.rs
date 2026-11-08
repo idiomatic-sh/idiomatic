@@ -9,26 +9,38 @@ pub mod executable_program;
 pub mod instruction;
 pub mod region;
 
+/// A region of the executable program, by its place among the program's regions.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct RegionId(pub usize);
+/// An input of an instruction, by its place among the instruction's inputs.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct InputId(pub usize);
+/// An instruction of the compiled request, by its logical number.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct LogicalInstruction(pub usize);
+/// Where an instruction's input comes from.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum InputSource {
+    /// A relation the language provides.
     Relation(Relation),
+    /// A relation the host provides to one rule.
     Hosted {
+        /// The rule the host relation is provided to.
         rule: RuleIndex,
+        /// The host relation, by its number in the rule.
         relation: ryo_values::domain::plan_parts::types::HostedNumber,
     },
+    /// The output of another region.
     Region(RegionId),
+    /// A request-qualified named observation.
     Observation(ObservationPlace),
     /// An explicitly declared, closed observation with no producers.
     EmptyObservation(ObservationPlace),
     /// One exact producer of a request-qualified named input.
     ObservationMember {
+        /// The observation the producer is a member of.
         slot: ObservationPlace,
+        /// The producer, by its place among the observation's members.
         member: ProducerMember,
     },
 }
@@ -38,25 +50,38 @@ pub struct ObservationPlace(pub usize);
 /// One producer of a named input, by its place among the slot's producers.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct ProducerMember(pub usize);
+/// Which partition of its producer an input must be bound to.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum PartitionRequirement {
+    /// The same rows for the whole request.
     RequestInvariant,
+    /// The rows of the current file.
     CurrentFile,
     /// Must be bound to the consumer's finite demanded partition set.
     Project,
+    /// The partition of the input the rows descend from.
     InputLineage,
 }
+/// What the engine does for a demanded input.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DemandAction {
+    /// Admits the input.
     Admit(InputId),
 }
+/// A self join recognised as an ordered existence: the producer, its number requirement, partition, order, extremum and output.
 #[derive(Clone, Debug)]
 pub struct OrderedExistence {
+    /// The region whose rows the existence reads.
     pub source: RegionId,
+    /// The number the rows must carry.
     pub number: crate::domain::self_join_recogniser::types::NumberRequirement,
+    /// The columns the rows are partitioned by.
     pub partition: Box<[ryo_values::domain::plan_parts::types::ColumnIndex]>,
+    /// The column that orders the rows of a partition.
     pub order: ryo_values::domain::plan_parts::types::ColumnIndex,
+    /// Which end of the order is kept.
     pub extremum: crate::domain::self_join_recogniser::types::Extremum,
+    /// The columns the existence outputs.
     pub output: Box<[ryo_values::domain::plan_parts::types::JoinColumn]>,
 }
 #[derive(Clone, Copy, Debug)]
@@ -77,7 +102,9 @@ pub enum Route {
 /// A route without its payload: what a permit is issued for.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RouteKind {
+    /// The generic evaluation of an instruction.
     Generic,
+    /// An ordered existence.
     OrderedExistence,
 }
 /// Whether a root of its rule reads an original step.
@@ -102,14 +129,19 @@ pub enum RowGate {
 /// Where an original step of a rule is in the executable program.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct StepOrigin {
+    /// The rule the step belongs to.
     pub rule: RuleIndex,
+    /// The step, by its place in the rule's plan.
     pub step: StepId,
+    /// The instruction the step was compiled to.
     pub logical: LogicalInstruction,
 }
+/// One rule's part of the executable program: its root readers and where each of its original steps is.
 #[derive(Debug)]
 pub struct RuleProgram {
     /// External root-reader obligations, including repeated aliases.
     pub root_readers: Box<[RegionId]>,
+    /// Where each original step of the rule is, or why it could not be placed.
     pub original_steps: Box<[Result<StepOrigin, OperatingError>]>,
     /// Collected semantic root shared only with collected frontier/observation aliases.
     pub emit: Result<RegionId, OperatingError>,
@@ -120,17 +152,21 @@ pub struct RuleProgram {
 /// Mandatory producer declarations. No operation kind implies broadcast completeness.
 /// Used by preparation/admission only; semantic kernels never receive this interface.
 pub trait ProducerPartitions {
+    /// The partition requirement of a host relation provided to a rule.
     fn hosted(
         &self,
         rule: RuleIndex,
         relation: ryo_values::domain::plan_parts::types::HostedNumber,
     ) -> Result<PartitionRequirement, OperatingError>;
+    /// The partition requirement of a rule's parameter.
     fn parameter(
         &self,
         rule: RuleIndex,
         parameter: ryo_values::domain::plan_parts::types::ParameterId,
     ) -> Result<PartitionRequirement, OperatingError>;
+    /// The partition requirement of a language relation.
     fn relation(&self, relation: Relation) -> PartitionRequirement;
+    /// The partition requirement of an observation.
     fn observation(
         &self,
         rule: RuleIndex,
@@ -162,12 +198,15 @@ pub struct ReaderMultiplicity(pub usize);
 /// One direct consumer and the number of its repeated dependency edges.
 #[derive(Debug)]
 pub struct ConsumerObligation {
+    /// The region that consumes.
     pub consumer: RegionId,
+    /// How many dependency edges join the consumer to its producer.
     pub readers: ReaderMultiplicity,
 }
 /// Request-compiled potential obligations, indexed by external root and producer.
 #[derive(Debug)]
 pub struct FileReaderGraph {
+    /// The direct consumers of each region, with how often each reads it.
     pub consumers: std::collections::HashMap<
         RegionId,
         std::collections::HashMap<RegionId, Box<[ConsumerObligation]>>,
@@ -181,18 +220,23 @@ pub struct ComputationCount(pub usize);
 /// The retained initial reader counts and how many times they were computed.
 #[derive(Debug, Default)]
 pub struct RemainingMemo {
+    /// The initial reader counts, once computed.
     pub table: Option<std::sync::Arc<RemainingTable>>,
+    /// How many times the table was computed.
     pub computations: ComputationCount,
 }
 /// Initial reader count of every region for one selection of external roots.
 #[derive(Debug)]
 pub struct RemainingTable {
+    /// The reader multiplicity of each selected external root.
     pub selected: std::collections::HashMap<RegionId, ReaderMultiplicity>,
+    /// The initial reader count of every region, by region.
     pub counts: Box<[ReaderMultiplicity]>,
 }
 /// A shared table and the cumulative number of tables the request has computed.
 #[derive(Debug)]
 pub struct Remaining {
+    /// The shared initial reader counts.
     pub table: std::sync::Arc<RemainingTable>,
     #[cfg(test)]
     pub computations: ComputationCount,

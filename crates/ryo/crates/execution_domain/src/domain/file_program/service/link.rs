@@ -20,7 +20,9 @@ use ryo_values::domain::{
 
 /// A linked request owns its remapped plans and typed producer references. Cached plans are untouched.
 pub struct LinkedObservationPlans {
+    /// The plans, with their observation references remapped.
     pub plans: Vec<Plan>,
+    /// The resolved producer bindings of each rule.
     pub bindings: Vec<Vec<ResolvedObservationBinding>>,
 }
 

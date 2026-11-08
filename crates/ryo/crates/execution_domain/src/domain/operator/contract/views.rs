@@ -44,8 +44,11 @@ impl ProgressObserver for IgnoredProgress {
 pub struct IndexedRows<'a> {
     #[cfg(feature = "diagnostic-row-progress")]
     pub progress: &'a dyn ProgressObserver,
+    /// The rows indexed.
     pub rows: RepresentationInput<'a>,
+    /// The key columns.
     pub columns: &'a [ColumnIndex],
+    /// The key index over the rows.
     pub index: &'a KeyIndex,
 }
 impl IndexedRows<'_> {
@@ -124,7 +127,9 @@ use ryo_values::domain::rows::types::RowIndex;
 
 /// Finite immutable partition access; ownership and recycling remain in the invocation owner.
 pub trait ClosureParts {
+    /// How many partitions there are.
     fn len(&self) -> PartitionCount;
+    /// One partition, by its place.
     fn get(
         &self,
         at: PartitionIndex,
@@ -141,11 +146,15 @@ pub struct PartitionCount(pub usize);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PartitionIndex(pub usize);
 
+/// The closure partitions an operation reads.
 #[derive(Clone, Copy, Default)]
 pub enum ClosureViews<'a> {
+    /// No partition.
     #[default]
     Empty,
+    /// One partition.
     One(&'a ryo_derived::domain::closure_adjacency::types::ClosurePartition),
+    /// Several partitions, read through their owner.
     Many(&'a dyn ClosureParts),
 }
 impl<'a> ClosureViews<'a> {
@@ -172,6 +181,7 @@ impl<'a> ClosureViews<'a> {
         }
     }
 }
+/// The partitions of a closure, one at a time.
 pub struct ClosureIter<'a> {
     views: ClosureViews<'a>,
     at: PartitionIndex,
@@ -205,6 +215,7 @@ impl<'a> IntoIterator for ClosureViews<'a> {
 /// Its implementation is engine-private; this interface cannot choose predicates,
 /// schemas, cache keys or upstream scheduling.
 pub trait PredicateProgram {
+    /// Whether the predicate holds for a row.
     fn holds(
         &mut self,
         row: &[Value],
@@ -287,7 +298,9 @@ pub fn validate<'a>(
 /// A native lookup bound to a join: the tree it finds candidates in, and how it finds them.
 #[derive(Clone, Copy)]
 pub struct NativeJoin<'a> {
+    /// The tree the lookup finds candidates in.
     pub tree: crate::domain::table_cells::types::TreeRows<'a>,
+    /// How the lookup finds them.
     pub finding: ryo_derived::domain::native::types::NativeFinding,
 }
 
@@ -319,15 +332,24 @@ pub(crate) struct JoinCursor<'f> {
 /// The axis resources one walk runs over: none, a tree of elements, or an index of edges with its domain.
 #[derive(Clone, Copy)]
 pub enum PreparedAxis<'a> {
+    /// No resource.
     Empty,
+    /// A tree of elements.
     Native {
+        /// The tree walked.
         tree: crate::domain::table_cells::types::TreeRows<'a>,
+        /// The nodes the walk is confined to, when it is confined.
         among: Option<crate::domain::table_cells::types::TreeRows<'a>>,
+        /// The marks of the domain's members.
         marks: ryo_derived::domain::positions::types::DenseMarks<'a>,
     },
+    /// An index of edges with its domain.
     Indexed {
+        /// The indexed edges.
         edges: IndexedRows<'a>,
+        /// The column edges lead to.
         to: ryo_values::domain::plan_parts::types::ColumnIndex,
+        /// The members of the domain.
         domain: ryo_derived::domain::membership::types::MembershipView<'a>,
     },
 }

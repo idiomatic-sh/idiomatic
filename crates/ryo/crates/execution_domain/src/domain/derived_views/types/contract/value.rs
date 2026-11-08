@@ -24,15 +24,21 @@ pub fn kind_of(request: &ViewRequest) -> DerivedKind {
     }
 }
 
+/// One prepared derived view: its semantics, kind, request, input schemas and metadata, under one identity.
 #[derive(Clone, Debug)]
 pub struct DerivedContract {
     /// Prepared once; equality still checks the complete semantic descriptor on collisions.
     /// Private: a struct literal or update outside this module cannot forge a contract.
     identity_hash: IdentityHash,
+    /// The derived crate's prepared semantics of the view.
     pub semantic: Arc<PreparedDerived>,
+    /// The kind of the view.
     pub kind: DerivedKind,
+    /// The view the operation requests.
     pub request: ViewRequest,
+    /// The cell kinds of each input, in input order.
     pub schemas: Vec<Vec<CellKind>>,
+    /// Whether the view's metadata was admitted, or why not.
     pub metadata: Result<(), crate::domain::operating::errors::OperatingError>,
 }
 
@@ -58,6 +64,7 @@ impl DerivedContract {
         }
     }
 
+    /// The identity the contract was prepared under.
     pub fn identity_hash(&self) -> IdentityHash {
         self.identity_hash
     }
@@ -66,18 +73,27 @@ impl DerivedContract {
 /// Request-owned prepared use; population slots are immutable dependency metadata, not a scheduler.
 #[derive(Clone, Debug)]
 pub struct PreparedViewUse {
+    /// The prepared view this use reads.
     pub plan: Arc<DerivedContract>,
+    /// The inputs the view is built over.
     pub inputs: [InputNumber; 2],
+    /// The relation each input reads, when it reads one directly.
     pub relations: [Option<ryo_relations::domain::relations::types::Relation>; 2],
+    /// How many of the inputs the view uses.
     pub len: InputsUsed,
 }
+/// The views one derived slot of an operation reads: its primary view and an optional second one.
 #[derive(Clone, Debug)]
 pub struct PreparedViewGroup {
+    /// The view the slot reads first.
     pub primary: Arc<PreparedViewUse>,
+    /// The second view the slot reads, when it reads two.
     pub secondary: Option<Arc<PreparedViewUse>>,
 }
+/// The derived views an operation reads, one slot per derived kind.
 #[derive(Clone, Debug, Default)]
 pub struct DerivedSlots {
+    /// The view group of each derived kind, when the operation reads one.
     pub slots: [Option<Arc<PreparedViewGroup>>; DerivedKind::ALL.len()],
 }
 

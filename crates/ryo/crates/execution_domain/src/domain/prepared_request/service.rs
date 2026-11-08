@@ -7,6 +7,7 @@ use crate::domain::file_program::{
 use ryo_values::domain::{
     plans::types::Plan, query_bindings::types::ParameterBinding, rule_requests::types::RuleSpec,
 };
+/// Assembles the compiled request from its plans, parameter bindings and rules, scheduling their observations.
 pub fn assemble(
     plans: Vec<Plan>,
     bindings: Vec<Vec<ParameterBinding>>,

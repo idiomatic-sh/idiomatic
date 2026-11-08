@@ -16,6 +16,7 @@ pub struct NativeBatch {
 }
 
 impl NativeBatch {
+    /// An empty batch with one slot for each class of the prepared walk.
     pub fn for_program(program: &PreparedWalk) -> Self {
         Self::empty(ClassCount(program.classes().len()))
     }
@@ -70,12 +71,14 @@ impl NativeBatch {
             .saturating_add(next.counts.result_slots.0);
         Ok(())
     }
+    /// Why the batch was refused, if it was.
     pub fn refusal(&self) -> Option<crate::domain::shared_walk::types::WalkRefusal> {
         self.refusal
     }
     pub(in crate::domain::shared_walk) fn refuse_representation(&mut self) {
         self.refusal = Some(crate::domain::shared_walk::types::WalkRefusal::Representation);
     }
+    /// The work the batch performed.
     pub fn counts(&self) -> crate::domain::shared_walk::types::WalkCounts {
         self.counts
     }
@@ -97,12 +100,14 @@ impl NativeBatch {
     pub(in crate::domain::shared_walk) fn record_scratch_reset(&mut self) {
         self.counts.scratch_classes.0 = self.counts.scratch_classes.0.saturating_add(1);
     }
+    /// The result of one class, when it was decided.
     pub fn class(
         &self,
         place: ClassPlace,
     ) -> Option<&crate::domain::shared_walk::types::ClassResult> {
         self.classes.get(&place).map(|lease| lease.result.as_ref())
     }
+    /// The result of one class with the source rows its decision visited, when it was decided.
     pub fn lease(&self, place: ClassPlace) -> Option<ClassLease> {
         self.classes.get(&place).map(|lease| ClassLease {
             result: std::sync::Arc::clone(&lease.result),

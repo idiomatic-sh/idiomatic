@@ -25,6 +25,8 @@ use ryo_values::domain::rows::types::Table;
 /// The authored projection, including the deliberate zero-column projection.
 #[derive(Clone, Copy)]
 pub enum SelectionColumns<'a> {
+    /// Every column.
     All,
+    /// The listed columns, in order.
     Columns(&'a [ryo_values::domain::plan_parts::types::ColumnIndex]),
 }

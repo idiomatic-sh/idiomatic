@@ -56,6 +56,7 @@ impl ExecutableProgram {
     ) -> Option<crate::domain::executable_program::fusion::types::Fusibility> {
         self.fusibility.get(logical.0).copied()
     }
+    /// The readers of each file root.
     pub fn file_readers(&self) -> &FileReaderGraph {
         &self.file_readers
     }
@@ -88,6 +89,7 @@ impl ExecutableProgram {
             _ => Err(OperatingError::WrongOperation),
         }
     }
+    /// The partition requirement of one input of a region.
     pub fn source_partition(
         &self,
         source: InputSource,
@@ -136,15 +138,19 @@ impl ExecutableProgram {
             _ => Err(OperatingError::NotRead),
         }
     }
+    /// The program's regions.
     pub fn regions(&self) -> &[Region] {
         &self.regions
     }
+    /// The program of each rule.
     pub fn rules(&self) -> &[RuleProgram] {
         &self.rules
     }
+    /// The region of each logical instruction.
     pub fn logical_regions(&self) -> &[RegionId] {
         &self.logical_regions
     }
+    /// The region of each observation, or why it has none.
     pub fn observation_regions(&self) -> &[Result<RegionId, OperatingError>] {
         &self.observation_regions
     }
