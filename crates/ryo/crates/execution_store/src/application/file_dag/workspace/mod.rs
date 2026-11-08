@@ -14,24 +14,24 @@ use ryo_execution_domain::domain::table_model::types::Rows;
 use ryo_execution_domain::domain::table_reach::types::Walk;
 use ryo_relations::domain::relations::types::{Position, Value};
 pub struct InvocationWorkspace {
-    pub work: ryo_execution_domain::domain::operator::contract::types::WorkCounters,
+    work: ryo_execution_domain::domain::operator::contract::types::WorkCounters,
     #[cfg(feature = "diagnostic-row-progress")]
-    pub progress_origin: super::route_counts::types::CapturedOrigin,
+    progress_origin: super::route_counts::types::CapturedOrigin,
     derived_scratch: std::cell::RefCell<ryo_execution_domain::domain::derived_views::types::DerivedScratch>,
     relation_owner: std::rc::Rc<super::relations::RelationOwner>,
-    pub publications:
+    publications:
         Vec<Option<crate::application::file_dag::relations::handle::service::PublishedInput>>,
-    #[cfg(test)]
-    pub observation: ryo_execution_domain::domain::operating::fixtures::ExecutionObservation,
-    pub downstream_scratch: ryo_execution_domain::domain::table_scratch::types::OperatorScratch,
-    pub downstream_memo: Vec<ryo_execution_domain::domain::operating::types::Memo>,
-    pub predicates: ryo_execution_domain::domain::table_scratch::types::LazyScratch<
+    #[cfg(any(test, feature = "fixtures"))]
+    observation: ryo_execution_domain::domain::operating::fixtures::ExecutionObservation,
+    downstream_scratch: ryo_execution_domain::domain::table_scratch::types::OperatorScratch,
+    downstream_memo: Vec<ryo_execution_domain::domain::operating::types::Memo>,
+    predicates: ryo_execution_domain::domain::table_scratch::types::LazyScratch<
         ryo_execution_domain::domain::table_scratch::types::SelectScratch,
     >,
-    pub predicate_memo: Vec<ryo_execution_domain::domain::operating::types::Memo>,
-    pub predicate_names: Option<ryo_execution_domain::domain::operating::types::NameCount>,
-    pub literal_regex: Option<ryo_matching::inbound::use_cases::matching::compiled::CompiledRegex>,
-    pub primitive: ryo_execution_domain::domain::operator::contract::types::PrimitiveWorkspace,
+    predicate_memo: Vec<ryo_execution_domain::domain::operating::types::Memo>,
+    predicate_names: Option<ryo_execution_domain::domain::operating::types::NameCount>,
+    literal_regex: Option<ryo_matching::inbound::use_cases::matching::compiled::CompiledRegex>,
+    primitive: ryo_execution_domain::domain::operator::contract::types::PrimitiveWorkspace,
 }
 
 impl InvocationWorkspace {
@@ -62,12 +62,13 @@ impl InvocationWorkspace {
             predicate_names: Default::default(),
             literal_regex: Default::default(),
             primitive: Default::default(),
-            #[cfg(test)]
+            #[cfg(any(test, feature = "fixtures"))]
             observation: Default::default(),
         }
     }
 
-    #[cfg(test)]
+    /// What the invocation's allocations measure now, for the proofs of their reuse and release.
+    #[cfg(any(test, feature = "fixtures"))]
     pub fn measured(&self) -> ryo_execution_domain::domain::operating::fixtures::ExecutionObservation {
         let mut observed = self.observation;
         observed.regexes = self
@@ -123,6 +124,50 @@ impl InvocationWorkspace {
 
     pub fn owner(&self) -> &super::relations::RelationOwner {
         &self.relation_owner
+    }
+
+    /// The rows each input was found to hold, counted as the kernels report them.
+    pub fn work(&self) -> &ryo_execution_domain::domain::operator::contract::types::WorkCounters {
+        &self.work
+    }
+    /// The route profile position this invocation was opened at.
+    #[cfg(feature = "diagnostic-row-progress")]
+    pub fn progress_origin(&self) -> &super::route_counts::types::CapturedOrigin {
+        &self.progress_origin
+    }
+    /// The primitive operators' working allocations, to read what they hold.
+    pub fn primitive(&self) -> &ryo_execution_domain::domain::operator::contract::types::PrimitiveWorkspace {
+        &self.primitive
+    }
+    /// The primitive operators' working allocations, lent to a kernel.
+    pub fn primitive_mut(
+        &mut self,
+    ) -> &mut ryo_execution_domain::domain::operator::contract::types::PrimitiveWorkspace {
+        &mut self.primitive
+    }
+    /// What the proofs observe of this invocation's work.
+    #[cfg(any(test, feature = "fixtures"))]
+    pub fn observation_mut(
+        &mut self,
+    ) -> &mut ryo_execution_domain::domain::operating::fixtures::ExecutionObservation {
+        &mut self.observation
+    }
+    /// Every working allocation a kernel uses, each lent apart from the others so one evaluation can hold them
+    /// at once; the admitted publications stay with the workspace.
+    pub fn parts(&mut self) -> types::WorkspaceParts<'_> {
+        types::WorkspaceParts {
+            owner: &self.relation_owner,
+            work: &self.work,
+            literal_regex: &mut self.literal_regex,
+            predicates: &mut self.predicates,
+            predicate_memo: &mut self.predicate_memo,
+            predicate_names: &mut self.predicate_names,
+            primitive: &mut self.primitive,
+            downstream_scratch: &mut self.downstream_scratch,
+            downstream_memo: &mut self.downstream_memo,
+            #[cfg(any(test, feature = "fixtures"))]
+            observation: &mut self.observation,
+        }
     }
     pub(super) fn owner_handle(&self) -> std::rc::Rc<super::relations::RelationOwner> {
         std::rc::Rc::clone(&self.relation_owner)
@@ -305,6 +350,7 @@ impl<'a, 'f> InputAdmissions<'a, 'f> {
 
 mod constants;
 mod service;
+pub mod types;
 #[cfg(test)]
 mod test;
 

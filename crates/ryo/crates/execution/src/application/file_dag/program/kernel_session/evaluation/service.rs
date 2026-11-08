@@ -64,7 +64,7 @@ impl super::super::KernelSession<'_, '_> {
         let result = (|| {
             match input {
                 KernelInput::Continuation(row) => {
-                    workspace.work.found(ryo_values::domain::plan_parts::types::InputNumber(0), crate::domain::operator::contract::types::FoundRows(1));
+                    workspace.work().found(ryo_values::domain::plan_parts::types::InputNumber(0), crate::domain::operator::contract::types::FoundRows(1));
                     let mut resources = crate::application::file_dag::invocation::service::continuation(contract)
                         .map_err(InvocationFailure::Semantic)?;
                     crate::application::file_dag::execution::lease::evaluate(
@@ -128,7 +128,7 @@ impl super::super::KernelSession<'_, '_> {
                                     ));
                                 }
                             };
-                            workspace.work.found(ryo_values::domain::plan_parts::types::InputNumber(0), crate::domain::operator::contract::types::FoundRows(shared.visits().0));
+                            workspace.work().found(ryo_values::domain::plan_parts::types::InputNumber(0), crate::domain::operator::contract::types::FoundRows(shared.visits().0));
                             return crate::domain::replay::service::selected(
                                 shared.result(),
                                 source,
@@ -250,7 +250,7 @@ impl super::super::KernelSession<'_, '_> {
                                     let row = read_row(source, RowIndex(at), &mut cells).ok_or(
                                         InvocationFailure::Semantic(OperatingError::ShapeMismatch),
                                     )?;
-                                    workspace.work.found(ryo_values::domain::plan_parts::types::InputNumber(input), crate::domain::operator::contract::types::FoundRows(1));
+                                    workspace.work().found(ryo_values::domain::plan_parts::types::InputNumber(input), crate::domain::operator::contract::types::FoundRows(1));
                                     let texts = crate::domain::table_texts::types::Texts {
                                         symbols: context.symbols.as_ref(),
                                         source: context.source,

@@ -85,7 +85,7 @@ impl super::super::KernelSession<'_, '_> {
             context,
             &mut scratch.ordered_row,
             &mut scratch.ordered,
-            &workspace.work,
+            workspace.work(),
             output,
         );
         failure

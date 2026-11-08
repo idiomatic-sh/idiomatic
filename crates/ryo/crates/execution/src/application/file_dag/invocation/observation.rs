@@ -11,7 +11,8 @@ impl InvocationResources<'_> {
             .map(|index| index.view(&self.inputs.progress));
         #[cfg(not(feature = "diagnostic-row-progress"))]
         let view = self.inputs.index.as_ref().map(IndexResource::view);
-        let observed = &mut workspace.observation;
+        let parts = workspace.parts();
+        let observed = &mut *parts.observation;
         observed.owners_initialized = usize::from(self.inputs.index.is_some())
             + usize::from(self.inputs.groups.is_some())
             + usize::from(
@@ -22,8 +23,7 @@ impl InvocationResources<'_> {
             + usize::from(self.inputs.axis.is_some())
             + usize::from(self.cached_graph.is_some())
             + usize::from(
-                workspace
-                    .primitive
+                parts.primitive
                     .distinct
                     .as_ref()
                     .is_some_and(|state| state.rows.cells.capacity() > 0),
@@ -73,30 +73,25 @@ impl InvocationResources<'_> {
             capacity = ryo_execution_store::application::file_dag::closure_partitions::partitions_test::working_capacity(parts);
         }
         if !self.inputs.closure.is_empty() || self.inputs.partitioned_closure.is_some() {
-            capacity += workspace.primitive.evaluation.rows.row.capacity()
-                + workspace.primitive.evaluation.rows.other.capacity()
-                + workspace
-                    .primitive
+            capacity += parts.primitive.evaluation.rows.row.capacity()
+                + parts.primitive.evaluation.rows.other.capacity()
+                + parts.primitive
                     .closure_walk
                     .as_ref()
                     .map_or(0, |walk| walk.key.capacity())
-                + workspace
-                    .primitive
+                + parts.primitive
                     .closure_walk
                     .as_ref()
                     .map_or(0, |walk| walk.frontier.capacity())
-                + workspace
-                    .primitive
+                + parts.primitive
                     .closure_walk
                     .as_ref()
                     .map_or(0, |walk| walk.next.capacity())
-                + workspace
-                    .primitive
+                + parts.primitive
                     .closure_walk
                     .as_ref()
                     .map_or(0, |walk| walk.reached.capacity())
-                + workspace
-                    .primitive
+                + parts.primitive
                     .closure_walk
                     .as_ref()
                     .map_or(0, |walk| walk.visited.capacity());

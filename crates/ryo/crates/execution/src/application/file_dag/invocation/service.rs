@@ -75,7 +75,7 @@ pub(in crate::application::file_dag) fn prepare<'f>(
             axis: None,
             groups: None,
             #[cfg(feature = "diagnostic-row-progress")]
-            progress: admission.progress_origin.profile.clone(),
+            progress: admission.progress_origin().profile.clone(),
         },
     };
     let program = &contract.resources;

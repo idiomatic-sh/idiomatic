@@ -59,8 +59,8 @@ pub struct RelationOwner {
     sources: RefCell<FxHashMap<Relation, SourceViews>>,
     max_views: PinnedViewCount,
     views: Cell<PinnedViewCount>,
-    pub(in crate::application::file_dag) checks: Cell<CheckCount>,
-    pub(in crate::application::file_dag) reuses: Cell<CheckCount>,
+    checks: Cell<CheckCount>,
+    reuses: Cell<CheckCount>,
     /// The route profile of the scope that opened this owner.
     routes: super::route_counts::types::RouteProfile,
 }

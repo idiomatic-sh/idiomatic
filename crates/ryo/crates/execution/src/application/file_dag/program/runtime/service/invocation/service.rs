@@ -81,7 +81,7 @@ impl ProgramExecution {
                     crate::domain::operator::contract::workspace::begin(
                         &instruction.contract().workspace,
                         crate::domain::operator::contract::types::WorkspaceLifetime::Invocation,
-                        &mut workspace.primitive,
+                        workspace.primitive_mut(),
                     );
                 }
             }
@@ -235,9 +235,9 @@ impl Drop for Invocation<'_> {
                     {
                         slot.observed = workspace.measured();
                         slot.registered_calls.0 +=
-                            std::mem::take(&mut workspace.observation.registered_calls);
+                            std::mem::take(&mut workspace.observation_mut().registered_calls);
                     }
-                    for (total, delta) in fed.0.iter_mut().zip(workspace.work.take().0) {
+                    for (total, delta) in fed.0.iter_mut().zip(workspace.work().take().0) {
                         *total = total.saturating_add(delta.0);
                     }
                 }
