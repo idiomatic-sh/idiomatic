@@ -27,8 +27,19 @@ def tm_target(command,log):
  directories={d:sum(1 for f in findings if f.startswith(root+'/'+d.rstrip('/')+'/') or f==root+'/'+d) for d in words}
  test=sum(1 for f in findings if is_test_path(f))
  return {'findings':len(findings),'suppressed':len(report.get('suppressed',[])),'production':len(findings)-test,'test':test,'scoped_directories':directories}
+TM_VALIDATE='tm_validate_all'
+def tm_validate_counts(log):
+ """The versions `tm validate` proves and fails per workspace, from one log in which a `workspace <name>` line precedes each workspace's JSON document; a workspace whose run printed no document is absent."""
+ counts={}; where=None
+ for line in Path(log).read_text(errors='replace').splitlines():
+  if line.startswith('workspace '): where=line.split()[1]
+  elif where and line.startswith('{') and '"proven"' in line: d=json.loads(line); counts[where]={'passed':d['proven'],'failed':len(d['failed'])}
+ return counts
 def record(v,commands,out_dir):
+ """The checks block (each command's exit, source and time) from the run's raw `<name>.json`, the tm target splits, and the `tm validate` counts."""
+ v['checks']={n:json.loads((out_dir/(n+'.json')).read_text()) for n,c in commands if (out_dir/(n+'.json')).exists()}
  v['tm_targets']={n:tm_target(c,out_dir/(n+'.log')) for n,c in commands if n in TM_TARGETS and (out_dir/(n+'.log')).exists()}
+ if (out_dir/(TM_VALIDATE+'.log')).exists(): v['results'][TM_VALIDATE]=tm_validate_counts(out_dir/(TM_VALIDATE+'.log'))
 def scope_delta(v):
  """The scoped directories that are new since the validation.json at HEAD, each with its finding count."""
  r=subprocess.run(['git','-C',str(p),'show','HEAD:./validation.json'],capture_output=True,text=True)
@@ -42,7 +53,7 @@ def scope_delta(v):
    if d not in t['scoped_directories']: lines.append('no longer scoped for '+n+': '+d)
  return lines or ['scoped directories unchanged since HEAD']
 def fmt(x):
- if isinstance(x,dict) and 'passed' in x: return str(x['passed'])+' PASS / '+str(x['failed'])+' failed'+(' ('+x['note']+')' if 'note' in x else '')
+ if isinstance(x,dict) and 'passed' in x: return str(x['passed'])+' PASS / '+str(x['failed'])+' failed'+(' / '+str(x['not_run'])+' not run' if 'not_run' in x else '')+(' ('+x['note']+')' if 'note' in x else '')
  if isinstance(x,dict): return ', '.join(k.replace('_',' ')+' '+fmt(y) for k,y in x.items())
  if isinstance(x,list): return str(len(x))+': '+'; '.join('`'+str(y)+'`' for y in x) if x else '0'
  return str(x)
@@ -56,6 +67,7 @@ def render(v):
  g=v['ownership_graph']
  rows.append(('File-level ownership cycles',str(g['other_cycles'])+' ('+fmt(g['targeted_cycles'])+' targeted)'))
  rows+=[('Red test',x) for x in red_rows(v)]
+ rows+=[('Not run test',x) for x in not_run_rows(v)]
  table=['| Check | Result |','|---|---|']+['| '+k+' | '+fmt(x).replace('|','\\|')+' |' for k,x in rows]
  head='### Current ownership checkpoint — source `'+v['source'][:10]+'`, validation'+str(v['validation'])
  return '\n'.join([head,'','Written by `evidence/checkpoint/run.py` from [validation.json](evidence/checkpoint/validation.json); do not edit by hand. Review: [checkpoint](audits/2026-11-06-derived/ownership/checkpoint.json).','']+table)+'\n\n'
@@ -76,18 +88,20 @@ RAN=re.compile(r'^\s+(?:Running (.+?) \((?:[^)]*/)?(\w+?)-[0-9a-f]+\)|Doc-tests 
 TEST=re.compile(r'^test (.+?) \.\.\. (ok|FAILED|ignored)')
 FAILURE=re.compile(r'^---- (.+?) stdout ----$')
 RED_ROW=re.compile(r'^(.+?): (?:expected |a \w+ row expects the wrong kind|the subject panicked)')
+NOT_AVAILABLE=re.compile(r'^not available\b')
 def test_results(log):
- """Per test binary of one cargo test log: its passed and ignored tests, and each failed test with the case rows its runner names; `collected` when the runner ran every row and named every red one. A test that prints before its status has the status on a line of its own."""
+ """Per test binary of one cargo test log: its passed, ignored and not-run tests, and each failed test with the case rows its runner names; `collected` when the runner ran every row and named every red one. A test that prints before its status has the status on a line of its own; one that prints `not available` there measured nothing, so its `ok` is recorded as not run, never as passed."""
  out={}; binary=None; failing=None; pending=[]
  for line in Path(log).read_text(errors='replace').splitlines():
   m=RAN.match(line)
-  if m: binary=m.group(2) or m.group(3); out.setdefault(binary,{'passed':[],'ignored':[],'failed':{}}); failing=None; continue
+  if m: binary=m.group(2) or m.group(3); out.setdefault(binary,{'passed':[],'ignored':[],'not_run':[],'failed':{}}); failing=None; continue
   m=TEST.match(line) or (pending and re.match(r'^()(ok|FAILED|ignored)$',line))
-  if not m and binary and line.startswith('test ') and ' ... ' in line: pending.append(line[5:line.index(' ... ')]); continue
+  if not m and binary and line.startswith('test ') and ' ... ' in line: pending.append((line[5:line.index(' ... ')],bool(NOT_AVAILABLE.match(line[line.index(' ... ')+5:])))); continue
   if m and binary:
-   name,status=m.groups(); name=name or pending.pop(0)
+   name,status=m.groups(); unavailable=False
+   if not name: name,unavailable=pending.pop(0)
    if status=='FAILED': out[binary]['failed'].setdefault(name,{'rows':[],'collected':False})
-   else: out[binary]['passed' if status=='ok' else 'ignored'].append(name)
+   else: out[binary]['not_run' if unavailable and status=='ok' else 'passed' if status=='ok' else 'ignored'].append(name)
    continue
   m=FAILURE.match(line)
   if m and binary: failing=out[binary]['failed'].setdefault(m.group(1),{'rows':[],'collected':False}); continue
@@ -95,13 +109,13 @@ def test_results(log):
   if re.search(r'\d+ row\(s\) of \w+ failed:',line): failing['collected']=True
   m=RED_ROW.match(line.strip())
   if m and m.group(1) not in failing['rows']: failing['rows'].append(m.group(1))
- return {b:t for b,t in out.items() if t['passed'] or t['failed'] or t['ignored']}
+ return {b:t for b,t in out.items() if t['passed'] or t['failed'] or t['ignored'] or t['not_run']}
 def stored(tests):
  """The recorded tests as tests.json keeps them, one line per list: a failed test is `[collected or aborted, red row...]`, an empty list is left out."""
- return {n:{b:{k:x for k,x in (('passed',t['passed']),('ignored',t['ignored']),('failed',{name:['collected' if f['collected'] else 'aborted']+f['rows'] for name,f in t['failed'].items()})) if x} for b,t in bs.items()} for n,bs in tests.items()}
+ return {n:{b:{k:x for k,x in (('passed',t['passed']),('ignored',t['ignored']),('not_run',t['not_run']),('failed',{name:['collected' if f['collected'] else 'aborted']+f['rows'] for name,f in t['failed'].items()})) if x} for b,t in bs.items()} for n,bs in tests.items()}
 def loaded(kept):
  """tests.json read back into the shape `test_results` gives."""
- return {n:{b:{'passed':t.get('passed',[]),'ignored':t.get('ignored',[]),'failed':{name:{'collected':f[0]=='collected','rows':f[1:]} for name,f in t.get('failed',{}).items()}} for b,t in bs.items()} for n,bs in kept.items()}
+ return {n:{b:{'passed':t.get('passed',[]),'ignored':t.get('ignored',[]),'not_run':t.get('not_run',[]),'failed':{name:{'collected':f[0]=='collected','rows':f[1:]} for name,f in t.get('failed',{}).items()}} for b,t in bs.items()} for n,bs in kept.items()}
 def record_tests(v,commands,out_dir):
  """Every cargo test target's tests, from its raw log, into tests.json beside validation.json (which stays within its line budget)."""
  v['tests']={n:test_results(out_dir/(n+'.log')) for n,c in commands if c[:2]==['cargo','test'] and (out_dir/(n+'.log')).exists()}
@@ -117,6 +131,9 @@ def red_rows(v):
     else: said='red; its failure names no case row'
     lines.append(target+' '+name+': '+said)
  return lines
+def not_run_rows(v):
+ """Each test that printed `not available` and so measured nothing, though its runner said ok."""
+ return [target+' '+name+': it printed `not available` and measured nothing' for target,binaries in v.get('tests',{}).items() for t in binaries.values() for name in t.get('not_run',[])]
 SENTENCE=re.compile(r'^[a-z][a-z0-9]*(?:_[a-z0-9]+){3,}\*?$')
 SEGMENT=re.compile(r'^[a-z_*][a-z0-9_*]*$')
 TESTISH=re.compile(r'^(?:tests?|\w+_test|controls)$')
@@ -136,11 +153,13 @@ def cited_tests(line):
    elif len(segs)>1 and (any(TESTISH.match(s) for s in segs) or SENTENCE.match(segs[-1])): cited.append(c)
  return cited
 def all_tests(v):
- """(binary, test, red rows or None when it passed, collected) over every recorded target; a test red in one target is red."""
+ """(binary, test, red rows or None when it passed, collected) over every recorded target; a test red in one target is red, and one not run in a target is not run unless red."""
  merged={}
  for binaries in v.get('tests',{}).values():
   for binary,t in binaries.items():
    for name in t['passed']: merged.setdefault((binary,name),None)
+   for name in t.get('not_run',[]):
+    if merged.get((binary,name)) is None: merged[(binary,name)]={'rows':[],'collected':False,'not_run':True}
    for name,f in t['failed'].items(): merged[(binary,name)]=f
  return merged
 def glob_rx(segs): return '::'.join('.+' if s=='*' else re.escape(s).replace(r'\*','[^:]*') for s in segs)
@@ -179,7 +198,7 @@ def verdict(cited,tests):
  if not hit and '*' not in segs[-1]:
   under=re.compile('(?:^|::)'+glob_rx(segs)+'::')
   hit=[(k,f) for k,f in tests.items() if under.search(k[1])]
- if hit: return 'passed' if all(f is None for _,f in hit) else 'red'
+ if hit: return 'passed' if all(f is None for _,f in hit) else 'not run' if all(f is None or f.get('not_run') for _,f in hit) else 'red'
  if '*' in segs[-1]: return 'absent'
  if len(segs)>1:
   if segs[-1] not in sources(): return 'absent'

@@ -142,7 +142,8 @@
   },
   "cli_cost": {
     "replay": {
-      "passed": ["cost::an_absent_input_is_a_typed_reason_not_a_pass", "cost::every_rule_over_all_of_django_holds_its_cold_and_warm_ratchets", "cost::n999_over_django_holds_its_ratchet", "cost::one_file_with_every_rule_holds_its_ratchet"],
+      "passed": ["cost::an_absent_input_is_a_typed_reason_not_a_pass"],
+      "not_run": ["cost::every_rule_over_all_of_django_holds_its_cold_and_warm_ratchets", "cost::n999_over_django_holds_its_ratchet", "cost::one_file_with_every_rule_holds_its_ratchet"],
       "failed": {
         "cost::a_cold_run_over_ruff_holds_the_peak_ratchet": ["aborted"],
         "cost::a_warm_run_and_an_edit_run_over_ruff_hold_their_ratchets": ["aborted"],

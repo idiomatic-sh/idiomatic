@@ -1,5 +1,5 @@
 """Fixture cases of `run.py --check`: a ticked row (a `[x]` box or a `☑` cell) stays ticked only when it cites a test, every test it cites passed in the recorded logs, and it does not say its review is pending."""
-import importlib.util,tempfile,unittest
+import importlib.util,json,tempfile,unittest
 from pathlib import Path
 spec=importlib.util.spec_from_file_location('run',Path(__file__).resolve().parent/'run.py'); run=importlib.util.module_from_spec(spec); spec.loader.exec_module(run)
 LOG='''     Running unittests src/lib.rs (/target/debug/deps/ryo_values-0123abcd)
@@ -8,6 +8,8 @@ test domain::table::service_test::succeeds ... FAILED
 test domain::table::service_test::refuses ... ok
 test domain::early::service_test::succeeds ... FAILED
 test domain::loud::service_test::succeeds ... printed while it ran
+ok
+test domain::ratchet::service_test::holds ... not available: RYO_PREFLIGHT_WORKER does not name a worker
 ok
 
 failures:
@@ -66,6 +68,19 @@ class Check(unittest.TestCase):
  def test_a_ticked_row_saying_its_review_is_pending_is_unticked_though_its_tests_passed(self):
   text,bad=self.untick('| 2 VERIFIED-PENDING-REVIEW | [x] Rows. | validation321: `rows::service_test::succeeds` |')
   self.assertTrue(text.startswith('| 2 VERIFIED-PENDING-REVIEW | [ ] Rows.')); self.assertIn('review is pending',bad[0])
+ def test_a_test_that_printed_not_available_is_not_run_and_a_row_citing_it_is_unticked(self):
+  t=self.v['tests']['libraries']['ryo_values']
+  self.assertEqual(t['not_run'],['domain::ratchet::service_test::holds']); self.assertNotIn('domain::ratchet::service_test::holds',t['passed'])
+  text,bad=self.untick('- [x] Ratchet. (validation321: `ratchet::service_test::holds`)')
+  self.assertTrue(text.startswith('- [ ] Ratchet.')); self.assertIn('not run `ratchet::service_test::holds`',bad[0])
+ def test_the_checks_block_and_the_tm_validate_counts_are_the_runs_own(self):
+  raw=Path(self.raw.name)
+  (raw/'libraries.json').write_text(json.dumps({'source':'new','exit':101,'elapsed_seconds':1.0}))
+  (raw/'tm_validate_all.log').write_text('workspace crates_ryo\n{"proven":240,"kept":0,"failed":[]}\nworkspace repository_root\nerror: one\n{"proven":222,"kept":0,"failed":[{"id":"a"}]}\n')
+  v={'checks':{'libraries':{'source':'old'},'gone':{'source':'old'}},'results':{}}
+  run.record(v,[['libraries',['cargo','test']],['tm_validate_all',['sh']]],raw)
+  self.assertEqual(v['checks'],{'libraries':{'source':'new','exit':101,'elapsed_seconds':1.0}})
+  self.assertEqual(v['results']['tm_validate_all'],{'crates_ryo':{'passed':240,'failed':0},'repository_root':{'passed':222,'failed':1}})
  def test_a_rerun_result_without_its_raw_log_fails(self):
   self.assertEqual(len(run.reruns_without_log([('note','the row passes in its narrow run')],self.v)),1)
   self.assertEqual(len(run.reruns_without_log([('note','the row passes in its narrow run (libraries.log)')],self.v)),0)
