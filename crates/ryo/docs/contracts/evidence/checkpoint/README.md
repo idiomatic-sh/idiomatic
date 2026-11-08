@@ -9,8 +9,8 @@ authority targets, the doctests (execution, values, core, sdk, derived),
 `ruff_sharing` and `ruff` (the python target), the ten language `conformance`
 targets, the command line's `cli_tests` (`replay`, `blocks`, `call_count`,
 `command_line`, `command_tree`, `readme`), `bench_build` (the command line's and
-the core's benches compile), `no_print` (the two print lints over the execution
-and core libraries), the Tastemaker checks (`tm_import_cli`, `tm_cli_source`,
+the core's benches compile), `no_print` (the two print lints over the execution,
+execution domain, execution store and core libraries), the Tastemaker checks (`tm_import_cli`, `tm_cli_source`,
 `tm_source` over the scoped directories, `tm_guards`, and
 `tm_validate_no_heap_accounting`, the `no-heap-accounting@0.2.0` validation), `ownership_edges` and `checkpoint_check` (the fixture cases of `run.py --check` in `run_test.py`).
 
