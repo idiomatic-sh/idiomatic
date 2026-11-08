@@ -134,9 +134,8 @@ struct ProjectState {
 pub(crate) struct ProgramExecution {
     program: Arc<ExecutableProgram>,
     owner: std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
-    generation: Arc<()>,
-    generation_live:
-        Arc<crate::application::file_dag::relations::generation::service::GenerationLease>,
+    /// The owner's generation when this execution opened; its liveness is the execution's.
+    generation: Arc<crate::application::file_dag::relations::generation::service::GenerationLease>,
     partition: Partition,
     file_state: RuntimeState,
     project_states: RefCell<Vec<ProjectState>>,
@@ -151,7 +150,7 @@ enum RootReaders {
     Selected(Arc<crate::domain::executable_program::types::RemainingTable>),
 }
 pub(in crate::application::file_dag::program) struct RuntimeState {
-    generation: Arc<()>,
+    generation: Arc<crate::application::file_dag::relations::generation::service::GenerationLease>,
     scope: crate::application::file_dag::relations::publication::types::ProducerScope,
     roots: RefCell<RootReaders>,
     slots: RefCell<rustc_hash::FxHashMap<RegionId, Slot>>,
@@ -199,10 +198,9 @@ pub(crate) struct KernelPermit<'scope> {
     program: &'scope crate::domain::executable_program::types::executable_program::value::ExecutableProgram,
     region: RegionId,
     instruction: InstructionIndex,
-    generation: &'scope Arc<()>,
-    partition: &'scope Partition,
-    live:
+    generation:
         &'scope Arc<crate::application::file_dag::relations::generation::service::GenerationLease>,
+    partition: &'scope Partition,
     bindings: BoundInputs<'scope>,
     strategy: RouteKind,
     owner: &'scope RelationOwner,

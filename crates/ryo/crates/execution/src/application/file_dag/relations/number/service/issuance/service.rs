@@ -29,7 +29,7 @@ impl RelationOwner {
             population: self.result_population(record),
             backing: self.backing_population(record),
         };
-        if !Arc::ptr_eq(&record.generation, &self.generation.borrow()) || expected != Some(actual) {
+        if self.matches_generation(&record.generation) == Sameness::Different || expected != Some(actual) {
             return Ok(None);
         }
         // Original-plan lineage permits only copying operators. Every leaf must

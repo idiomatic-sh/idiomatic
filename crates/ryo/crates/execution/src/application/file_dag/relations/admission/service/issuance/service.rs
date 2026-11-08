@@ -16,7 +16,7 @@ impl<'a> BorrowedInput<'a> {
         let actual = owner.private(publication)?;
         if self.publication_population != actual.population
             || population != owner.result_population(actual)
-            || !Arc::ptr_eq(&self.origin.generation, &actual.generation)
+            || crate::application::file_dag::relations::generation::service::GenerationLease::same(&self.origin.generation, &actual.generation) == Sameness::Different
         {
             return Err(OperatingError::NotRead);
         }
@@ -48,7 +48,8 @@ impl<'a> BorrowedInput<'a> {
     pub(in crate::application::file_dag) fn physical_shape(&self) -> PhysicalShape {
         self.shape
     }
-    pub(in crate::application::file_dag) fn generation_guard(&self) -> Arc<()> {
+    /// The generation this input was admitted under.
+    pub(in crate::application::file_dag) fn generation(&self) -> Arc<crate::application::file_dag::relations::generation::service::GenerationLease> {
         Arc::clone(&self.origin.generation)
     }
     pub(in crate::application::file_dag) fn rows(&self) -> RepresentationInput<'a> {
@@ -58,7 +59,7 @@ impl<'a> BorrowedInput<'a> {
         &self,
         owner: &RelationOwner,
     ) -> Result<crate::application::file_dag::relations::admission::types::AdmissionIdentity, OperatingError> {
-        if !Arc::ptr_eq(&self.origin.generation, &owner.generation.borrow()) {
+        if owner.matches_generation(&self.origin.generation) == Sameness::Different {
             return Err(OperatingError::NotRead);
         }
         if self.shape != PhysicalShape::Complete {

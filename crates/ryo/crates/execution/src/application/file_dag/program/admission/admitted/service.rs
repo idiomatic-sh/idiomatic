@@ -166,13 +166,13 @@ impl AdmittedInput {
     pub(in crate::application::file_dag::program) fn validate_for(
         &self,
         owner: &Rc<RelationOwner>,
-        generation: &Arc<()>,
+        generation: &Arc<crate::application::file_dag::relations::generation::service::GenerationLease>,
         required: &Partition,
         expected: ProducerRoot,
     ) -> Result<(), OperatingError> {
         if owner.matches_generation(generation) == crate::application::file_dag::relations::types::Sameness::Different
             || !Rc::ptr_eq(owner, &self.proof.owner)
-            || !Arc::ptr_eq(&self.proof.generation, generation)
+            || crate::application::file_dag::relations::generation::service::GenerationLease::same(&self.proof.generation, generation) == crate::application::file_dag::relations::types::Sameness::Different
             || self.root != expected
             || self.partition.supplies(required) == PartitionSupply::Lacks
         {
@@ -185,7 +185,7 @@ impl AdmittedInput {
         &'call self,
         relation: ryo_relations::domain::relations::types::Relation,
         rows: &'call crate::domain::table_model::types::Rows<'call>,
-        generation: &Arc<()>,
+        generation: &Arc<crate::application::file_dag::relations::generation::service::GenerationLease>,
     ) -> Result<Option<AdmittedWalkSource<'call>>, OperatingError> {
         use crate::domain::{
             table_model::{service::kinds_of, types::Rows},
@@ -194,7 +194,7 @@ use crate::domain::table_model::types::RepresentationInput;
         if self.root != ProducerRoot::Input(InputSource::Relation(relation)) {
             return Err(OperatingError::WrongOperation);
         }
-        if !Arc::ptr_eq(&self.proof.generation, generation) {
+        if crate::application::file_dag::relations::generation::service::GenerationLease::same(&self.proof.generation, generation) == crate::application::file_dag::relations::types::Sameness::Different {
             return Err(OperatingError::NotRead);
         }
         let publication = self.publication(&self.proof.owner)?;
@@ -235,7 +235,7 @@ use crate::domain::table_model::types::RepresentationInput;
     ) -> Result<Self, OperatingError> {
         admitted.require_publication(owner.as_ref(), publication.as_ref())?;
         let crate::application::file_dag::relations::admission::types::AdmissionIdentity { population, .. } = admitted.identity(&owner)?;
-        let generation = admitted.generation_guard();
+        let generation = admitted.generation();
 
         Ok(Self {
             proof: PopulationProof {
