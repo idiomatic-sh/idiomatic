@@ -66,7 +66,7 @@ impl ProgramExecution {
             .unwrap();
         let index_liveness = if index.as_ref().is_some_and(|index| {
             index.liveness()
-                == crate::application::file_dag::derived::owner::witness::service::BackingLiveness::Alive
+                == ryo_execution_store::application::file_dag::derived::owner::witness::service::BackingLiveness::Alive
         }) {
             IndexLiveness::Alive
         } else {

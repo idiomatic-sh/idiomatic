@@ -30,7 +30,7 @@ pub(in super::super) fn execute(
         relation: HostedNumber(0),
     };
     plan.steps[1].operation = operation;
-    let derived = crate::application::file_dag::fixtures::program_derived_port();
+    let derived = ryo_execution_store::application::file_dag::fixtures::program_derived_port();
     let prepared = crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
             schedule: RuleSchedule::Independent,
@@ -71,7 +71,7 @@ pub(in super::super) fn execute(
         }],
         services,
         ryo_values::domain::files::types::SourceView(b""),
-        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
+        ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible,
         symbols,
         None,
         None,

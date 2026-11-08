@@ -64,7 +64,7 @@ pub(super) fn engine() -> (PrepareUseCaseImpl, Arc<SemanticCalls>) {
     (
         PrepareUseCaseImpl::new(
             semantics.clone(),
-            Arc::new(ryo_execution::outbound::derived::factory::semantics()),
+            Arc::new(ryo_execution_store::outbound::derived::factory::semantics()),
             Arc::new(ryo_execution::outbound::digest::factory::blake3()),
         ),
         semantics,

@@ -11,7 +11,7 @@ pub(in crate::application::file_dag::program) enum InvocationFailure {
 /// No held inputs/publication or dependency accounting at internal instructions.
 #[derive(Default)]
 pub(in crate::application::file_dag::program) struct KernelScratch {
-    pub workspace: Option<crate::application::file_dag::workspace::InvocationWorkspace>,
+    pub workspace: Option<ryo_execution_store::application::file_dag::workspace::InvocationWorkspace>,
     pub ordered_row: Vec<Value>,
     pub ordered: ryo_operators::domain::ordered_existence::types::OrderedExistenceScratch,
 }
@@ -59,7 +59,7 @@ pub(in crate::application::file_dag::program) struct ProducerLeaseEvent {
     pub working_bytes: WorkingBytes,
     pub index_liveness: IndexLiveness,
     pub index:
-        Option<crate::application::file_dag::derived::owner::witness::service::BackingWitness>,
+        Option<ryo_execution_store::application::file_dag::derived::owner::witness::service::BackingWitness>,
 }
 
 /// Bytes of derived working storage held when a producer lease was observed.

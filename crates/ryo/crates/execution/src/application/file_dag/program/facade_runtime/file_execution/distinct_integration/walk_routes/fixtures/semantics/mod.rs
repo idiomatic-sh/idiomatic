@@ -1,5 +1,5 @@
 //! Real portable use cases with counted calls and one explicit dependency failure.
-use crate::outbound::derived::interface::DerivedPort;
+use ryo_execution_store::outbound::derived::interface::DerivedPort;
 use ryo_derived::domain::contract::types::BuildOutcome;
 use ryo_derived::domain::contract::types::BuildWorkspace;
 use ryo_derived::domain::fault::types::DerivedFault;
@@ -96,7 +96,7 @@ impl Derived {
 }
 impl DerivedPort for Derived {
     fn prepare(&self, request: DerivedRequest, schemas: Vec<Vec<CellKind>>) -> PreparedDerived {
-        crate::application::file_dag::fixtures::derived().prepare(request, schemas)
+        ryo_execution_store::application::file_dag::fixtures::derived().prepare(request, schemas)
     }
     fn build(
         &self,
@@ -106,14 +106,14 @@ impl DerivedPort for Derived {
         recycled: Option<DerivedPayload>,
     ) -> Result<BuildOutcome, DerivedFault> {
         self.calls.lock().unwrap().push(prepared.request().clone());
-        crate::application::file_dag::fixtures::derived().build(prepared, inputs, room, recycled)
+        ryo_execution_store::application::file_dag::fixtures::derived().build(prepared, inputs, room, recycled)
     }
     fn view<'a>(
         &self,
         prepared: &PreparedDerived,
         payload: &'a DerivedPayload,
     ) -> Result<DerivedView<'a>, DerivedFault> {
-        crate::application::file_dag::fixtures::derived().view(prepared, payload)
+        ryo_execution_store::application::file_dag::fixtures::derived().view(prepared, payload)
     }
 }
 

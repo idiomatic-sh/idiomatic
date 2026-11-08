@@ -1,9 +1,7 @@
 //! Required derived storage follows real compiled producer consumers, including cancellation.
 use super::super::*;
 use super::fixtures::{FinalConsumer, ProjectionOrder, numbers, shared_plan};
-use crate::application::file_dag::derived::owner::witness::service::{
-    BackingIdentity, BackingLiveness, BackingWitness,
-};
+use ryo_execution_store::application::file_dag::derived::owner::witness::service::{BackingIdentity, BackingLiveness, BackingWitness};
 use crate::application::file_dag::program::runtime::types::IndexLiveness;
 use ryo_relations::domain::relations::{
     service::to_bits,
@@ -14,7 +12,7 @@ use ryo_values::domain::rows::errors::RowsError;
 fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
     let skipped_at_start = matches!(final_consumer, FinalConsumer::SkippedAtStart);
     let refuse_provider = matches!(final_consumer, FinalConsumer::RefusingProvider);
-    let derived = crate::application::file_dag::fixtures::program_derived_port();
+    let derived = ryo_execution_store::application::file_dag::fixtures::program_derived_port();
     let mut second = rule();
     second.id = RuleId("second-derived-consumer".into());
     let prepared = crate::application::file_dag::program::preparation::service::prepare(
@@ -89,7 +87,7 @@ fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
         ],
         services,
         ryo_values::domain::files::types::SourceView(b""),
-        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
+        ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible,
         &mut symbols,
         None,
         None,
@@ -97,7 +95,7 @@ fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
     // Required views still have to live until their published producer's last
     // consumer when optional retention is unavailable.
     file.owner.derived().set_optional_limit(
-        crate::application::file_dag::derived::owner::index::types::ByteLimit(0),
+        ryo_execution_store::application::file_dag::derived::owner::index::types::ByteLimit(0),
     )?;
     let columns = [
         FactColumn(vec![to_bits(Cell::File(FileId(0))).0; 2]),

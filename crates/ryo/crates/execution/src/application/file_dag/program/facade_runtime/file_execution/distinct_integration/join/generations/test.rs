@@ -1,14 +1,14 @@
 //! File-generation freshness under one immutable prepared request and service set.
 use super::super::direct::test::{request, schema_column, simple};
 use super::super::*;
-use crate::application::file_dag::derived::owner::fixtures::resources::RecordedDerived;
+use ryo_execution_store::application::file_dag::derived::owner::fixtures::resources::RecordedDerived;
 #[test]
 fn one_prepared_request_reopens_same_file_after_delivery_failure_empty_skip_and_changed_payload() {
     let left = schema_column(Relation::Entry, CellKind::Number, 0);
     let right = schema_column(Relation::SequenceElement, CellKind::Number, 0);
     let payload = schema_column(Relation::SequenceElement, CellKind::Number, 1);
     let recorded = Arc::new(RecordedDerived::default());
-    let derived: Arc<dyn crate::outbound::derived::interface::DerivedPort> = recorded.clone();
+    let derived: Arc<dyn ryo_execution_store::outbound::derived::interface::DerivedPort> = recorded.clone();
     let prepared = crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
             plans: vec![request(&[left], &[right], &[(Side::Right, payload)])],
@@ -81,7 +81,7 @@ fn one_prepared_request_reopens_same_file_after_delivery_failure_empty_skip_and_
             }],
             Arc::clone(&services),
             ryo_values::domain::files::types::SourceView(b""),
-            crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
+            ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible,
             &mut symbols,
             None,
             None)
@@ -179,7 +179,7 @@ fn one_prepared_request_reopens_same_file_after_delivery_failure_empty_skip_and_
         }],
         Arc::clone(&services),
         ryo_values::domain::files::types::SourceView(b""),
-        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
+        ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible,
         &mut symbols,
         None,
         None,

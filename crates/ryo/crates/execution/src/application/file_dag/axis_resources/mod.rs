@@ -6,7 +6,7 @@ use view::AxisResource;
 #[cfg(test)]
 mod test;
 
-use super::derived::owner::acquisition::admission::service::AcquiredView;
+use ryo_execution_store::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView;
 use crate::domain::{
     operating::errors::OperatingError,
     operator::contract::{resources::AxisResources, },

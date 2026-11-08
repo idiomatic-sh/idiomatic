@@ -4,7 +4,7 @@ use super::{Scenario, exercise};
 fn run(scenario: Scenario) -> Result<Vec<u64>, crate::domain::operating::errors::OperatingError> {
     exercise(
         scenario,
-        crate::application::file_dag::fixtures::program_derived_port(),
+        ryo_execution_store::application::file_dag::fixtures::program_derived_port(),
         std::sync::Arc::new(crate::application::file_dag::fixtures::operators()),
     )
 }

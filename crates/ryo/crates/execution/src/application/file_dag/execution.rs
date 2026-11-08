@@ -37,7 +37,7 @@ impl PrimitiveExecutor for CommonOperatorEngine {
 pub(super) struct PrimitiveSemanticsBridge<'a> {
     /// The file's profile, the observer a primitive reports its progress to.
     #[cfg(feature = "diagnostic-row-progress")]
-    pub(super) progress: &'a crate::application::file_dag::route_counts::types::RouteProfile,
+    pub(super) progress: &'a ryo_execution_store::application::file_dag::route_counts::types::RouteProfile,
     pub(super) port: &'a dyn PrimitiveExecutor,
     pub(super) permit: crate::application::file_dag::program::runtime::service::SemanticPermit<'a>,
     pub(super) binding: crate::domain::executable_program::physical::PhysicalBinding<'a>,

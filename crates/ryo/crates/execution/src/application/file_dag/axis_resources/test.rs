@@ -47,12 +47,12 @@ fn acquired(
     kind: ryo_derived::domain::request::types::DerivedKind,
     request: crate::domain::derived_views::types::ViewRequest,
     rows: RepresentationInput<'_>,
-) -> crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView {
+) -> ryo_execution_store::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView {
     let plan = Arc::new(
-        crate::application::file_dag::derived::prepare::view(
+        ryo_execution_store::application::file_dag::derived::prepare::view(
             (std::sync::Arc::new(
-                crate::application::file_dag::fixtures::derived(),
-            ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
+                ryo_execution_store::application::file_dag::fixtures::derived(),
+            ) as std::sync::Arc<dyn ryo_execution_store::outbound::derived::interface::DerivedPort>),
             &request,
             &[crate::domain::operation_schema::types::InputShape {
                 kinds: rows.kinds(),
@@ -61,11 +61,11 @@ fn acquired(
         )
         .unwrap(),
     );
-    let owner = crate::application::file_dag::relations::RelationOwner::new(
-        crate::application::file_dag::relations::types::ReuseEligibility::Ineligible,
+    let owner = ryo_execution_store::application::file_dag::relations::RelationOwner::new(
+        ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Ineligible,
         (std::sync::Arc::new(
-            crate::application::file_dag::fixtures::derived(),
-        ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
+            ryo_execution_store::application::file_dag::fixtures::derived(),
+        ) as std::sync::Arc<dyn ryo_execution_store::outbound::derived::interface::DerivedPort>),
     );
     let RepresentationInput::Computed(table) = rows else {
         panic!("computed fixture")
@@ -90,7 +90,7 @@ fn acquired(
         .acquire_stored(
             &plan,
             &owner.derived().admit_view(&plan, &owner, &[&proof]).unwrap(),
-            crate::application::file_dag::derived::owner::ViewContext::default(),
+            ryo_execution_store::application::file_dag::derived::owner::ViewContext::default(),
             data,
             &mut DerivedScratch::default(),
             None,

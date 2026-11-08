@@ -112,7 +112,7 @@ fn failed_emit_and_failed_observation_do_not_erase_the_independent_root() {
             &rules,
         )
         .unwrap();
-        let derived = crate::application::file_dag::fixtures::program_derived_port();
+        let derived = ryo_execution_store::application::file_dag::fixtures::program_derived_port();
         let prepared = crate::application::file_dag::program::preparation::service::prepare(
             compiled,
             &rules,
@@ -154,7 +154,7 @@ fn failed_emit_and_failed_observation_do_not_erase_the_independent_root() {
             ],
             services,
             ryo_values::domain::files::types::SourceView(b""),
-            crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
+            ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible,
             &mut symbols,
             None,
             None)

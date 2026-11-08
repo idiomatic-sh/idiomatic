@@ -8,7 +8,7 @@ use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
 use crate::domain::rule_intent::types::{
     CaptureIntent, DiagnosticDelivery, EmitDemand, FileRuleIntent, ObservationDemand, RuleDemand,
 };
-use crate::application::file_dag::scope::ScopePartials;
+use ryo_execution_store::application::file_dag::scope::ScopePartials;
 use crate::domain::file_program::types::RuleSchedule;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_cells::service_test::{SMALL_SOURCE, SmallTree, rows_over, small_tree};
@@ -35,7 +35,7 @@ pub(crate) fn subject(scenario: Input) -> Result<Value, Failure> {
         elements,
         mut symbols,
     } = small_tree();
-    let derived = crate::application::file_dag::fixtures::program_derived_port();
+    let derived = ryo_execution_store::application::file_dag::fixtures::program_derived_port();
     let prepared = crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
             schedule: RuleSchedule::Independent,
@@ -77,7 +77,7 @@ pub(crate) fn subject(scenario: Input) -> Result<Value, Failure> {
         }],
         services,
         ryo_values::domain::files::types::SourceView(SMALL_SOURCE),
-        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
+        ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible,
         &mut symbols,
         None,
         None,

@@ -94,10 +94,10 @@ fn exercise(refusal: Refusal, fused: bool) {
             .collect(),
     );
     let recorded = Arc::new(
-        crate::application::file_dag::derived::owner::fixtures::resources::RecordedDerived::default(
+        ryo_execution_store::application::file_dag::derived::owner::fixtures::resources::RecordedDerived::default(
         ),
     );
-    let derived: Arc<dyn crate::outbound::derived::interface::DerivedPort> = recorded.clone();
+    let derived: Arc<dyn ryo_execution_store::outbound::derived::interface::DerivedPort> = recorded.clone();
     let prepared = crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
             schedule: RuleSchedule::Independent,
@@ -156,7 +156,7 @@ fn exercise(refusal: Refusal, fused: bool) {
         }],
         services,
         ryo_values::domain::files::types::SourceView(b""),
-        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
+        ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible,
         &mut symbols,
         None,
         None,

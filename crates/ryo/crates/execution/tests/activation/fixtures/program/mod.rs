@@ -89,7 +89,7 @@ pub(in crate::fixtures) fn engine() -> PrepareUseCaseImpl {
         Arc::new(
             ryo_execution::outbound::operators::factory::use_case(ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case()))),
         ),
-        Arc::new(ryo_execution::outbound::derived::factory::semantics()),
+        Arc::new(ryo_execution_store::outbound::derived::factory::semantics()),
         Arc::new(ryo_execution::outbound::digest::factory::blake3()),
     )
 }

@@ -11,7 +11,7 @@ use crate::application::file_dag::program::project_population::types::ProjectFro
 use crate::application::file_dag::program::project_population::types::ProjectInvocationKey;
 use crate::application::file_dag::program::project_population::types::ProjectRefusal;
 use crate::application::file_dag::program::project_population::types::ProjectSourceMatch;
-use crate::application::file_dag::relations::RelationOwner;
+use ryo_execution_store::application::file_dag::relations::RelationOwner;
 use crate::domain::completion::types::completion_policy::value::CompletionPolicy;
 use crate::domain::coverage::types::RuleIndex;
 use crate::domain::executable_program::types::InputSource;
@@ -129,7 +129,7 @@ impl PublicationScope {
         rule: RuleIndex,
         policy: CompletionPolicy,
     ) -> Result<
-        crate::application::file_dag::derived::population::types::PopulationId,
+        ryo_execution_store::application::file_dag::derived::population::types::PopulationId,
         OperatingError,
     > {
         let mut bindings = Vec::new();

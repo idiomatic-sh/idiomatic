@@ -10,8 +10,8 @@
 
 use ryo_derived::domain::contract::types::{BuildInputs, BuildOutcome, BuildWorkspace, DerivedView};
 use ryo_derived::domain::request::types::DerivedRequest;
-use ryo_execution::outbound::derived::factory::{semantics, use_case};
-use ryo_execution::outbound::derived::interface::DerivedPort;
+use ryo_execution_store::outbound::derived::factory::{semantics, use_case};
+use ryo_execution_store::outbound::derived::interface::DerivedPort;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::types::{RowCount, Table};

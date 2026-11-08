@@ -109,6 +109,6 @@ pub(crate) struct PreparedProgram {
     pub(super) semantic_metadata: Vec<ryo_values::domain::run_metadata::types::RuleRunMetadata>,
     pub(super) hosted: Box<[HostRelation]>,
     pub(super) matchers: Arc<crate::domain::matching::types::prepared::value::PreparedMatchers>,
-    pub(super) derived: crate::application::file_dag::derived::prepared::RequestDerived,
+    pub(super) derived: ryo_execution_store::application::file_dag::derived::prepared::RequestDerived,
     pub(super) walk: crate::domain::shared_walk::types::prepared_walk::value::PreparedWalk,
 }

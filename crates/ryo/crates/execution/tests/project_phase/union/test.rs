@@ -42,7 +42,7 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
     let union_semantic_calls = Arc::new(UnionSemanticCalls::default());
     let engine = PrepareUseCaseImpl::new(
         union_semantic_calls.clone(),
-        Arc::new(ryo_execution::outbound::derived::factory::semantics()),
+        Arc::new(ryo_execution_store::outbound::derived::factory::semantics()),
         std::sync::Arc::new(ryo_execution::outbound::digest::factory::blake3()),
     );
     let mut authored = authored_request(2);

@@ -162,12 +162,12 @@ pub(crate) fn fixture(frontier: FrontierSlots, names: Names) -> Fixture {
             }],
         }],
     ];
-    let operators = crate::application::file_dag::service::prepare(
+    let operators = ryo_execution_store::application::file_dag::service::prepare(
         &plans,
         &[vec![], vec![], vec![], vec![]],
         &[],
         std::sync::Arc::new(
-            crate::outbound::derived::factory::semantics(),
+            ryo_execution_store::outbound::derived::factory::semantics(),
         ),
     )
     .unwrap();

@@ -1,8 +1,6 @@
 //! One cell per family and mismatch: the issued capability binds the owner generation, the
 //! exact plan, the admitted population and the issued descriptor.
-use crate::application::file_dag::derived::owner::acquisition::family::fixtures::{
-    Scenario, exercise,
-};
+use ryo_execution_store::application::file_dag::derived::owner::acquisition::family::fixtures::{Scenario, exercise};
 use crate::domain::operating::errors::OperatingError;
 use ryo_derived::domain::request::types::DerivedKind;
 

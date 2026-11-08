@@ -2,7 +2,7 @@
 use super::super::{
     AdmittedInput, AvailableBody, AvailableInput, Partition, ProducerRoot, ReadProof,
 };
-use crate::application::file_dag::relations::{RelationOwner, handle::service::PublishedInput};
+use ryo_execution_store::application::file_dag::relations::{RelationOwner, handle::service::PublishedInput};
 use crate::domain::operating::errors::OperatingError;
 use std::rc::Rc;
 

@@ -2,7 +2,7 @@
 use super::*;
 impl InvocationResources<'_> {
     #[cfg(test)]
-    pub(crate) fn observe(&self, workspace: &mut super::super::workspace::InvocationWorkspace) {
+    pub(crate) fn observe(&self, workspace: &mut ryo_execution_store::application::file_dag::workspace::InvocationWorkspace) {
         #[cfg(feature = "diagnostic-row-progress")]
         let view = self
             .inputs
@@ -70,7 +70,7 @@ impl InvocationResources<'_> {
                 .table
                 .count
                 .0;
-            capacity = crate::application::file_dag::closure_partitions::partitions_test::working_capacity(parts);
+            capacity = ryo_execution_store::application::file_dag::closure_partitions::partitions_test::working_capacity(parts);
         }
         if !self.inputs.closure.is_empty() || self.inputs.partitioned_closure.is_some() {
             capacity += workspace.primitive.evaluation.rows.row.capacity()

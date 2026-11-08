@@ -67,7 +67,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
                 ryo_operators::outbound::matching::factory::use_case(),
             ))),
         ),
-        Arc::new(crate::outbound::derived::factory::semantics()),
+        Arc::new(ryo_execution_store::outbound::derived::factory::semantics()),
         Arc::new(crate::outbound::digest::factory::blake3()),
     );
     prepare.prepare(input).map(|program| program.rule_count().0)

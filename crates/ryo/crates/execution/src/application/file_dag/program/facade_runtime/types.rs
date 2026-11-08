@@ -6,7 +6,7 @@ use crate::application::file_dag::program::admission::AvailableInput;
 use crate::application::file_dag::program::admission::RequiredPartitions;
 use crate::application::file_dag::program::request_identity::RequestIdentity;
 use crate::application::file_dag::program::runtime::service::ProgramExecution;
-use crate::application::file_dag::relations::RelationOwner;
+use ryo_execution_store::application::file_dag::relations::RelationOwner;
 use crate::domain::operating::errors::OperatingError;
 use std::{rc::Rc, sync::Arc};
 
@@ -71,12 +71,12 @@ pub(super) struct FileRoot {
 pub(crate) struct ProgramServices {
     pub(super) request: Arc<RequestIdentity>,
     pub(super) kernels: Arc<dyn PrimitiveExecutor + Send>,
-    pub(super) derived: crate::application::file_dag::derived::owner::types::DerivedAccess,
+    pub(super) derived: ryo_execution_store::application::file_dag::derived::owner::types::DerivedAccess,
 }
 impl ProgramServices {
     pub(crate) fn new(
         kernels: Arc<dyn PrimitiveExecutor + Send>,
-        derived: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
+        derived: impl Into<ryo_execution_store::application::file_dag::derived::owner::types::DerivedAccess>,
         corpus: &[ryo_values::domain::files::types::CorpusInput],
     ) -> Self {
         Self {
@@ -93,7 +93,7 @@ impl ProgramServices {
     }
     pub(in crate::application::file_dag::program) fn derived(
         &self,
-    ) -> &crate::application::file_dag::derived::owner::types::DerivedAccess {
+    ) -> &ryo_execution_store::application::file_dag::derived::owner::types::DerivedAccess {
         &self.derived
     }
 }
@@ -118,7 +118,7 @@ pub(crate) struct PublicationScope {
             crate::application::file_dag::program::project_population::types::ProjectInvocationKey<
                 crate::application::file_dag::program::restored::types::ValidatedFrontier,
             >,
-            crate::application::file_dag::derived::population::types::PopulationId,
+            ryo_execution_store::application::file_dag::derived::population::types::PopulationId,
         >,
     >,
     pub(super) symbols: std::cell::OnceCell<ryo_language::domain::symbols::types::TransportPermit>,

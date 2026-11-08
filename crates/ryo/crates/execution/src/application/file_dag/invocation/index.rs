@@ -1,6 +1,6 @@
 //! Application-owned equality handles.
 use ryo_values::domain::plan_parts::types::InputNumber;
-use crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView;
+use ryo_execution_store::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView;
 use crate::application::file_dag::invocation::prepared_use::service::prepared;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
@@ -29,7 +29,7 @@ pub(in crate::application::file_dag) enum IndexResource<'f> {
 impl<'f> IndexResource<'f> {
     pub(super) fn acquired(
         contract: &OperatorContract,
-        admission: &super::super::workspace::InputAdmissions<'_, 'f>,
+        admission: &ryo_execution_store::application::file_dag::workspace::InputAdmissions<'_, 'f>,
         context: &mut OperatorContext<'_>,
         empty: EmptyInput,
     ) -> Result<Self, OperatingError> {

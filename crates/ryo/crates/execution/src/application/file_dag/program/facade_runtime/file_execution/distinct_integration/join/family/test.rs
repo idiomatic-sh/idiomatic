@@ -1,7 +1,5 @@
 //! All nine real families reach the common admitted owner.
-use crate::application::file_dag::derived::owner::acquisition::family::fixtures::{
-    Scenario, exercise,
-};
+use ryo_execution_store::application::file_dag::derived::owner::acquisition::family::fixtures::{Scenario, exercise};
 use crate::{
     cases::{Case, CaseName, Expect, Word, run},
     domain::operating::errors::OperatingError,

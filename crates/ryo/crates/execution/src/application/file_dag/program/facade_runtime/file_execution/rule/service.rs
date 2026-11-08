@@ -16,7 +16,7 @@ use crate::domain::rule_intent::types::ObservationDemand;
 use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
 use crate::domain::rule_intent::types::RuleDemand;
 use crate::application::file_dag::program::rule_outcome::types::RuleOutcome;
-use crate::application::file_dag::scope::ScopePartials;
+use ryo_execution_store::application::file_dag::scope::ScopePartials;
 use crate::domain::completion::types::completion_policy::value::CompletionPolicy;
 use crate::domain::coverage::types::RuleIndex;
 use crate::domain::operating::errors::OperatingError;
@@ -75,13 +75,13 @@ impl FileRun<'_> {
         if owns_file_root {
             self.prepare_walk(read, symbols)?;
         }
-        let _rule_origin = crate::application::file_dag::route_counts::rule(
+        let _rule_origin = ryo_execution_store::application::file_dag::route_counts::rule(
             self.routes.profile(),
             rule.0,
             self.program.rule_id(rule)?,
         );
         let _consumer_origin =
-            crate::application::file_dag::route_counts::consumer(self.routes.profile(), FILE_RULE_CONSUMER);
+            ryo_execution_store::application::file_dag::route_counts::consumer(self.routes.profile(), FILE_RULE_CONSUMER);
         let mut context = self.context.borrow(symbols, self.program, rule)?;
         let context = &mut context;
         let metadata = self.program.rule_metadata(rule)?;

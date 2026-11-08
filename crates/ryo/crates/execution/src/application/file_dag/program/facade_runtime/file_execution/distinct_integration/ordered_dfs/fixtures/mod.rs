@@ -146,7 +146,7 @@ pub(crate) fn execute_request(
     observed: &mut ExecutionObservation,
 ) -> Result<Table, OperatingError> {
     let target = plan.emit.step.0 as usize;
-    let derived = crate::application::file_dag::fixtures::program_derived_port();
+    let derived = ryo_execution_store::application::file_dag::fixtures::program_derived_port();
     let prepared = crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
             schedule: RuleSchedule::Independent,
@@ -190,7 +190,7 @@ pub(crate) fn execute_request(
         }],
         services,
         ryo_values::domain::files::types::SourceView(source),
-        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
+        ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible,
         symbols,
         None,
         None,

@@ -10,7 +10,7 @@ use crate::application::file_dag::program::admission::AvailableInput;
 use crate::application::file_dag::program::admission::Emptiness;
 use crate::application::file_dag::program::admission::Inputs;
 use crate::application::file_dag::program::admission::Partition;
-use crate::application::file_dag::relations::RelationOwner;
+use ryo_execution_store::application::file_dag::relations::RelationOwner;
 use crate::domain::executable_program::types::executable_program::value::ExecutableProgram;
 use crate::domain::executable_program::types::instruction::value::Instruction;
 use crate::domain::executable_program::types::region::value::Region;
@@ -97,7 +97,7 @@ enum State {
 }
 #[cfg(test)]
 struct ProducerLeaseProbe {
-    scope: crate::application::file_dag::relations::publication::types::ProducerScope,
+    scope: ryo_execution_store::application::file_dag::relations::publication::types::ProducerScope,
     producer: RegionId,
     consumers: Box<[RegionId]>,
     events: Vec<ProducerLeaseEvent>,
@@ -128,15 +128,15 @@ struct RetirementWork {
     retired_scratch: Vec<Vec<KernelScratch>>,
 }
 struct ProjectState {
-    population: crate::application::file_dag::derived::population::types::PopulationId,
+    population: ryo_execution_store::application::file_dag::derived::population::types::PopulationId,
     state: std::rc::Rc<RuntimeState>,
 }
 pub(crate) struct ProgramExecution {
     program: Arc<ExecutableProgram>,
-    owner: std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
+    owner: std::rc::Rc<ryo_execution_store::application::file_dag::relations::RelationOwner>,
     generation: Arc<()>,
     generation_live:
-        Arc<crate::application::file_dag::relations::generation::service::GenerationLease>,
+        Arc<ryo_execution_store::application::file_dag::relations::generation::service::GenerationLease>,
     partition: Partition,
     file_state: RuntimeState,
     project_states: RefCell<Vec<ProjectState>>,
@@ -152,7 +152,7 @@ enum RootReaders {
 }
 pub(in crate::application::file_dag::program) struct RuntimeState {
     generation: Arc<()>,
-    scope: crate::application::file_dag::relations::publication::types::ProducerScope,
+    scope: ryo_execution_store::application::file_dag::relations::publication::types::ProducerScope,
     roots: RefCell<RootReaders>,
     slots: RefCell<rustc_hash::FxHashMap<RegionId, Slot>>,
     dormant: RefCell<rustc_hash::FxHashMap<RegionId, ReaderCount>>,
@@ -202,7 +202,7 @@ pub(crate) struct KernelPermit<'scope> {
     generation: &'scope Arc<()>,
     partition: &'scope Partition,
     live:
-        &'scope Arc<crate::application::file_dag::relations::generation::service::GenerationLease>,
+        &'scope Arc<ryo_execution_store::application::file_dag::relations::generation::service::GenerationLease>,
     bindings: BoundInputs<'scope>,
     strategy: RouteKind,
     owner: &'scope RelationOwner,
@@ -215,7 +215,7 @@ pub(in crate::application::file_dag) struct SemanticPermit<'scope> {
     region: RegionId,
     instruction: InstructionIndex,
     live:
-        &'scope Arc<crate::application::file_dag::relations::generation::service::GenerationLease>,
+        &'scope Arc<ryo_execution_store::application::file_dag::relations::generation::service::GenerationLease>,
     strategy: RouteKind,
 }
 

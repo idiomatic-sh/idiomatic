@@ -148,9 +148,9 @@ impl Program {
             self.services.clone(),
             ryo_values::domain::files::types::SourceView(b""),
             if matches!(self.residency, Residency::Stable) {
-                crate::application::file_dag::relations::types::ReuseEligibility::Eligible
+                ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible
             } else {
-                crate::application::file_dag::relations::types::ReuseEligibility::Ineligible
+                ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Ineligible
             },
             symbols,
             None,

@@ -3,7 +3,7 @@ use super::super::{
     Agreement, ApplicabilityProof, FileGeneration, Partition, PartitionSupply,
     RequiredPartitions,
 };
-use crate::application::file_dag::relations::RelationOwner;
+use ryo_execution_store::application::file_dag::relations::RelationOwner;
 use crate::domain::{
     coverage::types::RuleIndex, operating::errors::OperatingError,
     rule_intent::types::ApplicabilityReason,

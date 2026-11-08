@@ -3,7 +3,8 @@
 use super::*;
 use crate::application::file_dag::program::runtime::types::AttemptCheckpoint;
 use crate::application::file_dag::program::runtime::types::DependencyCheckpoint;
-use crate::application::file_dag::{execution::CommonOperatorEngine, scope::ScopePartials};
+use crate::application::file_dag::execution::CommonOperatorEngine;
+use ryo_execution_store::application::file_dag::scope::ScopePartials;
 use crate::domain::{
     file_program::types::RuleSchedule,
     operating::types::Emit as RowSink,
@@ -211,7 +212,7 @@ fn forward<'a, 'service, 'facts>(
 }
 fn exercise(
     scenario: Scenario,
-    derived: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
+    derived: Arc<dyn ryo_execution_store::outbound::derived::interface::DerivedPort>,
     operators: Arc<dyn crate::outbound::operators::interface::OperatorsPort>,
 ) -> Result<Vec<u64>, OperatingError> {
     let SmallTree {
@@ -256,7 +257,7 @@ fn exercise(
         }],
         services,
         ryo_values::domain::files::types::SourceView(SMALL_SOURCE),
-        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
+        ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible,
         &mut symbols,
         None,
         None,

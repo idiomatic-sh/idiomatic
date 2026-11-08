@@ -2,9 +2,8 @@
 use crate::application::file_dag::executor::{KernelAnswer, KernelFault};
 pub(crate) mod capability;
 use super::super::executor::{KernelCall, PrimitiveExecutor};
-use super::super::{
-    invocation::InvocationResources, predicates::BoundPredicate, workspace::InvocationWorkspace,
-};
+use super::super::{invocation::InvocationResources, predicates::BoundPredicate};
+use ryo_execution_store::application::file_dag::workspace::InvocationWorkspace;
 use crate::domain::operating::{
     errors::OperatingError,
     types::{Emit, OperatorContext},
@@ -50,7 +49,7 @@ pub(in crate::application::file_dag) fn evaluate(
             .as_mut()
             .ok_or(OperatingError::NotRun)?
             .advance()?;
-        if available == crate::application::file_dag::closure_partitions::types::PartitionAdvance::Exhausted {
+        if available == ryo_execution_store::application::file_dag::closure_partitions::types::PartitionAdvance::Exhausted {
             return Ok(());
         }
         evaluate_once(
@@ -73,7 +72,7 @@ fn evaluate_once(
     let routes = workspace.progress_origin.profile.clone();
     #[cfg(feature = "diagnostic-row-progress")]
     let _progress_invocation =
-        crate::application::file_dag::route_counts::resume(&workspace.progress_origin);
+        ryo_execution_store::application::file_dag::route_counts::resume(&workspace.progress_origin);
     #[cfg(test)]
     resources.observe(workspace);
     let semantic_failure = std::sync::OnceLock::new();
@@ -91,12 +90,12 @@ fn evaluate_once(
     };
     #[cfg(feature = "diagnostic-row-progress")]
     if let Some(row) = row {
-        crate::application::file_dag::route_counts::progress::service::row_file(
+        ryo_execution_store::application::file_dag::route_counts::progress::service::row_file(
             &routes,
             row,
             context.paths,
         );
-        crate::application::file_dag::route_counts::progress::service::progress(
+        ryo_execution_store::application::file_dag::route_counts::progress::service::progress(
             &routes,
             crate::domain::operator::contract::views::ProgressCounter::InputRows,
             crate::domain::operator::contract::views::ProgressAmount(1),

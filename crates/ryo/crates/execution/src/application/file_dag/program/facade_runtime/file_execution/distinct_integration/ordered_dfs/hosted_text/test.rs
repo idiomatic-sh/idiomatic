@@ -183,7 +183,7 @@ fn one_file_owner_resets_dfs_across_closure_empty_and_different_graph() {
         })
         .into_iter()
         .collect::<Vec<_>>();
-    let derived = crate::application::file_dag::fixtures::program_derived_port();
+    let derived = ryo_execution_store::application::file_dag::fixtures::program_derived_port();
     let prepared = crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
             plans,
@@ -225,7 +225,7 @@ fn one_file_owner_resets_dfs_across_closure_empty_and_different_graph() {
         }; 4],
         services,
         ryo_values::domain::files::types::SourceView(b""),
-        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
+        ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible,
         &mut symbols,
         None,
         None,

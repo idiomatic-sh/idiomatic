@@ -52,7 +52,7 @@ fn run(
     partials: &[Partial],
     calls: Arc<MeaningCalls>,
 ) -> RootOutcome {
-    let derived = crate::application::file_dag::fixtures::program_derived_port();
+    let derived = ryo_execution_store::application::file_dag::fixtures::program_derived_port();
     let prepared = crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
             plans: vec![plan],
@@ -92,7 +92,7 @@ fn run(
         }],
         services,
         ryo_values::domain::files::types::SourceView(b""),
-        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
+        ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible,
         &mut symbols,
         None,
         None,

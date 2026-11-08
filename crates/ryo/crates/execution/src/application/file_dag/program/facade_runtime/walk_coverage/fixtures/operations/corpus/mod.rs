@@ -145,7 +145,7 @@ pub(in super::super::super) fn compiled_operations() -> Corpus {
         }],
         rows: vec![],
     }];
-    let operators = crate::application::file_dag::service::prepare_with_schemas(
+    let operators = ryo_execution_store::application::file_dag::service::prepare_with_schemas(
         &plans,
         &bindings,
         &hosted,
@@ -167,7 +167,7 @@ pub(in super::super::super) fn compile_program(
     bindings: &[Vec<ParameterBinding>],
 ) -> ExecutableProgram {
     let hosted = Vec::new();
-    let operators = crate::application::file_dag::service::prepare_with_schemas(
+    let operators = ryo_execution_store::application::file_dag::service::prepare_with_schemas(
         plans,
         bindings,
         &hosted,

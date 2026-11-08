@@ -10,12 +10,12 @@ use std::rc::Rc;
 pub(in crate::application::file_dag::observations) enum CrossRoot {
     Pending,
     FileFrontier {
-        publication: crate::application::file_dag::relations::packed::service::PackedPublication,
+        publication: ryo_execution_store::application::file_dag::relations::packed::service::PackedPublication,
         token: crate::application::file_dag::program::restored::types::ValidatedFrontier,
         arenas: Vec<WorkerNumber>,
     },
     Named {
-        publication: crate::application::file_dag::relations::packed::service::PackedPublication,
+        publication: ryo_execution_store::application::file_dag::relations::packed::service::PackedPublication,
         admitted: crate::application::file_dag::program::observed_publication::types::ObservedPublication,
         arenas: Vec<WorkerNumber>,
     },
@@ -32,7 +32,7 @@ pub(crate) struct FrontierPopulation<'a> {
 }
 /// A checked physical frontier; aliases share this exact owned payload and common lease.
 pub(crate) struct PreparedFrontier {
-    pub(in crate::application::file_dag::observations) publication: crate::application::file_dag::relations::packed::service::PackedPublication,
+    pub(in crate::application::file_dag::observations) publication: ryo_execution_store::application::file_dag::relations::packed::service::PackedPublication,
     pub(in crate::application::file_dag::observations) token: crate::application::file_dag::program::restored::types::ValidatedFrontier,
     pub(in crate::application::file_dag::observations) arenas: Vec<WorkerNumber>,
 }
@@ -74,7 +74,7 @@ pub struct AdmittedOutput {
 /// One invocation extends the existing arena vector; stable slot indices never move during execution.
 pub(crate) struct CrossPublications<'a> {
     pub(in crate::application::file_dag::observations) metadata: &'a ObservationMetadata,
-    pub(in crate::application::file_dag::observations) owner: Rc<crate::application::file_dag::relations::RelationOwner>,
+    pub(in crate::application::file_dag::observations) owner: Rc<ryo_execution_store::application::file_dag::relations::RelationOwner>,
     pub(in crate::application::file_dag::observations) arenas: &'a mut Vec<ArenaBytes>,
     pub(in crate::application::file_dag::observations) inherited: ArenaCount,
     pub(in crate::application::file_dag::observations) references: Vec<ReferenceCount>,

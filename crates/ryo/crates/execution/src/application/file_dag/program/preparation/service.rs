@@ -90,7 +90,7 @@ impl PreparedProgram {
     }
     pub(in crate::application::file_dag::program) fn derived(
         &self,
-    ) -> &crate::application::file_dag::derived::prepared::RequestDerived {
+    ) -> &ryo_execution_store::application::file_dag::derived::prepared::RequestDerived {
         &self.derived
     }
     pub(in crate::application::file_dag::program) fn hosted(&self) -> &[HostRelation] {
@@ -112,8 +112,8 @@ impl PreparedProgram {
         rule: RuleIndex,
     ) -> Result<&RuleMetadata, OperatingError> {
         tracing::trace!(
-            target: crate::application::file_dag::derived::constants::TARGET,
-            event = crate::application::file_dag::derived::constants::RULE_METADATA,
+            target: ryo_execution_store::application::file_dag::derived::constants::TARGET,
+            event = ryo_execution_store::application::file_dag::derived::constants::RULE_METADATA,
             rule = rule.0
         );
         self.rules.get(rule.0).ok_or(OperatingError::NotRun)
@@ -195,10 +195,10 @@ pub(crate) fn prepare(
     rules: &[RuleSpec],
     rule_digests: &[ryo_values::domain::stored_facts::types::Digest],
     hosted: &[HostRelation],
-    derived: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
+    derived: impl Into<ryo_execution_store::application::file_dag::derived::owner::types::DerivedAccess>,
     identity: ObservationIdentity,
 ) -> Result<Arc<PreparedProgram>, OperatingError> {
-    let derived: crate::application::file_dag::derived::owner::types::DerivedAccess = derived.into();
+    let derived: ryo_execution_store::application::file_dag::derived::owner::types::DerivedAccess = derived.into();
     if rule_digests.len() != rules.len() {
         return Err(OperatingError::WrongOperation);
     }
@@ -213,7 +213,7 @@ pub(crate) fn prepare(
     );
     let source_plans: Vec<_> = plans.iter().map(Ok).collect();
     let partitions = SourcePartitions::new(rules, &source_plans, &bindings, hosted, &observations)?;
-    let operators = crate::application::file_dag::service::prepare(&plans, &bindings, hosted, derived.clone())?;
+    let operators = ryo_execution_store::application::file_dag::service::prepare(&plans, &bindings, hosted, derived.clone())?;
     let request = match identity {
         ObservationIdentity::Independent => {
             crate::domain::file_program::types::ObservationRequest::Independent
@@ -275,7 +275,7 @@ pub(crate) fn prepare(
     )?);
     walk.retain_program_consumers(&program)?;
     census::service::trace(rules, &walk, &program);
-    let derived = crate::application::file_dag::derived::prepared::RequestDerived::compile(&program)?;
+    let derived = ryo_execution_store::application::file_dag::derived::prepared::RequestDerived::compile(&program)?;
     let metadata =
         metadata::service::rules(&program, named.as_ref(), &plans, &observation_frontiers)?;
     let matchers = Arc::new(

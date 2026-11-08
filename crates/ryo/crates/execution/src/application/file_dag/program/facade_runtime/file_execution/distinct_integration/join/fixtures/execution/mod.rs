@@ -1,7 +1,7 @@
 //! The real file owner and its semantic port, invoked once per join observation.
 use super::super::super::*;
 use super::provider::{Provider, provider};
-use crate::application::file_dag::derived::owner::fixtures::resources::RecordedDerived;
+use ryo_execution_store::application::file_dag::derived::owner::fixtures::resources::RecordedDerived;
 use crate::domain::operating::fixtures::ExecutionObservation;
 use ryo_values::domain::compact_table::service::admit_compact;
 use ryo_values::domain::stored_facts::types::KeptWords;
@@ -85,7 +85,7 @@ pub(crate) fn execute(
 ) -> Result<Observation, OperatingError> {
     let target = request.emit.step;
     let has_frontier = !request.frontier.is_empty();
-    let derived: Arc<dyn crate::outbound::derived::interface::DerivedPort> = faults.derived.clone();
+    let derived: Arc<dyn ryo_execution_store::outbound::derived::interface::DerivedPort> = faults.derived.clone();
     let prepared = crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
             plans: vec![request],
@@ -156,14 +156,14 @@ pub(crate) fn execute(
         }],
         services,
         ryo_values::domain::files::types::SourceView(source),
-        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
+        ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible,
         symbols,
         None,
         None,
     )?;
     if let Some(limit) = faults.optional_limit {
         file.owner.derived().set_optional_limit(
-            crate::application::file_dag::derived::owner::index::types::ByteLimit(limit),
+            ryo_execution_store::application::file_dag::derived::owner::index::types::ByteLimit(limit),
         )?;
     }
     let mut prefix = Vec::new();

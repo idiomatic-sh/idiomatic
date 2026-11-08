@@ -66,7 +66,7 @@ fn build(
     // to this port; invalid columns must be refused by the port itself.
     let semantics = (std::sync::Arc::new(
         fixtures::derived(),
-    ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>);
+    ) as std::sync::Arc<dyn ryo_execution_store::outbound::derived::interface::DerivedPort>);
     let prepared = semantics.prepare(
         DerivedRequest::Adjacency {
             endpoints,

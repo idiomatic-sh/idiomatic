@@ -11,12 +11,12 @@ fn prepare_cycles(
     input: RepresentationInput<'_>,
     source: ColumnIndex,
     destination: ColumnIndex,
-) -> Result<super::super::derived::owner::acquisition::admission::service::AcquiredView, OperatingError> {
-    let owner = super::super::relations::RelationOwner::new(
-        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
+) -> Result<ryo_execution_store::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView, OperatingError> {
+    let owner = ryo_execution_store::application::file_dag::relations::RelationOwner::new(
+        ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible,
         (std::sync::Arc::new(
-            crate::application::file_dag::fixtures::derived(),
-        ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
+            ryo_execution_store::application::file_dag::fixtures::derived(),
+        ) as std::sync::Arc<dyn ryo_execution_store::outbound::derived::interface::DerivedPort>),
     );
     let RepresentationInput::Computed(table) = input else {
         panic!("computed fixture")
@@ -39,7 +39,7 @@ fn prepare_cycles(
     owner.derived().acquire_stored(
         &plan,
         &admitted,
-        super::super::derived::owner::ViewContext::default(),
+        ryo_execution_store::application::file_dag::derived::owner::ViewContext::default(),
         DerivedInputs::Rows(&[proof.rows()]),
         &mut DerivedScratch::default(),
         None,
@@ -50,13 +50,13 @@ fn prepare_closure(
     keys: &[ColumnIndex],
     source: ColumnIndex,
     destination: ColumnIndex,
-) -> Result<Vec<super::super::derived::owner::acquisition::admission::service::AcquiredView>, OperatingError>
+) -> Result<crate::application::file_dag::invocation::AcquiredPartitions, OperatingError>
 {
-    let owner = std::rc::Rc::new(super::super::relations::RelationOwner::new(
-        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
+    let owner = std::rc::Rc::new(ryo_execution_store::application::file_dag::relations::RelationOwner::new(
+        ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible,
         (std::sync::Arc::new(
-            crate::application::file_dag::fixtures::derived(),
-        ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
+            ryo_execution_store::application::file_dag::fixtures::derived(),
+        ) as std::sync::Arc<dyn ryo_execution_store::outbound::derived::interface::DerivedPort>),
     ));
     let RepresentationInput::Computed(table) = input else {
         return Err(OperatingError::WrongOperation);
@@ -64,7 +64,7 @@ fn prepare_closure(
     let publication = owner.computed(table.clone())?;
     let rows = owner.resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))?;
     let input = RepresentationInput::from(&rows);
-    let mut cursor = super::super::closure_partitions::schemas::prepare(
+    let mut cursor = ryo_execution_store::application::file_dag::closure_partitions::schemas::prepare(
         &publication,
         input,
         keys,
@@ -72,8 +72,8 @@ fn prepare_closure(
         destination,
         owner,
     )?;
-    let mut parts = Vec::new();
-    while cursor.advance()? == crate::application::file_dag::closure_partitions::types::PartitionAdvance::Advanced {
+    let mut parts = crate::application::file_dag::invocation::AcquiredPartitions::default();
+    while cursor.advance()? == ryo_execution_store::application::file_dag::closure_partitions::types::PartitionAdvance::Advanced {
         parts.push(cursor.take_current()?);
     }
     Ok(parts)
@@ -144,8 +144,8 @@ mod tests {
             ColumnIndex(2),
         )
         .unwrap();
-        assert_eq!(partitions.len(), 2);
         use crate::domain::operator::contract::views::ClosureParts;
+        assert_eq!(ClosureParts::len(&partitions), crate::domain::operator::contract::views::PartitionCount(2));
         let first = ClosureParts::get(
             &partitions,
             crate::domain::operator::contract::views::PartitionIndex(0),

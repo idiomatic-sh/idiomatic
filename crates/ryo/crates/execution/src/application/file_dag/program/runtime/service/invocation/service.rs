@@ -41,7 +41,7 @@ impl ProgramExecution {
             return Err(OperatingError::NotRead);
         }
         let _node_origin =
-            crate::application::file_dag::route_counts::node(self.owner.routes(), id.0);
+            ryo_execution_store::application::file_dag::route_counts::node(self.owner.routes(), id.0);
         self.cleanup_status()?;
         let region = self
             .program

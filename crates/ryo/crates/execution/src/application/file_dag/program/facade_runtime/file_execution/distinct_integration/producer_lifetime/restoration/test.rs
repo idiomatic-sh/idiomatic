@@ -1,9 +1,7 @@
 //! Restored computation holds its real backing through last use; copied delivery needs no index.
 use super::super::super::*;
 use super::fixtures::{BoundSupply, CapturedProject, Exit};
-use crate::application::file_dag::derived::owner::witness::service::{
-    BackingIdentity, BackingLiveness,
-};
+use ryo_execution_store::application::file_dag::derived::owner::witness::service::{BackingIdentity, BackingLiveness};
 use crate::application::file_dag::program::facade_runtime::project_execution::{
     ProjectRoot, evaluate_roots,
 };
