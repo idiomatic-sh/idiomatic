@@ -4,7 +4,10 @@ import collections
 import contextlib
 import hashlib
 import json
+import io
 import shutil
+import subprocess
+import tarfile
 import tempfile
 from pathlib import Path
 import tomllib
@@ -13,6 +16,7 @@ from authoring import profile_config
 from authoring import profile_proofs
 from authoring import native_standalone
 from authoring import profile_sources
+from authoring import profile_worker
 from authoring import reference_discrepancies
 
 def stage_directory(name: str, stack: contextlib.ExitStack, output_directory: Path | None) -> Path:
@@ -258,3 +262,48 @@ def combined_filename(rule: str, descriptor: dict[str, object], *names: str) -> 
     if len(candidates) != 1:
         raise ValueError(f'combined profile must seal exactly one {names} source for {rule}')
     return candidates[0]
+
+MEASURED_INPUTS = ('rules', 'fragments', 'benchmark.toml')
+
+def staged_digest(profile_root: Path) -> str:
+    """The digest a measurement receipt records: the sha256 of the lines `<sha256>  <path>` of every staged file, in path order."""
+    return hashlib.sha256(''.join(f'{digest}  {path}\n' for path, digest in sorted(profile_worker.staged_hashes(profile_root).items())).encode()).hexdigest()
+
+def stage_measurement_request(pinned_request: Path, source: str, output_directory: Path, cache: Path) -> dict[str, object]:
+    """Stage rules, fragments and benchmark.toml from the measured source commit and build the run-ryo request over them.
+
+    The corpus side (root, files, context manifest, project inventory) is the pinned request's; every rule-side field is
+    read from the staged benchmark.toml, never from the pinned request or an earlier staged copy."""
+    commit = subprocess.run(['git', '-C', str(profile_config.REPOSITORY), 'rev-parse', '--verify', f'{source}^{{commit}}'], check=True, capture_output=True, text=True).stdout.strip()
+    prefix = profile_config.RUFF_DIR.relative_to(profile_config.REPOSITORY).as_posix()
+    archive = subprocess.run(['git', '-C', str(profile_config.REPOSITORY), 'archive', '--format=tar', commit, *(f'{prefix}/{name}' for name in MEASURED_INPUTS)], check=True, capture_output=True).stdout
+    profile_root = output_directory / 'profile'
+    profile_root.mkdir(parents=True, exist_ok=False)
+    with tarfile.open(fileobj=io.BytesIO(archive)) as members:
+        for member in members.getmembers():
+            if not member.isfile():
+                continue
+            destination = profile_root / Path(member.name).relative_to(prefix)
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(members.extractfile(member).read())
+    profile = tomllib.loads((profile_root / 'benchmark.toml').read_text(encoding='utf-8'))
+    request = json.loads(pinned_request.read_text(encoding='utf-8'))
+    request.update({
+        'cache': str(cache),
+        'rules': str(profile_root / 'rules'),
+        'selected_rules': profile['defaults'],
+        'rule_applicability': profile['rule-applicability'],
+        'query_modules': profile['query-modules'],
+        'rule_observations': profile['rule-observations'],
+        'rule_context': {'tables': profile['rule-context']['tables'], 'configuration': profile['rule-context']['defaults']},
+        'parser_configuration': profile['parser-configuration'],
+        'project_context_mode': profile['project-context-mode'],
+        'project_search_roots': profile['project-search-roots'],
+        'performance': {'diagnostics': request['performance']['diagnostics']},
+    })
+    (output_directory / 'request.json').write_text(json.dumps(request), encoding='utf-8')
+    receipt = {'source_commit': commit, 'staged': list(MEASURED_INPUTS), 'staged_files': len(profile_worker.staged_hashes(profile_root)),
+               'staged_digest': staged_digest(profile_root), 'pinned_request': str(pinned_request), 'pinned_request_sha256': profile_config.sha256(pinned_request),
+               'request_sha256': profile_config.sha256(output_directory / 'request.json')}
+    profile_config.atomic_json_write(output_directory / 'staged.json', receipt)
+    return receipt
