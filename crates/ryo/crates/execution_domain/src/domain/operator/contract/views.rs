@@ -48,7 +48,7 @@ impl ProgressObserver for IgnoredProgress {
 }
 
 /// Exact typed key lookup prepared by the engine; primitives only probe it.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 pub struct IndexedRows<'a> {
     /// The observer the probes report their work to.
     #[cfg(feature = "diagnostic-row-progress")]
@@ -156,7 +156,7 @@ pub struct PartitionCount(pub usize);
 pub struct PartitionIndex(pub usize);
 
 /// The closure partitions an operation reads.
-#[derive(Clone, Copy, Default, Debug)]
+#[derive(Clone, Copy, Default)]
 pub enum ClosureViews<'a> {
     /// No partition.
     #[default]
@@ -340,7 +340,7 @@ pub(crate) struct JoinCursor<'f> {
 }
 
 /// The axis resources one walk runs over: none, a tree of elements, or an index of edges with its domain.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 pub enum PreparedAxis<'a> {
     /// No resource.
     Empty,

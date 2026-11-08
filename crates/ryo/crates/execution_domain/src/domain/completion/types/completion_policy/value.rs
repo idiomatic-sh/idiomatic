@@ -14,7 +14,7 @@ use ryo_relations::domain::relations::types::FileId;
 use ryo_values::domain::{plans::types::Operation, rows::types::Table};
 
 use super::super::{CoverageState, ObservationAdmission, RegionAdmission, ScopeIdentity};
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 enum CompletionBehavior {
     /// A file scope's behaviour: the file it blocks is the one it runs over, so a blocked read names it.
     BlockBeforeRun(FileId, std::sync::Arc<[Partial]>),

@@ -2,6 +2,7 @@
 pub mod source_partitions;
 
 /// Number of immutable hosted relation snapshots.
+#[derive(Debug)]
 pub(crate) struct HostedCount(pub usize);
 /// Exact declaration invariant that failed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

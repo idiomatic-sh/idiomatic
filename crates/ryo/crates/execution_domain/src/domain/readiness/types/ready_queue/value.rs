@@ -16,6 +16,7 @@ enum State {
     Ready,
     Terminal,
 }
+#[derive(Debug)]
 struct Entry {
     state: State,
     waiters: Vec<RegionId>,

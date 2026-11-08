@@ -243,7 +243,6 @@ pub trait PrimitiveResources {
 
 /// Only row-varying context is assembled at row delivery. Acquired resources
 /// remain in the invocation and are reached through a borrowed reader.
-#[derive(Debug)]
 pub struct PrimitiveViews<'a> {
     /// Whether the operation runs after the files of the request.
     pub phase: crate::domain::operating::types::AfterTheFiles,
@@ -298,7 +297,6 @@ pub struct FoundRows(pub u64);
 #[derive(Default, Debug)]
 pub struct WorkCounters(pub(super) [std::cell::Cell<u64>; 3]);
 /// The borrowed context one primitive evaluation reaches its capabilities through.
-#[derive(Debug)]
 pub struct PrimitiveLease<'a> {
     pub(crate) views: PrimitiveViews<'a>,
     pub(crate) workspace: &'a mut PrimitiveWorkspace,

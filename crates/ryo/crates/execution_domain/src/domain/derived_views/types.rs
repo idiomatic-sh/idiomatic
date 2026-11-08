@@ -147,7 +147,7 @@ pub enum DerivedInputs<'a, 's> {
     },
 }
 /// The buffers a derived build reuses between builds.
-#[derive(Default, Debug)]
+#[derive(Default)]
 pub struct DerivedScratch {
     /// The derived crate's build workspace.
     pub semantic: ryo_derived::domain::contract::types::BuildWorkspace,

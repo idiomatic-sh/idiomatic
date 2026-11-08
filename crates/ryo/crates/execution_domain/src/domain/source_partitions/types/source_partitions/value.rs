@@ -15,6 +15,7 @@ use ryo_values::domain::{
 };
 
 type Declaration = Result<PartitionRequirement, OperatingError>;
+#[derive(Debug)]
 struct RulePartitions {
     parameters: Vec<Declaration>,
     observations: Vec<Declaration>,

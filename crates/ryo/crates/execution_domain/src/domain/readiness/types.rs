@@ -9,6 +9,7 @@ pub struct RegionCount(pub usize);
 #[cfg(test)]
 pub(crate) struct ReadinessEntryCount(pub usize);
 /// Admissions currently parked on a real producer.
+#[derive(Debug)]
 pub(crate) struct WaitingCount(pub usize);
 
 /// What the admission interpreter does for a region whose inputs are ready.
