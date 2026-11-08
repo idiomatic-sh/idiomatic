@@ -41,7 +41,17 @@ def main() -> int:
     parser.add_argument('--output-dir', type=Path, help='persist staged repro inputs, identities, exit status, stdout and stderr')
     parser.add_argument('--reference-only', action='store_true', help='check sealed expected findings with Ruff only')
     parser.add_argument('--self-test', action='store_true', help='exercise fail-closed profile guards without running Cargo')
+    parser.add_argument('--stage-request', type=Path, metavar='PINNED_REQUEST', help='stage rules, fragments and benchmark.toml from --source into a fresh --output-dir and build a run-ryo request over the corpus of PINNED_REQUEST; prints the staged digest')
+    parser.add_argument('--source', default='HEAD', help='the measured source commit --stage-request stages from (default: HEAD)')
+    parser.add_argument('--cache', type=Path, help='the store directory the staged request names (default: <output-dir>/cache)')
     arguments = parser.parse_args()
+    if arguments.stage_request is not None:
+        if arguments.output_dir is None or arguments.output_dir.exists():
+            parser.error('--stage-request requires a fresh --output-dir')
+        output_directory = arguments.output_dir.resolve()
+        receipt = profile_staging.stage_measurement_request(arguments.stage_request.resolve(strict=True), arguments.source, output_directory, (arguments.cache or output_directory / 'cache').resolve())
+        print(json.dumps(receipt, indent=2))
+        return 0
     inventory_default = not (arguments.prepared or arguments.profile or arguments.native_standalone or arguments.self_test or arguments.self_test_native_standalone)
     if arguments.full_inventory or inventory_default:
         if arguments.ruff is None or arguments.output_dir is None or (arguments.worker is not None and arguments.reuse_worker_from is not None) or (arguments.rule_timeout <= 0) or arguments.profile or arguments.native_standalone or arguments.reference_only or arguments.resume or (arguments.shards is not None) or (arguments.workers is not None) or arguments.parity_check or arguments.prepared or (arguments.full_inventory and arguments.rules):
