@@ -3,7 +3,6 @@
 
 //! Ryo's sole execution owner; public callers enter through its inbound use case.
 pub mod application;
-mod domain;
 pub mod inbound;
 pub mod outbound;
 

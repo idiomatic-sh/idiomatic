@@ -13,18 +13,16 @@ autobenches = false
 name = "ryo_execution"
 
 [dependencies]
+ryo_execution_domain = { package = "idiomatic-sh-ryo-execution-domain", path = "../execution_domain", version = "0.1.2" }
 ryo_matching = { package = "idiomatic-sh-ryo-matching", path = "../matching", version = "0.1.2" }
 ryo_derived = { package = "idiomatic-sh-ryo-derived", path = "../derived", version = "0.1.2" }
 ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations", version = "0.1.2" }
 thiserror.workspace = true
 ignore.workspace = true
 rayon.workspace = true
-memchr.workspace = true
-num-bigint.workspace = true
 serde.workspace = true
 blake3.workspace = true
 hashbrown.workspace = true
-heck.workspace = true
 rustc-hash.workspace = true
 sysinfo.workspace = true
 tracing.workspace = true
@@ -61,8 +59,8 @@ name = "bdd"
 harness = false
 
 [features]
-fixtures = ["ryo_values/fixtures", "ryo_relations/fixtures", "ryo_language/fixtures"]
-diagnostic-row-progress = []
+fixtures = ["ryo_execution_domain/fixtures", "ryo_values/fixtures", "ryo_relations/fixtures", "ryo_language/fixtures"]
+diagnostic-row-progress = ["ryo_execution_domain/diagnostic-row-progress"]
 
 [lints]
 workspace = true
