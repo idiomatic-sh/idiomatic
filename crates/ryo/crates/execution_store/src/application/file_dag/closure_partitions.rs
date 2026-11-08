@@ -20,7 +20,7 @@ pub struct PartitionedClosure<'f> {
     partition_plan: Arc<DerivedContract>,
     closure_plan: Arc<DerivedContract>,
     ordered: AcquiredView,
-    #[cfg(test)]
+    #[cfg(any(test, feature = "fixtures"))]
     ordering_capacity: crate::application::file_dag::derived::owner::acquisition::admission::types::PartitionCapacity,
     cursor: OrderCursor,
     key: Vec<Value>,

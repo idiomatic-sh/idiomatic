@@ -46,7 +46,7 @@ impl Default for Ledger {
 }
 
 impl Ledger {
-    #[cfg(test)]
+    #[cfg(any(test, feature = "fixtures"))]
     pub(super) fn backing_count(&self, tag: BackingTag) -> BackingCount {
         BackingCount(self.entries.keys().filter(|key| key.tag == tag).count())
     }

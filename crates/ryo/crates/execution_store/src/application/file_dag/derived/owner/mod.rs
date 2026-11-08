@@ -106,7 +106,7 @@ pub struct DerivedOwner {
     identity: Arc<()>,
     semantic: types::DerivedAccess,
     next_scope: std::cell::Cell<ScopeId>,
-    #[cfg(test)]
+    #[cfg(any(test, feature = "fixtures"))]
     last_scoped_storage: RefCell<Weak<DerivedStorage>>,
     ledger: std::rc::Rc<RefCell<super::ledger::types::Ledger>>,
     backend: RefCell<Option<CacheBackend>>,
@@ -136,7 +136,7 @@ impl DerivedOwner {
             identity: Arc::new(()),
             semantic: semantic.into(),
             next_scope: std::cell::Cell::new(ScopeId(0)),
-            #[cfg(test)]
+            #[cfg(any(test, feature = "fixtures"))]
             last_scoped_storage: RefCell::new(Weak::new()),
             ledger: std::rc::Rc::new(RefCell::new(super::ledger::types::Ledger::default())),
             state: RefCell::new(State::default()),

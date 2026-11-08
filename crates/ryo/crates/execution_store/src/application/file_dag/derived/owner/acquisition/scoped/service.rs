@@ -35,7 +35,7 @@ impl DerivedOwner {
         .ok_or(OperatingError::WrongOperation)?;
         let _checked = storage.view()?;
         let storage = Arc::new(storage);
-        #[cfg(test)]
+        #[cfg(any(test, feature = "fixtures"))]
         self.last_scoped_storage.replace(Arc::downgrade(&storage));
         let mut backings = DerivedStorage::backings(&storage)?.to_vec();
         let id = self.next_scope.get().0;

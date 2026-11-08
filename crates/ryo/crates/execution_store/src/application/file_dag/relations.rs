@@ -118,7 +118,7 @@ impl RelationOwner {
     ) -> Self {
         Self::with_limits(stable, PinnedViewCount(1024), semantic, routes)
     }
-    #[cfg(test)]
+    #[cfg(any(test, feature = "fixtures"))]
     pub(crate) fn for_request(
         stable: ReuseEligibility,
         views: PinnedViewCount,
