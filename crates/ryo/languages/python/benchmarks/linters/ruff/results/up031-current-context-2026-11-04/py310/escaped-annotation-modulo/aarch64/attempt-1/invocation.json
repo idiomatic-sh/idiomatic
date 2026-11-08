@@ -17,7 +17,8 @@
   "context_derivation": {
     "changes": [
       "profile includes explicit query-module declarations; reference argv unchanged",
-      "normalized settings adds typed default performance; reference argv/environment/directory/source/process bytes unchanged"
+      "normalized settings adds typed default performance; reference argv/environment/directory/source/process bytes unchanged",
+      "normalized settings drops the retired engine options column_kernel and node_result_reuse (their defaults false and disabled); reference argv/environment/directory/source/process bytes unchanged"
     ],
     "kind": "canonical-invocation-context-rebind",
     "not_a_new_process_capture": true,
@@ -58,7 +59,6 @@
     },
     "parser_configuration": "python-target=3.10",
     "performance": {
-      "column_kernel": false,
       "diagnostics": {
         "execution": false,
         "joins": false,
@@ -69,14 +69,13 @@
         "selection_detail": false,
         "steps": false,
         "subplans": false
-      },
-      "node_result_reuse": "disabled"
+      }
     },
     "project_context_mode": "Isolated"
   },
   "observer_no_deadline": true,
   "profile_sha256": "26b273ef64f63ef1b9ab7d4215d8f1a90e43f100eb240d3ebff5daee896eeffa",
-  "settings_sha256": "f8273f7a69b58a994557e81c0de5832b0a665a65fe569311d97779c3b6dc9689",
+  "settings_sha256": "094d4a1b3c5b7caeedb4869d8cbd4d372508cbac59732c0f853b5a8015087ec2",
   "signal": null,
   "source_sha256": "37d8c29ceaf683cbd160d3b919f5cc8a38ebb7d5a28ada2db77203cba91a0191",
   "state": "/tmp/.tmpFiHmpA/cache/UP031/0",
