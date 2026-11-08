@@ -150,6 +150,7 @@ impl EngineExecution for LocalEngineSession<'_> {
                 (Corpus::Listed(request.files.clone()), sources)
             }
         };
+        let retained_rules: std::collections::BTreeSet<RuleId> = rules.keys().cloned().collect();
         let engine = linter::Linter::new(
             adapter.languages.clone(),
             pool,
@@ -197,12 +198,18 @@ impl EngineExecution for LocalEngineSession<'_> {
         let input_files: std::collections::BTreeSet<_> = accepted.iter().cloned().collect();
         super::schemas::validate_skips(
             &report.skipped,
-            &selected_rules,
+            &retained_rules,
             &request.rule_applicability,
             &input_files,
             adapter.frontend_diagnostic.is_some(),
         )?;
-        let skips_count = report.skipped.len();
+        // A producer kept only for a selected rule answers no file, so its skips are reported no more than its findings are.
+        let skipped: Vec<linter::Skipped> = report
+            .skipped
+            .into_iter()
+            .filter(|skip| selected_rules.contains(&skip.rule))
+            .collect();
+        let skips_count = skipped.len();
         let diagnostics = diagnostic_findings(report.findings)?;
         let dependencies = report.dependencies;
         Ok(EngineRun { dependencies, report: RunReport {
@@ -210,7 +217,7 @@ impl EngineExecution for LocalEngineSession<'_> {
                 ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete,
             project_context: ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
             diagnostics,
-            skipped: report.skipped,
+            skipped,
             coverage: ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(
                 ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
                     selected: PairCount(selected_pairs),

@@ -75,17 +75,16 @@ fn is_file_kind(kind: CellKind) -> Keying {
 /// The column of the answer that says which file a row is in, when the operator keys by one.
 fn file_key(operation: &Operation, probed: &[CellKind], out: &Table) -> Option<KeyColumn> {
     match operation {
-        Operation::Antijoin {
-            left_on, right_on, ..
-        } => left_on
+        // The answer of an antijoin is its left rows, and a key pair holds equal values, so the left key a file or node lies in
+        // is read from the answer's own kinds; `probed` is the right operand's schema in one caller and the answer's in the other.
+        Operation::Antijoin { left_on, .. } => left_on
             .iter()
-            .zip(right_on)
-            .find(|(_, right)| {
-                probed
-                    .get(usize::try_from(right.0).unwrap_or(usize::MAX))
+            .find(|left| {
+                out.kinds
+                    .get(usize::try_from(left.0).unwrap_or(usize::MAX))
                     .is_some_and(|kind| is_file_kind(*kind) == Keying::ByFile)
             })
-            .map(|(left, _)| KeyColumn(usize::try_from(left.0).unwrap_or(usize::MAX))),
+            .map(|left| KeyColumn(usize::try_from(left.0).unwrap_or(usize::MAX))),
         Operation::Difference { .. } => out
             .kinds
             .iter()
@@ -170,13 +169,24 @@ pub(crate) fn drop_uncertain(
 
 /// Drops from `out` the rows that missing rows of the inapplicable `files` (sorted, once each) could change. A file no language
 /// reads, or whose syntax a rule skipped, is out of scope for a count not keyed by file, so such a count withholds nothing on its
-/// account; an absence check (an antijoin, a difference) still treats the file as unavailable.
+/// account; an absence check (an antijoin, a difference) still treats the file as unavailable. An operator that answers from no
+/// absence of rows (a join, a union, a selection, a hosted relation) only lacks the rows the file would have added, so the rows it
+/// has stand and none is dropped.
 pub(crate) fn drop_inapplicable(
     operation: &Operation,
     probed: &[CellKind],
     out: &mut Table,
     files: &[FileId],
 ) {
+    if crate::domain::operator::contract::service::semantics(
+        ryo_values::domain::plans::service::kind_of(operation),
+    )
+    .absence
+    .0
+        == 0
+    {
+        return;
+    }
     let width = out.kinds.len();
     let counts = matches!(
         operation,
