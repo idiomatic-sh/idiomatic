@@ -1,4 +1,5 @@
-//! Literal metadata and dynamic patterns are exercised through real prepared file owners.
+//! Literal metadata and dynamic patterns are exercised through real prepared file owners; the runtime proves which of them
+//! enter the invocation's local caches.
 use super::super::super::fixtures;
 use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
 use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
@@ -90,15 +91,9 @@ fn evaluate(
     engine: &fixtures::requests::Preparation,
     program: &PreparedExecutionProgram,
     symbols: &mut Symbols,
-) -> Result<(Table, usize, usize), Failure> {
+) -> Result<Table, Failure> {
     let read = |_| Err(OperatingError::NotRead);
-    let (table, observed) =
-        fixtures::requests::run_prepared(engine, program, b"", &Elements::default(), symbols, &read)?;
-    assert!(
-        observed.file_owner_released,
-        "actual file-owner weak handle is dead after finish, so mandatory workspace references were released"
-    );
-    Ok((table, observed.regexes, observed.globs))
+    fixtures::requests::run_prepared(engine, program, b"", &Elements::default(), symbols, &read)
 }
 fn builds(program: &PreparedExecutionProgram) -> usize {
     program.matchers().builds.load(Ordering::Relaxed)
@@ -125,19 +120,14 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 assert_eq!(builds(&program), 0);
                 for _file in 0..3 {
                     let actual = evaluate(&engine, &program, &mut symbols)?;
-                    assert_eq!(
-                        (actual.1, actual.2),
-                        (0, 0),
-                        "finite literal slots never enter local invocation caches"
-                    );
                     if replaced {
                         // Replace appends one literal replacement cell and keeps its input.
                         let value = intern_derived(&mut symbols, ByteSlice(b""), NameText("a$1b"));
-                        assert_eq!(actual.0.count, input.count);
-                        assert_eq!(actual.0.kinds, [CellKind::Symbol, CellKind::Symbol]);
-                        assert_eq!(actual.0.cells, [input.cells[0], Cell::Symbol(value)]);
+                        assert_eq!(actual.count, input.count);
+                        assert_eq!(actual.kinds, [CellKind::Symbol, CellKind::Symbol]);
+                        assert_eq!(actual.cells, [input.cells[0], Cell::Symbol(value)]);
                     } else {
-                        assert_eq!(actual.0, input);
+                        assert_eq!(actual, input);
                     }
                 }
                 assert_eq!(
@@ -158,7 +148,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             for operation in [&invalid, &replace] {
                 let (engine, program, mut symbols, _) =
                     prepare(operation.clone(), None, &[], operation)?;
-                assert_eq!(evaluate(&engine, &program, &mut symbols)?.0.count.0, 0);
+                assert_eq!(evaluate(&engine, &program, &mut symbols)?.count.0, 0);
                 assert_eq!(builds(&program), 0);
                 let (engine, program, mut symbols, _) =
                     prepare(operation.clone(), Some("actual"), &[], operation)?;
@@ -186,7 +176,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 comparisons.extend(tail.clone());
             }
             let (engine, program, mut symbols, _) = prepare(short, Some("actual"), &[], &invalid)?;
-            assert_eq!(evaluate(&engine, &program, &mut symbols)?.0.count.0, 0);
+            assert_eq!(evaluate(&engine, &program, &mut symbols)?.count.0, 0);
             assert_eq!(
                 builds(&program),
                 0,
@@ -210,7 +200,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                     .as_ref()
                     .expect("the prepared literal matcher compiled");
                 let actual = evaluate(&engine, &program, &mut symbols)?;
-                assert_eq!((actual.0.count.0, actual.1), (expected, 1));
+                assert_eq!(actual.count.0, expected);
                 assert_eq!(
                     builds(&program),
                     1,
@@ -241,7 +231,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                     .as_ref()
                     .expect("the prepared literal matcher compiled");
                 let actual = evaluate(&engine, &program, &mut symbols)?;
-                assert_eq!((actual.0.count.0, actual.1), (1, 1));
+                assert_eq!(actual.count.0, 1);
                 assert_eq!(builds(&program), 1);
             }
             let shadow = select(Test::GlobAny, "a*");
@@ -260,7 +250,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                     prepare(lists.clone(), Some("alpha"), &bindings, &shadow)?;
                 assert!(program.matchers().glob(Test::GlobAny, ryo_execution_domain::domain::table_texts::types::TextView("a*"), ryo_execution_runtime::application::file_dag::fixtures::pattern_matcher()).is_some());
                 let actual = evaluate(&engine, &program, &mut symbols)?;
-                assert_eq!((actual.0.count.0, actual.2), (expected, 1));
+                assert_eq!(actual.count.0, expected);
                 assert_eq!(builds(&program), 1);
             }
         }
@@ -275,7 +265,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                     prepare(operation.clone(), Some("αβ"), &[], &operation)?;
                 for _file in 0..2 {
                     let actual = evaluate(&engine, &program, &mut symbols)?;
-                    assert_eq!((actual.0.count.0, actual.1, actual.2), (expected, 0, 0));
+                    assert_eq!(actual.count.0, expected);
                 }
                 assert_eq!(builds(&program), 1);
             }

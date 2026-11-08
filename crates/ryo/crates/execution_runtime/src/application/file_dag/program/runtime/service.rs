@@ -5,7 +5,7 @@ use super::types::{
 };
 #[cfg(test)]
 use super::types::{ProducerLeaseEvent, ReaderInitializations};
-#[cfg(any(test, feature = "fixtures"))]
+#[cfg(test)]
 use super::types::CallCount;
 use crate::application::file_dag::program::admission::AdmittedInput;
 use crate::application::file_dag::program::admission::AvailableInput;
@@ -107,9 +107,9 @@ struct ProducerLeaseProbe {
     events: Vec<ProducerLeaseEvent>,
 }
 struct Slot {
-    #[cfg(any(test, feature = "fixtures"))]
+    #[cfg(test)]
     observed: ryo_execution_domain::domain::operating::fixtures::ExecutionObservation,
-    #[cfg(any(test, feature = "fixtures"))]
+    #[cfg(test)]
     registered_calls: CallCount,
     state: State,
     scratch: Vec<KernelScratch>,
@@ -248,7 +248,7 @@ mod evaluation;
 mod invocation;
 mod permits;
 mod physical;
-#[cfg(any(test, feature = "fixtures"))]
+#[cfg(test)]
 mod probes;
 mod scheduling;
 mod state;

@@ -68,7 +68,6 @@ fn compute(
         bindings.to_vec(),
         &mut Symbols::default(),
     )?
-    .0
     .count
     .0)
 }
@@ -203,8 +202,8 @@ fn walks_with_two_inputs() -> Result<Value, OperatingError> {
     )
     .map(|kinds| kinds.len())
 }
-/// A sparse computed-edge walk retains payloads, crosses non-domain nodes and
-/// visits no unrelated component, including equal local positions in another file.
+/// A sparse computed-edge walk retains payloads and crosses non-domain nodes,
+/// including equal local positions in another file; the runtime proves its visits.
 fn sparse_computed_walk_work_is_rooted() -> Result<Value, OperatingError> {
     let mut symbols = Symbols::default();
     for unrelated in [0_u32, 64, 4096] {
@@ -236,7 +235,7 @@ fn sparse_computed_walk_work_is_rooted() -> Result<Value, OperatingError> {
                 push_row(&mut starts, &[node(1), Cell::Number(Integer(payload))]);
             }
             let domain = node_table([1, 2, 3]);
-            let (out, observation) = fixtures::requests::table_request(
+            let out = fixtures::requests::table_request(
                 axis(Direction::Descendant, vec![], vec![]),
                 &[&starts, &edges, &domain],
                 vec![],
@@ -249,10 +248,7 @@ fn sparse_computed_walk_work_is_rooted() -> Result<Value, OperatingError> {
                     expected.extend([node(1), Cell::Number(Integer(payload)), node(*target)]);
                 }
             }
-            if out.cells != expected
-                || out.count.0 != 2 * expected_targets.len()
-                || observation.closure_visited != if cycle { 4 } else { 3 }
-            {
+            if out.cells != expected || out.count.0 != 2 * expected_targets.len() {
                 return Ok(0);
             }
         }

@@ -9,7 +9,7 @@ pub(crate) mod service;
 mod views;
 use index::IndexResource;
 use prepared_use::service::prepared;
-#[cfg(any(test, feature = "fixtures"))]
+#[cfg(test)]
 mod observation;
 use ryo_execution_domain::domain::operating::{errors::OperatingError, types::OperatorContext};
 use ryo_execution_domain::domain::operator::contract::{

@@ -6,7 +6,6 @@ use ryo_relations::domain::relations::types::Relation;
 use ryo_relations::domain::relations::types::Value as Cell;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_domain::domain::operating::fixtures::ExecutionObservation;
 use ryo_relations::domain::relations::types::Integer;
 use ryo_values::cases::Case;
 use ryo_values::cases::CaseName;
@@ -45,24 +44,21 @@ fn numbers(rows: &[&[i64]]) -> Table {
     }
     table
 }
-/// The caller receives the measured completed owner; it never supplies workspace or a permit.
-fn compute_with_observation(
+/// The caller receives the completed owner's answer; it never supplies workspace or a permit.
+fn table(
     operation: &Operation,
     inputs: &[&Table],
     bindings: &[ParameterBinding],
-    observed: &mut ExecutionObservation,
 ) -> Result<Table, OperatingError> {
-    let (table, actual) = fixtures::requests::table_request(
+    fixtures::requests::table_request(
         operation.clone(),
         inputs,
         bindings.to_vec(),
         &mut Symbols::default(),
-    )?;
-    *observed = actual;
-    Ok(table)
+    )
 }
-fn closure(edges: &Table, observation: &mut ExecutionObservation) -> Result<Table, OperatingError> {
-    compute_with_observation(
+fn closure(edges: &Table) -> Result<Table, OperatingError> {
+    table(
         &Operation::Closure {
             edges: FROM,
             keys: Vec::new(),
@@ -71,7 +67,6 @@ fn closure(edges: &Table, observation: &mut ExecutionObservation) -> Result<Tabl
         },
         &[edges],
         &[],
-        observation,
     )
 }
 fn assert_pairs(out: &Table, expected: &[[i64; 2]]) {
@@ -98,9 +93,8 @@ fn assert_pairs(out: &Table, expected: &[[i64; 2]]) {
 fn grouped(
     edges: &Table,
     keys: &[u32],
-    observation: &mut ExecutionObservation,
 ) -> Result<Table, OperatingError> {
-    compute_with_observation(
+    table(
         &Operation::Closure {
             edges: FROM,
             keys: keys.iter().copied().map(column).collect(),
@@ -109,7 +103,6 @@ fn grouped(
         },
         &[edges],
         &[],
-        observation,
     )
 }
 fn assert_rows(out: &Table, width: usize, expected: &[&[i64]]) {
@@ -136,7 +129,6 @@ fn partitions_do_not_cross() -> Result<Value, OperatingError> {
     let out = grouped(
         &numbers(&[&[1, 2, 10], &[2, 3, 20], &[2, 4, 10], &[1, 2, 10]]),
         &[2],
-        &mut ExecutionObservation::default(),
     )?;
     assert_rows(
         &out,
@@ -154,7 +146,6 @@ fn multiple_partition_keys_keep_argument_order() -> Result<Value, OperatingError
             &[1, 1, 20, 100],
         ]),
         &[3, 2],
-        &mut ExecutionObservation::default(),
     )?;
     assert_rows(
         &out,
@@ -181,7 +172,6 @@ fn partitioned_cycles_and_disconnected_starts() -> Result<Value, OperatingError>
             &[1, 4, 10],
         ]),
         &[2],
-        &mut ExecutionObservation::default(),
     )?;
     assert_rows(
         &out,
@@ -204,25 +194,22 @@ fn partitioned_cycles_and_disconnected_starts() -> Result<Value, OperatingError>
 }
 fn partitioned_empty_and_unpartitioned_owners_keep_exact_outputs() -> Result<Value, OperatingError>
 {
-    let mut observation = ExecutionObservation::default();
     let partitioned = grouped(
         &numbers(&[&[1, 2, 10], &[2, 3, 20]]),
         &[2],
-        &mut observation,
     )?;
     assert_rows(&partitioned, 3, &[&[10, 1, 2], &[20, 2, 3]]);
-    let ordinary = closure(&numbers(&[&[1, 2], &[2, 3]]), &mut observation)?;
+    let ordinary = closure(&numbers(&[&[1, 2], &[2, 3]]))?;
     assert_pairs(&ordinary, &[[1, 2], [1, 3], [2, 3]]);
     let empty = Table {
         kinds: vec![CellKind::Number; 3],
         ..Table::default()
     };
-    let empty_output = grouped(&empty, &[2], &mut observation)?;
+    let empty_output = grouped(&empty, &[2])?;
     assert_rows(&empty_output, 3, &[]);
-    assert_eq!(observation.closure_partition_rows, 0);
-    let later_partition = grouped(&numbers(&[&[8, 9, 30]]), &[2], &mut observation)?;
+    let later_partition = grouped(&numbers(&[&[8, 9, 30]]), &[2])?;
     assert_rows(&later_partition, 3, &[&[30, 8, 9]]);
-    let unpartitioned = grouped(&numbers(&[&[1, 2], &[2, 3]]), &[], &mut observation)?;
+    let unpartitioned = grouped(&numbers(&[&[1, 2], &[2, 3]]), &[])?;
     assert_pairs(&unpartitioned, &[[1, 2], [1, 3], [2, 3]]);
     Ok(unpartitioned.count.0)
 }
@@ -248,7 +235,7 @@ fn file_partitions_keep_reused_node_ids_separate() -> Result<Value, OperatingErr
             Cell::File(FileId(20)),
         ],
     );
-    let out = grouped(&edges, &[2], &mut ExecutionObservation::default())?;
+    let out = grouped(&edges, &[2])?;
     assert_eq!(out.kinds, [CellKind::File, CellKind::Node, CellKind::Node]);
     assert_eq!(out.count.0, 2);
     assert!(
@@ -263,14 +250,14 @@ fn endpoints_are_checked_on_empty_partition_input() -> Result<Value, OperatingEr
         kinds: vec![CellKind::Number],
         ..Table::default()
     };
-    grouped(&empty, &[0], &mut ExecutionObservation::default()).map(|out| out.count.0)
+    grouped(&empty, &[0]).map(|out| out.count.0)
 }
 fn partition_columns_are_checked_on_empty_input() -> Result<Value, OperatingError> {
     let empty = Table {
         kinds: vec![CellKind::Number; 2],
         ..Table::default()
     };
-    grouped(&empty, &[9], &mut ExecutionObservation::default()).map(|out| out.count.0)
+    grouped(&empty, &[9]).map(|out| out.count.0)
 }
 fn many_tiny_partitions_bound_working_graph_and_output() -> Result<Value, OperatingError> {
     let n = 2048;
@@ -291,21 +278,11 @@ fn many_tiny_partitions_bound_working_graph_and_output() -> Result<Value, Operat
             );
         }
     }
-    let mut observation = ExecutionObservation::default();
-    let out = grouped(&edges, &[2], &mut observation)?;
+    let out = grouped(&edges, &[2])?;
     assert_eq!(
         out.count.0,
         4 * usize::try_from(n).expect("positive partition count")
     );
-    assert!(
-        observation.closure_partition_rows <= 3,
-        "all simultaneously live adjacency tables must fit one three-row partition"
-    );
-    assert!(
-        observation.closure_partition_capacity < 64,
-        "aggregate live Value capacity (adjacency, keys, sources and work rows), not only the last partition"
-    );
-    assert!(observation.closure_visited <= 4);
     let mut rows: Vec<_> = out.cells.chunks_exact(3).collect();
     rows.sort_unstable();
     rows.dedup();

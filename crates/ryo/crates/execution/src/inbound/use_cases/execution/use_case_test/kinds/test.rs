@@ -130,11 +130,10 @@ fn a_file_with_no_names_teaches_nothing_about_kinds() -> Result<Value, Operating
         &Elements::default(),
         &mut Symbols::default(),
         &never,
-    )?
-    .0;
+    )?;
     let (elements, mut symbols) = tree_of(&[(1, "file"), (2, "word")], 2);
     let later =
-        fixtures::requests::run_prepared(&engine, &prepared, b"abcd", &elements, &mut symbols, &never)?.0;
+        fixtures::requests::run_prepared(&engine, &prepared, b"abcd", &elements, &mut symbols, &never)?;
     Ok(empty.count.0 * 10 + later.count.0)
 }
 
@@ -176,7 +175,6 @@ fn another_language_does_not_inherit_the_sets_of_the_first() -> Result<Value, Op
         let never = |_| Err(OperatingError::NotRead);
         Ok(
             fixtures::requests::run_prepared(&engine, &prepared, b"abcd", &elements, &mut symbols, &never)?
-                .0
                 .cells,
         )
     };

@@ -5,7 +5,7 @@ use super::super::{
 use crate::application::file_dag::program::admission::Partition;
 #[cfg(test)]
 use crate::application::file_dag::program::runtime::types::ReaderInitializations;
-#[cfg(any(test, feature = "fixtures"))]
+#[cfg(test)]
 use crate::application::file_dag::program::runtime::types::CallCount;
 use crate::application::file_dag::program::runtime::types::{Dependencies, ReaderCount};
 use ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram;
@@ -36,9 +36,9 @@ impl Slot {
         // remain a conservative upper bound until phase finish; no bank may
         // retire another population's publication or claim exact last use.
         Ok(vacant.insert(Self {
-            #[cfg(any(test, feature = "fixtures"))]
+            #[cfg(test)]
             observed: Default::default(),
-            #[cfg(any(test, feature = "fixtures"))]
+            #[cfg(test)]
             registered_calls: CallCount(0),
             state: if cancelled {
                 State::Retired

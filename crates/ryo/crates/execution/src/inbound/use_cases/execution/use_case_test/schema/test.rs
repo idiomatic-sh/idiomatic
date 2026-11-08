@@ -55,7 +55,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             .collect();
         let actual = schema_of(&operation, &schemas, &bindings);
         let input_rows: Vec<_> = tables.iter().collect();
-        let (output, _) = fixtures::requests::table_request_context(
+        let output = fixtures::requests::table_request_context(
             operation.clone(),
             &input_rows,
             bindings.clone(),

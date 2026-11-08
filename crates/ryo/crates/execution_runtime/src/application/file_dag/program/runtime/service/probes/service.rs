@@ -99,7 +99,7 @@ impl ProgramExecution {
         probe.events
     }
     /// Observes completed dispatches even after the real retirement drops invocation scratch.
-    #[cfg(any(test, feature = "fixtures"))]
+    #[cfg(test)]
     pub(crate) fn route_observation(
         &self,
         state: &RuntimeState,
@@ -121,7 +121,7 @@ impl ProgramExecution {
             .ok_or_else(|| OperatingError::NotRun)?;
         self.region_observation(state, *region)
     }
-    #[cfg(any(test, feature = "fixtures"))]
+    #[cfg(test)]
     pub(crate) fn region_observation(
         &self,
         state: &RuntimeState,

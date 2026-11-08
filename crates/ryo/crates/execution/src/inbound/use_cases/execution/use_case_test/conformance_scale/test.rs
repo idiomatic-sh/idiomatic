@@ -1,4 +1,4 @@
-//! Actual engine visit and scratch bounds over increasing authored input populations.
+//! Actual engine visit bounds over increasing authored input populations; the runtime proves the row scratch bound.
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use super::super::conformance::test::{compare_delivery, repeated};
@@ -11,7 +11,7 @@ use ryo_values::domain::{
     plans::types::Operation,
     query_operators::types::OperationKind,
 };
-fn former_unary_pilots_keep_linear_visits_and_bounded_row_scratch() -> Result<(), Failure> {
+fn former_unary_pilots_keep_linear_visits() -> Result<(), Failure> {
     for kind in [
         OperationKind::Select,
         OperationKind::Project,
@@ -45,7 +45,6 @@ fn former_unary_pilots_keep_linear_visits_and_bounded_row_scratch() -> Result<()
         assert!(first.visits[0] > 0);
         assert_eq!(second.visits[0], first.visits[0] * 2);
         assert_eq!(second.rows.len(), first.rows.len() * 2);
-        assert_eq!(second.scratch_cells, first.scratch_cells);
         let empty = compare_delivery(
             &case.operation,
             &[repeated(&case.inputs[0], 0)],
@@ -96,7 +95,7 @@ fn former_binary_pilots_keep_linear_visits_for_unique_keys() -> Result<(), Failu
 /// The scenarios of this group, one row each.
 #[derive(Clone, Copy, Debug)]
 enum Scenario {
-    FormerUnaryPilotsKeepLinearVisitsAndBoundedRowScratch,
+    FormerUnaryPilotsKeepLinearVisits,
     FormerBinaryPilotsKeepLinearVisitsForUniqueKeys,
 }
 type Input = Scenario;
@@ -104,9 +103,9 @@ type Value = ();
 type Failure = OperatingError;
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName(stringify!(former_unary_pilots_keep_linear_visits_and_bounded_row_scratch)),
+        name: CaseName(stringify!(former_unary_pilots_keep_linear_visits)),
         word: Word::Succeeds,
-        input: || Scenario::FormerUnaryPilotsKeepLinearVisitsAndBoundedRowScratch,
+        input: || Scenario::FormerUnaryPilotsKeepLinearVisits,
         expect: Expect::Value(()),
     },
     Case {
@@ -118,7 +117,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 ];
 fn subject(input: Input) -> Result<Value, Failure> {
     match input {
-        Scenario::FormerUnaryPilotsKeepLinearVisitsAndBoundedRowScratch => former_unary_pilots_keep_linear_visits_and_bounded_row_scratch(),
+        Scenario::FormerUnaryPilotsKeepLinearVisits => former_unary_pilots_keep_linear_visits(),
         Scenario::FormerBinaryPilotsKeepLinearVisitsForUniqueKeys => former_binary_pilots_keep_linear_visits_for_unique_keys(),
     }
 }

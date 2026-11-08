@@ -6,7 +6,6 @@ use ryo_relations::domain::relations::types::Relation;
 use ryo_relations::domain::relations::types::Value as Cell;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_domain::domain::operating::fixtures::ExecutionObservation;
 use ryo_relations::domain::relations::types::Integer;
 use ryo_values::cases::Case;
 use ryo_values::cases::CaseName;
@@ -50,30 +49,20 @@ fn compute(
     inputs: &[&Table],
     bindings: &[ParameterBinding],
 ) -> Result<Value, OperatingError> {
-    Ok(compute_with_observation(
-        operation,
-        inputs,
-        bindings,
-        &mut ExecutionObservation::default(),
-    )?
-    .count
-    .0)
+    Ok(table(operation, inputs, bindings)?.count.0)
 }
-/// The caller receives the measured completed owner; it never supplies workspace or a permit.
-fn compute_with_observation(
+/// The caller receives the completed owner's answer; it never supplies workspace or a permit.
+fn table(
     operation: &Operation,
     inputs: &[&Table],
     bindings: &[ParameterBinding],
-    observed: &mut ExecutionObservation,
 ) -> Result<Table, OperatingError> {
-    let (table, actual) = fixtures::requests::table_request(
+    fixtures::requests::table_request(
         operation.clone(),
         inputs,
         bindings.to_vec(),
         &mut Symbols::default(),
-    )?;
-    *observed = actual;
-    Ok(table)
+    )
 }
 fn reaches_across_a_chain() -> Result<Value, OperatingError> {
     let operation = Operation::Closure {
@@ -84,8 +73,8 @@ fn reaches_across_a_chain() -> Result<Value, OperatingError> {
     };
     compute(&operation, &[&numbers(&[&[1, 2], &[2, 3]])], &[])
 }
-fn closure(edges: &Table, observation: &mut ExecutionObservation) -> Result<Table, OperatingError> {
-    compute_with_observation(
+fn closure(edges: &Table) -> Result<Table, OperatingError> {
+    table(
         &Operation::Closure {
             edges: FROM,
             keys: Vec::new(),
@@ -94,7 +83,6 @@ fn closure(edges: &Table, observation: &mut ExecutionObservation) -> Result<Tabl
         },
         &[edges],
         &[],
-        observation,
     )
 }
 fn assert_pairs(out: &Table, expected: &[[i64; 2]]) {
@@ -121,14 +109,12 @@ fn assert_pairs(out: &Table, expected: &[[i64; 2]]) {
 fn interleaved_sources() -> Result<Value, OperatingError> {
     let out = closure(
         &numbers(&[&[1, 2], &[2, 3], &[1, 4]]),
-        &mut ExecutionObservation::default(),
     )?;
     assert_pairs(&out, &[[1, 2], [1, 3], [1, 4], [2, 3]]);
     Ok(out.count.0)
 }
 fn source_permutations() -> Result<Value, OperatingError> {
     let edges = [[1, 2], [2, 3], [1, 4]];
-    let mut observation = ExecutionObservation::default();
     for order in [
         [0, 1, 2],
         [0, 2, 1],
@@ -138,18 +124,17 @@ fn source_permutations() -> Result<Value, OperatingError> {
         [2, 1, 0],
     ] {
         let rows: Vec<&[i64]> = order.iter().map(|i| edges[*i].as_slice()).collect();
-        let out = closure(&numbers(&rows), &mut observation)?;
+        let out = closure(&numbers(&rows))?;
         assert_pairs(&out, &[[1, 2], [1, 3], [1, 4], [2, 3]]);
     }
     Ok(6)
 }
 fn repeated_edges() -> Result<Value, OperatingError> {
-    let mut observation = ExecutionObservation::default();
     for rows in [
         [&[1, 2][..], &[1, 2], &[2, 3], &[1, 4]],
         [&[1, 2][..], &[2, 3], &[1, 4], &[1, 2]],
     ] {
-        let out = closure(&numbers(&rows), &mut observation)?;
+        let out = closure(&numbers(&rows))?;
         assert_pairs(&out, &[[1, 2], [1, 3], [1, 4], [2, 3]]);
     }
     Ok(4)
@@ -157,7 +142,6 @@ fn repeated_edges() -> Result<Value, OperatingError> {
 fn cycles_and_self_edges() -> Result<Value, OperatingError> {
     let out = closure(
         &numbers(&[&[1, 2], &[2, 1], &[1, 2], &[1, 1]]),
-        &mut ExecutionObservation::default(),
     )?;
     assert_pairs(&out, &[[1, 1], [1, 2], [2, 1], [2, 2]]);
     Ok(out.count.0)
@@ -165,25 +149,21 @@ fn cycles_and_self_edges() -> Result<Value, OperatingError> {
 fn disconnected_sources() -> Result<Value, OperatingError> {
     let out = closure(
         &numbers(&[&[1, 2], &[3, 4], &[1, 5]]),
-        &mut ExecutionObservation::default(),
     )?;
     assert_pairs(&out, &[[1, 2], [1, 5], [3, 4]]);
     Ok(out.count.0)
 }
 fn successive_actual_owners_do_not_carry_prior_rows() -> Result<Value, OperatingError> {
-    let mut observation = ExecutionObservation::default();
-    let initial = closure(&numbers(&[&[1, 2], &[2, 3], &[1, 4]]), &mut observation)?;
+    let initial = closure(&numbers(&[&[1, 2], &[2, 3], &[1, 4]]))?;
     assert_pairs(&initial, &[[1, 2], [1, 3], [1, 4], [2, 3]]);
-    let later = closure(&numbers(&[&[5, 6]]), &mut observation)?;
+    let later = closure(&numbers(&[&[5, 6]]))?;
     assert_pairs(&later, &[[5, 6]]);
-    assert_eq!(observation.closure_partition_rows, 1);
     let empty = Table {
         kinds: vec![CellKind::Number; 2],
         ..Table::default()
     };
-    let cleared = closure(&empty, &mut observation)?;
+    let cleared = closure(&empty)?;
     assert_pairs(&cleared, &[]);
-    assert_eq!(observation.closure_partition_rows, 0);
     Ok(cleared.count.0)
 }
 fn interleaved_work_and_output_are_bounded() -> Result<Value, OperatingError> {
@@ -197,8 +177,7 @@ fn interleaved_work_and_output_are_bounded() -> Result<Value, OperatingError> {
         push_row(&mut edges, &[Cell::Number(Integer(0)), middle]);
         push_row(&mut edges, &[middle, Cell::Number(Integer(2 * i + 2))]);
     }
-    let mut observation = ExecutionObservation::default();
-    let out = closure(&edges, &mut observation)?;
+    let out = closure(&edges)?;
     let mut sources = out
         .cells
         .chunks_exact(2)
@@ -207,8 +186,6 @@ fn interleaved_work_and_output_are_bounded() -> Result<Value, OperatingError> {
     sources.sort_unstable();
     sources.dedup();
     assert_eq!(sources.len(), 1025);
-    assert!(observation.closure_visited > 0);
-    assert!(observation.closure_visited <= 2049);
     assert_eq!(out.count.0, 3072);
     assert_eq!(out.cells.len(), 6144);
     let mut pairs: Vec<_> = out.cells.chunks_exact(2).collect();
@@ -265,7 +242,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(3),
     },
     Case {
-        name: CaseName("empty_actual_owner_keeps_its_output_and_workspace_empty"),
+        name: CaseName("empty_actual_owner_keeps_its_output_empty"),
         word: Word::Succeeds,
         input: || successive_actual_owners_do_not_carry_prior_rows,
         expect: Expect::Value(0),

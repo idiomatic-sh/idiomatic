@@ -75,18 +75,6 @@ pub(crate) fn published_from<'facts>(
     symbols: &mut Symbols,
     read: &dyn Fn(Relation) -> Result<SourceRows<'facts>, OperatingError>,
 ) -> Result<Table, OperatingError> {
-    published_observed(plan, bindings, hosted, source, elements, symbols, read)
-        .map(|(table, _)| table)
-}
-pub(crate) fn published_observed<'facts>(
-    plan: Plan,
-    bindings: Vec<ParameterBinding>,
-    hosted: Vec<HostRelation>,
-    source: &[u8],
-    elements: &Elements,
-    symbols: &mut Symbols,
-    read: &dyn Fn(Relation) -> Result<SourceRows<'facts>, OperatingError>,
-) -> Result<(Table, ryo_execution_domain::domain::operating::fixtures::ExecutionObservation), OperatingError> {
     let (engine, prepared) = prepared(plan, bindings, hosted)?;
     run_prepared(&engine, &prepared, source, elements, symbols, read)
 }
@@ -201,7 +189,7 @@ pub(crate) fn run_prepared<'facts>(
     elements: &Elements,
     symbols: &mut Symbols,
     read: &dyn Fn(Relation) -> Result<SourceRows<'facts>, OperatingError>,
-) -> Result<(Table, ryo_execution_domain::domain::operating::fixtures::ExecutionObservation), OperatingError> {
+) -> Result<Table, OperatingError> {
     run_prepared_context(_engine, prepared, source, elements, symbols, read, None)
 }
 /// The same public owner with its real borrowed rendering capability.
@@ -213,8 +201,7 @@ pub(crate) fn run_prepared_context<'facts>(
     symbols: &mut Symbols,
     read: &dyn Fn(Relation) -> Result<SourceRows<'facts>, OperatingError>,
     semantic: Option<&dyn ryo_execution_domain::domain::operating::types::SemanticLookup>,
-) -> Result<(Table, ryo_execution_domain::domain::operating::fixtures::ExecutionObservation), OperatingError> {
-    let last = ryo_execution_runtime::application::file_dag::program::prepared_execution::interface::PreparedExecution::emit(prepared, RuleIndex(0))?.step;
+) -> Result<Table, OperatingError> {
     let corpus = [CorpusInput::Available(CorpusEntry {
         path: ryo_language::domain::files::types::FilePath("operator-contract.py".into()),
         executable: ExecutablePermission::Unknown,
@@ -253,20 +240,13 @@ pub(crate) fn run_prepared_context<'facts>(
         },
         symbols,
     );
-    let mut observed = match &outcome {
-        Ok(result) if matches!(result.emit, RootOutcome::Complete(_)) => {
-            file.route_observation(RuleIndex(0), last)?
-        }
-        _ => Default::default(),
-    };
     // Every actual invocation workspace retains this required owner Rc. A
     // surviving workspace would therefore keep this weak owner live.
     let owner = file.owner_lifetime();
     assert!(owner.upgrade().is_some());
     let finished = file.finish();
-    observed.file_owner_released = owner.upgrade().is_none();
     assert!(
-        observed.file_owner_released,
+        owner.upgrade().is_none(),
         "file finish drops the actual owner and all mandatory workspace references"
     );
     request.finish();
@@ -279,7 +259,7 @@ pub(crate) fn run_prepared_context<'facts>(
         ),
         _ => panic!("authored per-file request must publish a complete table or its exact failure"),
     };
-    Ok((table, observed))
+    Ok(table)
 }
 /// Exact typed input data, not a provider for one of the catalog relations.
 pub(crate) fn numbers(name: &str, width: usize, rows: &[&[i64]]) -> HostRelation {
@@ -351,7 +331,7 @@ pub(crate) fn table_request(
     inputs: &[&Table],
     bindings: Vec<ParameterBinding>,
     symbols: &mut Symbols,
-) -> Result<(Table, ryo_execution_domain::domain::operating::fixtures::ExecutionObservation), OperatingError> {
+) -> Result<Table, OperatingError> {
     table_request_context(operation, inputs, bindings, symbols, b"", None)
 }
 /// Typed fixture data enters the same public owner and optional real capability.
@@ -362,7 +342,7 @@ pub(crate) fn table_request_context(
     symbols: &mut Symbols,
     source: &[u8],
     semantic: Option<&dyn ryo_execution_domain::domain::operating::types::SemanticLookup>,
-) -> Result<(Table, ryo_execution_domain::domain::operating::fixtures::ExecutionObservation), OperatingError> {
+) -> Result<Table, OperatingError> {
     let authored = table_inputs(operation, inputs, &bindings, symbols);
     let read = |relation| {
         authored

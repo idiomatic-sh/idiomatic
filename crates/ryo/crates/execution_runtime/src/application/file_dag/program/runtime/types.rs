@@ -106,7 +106,7 @@ pub(crate) enum PollMode {
 }
 
 /// Calls a region's kernels made, observed only by tests.
-#[cfg(any(test, feature = "fixtures"))]
+#[cfg(test)]
 #[derive(Clone, Copy, Default, Debug, PartialEq, Eq)]
 pub(crate) struct CallCount(pub usize);
 

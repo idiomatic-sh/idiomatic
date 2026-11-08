@@ -28,7 +28,6 @@ use crate::inbound::use_cases::execution::interface::SemanticLookup;
 use ryo_execution_domain::domain::prepared_request::types::ObservationIdentity;
 use ryo_execution_runtime::outbound::operators::interface::OperatorsPort;
 use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::*;
-use ryo_execution_domain::domain::operating::fixtures::ExecutionObservation;
 use ryo_execution_domain::domain::operator::service::prepare_operator;
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::symbols::types::Symbols;
@@ -52,7 +51,6 @@ pub(crate) struct ObservedDelivery {
     pub(crate) rows: Vec<Vec<Cell>>,
     pub(crate) stream_error: Option<OperatingError>,
     pub(crate) visits: Vec<u64>,
-    pub(crate) scratch_cells: usize,
 }
 pub(crate) fn same_rows(table: &Table, rows: &[Vec<Cell>]) -> bool {
     table.count.0 == rows.len()
@@ -218,7 +216,6 @@ pub(crate) fn compare_delivery_with_port(
                 rows: vec![],
                 stream_error: Some(error),
                 visits: vec![0; inputs.len()],
-                scratch_cells: 0,
             });
         }
     };
@@ -268,18 +265,15 @@ pub(crate) fn compare_delivery_with_port(
         },
         symbols,
     )?;
-    let (collected, observation) = match outcome.emit {
-        RootOutcome::Complete(table) => (
-            Ok(table),
-            collected_file.route_observation(RuleIndex(0), emit)?,
-        ),
+    let collected = match outcome.emit {
+        RootOutcome::Complete(table) => Ok(table),
         RootOutcome::Failed(error) => {
             assert_eq!(
                 refusal,
                 RefusalOutcome::Failed,
                 "actual Failed({error:?}) must match its authored classification"
             );
-            (Err(error), ExecutionObservation::default())
+            Err(error)
         }
         RootOutcome::Unknown(error) => {
             assert_eq!(
@@ -287,7 +281,7 @@ pub(crate) fn compare_delivery_with_port(
                 RefusalOutcome::Unknown,
                 "actual Unknown({error:?}) must match its authored classification"
             );
-            (Err(error), ExecutionObservation::default())
+            Err(error)
         }
         _ => panic!("declared per-file operation must settle"),
     };
@@ -318,7 +312,6 @@ pub(crate) fn compare_delivery_with_port(
         rows,
         stream_error,
         visits,
-        scratch_cells: observation.row_capacity,
     })
 }
 fn all_registrations_refuse_a_foreign_variant() -> Result<(), Failure> {

@@ -365,6 +365,8 @@ mod ordered_dfs;
 
 mod closure_abort;
 
+mod measured_work;
+
 mod join;
 
 #[cfg(test)]
