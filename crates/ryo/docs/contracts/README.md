@@ -134,13 +134,14 @@ Written by `evidence/checkpoint/run.py` from [validation.json](evidence/checkpoi
 | cli replay | 75 PASS / 3 failed |
 | cli replay reds | 3: `behavior::ruff_rules_feed_every_catalog_feature_a_thousand_rows`; `cache::every_recorded_rule_gives_over_ruff_the_rows_a_warm_run_gives_again_from_a_small_store`; `peak::a_warm_unchanged_run_over_ruff_peaks_within_its_bound` |
 | cli replay note | feed: 3 features fed fewer than 1,000 rows (operation:Closure, Cycles, Scope: the graph drivers record no WorkCounters::found, the fold area); cache: the store of ruff 78,525,063 bytes against 75,000,000 (unchanged from 322), the coverage missing-kinds row; warm peak 113,815,552 bytes against 100,000,000 (114,180,096 at 322; 115,728,384 rerun on f8659b91f6 after the post-validation repairs, rerun-cli_tests-f8659b91f6.log, the same three reds): the walk extension C row |
-| cli cost | 4 PASS / 3 failed (the ruff rows of ratchet.toml still hold best 1 (cold 10,101 ms / CPU 60,157 ms, peak 583 MB, warm 551 ms, edit 2,738 ms measured): the ruff rows are not seeded; the Django and one-file rows report not available without RYO_PREFLIGHT_WORKER, so perf iteration 1 is not measured by this target) |
+| cli cost | 1 PASS / 3 failed / 3 not run (the ruff rows of ratchet.toml still hold best 1 (cold 10,101 ms / CPU 60,157 ms, peak 583 MB, warm 551 ms, edit 2,738 ms measured): the ruff rows are not seeded; the Django and one-file rows print not available without RYO_PREFLIGHT_WORKER and are recorded not run, so perf iteration 1 is not measured by this target) |
 | cli other targets | blocks (dhat run, no panic), call_count 1/1, command_line 7/7, command_tree 11/11, readme 1/1 |
 | conformance | targets 10, exit 0, note rerun on f8659b91f6 after the post-validation repairs exit 0 (rerun-conformance-f8659b91f6.log) |
 | harness hooks | 43 PASS / 0 failed |
 | checkpoint check | 13 PASS / 0 failed (validation323 9/0; with the review repairs VII cases rerun on f8659b91f6 after the post-validation repairs 13/0 (rerun-checkpoint_check-f8659b91f6.log)) |
 | derived library | 35 PASS / 0 failed (validation323 34/1 (returning_key_runs_sort_by_hash_then_row: the hash-order premise); rerun on f8659b91f6 after the post-validation repairs 35/0 (rerun-libraries-f8659b91f6.log)) |
 | python and language libraries | 181 PASS / 0 failed (not in the validation set; narrow run: python 136/2 at e8bd9bc9b3 (rerun-libs-e8bd9bc9b3.log, the two preseal rows and the demand row), 138/0 and language 43/0 on f8659b91f6 (rerun-python_language_lib-f8659b91f6.log)) |
+| tm validate all | crates ryo 240 PASS / 0 failed, repository root 223 PASS / 0 failed, note not in the validation323 set (the command is new): rerun on dc8cb81b0f (rerun-tm_validate_all-dc8cb81b0f.log) |
 | tm_cli_source findings | 0 (0 production, 0 test), 0 suppressed, 1 scoped directories |
 | tm_source findings | 0 (0 production, 0 test), 2 suppressed, 16 scoped directories |
 | Whole-tree TM | 24 findings, 6 suppressed (3676 at 318) |
@@ -158,6 +159,9 @@ Written by `evidence/checkpoint/run.py` from [validation.json](evidence/checkpoi
 | Red test | cli_cost cost::a_cold_run_over_ruff_holds_the_peak_ratchet: red; its failure names no case row |
 | Red test | cli_cost cost::a_warm_run_and_an_edit_run_over_ruff_hold_their_ratchets: red; its failure names no case row |
 | Red test | cli_cost cost::every_live_rule_together_holds_the_cold_ratchet_of_ruff: red; its failure names no case row |
+| Not run test | cli_cost cost::every_rule_over_all_of_django_holds_its_cold_and_warm_ratchets: it printed `not available` and measured nothing |
+| Not run test | cli_cost cost::n999_over_django_holds_its_ratchet: it printed `not available` and measured nothing |
+| Not run test | cli_cost cost::one_file_with_every_rule_holds_its_ratchet: it printed `not available` and measured nothing |
 
 - [ ] Correct restored last-use, physical-row and witness proof fixtures; execute publication controls. (validation319: the execution library and `boundary_contract` publication, restored-proof and witness controls pass apart from the named reds of the record below.)
 - [ ] Validate the real CLI fixture and all eight import cases. (validation319: `tm_import_cli` exit 0.)
