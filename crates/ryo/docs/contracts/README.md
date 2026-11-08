@@ -58,7 +58,7 @@ Checkpoint 330 merges perf iteration 4 (`claude/p4-memory`, merge `8d9239677d`) 
 | Compile passes | 1 check pass (errors 0) and the validation's test build |
 | Full Django 413 cold | exit 0, output identical; default threads 428.0 s (loaded machine), 3.33 GB peak (6.78 GB at 329) |
 | Contract review | 329's evidence merged; 330 pending |
-| Rust gate review | pending |
+| Rust gate review | PASS on the second pass (first FAIL item 1: F1.1, F1.2), at `055b130c25` ([rust-review.json](evidence/checkpoint/rust-review.json)) |
 
 ### Checkpoint 329 integration record
 

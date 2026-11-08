@@ -1,0 +1,66 @@
+{
+ "iteration": "p4",
+ "source": "90a0a472b2",
+ "worker_sha256": "7577b1f13fc135ea72e3c7dd622234d05217992ec2f7c0ab6dcef4acadc63f1f",
+ "staged_digest": "0132c274d68dc22252b09d0551a36617652fd7ffecaff02a246e5bf0448027df",
+ "workloads": [
+  {
+   "name": "full Django 413, cold, default threads",
+   "wall_s": 329.67,
+   "cpu_s": 2568.3,
+   "peak_mb": 6621,
+   "peak_kb": 6779632,
+   "load": 2.88
+  },
+  {
+   "name": "100 files x 413, cold, default threads",
+   "wall_s": 10.4,
+   "cpu_s": 62.3,
+   "peak_mb": 1794,
+   "peak_kb": 1836852,
+   "load": 1.37
+  }
+ ],
+ "hypotheses": [
+  {
+   "id": "h1",
+   "claim": "The spill bucket is merged into a second copy in the project phase, so handing it over in parts frees 1.9 GB.",
+   "verdict": "refuted",
+   "evidence": "jeprof dump 608: the 1.94 GB merged buffer is the only copy of the words (the parts hold 0 MB there, 84 MB at dump 606); the merged buffer is the backing the admitted compact tables read."
+  },
+  {
+   "id": "h2",
+   "claim": "The admitted compact tables' decoded places and row offsets are a lever at the project-phase peak.",
+   "verdict": "confirmed",
+   "evidence": "jeprof dump 608: places 1,342 MB and row offsets 450 MB under admit_compact; the offsets halve with a four-byte index, the places do not move without a name-resolution design change."
+  },
+  {
+   "id": "h3",
+   "claim": "The file-phase maximum (4.44 GB, dump 289) is bounded by releasing rows per operator step.",
+   "verdict": "refuted",
+   "evidence": "jeprof dump 289: one region's Collect rows 1.46 GB, candidate emission 1.17 GB and the distinct set 0.62 GB coexist by the region's publication contract; it is also below the 5.84 GB project peak."
+  }
+ ],
+ "levers": [
+  {
+   "id": "l1",
+   "rank": 1,
+   "lever": "Row offsets as four bytes counted from the row's frame.",
+   "evidence": "jeprof dump 608: admit_compact row offsets 450 MB, 7.5% of the 6.03 GB sampled peak."
+  },
+  {
+   "id": "l2",
+   "rank": 2,
+   "lever": "Shrink the project frontier itself (about 56 million rows, merged words 1.95 GB and places 1.34 GB).",
+   "evidence": "jeprof dump 608: spill kept 1,943 MB and decoded places 1,342 MB, 54% of the sampled peak."
+  },
+  {
+   "id": "l3",
+   "rank": 3,
+   "lever": "Stream region publication in the file phase.",
+   "evidence": "jeprof dump 289: Collect rows 1.46 GB of a 4.44 GB transient."
+  }
+ ],
+ "reviewer": "perf-diagnosis",
+ "date": "2026-11-08"
+}

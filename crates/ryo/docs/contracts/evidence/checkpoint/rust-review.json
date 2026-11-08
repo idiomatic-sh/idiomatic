@@ -1,26 +1,62 @@
 {
- "checkpoint": 329,
- "source": "d55490390356dab2fd5000cc9bd812eadaacd7e6",
- "base": "90a0a472b2",
- "scope": "diff 90a0a472b2..d554903903 (first pass 518a419546, repairs 779f4a960f and d554903903)",
+ "checkpoint": 330,
+ "source": "055b130c25ad627f547eb1774abbe9db27b6800f",
+ "base": "171789169e",
+ "scope": "diff 171789169e..055b130c25 (second pass; repairs F1.1, F1.2, E1 in 055b130c25; code validated at 4df6abaca2)",
  "verdict": "PASS",
  "items": [
-  {"item": 1, "verdict": "PASS", "evidence": "Second-pass evidence stands: BatchOccurrenceBinding owns and PhaseOccurrence borrows (cross_file/types.rs:60-67, project_phase/types.rs:64-74); the parts structs add no Arc. evaluate_rules (batch_test.rs:45-91) borrows its inputs and hands borrowed PhaseOccurrences to the phase, with no clone to escape a lifetime."},
-  {"item": 2, "verdict": "PASS", "evidence": "compile_fail goes 60 -> 61, and the +1 is the accepted E0603 probe (prepared_execution/types.rs:7). ProgramParts/SessionParts are crate-private under private_interfaces=deny (Cargo.toml:83), and all 12 probes are deleted. The second library-surface entry is dropped. pub mod admission is unchanged from the base, and ApplicabilityProof is already public via RootOutcome::Skipped. d554903903 adds no probe or rule."},
-  {"item": 3, "verdict": "PASS", "evidence": "Second-pass evidence stands: evaluate_occurrences allocates its Vecs once per phase (project_phase/service.rs:63-126), and the observation route once per batch (cross_file/service.rs:128-163). No per-row allocation, SipHash or dyn is added. d554903903 is test code only."},
-  {"item": 4, "verdict": "PASS", "evidence": "One production phase call, evaluate_occurrences (project_phase/interface.rs:55-67), serves ordinary/service.rs:59 and cross_file/service.rs:171; PreparedProject, ReadyProject, evaluate_batch and preparation are deleted. F4.2 is repaired: evaluate_prepared is deleted, and evaluate_rules (batch_test.rs:45-91) has no loop, only one call to evaluate_occurrences over one facts port with Bucket(rule) rows (fixtures.rs:256-282). The budget case (budget_test.rs:79-118) passes within as the guard and proves the production Refused path (project_phase/service.rs:121-134,145-149). evaluate_fixture (batch_test.rs:93-133) is one evaluate plus complete_occurrence, with no zip-back."},
-  {"item": 5, "verdict": "PASS", "evidence": "No hand-written mechanism replaces a crate. FxHashMap is kept, compile_rules uses ryo_matching, and ScriptedMemory is a test fake (budget_test.rs:230-243)."},
-  {"item": 6, "verdict": "PASS", "evidence": "Expected values are unchanged: budget completed 1, used 200/budget 100, reductions 1, aggregates 2, slots 1 (budget_test.rs:96-115); root-set aggregates 2 and slots 1 (root_set_test.rs:57-58). The cases move back to the production call with the stated reason, and core is green at 119/0. The ordinary case keeps rule 0 at Bucket(0) only (budget_test.rs:253), so rule 1 still answers missing frontier bucket."},
-  {"item": 7, "verdict": "PASS", "evidence": "No unsafe or #[allow] is added. The expect/panic and indexing d554903903 adds are in fixtures and tests only (fixtures.rs:276,315; batch_test.rs:57,85,88,122,127). The production paths answer PhaseStop/OperatingError (project_phase/service.rs:135,203-207; cross_file/service.rs:165-170)."}
+  {
+   "item": 1,
+   "verdict": "PASS",
+   "evidence": "Ownership: the rewrites take Vec<PlanStep> by value and SplitJoin<'a> borrows (regrouping/types.rs:19-36), with no Arc and no lifetime-escaping clone. F1.1 is repaired: UnknownRuleIndex maps to Self::Execution { reason: error.to_string() } (core lint/errors.rs:325-329), which the SDK maps to LintError::Execution (sdk lint/schemas.rs:354), so no fabricated RuleId reaches a user. F1.2 is repaired: FrameOffset has docs and a doctest (values table_words/types.rs:107-114). sdk/api.txt is unchanged."
+  },
+  {
+   "item": 2,
+   "verdict": "PASS",
+   "evidence": "First-pass evidence stands: the modules are pub(crate) (query_language/src/domain.rs:16-31), outcomes are typed enums (selection_pushing/types.rs:27-43), the observation is #[cfg(test)] (lease.rs:72), and core's From match stays exhaustive after the repair."
+  },
+  {
+   "item": 3,
+   "verdict": "PASS",
+   "evidence": "First-pass evidence stands: the rewrites run at plan time, and compact_values (compact_table/service.rs:189-211) adds no allocation, with 4-byte row offsets. The repair touches no hot path."
+  },
+  {
+   "item": 4,
+   "verdict": "PASS",
+   "evidence": "First-pass evidence stands: Narrowed, Regrouped, SplitJoin, PushedFilter, SplitComparisons and ValueOrigin are each the transient working state of a single call. CompactFrame.first_row replaces the absolute offset rather than copying it."
+  },
+  {
+   "item": 5,
+   "verdict": "PASS",
+   "evidence": "No hand-written mechanism replaces a crate, and the dependencies are unchanged."
+  },
+  {
+   "item": 6,
+   "verdict": "PASS",
+   "evidence": "The counter bounds moved to runtime measured_work/test.rs:79-134 and 193-224, and the exact scratch tuples state their reason in 07ec517ffe. validation.json is rebound to libraries.log (1085/1; execution 73, core 119, runtime 200). The new doctest asserts a derived Ord."
+  },
+  {
+   "item": 7,
+   "verdict": "PASS",
+   "evidence": "No unsafe, no #[allow], and no production unwrap or expect. The one #[expect(clippy::too_many_lines)] has a reason (regrouping/service.rs:184-187). The repair adds none of these."
+  }
  ],
  "required_changes": [],
+ "rustfmt_finding": "It predates the diff. rustfmt --check (edition 2024, max_width 100) reports the same single hunk at errors.rs:298 at 171789169e, d1073bd952 and 055b130c25: the 107-column `impl From<...RuleCompilationError> for LintError {` header at line 301, dated by blame to 828262ad34 (pre-329). The new UnknownRuleIndex arm adds no hunk.",
+ "evidence_notes": [
+  "validation.json still validates 4df6abaca2. The repair commit 055b130c25 (one core match arm and one values doctest) has not been compiled. Run the core library and doctest_values on 055b130c25 before the push."
+ ],
  "advisories": [
-  "A1: lint/use_case.rs:184 asks for kind_vocabularies() on every lint request.",
-  "A2: compile_rules/use_case.rs:62-66 uses unwrap_or_default for an out-of-range rule index; it needs a new RuleCompilationError variant (owner's call).",
-  "A3: poll(..., &mut PollMode) is an in-out parameter.",
-  "A5: tastemaker/rules/project-batch-owner/0.1.0 help and why name the deleted preparation/SealedBatch/evaluate_batch. Publish a new version naming evaluate_occurrences and relock. evaluate now has only test callers in core, so taking it off the public trait would let the compiler enforce that half of the rule.",
-  "A4 (carried from 328): not touched."
+  "A1 put a plan digest in the store key (open item)",
+  "A2 ryo_execution error exhaustiveness policy (owner)",
+  "A3 CompactFrame/CompactTable semver",
+  "A4 one relation_scope()",
+  "A5 index_among returns Option",
+  "A6 memoize lineage",
+  "A7 Span invariant in stated_by / regrouping",
+  "A8 report-this-bug hint in the UnknownRuleIndex message",
+  "A9 the pre-existing rustfmt hunk at core lint/errors.rs:298-301; fix with cargo fmt -p idiomatic-sh-ryo-core"
  ],
  "reviewer": "rust-principal-review",
- "date": "2026-11-08T18:36:40Z"
+ "date": "2026-11-08T20:57:44Z"
 }

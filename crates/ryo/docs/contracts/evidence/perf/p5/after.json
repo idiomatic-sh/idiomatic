@@ -1,0 +1,38 @@
+{
+ "source": "baaf4ff267",
+ "before": [
+  {
+   "name": "full Django 413, cold, default threads",
+   "wall_s": 326.39,
+   "cpu_s": 2646.3,
+   "peak_mb": 6579,
+   "peak_kb": 6736756,
+   "frontier_mb": 2053
+  },
+  {
+   "name": "100 files x 413, cold, default threads",
+   "wall_s": 10.05,
+   "cpu_s": 62.8,
+   "peak_mb": 1981,
+   "peak_kb": 2028512
+  }
+ ],
+ "after": [
+  {
+   "name": "full Django 413, cold, default threads",
+   "wall_s": 294.87,
+   "cpu_s": 2549.7,
+   "peak_mb": 3546,
+   "peak_kb": 3630972,
+   "frontier_mb": 8.9
+  },
+  {
+   "name": "100 files x 413, cold, default threads",
+   "wall_s": 9.87,
+   "cpu_s": 60.7,
+   "peak_mb": 1981,
+   "peak_kb": 2028120
+  }
+ ],
+ "identical_output": true
+}
