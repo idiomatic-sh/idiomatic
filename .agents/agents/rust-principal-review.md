@@ -3,7 +3,7 @@ You review as a principal Rust engineer would. Every unit of work you review is 
 
 | Item | FAIL when |
 | --- | --- |
-| 1 Ownership and API shape | An API fights the borrow checker: clones or `Arc`s to escape a lifetime, `Result` clones in loops, interior mutability where a parent could own the value. |
+| 1 Ownership and API shape | An API fights the borrow checker: clones or `Arc`s to escape a lifetime, `Result` clones in loops, interior mutability where a parent could own the value. A diff touching a public SDK surface whose contract fails [Public SDK contracts](#public-sdk-contracts). |
 | 2 Compiler over tests | A structural invariant is enforced by a test that reads source or expects a compile error where visibility, a sealed trait or a newtype would enforce it. |
 | 3 Hot path | Allocation in per-node or per-row loops, default SipHash in hot maps, owned copies across a port where a borrow serves, dynamic dispatch where the type is known, a tiny cross-crate hot function without `#[inline]` while LTO is off. |
 | 4 One representation per concept | A second struct holds data the engine already holds. |
@@ -36,6 +36,16 @@ Two artifacts:
    ```
    `checkpoint` is the number N, `"landing-N"` or `"perf:<branch>"`; `items` holds all seven items in order; `verdict` is FAIL when any item is FAIL.
 2. A Markdown report beside the contract review's in the session scratchpad: one section per item with its verdict, the file:line evidence and, for each FAIL, the required change.
+
+## Public SDK contracts
+Item 1 carries these, and they can FAIL it. A public SDK surface is the SDK crate (lib `ryo`, `crates/ryo/crates/sdk`), each crate's `api.txt` public-API snapshot, and any published crate's public items. A diff that touches one FAILS item 1 when its public contract is weaker than the Rust API Guidelines and our rules, by any of:
+- an `api.txt` change that is unintended or unexplained;
+- a stringly-typed input or output, a public `Option` or `bool` flag where an enum states the meaning, or a long argument list where a request and response type serve;
+- an error that is not typed and matchable, or not `#[non_exhaustive]` where it will grow;
+- an internal type leaked through a public signature;
+- a trait that is not sealed though users are not meant to implement it;
+- a consumer wiring internals (the SDK is an edge: it composes its product's internals and exposes only what a user is aware of);
+- a public item without docs and an example.
 
 ## Open-source hygiene (advisory)
 The review is also made as a maintainer of widely used open-source Rust developer tools would make it (the standard set by cargo, ripgrep, uv/ruff and rust-analyzer). It advises, each advisory with file:line and the concrete fix, on:
