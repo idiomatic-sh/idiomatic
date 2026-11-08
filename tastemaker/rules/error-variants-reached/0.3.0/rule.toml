@@ -1,7 +1,8 @@
-description = "Every variant of an `enum` named `*Error` in an `errors.rs` (a hex's), other than an `#[error(transparent)]` one, is matched by a test of its crate: its name, qualified by the enum's (`FooError::Bar`), in a pattern of a `*_test.rs` or a placed `test.rs` under the same `src/`, or as the error of a row of a `CASES` table there, `Expect::Error(FooError::Bar)`."
+description = "Every variant of an `enum` named `*Error` in an `errors.rs` (a hex's), other than an `#[error(transparent)]` one, is matched by a test of its crate: its name, qualified by the enum's (`FooError::Bar`), in a pattern of a `*_test.rs` or a placed `test.rs` under the same `src/`, or as the error of a row of a `CASES` table there, `Expect::Error(FooError::Bar)`. A crate the product splits its own engine into (one a workspace package binds under a name in `internal-crates`) is left out: its variants are the engine's internal vocabulary, matched by the tests of the crates that depend on it."
 why = "An error variant is a promise that the domain fails that way: a variant no test drives is either untested behaviour or dead code. A `test.rs` is a placed test file like a `*_test.rs` (the integration-style tests of a use case or of an application part are named so). A variant a dependency's failure produces is proven where the failure is handled: a `fails` row of the part that wraps it, driven by a failing fake, may stand in another directory of the same crate. A row is the argument of an `Expect::Error(..)` or `Expect::error(..)` call, so the refuses, fails and rejects rows of a part's test reach the variants they name; a pattern is a `match`, `if let`, `let.. else` or `matches!` pattern; inside a macro's arguments, which are tokens until expansion, the enum's name followed later in the same token group by the variant's counts, so `assert_eq!(result, Err(FooError::Bar))` does too. A variant written unqualified (after `use FooError::*`), through `Self::` or an alias of the enum is not seen, and a transparent variant only forwards another error, which that error's own crate proves."
 
 query = '''
+param internal-crates: set<string>;
 let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
 let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
 let enums = select * from tree-nodes where kind = "enum";
@@ -113,7 +114,10 @@ let root-mentions-captured = capture(from=test-mentions, path="file", pattern="s
 let root-mentions = extend(from=root-mentions-captured, values={"crate": "."});
 let crate-mentions = union(left=nested-mentions, right=root-mentions);
 let reached = project(from=crate-mentions, columns=["crate", "enum", "variant"]);
-let unreached = antijoin(left=owed, right=reached, left-on=["crate", "enum", "variant"], right-on=["crate", "enum", "variant"]);
+let unreached-anywhere = antijoin(left=owed, right=reached, left-on=["crate", "enum", "variant"], right-on=["crate", "enum", "variant"]);
+let internal-packages = select l."target" as "package" from "package-dependency" as l where l."binding" in $internal-crates;
+let internal-files = select l."path" as "file" from "file-package" as l join internal-packages as r on l."package" = r."package";
+let unreached = antijoin(left=unreached-anywhere, right=internal-files, left-on=["file"], right-on=["file"]);
 emit unreached subject "file" key("span");
 '''
 
@@ -121,6 +125,13 @@ emit unreached subject "file" key("span");
 primary = "span"
 message = "`{enum}::{variant}` is matched by no test of its crate"
 help = "Add a test of this crate that produces this variant and matches it (`matches!(result, Err({enum}::{variant}..))`): drive the input that causes it, or make the dependency fail (`fails_when_<dependency>_fails` with a failing fake from fixtures.rs). A variant nothing can produce is dead code: remove it. Ignore only a variant no test can produce (a failure no fake can cause): a line comment on its own line above the variant, written as two slashes, a space, then `ignore: idiomatic.arch/error-variants-reached - <why no test can produce it>`."
+
+[params.internal-crates]
+type = "set<string>"
+description = "The library names of the crates a product splits its own domain or application into, which only that product's engine crates depend on: the error enums of a crate a workspace package binds under one of these names are not read; [] names none."
+
+[given]
+params = { internal-crates = [] }
 
 [[scenarios]]
 id = 'comparator-backed-error-expectation'
@@ -1348,4 +1359,33 @@ given.files.'src/read/errors.rs' = 'pub enum ReadError { Missing }'
 given.files.'src/read/helper.rs' = 'fn refuses() { assert!(matches!(open(), Err(ReadError::Missing))); }'
 then.findings = [
   { path = 'src/read/errors.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'internal-crate-variant'
+scenario = 'The error variants of a crate the product splits its engine into, bound by a workspace package under a name in `internal-crates`, are not read; an unreached variant of the depending crate still is.'
+given.params = { internal-crates = ['engine_domain'] }
+given.files.'Cargo.toml' = '''
+[workspace]
+members = ["engine", "engine_domain"]
+'''
+given.files.'engine/Cargo.toml' = '''
+[package]
+name = "engine"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+engine_domain = { path = "../engine_domain" }
+'''
+given.files.'engine/src/run/errors.rs' = 'pub enum RunError { Refused }'
+given.files.'engine_domain/Cargo.toml' = '''
+[package]
+name = "engine_domain"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'engine_domain/src/operating/errors.rs' = 'pub enum OperatingError { Missing }'
+then.findings = [
+  { path = 'engine/src/run/errors.rs', line = 1 },
 ]

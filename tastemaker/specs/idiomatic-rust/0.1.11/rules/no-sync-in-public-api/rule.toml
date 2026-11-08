@@ -1,7 +1,8 @@
-description = "A public function's parameters and return type name no `Arc`, `Mutex` or `RwLock`, at any depth of a generic."
+description = "A public function's parameters and return type name no `Arc`, `Mutex` or `RwLock`, at any depth of a generic. A crate the product splits its own engine into (one a workspace package binds under a name in `internal-crates`) has no public API, so its signatures are not read."
 why = "How a value is shared across threads is the owner's decision, and a signature that says `Arc<Mutex<State>>` makes it every caller's: they must hold an `Arc`, lock a `Mutex`, and can no longer be changed to another way of sharing without breaking each of them. The public surface speaks in the values and ports the domain names; the owner of a value wraps it where it is built. Found from the parameter list and the return type of every function declared `pub` (not `pub(crate)`) and of every function of a `pub` trait: a type whose last path segment is `Arc`, `Mutex` or `RwLock`, directly or as an argument of a generic. Not seen: an `Arc<dyn Port>`, which is how a use case holds the ports it is given and so what its constructor takes, a type behind an alias, a field of a public struct, and a function of an impl on a private type."
 
 query = '''
+param internal-crates: set<string>;
 let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
 let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
 let segments = select * from tree-nodes where kind = "path-segment";
@@ -46,7 +47,10 @@ let locks = select l."type" as "id", l."file" as "file", l."span" as "span" from
 let arc-ports = axis(from=arcs, relation="syntax-child", direction=descendant, domain=dyns);
 let arc-port-ids = project(from=arc-ports, columns=["id"]);
 let shared-values = antijoin(left=arcs, right=arc-port-ids, left-on=["id"], right-on=["id"]);
-let found = union(left=shared-values, right=locks);
+let shared = union(left=shared-values, right=locks);
+let internal-packages = select l."target" as "package" from "package-dependency" as l where l."binding" in $internal-crates;
+let internal-files = select l."path" as "file" from "file-package" as l join internal-packages as r on l."package" = r."package";
+let found = antijoin(left=shared, right=internal-files, left-on=["file"], right-on=["file"]);
 emit found subject "file" key("span");
 '''
 
@@ -55,8 +59,13 @@ primary = "span"
 message = "this public signature names `Arc`, `Mutex` or `RwLock`"
 help = "Take or return the value or the port the domain names; wrap it in an `Arc` or a lock where it is built, not in what a caller must write."
 
+[params.internal-crates]
+type = "set<string>"
+description = "The library names of the crates a product splits its own domain or application into, which only that product's engine crates depend on: a crate a workspace package binds under one of these names has no public API, so its signatures are not read; [] names none."
+
 [given]
 include = ['**/*.rs']
+params = { internal-crates = [] }
 files.'Cargo.toml' = '''
 [package]
 name = "fixture"
@@ -183,3 +192,40 @@ impl Lint {
     }
 }
 '''
+
+[[scenarios]]
+id = 'internal-crate-signature'
+scenario = 'A crate the product splits its engine into, bound by a workspace package under a name in `internal-crates`, has no public API: its shared signature is not read, while the same signature in the depending crate is.'
+given.params = { internal-crates = ['engine_store'] }
+given.files.'Cargo.toml' = '''
+[workspace]
+members = ["engine", "engine_store"]
+'''
+given.files.'engine/Cargo.toml' = '''
+[package]
+name = "engine"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+engine_store = { path = "../engine_store" }
+'''
+given.files.'engine/src/lib.rs' = '''
+pub fn open(lease: std::sync::Arc<u32>) -> u32 {
+    *lease
+}
+'''
+given.files.'engine_store/Cargo.toml' = '''
+[package]
+name = "engine_store"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'engine_store/src/lib.rs' = '''
+pub fn lease(value: u32) -> std::sync::Arc<u32> {
+    std::sync::Arc::new(value)
+}
+'''
+then.findings = [
+  { path = 'engine/src/lib.rs', line = 1 },
+]

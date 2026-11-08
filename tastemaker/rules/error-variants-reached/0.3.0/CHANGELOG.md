@@ -1,5 +1,9 @@
 # error-variants-reached
 
+## 0.3.0
+
+The `internal-crates` param names the library names of the crates a product splits its own engine into, which only its engine crates depend on (ryo's engine domain and store crates): the error enums of a crate a workspace package binds under one of those names are not read, since their variants are the engine's internal vocabulary and the tests that drive them belong to the crates above. Fixture `internal-crate-variant` (the internal crate's unreached variant is not a finding; the depending crate's is). Everything else is as in 0.2.0.
+
 ## 0.2.0
 
 A placed `test.rs` counts like a `*_test.rs`: a match, a row or a token group in a `test.rs` under the same `src/` reaches the variant. The crates' use-case and application tests are written in files so named, and they drive the variants end to end. Fixtures: `placed-test-rs-reaches-the-variant` (passing) and `a-helper-file-is-no-test` (failing: a file that is neither is no test). Nothing else changes.

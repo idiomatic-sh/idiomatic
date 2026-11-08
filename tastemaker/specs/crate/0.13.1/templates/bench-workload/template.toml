@@ -1,0 +1,38 @@
+description = "One workload's benches, declared by the crate's bench."
+why = "Measures one workload where it is named, so the crate's bench declares it and the performance tool judges it."
+content = '''
+//! {{ crate }}'s {{ workload }} workload.
+'''
+
+[params]
+crate = { type = "identifier", from = "directory-name", description = "The crate, its directory's name." }
+workload = { type = "identifier", description = "The workload, captured from its directory." }
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.file = 'app/benches/performance/compose/bench.rs'
+given.params = { crate = 'app', workload = 'compose' }
+given.files.'app/benches/performance/compose/bench.rs' = '''
+//! app's compose workload.
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template.'
+given.file = 'app/benches/performance/compose/bench.rs'
+given.params = { crate = 'app', workload = 'compose' }
+given.files.'app/benches/performance/compose/bench.rs' = '''
+//! app's compose workload.
+
+// More.
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+given.file = 'app/benches/performance/compose/bench.rs'
+given.params = { crate = 'app', workload = 'compose' }
+then.findings = [
+  { rule = 'bench-workload#count', path = '.' },
+]

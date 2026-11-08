@@ -1,0 +1,787 @@
+description = "A crate's Cargo manifest: its package name, workspace-inherited package fields and lints, the dependencies its placed files compile with (a command line's `anstream`, `clap`, `serde` and `serde_json`), its `fixtures` feature, its bench target, and, when it has a BDD runner, the `bdd` test target with the dev-dependencies it runs on (`cargo_metadata`, `cucumber`, `tokio`)."
+why = "Gives each crate the one package shape the workspace expects: its name from its place, the workspace's shared fields and lints, and the test and bench targets its spec places."
+params = { package = { type = "identifier", description = "The crate's Cargo package name, or absent for the name its place gives: <product>, <product>-<folder> or <product>-<folder>-<crate>." }, library = { type = "identifier", description = "The crate's library name (`[lib] name`), or absent for the one Cargo derives from the package." }, binary = { type = "identifier", description = "The crate's binary name (`[[bin]] name`, at src/main.rs), or absent for a crate with no binary of a different name." }, distribution = { type = "identifier", description = "Whether this crate owns its product's distribution test and bench: shipped or absent. Only the CLI of a shipped product uses shipped." }, product = { type = "identifier", description = "The product the crate belongs to." }, folder = { type = "identifier", description = "The folder under the product's crates/ that groups the crate; the product's own crate passes the product." }, crate = { type = "identifier", from = "directory-name", description = "The crate, its directory's name." } }
+content = '''
+{%- set name = package if package != "absent" else product ~ ("-" ~ folder if folder != product else "") ~ ("-" ~ crate if crate != folder else "") -%}
+[package]
+name = "{{ name }}"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+{% if scaffold | default(false) %}
+publish = false
+{% endif %}
+autobenches = false
+{%- if library != "absent" and not present["hostile-scope"] | default(false) %}
+
+[lib]
+name = "{{ library }}"
+{%- endif %}
+{%- if binary != "absent" %}
+
+[[bin]]
+name = "{{ binary }}"
+path = "src/main.rs"
+{%- endif %}
+{%- if present["hostile-scope"] | default(false) %}
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2.workspace = true
+quote.workspace = true
+syn.workspace = true
+{%- elif present["language-conformance-test"] | default(false) %}
+
+[dependencies]
+ryo = { package = "idiomatic-sh-ryo-sdk", path = "../../crates/sdk" }
+{%- elif present["cli-main"] | default(false) %}
+
+[dependencies]
+anstream.workspace = true
+clap.workspace = true
+indicatif.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+tracing-chrome.workspace = true
+tracing-subscriber.workspace = true
+{%- endif %}
+
+[dev-dependencies]
+{%- if present["language-conformance-test"] | default(false) %}
+ryo = { package = "idiomatic-sh-ryo-sdk", path = "../../crates/sdk", features = ["fixtures"] }
+dhat.workspace = true
+# The crate itself, with its fixtures: its tests need them, and no test is run with a flag.
+{{ name }} = { path = ".", features = ["fixtures"] }
+{%- endif %}
+{%- if present["bdd-runner"] | default(false) %}
+cargo_metadata.workspace = true
+cucumber.workspace = true
+{%- endif %}
+{%- if present["bdd-runner"] | default(false) %}
+tokio.workspace = true
+{%- endif %}
+{%- if present["hostile-scope"] | default(false) %}
+trybuild.workspace = true
+{%- endif %}
+{%- if present["cli-main"] | default(false) %}
+trycmd.workspace = true
+tempfile.workspace = true
+snapbox.workspace = true
+{%- endif %}
+{%- if distribution == "shipped" %}
+ignore.workspace = true
+sha2.workspace = true
+sysinfo.workspace = true
+toml.workspace = true
+{%- endif %}
+{%- if present["bdd-runner"] | default(false) %}
+
+[[test]]
+name = "bdd"
+harness = false
+{%- endif %}
+
+{%- if present["language-conformance-test"] | default(false) %}
+
+[[test]]
+name = "allocation"
+harness = false
+
+[[test]]
+name = "conformance"
+harness = false
+{%- endif %}
+
+{%- if present["crate-bench"] | default(false) %}
+
+[[bench]]
+name = "performance"
+path = "benches/performance.rs"
+harness = false
+{%- endif %}
+{%- if present["performance-main"] | default(false) %}
+
+[[bench]]
+name = "commands"
+path = "benches/performance/main.rs"
+harness = false
+{%- endif %}
+
+{%- if distribution == "shipped" %}
+
+[[test]]
+name = "distribution"
+path = "../distribution/smoke_test.rs"
+required-features = ["distribution"]
+# Runs only when named (`--test distribution`), never in `cargo test` or `--all-features`.
+test = false
+
+# The targets' performance: the bench prints Bencher Metric Format, never a test.
+[[bench]]
+name = "distribution"
+path = "../distribution/benches/bench.rs"
+harness = false
+required-features = ["distribution"]
+test = false
+{%- endif %}
+
+[features]
+{%- if present["language-conformance-test"] | default(false) %}
+fixtures = ["ryo/fixtures"]
+{%- else %}
+fixtures = []
+{%- endif %}
+{%- if distribution == "shipped" %}
+distribution = []
+{%- endif %}
+
+[lints]
+workspace = true
+{%- if present["language-conformance-test"] | default(false) %}
+
+# Its `allocation` test target sets `dhat` as the global allocator, which machete does not see.
+[package.metadata.cargo-machete]
+ignored = ["dhat"]
+{%- endif %}
+{%- if distribution == "shipped" %}
+
+# cargo-binstall's prebuilt binary: the GitHub Release of the package's own tag, `<package>-v<version>`, holds one archive
+# per target, `<package>-<target>.tar.gz` (`.zip` on Windows), with the bare command inside.
+[package.metadata.binstall]
+pkg-url = "{ repo }/releases/download/{ name }-v{ version }/{ name }-{ target }{ archive-suffix }"
+bin-dir = "{ bin }{ binary-ext }"
+pkg-fmt = "tgz"
+
+[package.metadata.binstall.overrides.x86_64-pc-windows-msvc]
+pkg-fmt = "zip"
+
+[package.metadata.binstall.overrides.aarch64-pc-windows-msvc]
+pkg-fmt = "zip"
+{%- endif %}
+'''
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.file = 'app/Cargo.toml'
+given.params = { package = 'absent', library = 'absent', binary = 'absent', distribution = 'absent', product = 'demo', folder = 'app', crate = 'app' }
+given.files.'app/Cargo.toml' = '''
+[package]
+name = "demo-app"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = true
+autobenches = false
+
+[dev-dependencies]
+cargo_metadata.workspace = true
+cucumber.workspace = true
+divan.workspace = true
+cpu-time.workspace = true
+tokio.workspace = true
+
+[[test]]
+name = "bdd"
+harness = false
+
+[[bench]]
+name = "performance"
+path = "benches/performance.rs"
+harness = false
+
+[features]
+fixtures = []
+
+[lints]
+workspace = true
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template.'
+given.file = 'app/Cargo.toml'
+given.params = { package = 'absent', library = 'absent', binary = 'absent', distribution = 'absent', product = 'demo', folder = 'app', crate = 'app' }
+given.files.'app/Cargo.toml' = '''
+[package]
+name = "demo-app"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+autobenches = false
+
+[dev-dependencies]
+cargo_metadata.workspace = true
+cucumber.workspace = true
+divan.workspace = true
+cpu-time.workspace = true
+tokio.workspace = true
+
+[[test]]
+name = "bdd"
+harness = false
+
+[[bench]]
+name = "performance"
+path = "benches/performance.rs"
+harness = false
+
+[features]
+fixtures = []
+
+[lints]
+workspace = true
+
+# more
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+given.file = 'app/Cargo.toml'
+given.params = { package = 'absent', library = 'absent', binary = 'absent', distribution = 'absent', product = 'demo', folder = 'app', crate = 'app' }
+then.findings = [
+  { rule = 'cargo-package#count', path = '.' },
+]
+
+[[scenarios]]
+id = 'no-edition'
+scenario = 'The manifest does not inherit the edition.'
+given.file = 'app/Cargo.toml'
+given.params = { package = 'absent', library = 'absent', binary = 'absent', distribution = 'absent', product = 'demo', folder = 'app', crate = 'app' }
+given.files.'app/Cargo.toml' = '''
+[package]
+name = "demo-app"
+version.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+autobenches = false
+
+[dev-dependencies]
+cargo_metadata.workspace = true
+cucumber.workspace = true
+divan.workspace = true
+cpu-time.workspace = true
+tokio.workspace = true
+
+[[test]]
+name = "bdd"
+harness = false
+
+[[bench]]
+name = "performance"
+path = "benches/performance.rs"
+harness = false
+
+[features]
+fixtures = []
+
+[lints]
+workspace = true
+'''
+then.findings = [
+  { rule = 'cargo-package#template', path = 'app/Cargo.toml' },
+  { rule = 'cargo-package#template', path = 'app/Cargo.toml' },
+]
+
+[[scenarios]]
+id = 'no-rust-version'
+scenario = 'The manifest does not inherit rust-version.'
+given.file = 'app/Cargo.toml'
+given.params = { package = 'absent', library = 'absent', binary = 'absent', distribution = 'absent', product = 'demo', folder = 'app', crate = 'app' }
+given.files.'app/Cargo.toml' = '''
+[package]
+name = "demo-app"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+autobenches = false
+
+[dev-dependencies]
+cargo_metadata.workspace = true
+cucumber.workspace = true
+divan.workspace = true
+cpu-time.workspace = true
+tokio.workspace = true
+
+[[test]]
+name = "bdd"
+harness = false
+
+[[bench]]
+name = "performance"
+path = "benches/performance.rs"
+harness = false
+
+[features]
+fixtures = []
+
+[lints]
+workspace = true
+'''
+then.findings = [
+  { rule = 'cargo-package#template', path = 'app/Cargo.toml' },
+  { rule = 'cargo-package#template', path = 'app/Cargo.toml' },
+]
+
+[[scenarios]]
+id = 'no-workspace-lints'
+scenario = 'The manifest does not inherit the workspace lints.'
+given.file = 'app/Cargo.toml'
+given.params = { package = 'absent', library = 'absent', binary = 'absent', distribution = 'absent', product = 'demo', folder = 'app', crate = 'app' }
+given.files.'app/Cargo.toml' = '''
+[package]
+name = "demo-app"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+autobenches = false
+
+[dev-dependencies]
+cargo_metadata.workspace = true
+cucumber.workspace = true
+divan.workspace = true
+cpu-time.workspace = true
+tokio.workspace = true
+
+[[test]]
+name = "bdd"
+harness = false
+
+[[bench]]
+name = "performance"
+path = "benches/performance.rs"
+harness = false
+
+[features]
+fixtures = []
+'''
+then.findings = [
+  { rule = 'cargo-package#template', path = 'app/Cargo.toml' },
+  { rule = 'cargo-package#template', path = 'app/Cargo.toml' },
+]
+
+[[scenarios]]
+id = 'main-crate'
+scenario = "A folder's main crate is named <product>-<folder>."
+given.file = 'record/record/Cargo.toml'
+given.params = { package = 'absent', library = 'absent', binary = 'absent', distribution = 'absent', product = 'ryo', folder = 'record', crate = 'record' }
+given.files.'record/record/Cargo.toml' = '''
+[package]
+name = "ryo-record"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+autobenches = false
+
+[dev-dependencies]
+cargo_metadata.workspace = true
+cucumber.workspace = true
+divan.workspace = true
+cpu-time.workspace = true
+tokio.workspace = true
+
+[[test]]
+name = "bdd"
+harness = false
+
+[[bench]]
+name = "performance"
+path = "benches/performance.rs"
+harness = false
+
+[features]
+fixtures = []
+
+[lints]
+workspace = true
+'''
+
+[[scenarios]]
+id = 'macros-crate'
+scenario = "A folder's macro crate is named <product>-<folder>-macros."
+given.file = 'record/macros/Cargo.toml'
+given.params = { package = 'absent', library = 'absent', binary = 'absent', distribution = 'absent', product = 'ryo', folder = 'record', crate = 'macros' }
+given.files.'record/macros/Cargo.toml' = '''
+[package]
+name = "ryo-record-macros"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+autobenches = false
+
+[dev-dependencies]
+cargo_metadata.workspace = true
+cucumber.workspace = true
+divan.workspace = true
+cpu-time.workspace = true
+tokio.workspace = true
+
+[[test]]
+name = "bdd"
+harness = false
+
+[[bench]]
+name = "performance"
+path = "benches/performance.rs"
+harness = false
+
+[features]
+fixtures = []
+
+[lints]
+workspace = true
+'''
+
+[[scenarios]]
+id = 'other-crate'
+scenario = 'Any other crate of a folder is named <product>-<folder>-<crate>.'
+given.file = 'record/coverage/Cargo.toml'
+given.params = { package = 'absent', library = 'absent', binary = 'absent', distribution = 'absent', product = 'ryo', folder = 'record', crate = 'coverage' }
+given.files.'record/coverage/Cargo.toml' = '''
+[package]
+name = "ryo-record-coverage"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+autobenches = false
+
+[dev-dependencies]
+cargo_metadata.workspace = true
+cucumber.workspace = true
+divan.workspace = true
+cpu-time.workspace = true
+tokio.workspace = true
+
+[[test]]
+name = "bdd"
+harness = false
+
+[[bench]]
+name = "performance"
+path = "benches/performance.rs"
+harness = false
+
+[features]
+fixtures = []
+
+[lints]
+workspace = true
+'''
+
+[[scenarios]]
+id = 'product-crate'
+scenario = "The product's own crate is named after the product."
+given.file = 'cli/Cargo.toml'
+given.params = { package = 'absent', library = 'absent', binary = 'absent', distribution = 'absent', product = 'ryo', folder = 'ryo', crate = 'ryo' }
+given.files.'cli/Cargo.toml' = '''
+[package]
+name = "ryo"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+autobenches = false
+
+[dev-dependencies]
+cargo_metadata.workspace = true
+cucumber.workspace = true
+divan.workspace = true
+cpu-time.workspace = true
+tokio.workspace = true
+
+[[test]]
+name = "bdd"
+harness = false
+
+[[bench]]
+name = "performance"
+path = "benches/performance.rs"
+harness = false
+
+[features]
+fixtures = []
+
+[lints]
+workspace = true
+'''
+
+[[scenarios]]
+id = 'macros-singular'
+scenario = 'A macro crate named <product>-<folder>-macro.'
+given.file = 'record/macros/Cargo.toml'
+given.params = { package = 'absent', library = 'absent', binary = 'absent', distribution = 'absent', product = 'ryo', folder = 'record', crate = 'macros' }
+given.files.'record/macros/Cargo.toml' = '''
+[package]
+name = "ryo-record-macro"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+autobenches = false
+
+[dev-dependencies]
+cargo_metadata.workspace = true
+cucumber.workspace = true
+divan.workspace = true
+cpu-time.workspace = true
+tokio.workspace = true
+
+[[test]]
+name = "bdd"
+harness = false
+
+[[bench]]
+name = "performance"
+path = "benches/performance.rs"
+harness = false
+
+[features]
+fixtures = []
+
+[lints]
+workspace = true
+'''
+then.findings = [
+  { rule = 'cargo-package#template', path = 'record/macros/Cargo.toml' },
+]
+
+[[scenarios]]
+id = 'main-misnamed'
+scenario = 'A main crate not named <product>-<folder>.'
+given.file = 'record/record/Cargo.toml'
+given.params = { package = 'absent', library = 'absent', binary = 'absent', distribution = 'absent', product = 'ryo', folder = 'record', crate = 'record' }
+given.files.'record/record/Cargo.toml' = '''
+[package]
+name = "record"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+autobenches = false
+
+[dev-dependencies]
+cargo_metadata.workspace = true
+cucumber.workspace = true
+divan.workspace = true
+cpu-time.workspace = true
+tokio.workspace = true
+
+[[test]]
+name = "bdd"
+harness = false
+
+[[bench]]
+name = "performance"
+path = "benches/performance.rs"
+harness = false
+
+[features]
+fixtures = []
+
+[lints]
+workspace = true
+'''
+then.findings = [
+  { rule = 'cargo-package#template', path = 'record/record/Cargo.toml' },
+]
+
+[[scenarios]]
+id = 'no-fixtures-feature'
+scenario = 'A manifest without the fixtures feature.'
+given.file = 'app/Cargo.toml'
+given.params = { package = 'absent', library = 'absent', binary = 'absent', distribution = 'absent', product = 'demo', folder = 'app', crate = 'app' }
+given.files.'app/Cargo.toml' = '''
+[package]
+name = "demo-app"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+autobenches = false
+
+[dev-dependencies]
+cargo_metadata.workspace = true
+cucumber.workspace = true
+divan.workspace = true
+cpu-time.workspace = true
+tokio.workspace = true
+
+[[test]]
+name = "bdd"
+harness = false
+
+[[bench]]
+name = "performance"
+path = "benches/performance.rs"
+harness = false
+
+[lints]
+workspace = true
+'''
+then.findings = [
+  { rule = 'cargo-package#template', path = 'app/Cargo.toml' },
+  { rule = 'cargo-package#template', path = 'app/Cargo.toml' },
+]
+
+[[scenarios]]
+id = 'named-library'
+scenario = 'A crate named by its package param and given a library name carries the [lib] name.'
+given.file = 'cli/Cargo.toml'
+given.params = { package = 'idiomatic-sh-ryo-core', library = 'ryo_core', binary = 'absent', distribution = 'absent', product = 'ryo', folder = 'ryo', crate = 'ryo' }
+given.files.'cli/Cargo.toml' = '''
+[package]
+name = "idiomatic-sh-ryo-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+autobenches = false
+
+[lib]
+name = "ryo_core"
+
+[dev-dependencies]
+cargo_metadata.workspace = true
+cucumber.workspace = true
+divan.workspace = true
+cpu-time.workspace = true
+tokio.workspace = true
+
+[[test]]
+name = "bdd"
+harness = false
+
+[[bench]]
+name = "performance"
+path = "benches/performance.rs"
+harness = false
+
+[features]
+fixtures = []
+
+[lints]
+workspace = true
+'''
+
+[[scenarios]]
+id = 'named-binary'
+scenario = 'A crate given a binary name carries the [[bin]] target.'
+given.file = 'cli/Cargo.toml'
+given.params = { package = 'absent', library = 'absent', binary = 'ryo', distribution = 'absent', product = 'ryo', folder = 'ryo', crate = 'ryo' }
+given.files.'cli/Cargo.toml' = '''
+[package]
+name = "ryo"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+autobenches = false
+
+[[bin]]
+name = "ryo"
+path = "src/main.rs"
+
+[dev-dependencies]
+cargo_metadata.workspace = true
+cucumber.workspace = true
+divan.workspace = true
+cpu-time.workspace = true
+tokio.workspace = true
+
+[[test]]
+name = "bdd"
+harness = false
+
+[[bench]]
+name = "performance"
+path = "benches/performance.rs"
+harness = false
+
+[features]
+fixtures = []
+
+[lints]
+workspace = true
+'''
+
+[[scenarios]]
+id = 'library-missing'
+scenario = 'A crate given a library name without the [lib] section.'
+given.file = 'cli/Cargo.toml'
+given.params = { package = 'idiomatic-sh-ryo-core', library = 'ryo_core', binary = 'absent', distribution = 'absent', product = 'ryo', folder = 'ryo', crate = 'ryo' }
+given.files.'cli/Cargo.toml' = '''
+[package]
+name = "idiomatic-sh-ryo-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+autobenches = false
+
+[dev-dependencies]
+cargo_metadata.workspace = true
+cucumber.workspace = true
+divan.workspace = true
+cpu-time.workspace = true
+tokio.workspace = true
+
+[[test]]
+name = "bdd"
+harness = false
+
+[[bench]]
+name = "performance"
+path = "benches/performance.rs"
+harness = false
+
+[features]
+fixtures = []
+
+[lints]
+workspace = true
+'''
+then.findings = [
+  { rule = 'cargo-package#template', path = 'cli/Cargo.toml' },
+  { rule = 'cargo-package#template', path = 'cli/Cargo.toml' },
+]
