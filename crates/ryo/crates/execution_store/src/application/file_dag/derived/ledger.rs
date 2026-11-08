@@ -14,7 +14,7 @@ mod snapshot;
 mod test;
 pub(crate) mod types;
 
-#[cfg(test)]
+#[cfg(any(test, feature = "fixtures"))]
 use types::{BackingCount, BackingTag};
 use types::{
     Backing, ByteCount, HoldCount, LeaseClass, Ledger, LedgerEntry, ResourceLease, SlotCount,

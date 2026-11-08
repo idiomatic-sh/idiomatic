@@ -10,7 +10,7 @@ use ryo_derived::domain::request::types::DerivedKind;
 use ryo_derived::domain::contract::types::DerivedView;
 use std::sync::Arc;
 
-#[cfg(test)]
+#[cfg(any(test, feature = "fixtures"))]
 use super::types::PartitionCapacity;
 #[cfg(test)]
 use super::types::StorageIdentity;
@@ -57,7 +57,7 @@ impl AcquiredView {
             Err(_) => None,
         }
     }
-    #[cfg(test)]
+    #[cfg(any(test, feature = "fixtures"))]
     pub(crate) fn partition_order_capacity(
         &self,
     ) -> Result<PartitionCapacity, OperatingError> {

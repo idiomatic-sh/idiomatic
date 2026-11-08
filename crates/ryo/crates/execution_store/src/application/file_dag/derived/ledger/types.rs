@@ -15,7 +15,7 @@ pub(crate) struct UnitCount(pub usize);
 pub(crate) struct HoldCount(pub usize);
 
 /// Backings of one kind a ledger holds.
-#[cfg(test)]
+#[cfg(any(test, feature = "fixtures"))]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct BackingCount(pub usize);
 

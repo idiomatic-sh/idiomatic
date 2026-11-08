@@ -1,7 +1,7 @@
 //! Facts the admitted view reports about the storage it leases.
 
 /// Reserved room of a partition order, in row positions.
-#[cfg(test)]
+#[cfg(any(test, feature = "fixtures"))]
 pub(crate) struct PartitionCapacity(pub usize);
 
 /// Which allocation a leased view reads, for proving two views share it.
