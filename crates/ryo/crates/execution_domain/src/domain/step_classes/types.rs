@@ -6,7 +6,7 @@ use ryo_values::domain::plan_parts::types::{ColumnIndex, PlanComparison};
 
 /// A per-file selection's rule and place among that rule's steps.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct MergedStep {
+pub struct MergedStep {
     /// The place of the rule among the rules of the call.
     pub rule: RuleIndex,
     /// The place of the step among the rule's steps.
@@ -21,9 +21,9 @@ pub struct StepClass {
     /// The partition whose rows the class selects: a class never spans two partitions.
     pub scope: ryo_values::domain::plan_parts::types::StepScope,
     /// The step the class is decided by.
-    pub(crate) first: MergedStep,
+    pub first: MergedStep,
     /// Every step of the class, the first included.
-    pub(crate) members: Vec<MergedStep>,
+    pub members: Vec<MergedStep>,
     /// Ordered predicates mapped through preceding selections to source columns.
     pub comparisons: Vec<PlanComparison>,
 }

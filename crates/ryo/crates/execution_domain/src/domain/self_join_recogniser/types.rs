@@ -34,7 +34,7 @@ pub struct NumberRequirement {
 /// to its actual admitted population, schema and generation.
 #[derive(Clone, Debug)]
 pub struct Shape {
-    pub(crate) plan: PlanIdentity,
+    pub plan: PlanIdentity,
     pub source: StepId,
     pub replaced_join: StepId,
     pub replaced_select: StepId,
@@ -67,7 +67,7 @@ pub enum Decline {
 
 /// A step the recognizer declined and why.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct Declined {
+pub struct Declined {
     pub step: StepId,
     pub reason: Decline,
 }
@@ -75,5 +75,5 @@ pub(crate) struct Declined {
 #[derive(Clone, Debug, Default)]
 pub struct Program {
     pub shapes: Vec<Shape>,
-    pub(crate) declines: Vec<Declined>,
+    pub declines: Vec<Declined>,
 }

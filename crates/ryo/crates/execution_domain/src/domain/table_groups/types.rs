@@ -11,7 +11,7 @@ use ryo_values::domain::row_texts::types::CellText;
 
 /// The digest of the set of distinct values a group holds; zero when none was asked for.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) struct SetDigest(pub i64);
+pub struct SetDigest(pub i64);
 
 /// A run of rows that agree on their keys, counted: the first of its rows, and how many it has.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -21,7 +21,7 @@ pub struct Group {
     /// What was counted for it.
     pub counted: RowCount,
     /// A digest of the set of distinct values it holds, when a digest was asked for; zero otherwise.
-    pub(crate) digest: SetDigest,
+    pub digest: SetDigest,
 }
 
 /// The hashes of the values of a group.

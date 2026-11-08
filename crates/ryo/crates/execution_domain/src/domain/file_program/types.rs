@@ -45,7 +45,7 @@ pub struct RequestGraph {
     /// Named roots extend this request graph; ordinary requests retain no observation allocation.
     pub observations: Option<GraphObservations>,
     /// Producers of declared derived inputs, computed once for the whole request.
-    pub(crate) derived_sources: DerivedSources,
+    pub derived_sources: DerivedSources,
     pub nodes: Vec<FileProgramNode>,
 }
 
@@ -219,7 +219,7 @@ pub(crate) struct PendingStep {
 
 /// The nodes of a request graph that a derived view reads, by the node's place.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub(crate) struct DerivedSources(pub Vec<bool>);
+pub struct DerivedSources(pub Vec<bool>);
 
 /// Whether the contract of a node and of everything it reads has a valid schema.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

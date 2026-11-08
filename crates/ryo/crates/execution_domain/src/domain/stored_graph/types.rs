@@ -101,7 +101,7 @@ pub struct ExaminedVertices(pub u64);
 #[derive(Debug, Default)]
 pub struct GraphWalk {
     /// Visitation epoch by dense vertex.
-    pub(crate) marks: Vec<VisitEpoch>,
+    pub marks: Vec<VisitEpoch>,
     /// Nonzero current epoch; wrapping resets marks once.
     pub epoch: VisitEpoch,
     /// Iterative BFS frontier.

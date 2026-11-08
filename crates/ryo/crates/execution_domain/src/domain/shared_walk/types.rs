@@ -22,7 +22,7 @@ pub struct RowsVisited(pub u64);
 
 /// Immutable identity of an exact ordered predicate prefix in this request.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub(crate) struct PredicatePlace(pub usize);
+pub struct PredicatePlace(pub usize);
 
 /// Place of one comparison within its class's ordered predicates.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -37,11 +37,11 @@ pub struct ClassLease {
 
 /// The number of kinds named by one prepared class.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) struct KindCount(pub usize);
+pub struct KindCount(pub usize);
 
 /// Whether a class can be decided by the shared pass.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) enum Eligibility {
+pub enum Eligibility {
     #[default]
     Declined,
     Ready,
@@ -49,7 +49,7 @@ pub(crate) enum Eligibility {
 
 /// Reusable file-local comparison work. No request plan or published rows live here.
 #[derive(Debug, Default)]
-pub(crate) struct ClassWork {
+pub struct ClassWork {
     pub result: Option<ClassResult>,
     pub visits: RowsVisited,
     pub kinds: KindCount,
@@ -60,22 +60,22 @@ pub(crate) struct ClassWork {
 
 /// Dense position in one admitted cohort, never a compiled class identity.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct CohortPlace(pub usize);
+pub struct CohortPlace(pub usize);
 
 #[derive(Debug, Default)]
 pub struct WalkWork {
-    pub(crate) active: Vec<ClassPlace>,
-    pub(crate) work: Vec<ClassWork>,
-    pub(crate) by_kind: Vec<Vec<CohortPlace>>,
-    pub(crate) columns_by_kind: Vec<ColumnPlaces>,
-    pub(crate) every: Vec<CohortPlace>,
-    pub(crate) cells: Vec<Value>,
-    pub(crate) predicates: PredicateMemo,
+    pub active: Vec<ClassPlace>,
+    pub work: Vec<ClassWork>,
+    pub by_kind: Vec<Vec<CohortPlace>>,
+    pub columns_by_kind: Vec<ColumnPlaces>,
+    pub every: Vec<CohortPlace>,
+    pub cells: Vec<Value>,
+    pub predicates: PredicateMemo,
 }
 
 /// Decisions of the current source row indexed by `PredicatePlace`, and the places filled.
 #[derive(Debug, Default)]
-pub(crate) struct PredicateMemo {
+pub struct PredicateMemo {
     pub slots: Vec<Option<Result<Verdict, OperatingError>>>,
     pub filled: Vec<PredicatePlace>,
 }
@@ -115,7 +115,7 @@ pub struct WalkCounts {
 #[derive(Debug)]
 pub struct ClassResult {
     pub positions: Slots,
-    pub(crate) completion: Result<(), crate::domain::operating::errors::OperatingError>,
+    pub completion: Result<(), crate::domain::operating::errors::OperatingError>,
 }
 
 /// Read-only accounting of the bound physical program; never admission authority.

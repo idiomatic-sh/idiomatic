@@ -22,10 +22,10 @@ pub enum PhysicalShape {
     ReadablePhysicalFallback,
 }
 pub struct RelationContract<'a> {
-    pub(crate) input: RepresentationInput<'a>,
+    pub input: RepresentationInput<'a>,
     pub kind: RepresentationKind,
-    pub(crate) kinds: &'a [CellKind],
-    pub(crate) rows: RowCount,
+    pub kinds: &'a [CellKind],
+    pub rows: RowCount,
     /// Captured metadata refusals are interpreted only at the existing demand gate.
     pub metadata: Result<(), OperatingError>,
 }

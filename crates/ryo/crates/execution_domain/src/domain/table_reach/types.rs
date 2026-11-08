@@ -48,9 +48,9 @@ pub struct OrderedWalk {
     /// Next representable visit ordinal; none means the next visit would overflow.
     pub ordinal: Option<Integer>,
     /// Vertices expanded in this root walk.
-    pub(crate) expanded: VerticesExpanded,
+    pub expanded: VerticesExpanded,
     /// Edges examined in this root walk.
-    pub(crate) examined: EdgesExamined,
+    pub examined: EdgesExamined,
 }
 
 
@@ -60,11 +60,11 @@ pub struct AdjacencyCursor(pub std::ops::Range<usize>);
 
 /// The vertices one root walk of the ordered search has expanded.
 #[derive(Clone, Copy, Debug, Default)]
-pub(crate) struct VerticesExpanded(pub usize);
+pub struct VerticesExpanded(pub usize);
 
 /// The edges one root walk of the ordered search has examined.
 #[derive(Clone, Copy, Debug, Default)]
-pub(crate) struct EdgesExamined(pub usize);
+pub struct EdgesExamined(pub usize);
 
 /// One edge the ordered walk yields: its row among the edges, and its visit ordinal.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

@@ -11,11 +11,11 @@ pub struct LogicalCounts {
 
 /// A step of a plan, by its place among the plan's steps.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct StepPlace(pub usize);
+pub struct StepPlace(pub usize);
 
 /// A plan, by where it is: the same plan has the same identity in every file.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) struct PlanIdentity(pub usize);
+pub struct PlanIdentity(pub usize);
 
 
 /// Whether the rows each step is fed are counted.

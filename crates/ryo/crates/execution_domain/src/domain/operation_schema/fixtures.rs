@@ -21,7 +21,7 @@ use ryo_values::domain::{
     },
 };
 /// A named column index for the fixture's mixed row.
-pub fn col(value: u32) -> ColumnIndex {
+pub(crate) fn col(value: u32) -> ColumnIndex {
     ColumnIndex(value)
 }
 /// A stable real file/position identity, not a composite graph encoding.
@@ -246,7 +246,7 @@ fn binary() -> Vec<Operation> {
     ]
 }
 /// Traversals retain root metadata and graph partitions without graph-dependent schema.
-pub fn graph_operations() -> Vec<Operation> {
+pub(crate) fn graph_operations() -> Vec<Operation> {
     vec![
         Operation::Axis {
             from: FROM,

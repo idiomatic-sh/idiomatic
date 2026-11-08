@@ -14,7 +14,7 @@ use ryo_values::domain::plan_parts::types::LiteralText;
 /// Which kinds a test asked of their names is about: the vocabulary of kinds it asked of, the test, and the hash of the text it is
 /// against.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub(crate) struct KindTest {
+pub struct KindTest {
     /// The names of the kinds of the file it was asked of: a set of kinds is only as good as the numbering of the language that made it.
     pub vocabulary: KindSum,
     /// How the name is compared, by its place among the tests that can name a kind.
@@ -34,7 +34,7 @@ pub struct KindSet {
 
 /// Comparisons of a filter, by their place among the filter's comparisons.
 #[derive(Debug, Default, PartialEq, Eq)]
-pub(crate) struct ComparisonNumbers(pub Vec<usize>);
+pub struct ComparisonNumbers(pub Vec<usize>);
 
 /// A test, by its place among the four that can name a kind.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -69,7 +69,7 @@ pub(crate) struct MemoPlace {
 
 /// What a comparison decided is remembered by the comparison and the hash of the text.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub(crate) struct VerdictKey {
+pub struct VerdictKey {
     /// The comparison.
     pub comparison: ComparisonSlot,
     /// The hash of the text it decided about.
@@ -82,7 +82,7 @@ pub struct ComparisonSlot(pub usize);
 
 /// The number of a kind set among the sets of a language's kinds.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct KindSetPlace(pub usize);
+pub struct KindSetPlace(pub usize);
 
 /// A bit for each kind of a set, by the number of the kind.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -90,7 +90,7 @@ pub struct KindMask(pub Vec<u64>);
 
 /// How a name is compared, by its place among the tests that can name a kind.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub(crate) struct NamingTest(pub u8);
+pub struct NamingTest(pub u8);
 
 /// The hash of a name's text, or the number of a file.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -136,7 +136,7 @@ pub struct OperatorScratch {
 pub struct SelectScratch {
     /// What a comparison decided about a text, by the comparison and the hash of the text: the same text
     /// is decided once for the run, not once for each file that has it.
-    pub(crate) verdicts: hashbrown::HashMap<VerdictKey, Verdict>,
+    pub verdicts: hashbrown::HashMap<VerdictKey, Verdict>,
 
     /// Fixed glob operands made ready once for each comparison, for this run's bindings.
     pub compiled_globs: hashbrown::HashMap<
@@ -148,13 +148,13 @@ pub struct SelectScratch {
     pub compiled_regexes: Patterns,
 
     /// The kinds of a language by the name they are given: a name is the same kind in every file.
-    pub(crate) kind_names: hashbrown::HashMap<KindTest, KindSetPlace>,
+    pub kind_names: hashbrown::HashMap<KindTest, KindSetPlace>,
 
     /// The kinds each name stands for, as the sets `kind_names` numbers.
-    pub(crate) kind_sets: Vec<std::sync::Arc<KindSet>>,
+    pub kind_sets: Vec<std::sync::Arc<KindSet>>,
 
     /// The comparisons of a filter that name a kind: the set of kinds that satisfy each.
-    pub(crate) kind_tests: ComparisonNumbers,
+    pub kind_tests: ComparisonNumbers,
 
 }
 

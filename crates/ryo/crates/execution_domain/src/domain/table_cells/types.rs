@@ -29,7 +29,7 @@ pub enum TreeForm {
 
 /// The places of the columns of a row that comparisons read.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub(crate) struct ColumnPlaces(pub Vec<usize>);
+pub struct ColumnPlaces(pub Vec<usize>);
 
 /// Whether the cells asked for were read from a row.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
