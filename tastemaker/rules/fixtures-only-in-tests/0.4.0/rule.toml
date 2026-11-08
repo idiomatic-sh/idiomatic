@@ -1,9 +1,9 @@
 description = "An item gated by `cfg(any(test, feature = \"fixtures\"))` is named only by test code: a test file, a fixtures file, a file declared under a test or `fixtures` cfg, or an item gated by one. A method inside a gated `impl` block is gated too. A production file calling a gated method, by a method call or by its path, or naming a gated module, function, constant or type of its own package, is a finding: an item of a gated module is reached by a path through the module, which is reported at the module's segment."
-why = "The gate builds an item for the crate's own tests and, through the `fixtures` feature, for other crates' tests. A feature is additive: when any crate in the build turns `fixtures` on (the core's `fixtures` forwards the engine's), the item compiles into every crate that sees it, so the gate alone does not keep production off it, and a production caller compiles whenever the feature is on (ExecutionRequest::open_file is such a seal: outside the engine's tests a file runs through `run_file`). Test code is a path the test layout places (`tests/`, `test/`, `*_test/`, `benches/`, `benchmarks/`, `*_test.rs`, `test.rs`, `tests.rs`, `acceptance.rs`, `fixtures.rs`, `fixtures/`: a colocated `acceptance.rs` is compiled by the crate's `tests/bdd.rs`, a `benchmarks/` file by a bench target), a file whose module is declared under a `cfg` naming `test` or the `fixtures` feature, or a use inside an item decorated by such a `cfg`. Names are read as written, not resolved: a method is matched by the method name of a method call in any package, and only while no production file declares a method of that name outside the gate; the same method named by its path (`Trait::method(&value, ..)` or `Type::method(..)`, in any package) is matched by the last segment of a path whose qualifier ends in a capitalised name (a type or a trait, so `module::method` and `crate::method` are read as functions), under the same seal (a test or fixtures file that implements the gated trait method without the gate, as a test witness does, does not unseal it); a function, constant or type by the last path segment written in its own package, and only while the package declares nothing else under that name. A method is gated when the gate decorates it or an item enclosing it (an `impl` block or a trait, so the methods of a gated `impl` block are gated though they carry no gate of their own). A gated module (`#[cfg(...)] pub mod cases;`) is matched by path, not by the names its files declare: a production path through it (`crate::cases::Matched`, `use crate::cases::*`) is reported at the module's segment, so an item of the module that shares its name with a production or standard item (`None`, `format`) is never mistaken for it. The seal compares only production declarations: a declaration inside a test-gated item or `impl` block, or in a test file, does not unseal a name. Not seen: a gated item named from another package by a path, a name inside a macro's tokens, and a gated method that shares its name with an ungated method of a production file."
+why = "The gate builds an item for the crate's own tests and, through the `fixtures` feature, for other crates' tests. A feature is additive: when any crate in the build turns `fixtures` on (the core's `fixtures` forwards the engine's), the item compiles into every crate that sees it, so the gate alone does not keep production off it, and a production caller compiles whenever the feature is on (ExecutionRequest::open_file is such a seal: outside the engine's tests a file runs through `run_file`). Test code is a path the test layout places (`tests/`, `test/`, `*_test/`, `benches/`, `benchmarks/`, `*_test.rs`, `test.rs`, `tests.rs`, a use case's or contract's placed `src/inbound/use_cases/*/acceptance.rs` or `src/inbound/contracts/*/acceptance.rs`, `fixtures.rs`, `fixtures/`: a placed acceptance file is compiled by the crate's `tests/bdd.rs`, a `benchmarks/` file by a bench target; an `acceptance.rs` anywhere else is production unless a gated module declares it), a file whose module is declared under a `cfg` naming `test` or the `fixtures` feature, or a use inside an item decorated by such a `cfg`. Names are read as written, not resolved: a method is matched by the method name of a method call in any package, and only while no production file declares a method of that name outside the gate; the same method named by its path (`Trait::method(&value, ..)` or `Type::method(..)`, in any package) is matched by the last segment of a path whose qualifier ends in a capitalised name (a type or a trait, so `module::method` and `crate::method` are read as functions), under the same seal (a test or fixtures file that implements the gated trait method without the gate, as a test witness does, does not unseal it); a function, constant or type by the last path segment written in its own package, and only while the package declares nothing else under that name. A method is gated when the gate decorates it or an item enclosing it (an `impl` block or a trait, so the methods of a gated `impl` block are gated though they carry no gate of their own). A gated module (`#[cfg(...)] pub mod cases;`) is matched by path, not by the names its files declare: a production path through it (`crate::cases::Matched`, `use crate::cases::*`) is reported at the module's segment, so an item of the module that shares its name with a production or standard item (`None`, `format`) is never mistaken for it. The seal compares only production declarations: a declaration inside a test-gated item or `impl` block, or in a test file, does not unseal a name. Not seen: a gated item named from another package by a path, a name inside a macro's tokens, and a gated method that shares its name with an ungated method of a production file."
 
 query = '''
 let rust-files = select l."path" as "file" from "filesystem.file" as l where glob_any(l."path", "**/*.rs");
-let path-test = select * from rust-files where glob_any(file, "{**/tests/**,**/test/**,**/*_test/**,**/benches/**,**/benchmarks/**,**/*_test.rs,**/test.rs,**/tests.rs,**/acceptance.rs,**/fixtures.rs,**/fixtures/**}");
+let path-test = select * from rust-files where glob_any(file, "{**/tests/**,**/test/**,**/*_test/**,**/benches/**,**/benchmarks/**,**/*_test.rs,**/test.rs,**/tests.rs,**/src/inbound/use_cases/*/acceptance.rs,**/src/inbound/contracts/*/acceptance.rs,**/fixtures.rs,**/fixtures/**}");
 let cfgs = select * from "decorates" where target = "cfg";
 let gates = select * from cfgs where glob_any(arguments, "any(test, feature = ?fixtures?)");
 let test-cfgs = select * from cfgs where glob_any(arguments, "{test,*(test*,* test*,*feature = ?fixtures?*}") and not glob_any(arguments, "{not(test*,*(not(test*,* not(test*}");
@@ -448,8 +448,8 @@ then.findings = [
 
 [[scenarios]]
 id = 'acceptance-and-benchmarks-reach-a-gated-module'
-scenario = "A colocated `acceptance.rs`, which the crate's `tests/bdd.rs` compiles, and a bench target under `benchmarks/` reach the gated `fixtures` module by its path: both are test code, so nothing is reported."
-given.files.'engine/src/acceptance.rs' = '''
+scenario = "A use case's placed `acceptance.rs`, which the crate's `tests/bdd.rs` compiles, and a bench target under `benchmarks/` reach the gated `fixtures` module by its path: both are test code, so nothing is reported."
+given.files.'engine/src/inbound/use_cases/open/acceptance.rs' = '''
 //! The engine's acceptance steps.
 
 /// Opens a file the way the acceptance steps do.
@@ -464,3 +464,38 @@ fn main() {
     let _ = engine::fixtures::opened(&engine::Engine);
 }
 '''
+
+[[scenarios]]
+id = 'an-unplaced-acceptance-file-is-production'
+scenario = "The core declares `pub mod acceptance;` without a gate in its domain, and that file names the gated `cases` module: an `acceptance.rs` outside the placed use-case and contract paths is production, so it is reported."
+given.files.'core/src/lib.rs' = '''
+//! Core.
+
+/// The core's domain.
+pub mod domain;
+#[cfg(any(test, feature = "fixtures"))]
+pub mod cases;
+'''
+given.files.'core/src/domain.rs' = '''
+//! The domain.
+
+/// Acceptance in name only.
+pub mod acceptance;
+'''
+given.files.'core/src/domain/acceptance.rs' = '''
+//! Not a placed acceptance file.
+
+/// Answers whether a row matched.
+pub fn answer() -> bool {
+    crate::cases::Matched(true).0
+}
+'''
+given.files.'core/src/cases.rs' = '''
+//! The core's test rows.
+
+/// Whether a row matched.
+pub struct Matched(pub bool);
+'''
+then.findings = [
+  { path = 'core/src/domain/acceptance.rs', line = 5 },
+]
