@@ -1,5 +1,6 @@
 //! An observation stage: its reservations, installs and restored frontiers.
 use crate::application::file_dag::frontiers::types::BoundInput;
+use crate::application::file_dag::frontiers::types::ReadinessProof;
 use crate::application::file_dag::frontiers::types::InputReadiness;
 use crate::application::file_dag::frontiers::types::PublicationSlot;
 use crate::application::file_dag::observations::types::{AdmittedOutput, RuleSelection};
@@ -9,6 +10,7 @@ use crate::application::file_dag::program::observation_stage::types::Observation
 use crate::application::file_dag::program::project_phase::interface::{ProjectRootExecution, ProjectStage};
 use crate::application::file_dag::program::project_phase::types::PhaseScope;
 use crate::application::file_dag::program::project_phase::types::ProjectTask;
+use crate::application::file_dag::program::project_phase::types::{OccurrenceNumber, PhaseOccurrences, PhasePartials, PhaseStop};
 use crate::application::file_dag::program::rule_outcome::types::ProjectBatch;
 use crate::application::file_dag::program::rule_outcome::types::RuleOutcome;
 use crate::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome;
@@ -33,6 +35,18 @@ impl ProjectRootExecution for ObservationStage<'_> {
     ) -> ProjectBatch<Result<RuleOutcome<ProjectOutputOutcome>, OperatingError>, E> {
         self.phase.evaluate(tasks, symbols, guard)
     }
+    fn evaluate_occurrences<H, T, E>(
+        &self,
+        phase: PhaseOccurrences<'_>,
+        symbols: &mut Symbols,
+        before: impl FnMut(OccurrenceNumber) -> Result<H, E>,
+        partials: impl FnMut(OccurrenceNumber) -> Result<PhasePartials, E>,
+        guard: impl FnMut(RuleIndex) -> Result<(), E>,
+        complete: impl FnMut(OccurrenceNumber, RuleOutcome<ProjectOutputOutcome>, PublicationSlot, &mut Symbols) -> Result<T, E>,
+    ) -> ProjectBatch<Result<T, PhaseStop<E>>, E> {
+        self.phase
+            .evaluate_occurrences(phase, symbols, before, partials, guard, complete)
+    }
     fn readiness_counts(&self) -> ReadinessCounts {
         self.phase.readiness_counts()
     }
@@ -55,6 +69,25 @@ impl ObservationExecution for ObservationStage<'_> {
         OperatingError,
     > {
         self.publications.binding_readiness(rule)
+    }
+    fn frontier_readiness(&self, rule: RuleIndex) -> Result<ReadinessProof, OperatingError> {
+        let readiness = self.publications.binding_readiness(rule)?;
+        let dependencies = self.phase.request.program.frontier_dependencies(rule)?;
+        Ok(ReadinessProof(
+            dependencies
+                .iter()
+                .map(|inputs| {
+                    if inputs
+                        .iter()
+                        .all(|input| readiness.get(input).copied() == Some(InputReadiness::Ready))
+                    {
+                        InputReadiness::Ready
+                    } else {
+                        InputReadiness::Unavailable
+                    }
+                })
+                .collect(),
+        ))
     }
     fn arenas(&self) -> &[ryo_values::domain::stored_facts::types::ArenaBytes] {
         self.publications.arenas()

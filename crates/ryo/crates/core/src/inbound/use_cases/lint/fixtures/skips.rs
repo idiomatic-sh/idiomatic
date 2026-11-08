@@ -223,7 +223,19 @@ pub(crate) fn removed_file_leaves_nothing() -> Result<(usize, usize), LintError>
                 store_of("discard", directory.path()),
             );
             // What the store keeps of the rejected file: a rule that asks for accepted syntax skips it; a rule that always applies
-            // answers it as any other file, so its rows are among the cold rows.
+            // answers it as any other file, so its rows are among the cold rows. The fake language names each function by its
+            // file's path, so the rejected file's row is the one whose name is `b.rs`.
+            let names_b = |row: &crate::outbound::row_sink::types::KeptRow| {
+                row.0.iter().any(|cell| {
+                    matches!(
+                        cell,
+                        Some(
+                            ryo_values::domain::row_texts::types::Cell::File(text)
+                                | ryo_values::domain::row_texts::types::Cell::Text(text)
+                        ) if &**text == "b.rs"
+                    )
+                })
+            };
             match applicability {
                 AcceptedSyntax => assert!(
                     cold.undecided.contains("b.rs") || cold.skipped.contains("b.rs"),
@@ -232,8 +244,9 @@ pub(crate) fn removed_file_leaves_nothing() -> Result<(usize, usize), LintError>
                     cold.skipped
                 ),
                 Always => assert!(
-                    cold.rows != oracle.rows,
-                    "{kind} {applicability:?}: the cold run answers the rejected file"
+                    cold.rows.iter().any(names_b) && !oracle.rows.iter().any(names_b),
+                    "{kind} {applicability:?}: the cold run answers the rejected file: {:?}",
+                    cold.rows
                 ),
             }
             let warm = answered(&without, &["b.rs"], applicability, AnswerShape::Findings, kept_in);

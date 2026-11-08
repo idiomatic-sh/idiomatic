@@ -17,6 +17,7 @@ enum Scenario {
     Bindings,
     Duplicates,
     DerivedText,
+    RequestSource,
     Dependencies,
     InvalidContractShape,
 }
@@ -46,6 +47,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("equal_derived_text_steps_of_different_rules_share_one_producer"),
         word: Word::Succeeds,
         input: || Scenario::DerivedText,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("equal_request_source_steps_of_different_rules_keep_their_own_producers"),
+        word: Word::Succeeds,
+        input: || Scenario::RequestSource,
         expect: Expect::Value(()),
     },
     Case {
@@ -142,6 +149,23 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             assert_eq!(
                 graph.program_nodes[0][1].as_ref().expect("first derived text producer"),
                 graph.program_nodes[1][1].as_ref().expect("second derived text producer"),
+            );
+        }
+        Scenario::RequestSource => {
+            // A request source is what the request hands one rule: equal steps of two rules that bind nothing still
+            // answer each rule's own rows, so neither reads the other's producer.
+            let mut hosted = first;
+            hosted.steps = vec![PlanStep {
+                scope: StepScope::PerFile,
+                operation: Operation::Hosted {
+                    relation: HostedNumber(0),
+                },
+            }];
+            hosted.emit.step = StepId(0);
+            let graph = graph(&[hosted.clone(), hosted], &[vec![], vec![]])?;
+            assert_ne!(
+                graph.program_nodes[0][0].as_ref().expect("first request source producer"),
+                graph.program_nodes[1][0].as_ref().expect("second request source producer"),
             );
         }
         Scenario::Dependencies => {

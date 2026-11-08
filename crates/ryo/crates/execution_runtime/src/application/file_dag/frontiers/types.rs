@@ -362,6 +362,20 @@ pub enum InputReadiness {
     Unavailable,
 }
 
+/// The readiness of each retained frontier of one rule, in frontier order, as the observation stage's publications prove it: only
+/// the stage mints one, so no caller chooses which producers count as published.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ReadinessProof(pub(crate) Vec<InputReadiness>);
+
+#[cfg(any(test, feature = "fixtures"))]
+impl ReadinessProof {
+    /// Readiness stated outright, for the engine's own proofs of a refused or a ready producer.
+    #[must_use]
+    pub fn stated(ready: Vec<InputReadiness>) -> Self {
+        Self(ready)
+    }
+}
+
 /// The address of one provider, the identity of what a population was read from.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct ProviderAddress(pub usize);

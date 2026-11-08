@@ -201,10 +201,8 @@ impl ProgramExecution {
         } else if prepare_only == PollMode::PrepareOnly {
             return Ok(InvocationOutcome::Ready);
         }
-        if prepare_only == PollMode::PrepareOnly {
-            // The queue counts the evaluations it dispatches; this one ran in its preparation poll.
-            self.readiness_counts.borrow_mut().evaluations.0 += 1;
-        }
+        // This poll evaluates: a preparation poll says so, and the queue counts the evaluation as one it dispatched.
+        call.prepare_only = PollMode::Evaluate;
         let frames = super::super::invocation::service::frames(call.frames, region)?;
         let last = region
             .instructions()

@@ -3,17 +3,12 @@ use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use super::completion::service::ProjectCompletion;
 use super::completion::service::collected;
 use super::completion::types::CrossedWithPublications;
-use super::constants::MISSING_OUTCOME;
 use super::errors::CrossFileError;
-use super::preparation::service::DeclaredProjectPreparation;
-use super::preparation::service::Preparation;
-use super::preparation::service::SealedBatch;
-use super::preparation::types::PreparedProject;
+use super::constants::{MISSING_FRONTIER_BUCKET, MISSING_OUTCOME};
 use super::rendering::service::Rendering;
+use super::types::BatchOccurrenceBinding;
 use super::types::ObservationRun;
 use super::types::ProjectCrossing;
-use super::types::ProjectOutcome;
-use super::types::ReadyProject;
 use crate::domain::answering::service::settle;
 use crate::domain::answering::types::Answered;
 use crate::domain::answering::types::Todo;
@@ -23,25 +18,26 @@ use crate::domain::crossing::service::partials_for_reads;
 use crate::domain::render::types::Answering;
 use crate::outbound::corpus::interface::CorpusPort;
 use ryo_execution::inbound::use_cases::publication::interface::PublicationUseCase;
-use ryo_execution::inbound::use_cases::execution::interface::InputReadiness;
 use ryo_execution::inbound::use_cases::execution::interface::{AdmittedOutput, RuleSelection};
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationExecution;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationPublication;
 use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution;
-use ryo_execution::inbound::use_cases::execution::interface::EmitDemand;
 use ryo_execution::inbound::use_cases::execution::interface::FileObservationReadiness;
 use ryo_execution::inbound::use_cases::execution::interface::FrontierDemand;
-use ryo_execution::inbound::use_cases::execution::interface::FrontierRequest;
-use ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles;
-use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
+use ryo_execution::inbound::use_cases::execution::interface::OccurrenceNumber;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
+use ryo_execution::inbound::use_cases::execution::interface::PhaseOccurrence;
+use ryo_execution::inbound::use_cases::execution::interface::PhaseOccurrences;
+use ryo_execution::inbound::use_cases::execution::interface::PhasePartials;
+use ryo_execution::inbound::use_cases::execution::interface::PhaseStop;
+use ryo_execution::inbound::use_cases::execution::interface::PreparationError;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectBatch;
-use ryo_execution::inbound::use_cases::execution::interface::ProjectInput;
-use ryo_execution::inbound::use_cases::execution::interface::ProjectTask;
-use ryo_execution::inbound::use_cases::execution::interface::RuleDemand;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectOutputOutcome;
+use ryo_execution::inbound::use_cases::execution::interface::PublicationSlot;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
+use ryo_execution::inbound::use_cases::execution::interface::RuleOutcome;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::rule_requests::service::failed;
 use ryo_values::domain::stored_facts::types::ArenaBytes;
@@ -50,7 +46,7 @@ use std::sync::Arc;
 /// Cross-file work sharing the caller's corpus resource.
 pub struct CrossFile {
     /// Renders each phase's answer and packs its publications.
-    completion: ProjectCompletion,
+    pub(super) completion: ProjectCompletion,
 }
 
 impl std::fmt::Debug for CrossFile {
@@ -68,115 +64,20 @@ impl CrossFile {
             completion: ProjectCompletion::new(Rendering::new(corpus), publication),
         }
     }
-    /// The sealed application inventory is the required input to engine work.
-    pub(crate) fn evaluate_batch(
+    /// Completes one evaluated occurrence of a phase: its outcome collected, its answer rendered and its named roots packed into
+    /// its publication slot.
+    pub(super) fn complete_occurrence(
         &self,
         crossing: &ProjectCrossing<'_>,
-        batch: SealedBatch,
-        stage: &impl ProjectRootExecution,
+        todo: &Todo,
+        outcome: RuleOutcome<ProjectOutputOutcome>,
+        slot: PublicationSlot,
         symbols: &mut Symbols,
-        guard: impl FnMut(RuleIndex) -> Result<(), CrossFileError>,
-    ) -> ryo_execution::inbound::use_cases::execution::interface::ProjectBatch<
-        ProjectOutcome,
-        CrossFileError,
-    > {
-        let mut entries = batch
-            .into_entries()
-            .into_vec()
-            .into_iter()
-            .map(|DeclaredProjectPreparation { todo, result: task }| {
-                let prepared = task.and_then(
-                    |PreparedProject {
-                         scope,
-                         frontier,
-                         bound,
-                         slot,
-                     }| {
-                        let evaluation = match crossing.answering {
-                            Answering::Findings => partials_for(&MetadataUseCaseImpl, &crossing.domain, todo.rule),
-                            Answering::Rows(_) => Default::default(),
-                        };
-                        let reads = crossing
-                            .program
-                            .observation_reads(todo.rule)
-                            .map_err(|error| CrossFileError::from(failed(&todo.id, &error)))?;
-                        let publication = partials_for_reads(&MetadataUseCaseImpl, &crossing.domain, todo.rule, &reads);
-                        Ok(ReadyProject {
-                            scope,
-                            frontier: Some(frontier),
-                            bound,
-                            slot,
-                            evaluation,
-                            publication,
-                        })
-                    },
-                );
-                (todo, prepared)
-            })
-            .collect::<Vec<_>>();
-        let inputs = entries
-            .iter_mut()
-            .filter_map(|(todo, prepared)| {
-                let Ok(ready) = prepared else {
-                    return None;
-                };
-                Some(ProjectTask {
-                    rule: todo.rule,
-                    demand: RuleDemand {
-                        emit: EmitDemand::Enabled,
-                        observations: ObservationDemand::Required,
-                    },
-                    input: ProjectInput {
-                        scope: &ready.scope,
-                        evaluation: &ready.evaluation,
-                        publication: &ready.publication,
-                        ordinary: ready
-                            .frontier
-                            .take()
-                            .expect(std::any::type_name::<ReadyProject>()),
-                        bound: &ready.bound,
-                        arenas: crossing.arenas,
-                    },
-                })
-            })
-            .collect();
-        let (completed, refused) = match stage.evaluate(inputs, symbols, guard) {
-            ProjectBatch::Complete(completed) => (completed, None),
-            ProjectBatch::Refused { completed, error } => (completed, Some(error)),
-        };
-        let mut evaluated = completed.into_iter();
-        let mut completed = Vec::with_capacity(entries.len());
-        for (todo, prepared) in entries {
-            let result = match prepared {
-                Err(error) => Err(error),
-                Ok(ready) => {
-                    let Some(outcome) = evaluated.next() else {
-                        if refused.is_some() {
-                            break;
-                        }
-                        completed.push(ProjectOutcome {
-                            result: Err(CrossFileError::from(failed(&todo.id, &MISSING_OUTCOME))),
-                            todo,
-                        });
-                        continue;
-                    };
-                    (|| {
-                        let outcome = outcome
-                            .map_err(|error| CrossFileError::from(failed(&todo.id, &error)))?;
-                        let evaluated = collected(outcome)
-                            .map_err(|error| CrossFileError::from(failed(&todo.id, &error)))?;
-                        self.completion
-                            .complete_phase(crossing, &todo, evaluated, symbols, ready.slot)
-                            .map_err(CrossFileError::from)
-                    })()
-                }
-            };
-            completed.push(ProjectOutcome { todo, result });
-        }
-        match refused {
-            Some(error) => ProjectBatch::Refused { completed, error },
-            None => ProjectBatch::Complete(completed),
-        }
+    ) -> Result<CrossedWithPublications, CrossFileError> {
+        let evaluated = collected(outcome).map_err(|error| CrossFileError::from(failed(&todo.id, &error)))?;
+        self.completion
+            .complete_phase(crossing, todo, evaluated, symbols, slot)
+            .map_err(CrossFileError::from)
     }
 
     /// Execute the declared ready batches and transfer publications before their final consumer retires.
@@ -223,33 +124,92 @@ impl CrossFile {
         // live symbol generation across all producer and consumer batches.
         let mut symbols = Symbols::default();
         for batch in run.batches {
-            let inventory = Preparation::named(batch, run.todo);
-            if inventory.declaration_count().0 == 0 {
+            // Each authored occurrence in batch order; neither repeated batch entries nor repeated occurrences are deduplicated by rule.
+            let declared = batch
+                .iter()
+                .flat_map(|rule| run.todo.iter().filter(move |todo| todo.rule == *rule))
+                .collect::<Vec<&Todo>>();
+            if declared.is_empty() {
                 continue;
             }
-            let prepared = inventory.prepare_all(|_, todo| {
-                prepare_project(&run, &mut stage, &inapplicable, &mut symbols, todo)
-            });
-            let sealed = prepared.seal()?;
-            let retiring = sealed.declarations();
+            let bindings = declared
+                .iter()
+                .map(|todo| bind(&mut stage, todo))
+                .collect::<Vec<_>>();
             let (results, refused) = {
+                // The occurrences whose bindings hold reach the phase; a refused binding stays with its occurrence below.
+                let submitted = declared
+                    .iter()
+                    .zip(&bindings)
+                    .filter_map(|(todo, binding)| match binding {
+                        Ok(binding) => Some((*todo, binding)),
+                        Err(_) => None,
+                    })
+                    .collect::<Vec<_>>();
+                let occurrences = submitted
+                    .iter()
+                    .map(|(todo, binding)| PhaseOccurrence {
+                        rule: todo.rule,
+                        bound: &binding.bound,
+                        slot: binding.slot,
+                        demand: FrontierDemand::Observations {
+                            ready: &binding.ready,
+                        },
+                    })
+                    .collect::<Vec<_>>();
                 let crossing = ProjectCrossing {
                     arenas: stage.arenas(),
                     program: Arc::clone(&run.program),
                     domain: run.domain.clone(),
                 };
-                match self.evaluate_batch(&crossing, sealed, &stage, &mut symbols, &mut guard) {
+                let submitted_todo = |occurrence: OccurrenceNumber| {
+                    submitted
+                        .get(occurrence.0)
+                        .map(|(todo, _)| *todo)
+                        .ok_or(OperatingError::NotRun)
+                };
+                let ran = stage.evaluate_occurrences(
+                    PhaseOccurrences {
+                        occurrences: &occurrences,
+                        first: run.first_bucket,
+                        corpus: run.domain.files,
+                        covered: run.domain.covered,
+                        skipped: run.domain.skipped,
+                        inapplicable: &inapplicable,
+                        facts: run.facts,
+                        project: run.project,
+                        project_symbols: run.project_symbols,
+                        arenas: crossing.arenas,
+                    },
+                    &mut symbols,
+                    |_| Ok::<(), CrossFileError>(()),
+                    |occurrence| phase_partials(&crossing, submitted_todo(occurrence)?),
+                    &mut guard,
+                    |occurrence, outcome, slot, symbols: &mut Symbols| {
+                        self.complete_occurrence(&crossing, submitted_todo(occurrence)?, outcome, slot, symbols)
+                    },
+                );
+                match ran {
                     ProjectBatch::Complete(completed) => (completed, None),
                     ProjectBatch::Refused { completed, error } => (completed, Some(error)),
                 }
             };
             let mut first_error = None;
             let mut outcomes = results.into_iter();
-            for todo in retiring.iter() {
-                if let Some(outcome) = outcomes.next() {
-                    let delivered = outcome
-                        .result
-                        .and_then(|result| deliver(&mut stage, todo, result, answered));
+            // Past the guard's refusal no occurrence has an outcome to deliver; every one is still retired.
+            let mut delivering = true;
+            for (todo, binding) in declared.iter().zip(bindings) {
+                let outcome = match binding {
+                    Err(error) if delivering => Some(Err(error)),
+                    Err(_) => None,
+                    Ok(_) => {
+                        let outcome = outcomes.next();
+                        delivering = outcome.is_some();
+                        outcome.map(|result| result.map_err(|stop| stopped(todo, stop)))
+                    }
+                };
+                if let Some(outcome) = outcome {
+                    let delivered = outcome.and_then(|result| deliver(&mut stage, todo, result, answered));
                     if let Err(error) = delivered {
                         first_error.get_or_insert(error);
                     }
@@ -299,66 +259,44 @@ fn deliver(
     Ok(())
 }
 
-/// Reserve, bind and scope one declared occurrence, then prepare its observation frontiers.
-fn prepare_project(
-    run: &ObservationRun<'_>,
-    stage: &mut impl ObservationExecution,
-    inapplicable: &[InapplicableFiles],
-    symbols: &mut Symbols,
-    todo: &Todo,
-) -> Result<PreparedProject, CrossFileError> {
-    let readiness = stage.binding_readiness(todo.rule)?;
-    let dependencies = run.program.frontier_dependencies(todo.rule)?;
-    let frontier_ready = dependencies
-        .iter()
-        .map(|inputs| {
-            if inputs
-                .iter()
-                .all(|input| readiness.get(input).copied() == Some(InputReadiness::Ready))
-            {
-                InputReadiness::Ready
-            } else {
-                InputReadiness::Unavailable
-            }
-        })
-        .collect::<Vec<_>>();
+/// The partials one occurrence of a phase is evaluated with: those its diagnostic sees, when findings are answered, and those its
+/// publication sees.
+pub(super) fn phase_partials(crossing: &ProjectCrossing<'_>, todo: &Todo) -> Result<PhasePartials, CrossFileError> {
+    let evaluation = match crossing.answering {
+        Answering::Findings => partials_for(&MetadataUseCaseImpl, &crossing.domain, todo.rule),
+        Answering::Rows(_) => Default::default(),
+    };
+    let reads = crossing
+        .program
+        .observation_reads(todo.rule)
+        .map_err(|error| CrossFileError::from(failed(&todo.id, &error)))?;
+    let publication = partials_for_reads(&MetadataUseCaseImpl, &crossing.domain, todo.rule, &reads);
+    Ok(PhasePartials {
+        evaluation,
+        publication,
+    })
+}
+
+/// What binds one declared occurrence of an observation batch: the readiness of its frontiers, the publication slot it reserves and
+/// its bound inputs, in that order. The stage proves which producers of the rule's frontiers are published; the engine reads that
+/// proof, not a choice of ours.
+fn bind(stage: &mut impl ObservationExecution, todo: &Todo) -> Result<BatchOccurrenceBinding, CrossFileError> {
+    let ready = stage.frontier_readiness(todo.rule)?;
     let slot = stage.reserve(todo.rule)?;
     let bound = stage.bindings(todo.rule)?;
-    let scope = stage.project_scope(
-        todo.rule,
-        run.domain.files,
-        run.domain.covered,
-        run.domain.skipped,
-        inapplicable
-            .get(todo.rule.0)
-            .ok_or(OperatingError::NotRun)?,
-    )?;
-    let refuse = |error: &dyn std::fmt::Display| failed(&todo.id, error);
-    let first = *run
-        .first_bucket
-        .get(todo.rule.0)
-        .ok_or_else(|| refuse(&OperatingError::NotRun))?;
-    let frontier = run
-        .services
-        .prepare_frontiers(
-            FrontierRequest {
-                scope: &scope,
-                rule: todo.rule,
-                first,
-                facts: run.facts,
-                project: run.project,
-                project_symbols: run.project_symbols,
-                demand: FrontierDemand::Observations {
-                    ready: &frontier_ready,
-                },
-            },
-            symbols,
-        )
-        .map_err(|error| refuse(&error))?;
-    Ok(PreparedProject {
-        scope,
-        frontier,
-        bound,
-        slot,
-    })
+    Ok(BatchOccurrenceBinding { ready, slot, bound })
+}
+
+/// Why one occurrence has no completed outcome, named for its rule as the phase's steps name it.
+pub(super) fn stopped(todo: &Todo, stop: PhaseStop<CrossFileError>) -> CrossFileError {
+    match stop {
+        PhaseStop::Caller(error) => error,
+        PhaseStop::Operating(error) => CrossFileError::from(failed(&todo.id, &error)),
+        PhaseStop::Frontiers(PreparationError::Facts(error)) => CrossFileError::from(error),
+        PhaseStop::Frontiers(PreparationError::Metadata(error)) => {
+            CrossFileError::from(failed(&todo.id, &error))
+        }
+        PhaseStop::MissingFirstBucket => CrossFileError::from(failed(&todo.id, &MISSING_FRONTIER_BUCKET)),
+        PhaseStop::Unevaluated => CrossFileError::from(failed(&todo.id, &MISSING_OUTCOME)),
+    }
 }

@@ -1,5 +1,6 @@
 //! A request execution: its files, its project phase and its observation stage.
 use crate::application::file_dag::frontiers::errors::PreparationError;
+use crate::application::file_dag::frontiers::service::PreparationPolicy;
 use crate::application::file_dag::frontiers::types::PreparedFrontiers;
 use crate::application::file_dag::program::facade_runtime;
 use crate::application::file_dag::program::file_session::interface::FileExecution;
@@ -24,6 +25,7 @@ use std::cell::RefCell;
 use crate::application::file_dag::program::file_session::types::KindSupport;
 use crate::application::file_dag::program::file_session::types::SemanticSupport;
 use crate::application::file_dag::program::file_session::types::FileSession;
+use crate::application::file_dag::program::file_session::types::SessionParts;
 use crate::application::file_dag::program::file_session::types::SourceLanguage;
 use crate::application::file_dag::program::observation_stage::types::ObservationStage;
 use crate::application::file_dag::program::project_phase::types::ProjectInput;
@@ -66,9 +68,9 @@ impl ExecutionRequest for RequestExecution {
         input: FrontierRequest<'_>,
         symbols: &mut Symbols,
     ) -> Result<PreparedFrontiers, PreparationError> {
-        let readiness = match input.demand {
-            FrontierDemand::Diagnostic => Vec::new(),
-            FrontierDemand::Observations { ready } => ready.to_vec(),
+        let policy = match input.demand {
+            FrontierDemand::Diagnostic => PreparationPolicy::Diagnostic,
+            FrontierDemand::Observations { ready } => PreparationPolicy::Observations { ready: &ready.0 },
         };
         self.frontiers.prepared(
             &self.program,
@@ -79,16 +81,7 @@ impl ExecutionRequest for RequestExecution {
             input.project_symbols,
             symbols,
             &input.scope.required,
-            match input.demand {
-                FrontierDemand::Diagnostic => {
-                    crate::application::file_dag::frontiers::service::PreparationPolicy::Diagnostic
-                }
-                FrontierDemand::Observations { .. } => {
-                    crate::application::file_dag::frontiers::service::PreparationPolicy::Observations {
-                        ready: &readiness,
-                    }
-                }
-            },
+            policy,
         )
     }
     fn finish(self) {
@@ -165,11 +158,13 @@ impl RequestExecution {
             vocabulary,
         )?;
         Ok(FileSession {
-            inner,
-            program: Arc::clone(&self.program),
-            read: input.read,
-            elements: input.elements,
-            file: input.file,
+            parts: SessionParts {
+                inner,
+                program: Arc::clone(&self.program),
+                read: input.read,
+                elements: input.elements,
+                file: input.file,
+            },
         })
     }
     /// Sessions exist only inside `ProjectRootExecution::evaluate`, one per declared root.
@@ -377,13 +372,13 @@ fn rest_of_rule(
 /// A request begins over the prepared program's kernels and shared services.
 pub fn begin(program: &PreparedExecutionProgram, corpus: &[CorpusInput]) -> RequestExecution {
     RequestExecution {
-        program: Arc::clone(&program.inner),
+        program: Arc::clone(&program.parts.inner),
         services: Arc::new(ProgramServices::new(
-            Arc::clone(&program.kernels),
-            program.derived.clone(),
+            Arc::clone(&program.parts.kernels),
+            program.parts.derived.clone(),
             corpus,
         )),
         frontiers: crate::application::file_dag::frontiers::types::FrontierCache::new(),
-        digest: Arc::clone(&program.digest),
+        digest: Arc::clone(&program.parts.digest),
     }
 }

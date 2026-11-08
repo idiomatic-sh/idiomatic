@@ -14,7 +14,6 @@ use ryo_execution_runtime::application::file_dag::program::file_session::types::
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
-use ryo_execution::application::rule_compilation::service::QueryCompilation;
 use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityReason;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
@@ -43,7 +42,6 @@ use boundary_fixture::{
     authored_request, corpus, demand, engine, prepared, prepared_rules, source,
 };
 
-use ryo_execution::application::rule_compilation::service::ExecutionCompilation;
 
 #[derive(Debug, Default)]
 struct ReductionAudit {

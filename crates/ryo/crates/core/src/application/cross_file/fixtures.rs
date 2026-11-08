@@ -1,6 +1,6 @@
 //! Test support for `cross_file`: the worlds, plans and frontier rows its cases are stated over.
 #![cfg(test)]
-use ryo_execution_runtime::outbound::operators::interface::OperatorsPort as _;
+use ryo_execution_runtime::outbound::facts::interface::{FactsFinish, FactsPort as _, FactsWorker};
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
@@ -251,6 +251,41 @@ pub(super) fn prepared<'a>(
     Ok((phase, scope, frontiers))
 }
 
+/// Finished facts and a project worker beside them.
+type KeptFacts = (Box<dyn FactsFinish>, Box<dyn FactsWorker>);
+/// The facts of each rule's `rows` kept in that rule's own bucket (`Bucket(rule)`) for its frontier, finished as one port, with a
+/// project worker beside them.
+pub(super) fn kept_facts(world: &World, kept: &[(RuleIndex, &[(FileId, Table)])]) -> KeptFacts {
+    use ryo_execution_runtime::outbound::facts::types::WordsToKeep;
+    use ryo_values::domain::records::types::{FrontierCoverage, FrontierProof};
+    use ryo_values::domain::stored_facts::types::Bucket;
+    let facts_port = ryo_execution_runtime::outbound::facts::fixtures::fake::FactsFake::default();
+    let mut workers = Vec::new();
+    for (rule, rows) in kept {
+        let proof = FrontierProof {
+            rule: ryo_values::domain::records::types::ProducerRule(rule.0 as u32),
+            input: ryo_values::domain::records::types::FrontierOrdinal(0),
+            rule_digest: world.program.rule_digest(*rule).expect("rule digest"),
+            coverage: FrontierCoverage::Complete,
+        };
+        for (file, table) in *rows {
+            let worker = facts_port.worker().expect("facts worker");
+            let mut words = Words::default();
+            encode_table(table, &[], &mut words);
+            let packed = pack(WordSlice(&words.0));
+            let bucket = Bucket(u32::try_from(rule.0).expect("a fixture rule numbers its bucket"));
+            let kept = WordsToKeep { words: &packed, file: *file, proof: &proof };
+            worker.keep(bucket, kept).expect("source frame");
+            workers.push(worker);
+        }
+    }
+    let facts = facts_port
+        .finish(&mut workers.into_iter())
+        .expect("facts finish");
+    let project = facts_port.worker().expect("project facts");
+    (facts, project)
+}
+
 pub(super) fn prepared_in(
     world: &World,
     phase: &ProjectPhase<'_>,
@@ -259,41 +294,8 @@ pub(super) fn prepared_in(
     rows: &[(FileId, Table)],
     symbols: &mut Symbols,
 ) -> Result<(PhaseScope, PreparedFrontiers), RuleRequestsError> {
-    use ryo_execution_runtime::outbound::facts::interface::FactsPort as _;
-    use ryo_execution_runtime::outbound::facts::types::WordsToKeep;
-    use ryo_values::domain::{
-        records::types::{FrontierCoverage, FrontierProof},
-        stored_facts::types::Bucket,
-    };
-    let facts_port = ryo_execution_runtime::outbound::facts::fixtures::fake::FactsFake::default();
-    let mut workers = Vec::new();
-    let proof = FrontierProof {
-        rule: ryo_values::domain::records::types::ProducerRule(rule.0 as u32),
-        input: ryo_values::domain::records::types::FrontierOrdinal(0),
-        rule_digest: world.program.rule_digest(rule).expect("rule digest"),
-        coverage: FrontierCoverage::Complete,
-    };
-    for (file, table) in rows {
-        let worker = facts_port.worker().expect("facts worker");
-        let mut words = Words::default();
-        encode_table(table, &[], &mut words);
-        let packed = pack(WordSlice(&words.0));
-        worker
-            .keep(
-                Bucket(0),
-                WordsToKeep {
-                    words: &packed,
-                    file: *file,
-                    proof: &proof,
-                },
-            )
-            .expect("source frame");
-        workers.push(worker);
-    }
-    let facts = facts_port
-        .finish(&mut workers.into_iter())
-        .expect("facts finish");
-    let project = facts_port.worker().expect("project facts");
+    use ryo_values::domain::stored_facts::types::Bucket;
+    let (facts, project) = kept_facts(world, &[(rule, rows)]);
     let scope = phase
         .project_scope(
             rule,
@@ -310,7 +312,7 @@ pub(super) fn prepared_in(
                 demand: FrontierDemand::Diagnostic,
                 scope: &scope,
                 rule,
-                first: Bucket(0),
+                first: Bucket(u32::try_from(rule.0).expect("a fixture rule numbers its bucket")),
                 facts: facts.as_ref(),
                 project: project.as_ref(),
                 project_symbols: &Symbols::default(),

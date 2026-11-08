@@ -2,7 +2,7 @@
 use std::sync::Arc;
 use crate::application::file_dag::program::prepared_execution::interface::PreparedExecution;
 use crate::application::file_dag::program::prepared_execution::interface::PreparedReporting;
-use crate::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
+use crate::application::file_dag::program::prepared_execution::types::{PreparedExecutionProgram, ProgramParts};
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use crate::application::file_dag::program::preparation::types::{
     Demand, NamedLayout, ObservationContract, ReplayClosure, RuleTotal, SemanticNeed,
@@ -20,63 +20,63 @@ use ryo_values::domain::{
 };
 impl PreparedExecution for PreparedExecutionProgram {
     fn observation_batches(&self) -> Option<&[Vec<RuleIndex>]> {
-        self.inner.observation_batches()
+        self.parts.inner.observation_batches()
     }
     fn rule_count(&self) -> RuleTotal {
-        self.inner.rule_count()
+        self.parts.inner.rule_count()
     }
     fn rule_order(&self) -> impl Iterator<Item = RuleIndex> + '_ {
-        self.inner.rule_order()
+        self.parts.inner.rule_order()
     }
     fn demanded_rules(&self, governs: impl Fn(RuleIndex) -> Demand) -> Vec<Demand> {
-        self.inner.demanded_rules(governs)
+        self.parts.inner.demanded_rules(governs)
     }
     fn emit(
         &self,
         rule: RuleIndex,
     ) -> Result<&ryo_values::domain::plans::types::Emit, OperatingError> {
-        self.inner.emit(rule)
+        self.parts.inner.emit(rule)
     }
     fn rule_digest(
         &self,
         rule: RuleIndex,
     ) -> Result<ryo_values::domain::stored_facts::types::Digest, OperatingError> {
-        self.inner.rule_digest(rule)
+        self.parts.inner.rule_digest(rule)
     }
     fn frontiers(
         &self,
         rule: RuleIndex,
     ) -> Result<&[ryo_values::domain::plan_parts::types::Input], OperatingError> {
-        self.inner.frontiers(rule)
+        self.parts.inner.frontiers(rule)
     }
     fn frontier_purpose(
         &self,
         rule: RuleIndex,
         input: ryo_values::domain::plan_parts::types::InputNumber,
     ) -> Result<FrontierPurpose, OperatingError> {
-        self.inner.frontier_purpose(rule, input)
+        self.parts.inner.frontier_purpose(rule, input)
     }
     fn semantic_needed(&self) -> SemanticNeed {
-        self.inner.semantic_needed()
+        self.parts.inner.semantic_needed()
     }
     fn observation_layout(&self) -> Option<NamedLayout<'_>> {
-        self.inner.observation_layout()
+        self.parts.inner.observation_layout()
     }
     fn observation_reads(&self, rule: RuleIndex) -> Result<Vec<RelationRead>, OperatingError> {
-        self.inner.observation_reads(rule)
+        self.parts.inner.observation_reads(rule)
     }
     fn has_observation_contract(
         &self,
         rule: RuleIndex,
     ) -> Result<ObservationContract, OperatingError> {
-        self.inner.has_observation_contract(rule)
+        self.parts.inner.has_observation_contract(rule)
     }
     fn frontier_dependencies(
         &self,
         rule: RuleIndex,
     ) -> Result<&[Vec<ryo_values::domain::plan_parts::types::ObservationBindingId>], OperatingError>
     {
-        self.inner.frontier_dependencies(rule)
+        self.parts.inner.frontier_dependencies(rule)
     }
 }
 /// The prepared program's matchers, for the execution crate's use-case proofs of lazy matcher compilation.
@@ -85,20 +85,20 @@ impl PreparedExecutionProgram {
     /// The matchers the program prepared, compiled on first use.
     #[must_use]
     pub fn matchers(&self) -> &Arc<ryo_execution_domain::domain::matching::types::prepared::value::PreparedMatchers> {
-        self.inner.matchers()
+        self.parts.inner.matchers()
     }
 }
 
 impl PreparedReporting for PreparedExecutionProgram {
     fn metadata(&self) -> &[ryo_values::domain::run_metadata::types::RuleRunMetadata] {
-        self.inner.metadata()
+        self.parts.inner.metadata()
     }
     fn replay_closure(
         &self,
         again: ryo_values::domain::stores::types::Reuse,
         first: &[Bucket],
     ) -> Result<ReplayClosure, OperatingError> {
-        self.inner.replay_closure(again, first)
+        self.parts.inner.replay_closure(again, first)
     }
 }
 
@@ -122,9 +122,11 @@ pub fn prepare(
         identity,
     )?;
     Ok(PreparedExecutionProgram {
-        inner,
-        kernels: Arc::new(CommonOperatorEngine::new(operators)),
-        derived: derived.clone(),
-        digest,
+        parts: ProgramParts {
+            inner,
+            kernels: Arc::new(CommonOperatorEngine::new(operators)),
+            derived: derived.clone(),
+            digest,
+        },
     })
 }

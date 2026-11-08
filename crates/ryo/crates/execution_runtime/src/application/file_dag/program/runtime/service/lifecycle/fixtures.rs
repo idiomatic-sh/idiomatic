@@ -25,6 +25,8 @@ use {
 #[derive(Clone, Copy)]
 pub(super) enum RuntimeProbeMode {
     Plain,
+    /// As `Plain`, with every region joining a shared walk instead of declining it.
+    Joined,
     SemanticAndCleanupFailure { completed: RegionId },
     NestedFailure { outer: RegionId, inner: RegionId },
     Reenter { root: RegionId },
@@ -61,8 +63,14 @@ impl KernelInvocation for RuntimeProbe {
         _: &[AdmittedInput],
         _: &mut OperatorContext<'_>,
     ) -> Result<crate::application::file_dag::program::runtime::types::Submission, OperatingError> {
-        // These lifecycle controls exercise ordinary invocation, not selection sharing.
-        Ok(crate::application::file_dag::program::runtime::types::Submission::Declined)
+        // These lifecycle controls exercise ordinary invocation, not selection sharing; `Joined` takes the
+        // shared walk's scheduling route, a preparation poll and a dispatched evaluation.
+        Ok(match self.mode {
+            RuntimeProbeMode::Joined => {
+                crate::application::file_dag::program::runtime::types::Submission::Submitted
+            }
+            _ => crate::application::file_dag::program::runtime::types::Submission::Declined,
+        })
     }
     fn ordered(
         &self,

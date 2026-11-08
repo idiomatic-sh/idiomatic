@@ -2,8 +2,6 @@
 #[derive(Debug, thiserror::Error)]
 pub(crate) enum CrossFileError {
     #[error(transparent)]
-    Preparation(#[from] super::preparation::errors::BatchPreparationError),
-    #[error(transparent)]
     Budget(#[from] crate::domain::budget::errors::BudgetError),
     #[error(transparent)]
     Memory(#[from] crate::outbound::memory::errors::MemoryError),

@@ -13,6 +13,7 @@ use ryo_execution::inbound::use_cases::execution::interface::ReadinessCounts;
 use ryo_execution::inbound::use_cases::execution::interface::WalkCounts;
 use ryo_execution_runtime::application::file_dag::frontiers::errors::PreparationError;
 use ryo_execution_runtime::application::file_dag::frontiers::types::BoundInput;
+use ryo_execution_runtime::application::file_dag::frontiers::types::ReadinessProof;
 use ryo_execution_runtime::application::file_dag::frontiers::types::PreparedFrontiers;
 use ryo_execution_runtime::application::file_dag::frontiers::types::PublicationSlot;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
@@ -29,6 +30,10 @@ use ryo_execution_runtime::application::file_dag::program::project_phase::types:
 use ryo_execution_runtime::application::file_dag::program::project_phase::types::PhaseScope;
 use ryo_execution_runtime::application::file_dag::program::project_phase::types::ProjectTask;
 use ryo_execution_runtime::application::file_dag::program::project_phase::types::FrontierRequest;
+use ryo_execution_runtime::application::file_dag::program::project_phase::types::OccurrenceNumber;
+use ryo_execution_runtime::application::file_dag::program::project_phase::types::PhaseOccurrences;
+use ryo_execution_runtime::application::file_dag::program::project_phase::types::PhaseStop;
+use ryo_execution_runtime::application::file_dag::program::project_phase::types::PhasePartials;
 use ryo_execution_runtime::application::file_dag::program::request_execution::types::RequestExecution;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::ProjectBatch;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome;
@@ -72,6 +77,7 @@ methods!(
     RequestRunFile,
     RequestProjectPhase,
     RootsEvaluate,
+    RootsEvaluateOccurrences,
     RootsReadinessCounts,
     StageStateCounts,
     StageProjectScope,
@@ -79,6 +85,7 @@ methods!(
     ObservedReserve,
     ObservedBindings,
     ObservedBindingReadiness,
+    ObservedFrontierReadiness,
     ObservedArenas,
     ObservedProjectScope,
     ObservedFinish,
@@ -168,6 +175,17 @@ impl ProjectRootExecution for Witness {
     ) -> ProjectBatch<Result<RuleOutcome<ProjectOutputOutcome>, OperatingError>, E> {
         witness(Method::RootsEvaluate)
     }
+    fn evaluate_occurrences<H, T, E>(
+        &self,
+        _: PhaseOccurrences<'_>,
+        _: &mut Symbols,
+        _: impl FnMut(OccurrenceNumber) -> Result<H, E>,
+        _: impl FnMut(OccurrenceNumber) -> Result<PhasePartials, E>,
+        _: impl FnMut(RuleIndex) -> Result<(), E>,
+        _: impl FnMut(OccurrenceNumber, RuleOutcome<ProjectOutputOutcome>, PublicationSlot, &mut Symbols) -> Result<T, E>,
+    ) -> ProjectBatch<Result<T, PhaseStop<E>>, E> {
+        witness(Method::RootsEvaluateOccurrences)
+    }
     fn readiness_counts(&self) -> ReadinessCounts {
         witness(Method::RootsReadinessCounts)
     }
@@ -202,6 +220,9 @@ impl ObservationExecution for Witness {
         _: RuleIndex,
     ) -> Result<std::collections::BTreeMap<ObservationBindingId, ryo_execution_runtime::application::file_dag::frontiers::types::InputReadiness>, OperatingError> {
         witness(Method::ObservedBindingReadiness)
+    }
+    fn frontier_readiness(&self, _: RuleIndex) -> Result<ReadinessProof, OperatingError> {
+        witness(Method::ObservedFrontierReadiness)
     }
     fn arenas(&self) -> &[ArenaBytes] {
         witness(Method::ObservedArenas)

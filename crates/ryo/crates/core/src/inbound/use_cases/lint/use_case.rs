@@ -35,9 +35,8 @@ use crate::outbound::scheduler::interface::SchedulerPort;
 use crate::outbound::scheduler::types::WorkerCount;
 use ryo_execution::inbound::use_cases::execution::interface::ReplayClosure;
 use ryo_execution::inbound::use_cases::execution::interface::PreparedReporting as _;
-use ryo_execution::inbound::use_cases::prepare::interface::{
-    CompiledPlans, ExecutionCompilation as _, PreparedQueries as _,
-};
+use ryo_execution::inbound::use_cases::compile_rules::interface::{CompileRulesUseCase as _, CompiledPlans};
+use ryo_execution::inbound::use_cases::compile_rules::types::CompileRequest;
 use ryo_execution::inbound::use_cases::execution::interface::Counting;
 use ryo_execution::inbound::use_cases::metadata::interface::{MetadataUseCase as _, Needs};
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase as _;
@@ -147,7 +146,7 @@ impl LintUseCaseImpl {
             facts,
             language,
             matching,
-            compilation: Compilation::new(query_language),
+            compilation: Compilation::new(query_language, Arc::clone(&digest)),
             memory,
             operators,
             derived: derived.into(),
@@ -179,21 +178,11 @@ impl LintUseCase for LintUseCaseImpl {
         analysis.validate_source_language(named_provider(&request.source_language))?;
         let rules: Vec<RuleSpec> = request.rules.iter().map(RuleSpec::from).collect();
         let compiling = tracing::info_span!("compile").entered();
-        let compiled = self
-            .compilation
-            .checked(
-                &rules,
-                &request.hosted,
-                self.digest.as_ref(),
-                self.language.as_ref(),
-            )?
-            .map_err(|refused| LintError::UnknownKind {
-                id: rules
-                    .get(refused.rule.0)
-                    .map(|rule| rule.id.0.to_string())
-                    .unwrap_or_default(),
-                reason: refused.reason.0.into(),
-            })?;
+        let compiled = self.compilation.compile_rules(CompileRequest {
+            rules: &rules,
+            hosted: &request.hosted,
+            vocabularies: &self.language.kind_vocabularies(),
+        })?;
         let plans = compiled.plans();
         let ids = ids_of(&rules);
         let Wanting { placed, wants } = wanting(
@@ -241,9 +230,7 @@ impl LintUseCase for LintUseCaseImpl {
             resolved,
             named_provider(&request.source_language),
         );
-        let identities =
-            self.compilation
-                .identify(&compiled, self.digest.as_ref(), stored_rules)?;
+        let identities = compiled.identify(self.digest.as_ref(), stored_rules)?;
         let stored_rules = identities.rules;
         let (nothing_handed, nothing_wanted, nothing_reused) = (
             ReadHanded::default(),

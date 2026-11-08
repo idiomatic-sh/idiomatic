@@ -42,7 +42,7 @@ A name written `pub struct`, `pub enum`, `pub trait` or `pub type` in two or mor
 | ReadFailure | sdk, values | struct | sdk:domain/file; values:domain/stored_facts |
 | RelationName | sdk, values | struct | sdk:domain/relation; values:domain/descriptions |
 | Rows | execution_domain, relations | enum/trait | execution_domain:domain/table_model; relations:domain/relations |
-| SourceLanguage | execution, sdk | enum | execution:application/file_dag/program/file_session; sdk:domain/language |
+| SourceLanguage | execution_runtime, sdk | enum | execution_runtime:application/file_dag/program/file_session; sdk:domain/language |
 | SyntaxError | query_language, relations | enum/struct | query_language:outbound/syntax; relations:domain/relations/collections/relations |
 | Unread | sdk, values | struct | sdk:domain/file; values:domain/records |
 | Unreadable | sdk, values | enum | sdk:domain/file; values:domain/records |
@@ -55,12 +55,12 @@ A name written `pub fn` in two or more concepts of one layer, across all crates.
 | name | layer | concepts | locations |
 |---|---|---|---|
 | local | outbound | 5 | benchmark:outbound/context; benchmark:outbound/engine; benchmark:outbound/inventory; benchmark:outbound/receipts; benchmark:outbound/suite |
-| use_case | outbound | 5 | core:outbound/language; execution:outbound/operators; execution:outbound/query_language; execution_store:outbound/derived; operators:outbound/matching |
+| use_case | outbound | 5 | core:outbound/language; execution:outbound/query_language; execution_runtime:outbound/operators; execution_store:outbound/derived; operators:outbound/matching |
 | admit | application | 3 | benchmark:application/certified_measurement; benchmark:application/input_metadata; benchmark:application/registered_certification |
+| prepare | application | 3 | benchmark:application/worker_request; execution_runtime:application/file_dag/program/prepared_execution; execution_store:application/file_dag/closure_partitions |
 | describe | domain | 3 | derived:domain/footprint; execution_domain:domain/operator; values:domain/descriptions |
 | kind_of | domain | 3 | execution_domain:domain/derived_views; values:domain/hosted; values:domain/plans |
-| memory | outbound | 3 | core:outbound/corpus; core:outbound/lint_store; execution:outbound/facts |
-| prepare | application | 2 | benchmark:application/worker_request; execution_store:application/file_dag/closure_partitions |
+| memory | outbound | 3 | core:outbound/corpus; core:outbound/lint_store; execution_runtime:outbound/facts |
 | capacities | domain | 2 | derived:domain/closure_adjacency; derived:domain/equality |
 | column_in | domain | 2 | values:domain/plan_parts; values:domain/rows |
 | compile | domain | 2 | execution_domain:domain/executable_program; execution_domain:domain/executable_program/file_demand |
@@ -81,38 +81,38 @@ A free function name declared in two or more crates whatever its visibility, so 
 | name | crates | locations |
 |---|---|---|
 | answers | core, derived, execution, language, matching, operators, query_language | core:inbound/use_cases/describe_operator; core:inbound/use_cases/describe_relation; core:inbound/use_cases/lint; core:inbound/use_cases/list_operators; core:inbound/use_cases/list_relations; core:inbound/use_cases/open; core:inbound/use_cases/validate; derived:inbound/use_cases/build; derived:inbound/use_cases/prepare_derived; derived:inbound/use_cases/view; execution:inbound/use_cases/execution; execution:inbound/use_cases/metadata; execution:inbound/use_cases/prepare; execution:inbound/use_cases/publication; language:inbound/use_cases/parse; language:inbound/use_cases/project; matching:inbound/use_cases/matching; operators:inbound/use_cases/operators; query_language:inbound/use_cases/compile; query_language:inbound/use_cases/describe; query_language:inbound/use_cases/typecheck |
-| prepare | benchmark, core, derived, execution, execution_domain, execution_store, language | benchmark:application/case_execution; benchmark:application/worker_request; benchmark:inbound/use_cases/certify; benchmark:inbound/use_cases/prepare_cases; benchmark:outbound/inventory/adapters/local; core:domain/reading; derived:domain/preparation; execution:application/file_dag; execution:application/file_dag/frontiers; execution:application/file_dag/invocation; execution:application/file_dag/program/preparation; execution:application/file_dag/program/prepared_execution; execution_domain:domain/file_program; execution_domain:domain/operator/contract; execution_store:application/file_dag/closure_partitions; language:application/completion |
+| prepare | benchmark, core, derived, execution_domain, execution_runtime, execution_store, language | benchmark:application/case_execution; benchmark:application/worker_request; benchmark:inbound/use_cases/certify; benchmark:inbound/use_cases/prepare_cases; benchmark:outbound/inventory/adapters/local; core:domain/reading; derived:domain/preparation; execution_domain:domain/file_program; execution_domain:domain/operator/contract; execution_runtime:application/file_dag; execution_runtime:application/file_dag/frontiers; execution_runtime:application/file_dag/invocation; execution_runtime:application/file_dag/program/preparation; execution_runtime:application/file_dag/program/prepared_execution; execution_store:application/file_dag/closure_partitions; language:application/completion |
 | runs | core, derived, execution, language, matching, operators, query_language | core:inbound/use_cases/describe_operator; core:inbound/use_cases/describe_relation; core:inbound/use_cases/lint; core:inbound/use_cases/list_operators; core:inbound/use_cases/list_relations; core:inbound/use_cases/open; core:inbound/use_cases/validate; derived:inbound/use_cases/build; derived:inbound/use_cases/prepare_derived; derived:inbound/use_cases/view; execution:inbound/use_cases/execution; execution:inbound/use_cases/metadata; execution:inbound/use_cases/prepare; execution:inbound/use_cases/publication; language:inbound/use_cases/parse; language:inbound/use_cases/project; matching:inbound/use_cases/matching; operators:inbound/use_cases/operators; query_language:inbound/use_cases/compile; query_language:inbound/use_cases/describe; query_language:inbound/use_cases/typecheck |
 | given_input | core, derived, language, matching, operators, query_language | core:inbound/use_cases/describe_operator; core:inbound/use_cases/describe_relation; core:inbound/use_cases/lint; core:inbound/use_cases/list_operators; core:inbound/use_cases/list_relations; core:inbound/use_cases/open; core:inbound/use_cases/validate; derived:inbound/use_cases/build; derived:inbound/use_cases/prepare_derived; derived:inbound/use_cases/view; language:inbound/use_cases/parse; language:inbound/use_cases/project; matching:inbound/use_cases/matching; operators:inbound/use_cases/operators; query_language:inbound/use_cases/compile; query_language:inbound/use_cases/describe; query_language:inbound/use_cases/typecheck |
 | matches | benchmark, execution_domain, execution_store, matching, operators | benchmark:application/process_discrepancy; execution_domain:domain/matching; execution_store:application/file_dag/relations; matching:domain/globbing; operators:domain/capture |
-| begin | benchmark, core, execution, execution_domain | benchmark:outbound/inventory/adapters/local; core:domain/reading; execution:application/file_dag/program/request_execution; execution_domain:domain/operator/contract |
+| use_case | core, execution, execution_runtime, execution_store, operators | core:outbound/language; execution:outbound/query_language; execution_runtime:outbound/operators; execution_store:outbound/derived; operators:outbound/matching |
+| begin | benchmark, core, execution_domain, execution_runtime | benchmark:outbound/inventory/adapters/local; core:domain/reading; execution_domain:domain/operator/contract; execution_runtime:application/file_dag/program/request_execution |
 | describe | derived, execution_domain, execution_store, values | derived:domain/footprint; execution_domain:domain/operator; execution_store:application/file_dag/relations; values:domain/descriptions |
 | observed | benchmark, core, execution, language | benchmark:domain/process_receipts; benchmark:outbound/suite/adapters/local; core:outbound/corpus/adapters/ignore; execution:application/rule_compilation; language:domain/project_context |
 | project | benchmark, language, operators, query_language | benchmark:domain/candidate_rules; language:inbound/use_cases/project; operators:domain/project; query_language:domain/fusing |
 | read | benchmark, core, execution_domain, language | benchmark:outbound/receipts/adapters/local; benchmark:outbound/suite/adapters/local; core:outbound/lint_store/adapters/postcard; execution_domain:domain/numeric_values; language:inbound/use_cases/parse |
-| use_case | core, execution, execution_store, operators | core:outbound/language; execution:outbound/operators; execution:outbound/query_language; execution_store:outbound/derived; operators:outbound/matching |
-| admit | benchmark, execution, language | benchmark:application/certified_measurement; benchmark:application/input_metadata; benchmark:application/registered_certification; benchmark:inbound/use_cases/admit_measurement; execution:application/file_dag/frontiers; language:domain/semantics |
+| refused | benchmark, execution, execution_domain, execution_runtime | benchmark:application/discrepancy_attachment; benchmark:application/discrepancy_validation; benchmark:application/inventory_verification; benchmark:domain/registered_inputs; execution:outbound/query_language/adapters/use_case; execution_domain:domain/finish; execution_runtime:outbound/facts/adapters/memory; execution_runtime:outbound/facts/adapters/spill |
+| admit | benchmark, execution_runtime, language | benchmark:application/certified_measurement; benchmark:application/input_metadata; benchmark:application/registered_certification; benchmark:inbound/use_cases/admit_measurement; execution_runtime:application/file_dag/frontiers; language:domain/semantics |
 | build | derived, execution_store, language | derived:domain/closure_adjacency; derived:domain/cycle_adjacency; derived:domain/dfs; derived:domain/dispatch; derived:domain/equality; derived:domain/membership; derived:domain/ordered; execution_store:application/file_dag/derived/owner/acquisition/semantics; language:inbound/use_cases/parse |
 | cell | derived, operators, values | derived:domain/cycle_adjacency; derived:domain/ordered; operators:domain/reduction; values:domain/rows |
 | check | benchmark, derived, operators | benchmark:application/worker_identity; benchmark:domain/rule_context; benchmark:inbound/use_cases/check_worker_request; derived:domain/dfs; derived:domain/preparation; operators:domain/reduction |
-| classify | benchmark, execution, execution_domain | benchmark:application/worker_request; execution:application/file_dag; execution:application/file_dag/program/facade_runtime; execution_domain:domain/executable_program/fusion |
+| classify | benchmark, execution_domain, execution_runtime | benchmark:application/worker_request; execution_domain:domain/executable_program/fusion; execution_runtime:application/file_dag; execution_runtime:application/file_dag/program/facade_runtime |
 | clear | core, execution_domain, language | core:domain/ordering; execution_domain:domain/placement; language:domain/diagnostics |
-| evaluate | execution, execution_domain, operators | execution:application/file_dag; execution_domain:domain/operator/contract; execution_domain:domain/shared_walk; operators:domain/aggregate; operators:domain/append; operators:domain/axis; operators:domain/capture; operators:domain/closure; operators:domain/cycles; operators:domain/equality_join; operators:domain/evaluation; operators:domain/fits_rendered; operators:domain/ordered_dfs; operators:domain/ordered_match; operators:domain/project; operators:domain/rank; operators:domain/render_batch; operators:domain/replace; operators:domain/select; operators:domain/set_rows; operators:domain/source_matches; operators:domain/table_rows; operators:domain/words |
-| finish | execution, execution_domain, operators | execution:outbound/digest/adapters/blake3; execution_domain:domain/shared_walk; operators:domain/reduction |
+| evaluate | execution_domain, execution_runtime, operators | execution_domain:domain/operator/contract; execution_domain:domain/shared_walk; execution_runtime:application/file_dag; operators:domain/aggregate; operators:domain/append; operators:domain/axis; operators:domain/capture; operators:domain/closure; operators:domain/cycles; operators:domain/equality_join; operators:domain/evaluation; operators:domain/fits_rendered; operators:domain/ordered_dfs; operators:domain/ordered_match; operators:domain/project; operators:domain/rank; operators:domain/render_batch; operators:domain/replace; operators:domain/select; operators:domain/set_rows; operators:domain/source_matches; operators:domain/table_rows; operators:domain/words |
+| finish | execution_domain, execution_runtime, operators | execution_domain:domain/shared_walk; execution_runtime:outbound/digest/adapters/blake3; operators:domain/reduction |
 | identity | core, execution_store, values | core:application/project_context; execution_store:application/file_dag/route_counts; values:domain/hosted; values:domain/observations |
-| incomplete | benchmark, execution, execution_domain | benchmark:inbound/use_cases/audit; execution:application/file_dag/observations; execution_domain:domain/source_partitions |
+| incomplete | benchmark, execution_domain, execution_runtime | benchmark:inbound/use_cases/audit; execution_domain:domain/source_partitions; execution_runtime:application/file_dag/observations |
 | invalid | core, execution, query_language | core:outbound/lint_store/adapters/postcard; execution:outbound/query_language/adapters/use_case; query_language:inbound/use_cases/compile; query_language:inbound/use_cases/typecheck |
 | link | execution_domain, execution_store, query_language | execution_domain:domain/file_program; execution_store:application/file_dag/derived/owner; query_language:domain/expanding |
 | materialize | benchmark, derived, execution_domain | benchmark:outbound/context/adapters/local; benchmark:outbound/suite/adapters/local; derived:domain/dfs; execution_domain:domain/table_model |
 | number | execution_store, language, query_language | execution_store:application/file_dag/route_counts; language:domain/elements; query_language:domain/idioms; query_language:outbound/syntax/adapters/winnow |
 | positions | language, operators, values | language:domain/elements; operators:domain/equality_join; operators:domain/set_rows; values:domain/rows |
 | push | language, operators, query_language | language:domain/builders; operators:domain/reduction; query_language:domain/planning |
-| refused | benchmark, execution, execution_domain | benchmark:application/discrepancy_attachment; benchmark:application/discrepancy_validation; benchmark:application/inventory_verification; benchmark:domain/registered_inputs; execution:outbound/facts/adapters/memory; execution:outbound/facts/adapters/spill; execution:outbound/query_language/adapters/use_case; execution_domain:domain/finish |
 | request | benchmark, execution, execution_domain | benchmark:inbound/use_cases/measure_corpus; benchmark:outbound/collection/adapters/json; benchmark:outbound/execution/adapters/timed; execution:inbound/use_cases/execution; execution:inbound/use_cases/metadata; execution:inbound/use_cases/prepare; execution:inbound/use_cases/publication; execution_domain:domain/file_program |
 | resolve | benchmark, core, execution_domain | benchmark:domain/rule_context; benchmark:outbound/context/adapters/local; core:domain/relation_lookup; execution_domain:domain/executable_program; execution_domain:domain/operands |
 | same | execution_domain, execution_store, operators | execution_domain:domain/comparing/collections/comparisons; execution_store:application/file_dag/relations; operators:domain/reduction |
 | select | benchmark, operators, query_language | benchmark:application/case_selection; benchmark:inbound/use_cases/select_cases; operators:domain/select; query_language:outbound/syntax/adapters/winnow |
-| source | execution, execution_store, query_language | execution:application/file_dag/program/preparation/service/metadata; execution_store:application/file_dag/derived/owner/acquisition/graph/identity; query_language:outbound/syntax/adapters/winnow |
+| source | execution_runtime, execution_store, query_language | execution_runtime:application/file_dag/program/preparation/service/metadata; execution_store:application/file_dag/derived/owner/acquisition/graph/identity; query_language:outbound/syntax/adapters/winnow |
 | source_column | derived, execution_domain, query_language | derived:domain/native; execution_domain:domain/table_cells; query_language:domain/fusing |
 | table | derived, execution_domain, execution_store | derived:domain/footprint; execution_domain:domain/executable_program/file_demand; execution_store:application/file_dag/derived/ledger |
 | text | benchmark, core, values | benchmark:outbound/receipts/adapters/local; core:outbound/lint_store/adapters/postcard; values:domain/hosted; values:domain/observations |
@@ -142,11 +142,11 @@ A free function name declared in two or more crates whatever its visibility, so 
 | equivalent | benchmark, execution_domain | benchmark:inbound/use_cases/compare; execution_domain:domain/executable_program |
 | executable | benchmark, core | benchmark:outbound/engine/adapters/local; core:outbound/corpus/adapters/ignore |
 | expand | benchmark, query_language | benchmark:domain/process_output; query_language:domain/expanding |
-| expected | benchmark, execution | benchmark:domain/process_failure; execution:application/file_dag/program/facade_runtime |
+| expected | benchmark, execution_runtime | benchmark:domain/process_failure; execution_runtime:application/file_dag/program/facade_runtime |
 | file_root | core, execution_domain | core:outbound/corpus/adapters/ignore; execution_domain:domain/executable_program/file_demand |
 | find_or_add | execution_domain, language | execution_domain:domain/table_dedup; language:domain/symbols |
 | finding | benchmark, derived | benchmark:application/discrepancy_attachment; derived:domain/native |
-| flush | execution, execution_store | execution:outbound/facts/adapters/spill; execution_store:application/file_dag/route_counts/progress |
+| flush | execution_runtime, execution_store | execution_runtime:outbound/facts/adapters/spill; execution_store:application/file_dag/route_counts/progress |
 | frame | benchmark, core | benchmark:outbound/context/adapters/local; core:domain/repository |
 | hash_of | language, operators | language:domain/symbols; operators:domain/reduction |
 | hosted | execution_domain, operators | execution_domain:domain/lineage; operators:domain/evaluation |
@@ -159,7 +159,7 @@ A free function name declared in two or more crates whatever its visibility, so 
 | listed | core, language | core:outbound/corpus/adapters/ignore; language:domain/diagnostics |
 | matching | benchmark, execution_domain | benchmark:inbound/use_cases/measure; execution_domain:domain/table_model |
 | measured | benchmark, execution_store | benchmark:inbound/use_cases/measure_corpus; execution_store:application/file_dag/derived/ledger |
-| memory | core, execution | core:outbound/corpus; core:outbound/lint_store; execution:outbound/facts |
+| memory | core, execution_runtime | core:outbound/corpus; core:outbound/lint_store; execution_runtime:outbound/facts |
 | moved | core, execution_domain | core:domain/keeping; execution_domain:domain/completion |
 | named | core, values | core:outbound/lint_store/adapters/postcard; values:domain/plans |
 | normalize | benchmark, language | benchmark:domain/invocation_identity; language:domain/targets |
@@ -175,19 +175,19 @@ A free function name declared in two or more crates whatever its visibility, so 
 | reads | benchmark, language | benchmark:inbound/use_cases/select_cases; language:domain/answers |
 | receipt | benchmark, language | benchmark:outbound/context/adapters/local; language:domain/project_context |
 | record | benchmark, language | benchmark:outbound/receipts/adapters/local; language:domain/diagnostics |
-| refuses | benchmark, execution | benchmark:inbound/use_cases/account_defaults; benchmark:inbound/use_cases/admit_measurement; benchmark:inbound/use_cases/check_worker_request; benchmark:inbound/use_cases/collect; benchmark:inbound/use_cases/measure_corpus; benchmark:inbound/use_cases/run_ryo; benchmark:inbound/use_cases/select_cases; execution:application/file_dag/program/facade_runtime |
+| refuses | benchmark, execution_runtime | benchmark:inbound/use_cases/account_defaults; benchmark:inbound/use_cases/admit_measurement; benchmark:inbound/use_cases/check_worker_request; benchmark:inbound/use_cases/collect; benchmark:inbound/use_cases/measure_corpus; benchmark:inbound/use_cases/run_ryo; benchmark:inbound/use_cases/select_cases; execution_runtime:application/file_dag/program/facade_runtime |
 | remapped | execution_domain, values | execution_domain:domain/completion; values:domain/plan_parts |
 | replace | execution_domain, execution_store | execution_domain:domain/describing; execution_store:application/file_dag/derived/owner/graphs |
-| replay | core, execution | core:domain/handing; execution:application/file_dag |
+| replay | core, execution_runtime | core:domain/handing; execution_runtime:application/file_dag |
 | row | benchmark, operators | benchmark:application/inventory_verification; benchmark:outbound/inventory/adapters/local; operators:domain/reduction |
 | rows | benchmark, operators | benchmark:outbound/receipts/adapters/local; operators:domain/table_rows |
-| rule | benchmark, execution | benchmark:outbound/suite/adapters/local; execution:application/file_dag/program/facade_runtime |
+| rule | benchmark, execution_runtime | benchmark:outbound/suite/adapters/local; execution_runtime:application/file_dag/program/facade_runtime |
 | semantics | execution_domain, execution_store | execution_domain:domain/operator/contract; execution_store:outbound/derived |
 | size_at | core, language | core:domain/workers; language:domain/elements |
 | source_id | query_language, values | query_language:domain/linking; values:domain/program |
-| stopped | core, execution | core:application/file_analysis/evaluation; execution:application/file_dag/program/request_execution |
+| stopped | core, execution_runtime | core:application/file_analysis/evaluation; execution_runtime:application/file_dag/program/request_execution |
 | stored_cell | derived, execution_domain | derived:domain/equality; execution_domain:domain/table_model |
-| succeeds | benchmark, execution | benchmark:inbound/use_cases/collect; benchmark:inbound/use_cases/run_ryo; execution:application/file_dag/program/facade_runtime |
+| succeeds | benchmark, execution_runtime | benchmark:inbound/use_cases/collect; benchmark:inbound/use_cases/run_ryo; execution_runtime:application/file_dag/program/facade_runtime |
 | summary | benchmark, relations | benchmark:application/inventory_verification; benchmark:outbound/inventory/adapters/local; relations:domain/relations/collections/relations |
 | tally | execution_domain, values | execution_domain:domain/features; values:domain/hosted; values:domain/observations |
 | unreadable | core, query_language | core:outbound/corpus/adapters/ignore; query_language:outbound/syntax/adapters/winnow |

@@ -1,6 +1,8 @@
 //! What a project phase offers a caller.
 use crate::application::file_dag::program::project_phase::types::PhaseScope;
 use crate::application::file_dag::program::project_phase::types::ProjectTask;
+use crate::application::file_dag::program::project_phase::types::{OccurrenceNumber, PhaseOccurrences, PhasePartials, PhaseStop};
+use crate::application::file_dag::frontiers::types::PublicationSlot;
 use crate::application::file_dag::program::rule_outcome::types::ProjectBatch;
 use crate::application::file_dag::program::rule_outcome::types::RuleOutcome;
 use crate::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome;
@@ -50,6 +52,19 @@ pub trait ProjectRootExecution {
         symbols: &mut Symbols,
         guard: impl FnMut(RuleIndex) -> Result<(), E>,
     ) -> ProjectBatch<Result<RuleOutcome<ProjectOutputOutcome>, OperatingError>, E>;
+    /// One batch of declared occurrences in one call, the ordinary phase's and each observation batch's: each occurrence scoped
+    /// and its frontiers prepared for its demand once `before` admits it, the prepared ones evaluated with their bound inputs and
+    /// the `partials` they see under `guard`, and each outcome handed to `complete` with its publication slot, in declaration
+    /// order. A failure of one occurrence stays with it; occurrences after the guard's refusal are absent.
+    fn evaluate_occurrences<H, T, E>(
+        &self,
+        phase: PhaseOccurrences<'_>,
+        symbols: &mut Symbols,
+        before: impl FnMut(OccurrenceNumber) -> Result<H, E>,
+        partials: impl FnMut(OccurrenceNumber) -> Result<PhasePartials, E>,
+        guard: impl FnMut(RuleIndex) -> Result<(), E>,
+        complete: impl FnMut(OccurrenceNumber, RuleOutcome<ProjectOutputOutcome>, PublicationSlot, &mut Symbols) -> Result<T, E>,
+    ) -> ProjectBatch<Result<T, PhaseStop<E>>, E>;
     fn readiness_counts(&self) -> ReadinessCounts;
 }
 pub trait ProjectStage: ProjectRootExecution {

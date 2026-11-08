@@ -1,6 +1,6 @@
 # Integration records from checkpoint 326
 
-The integration records of checkpoints 326 and 327 and the branch records they merged, newest checkpoint last; [records.md](records.md) holds checkpoints 319 to 325 (at its `file-length` limit), and the current checkpoint's record is in [the matrix](README.md).
+The integration records of checkpoints 326, 327 and 328 and the branch records they merged, newest checkpoint last; [records.md](records.md) holds checkpoints 319 to 325 (at its `file-length` limit), and the current checkpoint's record is in [the matrix](README.md).
 
 ## Checkpoint 326 integration record
 
@@ -172,3 +172,70 @@ Branch `claude/w9-review-repairs-xi` from checkpoint 326 `f3a9a7e95c`, for the c
 - **R2, owners (`6aa9a47c3c`):** `run.py` fails when a red result (a `failed` count above 0 or a non-zero exit) has no owner in `OWNERS`, and strips the owned-by clause from a green one. `core_allocation` (exit 101) is owned by the perf iteration 2 row; `ruff_rule_phases` (green) no longer carries a clause.
 - **R3, stale text:** README:9 and the Phase 1 row cite validation326; row "Prove actual413 sharing" cites validation326 (`ruff_sharing` and the five `walk_coverage` route and head controls pass in `tests.json`); the rows "Consolidate legal fusion", "Remove redundant intermediates", "Unify cold/warm/edit reuse" and "Prove file/project/configuration invalidation" are marked unverified at validation326; crates.md:12 says 9 kinds; the perf iteration 2 row records `relation_partitions` as a private index added.
 - **Standing from 326:** rows 237 and 240 (older validations), walk B, the fixtures-gated second `derived()` composition, `RAYON_NUM_THREADS` as an environment setting, the Rust gate whitespace and `ok_or` notes (ryo-artq), the review README branch table, the 320 to 321 deletions, and README:267 "8 flagged kinds".
+
+## Checkpoint 328 integration record
+
+Checkpoint 328 merges four branches into checkpoint 327 (`e49dc1dfc5`), each as a merge commit, in this order: landing 2, the execution runtime crate (`claude/l2-runtime-crate` `97b22c1de3`, merge `e9b643b228`), the Phase 1 tail (`claude/w9-phase1-tail` `ef46128f82`, cut from 326 `f3a9a7e95c`, merge `57be7fb114`), review repairs XII (`claude/w10-review-repairs-xii` `6febc1a4a3`, merge `511c778990`) and, after validation, the heap profile feature (`claude/perf-heap-profile` `9f9b98a663`, merge `6fc53620b9`). Five integration fixes, below. validation328 ran on `4a982fa0a5` (raw logs in `ryo-contract-validation328-20261108`), the first validation on the tree's own target directory (`idiomatic-target/<worktree>`, review repairs XII).
+
+- **Joins:** all four merge without conflict.
+- **Integration fixes:** (1) `b24bfeda1b`: the python sharing fixture's `include_str!` of `route_meanings.txt` named the pre-move path (the one error of check pass 1). (2) `54839488ad`: the validation set covers the runtime crate: its library tests, doctests and print lint, and `tm_source` and `ownership_edges` on its moved paths. (3) `923a577b46` and `4a982fa0a5`: landing 2 left the invocation observation (`InvocationResources::observe`, its three message constants and the lease's registered-call count) behind `cfg(test)` in the runtime crate. Execution's library tests build the runtime without `cfg(test)`, so the counters stayed 0: the closure row `empty_actual_owner_keeps_its_output_and_workspace_empty` was red (`closure_partition_rows` 0 against 1, in the aborted first run), and the `closure_partitions` assertions (`== 0`, `<= 3`) passed on zeros. They are now `cfg(any(test, feature = "fixtures"))`, as the slot side already was; the observation reads the acquired partitions in place, and the test-only `AcquiredPartitions::iter` it alone used is gone (opening it tripped `fixtures-only-in-tests`). (4) `47248f1bf3`: XII's `{worktree}` expansion put the expanded target directory into the committed `identity.json` and `validation.json`, a machine path, and a worktree named for its checkpoint reads as tracker text there (44 `no-tracker-text-shipped` findings); `run.py` now runs the expanded command and records the command as `commands.json` lists it. (5) In the record commit: the heap profile paragraph of method.md named the build lock by its machine path (`no-machine-paths-shipped`); it names the build lock.
+- **Named for the reviewers:** the Phase 1 tail changed the removed-file assertion for the `Always` rule: under `Always` a rejected file is answered, so the cold premise is "the rejected file's rows are among the cold rows" (cold rows differ from the oracle's), not an unknown; `AcceptedSyntax` keeps "skipped"; the warm-against-oracle assertions are unchanged. The store format marker changed (each frontier proof's rule digest is kept once; the trailer gains `proof-digests`): an older store is a cache miss and is rebuilt, with no compatibility code. The 285 reference-discrepancy settings digests were rebound (the settings text lost two retired options at their defaults). The observation fix means the `fixtures` build of the ruff bench worker (the self dev-dependency enables `fixtures`) now runs the invocation observation per lease, which the 327 worker did not.
+- **Owed by the 327 erratum:** `core_bdd` 18 scenarios / 0 failed and `core_allocation` exit 101 (a file allocates 1,698 to 1,700 blocks beyond the parser library; Phase 7) on the tree's own target.
+- **Landing 2's open risks:** the runtime's doctests run for the first time and pass 4 / 0, the two `compile_fail,E0599` probes (`FileExecution`, `ProjectRootExecution`) among them. The evidence inventory and `visualization/evidence.json` still name the pre-move paths; review repairs XII regenerated the inventory items for 327's tree, and the moved paths are not regenerated here. Landing 2's deferred scope (one engine call per project phase, readiness from store proofs, `prepare` taking a request) stays with its follow-up bead.
+- **Heap profile (merged after validation):** a `heap-profile` feature on the Python crate (`tikv-jemallocator/profiling`, off by default) and the "Heap profile." paragraph in method.md. `--all-features` builds take it, so the python targets ran again on `6fc53620b9` (jemalloc rebuilt with `--enable-prof`): `python_lib` 138 / 0, `ruff_sharing` 1 / 0, `ruff_canary` 1 / 0, `ruff` 13 / 0, conformance exit 0 (`rerun-<target>-6fc53620b9.log`). The receipt worker is built without it.
+- **Acceptance blocks** (each at its frozen head in its own worktree under `bash -e`, exit 0): landing 2, the Phase 1 tail, review repairs XII, heap profile. Under GNU grep the blocks' ignore-grep line is loose (its unescaped ignore-attribute pattern is a bracket class): on the Phase 1 tail it matches Python comments in the rebound `cases.toml` text, and with the unescaped allow pattern it is a regex error that passes vacuously; the escaped form (`#\[ignore\]|#\[allow\(`) finds 0 added on every branch and on this tree.
+
+| Pass | Command | Errors reported | Errors fixed |
+|---|---|---|---|
+| 1 | workspace check (all features, all targets), landing 2 and the Phase 1 tail merged | 1: the sharing fixture's `include_str!` of a moved file | 1 |
+| 2 | the same | 0 | 0 |
+| 3 | the same, review repairs XII merged | 0 | 0 |
+| 4 | the same, the observation opened under `fixtures` | 0 | 0 |
+| 5 | the same, the observation reading the list in place | 1: `AcquiredPartitions::iter` never used (`-D dead-code`) | 1 |
+| 6 | the same | 0 | 0 |
+
+Each pass is the workspace check with `--keep-going` and JSON diagnostics into this tree's check directory, under the build lock; the logs are in `check-passes/` of the validation directory. Warnings: 4,640 at 327, 4,672 at pass 6: `dead_code_pub_in_binary` +36 (the runtime's library test target, the price of the crate split landing 2 names) and `unused_qualifications` -4 (the observation's `super::` paths); no warning falls on a line this checkpoint added that 327 did not carry at the old path.
+
+Production and test lines (`src` only; test = `*_test.rs`, `test.rs`, `fixtures.rs`, `fixtures/`, `*_test/`):
+
+| Crate | 327 production | 327 test | 328 production | 328 test |
+|---|---:|---:|---:|---:|
+| cli | 3,420 | 2,292 | 3,421 | 2,292 |
+| crates/benchmark | 23,279 | 25,815 | 23,283 | 25,815 |
+| crates/core | 19,731 | 24,211 | 19,757 | 24,220 |
+| crates/execution | 18,944 | 32,128 | 2,393 | 10,625 |
+| crates/execution_runtime | — | — | 16,662 | 21,477 |
+| crates/operators | 5,285 | 5,086 | 5,295 | 5,086 |
+| crates/sdk | 6,032 | 3,979 | 6,034 | 3,979 |
+
+Every other crate is unchanged. Under `crates/ryo` (renames detected) the checkpoint adds 2,767 lines and deletes 2,376 over 666 files (Rust +1,248 / -1,028 over 550 files, nearly all path rewrites).
+
+- **validation328 (rows, from `tests.json` and the raw logs):** libraries 1080 / 1 (`process_capture` only; core 121 / 0 with the removed-file row green; execution 72 and runtime 198, the 270 rows of 327's execution library); boundary 97 / 0; activation 11 / 0; bdd 7, core bdd 18; doctests all pass (runtime 4); `ruff_sharing` 1 / 0; `ruff_canary` 1 / 0 (112); ruff 13 / 0; conformance exit 0; `ruff_rule_phases` exit 0; cli replay 76 / 2 (the cache size row passes; the feed row now reports `family:FloatTextGreaterThanOrEqual`, the shared walk's per-step count; warm peak 114,536,448 bytes against 114,192,384 at 327); `cli_cost` 4 / 3 (cold 9,039 ms, peak 589 MB, warm 542 ms); python library 138 / 0; language 43 / 0; hooks 48 / 0; `checkpoint_check` 16 / 0; `no_print` exit 0; `bench_build` exit 0; `core_allocation` exit 101 (Phase 7); `tm_source` 0 findings; `tm_validate_all` exit 0. A first start of validation328 on `54839488ad` was stopped: an edit landed in the tree while it ran; its logs are kept in `aborted-54839488ad/` of the validation directory and are not results.
+- **Whole-tree TM:** 18 findings, 6 suppressed, all `no-domain-concept-cycles` in `crates/execution_domain` (the ring row), as at 327. File-level ownership cycles 0 over 4,645 edge occurrences in execution, its domain, runtime and store (4,873 over three crates at 327).
+- **413 inventory:** `verify_profiles.py <ruff 0.16.5> --full-inventory --worker <the receipt worker> --inventory-runner <the collector built from 6fc53620b9>`: **413 PASS / 0 FAIL**, exit 0, 376 s (collector sha256 `0d786b214a5e8840136925c43a6a35743b4e64cc569c3fbbe82cb1025c7b88a2`).
+- **Django receipt (full Django 413 cold, 2,875 files x 413 rules, fresh store, under the build lock, default threads):** the `ruff` bench worker built from `6fc53620b9` into the tree's own target and copied under the same lock (sha256 `3ac82ac8b05ef12476c93481d9de7e7a4eb1cf3955b0a432f60237aab4d0f5fb`, features `fixtures` only; it carries the `proof-digests` trailer and the runtime crate's paths, no `DBG ` string). The request was staged by `verify_profiles.py --stage-request <the pinned 323 cold request> --source 6fc53620b9 --output-dir <fresh directory>`: staged digest `0132c274d68dc22252b09d0551a36617652fd7ffecaff02a246e5bf0448027df` (1,088 files; against 327 only the 42 rebound `cases.toml` files differ), request sha256 `6980cae6aa67a722c384b061670498119220dc67f671fac6ea3cb5f7f2a288aa` (327's differs in the profile and cache paths only).
+
+  | Threads | Exit | unknown_or_unread | Diagnostics | Skips | Wall s | CPU s (user + sys) | CPU / wall | Peak RSS | Load at start |
+  |---|---|---|---|---|---|---|---|---|---|
+  | default (10 cores) | 0 | 0 | 8,804 | 395 | 328.3 | 2,641.2 (2,571.6 + 69.6) | 8.04 | 6.78 GB (6,781,524 KB) | 1.10 |
+
+  Coverage: selected 1,187,375, evaluated 1,186,980, skipped 395 (syntax-rejected). The output bytes are byte-identical to the 327 receipt (sha256 `53b163f4bda83afa...`, 992,711 bytes): the store format change touches no diagnostic. Store 1,757,210,648 bytes (1,778,454,983 at 327: each proof's rule digest kept once). Against 327 (322.7 s, 2,564.4 s CPU, 6.79 GB): wall +1.7%, CPU +3.0%, peak -0.01 GB; the fixtures-gated observation per lease is in this worker and not in 327's.
+- **The staged cost rows** (`RYO_PREFLIGHT_WORKER` naming the receipt worker; the staged digest and the request's sha256 recomputed on the real staged directory, XII's check, hold): `an_absent_input_is_a_typed_reason_not_a_pass` passes (its `StagedDiffers` cases also passed in validation328); N999 over Django wall 10,393 ms and CPU 10,360 ms hold (best 10,297 / 10,294), peak 1,062 MB against best 979 (red; 1,056 at 327); one file x 413 wall 3,334 ms and peak 889 MB beat best 6,871 ms / 1,139 MB by more than 5% (3,429 ms / 860 MB at 327). `ratchet.toml` is not changed here. The full-Django cold-and-warm row was not run.
+
+- **Principal Rust review:** PASS on all seven items, first pass, no findings (diff `e49dc1dfc5..490bc0f3c2`, `evidence/checkpoint/rust-review.json`). Its five advisories (not failures): A1, perf evidence: the invocation observation is now compiled into the fixtures-on ruff bench worker behind every 328 perf number, so the +1.7% wall and +3.0% CPU against 327 cannot be split between the observation and the engine; the fix is to move the execution use-case proofs that read these counters into the runtime crate as `cfg(test)` tests and return the gate to `cfg(test)`, or until then to record each receipt's worker features and A/B one Django receipt with the observation compiled out. It is step 0 of perf iteration 4. A2, surface: `program::admission` and `file_dag::service` are `pub` modules with no consumer outside the runtime; narrow to `pub(crate) mod`. A3, store: `rest/schemas.rs:160` maps a digest-table index overflow to `u32::MAX`, which past 2^32 entries would alias a real entry; return an encode error. A4, fixture: `workload.rs:120` `is_dir()` follows symlinks where the Python staged-hash walk may not; state or match it. A5, docs: the evidence inventory and `visualization/evidence.json` still name the pre-move `file_dag` paths; regenerate. A2 to A5 go to the Rust gate notes row.
+
+**Cycle metrics:**
+
+| Metric | Checkpoint 328 |
+|---|---|
+| Builders | 4 (landing 2, Phase 1 tail, review repairs XII, heap profile) |
+| BLOCKED questions | 0 |
+| Time dispatch to FROZEN (first and last branch commit) | landing 2 12:05 to 12:26, Phase 1 tail 10:52 to 11:55, review repairs XII 12:23 to 12:34, heap profile 12:23 to 12:49 (2026-11-08 UTC) |
+| Tokens per builder | not supplied to the integrator |
+| Compile passes | 6 check passes (errors 1, 0, 0, 0, 1, 0) and the validation's test build |
+| Rows ticked by machine | 0 (`run.py --check` un-ticks no row) |
+| Lines under `crates/ryo` | +2,767 / -2,376 (Rust +1,248 / -1,028) |
+| Full Django 413 cold | exit 0, unknown 0; default threads 328.3 s, 6.78 GB (322.7 s, 6.79 GB at 327), output bytes identical |
+| 413 inventory | 413 PASS / 0 FAIL |
+| Contract review | pending |
+| Rust gate review | PASS on all seven items, first pass (diff `e49dc1dfc5..490bc0f3c2`), no findings, five advisories |

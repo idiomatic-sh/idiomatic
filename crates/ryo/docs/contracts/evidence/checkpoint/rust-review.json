@@ -1,55 +1,26 @@
 {
- "checkpoint": 328,
- "source": "490bc0f3c2566ca4aaa2b063b44dc8dfeb0e0b49",
- "base": "e49dc1dfc5e3f459779ba11bb90690c9a4288353",
- "scope": "diff e49dc1dfc5..490bc0f3c2 (landing 2 execution_runtime crate e9b643b228 + Phase 1 tail 57be7fb114 + review repairs XII 511c778990 + heap-profile 6fc53620b9 + integration fixes 923a577b46/4a982fa0a5/b24bfeda1b + records)",
+ "checkpoint": 329,
+ "source": "d55490390356dab2fd5000cc9bd812eadaacd7e6",
+ "base": "90a0a472b2",
+ "scope": "diff 90a0a472b2..d554903903 (first pass 518a419546, repairs 779f4a960f and d554903903)",
  "verdict": "PASS",
  "items": [
-  {
-   "item": 1,
-   "verdict": "PASS",
-   "evidence": "Arc<()> 7 -> 7 over crates/ryo .rs (diff adds 0); RefCell</Mutex</RwLock< lines 112 -> 112; .clone() in execution*/core/operators/sdk src 1061 -> 1061; Arc::new 1178 -> 1178. New API is borrow-shaped: the five fixture accessors forward &self (file_session/service.rs:116-149 reuse_eligible/owner_lifetime/route_observation/resource_fixture_counts; prepared_execution/service.rs:87 matchers -> &Arc<PreparedMatchers>, a borrow, no clone). Store write lends rows: rest/schemas.rs:151-164 builds the digest table in one pass with an FxHashMap<[u8;16],u32> entry per row (Copy keys, no clone); proofs/schemas.rs:104 proof_row(&FrontierProofSchema, &[[u8;16]]) borrows the table. owner_lifetime returns rc::Weak (fixtures only), so a caller cannot extend the owner's life."
-  },
-  {
-   "item": 2,
-   "verdict": "PASS",
-   "evidence": "compile_fail doctests 70 -> 60; all 10 removed from crates/ryo/crates/execution_runtime/src/application/file_dag/program/prepared_execution/types.rs (was 10, now 0 compile_fail; 1 positive doctest kept at :9-14), each replaced by a compiler fact I checked at 490bc0f3c2: E0616 program.inner -> types.rs:18 `pub(crate) inner` in ryo_execution_runtime; E0616 file.inner -> file_session/types.rs:53 `pub(crate) inner` (all 5 FileSession fields pub(crate), :53-59); E0451 literals -> every field of PreparedExecutionProgram (types.rs:16-21) and FileSession is pub(crate), so no other crate can write a literal; E0603 CommonOperatorEngine -> file_dag.rs:3 `pub(crate) mod execution`, no `pub use` of it anywhere in crates/ryo; E0624 open_project -> request_execution/service.rs:176 and facade_runtime/project_execution.rs:45 both pub(crate); E0432 x4 KernelStrategy/TreeSteps/ProjectSession/ProjectExecution -> grep -w finds 0 occurrences in any .rs under crates/ryo. Every probe's caller was another crate (doctests compile as external crates), so the crate edge enforces exactly what the probes did. The 3 kept compile_fail (project_phase/interface.rs:17 E0599, file_session/interface.rs E0599, operators interface.rs:32 E0432) are API facts, renamed only. Source-reading test files (include_str!/read_to_string naming a .rs in *test*.rs or tests/) 13 -> 13, set identical (method differs from 327's 27 count; same method both shas). execution's interface forwards gain only FileExecution (interface.rs, 89 pub use)."
-  },
-  {
-   "item": 3,
-   "verdict": "PASS",
-   "evidence": "Nothing in the listed classes added: std HashMap 38 -> 38, `dyn ` 1460 -> 1460, no per-row allocation added. Store write: rest/schemas.rs:151-164 FxHashMap (not SipHash), one Vec push per distinct digest, per-proof 16-byte digest replaced by a u32 (store 1,778,454,983 -> 1,757,210,648 bytes in the 328 receipt). closure/service.rs:22-23 and cycles/service.rs:126-131 add one population()/found() per evaluation, outside the per-row loop. The fixtures-gated observation (execution/lease.rs:72-73 and :250-254 observe(); runtime/service/invocation/service.rs:248-252 measured(), a Copy struct) runs per lease/per scratch, not per row, and reads capacities without allocating (invocation/observation.rs:1-96). It is absent from release builds: resolver = 3 (Cargo.toml:3), and ryo_core's `fixtures` reaches cli only from [dev-dependencies] (cli/Cargo.toml:57-64). BUT it IS in the measured worker: the ruff bench worker is built by `cargo bench -p idiomatic-sh-ryo-python --bench ruff` (profile_worker.py:56), whose dev-dependency on itself with `fixtures` (languages/python/Cargo.toml dev-deps) turns on ryo/fixtures -> core/fixtures -> ryo_execution_runtime/fixtures; the 328 record states the receipt worker is `features fixtures only` and that the 328 Django receipt (+1.7% wall, +3.0% CPU vs 327) carries 'the fixtures-gated observation per lease ... not in 327's'. Not a FAIL under item 3's classes (test instrumentation, per lease, release-free), but every 328 perf number (Django receipt, cli_cost N999/one-file rows, cli lint bench built --all-features) includes it: see advisory A1."
-  },
-  {
-   "item": 4,
-   "verdict": "PASS",
-   "evidence": "0 engine data structures added (git -M: 352 R100 renames; new struct/enum lines outside moves are the cli test enum variant NotAvailable::StagedDiffers at cli/tests/fixtures/replay/workload.rs:22-24 and the store's RestSchema.digests field rest/schemas.rs:83-84, a serialization table of the one in-memory FrontierProof.rule_digest, decoded back into it at proofs/schemas.rs:127-131). The accessors return the engine's own values (no shadow copy). KernelSession moved with the runtime, not duplicated. Recorded, not failed: crates/execution_runtime/src/cases.rs is the 15th copy of the per-crate test runner (14 -> 15 crates/*/src/cases.rs); it is test support, not engine data, required by the per-crate template since cfg(test) items cannot cross the new crate edge; owned by the one-runner row."
-  },
-  {
-   "item": 5,
-   "verdict": "PASS",
-   "evidence": "No hand-written replacement of a standard crate: sha256 via sha2 (workload.rs:104-106), JSON via serde_json (:74-86), digest table via rustc-hash. staged_digest (workload.rs:115-136) is a 20-line std::fs::read_dir walk mirroring profile_staging.py:268-270 in a test fixture; std over a crate is the house rule for glue this size. heap-profile uses tikv-jemallocator's own `profiling` feature (python/Cargo.toml [features]) rather than a home-grown profiler."
-  },
-  {
-   "item": 6,
-   "verdict": "PASS",
-   "evidence": "cost.rs:285-287 pins digest b5a200e1... and request 44136fa3... with the stated source (verify_profiles.py staging of those files); I recomputed both independently with sha256sum: sha256('{}') = 44136fa3...caaff8a and sha256('<sha256(x)>  benchmark.toml\\n<sha256(y)>  rules/a.toml\\n') = b5a200e1...eff83b, both match, so they are run values, not read. Premise changes carry reasons: core lint/fixtures/skips.rs (10d62e43be) states the language is the cold run's and splits AcceptedSyntax (skip recorded) from Always (rows answered, cold.rows != oracle.rows); proofs/schemas_test.rs:50 round-trips through the new table with index 0. The 285 digest rebinds (ef46128f82, rules/*/cases.toml settings-sha256) are recomputed identities with the stated reason (settings text without the retired engine options). errored_rule test feeds prepare the two plans its fake compile returned (landing-2.md item 3); subject unchanged."
-  },
-  {
-   "item": 7,
-   "verdict": "PASS",
-   "evidence": "unsafe 21 -> 21; #[allow( 4 -> 4. Added .expect/panic! in non-test files: only invocation/observation.rs:52,66,79,90 (constants path requalified, same calls as at 327) inside observe(), gated cfg(any(test, feature = \"fixtures\")) at :4, so never in a release build; they are reachable in the fixtures-on bench worker (see A1). Store decode returns postcard::Error::DeserializeBadEncoding for an out-of-table or overflowing index (proofs/schemas.rs:127-131), no panic; the TRAILER gains `proof-digests\\0` (postcard/constants.rs:23) so a 327-format store is a cache miss, not a misread positional decode. The context_derivation decoder field (benchmark .../invocation/schemas.rs) is an Option<IgnoredAny> with serde default, no panic path."
-  }
+  {"item": 1, "verdict": "PASS", "evidence": "Second-pass evidence stands: BatchOccurrenceBinding owns and PhaseOccurrence borrows (cross_file/types.rs:60-67, project_phase/types.rs:64-74); the parts structs add no Arc. evaluate_rules (batch_test.rs:45-91) borrows its inputs and hands borrowed PhaseOccurrences to the phase, with no clone to escape a lifetime."},
+  {"item": 2, "verdict": "PASS", "evidence": "compile_fail goes 60 -> 61, and the +1 is the accepted E0603 probe (prepared_execution/types.rs:7). ProgramParts/SessionParts are crate-private under private_interfaces=deny (Cargo.toml:83), and all 12 probes are deleted. The second library-surface entry is dropped. pub mod admission is unchanged from the base, and ApplicabilityProof is already public via RootOutcome::Skipped. d554903903 adds no probe or rule."},
+  {"item": 3, "verdict": "PASS", "evidence": "Second-pass evidence stands: evaluate_occurrences allocates its Vecs once per phase (project_phase/service.rs:63-126), and the observation route once per batch (cross_file/service.rs:128-163). No per-row allocation, SipHash or dyn is added. d554903903 is test code only."},
+  {"item": 4, "verdict": "PASS", "evidence": "One production phase call, evaluate_occurrences (project_phase/interface.rs:55-67), serves ordinary/service.rs:59 and cross_file/service.rs:171; PreparedProject, ReadyProject, evaluate_batch and preparation are deleted. F4.2 is repaired: evaluate_prepared is deleted, and evaluate_rules (batch_test.rs:45-91) has no loop, only one call to evaluate_occurrences over one facts port with Bucket(rule) rows (fixtures.rs:256-282). The budget case (budget_test.rs:79-118) passes within as the guard and proves the production Refused path (project_phase/service.rs:121-134,145-149). evaluate_fixture (batch_test.rs:93-133) is one evaluate plus complete_occurrence, with no zip-back."},
+  {"item": 5, "verdict": "PASS", "evidence": "No hand-written mechanism replaces a crate. FxHashMap is kept, compile_rules uses ryo_matching, and ScriptedMemory is a test fake (budget_test.rs:230-243)."},
+  {"item": 6, "verdict": "PASS", "evidence": "Expected values are unchanged: budget completed 1, used 200/budget 100, reductions 1, aggregates 2, slots 1 (budget_test.rs:96-115); root-set aggregates 2 and slots 1 (root_set_test.rs:57-58). The cases move back to the production call with the stated reason, and core is green at 119/0. The ordinary case keeps rule 0 at Bucket(0) only (budget_test.rs:253), so rule 1 still answers missing frontier bucket."},
+  {"item": 7, "verdict": "PASS", "evidence": "No unsafe or #[allow] is added. The expect/panic and indexing d554903903 adds are in fixtures and tests only (fixtures.rs:276,315; batch_test.rs:57,85,88,122,127). The production paths answer PhaseStop/OperatingError (project_phase/service.rs:135,203-207; cross_file/service.rs:165-170)."}
  ],
- "findings": [],
+ "required_changes": [],
  "advisories": [
-  "A1 (perf evidence, priority): the runtime's invocation observation (execution/lease.rs:72-73, :250-254; runtime/service/invocation/service.rs:248-252; probes; Slot.observed/registered_calls) is now compiled into the fixtures-on ruff bench worker that produces every 328 perf number, so the +1.7% wall / +3.0% CPU vs 327 is not attributable between the observation and the engine. Fix without a new feature: move the execution use-case proofs that read these counters (closure_partitions, conformance, route_observation readers) into ryo_execution_runtime as cfg(test) tests (tests live in the owning crate) and return the observation gate to #[cfg(test)]; or, until then, record each perf receipt's worker features and A/B one Django receipt with the observation compiled out.",
-  "A2 (surface): two runtime modules are pub with no consumer outside the crate: application/file_dag/program.rs:2 `pub mod admission` (0 references outside ryo_execution_runtime; only ApplicabilityProof is pub and it appears in no public signature) and application/file_dag.rs:9 `pub mod service` (all items pub(crate)). Both were pub inside execution at 327; narrow to pub(crate) mod. The remaining pub application modules are each named by execution's interface or proofs.",
-  "A3 (store): rest/schemas.rs:160 maps a digest-table index overflow to u32::MAX, which past 2^32 entries would alias a real entry (wrong digest, silently); unreachable in practice and consistent with :179, but returning an encode error would make it total.",
-  "A4 (fixture): workload.rs:120 `path.is_dir()` follows symlinks while profile_worker.staged_hashes may not; state or match the Python walk so a symlinked staged file cannot yield StagedDiffers on a correct receipt.",
-  "A5 (docs): evidence/inventory and visualization/evidence.json still name crates/execution/src/application/file_dag (landing-2.md open risk); regenerate."
+  "A1: lint/use_case.rs:184 asks for kind_vocabularies() on every lint request.",
+  "A2: compile_rules/use_case.rs:62-66 uses unwrap_or_default for an out-of-range rule index; it needs a new RuleCompilationError variant (owner's call).",
+  "A3: poll(..., &mut PollMode) is an in-out parameter.",
+  "A5: tastemaker/rules/project-batch-owner/0.1.0 help and why name the deleted preparation/SealedBatch/evaluate_batch. Publish a new version naming evaluate_occurrences and relock. evaluate now has only test callers in core, so taking it off the public trait would let the compiler enforce that half of the rule.",
+  "A4 (carried from 328): not touched."
  ],
  "reviewer": "rust-principal-review",
- "date": "2026-11-08T00:00:00Z",
- "tree_unchanged": "HEAD 490bc0f3c2, git status --porcelain empty before and after"
+ "date": "2026-11-08T18:36:40Z"
 }

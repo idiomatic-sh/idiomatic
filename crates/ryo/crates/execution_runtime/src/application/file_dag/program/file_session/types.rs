@@ -50,6 +50,10 @@ pub struct FileInput<'a, 'facts> {
     pub kinds: KindSupport,
 }
 pub struct FileSession<'a, 'facts> {
+    pub(crate) parts: SessionParts<'a, 'facts>,
+}
+/// The members of a file session, reachable only inside the runtime.
+pub(crate) struct SessionParts<'a, 'facts> {
     pub(crate) inner:
         crate::application::file_dag::program::facade_runtime::file_execution::FileRun<'a>,
     pub(crate) program:
