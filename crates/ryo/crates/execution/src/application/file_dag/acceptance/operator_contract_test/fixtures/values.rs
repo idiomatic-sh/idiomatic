@@ -22,12 +22,12 @@ use super::expectations::SOURCE;
 
 #[derive(Debug)]
 pub(crate) struct KnownSyntax;
-impl crate::domain::operating::types::SemanticLookup for KnownSyntax {
+impl ryo_execution_domain::domain::operating::types::SemanticLookup for KnownSyntax {
     fn render_batch(
         &self,
         requests: &[RenderRequest],
         _: ryo_values::domain::files::types::SourceView<'_>,
-    ) -> Result<Vec<RenderOutcome>, crate::domain::operating::errors::OperatingError> {
+    ) -> Result<Vec<RenderOutcome>, ryo_execution_domain::domain::operating::errors::OperatingError> {
         Ok(requests
             .iter()
             .map(|_| RenderOutcome::Known(ryo_language::domain::semantics::types::RenderedNode(Arc::from("a"))))

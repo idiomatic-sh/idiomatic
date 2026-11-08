@@ -5,8 +5,8 @@ use crate::application::file_dag::program::file_session::interface::FileExecutio
 use crate::application::file_dag::program::file_session::types::{FileInput, SourceLanguage};
 use crate::application::file_dag::program::request_execution::interface::ExecutionRequest;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::operating::errors::OperatingError;
-use crate::domain::prepared_request::types::ObservationIdentity;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::prepared_request::types::ObservationIdentity;
 use crate::outbound::facts::types::ResidentStability;
 use ryo_values::domain::files::types::{
     CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds,

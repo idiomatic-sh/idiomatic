@@ -1,6 +1,6 @@
 use super::types::PlanCount;
 use super::*;
-use crate::domain::operator::contract::resources::{AxisResources, JoinResources};
+use ryo_execution_domain::domain::operator::contract::resources::{AxisResources, JoinResources};
 use ryo_relations::domain::relations::types::CellKind;
 
 fn kinds() -> Vec<Vec<CellKind>> {
@@ -31,7 +31,7 @@ fn missing_input_is_prepared_but_refused_only_when_the_view_is_demanded() {
         Err(OperatingError::MissingInput { position: 2 })
     );
     assert_eq!(
-        crate::domain::derived_views::service::validate(DerivedKind::Equality, &use_plan.plan)
+        ryo_execution_domain::domain::derived_views::service::validate(DerivedKind::Equality, &use_plan.plan)
             .err(),
         Some(OperatingError::MissingInput { position: 2 }),
     );
@@ -59,7 +59,7 @@ fn plain_join_and_axis_bind_finite_ordered_inputs_and_share_identical_plans() {
         left_on: vec![ColumnIndex(0)],
         right_on: vec![ColumnIndex(1)],
         view: vec![ColumnIndex(0)],
-        has_filter: crate::domain::operator::contract::resources::Filtering::Unfiltered,
+        has_filter: ryo_execution_domain::domain::operator::contract::resources::Filtering::Unfiltered,
         reach: None,
     });
     let first = views.bind_resources(&join, &kinds[..2]).unwrap();
@@ -100,7 +100,7 @@ fn plain_join_and_axis_bind_finite_ordered_inputs_and_share_identical_plans() {
         parent: ColumnIndex(0),
         child: ColumnIndex(1),
         domain_id: ColumnIndex(0),
-        has_filter: crate::domain::operator::contract::resources::Filtering::Unfiltered,
+        has_filter: ryo_execution_domain::domain::operator::contract::resources::Filtering::Unfiltered,
         domain_view: vec![],
         output: vec![],
         direction: Direction::Parent,

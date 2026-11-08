@@ -5,15 +5,15 @@ use super::prepared_use::service::prepared;
 use super::{InvocationInputs, InvocationResources, input, partitioned};
 use crate::application::file_dag::axis_resources::prepare_axis;
 use crate::application::file_dag::resources::appended_values;
-use crate::domain::operating::{errors::OperatingError, types::OperatorContext};
-use crate::domain::operator::contract::{
+use ryo_execution_domain::domain::operating::{errors::OperatingError, types::OperatorContext};
+use ryo_execution_domain::domain::operator::contract::{
     views::NativeJoin,
     resources::{IndexColumns, JoinResources, ResourceProgram},
     types::OperatorContract,
     
 };
-use crate::domain::table_model::types::RepresentationInput;
-use crate::domain::table_texts::types::Texts;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::table_texts::types::Texts;
 use ryo_values::domain::plan_parts::{service::parameter_in, types::InputNumber};
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 
@@ -54,7 +54,7 @@ pub(in crate::application::file_dag) fn prepare<'f>(
     contract: &OperatorContract,
     inputs: &[RepresentationInput<'f>],
     context: &mut OperatorContext<'_>,
-    originals: &[crate::domain::table_model::types::Rows<'f>],
+    originals: &[ryo_execution_domain::domain::table_model::types::Rows<'f>],
     admission: &crate::application::file_dag::workspace::InvocationWorkspace,
     semantics: &crate::application::file_dag::execution::PrimitiveSemanticsBridge<'_>,
 ) -> Result<InvocationResources<'f>, OperatingError> {
@@ -88,13 +88,13 @@ pub(in crate::application::file_dag) fn prepare<'f>(
         .find(|gate| {
             gate.input.0 > 0
                 && gate.representation
-                    == crate::domain::operator::contract::types::EmptyRepresentation::Computed
+                    == ryo_execution_domain::domain::operator::contract::types::EmptyRepresentation::Computed
                 && originals.get(gate.input.0).is_some_and(|rows| {
                     matches!(
                         rows,
-                        crate::domain::table_model::types::Rows::Computed(_)
-                            | crate::domain::table_model::types::Rows::Compact(_)
-                    ) && crate::domain::table_model::service::count_of(rows).0 == 0
+                        ryo_execution_domain::domain::table_model::types::Rows::Computed(_)
+                            | ryo_execution_domain::domain::table_model::types::Rows::Compact(_)
+                    ) && ryo_execution_domain::domain::table_model::service::count_of(rows).0 == 0
                 })
         })
         .map(|gate| gate.kinds.as_ref().map(|_| true).map_err(Clone::clone))
@@ -180,7 +180,7 @@ pub(in crate::application::file_dag) fn prepare<'f>(
                     });
                     resources.inputs.native_storage = Some(acquired);
                 } else {
-                    if *has_filter == crate::domain::operator::contract::resources::Filtering::Filtered || !view.is_empty() {
+                    if *has_filter == ryo_execution_domain::domain::operator::contract::resources::Filtering::Filtered || !view.is_empty() {
                         return Err(OperatingError::WrongOperation);
                     }
                     resources.inputs.index = Some(IndexResource::acquired(
@@ -233,7 +233,7 @@ pub(in crate::application::file_dag) fn prepare<'f>(
             resources.inputs.cycles = Some(admitted.acquire_rows(use_, context)?);
         }
         ResourceProgram::Ordered { .. } => {
-            use crate::domain::derived_views::types::DerivedInputs;
+            use ryo_execution_domain::domain::derived_views::types::DerivedInputs;
             use ryo_derived::domain::request::types::DerivedKind;
             let use_ = prepared(contract, DerivedKind::OrderedKeys)?;
             let texts = Texts {
@@ -249,7 +249,7 @@ pub(in crate::application::file_dag) fn prepare<'f>(
             )?);
         }
         ResourceProgram::Dfs(_) => {
-            use crate::domain::derived_views::types::DerivedInputs;
+            use ryo_execution_domain::domain::derived_views::types::DerivedInputs;
             use ryo_derived::domain::request::types::DerivedKind;
             let use_ = prepared(contract, DerivedKind::OrderedDfs)?;
             resources.inputs.dfs = Some(admitted.acquire_derived(
@@ -265,7 +265,7 @@ pub(in crate::application::file_dag) fn prepare<'f>(
         }
         ResourceProgram::Axis(program) => {
             use crate::application::file_dag::axis_resources::{AxisMode, classify};
-            use crate::domain::derived_views::types::{DerivedInputs, MembershipSpace};
+            use ryo_execution_domain::domain::derived_views::types::{DerivedInputs, MembershipSpace};
             use ryo_derived::domain::request::types::DerivedKind;
             let edges = input(inputs, InputNumber(1))?;
             let domain = input(inputs, InputNumber(2))?;

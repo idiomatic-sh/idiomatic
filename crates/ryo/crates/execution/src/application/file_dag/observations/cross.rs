@@ -14,9 +14,9 @@ use ryo_values::domain::{
 };
 use std::rc::Rc;
 use {
-    crate::domain::coverage::types::RuleIndex,
-    crate::domain::file_program::types::ObservationRetirement,
-    crate::domain::operating::errors::OperatingError,
+    ryo_execution_domain::domain::coverage::types::RuleIndex,
+    ryo_execution_domain::domain::file_program::types::ObservationRetirement,
+    ryo_execution_domain::domain::operating::errors::OperatingError,
     ryo_values::domain::records::types::CrossPublicationTransfer,
 };
 
@@ -79,8 +79,8 @@ impl<'a> CrossPublications<'a> {
             .iter()
             .map(|binding| {
                 let available = binding.producers.iter().all(|producer| match producer {
-                    crate::domain::file_program::types::ResolvedObservationProducer::NoQuery { .. } => false,
-                    crate::domain::file_program::types::ResolvedObservationProducer::Output { rule, output } => matches!(self.roots.get(rule.0).and_then(|roots| roots.get(output.0 as usize)), Some(CrossRoot::FileFrontier { .. } | CrossRoot::Named { .. })),
+                    ryo_execution_domain::domain::file_program::types::ResolvedObservationProducer::NoQuery { .. } => false,
+                    ryo_execution_domain::domain::file_program::types::ResolvedObservationProducer::Output { rule, output } => matches!(self.roots.get(rule.0).and_then(|roots| roots.get(output.0 as usize)), Some(CrossRoot::FileFrontier { .. } | CrossRoot::Named { .. })),
                 });
                 (
                     binding.input,
@@ -136,8 +136,8 @@ impl<'a> CrossPublications<'a> {
         let bindings = self.metadata.bindings.get(rule.0).ok_or_else(incomplete)?;
         Ok(bindings.iter().filter(|binding| binding.schema.scope == ryo_values::domain::plan_parts::types::StepScope::CrossFile).map(|binding| {
             let members = binding.producers.iter().map(|producer| match producer {
-                crate::domain::file_program::types::ResolvedObservationProducer::Output { rule, output } => self.member(*rule, *output),
-                crate::domain::file_program::types::ResolvedObservationProducer::NoQuery { .. } => Err(incomplete()),
+                ryo_execution_domain::domain::file_program::types::ResolvedObservationProducer::Output { rule, output } => self.member(*rule, *output),
+                ryo_execution_domain::domain::file_program::types::ResolvedObservationProducer::NoQuery { .. } => Err(incomplete()),
             }).collect();
             BoundInput {
                 input: binding.input,

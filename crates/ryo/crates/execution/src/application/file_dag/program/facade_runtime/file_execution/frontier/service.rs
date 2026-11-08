@@ -6,15 +6,15 @@ use crate::application::file_dag::program::facade_runtime::source_admission::tab
 use crate::application::file_dag::program::facade_runtime::types::{
     DeclaredIntent, FrontierCommit,
 };
-use crate::domain::rule_intent::types::CaptureIntent;
-use crate::domain::frontier_capture::types::CaptureScope;
-use crate::domain::frontier_capture::types::CapturedFrontier;
-use crate::domain::frontier_capture::types::FrontierCapture;
+use ryo_execution_domain::domain::rule_intent::types::CaptureIntent;
+use ryo_execution_domain::domain::frontier_capture::types::CaptureScope;
+use ryo_execution_domain::domain::frontier_capture::types::CapturedFrontier;
+use ryo_execution_domain::domain::frontier_capture::types::FrontierCapture;
 use crate::application::file_dag::scope::ScopePartials;
-use crate::domain::completion::types::completion_policy::value::CompletionPolicy;
-use crate::domain::coverage::types::RuleIndex;
-use crate::domain::operating::errors::OperatingError;
-use crate::domain::table_model::types::Rows;
+use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
+use ryo_execution_domain::domain::coverage::types::RuleIndex;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::table_model::types::Rows;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::InputNumber;
 use ryo_values::domain::stored_facts::types::Bucket;
@@ -92,10 +92,10 @@ impl FileRun<'_> {
             retained,
             words,
         } = capture;
-        let crate::domain::finish::types::Retained { arena, places: _ } = retained;
+        let ryo_execution_domain::domain::finish::types::Retained { arena, places: _ } = retained;
         for (index, source) in sources.into_iter().enumerate() {
             if capture_intent == CaptureIntent::Observations
-                && self.program.frontier_purpose(rule, InputNumber(index))? != crate::domain::rule_intent::types::FrontierPurpose::Observation
+                && self.program.frontier_purpose(rule, InputNumber(index))? != ryo_execution_domain::domain::rule_intent::types::FrontierPurpose::Observation
             {
                 continue;
             }
@@ -114,21 +114,21 @@ impl FileRun<'_> {
                     &Partition::File(self.generation.clone()),
                     context,
                 )?;
-                let coverage = crate::domain::frontier_coverage::service::file_frontier_coverage(
+                let coverage = ryo_execution_domain::domain::frontier_coverage::service::file_frontier_coverage(
                     admitted.coverage()?,
                     file,
                 )?;
                 let mut table = table_of(&self.owner, &admitted, read)?;
-                let frame_places = crate::domain::finish::service::escape_frame(
+                let frame_places = ryo_execution_domain::domain::finish::service::escape_frame(
                     &mut table,
-                    crate::domain::finish::types::Leaving {
+                    ryo_execution_domain::domain::finish::types::Leaving {
                         symbols: context.symbols.as_ref(),
                         source: context.source,
                         file,
                         worker,
-                        text: crate::domain::finish::types::Leaves::WithText,
+                        text: ryo_execution_domain::domain::finish::types::Leaves::WithText,
                     },
-                    crate::domain::finish::types::Arena(&mut *arena.0),
+                    ryo_execution_domain::domain::finish::types::Arena(&mut *arena.0),
                 )
                 .map_err(|reason| OperatingError::ObservationIncomplete {
                     reason: reason.to_string(),
@@ -175,7 +175,7 @@ impl FileRun<'_> {
         } = self.declared(rule)?;
         if capture == CaptureIntent::Disabled
             || (capture == CaptureIntent::Observations
-                && self.program.frontier_purpose(rule, input)? != crate::domain::rule_intent::types::FrontierPurpose::Observation)
+                && self.program.frontier_purpose(rule, input)? != ryo_execution_domain::domain::rule_intent::types::FrontierPurpose::Observation)
             || input.0 >= self.program.frontiers(rule)?.len()
         {
             return Err(OperatingError::NotRun);

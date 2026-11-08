@@ -2,16 +2,14 @@
 use super::*;
 use crate::application::file_dag::derived::ledger::types::ByteCount;
 use crate::application::file_dag::derived::owner::cache::types::{CacheBackend, GraphAdmission};
-use crate::{
-    application::file_dag::{
-        derived::owner::cached_graph::types::CachedGraph, workspace::InvocationWorkspace,
+use crate::application::file_dag::{
+    derived::owner::cached_graph::types::CachedGraph, workspace::InvocationWorkspace,
+};
+use ryo_execution_domain::domain::{
+    operator::contract::{
+        graph_view::CachedGraphRow, resources::ResourceProgram, types::OperatorContract,
     },
-    domain::{
-        operator::contract::{
-            graph_view::CachedGraphRow, resources::ResourceProgram, types::OperatorContract,
-        },
-        table_model::types::Rows,
-    },
+    table_model::types::Rows,
 };
 use ryo_relations::domain::relations::types::Value;
 impl DerivedOwner {

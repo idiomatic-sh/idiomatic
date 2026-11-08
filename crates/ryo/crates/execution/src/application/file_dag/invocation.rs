@@ -11,15 +11,15 @@ use index::IndexResource;
 use prepared_use::service::prepared;
 #[cfg(test)]
 mod observation;
-use crate::domain::operating::{errors::OperatingError, types::OperatorContext};
-use crate::domain::operator::contract::{
+use ryo_execution_domain::domain::operating::{errors::OperatingError, types::OperatorContext};
+use ryo_execution_domain::domain::operator::contract::{
     views::NativeJoin,
     resources::ResourceProgram,
     types::OperatorContract,
     views::{IndexedRows},
 };
-use crate::domain::table_model::types::RepresentationInput;
-use crate::domain::table_groups::types::Group;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::table_groups::types::Group;
 use ryo_derived::domain::equality::types::KeyIndex;
 use ryo_derived::domain::closure_adjacency::types::ClosurePartition;
 use ryo_derived::domain::cycle_adjacency::types::CycleGraph;
@@ -82,7 +82,7 @@ impl<'f> InvocationResources<'f> {
         let right = input(inputs, InputNumber(1))?;
         let validate = |kind| {
             let request = prepared(contract, kind)?;
-            crate::domain::derived_views::service::validate(kind, &request.plan)
+            ryo_execution_domain::domain::derived_views::service::validate(kind, &request.plan)
         };
         if join.reach.is_some() {
             validate(DerivedKind::PartitionOrder)?;
@@ -91,26 +91,26 @@ impl<'f> InvocationResources<'f> {
             validate(DerivedKind::NativeLookup)?;
             let native = prepared(contract, DerivedKind::NativeLookup)?;
             let form = match tree.form {
-                crate::domain::table_cells::types::TreeForm::Elements => {
+                ryo_execution_domain::domain::table_cells::types::TreeForm::Elements => {
                     ryo_derived::domain::native::types::NativeForm::Elements
                 }
-                crate::domain::table_cells::types::TreeForm::Edges => {
+                ryo_execution_domain::domain::table_cells::types::TreeForm::Edges => {
                     ryo_derived::domain::native::types::NativeForm::Edges
                 }
             };
             if ryo_derived::domain::dispatch::service::native_finding(&native.plan.semantic, form)
-                .map_err(crate::domain::operator::contract::derived::portable_fault)?
+                .map_err(ryo_execution_domain::domain::operator::contract::derived::portable_fault)?
                 .is_some()
             {
                 return Ok(());
             }
-            if join.has_filter == crate::domain::operator::contract::resources::Filtering::Filtered || !join.view.is_empty() {
+            if join.has_filter == ryo_execution_domain::domain::operator::contract::resources::Filtering::Filtered || !join.view.is_empty() {
                 return Err(OperatingError::WrongOperation);
             }
             validate(DerivedKind::Equality)
         } else {
             // The ordinary values driver has no native filter/view protocol.
-            if join.has_filter == crate::domain::operator::contract::resources::Filtering::Filtered || !join.view.is_empty() {
+            if join.has_filter == ryo_execution_domain::domain::operator::contract::resources::Filtering::Filtered || !join.view.is_empty() {
                 return Err(OperatingError::WrongOperation);
             }
             validate(DerivedKind::Equality)
@@ -132,18 +132,16 @@ fn partitioned<'f>(
 
 use ryo_values::domain::rows::types::Table;
 
-impl crate::domain::operator::contract::views::ClosureParts
-    for Vec<super::derived::owner::acquisition::admission::service::AcquiredView>
-{
-    fn len(&self) -> crate::domain::operator::contract::views::PartitionCount {
-        crate::domain::operator::contract::views::PartitionCount(Vec::len(self))
+impl ryo_execution_domain::domain::operator::contract::views::ClosureParts for InvocationInputs<'_> {
+    fn len(&self) -> ryo_execution_domain::domain::operator::contract::views::PartitionCount {
+        ryo_execution_domain::domain::operator::contract::views::PartitionCount(self.closure.len())
     }
     fn get(
         &self,
-        at: crate::domain::operator::contract::views::PartitionIndex,
+        at: ryo_execution_domain::domain::operator::contract::views::PartitionIndex,
     ) -> Result<&ryo_derived::domain::closure_adjacency::types::ClosurePartition, OperatingError> {
         let view = self
-            .as_slice()
+            .closure
             .get(at.0)
             .ok_or(OperatingError::ShapeMismatch)?
             .view()?;

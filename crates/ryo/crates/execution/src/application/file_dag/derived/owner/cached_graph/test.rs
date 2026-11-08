@@ -4,8 +4,8 @@ use crate::application::file_dag::derived::owner::{
     fixtures::graph::GraphFixture, index::service::LIMIT,
 };
 use crate::application::file_dag::relations::RelationOwner;
-use crate::domain::operating::errors::OperatingError;
-use crate::domain::table_model::types::Rows;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::table_model::types::Rows;
 use ryo_relations::domain::relations::types::{CellKind, ColumnsView, FactColumn, Relation};
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input};
 

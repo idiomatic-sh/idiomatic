@@ -5,9 +5,9 @@ use crate::application::file_dag::program::admission::Inputs;
 use crate::application::file_dag::program::constants::EXECUTION_TARGET;
 use crate::application::file_dag::program::constants::READINESS_QUEUE;
 use crate::application::file_dag::program::runtime::types::{PollMode, ReaderCount};
-use crate::domain::executable_program::types::RegionId;
-use crate::domain::operating::errors::OperatingError;
-use crate::domain::operating::types::OperatorContext;
+use ryo_execution_domain::domain::executable_program::types::RegionId;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operating::types::OperatorContext;
 
 impl ProgramExecution {
     /// Drives the admission half of this interpreter for every bound root.
@@ -19,11 +19,11 @@ impl ProgramExecution {
         roots: &[RegionId],
         inputs: &mut dyn Inputs,
         kernels: &dyn KernelInvocation,
-        completion: &crate::domain::completion::types::completion_policy::value::CompletionPolicy,
+        completion: &ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy,
         context: &mut OperatorContext<'_>,
     ) -> Result<(), OperatingError> {
         self.validate_state(state)?;
-        use crate::domain::readiness::types::{
+        use ryo_execution_domain::domain::readiness::types::{
             ReadinessAction, ReadinessOutcome, RegionCount, ready_queue::value::ReadyQueue,
         };
         // Publication delivery and retries must not re-enter readiness work.
@@ -104,11 +104,11 @@ impl ProgramExecution {
     pub(in crate::application::file_dag::program) fn admit_root(
         &self,
         state: &RuntimeState,
-        rule: crate::domain::coverage::types::RuleIndex,
-        source: crate::domain::executable_program::types::InputSource,
+        rule: ryo_execution_domain::domain::coverage::types::RuleIndex,
+        source: ryo_execution_domain::domain::executable_program::types::InputSource,
         inputs: &mut dyn Inputs,
         kernels: &dyn KernelInvocation,
-        completion: &crate::domain::completion::types::completion_policy::value::CompletionPolicy,
+        completion: &ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy,
         context: &mut OperatorContext<'_>,
     ) -> Result<AdmittedInput, OperatingError> {
         self.validate_state(state)?;
@@ -126,7 +126,7 @@ impl ProgramExecution {
         id: RegionId,
         inputs: &mut dyn Inputs,
         kernels: &dyn KernelInvocation,
-        completion: &crate::domain::completion::types::completion_policy::value::CompletionPolicy,
+        completion: &ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy,
         context: &mut OperatorContext<'_>,
     ) -> Result<InvocationOutcome, OperatingError> {
         self.validate_state(state)?;

@@ -10,8 +10,8 @@ use crate::application::file_dag::program::runtime::types::{
     AttemptCheckpoint, ConsumerReleasePoint, Dependencies, DependencyCheckpoint, IndexLiveness,
     ProducerLeaseEvent, ReaderCount, RetryCheckpoint, WorkingBytes,
 };
-use crate::domain::executable_program::types::RegionId;
-use crate::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::executable_program::types::RegionId;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 
 impl ProgramExecution {
     /// Observe actual release boundaries without retaining a producer or a backing lease.
@@ -100,9 +100,9 @@ impl ProgramExecution {
     pub(in crate::application::file_dag::program) fn route_observation(
         &self,
         state: &RuntimeState,
-        rule: crate::domain::coverage::types::RuleIndex,
+        rule: ryo_execution_domain::domain::coverage::types::RuleIndex,
         step: ryo_values::domain::plan_parts::types::StepId,
-    ) -> Result<crate::domain::operating::fixtures::ExecutionObservation, OperatingError> {
+    ) -> Result<ryo_execution_domain::domain::operating::fixtures::ExecutionObservation, OperatingError> {
         let origin = self
             .program
             .rules()
@@ -123,7 +123,7 @@ impl ProgramExecution {
         &self,
         state: &RuntimeState,
         region: RegionId,
-    ) -> Result<crate::domain::operating::fixtures::ExecutionObservation, OperatingError> {
+    ) -> Result<ryo_execution_domain::domain::operating::fixtures::ExecutionObservation, OperatingError> {
         self.validate_state(state)?;
         let slots = state.slots.borrow();
         let Some(slot) = slots.get(&region) else {
@@ -133,7 +133,7 @@ impl ProgramExecution {
                 .ok_or(OperatingError::NotRun)?;
             return Ok(Default::default());
         };
-        Ok(crate::domain::operating::fixtures::ExecutionObservation {
+        Ok(ryo_execution_domain::domain::operating::fixtures::ExecutionObservation {
             registered_calls: slot.registered_calls.0,
             ..slot.observed
         })

@@ -9,8 +9,8 @@ use crate::outbound::query_language::{
 use ryo_values::domain::query_tokens::types::{QueryBundle, QuerySourceText};
 use ryo_values::domain::runs::types::RuleId;
 use crate::application::file_dag::program::preparation::service::prepare;
-use crate::domain::coverage::types::RuleIndex;
-use crate::domain::executable_program::types::InputSource;
+use ryo_execution_domain::domain::coverage::types::RuleIndex;
+use ryo_execution_domain::domain::executable_program::types::InputSource;
 use ryo_values::domain::observations::types::{
     ObservationColumn, ObservationColumnName, ObservationName, PlanObservation,
 };

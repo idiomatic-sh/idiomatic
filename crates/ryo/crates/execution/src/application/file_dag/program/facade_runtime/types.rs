@@ -7,7 +7,7 @@ use crate::application::file_dag::program::admission::RequiredPartitions;
 use crate::application::file_dag::program::request_identity::RequestIdentity;
 use crate::application::file_dag::program::runtime::service::ProgramExecution;
 use crate::application::file_dag::relations::RelationOwner;
-use crate::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use std::{rc::Rc, sync::Arc};
 
 /// Whether the frontier a file root publishes has been committed by its owner.
@@ -31,7 +31,7 @@ pub(super) enum NamedReadiness {
 /// A named observation output of one rule, prepared for admission.
 #[derive(Clone, Copy, Debug)]
 pub(super) struct PreparedNamed {
-    pub(super) rule: crate::domain::coverage::types::RuleIndex,
+    pub(super) rule: ryo_execution_domain::domain::coverage::types::RuleIndex,
     pub(super) output: ryo_values::domain::records::types::ObservationIndex,
     pub(super) readiness: NamedReadiness,
 }
@@ -39,9 +39,9 @@ pub(super) struct PreparedNamed {
 #[derive(Clone, Copy, Debug)]
 pub(super) struct DeclaredIntent {
     pub(super) delivery:
-        crate::domain::rule_intent::types::DiagnosticDelivery,
-    pub(super) demand: crate::domain::rule_intent::types::ObservationDemand,
-    pub(super) capture_intent: crate::domain::rule_intent::types::CaptureIntent,
+        ryo_execution_domain::domain::rule_intent::types::DiagnosticDelivery,
+    pub(super) demand: ryo_execution_domain::domain::rule_intent::types::ObservationDemand,
+    pub(super) capture_intent: ryo_execution_domain::domain::rule_intent::types::CaptureIntent,
 }
 /// The slot of a bound observation among the observation regions of a program.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -57,7 +57,7 @@ pub(super) enum Provision {
 }
 /// A project source admitted once for the run, with the source it answers.
 pub(super) struct CachedInput {
-    pub(super) source: crate::domain::executable_program::types::InputSource,
+    pub(super) source: ryo_execution_domain::domain::executable_program::types::InputSource,
     pub(super) input: AvailableInput,
 }
 
@@ -107,7 +107,7 @@ pub(crate) struct ProjectFrontiers<'a> {
 /// A named project phase and its bound inputs must use the very same owner.
 pub(crate) struct PublicationScope {
     pub(super) request: Arc<RequestIdentity>,
-    pub(super) program: Arc<crate::domain::executable_program::types::executable_program::value::ExecutableProgram>,
+    pub(super) program: Arc<ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram>,
     pub(super) owner: Rc<RelationOwner>,
     pub(super) execution: std::cell::OnceCell<ProgramExecution>,
     /// The scope's project-stage walk: every cohort of the scope leases from its batches.
@@ -126,7 +126,7 @@ pub(crate) struct PublicationScope {
     pub(super) decodes: crate::application::file_dag::frontiers::types::FrontierDecodes,
 }
 impl PublicationScope {
-    pub(crate) fn readiness_counts(&self) -> crate::domain::readiness::types::ReadinessCounts {
+    pub(crate) fn readiness_counts(&self) -> ryo_execution_domain::domain::readiness::types::ReadinessCounts {
         self.execution
             .get()
             .map_or_else(Default::default, ProgramExecution::readiness_counts)
@@ -134,7 +134,7 @@ impl PublicationScope {
 
     /// The project-stage walk's totals, retired batches included.
     #[cfg(test)]
-    pub(crate) fn walk_counts(&self) -> crate::domain::shared_walk::types::WalkCounts {
+    pub(crate) fn walk_counts(&self) -> ryo_execution_domain::domain::shared_walk::types::WalkCounts {
         self.walk.counts()
     }
 
@@ -144,7 +144,7 @@ impl PublicationScope {
         self.decodes.count()
     }
 
-    pub(crate) fn state_counts(&self) -> crate::domain::readiness::types::InvocationStateCounts {
+    pub(crate) fn state_counts(&self) -> ryo_execution_domain::domain::readiness::types::InvocationStateCounts {
         self.execution
             .get()
             .map_or_else(Default::default, |execution| execution.state_counts())
@@ -160,7 +160,7 @@ impl PublicationScope {
     }
     pub(in crate::application::file_dag::program) fn program(
         &self,
-    ) -> &Arc<crate::domain::executable_program::types::executable_program::value::ExecutableProgram> {
+    ) -> &Arc<ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram> {
         &self.program
     }
     pub(in crate::application::file_dag) fn owner(&self) -> &Rc<RelationOwner> {

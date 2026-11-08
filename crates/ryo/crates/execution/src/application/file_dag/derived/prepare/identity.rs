@@ -1,5 +1,5 @@
 //! Request hash behind `DerivedContract::identity_hash`; it must follow `request::identity::types::StaticRequest`.
-use crate::domain::derived_views::types::ViewRequest;
+use ryo_execution_domain::domain::derived_views::types::ViewRequest;
 
 /// The hash follows semantic equality.
 pub(super) fn hash_request<H: std::hash::Hasher>(request: &ViewRequest, state: &mut H) {

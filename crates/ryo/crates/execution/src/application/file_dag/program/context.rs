@@ -10,19 +10,19 @@ use ryo_language::domain::symbols::{
 use ryo_values::domain::stored_facts::types::ArenaBytes;
 use std::sync::Arc;
 use {
-    crate::domain::coverage::types::RuleIndex, crate::domain::operating::errors::OperatingError,
-    crate::domain::operating::types::Memo, crate::domain::operating::types::OperatorContext,
-    crate::domain::table_scratch::types::OperatorScratch,
+    ryo_execution_domain::domain::coverage::types::RuleIndex, ryo_execution_domain::domain::operating::errors::OperatingError,
+    ryo_execution_domain::domain::operating::types::Memo, ryo_execution_domain::domain::operating::types::OperatorContext,
+    ryo_execution_domain::domain::table_scratch::types::OperatorScratch,
     ryo_values::domain::files::types::SourceView,
 };
 
 pub(super) struct RunContext<'a> {
-    phase: crate::domain::operating::types::AfterTheFiles,
+    phase: ryo_execution_domain::domain::operating::types::AfterTheFiles,
     request: Arc<RequestIdentity>,
     source: SourceView<'a>,
     symbols: TransportPermit,
-    semantic: Option<&'a dyn crate::domain::operating::types::SemanticLookup>,
-    kinds: Option<Arc<crate::domain::kind_sets::types::vocabulary::value::PreparedVocabulary>>,
+    semantic: Option<&'a dyn ryo_execution_domain::domain::operating::types::SemanticLookup>,
+    kinds: Option<Arc<ryo_execution_domain::domain::kind_sets::types::vocabulary::value::PreparedVocabulary>>,
     arenas: &'a [ArenaBytes],
     memo: Vec<Memo>,
     scratch: OperatorScratch,
@@ -32,8 +32,8 @@ impl<'a> RunContext<'a> {
         services: &ProgramServices,
         source: SourceView<'a>,
         symbols: &mut Symbols,
-        semantic: Option<&'a dyn crate::domain::operating::types::SemanticLookup>,
-        kinds: Option<Arc<crate::domain::kind_sets::types::vocabulary::value::PreparedVocabulary>>,
+        semantic: Option<&'a dyn ryo_execution_domain::domain::operating::types::SemanticLookup>,
+        kinds: Option<Arc<ryo_execution_domain::domain::kind_sets::types::vocabulary::value::PreparedVocabulary>>,
     ) -> Self {
         Self {
             request: Arc::clone(services.request()),
@@ -41,7 +41,7 @@ impl<'a> RunContext<'a> {
             symbols: transport_permit(symbols),
             semantic,
             kinds,
-            phase: crate::domain::operating::types::AfterTheFiles::Before,
+            phase: ryo_execution_domain::domain::operating::types::AfterTheFiles::Before,
             arenas: &[],
             memo: Vec::new(),
             scratch: Default::default(),
@@ -58,7 +58,7 @@ impl<'a> RunContext<'a> {
             symbols,
             semantic: None,
             kinds: None,
-            phase: crate::domain::operating::types::AfterTheFiles::After,
+            phase: ryo_execution_domain::domain::operating::types::AfterTheFiles::After,
             arenas,
             memo: Vec::new(),
             scratch: Default::default(),
@@ -80,7 +80,7 @@ impl<'a> RunContext<'a> {
             semantic: self.semantic,
             prepared_kinds: self.kinds.as_deref(),
             prepared_matchers: Some(program.matchers().as_ref()),
-            matcher: crate::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl),
+            matcher: ryo_execution_domain::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl),
             bindings: program.bindings(rule)?,
             symbols: symbols.into(),
             source: self.source,

@@ -1,6 +1,6 @@
 //! Structural source and invocation records have no facade or evaluation dependency.
 use crate::application::file_dag::derived::population::types::PopulationId;
-use crate::domain::{
+use ryo_execution_domain::domain::{
     completion::types::{CoverageState, completion_policy::value::CompletionPolicy},
     executable_program::types::InputSource,
     operating::errors::OperatingError,
@@ -39,7 +39,7 @@ pub(in crate::application::file_dag::program) enum BoundKey<R> {
     Current(PopulationId, CoverageState),
     Restored(R),
     Refused(OperatingError),
-    Input(crate::domain::executable_program::types::InputSource),
+    Input(ryo_execution_domain::domain::executable_program::types::InputSource),
 }
 
 /// Structural equality is the only reuse decision accepted by the source interner.

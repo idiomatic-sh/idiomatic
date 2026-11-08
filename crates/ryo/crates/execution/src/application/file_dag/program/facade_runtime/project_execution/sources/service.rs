@@ -12,10 +12,10 @@ use crate::application::file_dag::program::project_population::types::ProjectInv
 use crate::application::file_dag::program::project_population::types::ProjectRefusal;
 use crate::application::file_dag::program::project_population::types::ProjectSourceMatch;
 use crate::application::file_dag::relations::RelationOwner;
-use crate::domain::completion::types::completion_policy::value::CompletionPolicy;
-use crate::domain::coverage::types::RuleIndex;
-use crate::domain::executable_program::types::InputSource;
-use crate::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
+use ryo_execution_domain::domain::coverage::types::RuleIndex;
+use ryo_execution_domain::domain::executable_program::types::InputSource;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -122,7 +122,7 @@ impl PublicationScope {
         &self,
         owner: &Rc<RelationOwner>,
         sources: &[Rc<ProjectFrontierPopulation<AvailableInput>>],
-        refused: &[crate::domain::frontiers::types::RefusedFrontier],
+        refused: &[ryo_execution_domain::domain::frontiers::types::RefusedFrontier],
         frontier_sources: &[crate::application::file_dag::frontiers::types::FrontierSource],
         bound: &[Option<crate::application::file_dag::frontiers::types::BoundInput>],
         prepared: &PreparedProgram,
@@ -134,7 +134,7 @@ impl PublicationScope {
     > {
         let mut bindings = Vec::new();
         for binding in bound.iter().flatten() {
-            bindings.push(BoundKey::Input(InputSource::Observation(crate::domain::executable_program::types::ObservationPlace(
+            bindings.push(BoundKey::Input(InputSource::Observation(ryo_execution_domain::domain::executable_program::types::ObservationPlace(
                 crate::application::file_dag::program::facade_runtime::source_admission::observation_slot(prepared, rule, binding.input)?.0,
             ))));
             match &binding.members {

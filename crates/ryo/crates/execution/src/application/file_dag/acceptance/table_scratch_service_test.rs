@@ -2,9 +2,9 @@
 
 use ryo_relations::domain::relations::types::KindBits;
 
-use crate::domain::table_model::types::SetMembership;
-use crate::domain::table_scratch::service::kind_has;
-use crate::domain::table_scratch::types::{KindMask, KindSet};
+use ryo_execution_domain::domain::table_model::types::SetMembership;
+use ryo_execution_domain::domain::table_scratch::service::kind_has;
+use ryo_execution_domain::domain::table_scratch::types::{KindMask, KindSet};
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 
 /// A scenario: what a row asks of the part.

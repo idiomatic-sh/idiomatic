@@ -1,4 +1,4 @@
-use crate::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use crate::outbound::facts::errors::FactsError;
 
 /// Why the frontiers of one rule could not be prepared.

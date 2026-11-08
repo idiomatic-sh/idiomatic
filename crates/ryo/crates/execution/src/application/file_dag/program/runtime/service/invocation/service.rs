@@ -18,11 +18,11 @@ use crate::application::file_dag::program::constants::REGION_POLL;
 use crate::application::file_dag::program::runtime::types::{
     InstructionIndex, InvocationFailure, KernelInput, KernelScratch, PollMode,
 };
-use crate::domain::executable_program::types::region::value::Region;
-use crate::domain::executable_program::types::RegionId;
-use crate::domain::operating::errors::OperatingError;
-use crate::domain::operating::types::Emit;
-use crate::domain::operating::types::OperatorContext;
+use ryo_execution_domain::domain::executable_program::types::region::value::Region;
+use ryo_execution_domain::domain::executable_program::types::RegionId;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operating::types::Emit;
+use ryo_execution_domain::domain::operating::types::OperatorContext;
 use ryo_relations::domain::relations::types::Value;
 
 impl ProgramExecution {
@@ -32,7 +32,7 @@ impl ProgramExecution {
         id: RegionId,
         inputs: &mut dyn Inputs,
         kernels: &dyn KernelInvocation,
-        completion: &crate::domain::completion::types::completion_policy::value::CompletionPolicy,
+        completion: &ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy,
         context: &mut OperatorContext<'_>,
         prepare_only: PollMode,
     ) -> Result<InvocationOutcome, OperatingError> {
@@ -78,9 +78,9 @@ impl ProgramExecution {
             }
             for (frame, instruction) in slot.scratch.iter_mut().zip(region.instructions().iter()) {
                 if let Some(workspace) = frame.workspace.as_mut().filter(|_| fresh) {
-                    crate::domain::operator::contract::workspace::begin(
+                    ryo_execution_domain::domain::operator::contract::workspace::begin(
                         &instruction.contract().workspace,
-                        crate::domain::operator::contract::types::WorkspaceLifetime::Invocation,
+                        ryo_execution_domain::domain::operator::contract::types::WorkspaceLifetime::Invocation,
                         &mut workspace.primitive,
                     );
                 }

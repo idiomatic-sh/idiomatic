@@ -24,7 +24,7 @@ use crate::application::file_dag::derived::{
         graphs::service::{replace, slot},
     },
 };
-use crate::domain::{
+use ryo_execution_domain::domain::{
     operating::errors::OperatingError,
     stored_graph::types::{BreadthEnd, ExaminedVertices, ExpandedVertices, GraphDomain, GraphWalk, MemoStatus, Nearest, Orientation, traversal::value::{GraphTraversal, UNKNOWN},
     },
@@ -162,7 +162,7 @@ impl<'a> DemandAnswers<'a> {
         );
         if access
             .graph()
-            .forest(crate::domain::stored_graph::types::traversal::value::direction(orientation))
+            .forest(ryo_execution_domain::domain::stored_graph::types::traversal::value::direction(orientation))
             .is_none()
         {
             crate::application::file_dag::route_counts::event(

@@ -1,10 +1,10 @@
 //! A demand-scoped immutable input and the one admission decision that belongs to it.
 use crate::application::file_dag::derived::population::types::PopulationId;
 use crate::application::file_dag::relations::admission::types::AdmissionOrigin;
-use crate::domain::{
+use ryo_execution_domain::domain::{
     table_model::collections::representations::types::PhysicalShape,
 };
-use crate::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_relations::domain::relations::types::Relation;
 
 /// Only the representation owner can bind population identity to borrowed input.

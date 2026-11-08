@@ -13,12 +13,12 @@ use crate::application::file_dag::{
     relations::{RelationOwner, handle::service::PublishedInput},
     workspace::InvocationWorkspace,
 };
-use crate::domain::{
+use ryo_execution_domain::domain::{
     coverage::types::Partial,
     stored_graph::types::{GraphWalk, Orientation},
     table_model::types::Rows,
 };
-use crate::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_relations::domain::relations::types::{Relation, Value};
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, Direction, Input, StepId, StepScope},
@@ -119,7 +119,7 @@ impl GraphFixture {
             .prepare_program_file(
                 &prepared,
                 &(0..plans.len())
-                    .map(crate::domain::coverage::types::RuleIndex)
+                    .map(ryo_execution_domain::domain::coverage::types::RuleIndex)
                     .collect::<Vec<_>>(),
                 &self.partials,
             )
@@ -147,7 +147,7 @@ impl GraphFixture {
                     .resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))?;
                 self.owner.admit(
                     publication.as_ref(),
-                    crate::domain::table_model::types::RepresentationInput::from(&supplied),
+                    ryo_execution_domain::domain::table_model::types::RepresentationInput::from(&supplied),
                 )?;
                 publication
             }

@@ -1,7 +1,7 @@
 //! Immutable canonical map keys.
 use super::types::IdentityCompatibility;
 use crate::application::file_dag::derived::ledger::types::ByteCount;
-use crate::domain::derived_views::types::contract::value::DerivedContract;
+use ryo_execution_domain::domain::derived_views::types::contract::value::DerivedContract;
 use std::sync::Arc;
 impl GraphRequirement {
     pub(super) fn compatible(&self, other: &Self) -> IdentityCompatibility {

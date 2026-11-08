@@ -4,8 +4,8 @@ use super::super::fixtures::plans::Authored;
 use super::super::fixtures::semantics::{Derived, Meanings};
 use super::super::fixtures::{Population, Program, Residency, demand, observed_demand};
 use crate::application::file_dag::program::native_walk::RetainedBatches;
-use crate::domain::frontier_capture::types::CaptureScope;
-use crate::domain::row_emission::types::RowEmission;
+use ryo_execution_domain::domain::frontier_capture::types::CaptureScope;
+use ryo_execution_domain::domain::row_emission::types::RowEmission;
 
 fn captured_program() -> Program {
     Program::new(
@@ -45,8 +45,8 @@ fn capture(
             file: FileId(0),
             rule_digest: Digest([0; 16]),
             worker: ryo_relations::domain::relations::types::WorkerNumber(0),
-            retained: crate::domain::finish::types::Retained {
-                arena: crate::domain::finish::types::Arena(&mut arena),
+            retained: ryo_execution_domain::domain::finish::types::Retained {
+                arena: ryo_execution_domain::domain::finish::types::Arena(&mut arena),
                 places: &mut places,
             },
             words: &mut words,
@@ -89,7 +89,7 @@ fn forward(
     program: &Program,
     symbols: &mut Symbols,
     each: &mut dyn FnMut(&[Cell]) -> Result<(), OperatingError>,
-) -> Result<crate::domain::row_emission::types::RowEmission, OperatingError> {
+) -> Result<ryo_execution_domain::domain::row_emission::types::RowEmission, OperatingError> {
     file.emit_rows(
         RuleIndex(2),
         &|relation| program.read(relation),

@@ -1,6 +1,6 @@
 //! Owned derived handles stay in application state; the primitive sees borrowed views only.
 use super::super::derived::owner::acquisition::admission::service::AcquiredView;
-use crate::domain::{
+use ryo_execution_domain::domain::{
     operating::errors::OperatingError,
     operator::contract::{
         views::PreparedAxis,
@@ -8,7 +8,7 @@ use crate::domain::{
     },
     table_cells::types::TreeRows,
 };
-use crate::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_derived::domain::contract::types::DerivedView;
 use ryo_derived::domain::membership::types::MembershipView;
 use ryo_derived::domain::positions::types::DenseMarks;
@@ -34,7 +34,7 @@ impl AxisResource<'_> {
     pub(crate) fn view<'s>(
         &'s self,
         #[cfg(feature = "diagnostic-row-progress")]
-        progress: &'s dyn crate::domain::operator::contract::views::ProgressObserver,
+        progress: &'s dyn ryo_execution_domain::domain::operator::contract::views::ProgressObserver,
     ) -> Result<PreparedAxis<'s>, OperatingError> {
         match self {
             Self::Empty => Ok(PreparedAxis::Empty),

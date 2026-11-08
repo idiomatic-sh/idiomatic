@@ -2,7 +2,7 @@
 use super::super::super::*;
 use super::super::fixtures::chain::{Chain, execute_chain};
 use super::super::fixtures::describe;
-use crate::domain::executable_program::fusion::types::{Barrier, Fusibility};
+use ryo_execution_domain::domain::executable_program::fusion::types::{Barrier, Fusibility};
 use ryo_values::domain::query_operators::types::OperationKind;
 fn engine() -> Arc<dyn crate::outbound::operators::interface::OperatorsPort> {
     Arc::new(crate::application::file_dag::fixtures::operators())

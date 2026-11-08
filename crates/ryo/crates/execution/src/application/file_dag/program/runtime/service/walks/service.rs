@@ -3,8 +3,8 @@ use super::super::KernelPermit;
 use crate::application::file_dag::program::admission::AdmittedWalkSource;
 use crate::application::file_dag::program::admission::FileGeneration;
 use crate::application::file_dag::program::admission::Partition;
-use crate::domain::executable_program::types::InputId;
-use crate::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::executable_program::types::InputId;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 
 impl KernelPermit<'_> {
     pub(in crate::application::file_dag::program) fn require_file_walk(
@@ -34,7 +34,7 @@ impl KernelPermit<'_> {
     pub(in crate::application::file_dag::program) fn admit_walk_source<'call>(
         &'call self,
         relation: ryo_relations::domain::relations::types::Relation,
-        rows: &'call crate::domain::table_model::types::Rows<'call>,
+        rows: &'call ryo_execution_domain::domain::table_model::types::Rows<'call>,
     ) -> Result<Option<AdmittedWalkSource<'call>>, OperatingError> {
         self.validate_live()?;
         let source = self.bound_input(InputId(0))?;

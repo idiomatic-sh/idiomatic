@@ -3,7 +3,7 @@
 use crate::application::file_dag::derived::owner::acquisition::family::fixtures::{
     Scenario, exercise,
 };
-use crate::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_derived::domain::request::types::DerivedKind;
 
 #[test]

@@ -2,7 +2,7 @@
 use super::types::ByteLimit;
 use crate::application::file_dag::derived::ledger::types::ByteCount;
 use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
-use crate::domain::coverage::types::Partial;
+use ryo_execution_domain::domain::coverage::types::Partial;
 use ryo_relations::domain::relations::types::Relation;
 
 /// Per-file retained index budget; invocation-local fallback retains its existing policy.
@@ -45,8 +45,8 @@ pub(in crate::application::file_dag::derived::owner) fn new(
         graphs: Vec::new(),
         graph_domains: Vec::new(),
         nearest: Vec::new(),
-        graph_counts: crate::domain::stored_graph::types::GraphCounts {
-            peak_bytes: crate::domain::stored_graph::types::PeakBytes(bytes),
+        graph_counts: ryo_execution_domain::domain::stored_graph::types::GraphCounts {
+            peak_bytes: ryo_execution_domain::domain::stored_graph::types::PeakBytes(bytes),
             ..Default::default()
         },
         eligible,

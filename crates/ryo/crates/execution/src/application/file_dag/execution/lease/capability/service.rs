@@ -1,6 +1,6 @@
 //! The sole registered invocation representation retains private construction.
-use crate::domain::operating::errors::OperatingError;
-use crate::domain::operator::contract::types::{PreparedInputs, PrimitiveLease, RowSink};
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operator::contract::types::{PreparedInputs, PrimitiveLease, RowSink};
 /// The executable lease belongs to the application invocation owner. A pure
 /// borrowed context cannot be promoted into a registered call by a sibling.
 pub(crate) struct ExecutableLease<'call, 'resources, 'scope> {
@@ -33,7 +33,7 @@ impl<'call, 'resources, 'scope> ExecutableLease<'call, 'resources, 'scope> {
         self,
     ) -> Result<(), OperatingError> {
         self.permit.validate_registered(self.operation)?;
-        crate::domain::operator::contract::registration::registered(self.permit.kind()).evaluate(
+        ryo_execution_domain::domain::operator::contract::registration::registered(self.permit.kind()).evaluate(
             self.operation,
             self.input,
             self.context,

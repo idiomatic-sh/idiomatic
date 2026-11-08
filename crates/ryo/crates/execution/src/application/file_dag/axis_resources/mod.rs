@@ -7,14 +7,14 @@ use view::AxisResource;
 mod test;
 
 use super::derived::owner::acquisition::admission::service::AcquiredView;
-use crate::domain::{
+use ryo_execution_domain::domain::{
     operating::errors::OperatingError,
     operator::contract::{resources::AxisResources, },
     table_cells::types::{TreeForm, TreeRows},
     table_model::service::check_columns,
     tree_walk::service::entity_of,
 };
-use crate::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Direction};
 
 #[derive(Clone, Copy)]
@@ -57,7 +57,7 @@ pub(crate) fn classify<'f>(
             && entity_of(domain_view, *domain_id) == ColumnIndex(0);
         if tree.form == TreeForm::Edges
             && (*parent, *child) == (ColumnIndex(0), ColumnIndex(1))
-            && ((*has_filter == crate::domain::operator::contract::resources::Filtering::Unfiltered && domain_view.is_empty()) || domain_of_tree)
+            && ((*has_filter == ryo_execution_domain::domain::operator::contract::resources::Filtering::Unfiltered && domain_view.is_empty()) || domain_of_tree)
         {
             let among = if let RepresentationInput::Tree(each) = domain {
                 (each.form == TreeForm::Elements).then_some(each)
@@ -67,7 +67,7 @@ pub(crate) fn classify<'f>(
             return Ok(AxisMode::Native { tree, among });
         }
     }
-    if *has_filter == crate::domain::operator::contract::resources::Filtering::Filtered
+    if *has_filter == ryo_execution_domain::domain::operator::contract::resources::Filtering::Filtered
         || !domain_view.is_empty()
         || !output.is_empty()
         || matches!(

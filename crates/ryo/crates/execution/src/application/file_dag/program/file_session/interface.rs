@@ -2,14 +2,14 @@
 use crate::application::file_dag::program::file_session::types::CaptureContext;
 use crate::application::file_dag::program::file_session::types::FileFinished;
 use crate::application::file_dag::program::rule_outcome::types::RuleOutcome;
-use crate::domain::coverage::types::RuleIndex;
-use crate::domain::frontier_capture::types::FrontierCapture;
-use crate::domain::operating::errors::OperatingError;
-use crate::domain::operator::types::LogicalCounts;
-use crate::domain::readiness::types::ReadinessCounts;
-use crate::domain::row_emission::types::RowEmission;
-use crate::domain::rule_intent::types::RuleDemand;
-use crate::domain::shared_walk::types::WalkCounts;
+use ryo_execution_domain::domain::coverage::types::RuleIndex;
+use ryo_execution_domain::domain::frontier_capture::types::FrontierCapture;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operator::types::LogicalCounts;
+use ryo_execution_domain::domain::readiness::types::ReadinessCounts;
+use ryo_execution_domain::domain::row_emission::types::RowEmission;
+use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
+use ryo_execution_domain::domain::shared_walk::types::WalkCounts;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::stored_facts::types::Bucket;
 /// The intent supplied at file start is immutable throughout this session.

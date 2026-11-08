@@ -2,11 +2,11 @@
 use super::{
     derived::owner::acquisition::admission::service::AcquiredView, relations::RelationOwner,
 };
-use crate::domain::{
+use ryo_execution_domain::domain::{
     derived_views::types::{contract::value::DerivedContract, DerivedInputs, DerivedScratch, ViewRequest},
     operating::errors::OperatingError,
 };
-use crate::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_derived::domain::closure_adjacency::types::ClosurePartition;
 use ryo_relations::domain::relations::types::Value;
 use std::{rc::Rc, sync::Arc};

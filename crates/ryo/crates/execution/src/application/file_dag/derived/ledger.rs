@@ -1,6 +1,6 @@
 //! Accounting for physical payloads held by derived resource handles.
 //! Admission policy, cache selection and scheduling stay with the caller.
-use crate::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use std::{cell::RefCell, rc::Rc};
 use rustc_hash::FxHashMap;
 

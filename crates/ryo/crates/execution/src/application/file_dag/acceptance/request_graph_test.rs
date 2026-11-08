@@ -1,8 +1,8 @@
 //! Request-graph identities and ordered dependency contracts over the operators the application prepares.
-use crate::domain::file_program::fixtures::plan;
-use crate::domain::file_program::service::compile_prepared;
-use crate::domain::file_program::types::{NodeInput, RequestGraph, SchemaValidity};
-use crate::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::file_program::fixtures::plan;
+use ryo_execution_domain::domain::file_program::service::compile_prepared;
+use ryo_execution_domain::domain::file_program::types::{NodeInput, RequestGraph, SchemaValidity};
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use std::sync::Arc;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
@@ -122,7 +122,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             assert_eq!(graph.program_nodes[1][1].as_ref().unwrap(), node);
         }
         Scenario::Dependencies => {
-            use crate::domain::operator::contract::types::DemandOrder;
+            use ryo_execution_domain::domain::operator::contract::types::DemandOrder;
             let mut union = first.clone();
             let mut other = union.steps[0].clone();
             if let Operation::Select { comparisons, .. } = &mut other.operation {

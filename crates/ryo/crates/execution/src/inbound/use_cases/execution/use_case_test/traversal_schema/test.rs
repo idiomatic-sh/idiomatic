@@ -1,7 +1,7 @@
 //! Native traversal projection is compared with the actual public owner output.
 use super::super::super::fixtures;
 use crate::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
-use crate::domain::{
+use ryo_execution_domain::domain::{
     operating::errors::OperatingError,
     operation_schema::types::InputShape,
     table_cells::types::{TreeForm, TreeRows},
@@ -164,7 +164,7 @@ fn native(scenario: Scenario) -> Result<Value, Failure> {
             })
             .collect();
         let answer =
-            crate::domain::operation_schema::service::schema_of(&operation, &schemas, &[])?;
+            ryo_execution_domain::domain::operation_schema::service::schema_of(&operation, &schemas, &[])?;
         let mut operation = operation.clone();
         let first = Operation::Select {
             from: Source::Relation(Relation::SyntaxTree),

@@ -4,7 +4,7 @@ use crate::application::file_dag::program::file_session::interface::FileExecutio
 use crate::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
 use ryo_values::domain::query_tokens::types::{QueryBundle, QueryDocumentSource, QuerySourceId};
 use ryo_values::domain::runs::types::{RuleApplicability, RuleId};
-use crate::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use crate::inbound::use_cases::execution::interface::{ExecutionUseCase, CaptureIntent, DiagnosticDelivery, EmitDemand, FileRuleIntent, ObservationDemand, RuleDemand, RuleIndex};
 use ryo_values::domain::rule_requests::types::{RuleParameters, RuleSpec};
 use std::collections::BTreeMap;
@@ -18,7 +18,7 @@ use crate::outbound::operators::interface::OperatorsPort;
 use crate::application::file_dag::program::file_session::types::{FileInput, SourceLanguage, SourceRows};
 use crate::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
 use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
-use crate::domain::prepared_request::types::ObservationIdentity;
+use ryo_execution_domain::domain::prepared_request::types::ObservationIdentity;
 use ryo_language::domain::completion::service::{completion, name_kind};
 use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::elements::types::Elements;
@@ -86,7 +86,7 @@ pub(crate) fn published_observed<'facts>(
     elements: &Elements,
     symbols: &mut Symbols,
     read: &dyn Fn(Relation) -> Result<SourceRows<'facts>, OperatingError>,
-) -> Result<(Table, crate::domain::operating::fixtures::ExecutionObservation), OperatingError> {
+) -> Result<(Table, ryo_execution_domain::domain::operating::fixtures::ExecutionObservation), OperatingError> {
     let (engine, prepared) = prepared(plan, bindings, hosted)?;
     run_prepared(&engine, &prepared, source, elements, symbols, read)
 }
@@ -120,7 +120,7 @@ impl Preparation {
     }
     /// The program of an authored request, assembled and prepared as the engine prepares it.
     pub(crate) fn prepare(&self, request: Authored) -> Result<PreparedExecutionProgram, OperatingError> {
-        let compiled = crate::domain::prepared_request::service::assemble(
+        let compiled = ryo_execution_domain::domain::prepared_request::service::assemble(
             request.plans,
             request.bindings,
             &request.rules,
@@ -201,7 +201,7 @@ pub(crate) fn run_prepared<'facts>(
     elements: &Elements,
     symbols: &mut Symbols,
     read: &dyn Fn(Relation) -> Result<SourceRows<'facts>, OperatingError>,
-) -> Result<(Table, crate::domain::operating::fixtures::ExecutionObservation), OperatingError> {
+) -> Result<(Table, ryo_execution_domain::domain::operating::fixtures::ExecutionObservation), OperatingError> {
     run_prepared_context(_engine, prepared, source, elements, symbols, read, None)
 }
 /// The same public owner with its real borrowed rendering capability.
@@ -212,8 +212,8 @@ pub(crate) fn run_prepared_context<'facts>(
     elements: &Elements,
     symbols: &mut Symbols,
     read: &dyn Fn(Relation) -> Result<SourceRows<'facts>, OperatingError>,
-    semantic: Option<&dyn crate::domain::operating::types::SemanticLookup>,
-) -> Result<(Table, crate::domain::operating::fixtures::ExecutionObservation), OperatingError> {
+    semantic: Option<&dyn ryo_execution_domain::domain::operating::types::SemanticLookup>,
+) -> Result<(Table, ryo_execution_domain::domain::operating::fixtures::ExecutionObservation), OperatingError> {
     let last = crate::application::file_dag::program::prepared_execution::interface::PreparedExecution::emit(prepared, RuleIndex(0))?.step;
     let corpus = [CorpusInput::Available(CorpusEntry {
         path: ryo_language::domain::files::types::FilePath("operator-contract.py".into()),
@@ -351,7 +351,7 @@ pub(crate) fn table_request(
     inputs: &[&Table],
     bindings: Vec<ParameterBinding>,
     symbols: &mut Symbols,
-) -> Result<(Table, crate::domain::operating::fixtures::ExecutionObservation), OperatingError> {
+) -> Result<(Table, ryo_execution_domain::domain::operating::fixtures::ExecutionObservation), OperatingError> {
     table_request_context(operation, inputs, bindings, symbols, b"", None)
 }
 /// Typed fixture data enters the same public owner and optional real capability.
@@ -361,8 +361,8 @@ pub(crate) fn table_request_context(
     bindings: Vec<ParameterBinding>,
     symbols: &mut Symbols,
     source: &[u8],
-    semantic: Option<&dyn crate::domain::operating::types::SemanticLookup>,
-) -> Result<(Table, crate::domain::operating::fixtures::ExecutionObservation), OperatingError> {
+    semantic: Option<&dyn ryo_execution_domain::domain::operating::types::SemanticLookup>,
+) -> Result<(Table, ryo_execution_domain::domain::operating::fixtures::ExecutionObservation), OperatingError> {
     let authored = table_inputs(operation, inputs, &bindings, symbols);
     let read = |relation| {
         authored

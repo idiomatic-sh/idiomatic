@@ -4,8 +4,8 @@ use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use {
-    crate::domain::table_texts::service::datum, crate::domain::table_texts::types::Datum,
-    crate::domain::table_texts::types::Texts, ryo_values::domain::files::types::SourceView,
+    ryo_execution_domain::domain::table_texts::service::datum, ryo_execution_domain::domain::table_texts::types::Datum,
+    ryo_execution_domain::domain::table_texts::types::Texts, ryo_values::domain::files::types::SourceView,
 };
 /// The source text every conformance fixture reads its names from.
 pub(crate) const SOURCE: &[u8] = b"a a";

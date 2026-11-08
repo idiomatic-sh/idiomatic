@@ -1,7 +1,7 @@
 //! What the `prepare` use case promises its callers, in the core's own vocabulary.
 use super::types::PrepareRequest;
 use crate::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
-use crate::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 
 // The compiled queries and the compilation the contract is made of.
 pub use crate::application::rule_compilation::errors::RuleCompilationError;
@@ -12,7 +12,7 @@ pub use crate::application::rule_compilation::service::PreparedQueries;
 pub use crate::application::rule_compilation::service::QueryCompilation;
 pub use crate::application::rule_compilation::types::PreparedRuleIdentities;
 // Canonical inbound signature vocabulary from private pure concepts.
-pub use crate::domain::prepared_request::types::ObservationIdentity;
+pub use ryo_execution_domain::domain::prepared_request::types::ObservationIdentity;
 
 /// What `prepare` offers its callers.
 pub trait PrepareUseCase {

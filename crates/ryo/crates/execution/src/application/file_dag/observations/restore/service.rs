@@ -7,8 +7,8 @@ use crate::application::file_dag::observations::types::{
 };
 use crate::application::file_dag::program::preparation::types::ObservationMetadata;
 use crate::application::file_dag::program::preparation::types::OutputRoot;
-use crate::domain::completion::types::CoverageState;
-use crate::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::completion::types::CoverageState;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_relations::domain::relations::types::CROSS_FILE;
 use ryo_values::domain::records::types::ProducerReadiness;
 
@@ -104,7 +104,7 @@ impl CrossPublications<'_> {
 pub(crate) fn frontier_readiness<'a>(
     metadata: &ObservationMetadata,
     files: &[ryo_relations::domain::relations::types::FileId],
-    frames: &'a [crate::domain::coverage::types::FileObservationReadiness],
+    frames: &'a [ryo_execution_domain::domain::coverage::types::FileObservationReadiness],
 ) -> Result<FrontierPopulation<'a>, OperatingError> {
     use ryo_values::domain::observations::service::validate_frontiers;
     use ryo_values::domain::records::types::ObservationReadinessCount;
@@ -165,10 +165,10 @@ pub(crate) fn restore_frontiers(
     publication: &crate::application::file_dag::program::facade_runtime::types::PublicationScope,
     facts: &dyn crate::outbound::facts::interface::FactsFinish,
     corpus: &[ryo_values::domain::files::types::CorpusInput],
-    covered: &[crate::domain::coverage::types::Covered],
+    covered: &[ryo_execution_domain::domain::coverage::types::Covered],
     skipped: &[ryo_values::domain::runs::types::Skipped],
-    inapplicable: &[crate::domain::coverage::types::InapplicableFiles],
-    frames: &[crate::domain::coverage::types::FileObservationReadiness],
+    inapplicable: &[ryo_execution_domain::domain::coverage::types::InapplicableFiles],
+    frames: &[ryo_execution_domain::domain::coverage::types::FileObservationReadiness],
     first_bucket: &[ryo_values::domain::stored_facts::types::Bucket],
     selected: &[RuleSelection],
 ) -> Result<(), OperatingError> {

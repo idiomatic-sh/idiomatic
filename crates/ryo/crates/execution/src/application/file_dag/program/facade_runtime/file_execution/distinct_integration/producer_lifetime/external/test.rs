@@ -243,12 +243,12 @@ fn external_root_exit(exit: ExternalRootExit) -> Result<(), OperatingError> {
                 ryo_values::domain::stored_facts::types::Bucket(0),
                 &read,
                 &mut symbols,
-                crate::domain::frontier_capture::types::CaptureScope {
+                ryo_execution_domain::domain::frontier_capture::types::CaptureScope {
                     file: FileId(0),
                     rule_digest: Digest([0; 16]),
                     worker: ryo_relations::domain::relations::types::WorkerNumber(0),
-                    retained: crate::domain::finish::types::Retained {
-                        arena: crate::domain::finish::types::Arena(&mut arena),
+                    retained: ryo_execution_domain::domain::finish::types::Retained {
+                        arena: ryo_execution_domain::domain::finish::types::Arena(&mut arena),
                         places: &mut places,
                     },
                     words: &mut words,

@@ -1,6 +1,6 @@
 //! Invalid bound and row patterns stay lazy until actual rows reach the public owner.
 use super::super::super::fixtures;
-use crate::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, PlanComparison, LiteralText, Operand, ParameterId, Test},
@@ -16,7 +16,7 @@ type Input = Scenario;
 type Value = usize;
 type Failure = OperatingError;
 fn execution_boundary(scenario: Scenario) -> Result<Value, Failure> {
-    use crate::domain::operation_schema::{service::schema_of, types::InputShape};
+    use ryo_execution_domain::domain::operation_schema::{service::schema_of, types::InputShape};
     use ryo_language::domain::symbols::{
         service::intern_derived,
         types::{ByteSlice, Symbols},

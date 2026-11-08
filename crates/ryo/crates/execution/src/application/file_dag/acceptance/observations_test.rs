@@ -3,7 +3,7 @@
 pub(super) mod fixtures;
 use fixtures::{DeclaredFileProducers, Fixture, FrontierSlots, Names};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::{
+use ryo_execution_domain::domain::{
     coverage::types::RuleIndex,
     executable_program::{service::compile, types::{InputSource, ObservationPlace}},
     file_program::types::ResolvedObservationProducer,

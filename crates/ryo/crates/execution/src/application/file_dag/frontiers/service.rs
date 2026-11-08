@@ -18,11 +18,11 @@ use ryo_values::domain::{
     stored_facts::types::Bucket,
 };
 use {
-    crate::domain::frontiers::types::RefusedFrontier,
-    crate::domain::frontiers::service::decode_input,
-    crate::domain::frontiers::service::project_input,
-    crate::domain::frontiers::service::project_relation,
-    crate::domain::operating::errors::OperatingError, crate::domain::table_model::types::Frontier,
+    ryo_execution_domain::domain::frontiers::types::RefusedFrontier,
+    ryo_execution_domain::domain::frontiers::service::decode_input,
+    ryo_execution_domain::domain::frontiers::service::project_input,
+    ryo_execution_domain::domain::frontiers::service::project_relation,
+    ryo_execution_domain::domain::operating::errors::OperatingError, ryo_execution_domain::domain::table_model::types::Frontier,
     ryo_values::domain::table_words::service::decode_complete,
     ryo_values::domain::table_words::types::DecodeMode,
 };
@@ -35,7 +35,7 @@ pub(crate) enum PreparationPolicy<'a> {
 
 pub(super) fn prepare(
     program: &crate::application::file_dag::program::preparation::types::PreparedProgram,
-    rule: crate::domain::coverage::types::RuleIndex,
+    rule: ryo_execution_domain::domain::coverage::types::RuleIndex,
     first: Bucket,
     facts: &dyn FactsFinish,
     project: &dyn FactsWorker,
@@ -93,7 +93,7 @@ pub(super) fn prepare(
             let rows = project.rows(relation)?;
             admitted.push(FrontierInput::Decoded {
                 frontier: project_input(rows, input, project_symbols, symbols),
-                coverage: crate::domain::completion::types::CoverageState::Complete,
+                coverage: ryo_execution_domain::domain::completion::types::CoverageState::Complete,
             });
             continue;
         }
@@ -240,14 +240,14 @@ pub(crate) fn admit(
 /// a stored owner token is never trusted or reconstructed.
 pub(crate) fn validate_bucket(
     program: &crate::application::file_dag::program::preparation::types::PreparedProgram,
-    rule: crate::domain::coverage::types::RuleIndex,
+    rule: ryo_execution_domain::domain::coverage::types::RuleIndex,
     input: InputNumber,
     first: Bucket,
     bucket: Bucket,
     required: &crate::application::file_dag::program::admission::RequiredPartitions,
     payload: &crate::outbound::facts::types::KeptBucket,
-) -> Result<crate::domain::completion::types::CoverageState, OperatingError> {
-    use crate::domain::completion::types::{FileLacks, MissingRows};
+) -> Result<ryo_execution_domain::domain::completion::types::CoverageState, OperatingError> {
+    use ryo_execution_domain::domain::completion::types::{FileLacks, MissingRows};
     use ryo_values::domain::records::types::FrontierCoverage;
     let refuse = || OperatingError::ObservationIncomplete {
         reason: PROOF_MISMATCH.into(),
@@ -292,7 +292,7 @@ pub(crate) fn validate_bucket(
                 {
                     return Err(refuse());
                 }
-                affected.extend(crate::domain::frontier_coverage::service::restored_lacks(
+                affected.extend(ryo_execution_domain::domain::frontier_coverage::service::restored_lacks(
                     source.file,
                     scopes,
                 ));
@@ -321,11 +321,11 @@ pub(crate) fn validate_bucket(
             file: Some(file),
             missing: MissingRows::Any,
         }));
-        crate::domain::completion::service::partial_of_lacks(affected)
+        ryo_execution_domain::domain::completion::service::partial_of_lacks(affected)
     } else if skipped.is_empty() {
-        crate::domain::completion::types::CoverageState::Complete
+        ryo_execution_domain::domain::completion::types::CoverageState::Complete
     } else {
-        crate::domain::completion::types::CoverageState::Inapplicable {
+        ryo_execution_domain::domain::completion::types::CoverageState::Inapplicable {
             files: skipped.into_iter().collect(),
         }
     })
@@ -347,7 +347,7 @@ impl FrontierCache {
     pub(crate) fn prepared(
         &self,
         program: &crate::application::file_dag::program::preparation::types::PreparedProgram,
-        rule: crate::domain::coverage::types::RuleIndex,
+        rule: ryo_execution_domain::domain::coverage::types::RuleIndex,
         first: ryo_values::domain::stored_facts::types::Bucket,
         facts: &dyn crate::outbound::facts::interface::FactsFinish,
         project: &dyn crate::outbound::facts::interface::FactsWorker,

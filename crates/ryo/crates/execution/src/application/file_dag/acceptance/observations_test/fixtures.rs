@@ -1,8 +1,8 @@
 //! Frontier coordinates must use the same request-qualified slots as instruction inputs.
-use crate::domain::executable_program::types::{PartitionRequirement, ProducerPartitions};
-use crate::domain::file_program::types::RequestGraph;
-use crate::domain::operating::errors::OperatingError;
-use crate::domain::{
+use ryo_execution_domain::domain::executable_program::types::{PartitionRequirement, ProducerPartitions};
+use ryo_execution_domain::domain::file_program::types::RequestGraph;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::{
     coverage::types::RuleIndex,
     file_program::types::{
         ObservationRequest, ResolvedObservationBinding, ResolvedObservationProducer,
@@ -171,7 +171,7 @@ pub(crate) fn fixture(frontier: FrontierSlots, names: Names) -> Fixture {
         ),
     )
     .unwrap();
-    let graph = crate::domain::file_program::service::compile_prepared_observations(
+    let graph = ryo_execution_domain::domain::file_program::service::compile_prepared_observations(
         &plans,
         &operators,
         ObservationRequest::Bound {

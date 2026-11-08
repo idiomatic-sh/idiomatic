@@ -4,8 +4,8 @@ use crate::application::file_dag::derived::owner::acquisition::family::fixtures:
 use crate::application::file_dag::{
     relations::RelationOwner, fixtures::program_derived_port,
 };
-use crate::domain::operating::errors::OperatingError;
-use crate::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_derived::domain::request::types::DerivedKind;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::rc::Rc;

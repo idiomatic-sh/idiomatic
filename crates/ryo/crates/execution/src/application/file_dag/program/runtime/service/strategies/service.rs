@@ -3,7 +3,7 @@ use super::super::{InvocationOutcome, Poll, ProgramExecution};
 use super::super::{KernelAdmission, KernelPermit};
 use crate::application::file_dag::program::runtime::types::InvocationFailure;
 use crate::application::file_dag::program::runtime::types::StageProgress;
-use crate::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 
 impl ProgramExecution {
     pub(in crate::application::file_dag::program::runtime::service) fn blocked(
@@ -23,7 +23,7 @@ impl ProgramExecution {
             .as_ref()
             .map_err(|error| InvocationFailure::Semantic(error.clone()))?;
         if completion.region_admission(needs)
-            == crate::domain::completion::types::RegionAdmission::Blocked
+            == ryo_execution_domain::domain::completion::types::RegionAdmission::Blocked
         {
             let last = region
                 .instructions()
@@ -62,13 +62,13 @@ impl ProgramExecution {
             .as_ref()
             .map_err(|error| InvocationFailure::Semantic(error.clone()))?;
         if let Some(shape) =
-            crate::domain::executable_program::service::ordered_existence(&region.route())
+            ryo_execution_domain::domain::executable_program::service::ordered_existence(&region.route())
                 .filter(|_| progress.ordered_done == StageProgress::Pending)
         {
             progress
                 .supply(
                     inputs,
-                    crate::domain::executable_program::types::InputSource::Region(shape.source),
+                    ryo_execution_domain::domain::executable_program::types::InputSource::Region(shape.source),
                     &self.partition,
                     context,
                 )
@@ -79,7 +79,7 @@ impl ProgramExecution {
             let source = progress
                 .admit(
                     inputs,
-                    crate::domain::executable_program::types::InputSource::Region(shape.source),
+                    ryo_execution_domain::domain::executable_program::types::InputSource::Region(shape.source),
                     &self.partition,
                     context,
                 )
@@ -117,7 +117,7 @@ impl ProgramExecution {
                 &source,
                 context,
                 frame,
-                &mut crate::domain::replay::types::Collect(&mut rows),
+                &mut ryo_execution_domain::domain::replay::types::Collect(&mut rows),
             )?;
             completion.filter_rows(
                 region

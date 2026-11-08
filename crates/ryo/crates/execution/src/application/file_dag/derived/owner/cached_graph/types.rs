@@ -3,7 +3,7 @@
 use crate::application::file_dag::derived::owner::graphs::types::handles::service::{
     DomainHandle, GraphHandle,
 };
-use crate::domain::stored_graph::types::GraphWalk;
+use ryo_execution_domain::domain::stored_graph::types::GraphWalk;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Direction};
 

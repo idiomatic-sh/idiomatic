@@ -1,5 +1,5 @@
 //! What the identity of an admitted population is proven over.
-use crate::domain::stored_graph::types::RelationPopulation;
+use ryo_execution_domain::domain::stored_graph::types::RelationPopulation;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 /// Whether native syntax-tree populations may prove an identity, or only stored ones.

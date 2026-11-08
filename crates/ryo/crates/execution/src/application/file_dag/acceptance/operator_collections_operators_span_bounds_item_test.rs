@@ -1,6 +1,6 @@
 //! Endpoint projection through actual compiled owner execution.
 use super::fixtures as compiled;
-use crate::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::{
     constants::NO_SPAN,

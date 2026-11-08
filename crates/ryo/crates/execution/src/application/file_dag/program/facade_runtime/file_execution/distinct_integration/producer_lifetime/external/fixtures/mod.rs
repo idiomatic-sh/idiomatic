@@ -96,7 +96,7 @@ pub(super) fn prepare_case(exit: ExternalRootExit) -> Result<PreparedCase, Opera
     match exit {
         ExternalRootExit::SkippedAlias | ExternalRootExit::CaptureCancelledAlias => {
             intents[1] = FileRuleIntent::Skipped(
-                crate::domain::rule_intent::types::ApplicabilityReason::DiagnosticNotApplicable,
+                ryo_execution_domain::domain::rule_intent::types::ApplicabilityReason::DiagnosticNotApplicable,
             );
         }
         ExternalRootExit::UndemandedAlias => intents[1] = FileRuleIntent::Undemanded,

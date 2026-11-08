@@ -1,7 +1,7 @@
 //! Chained registered evaluations reuse downstream invocation state and release their peaks.
 use super::super::super::scratch_owner::test::{execute, hosted};
 use super::super::super::*;
-use crate::domain::operating::types::Memo;
+use ryo_execution_domain::domain::operating::types::Memo;
 use ryo_values::domain::hosted::types::HostKind;
 use ryo_values::domain::plan_parts::types::HostedNumber;
 use ryo_values::domain::row_texts::types::Cell as HostedCell;

@@ -5,8 +5,8 @@ use crate::application::file_dag::program::admission::Inputs;
 use crate::application::file_dag::program::admission::Partition;
 use crate::application::file_dag::program::admission::ProducerRoot;
 use crate::application::file_dag::program::admission::Representation;
-use crate::domain::operating::errors::OperatingError;
-use crate::domain::operating::types::OperatorContext;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operating::types::OperatorContext;
 use std::rc::Rc;
 
 impl SourceInputs<'_, '_> {
@@ -38,7 +38,7 @@ impl SourceInputs<'_, '_> {
                 .regions()
                 .get(region.0)
                 .ok_or(OperatingError::NotRun)?;
-            let ordered = crate::domain::executable_program::service::ordered_existence(
+            let ordered = ryo_execution_domain::domain::executable_program::service::ordered_existence(
                 &code.route(),
             )
             .filter(|shape| {
@@ -87,15 +87,15 @@ impl SourceInputs<'_, '_> {
                             .map(|source| self.program.program().source_lineage(*source))
                             .unwrap_or_default()
                     };
-                    Ok(crate::domain::output_coverage::types::InputCoverage {
-                        ordinal: crate::domain::output_coverage::types::OperandOrdinal(ordinal),
+                    Ok(ryo_execution_domain::domain::output_coverage::types::InputCoverage {
+                        ordinal: ryo_execution_domain::domain::output_coverage::types::OperandOrdinal(ordinal),
                         kinds,
                         coverage: input.coverage()?,
                         lineage,
                     })
                 })
                 .collect::<Result<Vec<_>, OperatingError>>()?;
-            crate::domain::contributor_rows::service::filter_contributor_rows(
+            ryo_execution_domain::domain::contributor_rows::service::filter_contributor_rows(
                 &instruction.operation(),
                 instruction.contract().absence_inputs,
                 &contributions,
@@ -104,13 +104,13 @@ impl SourceInputs<'_, '_> {
             let coverage = match &instruction.contract().output_kinds {
                 Ok(kinds) => {
                     if let Some(shape) = ordered {
-                        crate::domain::output_coverage::service::ordered_output_coverage(
+                        ryo_execution_domain::domain::output_coverage::service::ordered_output_coverage(
                             &shape.partition,
                             kinds,
                             &contributions[0],
                         )
                     } else {
-                        crate::domain::output_coverage::service::output_coverage(
+                        ryo_execution_domain::domain::output_coverage::service::output_coverage(
                             &instruction.operation(),
                             kinds,
                             &contributions,
@@ -119,7 +119,7 @@ impl SourceInputs<'_, '_> {
                 }
                 // An intentionally undemanded row fault must stay deferred.
                 // No precise lineage can be certified from a refused schema.
-                Err(_) => crate::domain::completion::service::partial_any(vec![None]),
+                Err(_) => ryo_execution_domain::domain::completion::service::partial_any(vec![None]),
             };
             read = crate::application::file_dag::program::admission::ReadProof::covered(
                 actual_partition.clone(),
@@ -132,7 +132,7 @@ impl SourceInputs<'_, '_> {
         let resolved = self.owner.resolve(publication.as_ref(), self.read)?;
         let checked = self.owner.admit(
             publication.as_ref(),
-            crate::domain::table_model::types::RepresentationInput::from(&resolved),
+            ryo_execution_domain::domain::table_model::types::RepresentationInput::from(&resolved),
         )?;
         AdmittedInput::from_publication(
             Rc::clone(&self.owner),
@@ -146,7 +146,7 @@ impl SourceInputs<'_, '_> {
         &self,
         input: &AdmittedInput,
         context: &mut OperatorContext<'_>,
-        output: &mut dyn crate::domain::operating::types::Emit,
+        output: &mut dyn ryo_execution_domain::domain::operating::types::Emit,
     ) -> Result<(), OperatingError> {
         let rows = input.rows(&self.owner, self.read)?;
         crate::application::file_dag::execution::output::replay(&rows, context, output)

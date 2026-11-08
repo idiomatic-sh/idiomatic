@@ -9,18 +9,18 @@ use crate::application::file_dag::program::facade_runtime::types::ProjectFrontie
 use crate::application::file_dag::program::facade_runtime::types::PublicationScope;
 use crate::application::file_dag::program::native_walk::Deliveries;
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
-use crate::domain::rule_intent::types::EmitDemand;
-use crate::domain::rule_intent::types::ObservationDemand;
+use ryo_execution_domain::domain::rule_intent::types::EmitDemand;
+use ryo_execution_domain::domain::rule_intent::types::ObservationDemand;
 use crate::application::file_dag::program::rule_outcome::types::RuleOutcome;
 use crate::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome;
-use crate::domain::rule_intent::types::RuleDemand;
+use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
 use crate::application::file_dag::program::runtime::service::ProgramExecution;
 use crate::application::file_dag::relations::RelationOwner;
 use crate::application::file_dag::scope::ScopePartials;
-use crate::domain::completion::types::completion_policy::value::CompletionPolicy;
-use crate::domain::coverage::types::RuleIndex;
-use crate::domain::executable_program::types::InputSource;
-use crate::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
+use ryo_execution_domain::domain::coverage::types::RuleIndex;
+use ryo_execution_domain::domain::executable_program::types::InputSource;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use rustc_hash::FxHashMap;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -36,7 +36,7 @@ pub(crate) struct ProjectRun<'a> {
     frontier_producer: RuleIndex,
     frontier_sources: Arc<[crate::application::file_dag::frontiers::types::FrontierSource]>,
     ordinary: Vec<Rc<ProjectFrontierPopulation<AvailableInput>>>,
-    refused: Vec<crate::domain::frontiers::types::RefusedFrontier>,
+    refused: Vec<ryo_execution_domain::domain::frontiers::types::RefusedFrontier>,
     bound: Vec<Option<crate::application::file_dag::frontiers::types::BoundInput>>,
     cache: Vec<crate::application::file_dag::program::facade_runtime::types::CachedInput>,
     transport: ryo_language::domain::symbols::types::TransportPermit,
@@ -66,7 +66,7 @@ pub(crate) fn open_project<'a>(
         symbols,
         &frontiers.publication.decodes,
     );
-    crate::domain::spelling::service::check_name_spellings(
+    ryo_execution_domain::domain::spelling::service::check_name_spellings(
         frontiers.ordinary.rows.iter().flat_map(|input| -> Box<dyn Iterator<Item = ryo_relations::domain::relations::types::Name> + '_> {
             match input {
                 crate::application::file_dag::frontiers::types::FrontierInput::Decoded { frontier, .. } => Box::new(frontier.table.cells.iter().filter_map(|value| match value { ryo_relations::domain::relations::types::Value::Name(name) => Some(*name), _ => None })),
@@ -149,8 +149,8 @@ impl ProjectRun<'_> {
     pub(super) fn observe_producer_releases(
         &self,
         rule: RuleIndex,
-        producer: crate::domain::executable_program::types::RegionId,
-        consumers: &[crate::domain::executable_program::types::RegionId],
+        producer: ryo_execution_domain::domain::executable_program::types::RegionId,
+        consumers: &[ryo_execution_domain::domain::executable_program::types::RegionId],
     ) -> Result<(), OperatingError> {
         let state = self.execution.project_state(self.identity(rule)?);
         self.execution
@@ -190,8 +190,8 @@ impl ProjectRun<'_> {
         &self,
         rule: RuleIndex,
         demand: RuleDemand,
-    ) -> Result<Vec<crate::domain::executable_program::types::RegionId>, OperatingError> {
-        use crate::domain::executable_program::types::InputSource;
+    ) -> Result<Vec<ryo_execution_domain::domain::executable_program::types::RegionId>, OperatingError> {
+        use ryo_execution_domain::domain::executable_program::types::InputSource;
         let metadata = self.program.rule_metadata(rule)?;
         let mut roots = Vec::new();
         if demand.emit == EmitDemand::Enabled {
@@ -210,7 +210,7 @@ impl ProjectRun<'_> {
                 }
                 match &root.source {
                     Ok(InputSource::Region(id)) => roots.push(*id),
-                    Ok(InputSource::Observation(crate::domain::executable_program::types::ObservationPlace(slot))) => {
+                    Ok(InputSource::Observation(ryo_execution_domain::domain::executable_program::types::ObservationPlace(slot))) => {
                         if let Some(Ok(id)) =
                             self.program.program().observation_regions().get(*slot)
                         {
@@ -260,7 +260,7 @@ pub(crate) fn evaluate_roots<E>(
     Result<RuleOutcome<ProjectOutputOutcome>, OperatingError>,
     E,
 > {
-    use crate::domain::executable_program::types::RegionId;
+    use ryo_execution_domain::domain::executable_program::types::RegionId;
     enum RootSet {
         Pending(Vec<RegionId>),
         Prepared,

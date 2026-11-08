@@ -1,5 +1,5 @@
 //! What each operation means for a source walk, and the route that meaning implies.
-use crate::domain::executable_program::types::{executable_program::value::ExecutableProgram, InputSource};
+use ryo_execution_domain::domain::executable_program::types::{executable_program::value::ExecutableProgram, InputSource};
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plans::service::kind_of;
 use ryo_values::domain::plans::types::Operation;
@@ -111,8 +111,8 @@ pub(in super::super) fn head_route(
 /// The route of one instruction of a compiled program.
 pub(in super::super) fn route(
     program: &ExecutableProgram,
-    region: &crate::domain::executable_program::types::region::value::Region,
-    instruction: &crate::domain::executable_program::types::instruction::value::Instruction,
+    region: &ryo_execution_domain::domain::executable_program::types::region::value::Region,
+    instruction: &ryo_execution_domain::domain::executable_program::types::instruction::value::Instruction,
     place: Place,
 ) -> Route {
     if instruction.logical().0 >= program.logical_regions().len() {

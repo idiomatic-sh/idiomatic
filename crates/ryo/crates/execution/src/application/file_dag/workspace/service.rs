@@ -3,10 +3,10 @@ use super::constants::{EXPECT_ADMITTED_INPUT, EXPECT_FIRST_INPUT};
 use super::{InputAdmissions, InvocationWorkspace, ViewInputs};
 use crate::application::file_dag::derived::owner::acquisition::population::types::StoredColumns;
 use crate::application::file_dag::relations::admission::service::BorrowedInput;
-use crate::domain::derived_views::types::contract::value::PreparedViewUse;
-use crate::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::derived_views::types::contract::value::PreparedViewUse;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 
-use crate::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_values::domain::plan_parts::types::InputNumber;
 use ryo_values::domain::rows::types::Table;
 
@@ -47,7 +47,7 @@ impl InvocationWorkspace {
         supplied: ViewInputs<'_, '_>,
     ) -> Result<crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView, OperatingError>
     {
-        use crate::domain::{
+        use ryo_execution_domain::domain::{
             derived_views::types::{DerivedInputs, MembershipSpace},
             operating::errors::OperatingError,
         };

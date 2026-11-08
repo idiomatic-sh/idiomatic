@@ -13,7 +13,7 @@ use crate::application::file_dag::program::facade_runtime::types::{
     ProjectFrontiers, PublicationScope,
 };
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
-use crate::domain::coverage::types::Partials;
+use ryo_execution_domain::domain::coverage::types::Partials;
 use ryo_values::domain::hosted::types::{
     HostColumn, HostColumnName, HostKind, HostName, HostRelation,
 };
@@ -166,7 +166,7 @@ impl CapturedProject {
                 .collect(),
             rows: vec![].into(),
         }];
-        let compiled = crate::domain::prepared_request::service::assemble(
+        let compiled = ryo_execution_domain::domain::prepared_request::service::assemble(
             plans,
             vec![vec![]; rules.len()],
             &rules,
@@ -240,12 +240,12 @@ impl CapturedProject {
             Bucket(0),
             &read,
             symbols,
-            crate::domain::frontier_capture::types::CaptureScope {
+            ryo_execution_domain::domain::frontier_capture::types::CaptureScope {
                 file: FileId(0),
                 rule_digest: Digest([0; 16]),
                 worker: ryo_relations::domain::relations::types::WorkerNumber(0),
-                retained: crate::domain::finish::types::Retained {
-                    arena: crate::domain::finish::types::Arena(&mut arena),
+                retained: ryo_execution_domain::domain::finish::types::Retained {
+                    arena: ryo_execution_domain::domain::finish::types::Arena(&mut arena),
                     places: &mut places,
                 },
                 words: &mut words,

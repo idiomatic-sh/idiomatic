@@ -1,12 +1,12 @@
 //! One acquisition of a family from admitted rows; every scenario issues its demands here.
 use super::super::super::admission::service::{AcquiredView, AdmittedViewInputs};
 use crate::application::file_dag::relations::RelationOwner;
-use crate::domain::{
+use ryo_execution_domain::domain::{
     derived_views::types::{contract::value::DerivedContract, DerivedInputs, DerivedScratch, MembershipSpace},
     operating::errors::OperatingError,
     table_cells::service_test::SMALL_SOURCE,
     table_texts::types::Texts};
-use crate::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_derived::domain::request::types::DerivedKind;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::files::types::SourceView;

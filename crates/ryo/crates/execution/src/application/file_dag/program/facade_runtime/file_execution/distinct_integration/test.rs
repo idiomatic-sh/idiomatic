@@ -1,7 +1,7 @@
 //! Distinct state survives repeated left rows and resets after a failed delivery.
 use super::{Scenario, exercise};
 
-fn run(scenario: Scenario) -> Result<Vec<u64>, crate::domain::operating::errors::OperatingError> {
+fn run(scenario: Scenario) -> Result<Vec<u64>, ryo_execution_domain::domain::operating::errors::OperatingError> {
     exercise(
         scenario,
         crate::application::file_dag::fixtures::program_derived_port(),

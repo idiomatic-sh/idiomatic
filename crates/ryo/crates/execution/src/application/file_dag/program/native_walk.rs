@@ -3,15 +3,13 @@ pub(crate) mod lease;
 pub(super) mod project;
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use crate::application::file_dag::program::runtime::service::KernelPermit;
-use crate::domain::{coverage::types::RuleIndex, shared_walk::types::WalkCounts};
-use crate::{
-    application::file_dag::derived::population::types::PopulationId,
-    domain::{
-        operating::{errors::OperatingError, types::OperatorContext},
-        step_classes::types::ClassPlace,
-        shared_walk::types::{WalkWork, native_batch::value::NativeBatch},
-        table_model::types::Rows,
-    },
+use ryo_execution_domain::domain::{coverage::types::RuleIndex, shared_walk::types::WalkCounts};
+use crate::application::file_dag::derived::population::types::PopulationId;
+use ryo_execution_domain::domain::{
+    operating::{errors::OperatingError, types::OperatorContext},
+    step_classes::types::ClassPlace,
+    shared_walk::types::{WalkWork, native_batch::value::NativeBatch},
+    table_model::types::Rows,
 };
 use lease::service::PermittedWalk;
 
@@ -44,13 +42,13 @@ pub(super) enum WalkDelivery {
     Rows,
 }
 pub(super) struct WalkResult {
-    lease: crate::domain::shared_walk::types::ClassLease,
+    lease: ryo_execution_domain::domain::shared_walk::types::ClassLease,
 }
 impl WalkResult {
-    pub(super) fn result(&self) -> &crate::domain::shared_walk::types::ClassResult {
+    pub(super) fn result(&self) -> &ryo_execution_domain::domain::shared_walk::types::ClassResult {
         &self.lease.result
     }
-    pub(super) fn visits(&self) -> crate::domain::shared_walk::types::RowsVisited {
+    pub(super) fn visits(&self) -> ryo_execution_domain::domain::shared_walk::types::RowsVisited {
         self.lease.visits
     }
 }
@@ -173,7 +171,7 @@ impl FileWalk {
                     return Err(error);
                 }
                 Err(super::super::executor::KernelFault::Portable(error)) => {
-                    return Err(crate::domain::operator::contract::types::portable_fault(
+                    return Err(ryo_execution_domain::domain::operator::contract::types::portable_fault(
                         error,
                     ));
                 }

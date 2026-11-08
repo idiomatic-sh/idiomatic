@@ -4,7 +4,7 @@ use super::super::fixtures::plans::Authored;
 use super::super::fixtures::routes::RowRoute;
 use super::super::fixtures::semantics::{Derived, Meanings};
 use super::super::fixtures::{Population, Program, Residency, cells, demand};
-use crate::domain::executable_program::fusion::types::{Fusibility, Ineligible};
+use ryo_execution_domain::domain::executable_program::fusion::types::{Fusibility, Ineligible};
 use ryo_values::domain::plans::service::kind_of;
 
 fn describe(attempt: Result<String, OperatingError>) -> String {

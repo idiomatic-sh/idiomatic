@@ -7,7 +7,7 @@ use ryo_relations::domain::relations::types::Relation;
 use ryo_relations::domain::relations::types::Value as Cell;
 use ryo_values::domain::plan_parts::types::LiteralText;
 use ryo_language::domain::symbols::types::Symbols;
-use crate::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_language::domain::elements::types::Elements;
 use ryo_relations::domain::relations::service::node_id;
 use ryo_relations::domain::relations::types::Integer;
@@ -187,14 +187,14 @@ fn walks_with_two_inputs() -> Result<Value, OperatingError> {
     };
     let kinds = [CellKind::Number];
     let edges = [CellKind::Number; 2];
-    crate::domain::operation_schema::service::schema_of(
+    ryo_execution_domain::domain::operation_schema::service::schema_of(
         &operation,
         &[
-            crate::domain::operation_schema::types::InputShape {
+            ryo_execution_domain::domain::operation_schema::types::InputShape {
                 kinds: &kinds,
                 tree: None,
             },
-            crate::domain::operation_schema::types::InputShape {
+            ryo_execution_domain::domain::operation_schema::types::InputShape {
                 kinds: &edges,
                 tree: None,
             },

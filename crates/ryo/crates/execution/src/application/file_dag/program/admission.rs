@@ -13,7 +13,7 @@ pub(in crate::application::file_dag) enum Agreement {
     Same,
     Different,
 }
-use crate::domain::{
+use ryo_execution_domain::domain::{
     coverage::types::RuleIndex,
     executable_program::types::{InputSource, RegionId},
     operating::errors::OperatingError,
@@ -34,7 +34,7 @@ pub(super) struct FileGeneration {
 pub(crate) struct RequiredPartitions {
     pub(super) request: Arc<super::request_identity::RequestIdentity>,
     pub(super) files: Box<[FileId]>,
-    pub(super) covered: Box<[crate::domain::coverage::types::Covered]>,
+    pub(super) covered: Box<[ryo_execution_domain::domain::coverage::types::Covered]>,
     pub(super) skipped: Box<[ryo_values::domain::runs::types::Skipped]>,
     pub(super) inapplicable: Box<[FileId]>,
 }
@@ -71,7 +71,7 @@ enum Readiness {
     Complete,
     Partial {
         files: Vec<Option<FileId>>,
-        lacks: Vec<crate::domain::completion::types::FileLacks>,
+        lacks: Vec<ryo_execution_domain::domain::completion::types::FileLacks>,
     },
     Inapplicable {
         files: Vec<FileId>,
@@ -153,27 +153,27 @@ pub(super) trait Inputs {
     fn dependency(
         &self,
         _input: InputSource,
-    ) -> Result<Option<crate::domain::executable_program::types::RegionId>, OperatingError> {
+    ) -> Result<Option<ryo_execution_domain::domain::executable_program::types::RegionId>, OperatingError> {
         Ok(None)
     }
-    fn bind_rule(&mut self, _rule: crate::domain::coverage::types::RuleIndex) {}
+    fn bind_rule(&mut self, _rule: ryo_execution_domain::domain::coverage::types::RuleIndex) {}
 
     fn supply(
         &mut self,
         input: InputSource,
         partition: &Partition,
-        context: &mut crate::domain::operating::types::OperatorContext<'_>,
+        context: &mut ryo_execution_domain::domain::operating::types::OperatorContext<'_>,
     ) -> Result<AvailableInput, OperatingError>;
     fn admit(
         &mut self,
         input: &AvailableInput,
         partition: &Partition,
-        context: &mut crate::domain::operating::types::OperatorContext<'_>,
+        context: &mut ryo_execution_domain::domain::operating::types::OperatorContext<'_>,
     ) -> Result<AdmittedInput, OperatingError>;
     fn is_empty(
         &self,
         input: &AdmittedInput,
-        representation: crate::domain::operator::contract::types::EmptyRepresentation,
+        representation: ryo_execution_domain::domain::operator::contract::types::EmptyRepresentation,
     ) -> Result<crate::application::file_dag::program::admission::Emptiness, OperatingError>;
     /// The one publication of a region result, in the representation the producer states.
     fn publish(
@@ -186,8 +186,8 @@ pub(super) trait Inputs {
     fn replay(
         &self,
         input: &AdmittedInput,
-        context: &mut crate::domain::operating::types::OperatorContext<'_>,
-        output: &mut dyn crate::domain::operating::types::Emit,
+        context: &mut ryo_execution_domain::domain::operating::types::OperatorContext<'_>,
+        output: &mut dyn ryo_execution_domain::domain::operating::types::Emit,
     ) -> Result<(), OperatingError>;
 }
 
@@ -211,7 +211,7 @@ impl Representation {
 /// No source backing or generation proof can be replaced independently.
 pub(super) struct AdmittedWalkSource<'a> {
     source: &'a AdmittedInput,
-    rows: &'a crate::domain::table_model::types::Rows<'a>,
+    rows: &'a ryo_execution_domain::domain::table_model::types::Rows<'a>,
     relation: ryo_relations::domain::relations::types::Relation,
     population: PopulationId,
 }
@@ -224,7 +224,7 @@ impl<'a> AdmittedWalkSource<'a> {
             .then_some(())
             .ok_or(OperatingError::NotRead)
     }
-    pub(super) fn rows(&self) -> &crate::domain::table_model::types::Rows<'a> {
+    pub(super) fn rows(&self) -> &ryo_execution_domain::domain::table_model::types::Rows<'a> {
         self.rows
     }
     pub(super) fn relation(&self) -> ryo_relations::domain::relations::types::Relation {
@@ -265,7 +265,7 @@ fn contributed_readiness(
         match &input.readiness {
             Readiness::Complete => {}
             Readiness::Partial { files, lacks } => {
-                affected.extend(crate::domain::completion::service::lacks_of(files, lacks));
+                affected.extend(ryo_execution_domain::domain::completion::service::lacks_of(files, lacks));
             }
             Readiness::Inapplicable { files } => {
                 for file in files {
@@ -281,13 +281,13 @@ fn contributed_readiness(
         .any(|input| matches!(input.readiness, Readiness::Partial { .. }))
     {
         affected.extend(inapplicable.into_iter().map(|file| {
-            crate::domain::completion::types::FileLacks {
+            ryo_execution_domain::domain::completion::types::FileLacks {
                 file: Some(file),
-                missing: crate::domain::completion::types::MissingRows::Any,
+                missing: ryo_execution_domain::domain::completion::types::MissingRows::Any,
             }
         }));
-        match crate::domain::completion::service::partial_of_lacks(affected) {
-            crate::domain::completion::types::CoverageState::Partial { files, lacks } => {
+        match ryo_execution_domain::domain::completion::service::partial_of_lacks(affected) {
+            ryo_execution_domain::domain::completion::types::CoverageState::Partial { files, lacks } => {
                 Ok(Readiness::Partial { files, lacks })
             }
             _ => Err(OperatingError::NotRun),
@@ -324,7 +324,7 @@ pub(super) fn alias_member(
         .producers
         .get(member.0)
         .ok_or(OperatingError::NotRun)?;
-    let crate::domain::file_program::types::ResolvedObservationProducer::Output { rule, output } =
+    let ryo_execution_domain::domain::file_program::types::ResolvedObservationProducer::Output { rule, output } =
         producer
     else {
         return Err(OperatingError::ObservationIncomplete {
@@ -355,14 +355,14 @@ pub(super) fn alias_member(
     }
     let mut alias = input.clone();
     alias.root = ProducerRoot::Input(InputSource::ObservationMember {
-        slot: crate::domain::executable_program::types::ObservationPlace(slot.0),
-        member: crate::domain::executable_program::types::ProducerMember(member.0),
+        slot: ryo_execution_domain::domain::executable_program::types::ObservationPlace(slot.0),
+        member: ryo_execution_domain::domain::executable_program::types::ProducerMember(member.0),
     });
     Ok(alias)
 }
 
 pub(super) fn alias_observation(
-    program: &crate::domain::executable_program::types::executable_program::value::ExecutableProgram,
+    program: &ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram,
     slot: AliasSlot,
     input: &AdmittedInput,
     owner: &Rc<RelationOwner>,
@@ -378,6 +378,6 @@ pub(super) fn alias_observation(
     }
     input.publication(owner)?;
     let mut alias = input.clone();
-    alias.root = ProducerRoot::Input(InputSource::Observation(crate::domain::executable_program::types::ObservationPlace(slot.0)));
+    alias.root = ProducerRoot::Input(InputSource::Observation(ryo_execution_domain::domain::executable_program::types::ObservationPlace(slot.0)));
     Ok(alias)
 }

@@ -8,8 +8,8 @@ use crate::application::file_dag::program::kernel_session::KernelSession;
 use crate::application::file_dag::program::runtime::service::{
     InvocationOutcome, ProgramExecution,
 };
-use crate::domain::completion::types::completion_policy::value::CompletionPolicy;
-use crate::domain::coverage::types::{Lacking, Partial, Partials, RuleIndex};
+use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
+use ryo_execution_domain::domain::coverage::types::{Lacking, Partial, Partials, RuleIndex};
 use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::{
     hosted::types::{HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow},
@@ -155,7 +155,7 @@ fn subject(case: Input) -> Result<Value, Failure> {
         relation,
         cause: PartialCause("missing source rows".into()),
         lacking: Lacking::Any,
-        at: crate::domain::coverage::types::PartialPlace::File(FileId(0)),
+        at: ryo_execution_domain::domain::coverage::types::PartialPlace::File(FileId(0)),
     }];
     let project_partials = Partials::default();
     let completion = if project_case {
@@ -292,7 +292,7 @@ fn subject(case: Input) -> Result<Value, Failure> {
         &scope
     };
     let result = sources.admit_source(
-        crate::domain::executable_program::types::InputSource::Relation(relation),
+        ryo_execution_domain::domain::executable_program::types::InputSource::Relation(relation),
         requested,
         &mut context,
     );
@@ -302,12 +302,12 @@ fn subject(case: Input) -> Result<Value, Failure> {
     let admitted = result?;
     assert_eq!(reads.get(), 1);
     match admitted.coverage()? {
-        crate::domain::completion::types::CoverageState::Complete => Ok("complete"),
-        crate::domain::completion::types::CoverageState::Partial { files, .. } => {
+        ryo_execution_domain::domain::completion::types::CoverageState::Complete => Ok("complete"),
+        ryo_execution_domain::domain::completion::types::CoverageState::Partial { files, .. } => {
             assert_eq!(files, vec![Some(FileId(0))]);
             Ok("partial")
         }
-        crate::domain::completion::types::CoverageState::Inapplicable { .. } => Ok("inapplicable"),
+        ryo_execution_domain::domain::completion::types::CoverageState::Inapplicable { .. } => Ok("inapplicable"),
     }
 }
 #[test]
@@ -323,4 +323,4 @@ use ryo_values::domain::query_bindings::types::{BindingCell, BindingTable, Param
 
 use crate::application::file_dag::program::facade_runtime::service::required_partitions;
 use crate::application::file_dag::scope::open_program_owner;
-use crate::domain::table_model::service::count_of;
+use ryo_execution_domain::domain::table_model::service::count_of;

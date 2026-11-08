@@ -2,11 +2,11 @@
 use crate::outbound::derived::interface::DerivedPort;
 use crate::application::file_dag::derived::owner::*;
 use crate::application::file_dag::relations::RelationOwner;
-use crate::domain::{
+use ryo_execution_domain::domain::{
     coverage::types::Partial, operating::errors::OperatingError,
     table_model::types::Rows,
 };
-use crate::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_derived::domain::equality::types::KeyIndex;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -39,7 +39,7 @@ impl ResourceFixture {
                     owner.derived().semantic.clone(),
                 ),
                 &(0..plans.len())
-                    .map(crate::domain::coverage::types::RuleIndex)
+                    .map(ryo_execution_domain::domain::coverage::types::RuleIndex)
                     .collect::<Vec<_>>(),
                 partials,
             )

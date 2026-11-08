@@ -4,7 +4,7 @@ use super::types::ByteLimit;
 use crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView;
 use crate::application::file_dag::derived::owner::acquisition::population::types::Construction;
 use crate::application::file_dag::derived::owner::fixtures::graph::GraphFixture;
-use crate::domain::table_model::types::Rows;
+use ryo_execution_domain::domain::table_model::types::Rows;
 use ryo_derived::domain::contract::types::DerivedView;
 fn new(wanted: &[Relation], partials: &[Partial], limit: ByteLimit) -> GraphFixture {
     GraphFixture::new(wanted, partials, limit.0)
@@ -14,7 +14,7 @@ fn acquire(
     relation: Relation,
     rows: ColumnsView<'_>,
     on: &[ColumnIndex],
-) -> Result<AcquiredView, crate::domain::operating::errors::OperatingError> {
+) -> Result<AcquiredView, ryo_execution_domain::domain::operating::errors::OperatingError> {
     owner.index(relation, &Rows::Stored(rows), on)
 }
 fn equality(view: &AcquiredView) -> &KeyIndex {
@@ -23,9 +23,9 @@ fn equality(view: &AcquiredView) -> &KeyIndex {
     };
     index
 }
-use crate::domain::coverage::types::{Lacking, LackingKind, Partial};
+use ryo_execution_domain::domain::coverage::types::{Lacking, LackingKind, Partial};
 
-use crate::domain::table_model::service::matching_stored;
+use ryo_execution_domain::domain::table_model::service::matching_stored;
 
 use ryo_derived::domain::equality::types::KeyIndex;
 use ryo_relations::domain::relations::types::{
@@ -60,7 +60,7 @@ fn immutable_duplicate_rows_share_one_complete_index_without_cloning_buffers() {
             equality(&second),
             &[Value::Number(Integer(2))],
             #[cfg(feature = "diagnostic-row-progress")]
-            &crate::domain::operator::contract::views::IgnoredProgress,
+            &ryo_execution_domain::domain::operator::contract::views::IgnoredProgress,
         )
         .copied()
         .collect::<Vec<_>>(),
@@ -128,7 +128,7 @@ fn any_physical_partial_kind_and_inactive_relations_are_ineligible() {
         relation: Relation::Function,
         cause: PartialCause("some function kinds absent".into()),
         lacking: Lacking::Kind(LackingKind("unknown".into())),
-        at: crate::domain::coverage::types::PartialPlace::Repository,
+        at: ryo_execution_domain::domain::coverage::types::PartialPlace::Repository,
     }];
     let cache = new(&[Relation::Function], &partials, ByteLimit(LIMIT));
     let columns = [FactColumn(vec![1])];
@@ -219,7 +219,7 @@ fn invalid_columns_never_admit_and_normalized_flags_still_match_on_reuse() {
             equality(&reused),
             &[Value::Flag(Flag::Raised)],
             #[cfg(feature = "diagnostic-row-progress")]
-            &crate::domain::operator::contract::views::IgnoredProgress,
+            &ryo_execution_domain::domain::operator::contract::views::IgnoredProgress,
         )
         .copied()
         .collect::<Vec<_>>(),
@@ -232,7 +232,7 @@ fn invalid_columns_never_admit_and_normalized_flags_still_match_on_reuse() {
             equality(&reused),
             &[Value::Number(Integer(1))],
             #[cfg(feature = "diagnostic-row-progress")]
-            &crate::domain::operator::contract::views::IgnoredProgress,
+            &ryo_execution_domain::domain::operator::contract::views::IgnoredProgress,
         )
         .next()
         .is_none()
@@ -297,7 +297,7 @@ fn derived_symbol_growth_does_not_change_a_frozen_stored_key() {
             equality(&reused),
             &[Value::Symbol(original)],
             #[cfg(feature = "diagnostic-row-progress")]
-            &crate::domain::operator::contract::views::IgnoredProgress,
+            &ryo_execution_domain::domain::operator::contract::views::IgnoredProgress,
         )
         .copied()
         .collect::<Vec<_>>(),
@@ -337,7 +337,7 @@ fn a_reused_index_still_resolves_full_composite_hash_collisions_exactly() {
             index,
             &[Value::Number(Integer(0)), Value::Number(Integer(0))],
             #[cfg(feature = "diagnostic-row-progress")]
-            &crate::domain::operator::contract::views::IgnoredProgress,
+            &ryo_execution_domain::domain::operator::contract::views::IgnoredProgress,
         )
         .copied()
         .collect::<Vec<_>>(),

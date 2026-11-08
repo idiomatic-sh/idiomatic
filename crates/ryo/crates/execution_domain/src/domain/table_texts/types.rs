@@ -20,7 +20,7 @@ impl std::borrow::Borrow<str> for RegexPattern {
 /// What a cell reads as when it is compared: numbers as numbers, names and files as their text.
 /// The text is borrowed from where it lives, so reading a cell allocates nothing.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub(crate) enum Datum<'a> {
+pub enum Datum<'a> {
     /// No source location exists for this cell.
     Unlocated,
     /// A whole number.
@@ -37,12 +37,12 @@ pub(crate) enum Datum<'a> {
 
 /// Text read from where it lives, borrowed: the text of a cell as it is compared.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub(crate) struct TextView<'a>(pub &'a str);
+pub struct TextView<'a>(pub &'a str);
 
 /// Where the text of the names and files in a file's rows is, while the rows are worked on: the
 /// file's names and bytes, and the paths of the files.
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct Texts<'a> {
+pub struct Texts<'a> {
     /// The names of the file.
     pub symbols: &'a Symbols,
     /// The bytes of the file.
@@ -51,6 +51,19 @@ pub(crate) struct Texts<'a> {
     pub paths: &'a [FilePath],
     /// The text each worker made, by worker number: where a name that has left its file keeps its text.
     pub arenas: &'a [ArenaBytes],
+}
+
+/// The text of a value as the derived builds read it: a name's or a file's text, and nothing for any other value.
+impl ryo_derived::domain::row_cells::types::ValueTexts for Texts<'_> {
+    fn text(
+        &self,
+        value: ryo_relations::domain::relations::types::Value,
+    ) -> Option<ryo_values::domain::row_texts::types::CellText<'_>> {
+        match crate::domain::table_texts::service::datum(value, self) {
+            Datum::Text(text) => Some(ryo_values::domain::row_texts::types::CellText(text.0)),
+            _ => None,
+        }
+    }
 }
 
 use ryo_values::domain::files::types::SourceView;

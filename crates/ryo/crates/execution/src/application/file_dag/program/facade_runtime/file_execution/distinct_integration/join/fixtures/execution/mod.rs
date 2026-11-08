@@ -2,7 +2,7 @@
 use super::super::super::*;
 use super::provider::{Provider, provider};
 use crate::application::file_dag::derived::owner::fixtures::resources::RecordedDerived;
-use crate::domain::operating::fixtures::ExecutionObservation;
+use ryo_execution_domain::domain::operating::fixtures::ExecutionObservation;
 use ryo_values::domain::compact_table::service::admit_compact;
 use ryo_values::domain::stored_facts::types::KeptWords;
 use ryo_values::domain::table_words::types::DecodeMode;
@@ -31,7 +31,7 @@ pub(crate) struct Faults {
     pub(crate) right: Option<OperatingError>,
     pub(crate) sink_after: Option<usize>,
     pub(crate) optional_limit: Option<usize>,
-    pub(crate) partials: Vec<crate::domain::coverage::types::Partial>,
+    pub(crate) partials: Vec<ryo_execution_domain::domain::coverage::types::Partial>,
 }
 pub(crate) fn invoke(
     operation: &Operation,
@@ -214,12 +214,12 @@ pub(crate) fn execute(
             ryo_values::domain::stored_facts::types::Bucket(0),
             &read,
             symbols,
-            crate::domain::frontier_capture::types::CaptureScope {
+            ryo_execution_domain::domain::frontier_capture::types::CaptureScope {
                 file: FileId(0),
                 rule_digest: Digest([0; 16]),
                 worker: ryo_relations::domain::relations::types::WorkerNumber(0),
-                retained: crate::domain::finish::types::Retained {
-                    arena: crate::domain::finish::types::Arena(&mut arena),
+                retained: ryo_execution_domain::domain::finish::types::Retained {
+                    arena: ryo_execution_domain::domain::finish::types::Arena(&mut arena),
                     places: &mut places,
                 },
                 words: &mut words,

@@ -2,19 +2,18 @@
 use crate::application::file_dag::program::runtime::service::KernelPermit;
 use crate::application::file_dag::program::runtime::types::InvocationFailure;
 use crate::application::file_dag::program::runtime::types::KernelScratch;
-use crate::{
-    application::file_dag::workspace::InvocationWorkspace,
-    domain::{
-        operating::{
-            errors::OperatingError,
-            types::{Emit, OperatorContext}}}};
-use crate::domain::table_model::types::RepresentationInput;
+use crate::application::file_dag::workspace::InvocationWorkspace;
+use ryo_execution_domain::domain::{
+    operating::{
+        errors::OperatingError,
+        types::{Emit, OperatorContext}}};
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use std::rc::Rc;
 
 impl super::super::KernelSession<'_, '_> {
     pub(in crate::application::file_dag::program::kernel_session) fn ordered_session(
         &self,
-        shape: &crate::domain::executable_program::types::OrderedExistence,
+        shape: &ryo_execution_domain::domain::executable_program::types::OrderedExistence,
         permit: &KernelPermit<'_>,
         input: &crate::application::file_dag::program::admission::AdmittedInput,
         context: &mut OperatorContext<'_>,
@@ -75,7 +74,7 @@ impl super::super::KernelSession<'_, '_> {
             port: self.kernels,
             permit: permit.semantics(),
             failure: &failure,
-            binding: crate::domain::executable_program::physical::PhysicalBinding {
+            binding: ryo_execution_domain::domain::executable_program::physical::PhysicalBinding {
                 bindings: context.bindings,
                 regex_identity: None,
                 source_len: ryo_operators::domain::contract::types::SourceByteLength(context.source.0.len()),

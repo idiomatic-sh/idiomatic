@@ -1,13 +1,13 @@
 //! Immutable request preparation, physical metadata and compilation ownership.
 use super::types::*;
-use crate::domain::coverage::types::RuleIndex;
-use crate::domain::rule_intent::types::FrontierPurpose;
-use crate::domain::executable_program::types::executable_program::value::ExecutableProgram;
-use crate::domain::operating::errors::OperatingError;
-use crate::domain::prepared_request::types::Compiled;
-use crate::domain::prepared_request::types::ObservationIdentity;
-use crate::domain::source_partitions::types::source_partitions::value::SourcePartitions;
-use crate::domain::trust::types::RelationRead;
+use ryo_execution_domain::domain::coverage::types::RuleIndex;
+use ryo_execution_domain::domain::rule_intent::types::FrontierPurpose;
+use ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::prepared_request::types::Compiled;
+use ryo_execution_domain::domain::prepared_request::types::ObservationIdentity;
+use ryo_execution_domain::domain::source_partitions::types::source_partitions::value::SourcePartitions;
+use ryo_execution_domain::domain::trust::types::RelationRead;
 
 use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::records::types::ObservationIndex;
@@ -29,7 +29,7 @@ impl PreparedProgram {
         &self,
         rule: RuleIndex,
     ) -> Result<
-        &crate::domain::executable_program::file_demand::types::FileRuleDemand,
+        &ryo_execution_domain::domain::executable_program::file_demand::types::FileRuleDemand,
         OperatingError,
     > {
         self.file_demands.get(rule.0).ok_or(OperatingError::NotRun)
@@ -47,7 +47,7 @@ impl PreparedProgram {
     }
     pub(in crate::application::file_dag::program) fn walk(
         &self,
-    ) -> &crate::domain::shared_walk::types::prepared_walk::value::PreparedWalk {
+    ) -> &ryo_execution_domain::domain::shared_walk::types::prepared_walk::value::PreparedWalk {
         &self.walk
     }
     pub(in crate::application::file_dag::program) fn all_bindings(
@@ -57,8 +57,8 @@ impl PreparedProgram {
     }
     pub(in crate::application::file_dag::program) fn walk_class(
         &self,
-        instruction: &crate::domain::executable_program::types::instruction::value::Instruction,
-    ) -> Option<crate::domain::step_classes::types::ClassPlace> {
+        instruction: &ryo_execution_domain::domain::executable_program::types::instruction::value::Instruction,
+    ) -> Option<ryo_execution_domain::domain::step_classes::types::ClassPlace> {
         self.walk.class_for(instruction)
     }
     pub(in crate::application::file_dag::program) fn rule_id(
@@ -98,7 +98,7 @@ impl PreparedProgram {
     }
     pub(crate) fn matchers(
         &self,
-    ) -> &Arc<crate::domain::matching::types::prepared::value::PreparedMatchers> {
+    ) -> &Arc<ryo_execution_domain::domain::matching::types::prepared::value::PreparedMatchers> {
         &self.matchers
     }
     pub(crate) fn bindings(&self, rule: RuleIndex) -> Result<&[ParameterBinding], OperatingError> {
@@ -208,7 +208,7 @@ pub(crate) fn prepare(
         schedule,
         observations,
     } = compiled;
-    let mut walk = crate::domain::shared_walk::types::prepared_walk::value::PreparedWalk::compile(
+    let mut walk = ryo_execution_domain::domain::shared_walk::types::prepared_walk::value::PreparedWalk::compile(
         &plans, &bindings,
     );
     let source_plans: Vec<_> = plans.iter().map(Ok).collect();
@@ -216,10 +216,10 @@ pub(crate) fn prepare(
     let operators = crate::application::file_dag::service::prepare(&plans, &bindings, hosted, derived.clone())?;
     let request = match identity {
         ObservationIdentity::Independent => {
-            crate::domain::file_program::types::ObservationRequest::Independent
+            ryo_execution_domain::domain::file_program::types::ObservationRequest::Independent
         }
         ObservationIdentity::Named(layout) => {
-            crate::domain::file_program::service::observations::request(
+            ryo_execution_domain::domain::file_program::service::observations::request(
                 &schedule,
                 &observations,
                 layout,
@@ -229,7 +229,7 @@ pub(crate) fn prepare(
             })?
         }
     };
-    let graph = crate::domain::file_program::service::compile_prepared_observations(
+    let graph = ryo_execution_domain::domain::file_program::service::compile_prepared_observations(
         &plans, &operators, request,
     );
     let named = graph
@@ -241,9 +241,9 @@ pub(crate) fn prepare(
             frontiers: named.frontiers.clone().into_boxed_slice(),
             bindings: observations.clone(),
             outputs: named.outputs.iter().map(|outputs| outputs.iter().map(|output| OutputMetadata {
-                root: match output.root { crate::domain::file_program::types::GraphObservationRoot::PerFile(_) => OutputRoot::PerFile,
-                    crate::domain::file_program::types::GraphObservationRoot::CrossFile => OutputRoot::CrossFile,
-                    crate::domain::file_program::types::GraphObservationRoot::Unavailable => OutputRoot::Unavailable }, consumers: output.consumers.clone(),
+                root: match output.root { ryo_execution_domain::domain::file_program::types::GraphObservationRoot::PerFile(_) => OutputRoot::PerFile,
+                    ryo_execution_domain::domain::file_program::types::GraphObservationRoot::CrossFile => OutputRoot::CrossFile,
+                    ryo_execution_domain::domain::file_program::types::GraphObservationRoot::Unavailable => OutputRoot::Unavailable }, consumers: output.consumers.clone(),
             }).collect()).collect(),
             retire: named.retire.clone(),
             consumers: named
@@ -267,7 +267,7 @@ pub(crate) fn prepare(
                 .map(|plan| vec![FrontierPurpose::Diagnostic; plan.frontier.len()])
                 .collect()
         });
-    let program = Arc::new(crate::domain::executable_program::service::compile(
+    let program = Arc::new(ryo_execution_domain::domain::executable_program::service::compile(
         &plans,
         graph,
         &partitions,
@@ -279,7 +279,7 @@ pub(crate) fn prepare(
     let metadata =
         metadata::service::rules(&program, named.as_ref(), &plans, &observation_frontiers)?;
     let matchers = Arc::new(
-        crate::domain::matching::types::prepared::value::PreparedMatchers::from_operations(
+        ryo_execution_domain::domain::matching::types::prepared::value::PreparedMatchers::from_operations(
             program.regions().iter().flat_map(|region| {
                 region
                     .instructions()

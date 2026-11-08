@@ -1,7 +1,7 @@
 //! Ordered graph traversals that succeed keep exact order, multiplicity and work counts.
 use super::super::super::*;
 use super::super::fixtures::{compute, expected, numbers, operation, subject};
-use crate::domain::operating::fixtures::ExecutionObservation;
+use ryo_execution_domain::domain::operating::fixtures::ExecutionObservation;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::rows::service::push_row;
 fn numeric_order_and_diamond() -> Result<usize, OperatingError> {

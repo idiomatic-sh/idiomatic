@@ -297,9 +297,9 @@ pub(crate) fn derived(kind: ryo_derived::domain::request::types::DerivedKind) ->
     })
 }
 pub(crate) fn representation(
-    kind: crate::domain::table_model::collections::representations::types::RepresentationKind,
+    kind: ryo_execution_domain::domain::table_model::collections::representations::types::RepresentationKind,
 ) -> RouteLabel {
-    use crate::domain::table_model::collections::representations::types::RepresentationKind::*;
+    use ryo_execution_domain::domain::table_model::collections::representations::types::RepresentationKind::*;
     RouteLabel(match kind {
         Stored => constants::REPRESENTATION_STORED,
         Tree => constants::REPRESENTATION_TREE,

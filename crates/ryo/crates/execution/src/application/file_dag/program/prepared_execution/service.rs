@@ -3,17 +3,17 @@ use std::sync::Arc;
 use crate::application::file_dag::program::prepared_execution::interface::PreparedExecution;
 use crate::application::file_dag::program::prepared_execution::interface::PreparedReporting;
 use crate::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
-use crate::domain::coverage::types::RuleIndex;
+use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use crate::application::file_dag::program::preparation::types::{
     Demand, NamedLayout, ObservationContract, ReplayClosure, RuleTotal, SemanticNeed,
 };
-use crate::domain::rule_intent::types::FrontierPurpose;
-use crate::domain::operating::errors::OperatingError;
-use crate::domain::trust::types::RelationRead;
+use ryo_execution_domain::domain::rule_intent::types::FrontierPurpose;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::trust::types::RelationRead;
 use ryo_values::domain::stored_facts::types::Bucket;
 use crate::application::file_dag::derived::owner::types::DerivedAccess;
 use crate::application::file_dag::execution::CommonOperatorEngine;
-use crate::domain::prepared_request::types::{Compiled, ObservationIdentity};
+use ryo_execution_domain::domain::prepared_request::types::{Compiled, ObservationIdentity};
 use crate::outbound::operators::interface::OperatorsPort;
 use ryo_values::domain::{
     hosted::types::HostRelation, rule_requests::types::RuleSpec, stored_facts::types::Digest,

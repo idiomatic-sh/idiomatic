@@ -14,16 +14,16 @@ use crate::application::file_dag::program::facade_runtime::types::{
     DeclaredIntent, FileRoot, FrontierCommit, NamedReadiness, PreparedNamed, WalkPreparation,
 };
 use crate::application::file_dag::program::native_walk::Deliveries;
-use crate::domain::rule_intent::types::ApplicabilityRefusal;
-use crate::domain::rule_intent::types::CaptureIntent;
-use crate::domain::rule_intent::types::DiagnosticDelivery;
-use crate::domain::rule_intent::types::FileRuleIntent;
-use crate::domain::rule_intent::types::ObservationDemand;
+use ryo_execution_domain::domain::rule_intent::types::ApplicabilityRefusal;
+use ryo_execution_domain::domain::rule_intent::types::CaptureIntent;
+use ryo_execution_domain::domain::rule_intent::types::DiagnosticDelivery;
+use ryo_execution_domain::domain::rule_intent::types::FileRuleIntent;
+use ryo_execution_domain::domain::rule_intent::types::ObservationDemand;
 use crate::application::file_dag::scope::ScopePartials;
-use crate::domain::completion::types::completion_policy::value::CompletionPolicy;
-use crate::domain::coverage::types::RuleIndex;
-use crate::domain::operating::errors::OperatingError;
-use crate::domain::table_model::types::Rows;
+use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
+use ryo_execution_domain::domain::coverage::types::RuleIndex;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::table_model::types::Rows;
 use ryo_relations::domain::relations::types::Relation;
 use std::rc::Rc;
 
@@ -32,7 +32,7 @@ impl FileRun<'_> {
     pub(in crate::application::file_dag::program::facade_runtime::file_execution) fn bind_intents(
         &mut self,
     ) -> Result<Vec<RuleIndex>, OperatingError> {
-        use crate::domain::executable_program::file_demand::types::{
+        use ryo_execution_domain::domain::executable_program::file_demand::types::{
             FileDemand, FileRootDemand as DemandRoot, FrontierSelection, RootSelection,
         };
         let ScopePartials::File { publication, .. } = &self.partials else {
@@ -109,8 +109,8 @@ impl FileRun<'_> {
             }
             for &output in &plan.observations {
                 let root = &self.program.rule_metadata(rule)?.observations[output.0 as usize];
-                let readiness = if crate::domain::trust::service::blocked(&root.reads, publication)
-                    == crate::domain::trust::types::Blocking::Free
+                let readiness = if ryo_execution_domain::domain::trust::service::blocked(&root.reads, publication)
+                    == ryo_execution_domain::domain::trust::types::Blocking::Free
                 {
                     NamedReadiness::Ready
                 } else {
@@ -131,8 +131,8 @@ impl FileRun<'_> {
                     DemandRoot::Observation { region, output } => {
                         let root =
                             &self.program.rule_metadata(rule)?.observations[output.0 as usize];
-                        if crate::domain::trust::service::blocked(&root.reads, publication)
-                            != crate::domain::trust::types::Blocking::Free
+                        if ryo_execution_domain::domain::trust::service::blocked(&root.reads, publication)
+                            != ryo_execution_domain::domain::trust::types::Blocking::Free
                         {
                             continue;
                         }

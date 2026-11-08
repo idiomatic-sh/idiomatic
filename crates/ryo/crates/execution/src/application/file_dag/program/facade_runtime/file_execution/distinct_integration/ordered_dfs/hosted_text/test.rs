@@ -3,7 +3,7 @@ use super::super::super::*;
 use super::super::fixtures::{
     column, execute_request, expected, host, hosted_plan, numbers, operation,
 };
-use crate::domain::operating::fixtures::ExecutionObservation;
+use ryo_execution_domain::domain::operating::fixtures::ExecutionObservation;
 use ryo_values::domain::hosted::types::{
     HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow,
 };
@@ -74,7 +74,7 @@ fn text_vertices_and_partition_keys_use_the_actual_hosted_text_owner() {
             CellKind::Number
         ]
     );
-    let texts = crate::domain::table_texts::types::Texts {
+    let texts = ryo_execution_domain::domain::table_texts::types::Texts {
         symbols: &symbols,
         source: ryo_values::domain::files::types::SourceView(b""),
         paths: &[],
@@ -85,8 +85,8 @@ fn text_vertices_and_partition_keys_use_the_actual_hosted_text_owner() {
         let strings = row[..5]
             .iter()
             .map(|cell| {
-                let crate::domain::table_texts::types::Datum::Text(text) =
-                    crate::domain::table_texts::service::datum(*cell, &texts)
+                let ryo_execution_domain::domain::table_texts::types::Datum::Text(text) =
+                    ryo_execution_domain::domain::table_texts::service::datum(*cell, &texts)
                 else {
                     panic!("owned text")
                 };

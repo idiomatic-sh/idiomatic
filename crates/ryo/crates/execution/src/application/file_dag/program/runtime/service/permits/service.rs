@@ -3,18 +3,18 @@ use super::super::{BoundInputs, KernelAdmission, KernelPermit, ProgramExecution,
 use crate::application::file_dag::program::admission::AdmittedInput;
 use crate::application::file_dag::program::admission::ProducerRoot;
 use crate::application::file_dag::program::runtime::types::InstructionIndex;
-use crate::domain::executable_program::types::InputId;
-use crate::domain::executable_program::types::InputSource;
-use crate::domain::executable_program::types::RegionId;
-use crate::domain::executable_program::types::RouteKind;
-use crate::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::executable_program::types::InputId;
+use ryo_execution_domain::domain::executable_program::types::InputSource;
+use ryo_execution_domain::domain::executable_program::types::RegionId;
+use ryo_execution_domain::domain::executable_program::types::RouteKind;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use std::sync::Arc;
 
 impl<'scope> KernelPermit<'scope> {
     pub(in crate::application::file_dag::program::runtime::service) fn code(
         execution: &ProgramExecution,
         region: RegionId,
-    ) -> Result<&crate::domain::executable_program::types::region::value::Region, OperatingError> {
+    ) -> Result<&ryo_execution_domain::domain::executable_program::types::region::value::Region, OperatingError> {
         if execution.owner.matches_generation(&execution.generation) == crate::application::file_dag::relations::types::Sameness::Different {
             return Err(OperatingError::NotRead);
         }
@@ -69,7 +69,7 @@ impl<'scope> KernelPermit<'scope> {
         let execution = authority.execution();
         let region = authority.region();
         let code = Self::code(execution, region)?;
-        let shape = crate::domain::executable_program::service::ordered_existence(&code.route())
+        let shape = ryo_execution_domain::domain::executable_program::service::ordered_existence(&code.route())
             .ok_or(OperatingError::WrongOperation)?;
         input.validate_for(
             &execution.owner,
@@ -116,7 +116,7 @@ impl<'scope> KernelPermit<'scope> {
     }
     pub(in crate::application::file_dag::program) fn validate_program(
         &self,
-        program: &crate::domain::executable_program::types::executable_program::value::ExecutableProgram,
+        program: &ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram,
     ) -> Result<(), OperatingError> {
         self.validate_live()?;
         if std::ptr::eq(self.program, program) {
@@ -131,7 +131,7 @@ impl<'scope> KernelPermit<'scope> {
     }
     pub(in crate::application::file_dag::program) fn descriptor(
         &self,
-    ) -> &crate::domain::executable_program::types::instruction::value::Instruction {
+    ) -> &ryo_execution_domain::domain::executable_program::types::instruction::value::Instruction {
         &self.program.regions()[self.region.0].instructions()[self.instruction.0]
     }
     pub(in crate::application::file_dag) fn semantics(&self) -> SemanticPermit<'_> {

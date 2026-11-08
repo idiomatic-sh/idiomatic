@@ -1,7 +1,7 @@
 //! Refusal and physical-route controls through the real compiled owner.
 use crate::outbound::operators::interface::OperatorsPort as _;
 use super::super::*;
-use crate::domain::coverage::types::{Lacking, Partial};
+use ryo_execution_domain::domain::coverage::types::{Lacking, Partial};
 use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
@@ -181,7 +181,7 @@ fn partial_positive_rows_survive_but_partial_absence_is_refused() {
         relation,
         cause: PartialCause("partial provider fixture".into()),
         lacking: Lacking::Any,
-        at: crate::domain::coverage::types::PartialPlace::Repository,
+        at: ryo_execution_domain::domain::coverage::types::PartialPlace::Repository,
     }];
     let RootOutcome::Partial { table, affected } = run(
         positive,

@@ -13,8 +13,8 @@ use crate::application::file_dag::program::facade_runtime::types::ProjectFrontie
 use crate::application::file_dag::program::native_walk::project::service::ProjectWalk;
 use crate::application::file_dag::program::native_walk::{Deliveries, RetainedBatches};
 use crate::application::file_dag::program::rule_outcome::types::ProjectBatch;
-use crate::domain::shared_walk::types::WalkCounts;
-use crate::domain::{
+use ryo_execution_domain::domain::shared_walk::types::WalkCounts;
+use ryo_execution_domain::domain::{
     completion::types::CoverageState, coverage::types::Partials, table_model::types::Frontier,
 };
 

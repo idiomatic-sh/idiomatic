@@ -12,10 +12,10 @@ use crate::application::file_dag::program::runtime::types::KernelInput;
 use crate::application::file_dag::program::runtime::types::{
     InstructionIndex, PollMode, StageProgress,
 };
-use crate::domain::executable_program::types::DemandAction;
-use crate::domain::executable_program::types::InputId;
-use crate::domain::operating::errors::OperatingError;
-use crate::domain::operator::contract::types::PreflightOrder;
+use ryo_execution_domain::domain::executable_program::types::DemandAction;
+use ryo_execution_domain::domain::executable_program::types::InputId;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operator::contract::types::PreflightOrder;
 use std::sync::Arc;
 
 impl ProgramExecution {
@@ -218,7 +218,7 @@ impl ProgramExecution {
             kernels,
             context,
             frames,
-            &mut crate::domain::replay::types::Collect(&mut rows),
+            &mut ryo_execution_domain::domain::replay::types::Collect(&mut rows),
         )?;
         output_kinds
             .as_ref()
@@ -239,7 +239,7 @@ impl ProgramExecution {
             )
             .map_err(InvocationFailure::Semantic)?;
         let published = if completion.observation_admission(needs)
-            == crate::domain::completion::types::ObservationAdmission::Ready
+            == ryo_execution_domain::domain::completion::types::ObservationAdmission::Ready
         {
             published
         } else {

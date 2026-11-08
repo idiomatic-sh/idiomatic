@@ -1,6 +1,6 @@
 //! Source custody: publishing supplied inputs as owner-issued publications.
 use crate::application::file_dag::relations::*;
-use crate::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 impl RelationOwner {
     pub(in crate::application::file_dag) fn source(
         &self,

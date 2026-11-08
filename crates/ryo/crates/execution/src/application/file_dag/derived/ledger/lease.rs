@@ -5,7 +5,7 @@ use super::{
         Backing, BackingKey, ByteCount, HoldCount, LeaseClass, Measured, ResourceLease, SlotCount,
     },
 };
-use crate::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use rustc_hash::FxHashMap;
 
 #[cfg(test)]

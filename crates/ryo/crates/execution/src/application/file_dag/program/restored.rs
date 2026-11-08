@@ -8,12 +8,12 @@ use super::admission::RequiredPartitions;
 use super::facade_runtime::types::PublicationScope;
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use crate::application::file_dag::program::observed_publication::types::ObservedPublication;
-use crate::domain::{
+use ryo_execution_domain::domain::{
     completion::types::CoverageState,
     coverage::types::RuleIndex,
     executable_program::types::InputSource,
     operating::{errors::OperatingError, types::OperatorContext}};
-use crate::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_values::domain::{
     plan_parts::types::InputNumber,
     stored_facts::types::{Bucket, KeptWords},
@@ -80,7 +80,7 @@ pub(in crate::application) fn validate_restored_frontier(
         InputSource::Relation(relation) => {
             ryo_relations::domain::relations::service::kinds(relation).to_vec()
         }
-        InputSource::Observation(crate::domain::executable_program::types::ObservationPlace(slot)) => {
+        InputSource::Observation(ryo_execution_domain::domain::executable_program::types::ObservationPlace(slot)) => {
             let region = *prepared
                 .program()
                 .observation_regions()

@@ -25,11 +25,11 @@ use crate::inbound::use_cases::execution::interface::OperatingError;
 use crate::inbound::use_cases::execution::interface::RuleDemand;
 use crate::inbound::use_cases::execution::interface::RuleIndex;
 use crate::inbound::use_cases::execution::interface::SemanticLookup;
-use crate::domain::prepared_request::types::ObservationIdentity;
+use ryo_execution_domain::domain::prepared_request::types::ObservationIdentity;
 use crate::outbound::operators::interface::OperatorsPort;
 use crate::application::file_dag::acceptance::operator_contract_test::fixtures::*;
-use crate::domain::operating::fixtures::ExecutionObservation;
-use crate::domain::operator::service::prepare_operator;
+use ryo_execution_domain::domain::operating::fixtures::ExecutionObservation;
+use ryo_execution_domain::domain::operator::service::prepare_operator;
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::CellKind;
@@ -120,11 +120,11 @@ pub(in super::super) fn compare_delivery_with_port(
         runs::types::{RuleApplicability, RuleId},
         stored_facts::types::Digest,
     };
-    let schema = crate::domain::operation_schema::service::schema_of(
+    let schema = ryo_execution_domain::domain::operation_schema::service::schema_of(
         operation,
         &inputs
             .iter()
-            .map(|table| crate::domain::operation_schema::types::InputShape {
+            .map(|table| ryo_execution_domain::domain::operation_schema::types::InputShape {
                 kinds: &table.kinds,
                 tree: None,
             })

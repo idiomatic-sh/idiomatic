@@ -4,8 +4,8 @@ use super::super::admission_order::test::{InputSupply, execute, layout_error, op
 use crate::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
 use crate::inbound::use_cases::execution::interface::OperatingError;
 use crate::application::file_dag::program::file_session::types::SourceRows;
-use crate::domain::operator::contract::service::semantics;
-use crate::domain::operator::contract::types::PreflightOrder;
+use ryo_execution_domain::domain::operator::contract::service::semantics;
+use ryo_execution_domain::domain::operator::contract::types::PreflightOrder;
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::symbols::service::intern_derived;
 use ryo_language::domain::symbols::types::ByteSlice;

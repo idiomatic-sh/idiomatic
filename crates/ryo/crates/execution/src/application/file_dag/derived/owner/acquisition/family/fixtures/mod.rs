@@ -7,16 +7,16 @@ use self::demand::demand;
 use self::request::{observed, request};
 use crate::application::file_dag::{
     relations::RelationOwner, fixtures::program_derived_port};
-use crate::domain::{
+use ryo_execution_domain::domain::{
     derived_views::types::{DerivedInputs, DerivedScratch, ViewRequest},
     operating::errors::OperatingError,
     operation_schema::types::InputShape,
     table_cells::service_test::{ SmallTree, small_tree},
     table_cells::types::{TreeForm, TreeRows},
     table_model::types::Rows};
-use crate::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use crate::application::file_dag::relations::publication::types::ProducerScope;
-use crate::domain::executable_program::types::RegionId;
+use ryo_execution_domain::domain::executable_program::types::RegionId;
 use ryo_derived::domain::request::types::DerivedKind;
 use ryo_relations::domain::{
     relations::types::{CellKind, FileId, Integer, NodeId, Relation, Value}};

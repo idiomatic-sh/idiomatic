@@ -109,9 +109,9 @@ fn binary_bad_shape_missing_input_and_sink_prefix_remain_observable() -> Result<
         assert_eq!(observed.collected.err(), Some(schema.clone()));
         assert_eq!(observed.stream_error, Some(schema));
         let case = fixture(kind);
-        let missing = crate::domain::operation_schema::service::schema_of(
+        let missing = ryo_execution_domain::domain::operation_schema::service::schema_of(
             &case.operation,
-            &[crate::domain::operation_schema::types::InputShape {
+            &[ryo_execution_domain::domain::operation_schema::types::InputShape {
                 kinds: &case.inputs[0].kinds,
                 tree: None,
             }],
@@ -161,8 +161,8 @@ fn conformance_detects_a_deliberately_dropped_or_reordered_result() -> Result<()
 }
 
 fn positive_row_contracts_keep_partial_input_distinction() -> Result<(), Failure> {
-    use crate::domain::coverage::types::{Lacking, Partial};
-    use crate::domain::trust::{
+    use ryo_execution_domain::domain::coverage::types::{Lacking, Partial};
+    use ryo_execution_domain::domain::trust::{
         service::{blocked, needs_of, scoped_needs},
         types::Blocking,
     };
@@ -209,7 +209,7 @@ fn positive_row_contracts_keep_partial_input_distinction() -> Result<(), Failure
                     relation: *relation,
                     cause: PartialCause("fixture partial".into()),
                     lacking: Lacking::Any,
-                    at: crate::domain::coverage::types::PartialPlace::Repository,
+                    at: ryo_execution_domain::domain::coverage::types::PartialPlace::Repository,
                 };
                 assert_eq!(blocked(&needs[0], &[partial]), Blocking::Free);
                 assert!(scoped.reads.iter().any(|read| read.relation == *relation));

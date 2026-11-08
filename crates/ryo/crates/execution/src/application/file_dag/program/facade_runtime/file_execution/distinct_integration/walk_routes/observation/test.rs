@@ -21,7 +21,7 @@ fn named_population_barrier_cannot_reuse_a_direct_relation_class_or_erase_replay
     assert!(
         matches!(
             region.inputs().first(),
-            Some(crate::domain::executable_program::types::InputSource::Observation(_))
+            Some(ryo_execution_domain::domain::executable_program::types::InputSource::Observation(_))
         ),
         "this consumer must have the real resolved observation boundary"
     );

@@ -5,7 +5,7 @@ use super::super::{
 };
 use crate::application::file_dag::derived::population::types::PopulationId;
 use crate::application::file_dag::relations::{RelationOwner, handle::service::PublishedInput};
-use crate::domain::{executable_program::types::InputSource, operating::errors::OperatingError};
+use ryo_execution_domain::domain::{executable_program::types::InputSource, operating::errors::OperatingError};
 use std::{rc::Rc, sync::Arc};
 
 impl ReadProof {
@@ -19,9 +19,9 @@ impl ReadProof {
     /// A read of `partition` whose coverage the completion domain computed.
     pub(in crate::application::file_dag::program) fn covered(
         partition: Partition,
-        coverage: crate::domain::completion::types::CoverageState,
+        coverage: ryo_execution_domain::domain::completion::types::CoverageState,
     ) -> Self {
-        use crate::domain::completion::types::CoverageState;
+        use ryo_execution_domain::domain::completion::types::CoverageState;
         let readiness = match coverage {
             CoverageState::Complete => Readiness::Complete,
             CoverageState::Partial { files, lacks } => Readiness::Partial { files, lacks },
@@ -72,8 +72,8 @@ impl AdmittedInput {
         read: &dyn Fn(
             ryo_relations::domain::relations::types::Relation,
         )
-            -> Result<crate::domain::table_model::types::Rows<'facts>, OperatingError>,
-    ) -> Result<crate::domain::table_model::types::Rows<'a>, OperatingError>
+            -> Result<ryo_execution_domain::domain::table_model::types::Rows<'facts>, OperatingError>,
+    ) -> Result<ryo_execution_domain::domain::table_model::types::Rows<'a>, OperatingError>
     where
         'facts: 'a,
     {
@@ -94,17 +94,17 @@ impl AdmittedInput {
 
     pub(in crate::application::file_dag::program) fn coverage(
         &self,
-    ) -> Result<crate::domain::completion::types::CoverageState, OperatingError> {
+    ) -> Result<ryo_execution_domain::domain::completion::types::CoverageState, OperatingError> {
         match &self.readiness {
-            Readiness::Complete => Ok(crate::domain::completion::types::CoverageState::Complete),
+            Readiness::Complete => Ok(ryo_execution_domain::domain::completion::types::CoverageState::Complete),
             Readiness::Partial { files, lacks } => {
-                Ok(crate::domain::completion::types::CoverageState::Partial {
+                Ok(ryo_execution_domain::domain::completion::types::CoverageState::Partial {
                     files: files.clone(),
                     lacks: lacks.clone(),
                 })
             }
             Readiness::Inapplicable { files } => Ok(
-                crate::domain::completion::types::CoverageState::Inapplicable {
+                ryo_execution_domain::domain::completion::types::CoverageState::Inapplicable {
                     files: files.clone(),
                 },
             ),
@@ -112,13 +112,13 @@ impl AdmittedInput {
     }
     pub(in crate::application::file_dag::program) fn with_coverage(
         mut self,
-        coverage: crate::domain::completion::types::CoverageState,
+        coverage: ryo_execution_domain::domain::completion::types::CoverageState,
     ) -> Self {
-        use crate::domain::completion::types::CoverageState;
+        use ryo_execution_domain::domain::completion::types::CoverageState;
         match coverage {
             CoverageState::Complete => {}
             CoverageState::Partial { files, lacks } => {
-                use crate::domain::completion::service::{lacks_of, partial_of_lacks};
+                use ryo_execution_domain::domain::completion::service::{lacks_of, partial_of_lacks};
                 let mut all = lacks_of(&files, &lacks);
                 match &self.readiness {
                     Readiness::Complete => {}
@@ -184,13 +184,13 @@ impl AdmittedInput {
     pub(in crate::application::file_dag::program) fn walk_source<'call>(
         &'call self,
         relation: ryo_relations::domain::relations::types::Relation,
-        rows: &'call crate::domain::table_model::types::Rows<'call>,
+        rows: &'call ryo_execution_domain::domain::table_model::types::Rows<'call>,
         generation: &Arc<()>,
     ) -> Result<Option<AdmittedWalkSource<'call>>, OperatingError> {
-        use crate::domain::{
+        use ryo_execution_domain::domain::{
             table_model::{service::kinds_of, types::Rows},
         };
-use crate::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
         if self.root != ProducerRoot::Input(InputSource::Relation(relation)) {
             return Err(OperatingError::WrongOperation);
         }
@@ -214,7 +214,7 @@ use crate::domain::table_model::types::RepresentationInput;
             return Err(OperatingError::NotRead);
         }
         if kinds_of(rows) != ryo_relations::domain::relations::service::kinds(relation)
-            || matches!(rows,Rows::Tree(tree) if crate::domain::table_cells::service::native_form(relation) != Some(tree.form))
+            || matches!(rows,Rows::Tree(tree) if ryo_execution_domain::domain::table_cells::service::native_form(relation) != Some(tree.form))
         {
             return Ok(None);
         }

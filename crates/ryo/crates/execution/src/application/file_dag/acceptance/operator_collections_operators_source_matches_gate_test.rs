@@ -1,7 +1,7 @@
 //! Real compiled source/line gates precede deferred matcher compilation.
 use super::operator_collections_operators_source_matches_item_test::span;
 use crate::application::file_dag::acceptance::fixtures as compiled;
-use crate::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::{
     constants::NO_SPAN,

@@ -13,8 +13,8 @@ use crate::application::file_dag::program::facade_runtime::types::{
 };
 use crate::application::file_dag::relations::types::ReuseEligibility;
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
-use crate::domain::rule_intent::types::FileRuleIntent;
-use crate::domain::operator::types::LogicalCounts;
+use ryo_execution_domain::domain::rule_intent::types::FileRuleIntent;
+use ryo_execution_domain::domain::operator::types::LogicalCounts;
 #[cfg(test)]
 use crate::application::file_dag::program::rule_outcome::types::ProjectObservation;
 use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
@@ -23,11 +23,11 @@ use crate::application::file_dag::program::runtime::service::ProgramExecution;
 use crate::application::file_dag::relations::RelationOwner;
 use crate::application::file_dag::scope::ScopePartials;
 use crate::application::file_dag::scope::open_program_owner;
-use crate::domain::coverage::types::RuleIndex;
-use crate::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::coverage::types::RuleIndex;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 #[cfg(test)]
-use crate::domain::table_model::service::materialize;
-use crate::domain::table_model::types::Rows;
+use ryo_execution_domain::domain::table_model::service::materialize;
+use ryo_execution_domain::domain::table_model::types::Rows;
 use ryo_relations::domain::relations::types::FileId;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::files::types::SourceView;
@@ -42,19 +42,19 @@ use crate::application::file_dag::program::admission::Inputs;
 #[cfg(test)]
 use crate::application::file_dag::program::facade_runtime::source_admission::SourceInputs;
 #[cfg(test)]
-use crate::domain::rule_intent::types::CaptureIntent;
+use ryo_execution_domain::domain::rule_intent::types::CaptureIntent;
 #[cfg(test)]
-use crate::domain::rule_intent::types::DiagnosticDelivery;
+use ryo_execution_domain::domain::rule_intent::types::DiagnosticDelivery;
 #[cfg(test)]
-use crate::domain::rule_intent::types::EmitDemand;
+use ryo_execution_domain::domain::rule_intent::types::EmitDemand;
 #[cfg(test)]
-use crate::domain::rule_intent::types::ObservationDemand;
+use ryo_execution_domain::domain::rule_intent::types::ObservationDemand;
 #[cfg(test)]
-use crate::domain::rule_intent::types::RuleDemand;
+use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
 #[cfg(test)]
-use crate::domain::completion::types::completion_policy::value::CompletionPolicy;
+use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
 #[cfg(test)]
-use crate::domain::operating::types::OperatorContext;
+use ryo_execution_domain::domain::operating::types::OperatorContext;
 
 mod emission;
 mod frontier;
@@ -69,7 +69,7 @@ pub(crate) struct FileRun<'a> {
     file: FileId,
     partials: ScopePartials<'a>,
     roots: FxHashMap<RuleIndex, Vec<FileRoot>>,
-    prepared_roots: Vec<crate::domain::executable_program::types::RegionId>,
+    prepared_roots: Vec<ryo_execution_domain::domain::executable_program::types::RegionId>,
     prepared_named: Vec<PreparedNamed>,
     /// Immutable intent and identity share the same private file owner lifetime.
     intents: Box<[FileRuleIntent]>,
@@ -89,8 +89,8 @@ pub(crate) fn open_file<'a>(
     source: SourceView<'a>,
     reuse_eligible: ReuseEligibility,
     symbols: &mut ryo_language::domain::symbols::types::Symbols,
-    semantic: Option<&'a dyn crate::domain::operating::types::SemanticLookup>,
-    kinds: Option<Arc<crate::domain::kind_sets::types::vocabulary::value::PreparedVocabulary>>,
+    semantic: Option<&'a dyn ryo_execution_domain::domain::operating::types::SemanticLookup>,
+    kinds: Option<Arc<ryo_execution_domain::domain::kind_sets::types::vocabulary::value::PreparedVocabulary>>,
 ) -> Result<FileRun<'a>, OperatingError> {
     if intents.len() != program.rule_count().0 {
         return Err(OperatingError::ShapeMismatch);
@@ -183,7 +183,7 @@ impl FileRun<'_> {
         &self,
         rule: RuleIndex,
         step: ryo_values::domain::plan_parts::types::StepId,
-    ) -> Result<crate::domain::operating::fixtures::ExecutionObservation, OperatingError> {
+    ) -> Result<ryo_execution_domain::domain::operating::fixtures::ExecutionObservation, OperatingError> {
         self.execution
             .route_observation(self.execution.file_state(), rule, step)
     }
@@ -197,7 +197,7 @@ impl FileRun<'_> {
     pub(crate) fn observation_routes(
         &self,
         slot: ryo_values::domain::records::types::ObservationIndex,
-    ) -> Result<crate::domain::operating::fixtures::ExecutionObservation, OperatingError> {
+    ) -> Result<ryo_execution_domain::domain::operating::fixtures::ExecutionObservation, OperatingError> {
         let region = self
             .program
             .program()
@@ -209,10 +209,10 @@ impl FileRun<'_> {
         self.execution
             .region_observation(self.execution.file_state(), *region)
     }
-    pub(crate) fn readiness_counts(&self) -> crate::domain::readiness::types::ReadinessCounts {
+    pub(crate) fn readiness_counts(&self) -> ryo_execution_domain::domain::readiness::types::ReadinessCounts {
         self.execution.readiness_counts()
     }
-    pub(crate) fn walk_counts(&self) -> crate::domain::shared_walk::types::WalkCounts {
+    pub(crate) fn walk_counts(&self) -> ryo_execution_domain::domain::shared_walk::types::WalkCounts {
         self.walk.counts()
     }
     pub(crate) fn counts(&self, rule: RuleIndex) -> Result<LogicalCounts, OperatingError> {
@@ -296,17 +296,17 @@ pub(super) fn outcome_of<'facts>(
     match result {
         Ok(InvocationOutcome::Published(input)) => match table_of(owner, &input, read) {
             Ok(table) => match input.coverage() {
-                Ok(crate::domain::completion::types::CoverageState::Complete) => {
+                Ok(ryo_execution_domain::domain::completion::types::CoverageState::Complete) => {
                     RootOutcome::Complete(table)
                 }
                 Ok(
-                    coverage @ (crate::domain::completion::types::CoverageState::Partial { .. }
-                    | crate::domain::completion::types::CoverageState::Inapplicable {
+                    coverage @ (ryo_execution_domain::domain::completion::types::CoverageState::Partial { .. }
+                    | ryo_execution_domain::domain::completion::types::CoverageState::Inapplicable {
                         ..
                     }),
                 ) => RootOutcome::Partial {
                     table,
-                    affected: crate::domain::frontier_coverage::service::affected_files(&coverage)
+                    affected: ryo_execution_domain::domain::frontier_coverage::service::affected_files(&coverage)
                         .unwrap_or_default(),
                 },
                 Err(error) => classify(error),

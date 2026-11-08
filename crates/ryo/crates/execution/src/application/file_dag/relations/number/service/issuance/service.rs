@@ -2,8 +2,8 @@
 use super::super::*;
 use crate::application::file_dag::relations::publication::types::*;
 use crate::application::file_dag::relations::*;
-use crate::domain::table_model::types::PublishedRelation;
-use crate::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::table_model::types::PublishedRelation;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 impl RelationOwner {
     pub(in crate::application::file_dag) fn admit_number<'a>(
         &self,

@@ -6,9 +6,9 @@ use crate::application::file_dag::program::admission::Partition;
 #[cfg(test)]
 use crate::application::file_dag::program::runtime::types::{CallCount, ReaderInitializations};
 use crate::application::file_dag::program::runtime::types::{Dependencies, ReaderCount};
-use crate::domain::executable_program::types::executable_program::value::ExecutableProgram;
-use crate::domain::executable_program::types::RegionId;
-use crate::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram;
+use ryo_execution_domain::domain::executable_program::types::RegionId;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use std::cell::RefCell;
 use std::sync::Arc;
 
@@ -47,7 +47,7 @@ impl Slot {
             scratch: Vec::new(),
             admission: Default::default(),
             fed: vec![
-                crate::domain::operator::types::RowsFed::default();
+                ryo_execution_domain::domain::operator::types::RowsFed::default();
                 region.instructions().len()
             ]
             .into_boxed_slice(),
@@ -101,7 +101,7 @@ impl RuntimeState {
                 .map(|region| ReaderCount(region.consumers().0))
                 .ok_or(OperatingError::NotRun),
             RootReaders::Selected(selected) => {
-                Ok(ReaderCount(crate::domain::executable_program::file_demand::service::reader_count(selected, id).0))
+                Ok(ReaderCount(ryo_execution_domain::domain::executable_program::file_demand::service::reader_count(selected, id).0))
             }
         }
     }
@@ -169,10 +169,10 @@ impl ProgramExecution {
             }
             selected
                 .entry(root)
-                .or_insert(crate::domain::executable_program::types::ReaderMultiplicity(0))
+                .or_insert(ryo_execution_domain::domain::executable_program::types::ReaderMultiplicity(0))
                 .0 += 1;
         }
-        let remaining = crate::domain::executable_program::file_demand::service::remaining(
+        let remaining = ryo_execution_domain::domain::executable_program::file_demand::service::remaining(
             self.program.file_readers(),
             self.program.regions(),
             &selected,
@@ -220,7 +220,7 @@ impl ProgramExecution {
         &self,
         root: crate::application::file_dag::program::admission::ProducerRoot,
     ) -> Result<Partition, OperatingError> {
-        use crate::domain::executable_program::types::{InputSource, PartitionRequirement};
+        use ryo_execution_domain::domain::executable_program::types::{InputSource, PartitionRequirement};
         if self.owner.matches_generation(&self.generation) == crate::application::file_dag::relations::types::Sameness::Different || self.generation_live.is_live() != crate::application::file_dag::relations::types::Liveness::Live {
             return Err(OperatingError::NotRead);
         }

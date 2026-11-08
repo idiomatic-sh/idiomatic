@@ -1,8 +1,8 @@
 //! Independent runtime scratch, inputs, counters and observed results; no issuance or interpreter state.
 use crate::application::file_dag::program::admission::AdmittedInput;
 #[cfg(test)]
-use crate::domain::executable_program::types::RegionId;
-use crate::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::executable_program::types::RegionId;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_relations::domain::relations::types::Value;
 
 pub(in crate::application::file_dag::program) enum InvocationFailure {

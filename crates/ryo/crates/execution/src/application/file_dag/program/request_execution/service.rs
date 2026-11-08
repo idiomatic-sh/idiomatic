@@ -15,8 +15,8 @@ use crate::application::file_dag::program::file_session::types::RuleFile;
 use crate::application::file_dag::program::file_session::types::RanRule;
 use crate::application::file_dag::program::file_session::types::SourceRows;
 use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
-use crate::domain::finish::types::Arena;
-use crate::domain::rule_intent::types::{DiagnosticDelivery, EmitDemand, FileRuleIntent, RuleDemand};
+use ryo_execution_domain::domain::finish::types::Arena;
+use ryo_execution_domain::domain::rule_intent::types::{DiagnosticDelivery, EmitDemand, FileRuleIntent, RuleDemand};
 use crate::outbound::facts::errors::FactsError;
 use crate::outbound::facts::interface::FactsWorker;
 use crate::outbound::facts::types::WordsToKeep;
@@ -33,7 +33,7 @@ use crate::application::file_dag::program::project_phase::types::FrontierDemand;
 use crate::application::file_dag::program::project_phase::types::FrontierRequest;
 use crate::application::file_dag::program::request_execution::types::RequestExecution;
 use crate::application::file_dag::scope::ScopePartials;
-use crate::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use crate::outbound::facts::types::ResidentStability;
 use ryo_language::domain::symbols::types::Symbols;
 use std::sync::Arc;
@@ -134,7 +134,7 @@ impl RequestExecution {
             KindSupport::Prepared(vocabulary) => Some(vocabulary),
             KindSupport::Absent => None,
         };
-        let vocabulary = crate::domain::kind_sets::service::prepare_vocabulary(
+        let vocabulary = ryo_execution_domain::domain::kind_sets::service::prepare_vocabulary(
             &mut vocabulary,
             input.elements,
             symbols,

@@ -10,7 +10,7 @@ use crate::application::file_dag::derived::ledger::types::ResourceLease;
 use crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView;
 use crate::application::file_dag::derived::owner::acquisition::semantics::storage::DerivedStorage;
 use crate::application::file_dag::derived::owner::graphs::types::retained::types::ReachedVertices;
-use crate::domain::stored_graph::types::{GraphDomain, Orientation};
+use ryo_execution_domain::domain::stored_graph::types::{GraphDomain, Orientation};
 use ryo_derived::domain::adjacency::types::compact_graph::value::CompactGraph;
 use std::{ops::Deref, sync::Arc};
 
@@ -27,14 +27,14 @@ impl GraphHandle {
         acquired: AcquiredView,
         orientation: Orientation,
         sharing: GraphSharing,
-    ) -> Result<Self, crate::domain::operating::errors::OperatingError> {
+    ) -> Result<Self, ryo_execution_domain::domain::operating::errors::OperatingError> {
         acquired.validate_owner(owner)?;
         let graph = acquired
             .storage()
             .payload()
             .share_adjacency()
             .map(|shared| shared.0)
-            .ok_or(crate::domain::operating::errors::OperatingError::WrongOperation)?;
+            .ok_or(ryo_execution_domain::domain::operating::errors::OperatingError::WrongOperation)?;
         Ok(Self {
             graph,
             orientation,
@@ -65,7 +65,7 @@ impl GraphHandle {
     pub(in crate::application::file_dag) fn validate_owner(
         &self,
         owner: &crate::application::file_dag::derived::owner::DerivedOwner,
-    ) -> Result<(), crate::domain::operating::errors::OperatingError> {
+    ) -> Result<(), ryo_execution_domain::domain::operating::errors::OperatingError> {
         self.acquired.validate_owner(owner)
     }
 }
@@ -83,8 +83,8 @@ impl DomainHandle {
         acquired: AcquiredView,
         domain: Arc<GraphDomain>,
         lease: Arc<ResourceLease>,
-    ) -> Result<Self, crate::domain::operating::errors::OperatingError> {
-        use crate::domain::operating::errors::OperatingError;
+    ) -> Result<Self, ryo_execution_domain::domain::operating::errors::OperatingError> {
+        use ryo_execution_domain::domain::operating::errors::OperatingError;
         parent.validate_owner(owner)?;
         acquired.validate_owner(owner)?;
         let marks = acquired
@@ -118,11 +118,11 @@ impl DomainHandle {
         &self,
         owner: &crate::application::file_dag::derived::owner::DerivedOwner,
         graph: &GraphHandle,
-    ) -> Result<(), crate::domain::operating::errors::OperatingError> {
+    ) -> Result<(), ryo_execution_domain::domain::operating::errors::OperatingError> {
         self.acquired.validate_owner(owner)?;
         self.parent.validate_owner(owner)?;
         if !Arc::ptr_eq(self.parent.storage(), graph.acquired.storage()) {
-            return Err(crate::domain::operating::errors::OperatingError::NotRead);
+            return Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead);
         }
         Ok(())
     }
@@ -155,12 +155,12 @@ impl RootAnswer {
         impl Iterator<
             Item = Result<
                 ryo_relations::domain::relations::types::Value,
-                crate::domain::operating::errors::OperatingError,
+                ryo_execution_domain::domain::operating::errors::OperatingError,
             >,
         > + '_,
-        crate::domain::operating::errors::OperatingError,
+        ryo_execution_domain::domain::operating::errors::OperatingError,
     > {
-        use crate::domain::operating::errors::OperatingError;
+        use ryo_execution_domain::domain::operating::errors::OperatingError;
         let ryo_derived::domain::contract::types::DerivedView::Adjacency(graph) =
             self._graph.view()?
         else {

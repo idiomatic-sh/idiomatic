@@ -5,16 +5,16 @@ use crate::application::file_dag::program::admission::Inputs;
 use crate::application::file_dag::program::admission::Partition;
 use crate::application::file_dag::program::runtime::service::ProgramExecution;
 use crate::application::file_dag::relations::RelationOwner;
-use crate::domain::executable_program::types::RegionId;
-use crate::domain::operating::errors::OperatingError;
-use crate::domain::operating::types::Emit;
-use crate::domain::operating::types::OperatorContext;
-use crate::domain::{
+use ryo_execution_domain::domain::executable_program::types::RegionId;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operating::types::Emit;
+use ryo_execution_domain::domain::operating::types::OperatorContext;
+use ryo_execution_domain::domain::{
     coverage::types::RuleIndex,
     executable_program::types::{InputSource, PartitionRequirement, ProducerPartitions},
     table_model::types::Rows,
 };
-use crate::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_relations::domain::{
     relations::{
         service::kinds,
@@ -91,9 +91,9 @@ pub(in super::super) fn compiled() -> CompiledCase {
     let semantic = crate::application::file_dag::fixtures::program_derived_port();
     let prepared =
         crate::application::file_dag::service::prepare(&plans, &[vec![], vec![]], &[], Arc::clone(&semantic)).unwrap();
-    let graph = crate::domain::file_program::service::compile_prepared(&plans, &prepared);
+    let graph = ryo_execution_domain::domain::file_program::service::compile_prepared(&plans, &prepared);
     let program = Arc::new(
-        crate::domain::executable_program::service::compile(
+        ryo_execution_domain::domain::executable_program::service::compile(
             &plans,
             graph,
             &FileProducers,
@@ -224,7 +224,7 @@ impl Inputs for TestInputs {
             publication,
             crate::application::file_dag::program::admission::ProducerRoot::Input(source),
             partition.clone(),
-            crate::domain::completion::types::CoverageState::Complete,
+            ryo_execution_domain::domain::completion::types::CoverageState::Complete,
             rows,
         )
     }
@@ -239,16 +239,16 @@ impl Inputs for TestInputs {
     fn is_empty(
         &self,
         input: &AdmittedInput,
-        representation: crate::domain::operator::contract::types::EmptyRepresentation,
+        representation: ryo_execution_domain::domain::operator::contract::types::EmptyRepresentation,
     ) -> Result<Emptiness, OperatingError> {
         let publication = input.publication(&self.owner)?;
         let rows = self
             .owner
             .resolve(publication.as_ref(), &|relation| self.read(relation))?;
         Ok(
-            if crate::domain::table_model::service::count_of(&rows).0 == 0
+            if ryo_execution_domain::domain::table_model::service::count_of(&rows).0 == 0
                 && (representation
-                    == crate::domain::operator::contract::types::EmptyRepresentation::Any
+                    == ryo_execution_domain::domain::operator::contract::types::EmptyRepresentation::Any
                     || matches!(rows, Rows::Computed(_)))
             {
                 Emptiness::Empty

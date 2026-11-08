@@ -2,7 +2,7 @@
 use super::super::plan;
 use super::heads::{FUNCTION, ROW_KEY, TEXT_A, equal, from, operations};
 use super::sources::Sources;
-use crate::domain::executable_program::types::executable_program::value::ExecutableProgram;
+use ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram;
 use ryo_values::domain::hosted::types::{
     HostColumn, HostColumnName, HostKind, HostName, HostRelation,
 };
@@ -122,7 +122,7 @@ pub(crate) fn shapes() -> Vec<Plan> {
 }
 pub(in super::super::super) struct Corpus {
     pub program: ExecutableProgram,
-    pub walk: crate::domain::shared_walk::types::prepared_walk::value::PreparedWalk,
+    pub walk: ryo_execution_domain::domain::shared_walk::types::prepared_walk::value::PreparedWalk,
 }
 /// Every variant and shape through the normal operator, graph, program and walk compilers.
 pub(in super::super::super) fn compiled_operations() -> Corpus {
@@ -153,11 +153,11 @@ pub(in super::super::super) fn compiled_operations() -> Corpus {
         crate::application::file_dag::fixtures::real_derived_port(),
     )
     .unwrap();
-    let graph = crate::domain::file_program::service::compile_prepared(&plans, &operators);
+    let graph = ryo_execution_domain::domain::file_program::service::compile_prepared(&plans, &operators);
     let program =
-        crate::domain::executable_program::service::compile(&plans, graph, &Sources, &operators)
+        ryo_execution_domain::domain::executable_program::service::compile(&plans, graph, &Sources, &operators)
             .unwrap();
-    let mut walk = crate::domain::shared_walk::types::prepared_walk::value::PreparedWalk::compile(&plans, &bindings);
+    let mut walk = ryo_execution_domain::domain::shared_walk::types::prepared_walk::value::PreparedWalk::compile(&plans, &bindings);
     walk.retain_program_consumers(&program).unwrap();
     Corpus { program, walk }
 }
@@ -175,6 +175,6 @@ pub(in super::super::super) fn compile_program(
         crate::application::file_dag::fixtures::real_derived_port(),
     )
     .unwrap();
-    let graph = crate::domain::file_program::service::compile_prepared(plans, &operators);
-    crate::domain::executable_program::service::compile(plans, graph, &Sources, &operators).unwrap()
+    let graph = ryo_execution_domain::domain::file_program::service::compile_prepared(plans, &operators);
+    ryo_execution_domain::domain::executable_program::service::compile(plans, graph, &Sources, &operators).unwrap()
 }

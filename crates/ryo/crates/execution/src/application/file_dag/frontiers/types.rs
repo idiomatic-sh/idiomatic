@@ -19,7 +19,7 @@ pub(crate) enum BoundMember {
 #[derive(Clone)]
 pub struct BoundInput {
     pub(crate) input: ryo_values::domain::plan_parts::types::ObservationBindingId,
-    pub(crate) members: Result<Vec<BoundMember>, crate::domain::operating::errors::OperatingError>,
+    pub(crate) members: Result<Vec<BoundMember>, ryo_execution_domain::domain::operating::errors::OperatingError>,
 }
 
 /// Admission preserves independent input successes and explicit refusal causes.
@@ -27,29 +27,29 @@ pub struct BoundInput {
 pub(in crate::application::file_dag) struct FrontierSource {
     pub input: ryo_values::domain::plan_parts::types::Input,
     pub root: Result<
-        crate::domain::executable_program::types::InputSource,
-        crate::domain::operating::errors::OperatingError,
+        ryo_execution_domain::domain::executable_program::types::InputSource,
+        ryo_execution_domain::domain::operating::errors::OperatingError,
     >,
 }
 /// One acquisition of the frontier sources. The request owner hands the same acquisition to every
 /// root of one population (see `FrontierCache`); a clone shares the rows and never copies them.
 #[derive(Clone)]
 pub struct PreparedFrontiers {
-    pub(in crate::application::file_dag) producer: crate::domain::coverage::types::RuleIndex,
+    pub(in crate::application::file_dag) producer: ryo_execution_domain::domain::coverage::types::RuleIndex,
     pub(in crate::application::file_dag) sources: std::sync::Arc<[FrontierSource]>,
     pub(in crate::application::file_dag) rows: std::sync::Arc<[FrontierInput]>,
     pub(in crate::application::file_dag) program:
-        std::sync::Arc<crate::domain::executable_program::types::executable_program::value::ExecutableProgram>,
+        std::sync::Arc<ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram>,
     pub(in crate::application::file_dag) required:
         crate::application::file_dag::program::admission::RequiredPartitions,
     pub(in crate::application::file_dag) refused:
-        std::sync::Arc<[crate::domain::frontiers::types::RefusedFrontier]>,
+        std::sync::Arc<[ryo_execution_domain::domain::frontiers::types::RefusedFrontier]>,
 }
 
 /// What makes two prepare calls one population: the same rule, first bucket, demand and request
 /// scope, read from the same facts and project providers.
 struct FrontierKey {
-    rule: crate::domain::coverage::types::RuleIndex,
+    rule: ryo_execution_domain::domain::coverage::types::RuleIndex,
     first: ryo_values::domain::stored_facts::types::Bucket,
     ready: Option<Vec<InputReadiness>>,
     required: crate::application::file_dag::program::admission::RequiredPartitions,
@@ -77,7 +77,7 @@ impl FrontierCache {
     }
     pub(super) fn shared<E>(
         &self,
-        rule: crate::domain::coverage::types::RuleIndex,
+        rule: ryo_execution_domain::domain::coverage::types::RuleIndex,
         first: ryo_values::domain::stored_facts::types::Bucket,
         ready: Option<&[InputReadiness]>,
         required: &crate::application::file_dag::program::admission::RequiredPartitions,
@@ -126,14 +126,14 @@ impl FrontierCache {
 #[derive(Clone)]
 pub(crate) enum FrontierInput {
     Decoded {
-        frontier: crate::domain::table_model::types::Frontier,
-        coverage: crate::domain::completion::types::CoverageState,
+        frontier: ryo_execution_domain::domain::table_model::types::Frontier,
+        coverage: ryo_execution_domain::domain::completion::types::CoverageState,
     },
     Compact {
         input: ryo_values::domain::plan_parts::types::Input,
         table: std::sync::Arc<ryo_values::domain::table_words::types::CompactTable>,
         spelling: Vec<ryo_relations::domain::relations::types::Name>,
-        coverage: crate::domain::completion::types::CoverageState,
+        coverage: ryo_execution_domain::domain::completion::types::CoverageState,
     },
     /// Read from the store and proven, not yet decoded: the first demand admits it.
     Packed(PackedFrontier),
@@ -145,7 +145,7 @@ pub(crate) struct PackedFrontier {
     pub input: ryo_values::domain::plan_parts::types::Input,
     pub words: std::sync::Arc<ryo_values::domain::stored_facts::types::KeptWords>,
     pub mode: ryo_values::domain::table_words::types::DecodeMode,
-    pub coverage: crate::domain::completion::types::CoverageState,
+    pub coverage: ryo_execution_domain::domain::completion::types::CoverageState,
 }
 
 /// How many packed frontiers one publication scope decoded.
@@ -168,7 +168,7 @@ pub(in crate::application::file_dag) struct DecodedFrontier {
     pub shape: DecodeShape,
     pub mode: ryo_values::domain::table_words::types::DecodeMode,
     pub permit: ryo_language::domain::symbols::types::TransportPermit,
-    pub admitted: Result<FrontierInput, crate::domain::frontiers::types::RefusedFrontier>,
+    pub admitted: Result<FrontierInput, ryo_execution_domain::domain::frontiers::types::RefusedFrontier>,
 }
 
 /// The frontier decodes of one publication scope. Every rule of a cohort reads its own stored
@@ -210,8 +210,8 @@ impl FrontierDecodes {
         decode: impl FnOnce(
             PackedFrontier,
             &mut ryo_language::domain::symbols::types::Symbols,
-        ) -> Result<FrontierInput, crate::domain::frontiers::types::RefusedFrontier>,
-    ) -> Result<FrontierInput, crate::domain::frontiers::types::RefusedFrontier> {
+        ) -> Result<FrontierInput, ryo_execution_domain::domain::frontiers::types::RefusedFrontier>,
+    ) -> Result<FrontierInput, ryo_execution_domain::domain::frontiers::types::RefusedFrontier> {
         use ryo_language::domain::symbols::{
             service::{same_transport_generation, transport_permit},
             types::Generation,
@@ -255,13 +255,13 @@ fn shape_of(input: ryo_values::domain::plan_parts::types::Input) -> DecodeShape 
 
 /// An earlier decode as this root admits it: the shared rows under this root's input and coverage.
 fn relabel(
-    admitted: &Result<FrontierInput, crate::domain::frontiers::types::RefusedFrontier>,
+    admitted: &Result<FrontierInput, ryo_execution_domain::domain::frontiers::types::RefusedFrontier>,
     input: ryo_values::domain::plan_parts::types::Input,
-    coverage: crate::domain::completion::types::CoverageState,
-) -> Result<FrontierInput, crate::domain::frontiers::types::RefusedFrontier> {
+    coverage: ryo_execution_domain::domain::completion::types::CoverageState,
+) -> Result<FrontierInput, ryo_execution_domain::domain::frontiers::types::RefusedFrontier> {
     match admitted.clone() {
         Ok(FrontierInput::Decoded { frontier, .. }) => Ok(FrontierInput::Decoded {
-            frontier: crate::domain::table_model::types::Frontier {
+            frontier: ryo_execution_domain::domain::table_model::types::Frontier {
                 input,
                 table: frontier.table,
             },
@@ -280,7 +280,7 @@ fn relabel(
             coverage,
             ..packed
         })),
-        Err(refused) => Err(crate::domain::frontiers::types::RefusedFrontier {
+        Err(refused) => Err(ryo_execution_domain::domain::frontiers::types::RefusedFrontier {
             input,
             error: refused.error,
         }),
@@ -290,13 +290,13 @@ fn relabel(
 impl PreparedFrontiers {
     pub(in crate::application::file_dag) fn validate_scope(
         &self,
-        program: &std::sync::Arc<crate::domain::executable_program::types::executable_program::value::ExecutableProgram>,
+        program: &std::sync::Arc<ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram>,
         required: &crate::application::file_dag::program::admission::RequiredPartitions,
-    ) -> Result<(), crate::domain::operating::errors::OperatingError> {
+    ) -> Result<(), ryo_execution_domain::domain::operating::errors::OperatingError> {
         if !std::sync::Arc::ptr_eq(&self.program, program) || self.required.same_request(required)
             == crate::application::file_dag::program::admission::Agreement::Different
         {
-            return Err(crate::domain::operating::errors::OperatingError::NotRead);
+            return Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead);
         }
         Ok(())
     }
@@ -304,10 +304,10 @@ impl PreparedFrontiers {
 
 pub(in crate::application::file_dag) fn validate_consumer_sources(
     prepared: &crate::application::file_dag::program::preparation::types::PreparedProgram,
-    producer: crate::domain::coverage::types::RuleIndex,
+    producer: ryo_execution_domain::domain::coverage::types::RuleIndex,
     sources: &[FrontierSource],
-    consumer: crate::domain::coverage::types::RuleIndex,
-) -> Result<(), crate::domain::operating::errors::OperatingError> {
+    consumer: ryo_execution_domain::domain::coverage::types::RuleIndex,
+) -> Result<(), ryo_execution_domain::domain::operating::errors::OperatingError> {
     if consumer == producer {
         return Ok(());
     }
@@ -315,22 +315,22 @@ pub(in crate::application::file_dag) fn validate_consumer_sources(
     // An undeclared rule in range finds no source here and is refused like an unread input.
     prepared.frontiers(consumer)?;
     if sources.is_empty() {
-        return Err(crate::domain::operating::errors::OperatingError::NotRead);
+        return Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead);
     }
     for binding in sources {
         let at = prepared
             .frontiers(consumer)?
             .iter()
             .position(|input| *input == binding.input)
-            .ok_or(crate::domain::operating::errors::OperatingError::NotRead)?;
+            .ok_or(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead)?;
         let expected = prepared
             .program()
             .rules()
             .get(consumer.0)
             .and_then(|rule| rule.frontier.get(at))
-            .ok_or(crate::domain::operating::errors::OperatingError::NotRead)?;
+            .ok_or(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead)?;
         if !matches!((&binding.root, expected), (Ok(actual), Ok(expected)) if actual == expected) {
-            return Err(crate::domain::operating::errors::OperatingError::NotRead);
+            return Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead);
         }
     }
     Ok(())

@@ -11,14 +11,14 @@ use crate::application::file_dag::program::admission::Emptiness;
 use crate::application::file_dag::program::admission::Inputs;
 use crate::application::file_dag::program::admission::Partition;
 use crate::application::file_dag::relations::RelationOwner;
-use crate::domain::executable_program::types::executable_program::value::ExecutableProgram;
-use crate::domain::executable_program::types::instruction::value::Instruction;
-use crate::domain::executable_program::types::region::value::Region;
-use crate::domain::executable_program::types::RegionId;
-use crate::domain::executable_program::types::RouteKind;
-use crate::domain::operating::errors::OperatingError;
-use crate::domain::operating::types::Emit;
-use crate::domain::operating::types::OperatorContext;
+use ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram;
+use ryo_execution_domain::domain::executable_program::types::instruction::value::Instruction;
+use ryo_execution_domain::domain::executable_program::types::region::value::Region;
+use ryo_execution_domain::domain::executable_program::types::RegionId;
+use ryo_execution_domain::domain::executable_program::types::RouteKind;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operating::types::Emit;
+use ryo_execution_domain::domain::operating::types::OperatorContext;
 use std::cell::RefCell;
 use std::sync::Arc;
 
@@ -43,7 +43,7 @@ pub(in crate::application::file_dag::program) trait KernelInvocation {
 
     fn ordered(
         &self,
-        shape: &crate::domain::executable_program::types::OrderedExistence,
+        shape: &ryo_execution_domain::domain::executable_program::types::OrderedExistence,
         permit: &KernelPermit<'_>,
         input: &AdmittedInput,
         context: &mut OperatorContext<'_>,
@@ -74,12 +74,12 @@ struct AdmissionProgress {
     emptiness: Vec<EmptinessAnswer>,
 }
 struct AcquiredInput {
-    source: crate::domain::executable_program::types::InputSource,
+    source: ryo_execution_domain::domain::executable_program::types::InputSource,
     stage: InputStage,
 }
 struct EmptinessAnswer {
-    source: crate::domain::executable_program::types::InputSource,
-    representation: crate::domain::operator::contract::types::EmptyRepresentation,
+    source: ryo_execution_domain::domain::executable_program::types::InputSource,
+    representation: ryo_execution_domain::domain::operator::contract::types::EmptyRepresentation,
     emptiness: Emptiness,
 }
 enum InputStage {
@@ -104,18 +104,18 @@ struct ProducerLeaseProbe {
 }
 struct Slot {
     #[cfg(test)]
-    observed: crate::domain::operating::fixtures::ExecutionObservation,
+    observed: ryo_execution_domain::domain::operating::fixtures::ExecutionObservation,
     #[cfg(test)]
     registered_calls: CallCount,
     state: State,
     scratch: Vec<KernelScratch>,
     admission: AdmissionProgress,
-    fed: Box<[crate::domain::operator::types::RowsFed]>,
+    fed: Box<[ryo_execution_domain::domain::operator::types::RowsFed]>,
     remaining: ReaderCount,
     dependencies_consumed: Dependencies,
     waiting_on: Option<RegionId>,
     completion:
-        Option<crate::domain::completion::types::completion_policy::value::CompletionPolicy>,
+        Option<ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy>,
 }
 /// Reused scope-local planning buffers. No per-row allocation or mutation of
 /// reader counts occurs until the entire cancellation cascade validates.
@@ -141,14 +141,14 @@ pub(crate) struct ProgramExecution {
     file_state: RuntimeState,
     project_states: RefCell<Vec<ProjectState>>,
     cleanup_failure: RefCell<Option<OperatingError>>,
-    readiness_counts: RefCell<crate::domain::readiness::types::ReadinessCounts>,
+    readiness_counts: RefCell<ryo_execution_domain::domain::readiness::types::ReadinessCounts>,
     #[cfg(test)]
     producer_lease_probe: RefCell<Option<ProducerLeaseProbe>>,
 }
 /// Qualified state for the same interpreter; never an independent execution owner.
 enum RootReaders {
     Declared,
-    Selected(Arc<crate::domain::executable_program::types::RemainingTable>),
+    Selected(Arc<ryo_execution_domain::domain::executable_program::types::RemainingTable>),
 }
 pub(in crate::application::file_dag::program) struct RuntimeState {
     generation: Arc<()>,
@@ -196,7 +196,7 @@ enum BoundInputs<'a> {
     Ordered(&'a AdmittedInput),
 }
 pub(crate) struct KernelPermit<'scope> {
-    program: &'scope crate::domain::executable_program::types::executable_program::value::ExecutableProgram,
+    program: &'scope ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram,
     region: RegionId,
     instruction: InstructionIndex,
     generation: &'scope Arc<()>,
@@ -211,7 +211,7 @@ pub(crate) struct KernelPermit<'scope> {
 /// Pure borrowed semantic authority. It exposes neither worker ownership nor
 /// dependency acquisition, and cannot outlive its admitted invocation permit.
 pub(in crate::application::file_dag) struct SemanticPermit<'scope> {
-    program: &'scope crate::domain::executable_program::types::executable_program::value::ExecutableProgram,
+    program: &'scope ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram,
     region: RegionId,
     instruction: InstructionIndex,
     live:
@@ -223,14 +223,14 @@ pub(in crate::application::file_dag) struct SemanticPermit<'scope> {
 pub(crate) struct PermittedPhysical<'permit, 'meaning, 'scope> {
     permit: &'permit SemanticPermit<'scope>,
     meaning: ryo_operators::inbound::use_cases::operators::types::OperatorCall<'meaning>,
-    authority: crate::domain::executable_program::physical::PhysicalAuthorization,
+    authority: ryo_execution_domain::domain::executable_program::physical::PhysicalAuthorization,
 }
 
 /// The borrowed frame of one poll that the demand stages share; it grants nothing the poll lacked.
 pub(in crate::application::file_dag::program::runtime::service) struct Poll<'call, 'ctx> {
     id: RegionId,
     region: &'call Region,
-    completion: &'call crate::domain::completion::types::completion_policy::value::CompletionPolicy,
+    completion: &'call ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy,
     kernels: &'call dyn KernelInvocation,
     prepare_only: PollMode,
     inputs: &'call mut dyn Inputs,

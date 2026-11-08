@@ -18,7 +18,7 @@ use crate::inbound::use_cases::execution::interface::ObservationDemand;
 use crate::inbound::use_cases::execution::interface::OperatingError;
 use crate::inbound::use_cases::execution::interface::RuleDemand;
 use crate::inbound::use_cases::execution::interface::RuleIndex;
-use crate::domain::prepared_request::types::ObservationIdentity;
+use ryo_execution_domain::domain::prepared_request::types::ObservationIdentity;
 use ryo_language::domain::{elements::types::Elements, symbols::types::Symbols};
 use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;

@@ -1,7 +1,7 @@
 //! Warm replay closure is observed through the actual prepared facade, not a copied graph algorithm.
 
 use crate::application::file_dag::program::preparation::types::ReplayClosure;
-use crate::domain::{
+use ryo_execution_domain::domain::{
     operating::errors::OperatingError,
     prepared_request::{service::assemble, types::ObservationIdentity},
 };

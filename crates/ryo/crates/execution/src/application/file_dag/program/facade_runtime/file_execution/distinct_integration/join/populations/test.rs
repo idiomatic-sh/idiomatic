@@ -162,13 +162,13 @@ fn partial_empty_population_keeps_exact_empty_rows_and_partial_provenance() {
         false,
         real_port(),
         Faults {
-            partials: vec![crate::domain::coverage::types::Partial {
+            partials: vec![ryo_execution_domain::domain::coverage::types::Partial {
                 relation: Relation::Entry,
                 cause: ryo_values::domain::stored_facts::types::PartialCause(
                     "incomplete fixture".into(),
                 ),
-                lacking: crate::domain::coverage::types::Lacking::Any,
-                at: crate::domain::coverage::types::PartialPlace::Repository,
+                lacking: ryo_execution_domain::domain::coverage::types::Lacking::Any,
+                at: ryo_execution_domain::domain::coverage::types::PartialPlace::Repository,
             }],
             optional_limit: Some(0),
             ..Faults::default()

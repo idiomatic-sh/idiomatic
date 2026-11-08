@@ -15,13 +15,13 @@ use crate::application::file_dag::program::facade_runtime::types::PublicationSco
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use crate::application::file_dag::program::runtime::service::ProgramExecution;
 use crate::application::file_dag::relations::RelationOwner;
-use crate::domain::completion::types::completion_policy::value::CompletionPolicy;
-use crate::domain::coverage::types::RuleIndex;
-use crate::domain::operating::errors::OperatingError;
-use crate::domain::operating::types::OperatorContext;
-use crate::domain::table_model::service::count_of;
-use crate::domain::table_model::service::materialize;
-use crate::domain::table_model::types::Rows;
+use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
+use ryo_execution_domain::domain::coverage::types::RuleIndex;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operating::types::OperatorContext;
+use ryo_execution_domain::domain::table_model::service::count_of;
+use ryo_execution_domain::domain::table_model::service::materialize;
+use ryo_execution_domain::domain::table_model::types::Rows;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::rows::types::Table;
 use rustc_hash::FxHashMap;
@@ -34,7 +34,7 @@ pub(super) struct ProjectSources<'a> {
     pub(super) ordinary: &'a [Rc<
         super::super::project_population::types::ProjectFrontierPopulation<AvailableInput>,
     >],
-    pub(super) refused: &'a [crate::domain::frontiers::types::RefusedFrontier],
+    pub(super) refused: &'a [ryo_execution_domain::domain::frontiers::types::RefusedFrontier],
     pub(super) bound:
         &'a mut [Option<crate::application::file_dag::frontiers::types::BoundInput>],
     pub(super) cache: &'a mut Vec<CachedInput>,
@@ -62,7 +62,7 @@ pub(super) struct SourceInputs<'a, 'facts> {
 impl SourceInputs<'_, '_> {
     pub(super) fn admit_source(
         &mut self,
-        source: crate::domain::executable_program::types::InputSource,
+        source: ryo_execution_domain::domain::executable_program::types::InputSource,
         partition: &Partition,
         context: &mut OperatorContext<'_>,
     ) -> Result<AdmittedInput, OperatingError> {
@@ -82,9 +82,9 @@ impl Inputs for SourceInputs<'_, '_> {
     }
     fn dependency(
         &self,
-        source: crate::domain::executable_program::types::InputSource,
-    ) -> Result<Option<crate::domain::executable_program::types::RegionId>, OperatingError> {
-        use crate::domain::executable_program::types::InputSource;
+        source: ryo_execution_domain::domain::executable_program::types::InputSource,
+    ) -> Result<Option<ryo_execution_domain::domain::executable_program::types::RegionId>, OperatingError> {
+        use ryo_execution_domain::domain::executable_program::types::InputSource;
         if self
             .project
             .as_ref()
@@ -92,14 +92,14 @@ impl Inputs for SourceInputs<'_, '_> {
         {
             return Ok(None);
         }
-        if let InputSource::Observation(crate::domain::executable_program::types::ObservationPlace(slot)) = source {
+        if let InputSource::Observation(ryo_execution_domain::domain::executable_program::types::ObservationPlace(slot)) = source {
             if self.observations.contains_key(&ObservationKey(slot)) {
                 return Ok(None);
             }
         }
         let region = match source {
             InputSource::Region(id) => Some(id),
-            InputSource::Observation(crate::domain::executable_program::types::ObservationPlace(slot)) => Some(
+            InputSource::Observation(ryo_execution_domain::domain::executable_program::types::ObservationPlace(slot)) => Some(
                 *self
                     .program
                     .program()
@@ -110,8 +110,8 @@ impl Inputs for SourceInputs<'_, '_> {
                     .map_err(Clone::clone)?,
             ),
             InputSource::ObservationMember {
-                slot: crate::domain::executable_program::types::ObservationPlace(slot),
-                member: crate::domain::executable_program::types::ProducerMember(member),
+                slot: ryo_execution_domain::domain::executable_program::types::ObservationPlace(slot),
+                member: ryo_execution_domain::domain::executable_program::types::ProducerMember(member),
             } => {
                 let named = self
                     .program
@@ -128,7 +128,7 @@ impl Inputs for SourceInputs<'_, '_> {
                     .and_then(|binding| binding.producers.get(member))
                     .ok_or(OperatingError::NotRun)?;
                 match producer {
-                    crate::domain::file_program::types::ResolvedObservationProducer::Output {
+                    ryo_execution_domain::domain::file_program::types::ResolvedObservationProducer::Output {
                         rule,
                         output,
                     } => {
@@ -151,7 +151,7 @@ impl Inputs for SourceInputs<'_, '_> {
                             .completion
                             .for_rule(*rule)
                             .observation_admission(&root.reads)
-                            != crate::domain::completion::types::ObservationAdmission::Ready
+                            != ryo_execution_domain::domain::completion::types::ObservationAdmission::Ready
                         {
                             return Ok(None);
                         }
@@ -164,7 +164,7 @@ impl Inputs for SourceInputs<'_, '_> {
                             .map_err(Clone::clone)?
                         {
                             InputSource::Region(id) => Some(*id),
-                            InputSource::Observation(crate::domain::executable_program::types::ObservationPlace(slot)) => Some(
+                            InputSource::Observation(ryo_execution_domain::domain::executable_program::types::ObservationPlace(slot)) => Some(
                                 *self
                                     .program
                                     .program()
@@ -189,7 +189,7 @@ impl Inputs for SourceInputs<'_, '_> {
     }
     fn supply(
         &mut self,
-        source: crate::domain::executable_program::types::InputSource,
+        source: ryo_execution_domain::domain::executable_program::types::InputSource,
         partition: &Partition,
         context: &mut OperatorContext<'_>,
     ) -> Result<AvailableInput, OperatingError> {
@@ -206,13 +206,13 @@ impl Inputs for SourceInputs<'_, '_> {
     fn is_empty(
         &self,
         input: &AdmittedInput,
-        representation: crate::domain::operator::contract::types::EmptyRepresentation,
+        representation: ryo_execution_domain::domain::operator::contract::types::EmptyRepresentation,
     ) -> Result<Emptiness, OperatingError> {
         let rows = input.rows(&self.owner, self.read)?;
         Ok(
             if count_of(&rows).0 == 0
                 && (representation
-                    == crate::domain::operator::contract::types::EmptyRepresentation::Any
+                    == ryo_execution_domain::domain::operator::contract::types::EmptyRepresentation::Any
                     || matches!(rows, Rows::Computed(_)))
             {
                 Emptiness::Empty
@@ -234,7 +234,7 @@ impl Inputs for SourceInputs<'_, '_> {
         &self,
         input: &AdmittedInput,
         context: &mut OperatorContext<'_>,
-        output: &mut dyn crate::domain::operating::types::Emit,
+        output: &mut dyn ryo_execution_domain::domain::operating::types::Emit,
     ) -> Result<(), OperatingError> {
         self.replay_source(input, context, output)
     }

@@ -1,6 +1,6 @@
 //! Join assertions enter the actual compiled file owner and its real semantic port.
 use super::*;
-use crate::domain::{
+use ryo_execution_domain::domain::{
     table_cells::types::TreeRows,
     table_model::{collections::representations::types::RepresentationKind, service::materialize},
 };

@@ -1,8 +1,8 @@
 //! Schema, publication and refusal controls through production request preparation.
-use crate::domain::file_program::service::compile_prepared_observations;
-use crate::domain::file_program::types::NodeInput;
-use crate::domain::file_program::types::ObservationRequest;
-use crate::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::file_program::service::compile_prepared_observations;
+use ryo_execution_domain::domain::file_program::types::NodeInput;
+use ryo_execution_domain::domain::file_program::types::ObservationRequest;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_relations::domain::relations::service::kinds;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_relations::domain::relations::types::Integer;
@@ -70,7 +70,7 @@ fn the_step_handed_to_cross_file_steps_is_its_frontier() {
     let program = request.program();
     assert!(matches!(
         program.rules()[0].frontier[0],
-        Ok(crate::domain::executable_program::types::InputSource::Region(_))
+        Ok(ryo_execution_domain::domain::executable_program::types::InputSource::Region(_))
     ));
 }
 
@@ -316,7 +316,7 @@ fn an_invalid_frontier_keeps_the_prior_source_and_its_own_typed_refusal() {
     let frontier = &request.program().rules()[0].frontier;
     assert!(matches!(
         frontier[0],
-        Ok(crate::domain::executable_program::types::InputSource::Relation(Relation::Function))
+        Ok(ryo_execution_domain::domain::executable_program::types::InputSource::Relation(Relation::Function))
     ));
     assert_eq!(frontier[1], Err(OperatingError::NotRun));
 }

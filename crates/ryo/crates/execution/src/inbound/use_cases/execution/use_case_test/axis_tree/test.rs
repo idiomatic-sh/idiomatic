@@ -5,7 +5,7 @@ use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_relations::domain::relations::types::Value as Cell;
-use crate::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_language::domain::elements::types::Elements;
 use ryo_relations::domain::relations::service::node_id;
 use ryo_relations::domain::relations::types::Integer;

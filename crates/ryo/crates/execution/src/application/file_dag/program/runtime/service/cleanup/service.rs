@@ -5,8 +5,8 @@ use super::super::{
 #[cfg(test)]
 use crate::application::file_dag::program::runtime::types::ConsumerReleasePoint;
 use crate::application::file_dag::program::runtime::types::{Dependencies, ReaderCount};
-use crate::domain::executable_program::types::RegionId;
-use crate::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::executable_program::types::RegionId;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 
 impl RetirementWork {
     pub(in crate::application::file_dag::program::runtime::service) fn reset(&mut self) {

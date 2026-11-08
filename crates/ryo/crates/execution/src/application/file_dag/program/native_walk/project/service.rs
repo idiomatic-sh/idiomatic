@@ -13,7 +13,7 @@ use crate::application::file_dag::executor::{
 };
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use crate::application::file_dag::program::runtime::service::{KernelPermit, ReadySelection};
-use crate::domain::{
+use ryo_execution_domain::domain::{
     coverage::types::RuleIndex,
     operating::{errors::OperatingError, types::OperatorContext},
     step_classes::types::ClassPlace,
@@ -69,7 +69,7 @@ impl WalkPartition<'_> {
                 logical = permit.descriptor().logical().0, relation = ?relation,
                 generation = ?permit.diagnostic_generation(), population = ?input.population(owner),
                 classes = ?[class.0],
-                reason = ?crate::domain::shared_walk::types::WalkRefusal::Representation);
+                reason = ?ryo_execution_domain::domain::shared_walk::types::WalkRefusal::Representation);
         }
         Ok(submitted)
     }
@@ -226,7 +226,7 @@ impl ProjectWalk {
                 Ok(KernelAnswer::Walk(batch)) => batch,
                 Err(KernelFault::Refused(error)) => return Err(error),
                 Err(KernelFault::Portable(error)) => {
-                    return Err(crate::domain::operator::contract::types::portable_fault(
+                    return Err(ryo_execution_domain::domain::operator::contract::types::portable_fault(
                         error,
                     ));
                 }

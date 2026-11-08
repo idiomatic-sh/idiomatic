@@ -1,6 +1,6 @@
 //! Actual invocation storage measurements through normal compiled file execution.
 use super::super::*;
-use crate::domain::operating::fixtures::ExecutionObservation;
+use ryo_execution_domain::domain::operating::fixtures::ExecutionObservation;
 use ryo_values::domain::{
     hosted::types::{HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow},
     plan_parts::types::{HostedNumber, Operand, PlanComparison, Test},

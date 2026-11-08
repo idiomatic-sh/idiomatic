@@ -4,7 +4,7 @@ use super::super::{
     RequiredPartitions,
 };
 use crate::application::file_dag::relations::RelationOwner;
-use crate::domain::{
+use ryo_execution_domain::domain::{
     coverage::types::RuleIndex, operating::errors::OperatingError,
     rule_intent::types::ApplicabilityReason,
 };
@@ -44,7 +44,7 @@ impl RequiredPartitions {
     pub(in crate::application::file_dag::program) fn from_request(
         request: &Arc<crate::application::file_dag::program::request_identity::RequestIdentity>,
         files: &[ryo_values::domain::files::types::CorpusInput],
-        covered: &[crate::domain::coverage::types::Covered],
+        covered: &[ryo_execution_domain::domain::coverage::types::Covered],
         skipped: &[ryo_values::domain::runs::types::Skipped],
         inapplicable: &[FileId],
     ) -> Result<Self, OperatingError> {

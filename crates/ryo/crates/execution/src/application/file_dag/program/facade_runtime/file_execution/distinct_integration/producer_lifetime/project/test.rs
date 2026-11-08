@@ -9,7 +9,7 @@ use crate::application::file_dag::program::facade_runtime::project_execution::Pr
 use crate::application::file_dag::program::facade_runtime::project_execution::evaluate_roots;
 use crate::application::file_dag::program::facade_runtime::types::ProjectFrontiers;
 use crate::application::file_dag::program::rule_outcome::types::ProjectBatch;
-use crate::domain::{
+use ryo_execution_domain::domain::{
     completion::types::CoverageState, coverage::types::Partials, table_model::types::Frontier,
 };
 use ryo_values::domain::rows::errors::RowsError;

@@ -4,8 +4,8 @@ use crate::application::file_dag::derived::owner::graphs::types::handles::types:
 use crate::application::file_dag::derived::owner::{
     fixtures::graph::GraphFixture, index::service::LIMIT,
 };
-use crate::domain::stored_graph::types::{GraphWalk, Orientation};
-use crate::domain::table_model::types::Rows;
+use ryo_execution_domain::domain::stored_graph::types::{GraphWalk, Orientation};
+use ryo_execution_domain::domain::table_model::types::Rows;
 use ryo_relations::domain::relations::types::{
     CellKind, ColumnsView, FactColumn, Integer, Relation, Value,
 };
@@ -124,7 +124,7 @@ fn budget_refusal_keeps_complete_local_graph_without_retaining_handles() {
 
 #[test]
 fn physical_partiality_ragged_views_and_next_generation_never_hit_old_graphs() {
-    use crate::domain::coverage::types::{Lacking, LackingKind, Partial};
+    use ryo_execution_domain::domain::coverage::types::{Lacking, LackingKind, Partial};
     use ryo_values::domain::stored_facts::types::PartialCause;
     let columns = [FactColumn(vec![1, 2]), FactColumn(vec![2, 3])];
     let source = rows(&columns);
@@ -132,7 +132,7 @@ fn physical_partiality_ragged_views_and_next_generation_never_hit_old_graphs() {
         relation: Relation::Function,
         cause: PartialCause("missing kind".into()),
         lacking: Lacking::Kind(LackingKind("unknown".into())),
-        at: crate::domain::coverage::types::PartialPlace::Repository,
+        at: ryo_execution_domain::domain::coverage::types::PartialPlace::Repository,
     }];
     let partial = GraphFixture::new(&[Relation::Function], &partials, LIMIT);
     assert!(
@@ -288,7 +288,7 @@ fn retired_immutable_handles_keep_their_lease_but_cannot_authorize_new_demands()
             Value::Number(Integer(1)),
             &mut GraphWalk::default()
         ),
-        Err(crate::domain::operating::errors::OperatingError::NotRead)
+        Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead)
     ));
     assert!(matches!(
         fixture.nearest(
@@ -299,7 +299,7 @@ fn retired_immutable_handles_keep_their_lease_but_cannot_authorize_new_demands()
             &mut vec![],
             &mut GraphWalk::default()
         ),
-        Err(crate::domain::operating::errors::OperatingError::NotRead)
+        Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead)
     ));
     drop(domain);
     drop(graph);

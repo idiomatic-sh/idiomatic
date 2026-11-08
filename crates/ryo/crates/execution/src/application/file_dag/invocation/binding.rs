@@ -1,6 +1,6 @@
 //! A read-only binding to invocation-owned handles, without copying an all-kind bundle per row.
 use super::*;
-use crate::domain::operator::contract::types::PrimitiveResources;
+use ryo_execution_domain::domain::operator::contract::types::PrimitiveResources;
 
 impl PrimitiveResources for InvocationInputs<'_> {
     fn validate_declared(&self) -> Result<(), OperatingError> {
@@ -26,7 +26,7 @@ impl PrimitiveResources for InvocationInputs<'_> {
     }
     fn axis(
         &self,
-    ) -> Result<Option<crate::domain::operator::contract::views::PreparedAxis<'_>>, OperatingError>
+    ) -> Result<Option<ryo_execution_domain::domain::operator::contract::views::PreparedAxis<'_>>, OperatingError>
     {
         #[cfg(feature = "diagnostic-row-progress")]
         let axis = self.axis.as_ref().map(|axis| axis.view(&self.progress));
@@ -46,12 +46,12 @@ impl PrimitiveResources for InvocationInputs<'_> {
     }
     fn closure(
         &self,
-    ) -> Result<crate::domain::operator::contract::views::ClosureViews<'_>, OperatingError> {
+    ) -> Result<ryo_execution_domain::domain::operator::contract::views::ClosureViews<'_>, OperatingError> {
         Ok(match &self.partitioned_closure {
             Some(parts) => {
-                crate::domain::operator::contract::views::ClosureViews::One(parts.current()?)
+                ryo_execution_domain::domain::operator::contract::views::ClosureViews::One(parts.current()?)
             }
-            None => crate::domain::operator::contract::views::ClosureViews::Many(&self.closure),
+            None => ryo_execution_domain::domain::operator::contract::views::ClosureViews::Many(self),
         })
     }
     fn ordered(&self) -> Result<Option<&OrderedMatching>, OperatingError> {
