@@ -19,7 +19,6 @@ pub struct Snapshot {
     pub graph_early_stops: u64,
 }
 /// A relation owner over a recording port, with the resource acquisitions a proof drives.
-#[derive(Debug)]
 pub struct ResourceFixture {
     owner: Rc<RelationOwner>,
 }

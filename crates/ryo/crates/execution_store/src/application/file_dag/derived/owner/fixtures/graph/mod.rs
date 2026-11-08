@@ -27,7 +27,6 @@ use ryo_values::domain::{
 use std::rc::Rc;
 
 /// A derived owner over a fake port, with the graph acquisitions a proof drives.
-#[derive(Debug)]
 pub struct GraphFixture {
     pub(crate) owner: Rc<RelationOwner>,
     wanted: Vec<Relation>,

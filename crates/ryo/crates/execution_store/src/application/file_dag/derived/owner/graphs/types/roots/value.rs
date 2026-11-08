@@ -34,7 +34,6 @@ use std::sync::Arc;
 
 /// The owner supplies both the retained storage and every admission decision.
 /// Mutable backend access ends before a downstream row can emit.
-#[derive(Debug)]
 pub struct DemandAnswers<'a> {
     owner: &'a DerivedOwner,
     cache: &'a mut CacheBackend,

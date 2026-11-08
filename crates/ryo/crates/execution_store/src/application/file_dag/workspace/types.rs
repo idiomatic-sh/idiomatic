@@ -6,7 +6,6 @@ use ryo_matching::inbound::use_cases::matching::compiled::CompiledRegex;
 
 /// The working allocations of one invocation, each borrowed apart from the others: a view of the workspace, never
 /// a second owner of them. The admitted publications are not lent.
-#[derive(Debug)]
 pub struct WorkspaceParts<'w> {
     /// The relation owner the invocation reads through.
     pub owner: &'w crate::application::file_dag::relations::RelationOwner,

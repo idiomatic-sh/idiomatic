@@ -176,7 +176,6 @@ impl InvocationWorkspace {
 
 /// Only the workspace can bind an original graph row view to its admission.
 /// The graph path never receives independently replaceable raw rows and proof.
-#[derive(Debug)]
 pub struct GraphInput<'a> {
     rows: &'a ryo_execution_domain::domain::table_model::types::Rows<'a>,
     proof: BorrowedInput<'a>,
@@ -251,7 +250,6 @@ pub enum ViewInputs<'a, 's> {
 }
 /// One immutable demand scope, not a retained cache. At most three registered
 /// operator inputs are held; only demanded slots acquire a proof.
-#[derive(Debug)]
 pub struct InputAdmissions<'a, 'f> {
     workspace: &'a InvocationWorkspace,
     inputs: &'a [RepresentationInput<'f>],
