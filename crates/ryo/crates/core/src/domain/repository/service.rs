@@ -1,7 +1,7 @@
 //! The `repository` service: free functions named by verb over the files of a run, with no IO and no ports.
 
-use super::constants::{RELATION_SCHEMA_LABEL, SOURCE_SELECTION_LABEL};
-use super::types::{DigestColumn, DigestRelation, SchemaCount};
+use super::constants::{COMPILED_PLAN_LABEL, RELATION_SCHEMA_LABEL, SOURCE_SELECTION_LABEL};
+use super::types::{DigestColumn, DigestRelation, IdentityHasher, SchemaCount};
 use crate::domain::keeping::service::configuration_bytes;
 use crate::domain::keeping::types::{Configuration, DigestInput, DigestPart, HostedText};
 use ryo_language::domain::files::types::FilePath;
@@ -9,6 +9,7 @@ use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::rule_requests::types::RuleSpec;
 use ryo_values::domain::files::service::input_path;
 use ryo_values::domain::files::types::CorpusInput;
+use ryo_values::domain::plans::types::Plan;
 
 /// What is read of the rules and the relations the host declares (as their lines, spelled once per run however many rules
 /// are digested) to say whether what the store kept of the rules can be used, as the bytes to digest.
@@ -103,4 +104,16 @@ pub(crate) fn source_selection_identity(
         }
     }
     bytes
+}
+
+/// The identity of the plan a rule executes: the lowered plan after the handover rewrites (regrouping, narrowing, pushing), not
+/// its source text, as the label then the bytes the plan's derived `Hash` feeds. The derive covers every field, those added later
+/// too, so a build whose rewrites put other steps at a frontier position, or keep other columns, names another plan, and what a
+/// store kept under the old one is not used again.
+#[must_use]
+pub(crate) fn plan_identity(plan: &Plan) -> DigestInput {
+    use std::hash::Hash as _;
+    let mut hasher = IdentityHasher(DigestInput(COMPILED_PLAN_LABEL.as_bytes().to_vec()));
+    plan.hash(&mut hasher);
+    hasher.0
 }

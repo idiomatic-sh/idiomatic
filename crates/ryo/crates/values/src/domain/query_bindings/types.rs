@@ -33,7 +33,7 @@ pub struct BindingCell {
 }
 
 /// A parameter the host supplies when it runs the plan.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct PlanParameter {
     /// The parameter's name, as the host supplies it: text that came from the query.
     pub name: ParameterName,
@@ -42,7 +42,7 @@ pub struct PlanParameter {
 }
 
 /// What a parameter holds.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum ParameterType {
     /// A yes or no.
     Flag,

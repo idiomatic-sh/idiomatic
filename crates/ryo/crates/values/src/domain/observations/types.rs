@@ -15,7 +15,7 @@ pub struct ObservationBindingName(pub Box<str>);
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ObservationColumnName(pub Box<str>);
 /// One ordered column in a named-output contract.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ObservationColumn {
     /// Semantic column spelling, independent of any physical row representation.
     pub name: ObservationColumnName,
@@ -23,7 +23,7 @@ pub struct ObservationColumn {
     pub kind: CellKind,
 }
 /// An authored root retained independently of the diagnostic Emit root.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Hash)]
 pub struct PlanObservation {
     /// Public output name.
     pub name: ObservationName,
@@ -52,7 +52,7 @@ pub enum ObservationProducer {
     },
 }
 /// The schema of a consumer's bound input, supplied during query compilation.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct BoundObservationInput {
     /// Local source name in the consumer query.
     pub name: ObservationBindingName,

@@ -1,9 +1,13 @@
 //! The `repository` service's cases, on values alone.
 
+use super::constants::COMPILED_PLAN_LABEL;
 use super::service::{
-    by_path, catalog_schema, configuration, paths_of, schema_bytes, source_selection_identity,
+    by_path, catalog_schema, configuration, paths_of, plan_identity, schema_bytes,
+    source_selection_identity,
 };
-use super::types::{DigestColumn, DigestRelation};
+use super::types::{DigestColumn, DigestRelation, IdentityHasher};
+use crate::domain::keeping::types::DigestInput;
+use ryo_execution::outbound::query_language::fixtures::fake::QueryLanguageFake;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_relations::domain::labels::types::NameRef;
 use crate::cases::{Case, CaseName, Expect, Word, run};
@@ -31,6 +35,9 @@ enum Scenario {
     LegacyCatalog,
     /// Adjacent names do not alias and the real catalog is stable.
     SchemaFrames,
+    /// A plan's identity is the label then its derived `Hash` bytes, numbers at a fixed width: the same plan the same bytes, another
+    /// plan of one more step other bytes.
+    PlanIdentity,
 }
 
 /// What a row of the cases does with the files of a run.
@@ -192,6 +199,20 @@ fn subject(scenario: Input) -> Value {
             assert!(!catalog_schema().0.is_empty());
             [1, 1, 1]
         }
+        Scenario::PlanIdentity => {
+            use std::hash::Hasher as _;
+            let mut length = IdentityHasher(DigestInput::default());
+            length.write_usize(7);
+            assert_eq!(length.0.0, 7_u64.to_le_bytes());
+            let once = plan_identity(&QueryLanguageFake::selecting().plan);
+            let again = plan_identity(&QueryLanguageFake::selecting().plan);
+            let rewritten = plan_identity(&QueryLanguageFake::selecting_twice().plan);
+            [
+                i64::from(once == again),
+                i64::from(once.0.starts_with(COMPILED_PLAN_LABEL.as_bytes())),
+                i64::from(once == rewritten),
+            ]
+        }
         Scenario::Configured => {
             let digest = |rules: &[RuleSpec]| configuration(rules, &[]);
             let first = digest(&[rule("a", "select x")]);
@@ -251,6 +272,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Scenario::SchemaFrames,
         expect: Expect::Value([1, 1, 1]),
+    },
+    Case {
+        name: CaseName("a_plan_identity_is_its_label_then_its_hash_bytes_and_another_plan_differs"),
+        word: Word::Succeeds,
+        input: || Scenario::PlanIdentity,
+        expect: Expect::Value([1, 1, 0]),
     },
 ];
 
