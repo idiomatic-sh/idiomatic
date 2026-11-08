@@ -37,10 +37,10 @@ Two artifacts:
 1. `crates/ryo/docs/contracts/evidence/checkpoint/rust-review.json`, which the PM commits in the reviewed tree:
    ```json
    {"checkpoint": 320, "source": "<sha reviewed>", "verdict": "PASS",
-    "items": [{"item": 1, "verdict": "PASS", "evidence": "<file:line and one sentence>"}],
-    "reviewer": "rust-principal-review", "date": "<ISO 8601>"}
+    "checks": [{"id": "1", "verdict": "PASS", "evidence": "<file:line and one sentence>"}],
+    "reviewer": "rust-review", "date": "<ISO 8601>"}
    ```
-   `checkpoint` is the number N, `"landing-N"` or `"perf:<branch>"`; `items` holds all seven items in order; `verdict` is FAIL when any item is FAIL.
+   The evidence file follows the [review evidence schema](../../crates/ryo/docs/contracts/review/README.md#review-evidence-schema). `checkpoint` is the number N, `"landing-N"` or `"perf:<branch>"`; `checks` holds all seven items in order; `verdict` is FAIL when any item is FAIL.
 2. A Markdown report beside the contract review's in the session scratchpad: one section per item with its verdict, the file:line evidence and, for each FAIL, the required change.
 
 ## Public SDK contracts
@@ -54,7 +54,7 @@ Item 1 carries these, and they can FAIL it. A public SDK surface is the SDK crat
 - a public item without docs and an example.
 
 ## Open-source hygiene (advisory)
-The review is also made as a maintainer of widely used open-source Rust developer tools would make it (the standard set by cargo, ripgrep, uv/ruff and rust-analyzer). It advises, each advisory with file:line and the concrete fix, on:
+The review is also made as a maintainer of widely used open-source Rust developer tools would make it (the standard set by cargo, ripgrep, uv/ruff and rust-analyzer). It advises, each advisory with file:line and the concrete fix, and every advisory either names a bead id the PM files or is dropped with a one-line reason; no advisory list carries over from a previous pass. It advises on:
 - API design per the Rust API Guidelines: naming, conversions, error types, no leaked internals, sealed or extensible traits used deliberately.
 - Error handling and messages a user can act on.
 - CLI and dev-tool ergonomics per the repo's adopted clig.dev guidance: exit codes, stderr and stdout, output both human and machine readable.

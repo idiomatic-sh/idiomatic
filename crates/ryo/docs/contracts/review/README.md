@@ -83,6 +83,16 @@ bypasses, authority and identity, derived-kind ownership, shared-walk coverage
 of the configured 413 rules, and real positive and negative tests with TM
 enforcement. See "Adversarial pass" and "Architectural enforcement" there.
 
+## Review evidence schema
+Every review evidence file (rust-review, contract-review, leak-review, tm-steward and the per-branch leak result) has this shape, and `.claude/hooks/guard_shell.py` refuses a file that does not:
+
+```json
+{"source": "<40-hex>", "verdict": "PASS"|"FAIL"|"NOTE"|"BLOCKING", "reviewer": "<subagent name>",
+ "checks": [{"id": "...", "verdict": "...", "evidence": "..."}], "findings": [...]}
+```
+
+`source` is the full sha reviewed, never a ref name. `reviewer` is the agent's frontmatter name (`rust-review`, `contract-review`, `leak-review`, `tm-steward`). `checks` is a list (the items, criteria or gate results of that agent); further fields (`checkpoint`, `date`, `plants`, `gate`, `classes`) may sit beside them.
+
 ## Known red
 
 Each is named with its reason in `validation.json` (`results`) and in the

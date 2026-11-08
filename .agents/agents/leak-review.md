@@ -26,17 +26,18 @@ The PM names: the landed sha, the base sha, the scope label and a scratch direct
 The PM launches this agent as a subagent, in parallel with the contract review, after the landing. It spawns no subagents.
 - The reviewed tree is read-only: never edit it, never build in it. Record `git rev-parse HEAD` and `git status --porcelain` before and after; a review whose tree changed is discarded.
 - Check 2 needs a build, so the reviewer works in its own `git archive <sha>` copy under the scratch directory, with its own target directory. In that copy, per cited rule, probe or lint: plant a violation in the real tree, run the check, record the count, revert. Delete the copy and its target directory when the review ends.
+- When a check fails, enumerate every variant of the failing class in the same pass before giving the verdict (every ref spelling, every wrapper, every alias), so one round of fixes closes the class.
 - Checks 1 and 3 to 6 are read with `git diff`, `git show`, `grep` and the package manifests.
 
 ## Output
 Two artifacts in the scratch directory, `leak-review-<N>.md` and `leak-review-<N>.json`, which the PM commits beside the contract review:
 ```json
 {"checkpoint": 330, "source": "<sha reviewed>", "verdict": "PASS",
- "checks": [{"check": 1, "verdict": "PASS", "evidence": "<file:line and one sentence>"}],
+ "checks": [{"id": "1", "verdict": "PASS", "evidence": "<file:line and one sentence>"}],
  "plants": [{"claim": "<rule, probe or lint>", "file": "<file:line>", "count": 1, "reverted": true}],
  "reviewer": "leak-review", "date": "<ISO 8601>"}
 ```
-`checks` holds all six in order; `plants` holds one entry per check 2 plant with the count it reported (a count of 0 is a FAIL of check 2). The Markdown report has one section per check with its verdict, the file:line evidence and, for each FAIL, the required change. It ends with one line, `VERDICT: PASS` or `VERDICT: FAIL: <checks>` (for example `VERDICT: FAIL: 2, 4`).
+The evidence file follows the [review evidence schema](../../crates/ryo/docs/contracts/review/README.md#review-evidence-schema). `checks` holds all six in order; `plants` holds one entry per check 2 plant with the count it reported (a count of 0 is a FAIL of check 2). The Markdown report has one section per check with its verdict, the file:line evidence and, for each FAIL, the required change. It ends with one line, `VERDICT: PASS` or `VERDICT: FAIL: <checks>` (for example `VERDICT: FAIL: 2, 4`).
 
 ## On FAIL
 Each failed check's findings become beads (one per finding class, all instances listed, with file:line). Only a fresh review of a repaired sha clears a FAIL; the FAIL files stay committed.

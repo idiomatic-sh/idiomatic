@@ -303,6 +303,29 @@ def full_sha(value):
     return isinstance(value, str) and re.fullmatch(r"[0-9a-f]{40}", value) is not None
 
 
+REVIEW_VERDICTS = ("PASS", "FAIL", "NOTE", "BLOCKING")
+
+
+def review_shape(review, reviewer):
+    """The problem with a review evidence file against the shared schema, or None.
+
+    The schema is in .agents/agents/review-evidence.md: source (40-hex), verdict, reviewer, checks (a list).
+    """
+    if not isinstance(review, dict):
+        return "is not a JSON object"
+    if "verdict" not in review:
+        return 'has no "verdict"'
+    if review["verdict"] not in REVIEW_VERDICTS:
+        return "has verdict " + repr(review["verdict"]) + ", not one of " + "/".join(REVIEW_VERDICTS)
+    if not full_sha(review.get("source")):
+        return 'names no "source" as a full 40-character sha'
+    if review.get("reviewer") != reviewer:
+        return 'has "reviewer" ' + repr(review.get("reviewer")) + ', not "' + reviewer + '"'
+    if not isinstance(review.get("checks"), list):
+        return 'has no "checks" list'
+    return None
+
+
 def bulk_push(words, here):
     """git push --all / --mirror would push refs no gate has looked at; this repository refuses them."""
     push = git_verb(words, "push")
@@ -335,8 +358,11 @@ def rust_review(words, here):
             review = json.loads(text)
         except ValueError:
             return refused + RUST_REVIEW + " at " + source + " is not JSON"
-        if not isinstance(review, dict) or review.get("verdict") != "PASS":
-            verdict = review.get("verdict") if isinstance(review, dict) else None
+        shape = review_shape(review, "rust-review")
+        if shape:
+            return refused + RUST_REVIEW + " at " + source + " " + shape + "; run the rust-review subagent again"
+        if review.get("verdict") != "PASS":
+            verdict = review.get("verdict")
             return (refused + RUST_REVIEW + " at " + source + " has verdict " + repr(verdict) +
                     ", not \"PASS\"; repair its findings and run the rust-review subagent again, or the owner "
                     "overrules and pushes")
@@ -396,8 +422,9 @@ def previous_reviews(words, here):
                 review = json.loads(text)
             except ValueError:
                 return refused + EVIDENCE + name + " at " + source + " is not JSON; " + run
-            if not isinstance(review, dict) or "verdict" not in review:
-                return refused + EVIDENCE + name + " at " + source + " has no \"verdict\"; " + run
+            shape = review_shape(review, agent)
+            if shape:
+                return refused + EVIDENCE + name + " at " + source + " " + shape + "; " + run
             reviewed = review.get("source")
             if not full_sha(reviewed) or \
                     not stands_for(tree, reviewed, head, EVIDENCE):
@@ -613,8 +640,9 @@ def branch_review(words, here):
             return refused + path + " at HEAD is not JSON" + run
         if not isinstance(review, dict) or not full_sha(review.get("source")) or review.get("source") != sha:
             return refused + "the source in " + path + " is not the branch head " + sha + run
-        if review.get("reviewer") != "leak-review" or "verdict" not in review:
-            return refused + path + " lacks \"reviewer\": \"leak-review\" or a \"verdict\"" + run
+        shape = review_shape(review, "leak-review")
+        if shape:
+            return refused + path + " " + shape + run
         if review["verdict"] != "PASS":
             return (refused + path + " has verdict " + repr(review["verdict"]) +
                     "; repair the findings on the branch, then run the leak-review subagent on its new head")
