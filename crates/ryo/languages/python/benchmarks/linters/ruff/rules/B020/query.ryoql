@@ -12,7 +12,8 @@ let target_descendants = select l.loop as loop, r.destination as id, l.file as f
 let iter_descendants = select l.loop as loop, r.destination as id, l.file as file from iter_roots as l join descendants as r on l.id = r.origin;
 let target_ids = union(left=target_roots, right=target_descendants);
 let iter_ids = union(left=iter_roots, right=iter_descendants);
-let identifiers = select id, name from "identifier";
+let name_nodes = select id from nodes where kind = "name";
+let identifiers = select l.id as id, l.name as name from "identifier" as l join name_nodes as r on l.id = r.id;
 let target_positions = select l.loop as loop, l.id as id, l.file as file, r."start-byte" as pos from target_ids as l join "source-location" as r on l.id = r.id;
 let target_names = select l.loop as loop, l.id as id, r.name as name, l.file as file, l.pos as pos from target_positions as l join identifiers as r on l.id = r.id;
 let iter_names = select l.loop as loop, r.id as id, r.name as name, l.file as file from iter_ids as l join identifiers as r on l.id = r.id;

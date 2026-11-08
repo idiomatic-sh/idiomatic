@@ -27,3 +27,8 @@ expected = []
 name = "generator_target_is_not_reported"
 files = { "case.py" = "def f(value):\n    values = [value for value in values]\n" }
 expected = []
+
+[[cases]]
+name = "argument-rebound-before-the-loop-is-not-the-shadowed-binding"
+files = { "case.py" = "def f(message, flag):\n    if flag:\n        message = message.items\n    for message in message:\n        pass\n" }
+expected = []

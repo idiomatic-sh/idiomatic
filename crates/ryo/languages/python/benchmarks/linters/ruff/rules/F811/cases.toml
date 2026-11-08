@@ -726,3 +726,8 @@ name="future-scope-whole-stub-typevar-bound-call"
 comparison="full"
 files={"case.pyi"="from typing import TypeVar\n_T=TypeVar(\"_T\",bound=identity(Later))\ndef identity(x): ...\nclass Later: ...\n"}
 expected=[]
+
+[[cases]]
+name = "argument-shadows-the-enclosing-binding-current-when-the-body-is-visited"
+files = { "case.py" = "try:\n    from m import sql\n    def mogrify(sql, params):\n        return sql\nexcept ImportError:\n    from n import sql  # noqa: F811\n    sql.quote = 1\n" }
+expected = []

@@ -159,3 +159,8 @@ name = "file-ruff-noqa-export"
 comparison = "full"
 files = { "case.py" = "# ruff: noqa: F822\n__all__ = [\"missing\"]\n" }
 expected = []
+
+[[cases]]
+name = "package-init-module-is-not-checked"
+files = { "pkg/__init__.py" = "__all__ = [\"x\"]\n" }
+expected = []

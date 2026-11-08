@@ -42,3 +42,13 @@ expected = [{ rule = "B020", file = "case.py", start = 11, end = 15 }]
 name = "noqa-suppresses-loop-target"
 files = { "case.py" = "for items in items:  # noqa: B020\n    pass\n" }
 expected = []
+
+[[cases]]
+name = "attribute-name-in-iterable-is-not-a-name-read"
+files = { "case.py" = "for many_to_many in self.opts.many_to_many:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "keyword-argument-name-in-iterable-is-not-a-name-read"
+files = { "case.py" = "for key in sorted(params, key=len):\n    pass\n" }
+expected = []

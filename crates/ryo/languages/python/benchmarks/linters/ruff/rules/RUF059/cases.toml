@@ -69,3 +69,18 @@ name = "literal-container-unpacking-is-not-ruf059"
 comparison = "full"
 files = { "case.py" = "def f():\n    x, y = (1, 2)\n" }
 expected = []
+
+[[cases]]
+name = "unpacked-binding-rebound-later-in-scope-is-not-reported"
+files = { "case.py" = "def f(item):\n    field, cls = item\n    field = 1\n    return field\n" }
+expected = [{ rule = "RUF059", file = "case.py", start = 24, end = 27 }]
+
+[[cases]]
+name = "only-the-last-unpacking-of-a-name-is-reported"
+files = { "case.py" = "def g(item):\n    a, b = item\n    a, b = item\n    return a\n" }
+expected = [{ rule = "RUF059", file = "case.py", start = 36, end = 37 }]
+
+[[cases]]
+name = "unpacking-that-shadows-a-used-binding-inherits-its-uses"
+files = { "case.py" = "def g(r):\n    msgs = 1\n    print(msgs)\n    msgs, errors = r\n    print(errors)\n" }
+expected = []

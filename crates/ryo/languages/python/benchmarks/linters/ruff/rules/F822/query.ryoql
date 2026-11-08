@@ -76,7 +76,7 @@ let wildcard_aliases = select id from alias_stars;
 let wildcard_scopes = axis(from=wildcard_aliases,relation="semantic-child",direction=nearest-ancestor,domain=scopes);
 let wildcard_modules = select r.file as file from wildcard_scopes as l join modules as r on l.related = r.id;
 let closed_exports = antijoin(left=missing_exports,right=wildcard_modules,left-on=["file"],right-on=["file"]);
-let init_exports = select id from closed_exports where matches(file, "(?:^|/)__init__\\.pyi?$");
+let init_exports = select id from closed_exports where matches(file, "(?:^|/)__init__[.]pyi?$");
 let report_candidates = antijoin(left=closed_exports,right=init_exports,left-on=["id"],right-on=["id"]);
 let reportable = select id, file, span from report_candidates;
 let export_parent_targets = select l.id as id, l.file as file, r.target as target from report_candidates as l join initial_targets as r on l.statement = r.statement;

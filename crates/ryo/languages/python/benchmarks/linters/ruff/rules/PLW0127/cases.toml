@@ -28,3 +28,8 @@ name = "first-target-in-chained-self-assignment"
 comparison = "full"
 files = { "case.py" = "a = a = value\n" }
 expected = [{ rule = "PLW0127", file = "case.py", start = 0, end = 1 }]
+
+[[cases]]
+name = "tuple-swap-pairs-elements-by-position"
+files = { "case.py" = "def f(model, dependency):\n    model, dependency = dependency, model\n" }
+expected = []

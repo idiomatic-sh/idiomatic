@@ -44,11 +44,11 @@ let yield_name_axes = axis(from=yield_shape_roots,relation="semantic-child",dire
 let yield_descendant_names = select loop, related as id, file from yield_name_axes;
 let yield_root_names = select l.loop as loop, r.id as id, l.file as file from yield_shape_roots as l join name_nodes as r on l.id = r.id and l.file = r.file;
 let yield_name_nodes = union(left=yield_descendant_names,right=yield_root_names);
-let loop_bind_events = select occurrence, name, file from "binding-event" where kind = "bind";
-let target_bindings = select l.loop as loop, l.id as target_name, r.name as name, r.file as file from target_name_nodes as l join loop_bind_events as r on l.id = r.occurrence and l.file = r.file;
-let target_binding_uses = select l.loop as loop, l.target_name as target_name, l.file as file, r.binding as binding, r.reference as reference from target_bindings as l join "binding-use" as r on l.target_name = r.binding and l.file = r.file;
-let yielded_binding_uses = select l.loop as loop, l.target_name as target_name, l.file as file, l.reference as reference from target_binding_uses as l join yield_name_nodes as r on l.loop = r.loop and l.reference = r.id and l.file = r.file;
-let all_binding_uses = select l.loop as loop, l.target_name as target_name, l.file as file, r.reference as reference from target_bindings as l join "binding-use" as r on l.target_name = r.binding and l.file = r.file;
+let loop_bind_events = select occurrence, name, scope, file from "binding-event" where kind = "bind";
+let target_bindings = select l.loop as loop, l.id as target_name, r.name as name, r.scope as scope, r.file as file from target_name_nodes as l join loop_bind_events as r on l.id = r.occurrence and l.file = r.file;
+let same_name_bindings = select l.loop as loop, l.target_name as target_name, r.occurrence as binding, l.file as file from target_bindings as l join loop_bind_events as r on l.scope = r.scope and l.name = r.name and l.file = r.file;
+let all_binding_uses = select l.loop as loop, l.target_name as target_name, l.file as file, r.reference as reference from same_name_bindings as l join "binding-use" as r on l.binding = r.binding and l.file = r.file;
+let yielded_binding_uses = select l.loop as loop, l.target_name as target_name, l.file as file, l.reference as reference from all_binding_uses as l join yield_name_nodes as r on l.loop = r.loop and l.reference = r.id and l.file = r.file;
 let external_uses = antijoin(left=all_binding_uses,right=yielded_binding_uses,left-on=["loop","target_name","reference","file"],right-on=["loop","target_name","reference","file"]);
 let loops_with_external_uses = select loop from external_uses;
 let no_external_uses = antijoin(left=supported_shapes,right=loops_with_external_uses,left-on=["loop"],right-on=["loop"]);
