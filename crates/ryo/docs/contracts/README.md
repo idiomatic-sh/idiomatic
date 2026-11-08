@@ -64,6 +64,7 @@ The pass is the workspace check with all features and all targets, `--keep-going
   Coverage: selected 1,187,375, evaluated 1,186,980, skipped 395 (syntax-rejected); store 1,778,454,983 bytes, as at 326. The output bytes are byte-identical to the 326 receipt (sha256 `53b163f4bda83afa...`, 992,711 bytes). Against 326 at default threads (502.3 s, 4,062.8 s CPU, 7.00 GB): wall -36%, CPU -37%, peak -0.21 GB (perf iteration 3's fewer polls and shared text steps). The one-thread run was not asked for at 327.
 - **Perf iteration 3's two lifecycle assertions** (`runtime/service/lifecycle/test.rs`), read at integration: frames now leave a region's slot when it publishes or fails, so (a) `nested_demand_preserves_both_frames_and_exact_semantic_failure` no longer reads each failed root's frame after the run (100 and 101) and asserts both slots hold none; the probe's in-call assertion stays, that the nested failure leaves the outer frame at its own value (100); the inner root's frame value is no longer asserted anywhere; (b) `downstream_error_keeps_publication_and_retry_does_not_repeat_semantics` asserts the published root holds no frames instead of one frame row; the retry's no-repeat assertions are unchanged. Named for the Rust review: (a) loses the inner-frame value check.
 - **Landing 1 follow-ups and the 326 Rust gate notes:** unchanged; they stay with their row.
+- **Principal Rust review:** PASS on all seven items, first pass (diff `f3a9a7e95c..dc9af4d4be`, `evidence/checkpoint/rust-review.json`); on the lifecycle test (a) it finds the inner frame separation still proven by the probe (the outer frame stays 100 after the nested call). Its two advisories (not failures) go to ryo-artq: the cost fixture should also require `staged.json`'s `request_sha256` to equal the sha256 of `request.json` (and staging should state or make the worker-beside-receipt placement); `evidence/inventory/items/execution.md:7` still lists the old `pub(super) enum Submission`, to regenerate.
 
 **Cycle metrics:**
 
@@ -78,7 +79,7 @@ The pass is the workspace check with all features and all targets, `--keep-going
 | Lines under `crates/ryo` | +222 / -85 (Rust +151 / -70) |
 | Full Django 413 cold | exit 0, unknown 0; default threads 322.7 s, 6.79 GB (502.3 s, 7.00 GB at 326), output bytes identical |
 | Contract review | pending |
-| Rust gate review | pending |
+| Rust gate review | PASS on all seven items, first pass (diff `f3a9a7e95c..dc9af4d4be`) |
 
 ### Review repairs XI
 
@@ -305,6 +306,7 @@ One row per checkpoint, landing and perf branch, copied from its `rust-review.js
 | Checkpoint 324 (landing 1) | diff `7d93840b19..d82b98cbcb` | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS (second pass; the first, of `afd1f9e45d`, was FAIL on item 6: a vacuous `compile_fail` doctest) |
 | Checkpoint 325 | diff `14a8352416..0a02582a09` | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS (first pass) |
 | Checkpoint 326 | diff `dcd94840fc..57f25dd99b` | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS (first pass) |
+| Checkpoint 327 | diff `f3a9a7e95c..dc9af4d4be` | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS (first pass) |
 
 Earlier `36b0cdbea`/validation297 and300 findings remain source-bound in the [initial](audits/2026-11-06-derived/review.json) and [successor](audits/2026-11-06-derived/successor.json) reviews. The current checkpoint supersedes their repaired functional blockers without approving a whole phase or category.
 
