@@ -95,8 +95,13 @@ struct PopulationProof {
     population: PopulationId,
     generation: Arc<ryo_execution_store::application::file_dag::relations::generation::service::GenerationLease>,
 }
+/// One admission, shared by every holder of it in the file: a clone is one count, not a copy of its proof, partition and leases.
 #[derive(Clone)]
 pub(crate) struct AdmittedInput {
+    body: Rc<AdmittedBody>,
+}
+#[derive(Clone)]
+struct AdmittedBody {
     proof: PopulationProof,
     root: ProducerRoot,
     partition: Partition,
@@ -256,10 +261,10 @@ fn contributed_readiness(
     let mut inapplicable = Vec::new();
     for input in inputs {
         input.publication(owner)?;
-        if input.partition.supplies(partition) == PartitionSupply::Lacks {
+        if input.body.partition.supplies(partition) == PartitionSupply::Lacks {
             return Err(OperatingError::NotRead);
         }
-        match &input.readiness {
+        match &input.body.readiness {
             Readiness::Complete => {}
             Readiness::Partial { files, lacks } => {
                 affected.extend(ryo_execution_domain::domain::completion::service::lacks_of(files, lacks));
@@ -275,7 +280,7 @@ fn contributed_readiness(
     }
     if inputs
         .iter()
-        .any(|input| matches!(input.readiness, Readiness::Partial { .. }))
+        .any(|input| matches!(input.body.readiness, Readiness::Partial { .. }))
     {
         affected.extend(inapplicable.into_iter().map(|file| {
             ryo_execution_domain::domain::completion::types::FileLacks {
@@ -337,7 +342,7 @@ pub(super) fn alias_member(
         InputSource::Region(id) => ProducerRoot::Region(id),
         other => ProducerRoot::Input(other),
     };
-    if input.root != expected || input.partition.supplies(required) == PartitionSupply::Lacks {
+    if input.body.root != expected || input.body.partition.supplies(required) == PartitionSupply::Lacks {
         return Err(OperatingError::NotRead);
     }
     let publication = input.publication(owner)?;
@@ -351,7 +356,7 @@ pub(super) fn alias_member(
         return Err(OperatingError::ShapeMismatch);
     }
     let mut alias = input.clone();
-    alias.root = ProducerRoot::Input(InputSource::ObservationMember {
+    Rc::make_mut(&mut alias.body).root = ProducerRoot::Input(InputSource::ObservationMember {
         slot: ryo_execution_domain::domain::executable_program::types::ObservationPlace(slot.0),
         member: ryo_execution_domain::domain::executable_program::types::ProducerMember(member.0),
     });
@@ -370,11 +375,11 @@ pub(super) fn alias_observation(
         .ok_or(OperatingError::NotRun)?
         .as_ref()
         .map_err(Clone::clone)?;
-    if input.root != ProducerRoot::Region(root) {
+    if input.body.root != ProducerRoot::Region(root) {
         return Err(OperatingError::NotRead);
     }
     input.publication(owner)?;
     let mut alias = input.clone();
-    alias.root = ProducerRoot::Input(InputSource::Observation(ryo_execution_domain::domain::executable_program::types::ObservationPlace(slot.0)));
+    Rc::make_mut(&mut alias.body).root = ProducerRoot::Input(InputSource::Observation(ryo_execution_domain::domain::executable_program::types::ObservationPlace(slot.0)));
     Ok(alias)
 }

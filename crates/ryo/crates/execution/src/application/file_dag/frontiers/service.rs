@@ -208,7 +208,7 @@ pub(crate) fn admit(
              }| FrontierInput::Compact {
                 input,
                 table: std::sync::Arc::new(table),
-                spelling,
+                spelling: spelling.into(),
                 coverage,
             },
         )

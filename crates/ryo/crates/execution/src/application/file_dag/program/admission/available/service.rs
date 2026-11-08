@@ -88,7 +88,7 @@ impl AvailableInput {
         match &self.body {
             AvailableBody::Published(input) => {
                 input.publication(owner)?;
-                input.partition.require_supply(partition)?;
+                input.body.partition.require_supply(partition)?;
                 Ok(input.clone())
             }
             AvailableBody::Source {

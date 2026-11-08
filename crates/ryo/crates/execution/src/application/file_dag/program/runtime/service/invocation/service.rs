@@ -102,7 +102,7 @@ impl ProgramExecution {
             prepare_only,
         };
         let first = region.instructions().first();
-        let mut admitted = progress.inputs.clone();
+        let mut admitted = std::mem::take(&mut progress.inputs);
         let result: Result<InvocationOutcome, InvocationFailure> = (|| {
             let mut call = Poll {
                 id,

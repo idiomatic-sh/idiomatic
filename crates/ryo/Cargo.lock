@@ -1314,6 +1314,7 @@ dependencies = [
  "idiomatic-sh-ryo-benchmark-contracts",
  "idiomatic-sh-ryo-sdk",
  "idiomatic-sh-ryo-values",
+ "rayon",
  "serde",
  "serde_json",
  "sha2",

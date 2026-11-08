@@ -16,3 +16,7 @@ pub(super) const CANDIDATE_SKIPPED_AN_UNDECLARED_OR_ALWAYS: &str =
 /// Text of the candidate context mode manifest and receipt in this part.
 pub(super) const CANDIDATE_CONTEXT_MODE_MANIFEST_AND_RECEIPT: &str =
     "candidate context mode, manifest and receipt disagree";
+/// The environment variable the worker's pool takes its thread count from.
+pub(super) const WORKERS_ENV: &str = "RAYON_NUM_THREADS";
+/// One worker thread: the candidate runs on one thread, as the reference tool does.
+pub(super) const ONE_WORKER: &str = "1";

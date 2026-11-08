@@ -7,14 +7,13 @@ use crate::outbound::engine::types::{
 };
 use ryo::linter::{
     self, Cache, Cell, Corpus, Languages, LintRequest, MemoryBudget, Rule, RuleId, Slot,
-    WorkerPool, Workers,
+    WorkerPool,
 };
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::reports::types::{BenchmarkFinding, PairCount};
 use ryo_benchmark_contracts::domain::reports::types::RunReport;
 use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
 use std::collections::BTreeMap;
-use std::num::NonZeroUsize;
 use tracing_subscriber::prelude::*;
 
 use crate::outbound::engine::interface::EnginePort;
@@ -135,7 +134,13 @@ impl EngineExecution for LocalEngineSession<'_> {
         } = prepared;
         let selected_pairs = selected_pairs.0;
         let (sources, accepted) = super::schemas::source_inputs(&request, &selected_missing)?;
-        let pool = WorkerPool::from(Workers(NonZeroUsize::MIN));
+        // The files run on rayon's own pool size: `RAYON_NUM_THREADS` when the caller sets it (the harness sets one), else one
+        // thread per core.
+        let pool = WorkerPool::from(std::sync::Arc::new(
+            rayon::ThreadPoolBuilder::new()
+                .build()
+                .map_err(|error| Error::Invalid(error.to_string()))?,
+        ));
         let cache = match &request.state {
             ryo_benchmark_contracts::domain::requests::types::WorkerState::Fresh => Cache::None,
             ryo_benchmark_contracts::domain::requests::types::WorkerState::Retained(path) => {
