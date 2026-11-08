@@ -1,5 +1,5 @@
 description = "An item gated by `cfg(any(test, feature = \"fixtures\"))` is named only by test code: a test file, a fixtures file, a file declared under a test or `fixtures` cfg, or an item gated by one. A production file calling a gated method, or naming a gated function, constant or type of its own package, is a finding."
-why = "The gate builds an item for the crate's own tests and, through the `fixtures` feature, for other crates' tests. A feature is additive: when any crate in the build turns `fixtures` on (the core's `fixtures` forwards the engine's), the item compiles into every crate that sees it, so the gate alone does not keep production off it, and a production caller compiles whenever the feature is on (ExecutionRequest::open_file is such a seal: outside the engine's tests a file runs through `run_file`). Test code is a path the test layout places (`tests/`, `test/`, `*_test/`, `benches/`, `*_test.rs`, `test.rs`, `tests.rs`, `fixtures.rs`, `fixtures/`), a file whose module is declared under a `cfg` naming `test` or the `fixtures` feature, or a use inside an item decorated by such a `cfg`. Names are read as written, not resolved: a method is matched by the method name of a method call in any package, and only while no method of that name is declared outside the gate anywhere; a function, constant or type by the last path segment written in its own package, and only while the package declares nothing else under that name. Not seen: a gated module (its files are test code here; `no-runtime-fixtures` keeps production off `fixtures`), a gated item named from another package by a path, a name inside a macro's tokens, and a gated method that shares its name with an ungated one."
+why = "The gate builds an item for the crate's own tests and, through the `fixtures` feature, for other crates' tests. A feature is additive: when any crate in the build turns `fixtures` on (the core's `fixtures` forwards the engine's), the item compiles into every crate that sees it, so the gate alone does not keep production off it, and a production caller compiles whenever the feature is on (ExecutionRequest::open_file is such a seal: outside the engine's tests a file runs through `run_file`). Test code is a path the test layout places (`tests/`, `test/`, `*_test/`, `benches/`, `*_test.rs`, `test.rs`, `tests.rs`, `fixtures.rs`, `fixtures/`), a file whose module is declared under a `cfg` naming `test` or the `fixtures` feature, or a use inside an item decorated by such a `cfg`. Names are read as written, not resolved: a method is matched by the method name of a method call in any package, and only while no production file declares a method of that name outside the gate (a test or fixtures file that implements the gated trait method without the gate, as a test witness does, does not unseal it); a function, constant or type by the last path segment written in its own package, and only while the package declares nothing else under that name. Not seen: a gated module (its files are test code here; `no-runtime-fixtures` keeps production off `fixtures`), a gated item named from another package by a path, a name inside a macro's tokens, and a gated method that shares its name with an ungated method of a production file."
 
 query = '''
 let rust-files = select l."path" as "file" from "filesystem.file" as l where glob_any(l."path", "**/*.rs");
@@ -34,7 +34,8 @@ let calls = select l."id" as "id" from "syntax-tree" as l where l."kind" = "meth
 let call-edges = select l."child" as "ref" from "syntax-child" as l join calls as r on l."parent" = r."id";
 let method-refs = select l."id" as "id", l."file" as "file", l."span" as "span", l."text" as "text" from ref-tokens as l join call-edges as r on l."ref" = r."ref";
 let gated-methods = select * from gated where kind = "method";
-let ungated-methods = select * from ungated where kind = "method";
+let ungated-anywhere = select * from ungated where kind = "method";
+let ungated-methods = antijoin(left=ungated-anywhere, right=test-files, left-on=["file"], right-on=["file"]);
 let sealed-methods = antijoin(left=gated-methods, right=ungated-methods, left-on=["name"], right-on=["name"]);
 let method-uses = select l."id" as "id", l."file" as "file", l."span" as "span", l."text" as "text" from method-refs as l join sealed-methods as r on l."text" = r."name";
 let segments = select l."id" as "id" from "syntax-tree" as l where l."kind" = "path-segment";
@@ -223,3 +224,37 @@ pub fn open(store: &Store) -> usize {
     store.open_file("a.rs")
 }
 '''
+
+[[scenarios]]
+id = 'a-test-witness-implements-the-gated-method'
+scenario = "A test file implements `Request` for its witness and declares `open_file` without the gate; that declaration is test code, so the method stays sealed and the core's production call is reported at the call."
+given.files.'engine/tests/witness/mod.rs' = '''
+//! A witness of every request method.
+
+use engine::Request;
+
+/// Answers every method with a fixed value.
+pub struct Witness;
+
+impl Request for Witness {
+    fn run_file(&self, path: &str) -> usize {
+        path.len()
+    }
+    fn open_file(&self, path: &str) -> usize {
+        path.len()
+    }
+}
+'''
+given.files.'core/src/lib.rs' = '''
+//! Core.
+
+use engine::Request;
+
+/// Lints one file through the engine.
+pub fn lint(engine: &engine::Engine) -> usize {
+    engine.open_file("a.rs")
+}
+'''
+then.findings = [
+  { path = 'core/src/lib.rs', line = 7 },
+]
