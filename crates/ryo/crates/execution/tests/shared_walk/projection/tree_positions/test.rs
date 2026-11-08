@@ -8,7 +8,7 @@ use super::super::super::no_catalog;
 use crate::boundary_fixture::{authored_request, corpus, demand};
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution::inbound::use_cases::execution::interface::FileExecution;
+use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;

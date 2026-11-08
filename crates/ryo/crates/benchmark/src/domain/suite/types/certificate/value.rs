@@ -8,7 +8,7 @@ use ryo_benchmark_contracts::domain::requests::types::RunRequest;
 use std::path::PathBuf;
 /// Evidence issued after actual cases pass, bound to exact artifacts and executables.
 ///
-/// ```compile_fail
+/// ```compile_fail,E0616
 /// use ryo_benchmark::domain::suite::types::certificate::value::Certificate;
 /// fn forge(evidence: &mut Certificate) { evidence.fingerprint = evidence.fingerprint().clone(); }
 /// ```

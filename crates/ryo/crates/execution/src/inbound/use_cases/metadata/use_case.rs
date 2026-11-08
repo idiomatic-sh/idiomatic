@@ -2,6 +2,8 @@
 use super::interface::MetadataUseCase;
 use super::interface::*;
 use super::types::*;
+use ryo_execution_domain::domain::features::types::StepWork;
+use ryo_execution_domain::domain::kind_check::types::{AskedKind, KindRefusal};
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_language::domain::files::types::FilePath;
 use ryo_relations::domain::relations::types::Relation;

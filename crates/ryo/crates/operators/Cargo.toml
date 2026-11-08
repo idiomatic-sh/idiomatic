@@ -34,6 +34,7 @@ name = "bdd"
 harness = false
 
 [features]
+# Test support, not a public API: it may change without notice. Only a dev-dependency or this crate's own `fixtures` switches it on (`fixtures-feature`).
 fixtures = []
 
 [lints]

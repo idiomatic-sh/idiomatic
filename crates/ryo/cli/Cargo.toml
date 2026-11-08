@@ -93,6 +93,7 @@ harness = false
 [features]
 distribution = []
 default = ["css", "go", "html", "javascript", "json", "markdown", "python", "rust", "toml", "typescript"]
+# Test support, not a public API: it may change without notice. Only a dev-dependency or this crate's own `fixtures` switches it on (`fixtures-feature`).
 fixtures = []
 # A diagnostic build: `--timings=phases` prints the outer phases of a command and when each began and ended (Linux).
 phase-diagnostic = []

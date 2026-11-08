@@ -1,16 +1,15 @@
-description = "An item gated by `cfg(any(test, feature = \"fixtures\"))` is named only by test code: a test file, a fixtures file, a file declared under a test or `fixtures` cfg, or an item gated by one. A production file calling a gated method, by a method call or by its path, or naming a gated function, constant or type of its own package, is a finding."
-why = "The gate builds an item for the crate's own tests and, through the `fixtures` feature, for other crates' tests. A feature is additive: when any crate in the build turns `fixtures` on (the core's `fixtures` forwards the engine's), the item compiles into every crate that sees it, so the gate alone does not keep production off it, and a production caller compiles whenever the feature is on (ExecutionRequest::open_file is such a seal: outside the engine's tests a file runs through `run_file`). Test code is a path the test layout places (`tests/`, `test/`, `*_test/`, `benches/`, `*_test.rs`, `test.rs`, `tests.rs`, `fixtures.rs`, `fixtures/`), a file whose module is declared under a `cfg` naming `test` or the `fixtures` feature, or a use inside an item decorated by such a `cfg`. Names are read as written, not resolved: a method is matched by the method name of a method call in any package, and only while no production file declares a method of that name outside the gate; the same method named by its path (`Trait::method(&value, ..)` or `Type::method(..)`, in any package) is matched by the last segment of a path whose qualifier ends in a capitalised name (a type or a trait, so `module::method` and `crate::method` are read as functions), under the same seal (a test or fixtures file that implements the gated trait method without the gate, as a test witness does, does not unseal it); a function, constant or type by the last path segment written in its own package, and only while the package declares nothing else under that name. Not seen: a gated module (its files are test code here; `no-runtime-fixtures` keeps production off `fixtures`), a gated item named from another package by a path, a name inside a macro's tokens, and a gated method that shares its name with an ungated method of a production file."
+description = "An item gated by `cfg(any(test, feature = \"fixtures\"))` is named only by test code: a test file, a fixtures file, a file declared under a test or `fixtures` cfg, or an item gated by one. A method inside a gated `impl` block is gated too. A production file calling a gated method, by a method call or by its path, or naming a gated module, function, constant or type of its own package, is a finding: an item of a gated module is reached by a path through the module, which is reported at the module's segment."
+why = "The gate builds an item for the crate's own tests and, through the `fixtures` feature, for other crates' tests. A feature is additive: when any crate in the build turns `fixtures` on (the core's `fixtures` forwards the engine's), the item compiles into every crate that sees it, so the gate alone does not keep production off it, and a production caller compiles whenever the feature is on (ExecutionRequest::open_file is such a seal: outside the engine's tests a file runs through `run_file`). Test code is a path the test layout places (`tests/`, `test/`, `*_test/`, `benches/`, `benchmarks/`, `*_test.rs`, `test.rs`, `tests.rs`, a use case's or contract's placed `src/inbound/use_cases/*/acceptance.rs` or `src/inbound/contracts/*/acceptance.rs`, `fixtures.rs`, `fixtures/`: a placed acceptance file is compiled by the crate's `tests/bdd.rs`, a `benchmarks/` file by a bench target; an `acceptance.rs` anywhere else is production unless a gated module declares it), a file whose module is declared under a `cfg` naming `test` or the `fixtures` feature, or a use inside an item decorated by such a `cfg`. Names are read as written, not resolved: a method is matched by the method name of a method call in any package, and only while no production file declares a method of that name outside the gate; the same method named by its path (`Trait::method(&value, ..)` or `Type::method(..)`, in any package) is matched by the last segment of a path whose qualifier ends in a capitalised name (a type or a trait, so `module::method` and `crate::method` are read as functions), under the same seal (a test or fixtures file that implements the gated trait method without the gate, as a test witness does, does not unseal it); a function, constant or type by the last path segment written in its own package, and only while the package declares nothing else under that name. A method is gated when the gate decorates it or an item enclosing it (an `impl` block or a trait, so the methods of a gated `impl` block are gated though they carry no gate of their own). A gated module (`#[cfg(...)] pub mod cases;`) is matched by path, not by the names its files declare: a production path through it (`crate::cases::Matched`, `use crate::cases::*`) is reported at the module's segment, so an item of the module that shares its name with a production or standard item (`None`, `format`) is never mistaken for it. The seal compares only production declarations: a declaration inside a test-gated item or `impl` block, or in a test file, does not unseal a name. Not seen: a gated item named from another package by a path, a name inside a macro's tokens, and a gated method that shares its name with an ungated method of a production file."
 
 query = '''
 let rust-files = select l."path" as "file" from "filesystem.file" as l where glob_any(l."path", "**/*.rs");
-let path-test = select * from rust-files where glob_any(file, "{**/tests/**,**/test/**,**/*_test/**,**/benches/**,**/*_test.rs,**/test.rs,**/tests.rs,**/fixtures.rs,**/fixtures/**}");
+let path-test = select * from rust-files where glob_any(file, "{**/tests/**,**/test/**,**/*_test/**,**/benches/**,**/benchmarks/**,**/*_test.rs,**/test.rs,**/tests.rs,**/src/inbound/use_cases/*/acceptance.rs,**/src/inbound/contracts/*/acceptance.rs,**/fixtures.rs,**/fixtures/**}");
 let cfgs = select * from "decorates" where target = "cfg";
 let gates = select * from cfgs where glob_any(arguments, "any(test, feature = ?fixtures?)");
 let test-cfgs = select * from cfgs where glob_any(arguments, "{test,*(test*,* test*,*feature = ?fixtures?*}") and not glob_any(arguments, "{not(test*,*(not(test*,* not(test*}");
 let declared = select * from "defines" where kind != "import";
 let gated = select r."id" as "id", r."name" as "name", r."kind" as "kind", r."file" as "file" from gates as l join declared as r on l."declaration" = r."id";
 let test-gated = select r."id" as "id", r."name" as "name", r."kind" as "kind", r."file" as "file" from test-cfgs as l join declared as r on l."declaration" = r."id";
-let ungated = antijoin(left=declared, right=test-gated, left-on=["id"], right-on=["id"]);
 let gated-modules = select * from test-gated where kind = "namespace";
 let module-places = capture(from=gated-modules, path="file", pattern="{*dir}/{stem}.rs", captures=["dir", "stem"]);
 let nested-files = capture(from=rust-files, path="file", pattern="{*dir}/{stem}/{child}.rs", captures=["dir", "stem", "child"]);
@@ -26,6 +25,15 @@ let test-files-0 = union(left=path-test, right=nested-gated);
 let test-files-1 = union(left=test-files-0, right=nested-tree-gated);
 let test-files-2 = union(left=test-files-1, right=root-gated);
 let test-files = union(left=test-files-2, right=root-tree-gated);
+let gate-items = select l."declaration" as "id" from gates as l;
+let in-gated-items = axis(from=declared, relation="syntax-child", direction=ancestor, domain=gate-items);
+let in-gated-methods = select l."id" as "id", l."name" as "name", l."kind" as "kind", l."file" as "file" from in-gated-items as l where l."kind" = "method";
+let gated-all = union(left=gated, right=in-gated-methods);
+let test-items = select l."declaration" as "id" from test-cfgs as l;
+let in-test-items = axis(from=declared, relation="syntax-child", direction=ancestor, domain=test-items);
+let declared-gated = antijoin(left=declared, right=test-gated, left-on=["id"], right-on=["id"]);
+let declared-inside = antijoin(left=declared-gated, right=in-test-items, left-on=["id"], right-on=["id"]);
+let ungated = antijoin(left=declared-inside, right=test-files, left-on=["file"], right-on=["file"]);
 let tokens = select l."id" as "id", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."kind" = "ident";
 let name-refs = select l."id" as "id" from "syntax-tree" as l where l."kind" = "name-ref";
 let ref-edges = select l."parent" as "ref", l."child" as "token" from "syntax-child" as l join name-refs as r on l."parent" = r."id";
@@ -33,15 +41,14 @@ let ref-tokens = select l."ref" as "ref", r."id" as "id", r."file" as "file", r.
 let calls = select l."id" as "id" from "syntax-tree" as l where l."kind" = "method-call-expr";
 let call-edges = select l."child" as "ref" from "syntax-child" as l join calls as r on l."parent" = r."id";
 let method-refs = select l."id" as "id", l."file" as "file", l."span" as "span", l."text" as "text" from ref-tokens as l join call-edges as r on l."ref" = r."ref";
-let gated-methods = select * from gated where kind = "method";
-let ungated-anywhere = select * from ungated where kind = "method";
-let ungated-methods = antijoin(left=ungated-anywhere, right=test-files, left-on=["file"], right-on=["file"]);
+let gated-methods = select * from gated-all where kind = "method";
+let ungated-methods = select * from ungated where kind = "method";
 let sealed-methods = antijoin(left=gated-methods, right=ungated-methods, left-on=["name"], right-on=["name"]);
 let method-uses = select l."id" as "id", l."file" as "file", l."span" as "span", l."text" as "text" from method-refs as l join sealed-methods as r on l."text" = r."name";
 let segments = select l."id" as "id" from "syntax-tree" as l where l."kind" = "path-segment";
 let segment-edges = select l."child" as "ref" from "syntax-child" as l join segments as r on l."parent" = r."id";
 let path-refs = select l."id" as "id", l."file" as "file", l."span" as "span", l."text" as "text" from ref-tokens as l join segment-edges as r on l."ref" = r."ref";
-let gated-items = select * from gated where kind != "method" and kind != "namespace";
+let gated-items = select * from gated-all where kind != "method";
 let gated-packaged = select l."name" as "name", r."package" as "package" from gated-items as l join "file-package" as r on l."file" = r."path";
 let ungated-packaged = select l."name" as "name", r."package" as "package" from ungated as l join "file-package" as r on l."file" = r."path";
 let sealed-items = antijoin(left=gated-packaged, right=ungated-packaged, left-on=["name", "package"], right-on=["name", "package"]);
@@ -310,4 +317,185 @@ pub fn lint(engine: &engine::Engine) -> usize {
 '''
 then.findings = [
   { path = 'core/src/lib.rs', line = 7 },
+]
+
+[[scenarios]]
+id = 'production-names-an-item-of-a-gated-module'
+scenario = "The sweep's S32: the core gates its `cases` module, whose file declares `Matched` without a gate of its own, and a production file names `crate::cases::Matched`: each of the two paths is reported at the gated module's segment, the path it reaches the item by."
+given.files.'core/src/lib.rs' = '''
+//! Core.
+
+/// The core's answers.
+pub mod answering;
+#[cfg(any(test, feature = "fixtures"))]
+pub mod cases;
+'''
+given.files.'core/src/cases.rs' = '''
+//! The core's test rows.
+
+/// Whether a row matched.
+pub struct Matched(pub bool);
+'''
+given.files.'core/src/answering.rs' = '''
+//! Answers.
+
+/// Answers whether the row matched.
+pub fn answer() -> crate::cases::Matched {
+    crate::cases::Matched(true)
+}
+'''
+then.findings = [
+  { path = 'core/src/answering.rs', line = 4 },
+  { path = 'core/src/answering.rs', line = 5 },
+]
+
+[[scenarios]]
+id = 'production-calls-a-method-of-a-gated-impl-block'
+scenario = "The sweep's S32b: the engine gates a whole `impl` block, whose methods carry no gate of their own, and the core's production calls one of them: it is reported at the call."
+given.files.'engine/src/observed.rs' = '''
+//! Observations.
+
+/// What the engine's tests observe.
+#[cfg(any(test, feature = "fixtures"))]
+impl crate::Engine {
+    /// Whether the file may be reused.
+    pub fn reuse_eligible(&self) -> bool {
+        true
+    }
+}
+'''
+given.files.'core/src/lib.rs' = '''
+//! Core.
+
+/// Whether the engine may reuse a file.
+pub fn reusable(engine: &engine::Engine) -> bool {
+    engine.reuse_eligible()
+}
+'''
+then.findings = [
+  { path = 'core/src/lib.rs', line = 5 },
+]
+
+[[scenarios]]
+id = 'a-gated-impl-block-does-not-unseal-a-gated-method'
+scenario = "The sweep's S32c: `owner_lifetime` is gated directly on one type and declared again in a gated `impl` block of another; neither is production, so the name stays sealed and the engine's production call is reported."
+given.files.'engine/src/session.rs' = '''
+//! Sessions.
+
+/// A file's session.
+pub struct Session;
+
+/// What the engine's tests observe of a session.
+#[cfg(any(test, feature = "fixtures"))]
+impl Session {
+    /// How long the owner lives.
+    pub fn owner_lifetime(&self) -> usize {
+        1
+    }
+}
+
+/// The run of one file.
+pub struct Run;
+
+impl Run {
+    /// How long the owner lives.
+    #[cfg(any(test, feature = "fixtures"))]
+    pub fn owner_lifetime(&self) -> usize {
+        1
+    }
+}
+
+/// Reads the session's owner.
+pub fn read(session: &Session) -> usize {
+    session.owner_lifetime()
+}
+'''
+then.findings = [
+  { path = 'engine/src/session.rs', line = 28 },
+]
+
+[[scenarios]]
+id = 'a-gated-module-shares-a-name-with-production'
+scenario = "The core gates a module `cases` and also declares a production struct `Matched` elsewhere: a production path naming `Matched` alone is read as the production item, and only the path through the gated module is reported, at the module's segment."
+given.files.'core/src/lib.rs' = '''
+//! Core.
+
+/// The core's answers.
+pub mod answering;
+#[cfg(any(test, feature = "fixtures"))]
+pub mod cases;
+
+/// Whether an answer matched.
+pub struct Matched(pub bool);
+'''
+given.files.'core/src/cases.rs' = '''
+//! The core's test rows.
+
+/// Whether a row matched.
+pub struct Matched(pub bool);
+'''
+given.files.'core/src/answering.rs' = '''
+//! Answers.
+
+/// Answers whether the row matched.
+pub fn answer() -> crate::Matched {
+    crate::Matched(crate::cases::Matched(true).0)
+}
+'''
+then.findings = [
+  { path = 'core/src/answering.rs', line = 5 },
+]
+
+[[scenarios]]
+id = 'acceptance-and-benchmarks-reach-a-gated-module'
+scenario = "A use case's placed `acceptance.rs`, which the crate's `tests/bdd.rs` compiles, and a bench target under `benchmarks/` reach the gated `fixtures` module by its path: both are test code, so nothing is reported."
+given.files.'engine/src/inbound/use_cases/open/acceptance.rs' = '''
+//! The engine's acceptance steps.
+
+/// Opens a file the way the acceptance steps do.
+pub fn opened(engine: &crate::Engine) -> usize {
+    crate::fixtures::opened(engine)
+}
+'''
+given.files.'engine/benchmarks/provider/bench.rs' = '''
+//! The engine's bench.
+
+fn main() {
+    let _ = engine::fixtures::opened(&engine::Engine);
+}
+'''
+
+[[scenarios]]
+id = 'an-unplaced-acceptance-file-is-production'
+scenario = "The core declares `pub mod acceptance;` without a gate in its domain, and that file names the gated `cases` module: an `acceptance.rs` outside the placed use-case and contract paths is production, so it is reported."
+given.files.'core/src/lib.rs' = '''
+//! Core.
+
+/// The core's domain.
+pub mod domain;
+#[cfg(any(test, feature = "fixtures"))]
+pub mod cases;
+'''
+given.files.'core/src/domain.rs' = '''
+//! The domain.
+
+/// Acceptance in name only.
+pub mod acceptance;
+'''
+given.files.'core/src/domain/acceptance.rs' = '''
+//! Not a placed acceptance file.
+
+/// Answers whether a row matched.
+pub fn answer() -> bool {
+    crate::cases::Matched(true).0
+}
+'''
+given.files.'core/src/cases.rs' = '''
+//! The core's test rows.
+
+/// Whether a row matched.
+pub struct Matched(pub bool);
+'''
+then.findings = [
+  { path = 'core/src/domain/acceptance.rs', line = 5 },
 ]

@@ -1,5 +1,7 @@
 //! Pure preflight and reporting decisions over request data.
 use super::types::*;
+use ryo_execution_domain::domain::features::types::StepWork;
+use ryo_execution_domain::domain::kind_check::types::{AskedKind, KindRefusal};
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_language::domain::files::types::FilePath;
 use ryo_relations::domain::relations::types::Relation;
@@ -27,14 +29,7 @@ pub use ryo_execution_domain::domain::coverage::types::Recovery;
 pub use ryo_execution_domain::domain::coverage::types::RuleIndex;
 pub use ryo_execution_domain::domain::coverage::types::Unknown;
 pub use ryo_execution_domain::domain::features::types::FeatureRows;
-pub use ryo_execution_domain::domain::features::types::StepWork;
-pub use ryo_execution_domain::domain::kind_check::types::AskedKind;
-pub use ryo_execution_domain::domain::kind_check::types::KindMatch;
-pub use ryo_execution_domain::domain::kind_check::types::KindMessage;
 pub use ryo_execution_domain::domain::kind_check::types::KindOrigin;
-pub use ryo_execution_domain::domain::kind_check::types::KindRefusal;
-pub use ryo_execution_domain::domain::kind_check::types::LanguageList;
-pub use ryo_execution_domain::domain::kind_check::types::RulePlace;
 pub use ryo_execution_domain::domain::kind_check::types::UnknownKind;
 pub use ryo_execution_domain::domain::operator::types::RowsFed;
 pub use ryo_execution_domain::domain::placement::types::GlobOwner;

@@ -1,0 +1,99 @@
+description = "A dependency of `[workspace.dependencies]` that enables `fixtures` is inherited only by `[dev-dependencies]`: a `[dependencies]` or `[build-dependencies]` entry that inherits it (`workspace = true`) is reported at that entry."
+why = "`fixtures` is test support, switched on only from `[dev-dependencies]` (the crate spec's `fixtures-feature`). A feature written in the workspace's `[workspace.dependencies]` reaches every member that inherits the entry, and an inheriting normal or build dependency compiles the harnesses into the shipped crate, though the member's own manifest names no `fixtures`. The crate spec's rule reads only its crate's own manifest, so the workspace manifest's half of the edge is read here, where a placement sees both. Read from the manifests' TOML: the `[workspace.dependencies]` entries of a manifest whose `workspace` table is at its root, and the inheriting entries of any `dependencies` or `build-dependencies` table (a target's too), written inline (`foo = { workspace = true }`) or dotted (`foo.workspace = true`); Cargo accepts `workspace` only as `true`, so the key alone marks inheritance. An inheriting entry is matched to the workspace entry by its key, across the manifests the placement reads, so a placement covers one Cargo workspace. Not seen: a dependency written as its own `[dependencies.foo]` table header."
+
+query = '''
+let tree-nodes = select l."id" as "id", l."kind" as "kind" from "syntax-tree" as l where l."text" = "";
+let documents = select * from tree-nodes where kind = "toml";
+let workspace-keys = select * from "entry" where key = "workspace";
+let rooted-workspace-keys = select l."occurrence" as "occurrence" from workspace-keys as l join documents as r on l."owner" = r."id";
+let workspace-tables = select r."id" as "table" from rooted-workspace-keys as l join "mapping" as r on l."occurrence" = r."owner";
+let workspace-entries = select r."key" as "key", r."occurrence" as "occurrence" from workspace-tables as l join "entry" as r on l."table" = r."owner";
+let shared-keys = select * from workspace-entries where key = "dependencies";
+let shared-tables = select r."id" as "table" from shared-keys as l join "mapping" as r on l."occurrence" = r."owner";
+let shared = select r."key" as "name", r."occurrence" as "dependency" from shared-tables as l join "entry" as r on l."table" = r."owner";
+let shared-bodies = select l."name" as "name", r."id" as "body" from shared as l join "mapping" as r on l."dependency" = r."owner";
+let shared-lists = select l."name" as "name", r."occurrence" as "list" from shared-bodies as l join "entry" as r on l."body" = r."owner" where r."key" = "features";
+let shared-features = select l."name" as "name", r."decoded" as "feature" from shared-lists as l join "sequence-element" as r on l."list" = r."owner";
+let shared-fixtures = select * from shared-features where feature = "fixtures";
+let fixture-names = project(from=shared-fixtures, columns=["name"]);
+let section-keys = select * from "entry" where glob_any(key, "{dependencies,build-dependencies}");
+let member-section-keys = antijoin(left=section-keys, right=shared-keys, left-on=["occurrence"], right-on=["occurrence"]);
+let member-tables = select r."id" as "table" from member-section-keys as l join "mapping" as r on l."occurrence" = r."owner";
+let members = select r."key" as "name", r."occurrence" as "dependency", r."file" as "file", r."span" as "span" from member-tables as l join "entry" as r on l."table" = r."owner";
+let member-bodies = select l."name" as "name", l."file" as "file", l."span" as "span", r."id" as "body" from members as l join "mapping" as r on l."dependency" = r."owner";
+let inheriting-entries = select l."name" as "name", l."file" as "file", l."span" as "span", r."key" as "key" from member-bodies as l join "entry" as r on l."body" = r."owner";
+let inheriting = select * from inheriting-entries where key = "workspace";
+let reached = select l."name" as "name", l."file" as "file", l."span" as "span" from inheriting as l join fixture-names as r on l."name" = r."name";
+emit reached subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "`{name}` inherits `fixtures` from `[workspace.dependencies]` outside `[dev-dependencies]`"
+help = "Remove `fixtures` from the workspace entry's `features` and enable it from the members' `[dev-dependencies]`, as that dependency's `features = [\"fixtures\"]`. Fixtures never ship, so an ignore is never the fix."
+
+[given]
+include = ['**']
+files.'Cargo.toml' = '''
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+[workspace.dependencies]
+engine = { path = "crates/engine", features = ["fixtures"] }
+values = { path = "crates/values" }
+'''
+files.'crates/engine/Cargo.toml' = '''
+[package]
+name = "engine"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+fixtures = []
+'''
+files.'crates/engine/src/lib.rs' = ''
+files.'crates/values/Cargo.toml' = '''
+[package]
+name = "values"
+version = "0.1.0"
+edition = "2024"
+'''
+files.'crates/values/src/lib.rs' = ''
+files.'crates/core/src/lib.rs' = ''
+
+[[scenarios]]
+id = 'normal-dependency-inherits-fixtures'
+scenario = "The workspace's `engine` enables `fixtures`; the core inherits it as a normal dependency, once dotted and once inline in a target's table: both are reported."
+given.files.'crates/core/Cargo.toml' = '''
+[package]
+name = "core"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+engine.workspace = true
+
+[target.'cfg(unix)'.build-dependencies]
+engine = { workspace = true }
+'''
+then.findings = [
+  { path = 'crates/core/Cargo.toml', line = 7 },
+  { path = 'crates/core/Cargo.toml', line = 10 },
+]
+
+[[scenarios]]
+id = 'dev-dependency-inherits-fixtures'
+scenario = "The core inherits the workspace's `engine` only as a dev-dependency, and inherits `values`, which enables no `fixtures`, as a normal one: nothing is reported."
+given.files.'crates/core/Cargo.toml' = '''
+[package]
+name = "core"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+values.workspace = true
+
+[dev-dependencies]
+engine.workspace = true
+'''

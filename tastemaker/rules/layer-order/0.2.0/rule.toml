@@ -1,13 +1,21 @@
 description = "A local non-dev path dependency never runs from a package in a lower layer to one in a higher layer, the layers being the ordered sets of package directory names `layers` gives."
-why = "Layers keep the entry points above the libraries and the libraries above the leaves, so a leaf can change without rebuilding the front ends and no library grows a dependency on a binary. A package is known by its manifest's directory name, ranked by the first set of `layers` holding it (first set, top layer); a dependency from a package to one in an upper layer is reported at the depending manifest. Dev dependencies are left out: tests may reach upwards. Not seen: a package whose directory name no set holds (it has no layer), and registry or git dependencies."
+why = "Layers keep the entry points above the libraries and the libraries above the leaves, so a leaf can change without rebuilding the front ends and no library grows a dependency on a binary. A package is known by its manifest's directory name, nested or directly under the workspace root, ranked by the first set of `layers` holding it (first set, top layer); a dependency from a package to one in an upper layer is reported at the depending manifest. Dev dependencies are left out: tests may reach upwards. Not seen: a package whose directory name no set holds (it has no layer), and registry or git dependencies."
 
 query = '''
 param layers: list<set<string>>;
 let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
 let shipped = select * from "package-dependency" where kind != "dev";
 let edges = project(from=shipped, columns=["source", "target"]);
-let sources = capture(from=edges, path="source", pattern="{*parent}/{from}/Cargo.toml", captures=["parent", "from"]);
-let targets = capture(from=sources, path="target", pattern="{*target-parent}/{to}/Cargo.toml", captures=["target-parent", "to"]);
+let nested-sources = capture(from=edges, path="source", pattern="{*parent}/{from}/Cargo.toml", captures=["parent", "from"]);
+let top-sources = capture(from=edges, path="source", pattern="{from}/Cargo.toml", captures=["from"]);
+let nested-named = project(from=nested-sources, columns=["source", "target", "from"]);
+let top-named = project(from=top-sources, columns=["source", "target", "from"]);
+let sources = union(left=nested-named, right=top-named);
+let nested-targets = capture(from=sources, path="target", pattern="{*target-parent}/{to}/Cargo.toml", captures=["target-parent", "to"]);
+let top-targets = capture(from=sources, path="target", pattern="{to}/Cargo.toml", captures=["to"]);
+let nested-reached = project(from=nested-targets, columns=["source", "target", "from", "to"]);
+let top-reached = project(from=top-targets, columns=["source", "target", "from", "to"]);
+let targets = union(left=nested-reached, right=top-reached);
 let ranked-sources = rank(from=targets, column="from", sets=$layers, output="from-layer");
 let ranked = rank(from=ranked-sources, column="to", sets=$layers, output="to-layer");
 let upward = select * from ranked where to-layer < from-layer;
@@ -160,4 +168,34 @@ core = { path = "../core" }
 given.files.'crates/values/src/lib.rs' = ''
 then.findings = [
   { path = 'crates/values/Cargo.toml', line = 1 },
+]
+
+[[scenarios]]
+id = 'top-level-edge-depends-on-the-other-edge'
+scenario = "The command line, a package directly under the workspace root (`cli/Cargo.toml`), depends on the SDK, which the layers rank above it: it is reported at the command line's manifest."
+given.params = { layers = [['sdk'], ['cli']] }
+given.files.'Cargo.toml' = '''
+[workspace]
+resolver = "3"
+members = ["cli", "crates/*"]
+'''
+given.files.'cli/Cargo.toml' = '''
+[package]
+name = "cli"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+ryo = { package = "sdk", path = "../crates/sdk" }
+'''
+given.files.'cli/src/main.rs' = ''
+given.files.'crates/sdk/Cargo.toml' = '''
+[package]
+name = "sdk"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'crates/sdk/src/lib.rs' = ''
+then.findings = [
+  { path = 'cli/Cargo.toml', line = 1 },
 ]

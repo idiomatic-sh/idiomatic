@@ -91,7 +91,7 @@ impl<R: RelationsItem, M: 'static> Copy for Reader<R, M> {}
 /// reads a relation only through the item that reads it (`reads::<Item>()`), which implements the trait ryo owns for it;
 /// there is no way to make the answer from a reader written beside the item.
 ///
-/// ```compile_fail
+/// ```compile_fail,E0603
 /// let forged = ryo_language::domain::answers::types::Support::<u8>(todo!());
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

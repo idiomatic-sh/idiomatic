@@ -8,7 +8,7 @@ use ryo_relations::domain::relations::types::Relation;
 
 /// Whether an eligible graph consumer may request bounded adjacency admission.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum GraphAdmission {
+pub(crate) enum GraphAdmission {
     Disabled,
     Enabled,
 }
@@ -19,7 +19,7 @@ pub(crate) const MAX_RETAINED_POSITION_CAPACITY: usize =
 
 /// A file-local owner: dropping it releases all admitted allocations without eviction.
 #[derive(Debug)]
-pub struct CacheBackend {
+pub(crate) struct CacheBackend {
     /// An active eligible graph consumer may request bounded adjacency admission.
     pub(in crate::application::file_dag::derived::owner) graph_enabled: GraphAdmission,
     /// Charged graph/domain/memo bytes within `bytes`.

@@ -8,15 +8,15 @@ use ryo_benchmark_contracts::domain::measurements::types::SampleName;
 
 /// Immutable named observation issued from a certified pair.
 ///
-/// ```compile_fail
+/// ```compile_fail,E0451
 /// use ryo_benchmark_contracts::domain::measurements::types::{Measurement, SampleName};
 /// use ryo_benchmark::domain::measurements::types::sample::value::BenchmarkSample;
-/// fn forge(name: SampleName, measurement: Measurement) -> BenchmarkSample {
-///     BenchmarkSample { name, measurement }
+/// fn forge(name: SampleName, measurement: Measurement, from: BenchmarkSample) -> BenchmarkSample {
+///     BenchmarkSample { name, measurement, ..from }
 /// }
 /// ```
 ///
-/// ```compile_fail
+/// ```compile_fail,E0616
 /// use ryo_benchmark_contracts::domain::measurements::types::Measurement;
 /// use ryo_benchmark::domain::measurements::types::sample::value::BenchmarkSample;
 /// fn replace(sample: &mut BenchmarkSample, forged: Measurement) {

@@ -1,7 +1,7 @@
 //! Explicit demanded source/external admission, never an internal-publication fallback.
 use super::*;
 impl RelationOwner {
-    #[cfg(any(test, feature = "fixtures"))]
+    #[cfg(test)]
     pub(crate) fn admit_relation<'a>(
         &self,
         relation: Relation,

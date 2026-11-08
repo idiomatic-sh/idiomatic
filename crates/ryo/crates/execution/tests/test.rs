@@ -9,7 +9,7 @@ use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution::inbound::use_cases::execution::interface::FileExecution;
+use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;

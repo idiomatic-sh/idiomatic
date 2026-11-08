@@ -24,7 +24,7 @@ use ryo_execution::inbound::use_cases::execution::interface::PhaseStop;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
-use ryo_execution::inbound::use_cases::execution::interface::FileExecution;
+use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationExecution;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationPublication;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution;

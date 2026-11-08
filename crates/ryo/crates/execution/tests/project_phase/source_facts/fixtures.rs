@@ -7,7 +7,7 @@ use ryo_execution_runtime::outbound::facts::interface::FactsWorker;
 use ryo_execution_runtime::outbound::facts::types::KeptBucket;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_execution_runtime::outbound::facts::types::WordsToKeep;
-use ryo_execution::inbound::use_cases::execution::interface::CapturedFrontier;
+use ryo_execution_domain::domain::frontier_capture::types::CapturedFrontier;
 use ryo_relations::domain::relations::{
     fixtures::kinds,
     types::{CellKind, FileId, Offset, Relation, Span, Value},

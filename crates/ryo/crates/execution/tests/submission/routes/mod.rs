@@ -7,7 +7,7 @@ use crate::boundary_fixture::{corpus, engine, prepared_rules};
 use crate::file_intents::named_request;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution::inbound::use_cases::execution::interface::FileExecution;
+use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::FileEnd;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;

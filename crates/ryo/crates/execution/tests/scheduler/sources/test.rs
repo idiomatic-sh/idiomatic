@@ -1,5 +1,5 @@
 //! Real relation, region, observation and member roots, including direct bound capture.
-use ryo_execution::inbound::use_cases::execution::interface::FileExecution as _;
+use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution as _;
 use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution as _;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest as _;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
@@ -9,7 +9,7 @@ use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use crate::boundary_fixture::{authored_request, corpus, engine, source};
 use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
-use ryo_execution::inbound::use_cases::execution::interface::FrontierPurpose;
+use ryo_execution_domain::domain::rule_intent::types::FrontierPurpose;
 use ryo_values::domain::plan_parts::types::InputNumber;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;

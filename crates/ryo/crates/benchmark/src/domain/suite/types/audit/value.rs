@@ -6,7 +6,7 @@
 #[derive(Clone, Debug, PartialEq, Eq)]
 /// Default coverage produced by auditing a suite, never fabricated by a caller.
 ///
-/// ```compile_fail
+/// ```compile_fail,E0451
 /// use ryo_benchmark::domain::suite::types::audit::value::Audit;
 /// let forged = Audit { implemented: Vec::new(), missing: Vec::new() };
 /// ```

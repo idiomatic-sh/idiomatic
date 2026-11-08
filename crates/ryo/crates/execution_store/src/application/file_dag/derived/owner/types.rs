@@ -39,15 +39,15 @@ impl<T: DerivedPort + 'static> From<Arc<T>> for DerivedAccess {
 
 /// The order in which an entry was admitted; a smaller order was admitted first.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
-pub struct AdmissionOrder(pub usize);
+pub(crate) struct AdmissionOrder(pub usize);
 
 /// Live pins on one population; zero means the population is unpinned.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
-pub struct PinCount(pub usize);
+pub(crate) struct PinCount(pub usize);
 
 /// Entries whose reverse dependency lists were walked by a release.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
-pub struct ReleasedEntries(pub u64);
+pub(crate) struct ReleasedEntries(pub u64);
 
 /// Physical builds, including admission refusals that built invocation-locally.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
@@ -63,7 +63,7 @@ pub struct RefusalCount(pub u64);
 
 /// Successful reuse of a retained immutable index.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
-pub struct ReuseCount(pub u64);
+pub(crate) struct ReuseCount(pub u64);
 
 /// What the owner built, answered from an entry and refused, in that order.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -78,14 +78,14 @@ pub enum Room {
 
 /// Whether an admission is also charged against the smaller memo sub-budget.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum MemoBudget {
+pub(crate) enum MemoBudget {
     Charged,
     Exempt,
 }
 
 /// Whether a retained payload is pinned by a live required view or consumer.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum PinState {
+pub(crate) enum PinState {
     Pinned,
     Free,
 }
@@ -100,7 +100,7 @@ pub(crate) struct ReclaimOutlook {
 
 /// Required views live at once.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
-pub struct ViewCount(pub usize);
+pub(crate) struct ViewCount(pub usize);
 
 /// The exact dense ordering of a membership view.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
@@ -108,7 +108,7 @@ pub struct MembershipOrder(pub usize);
 
 /// How many of a key's population slots are in use.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
-pub struct PopulationCount(pub u8);
+pub(crate) struct PopulationCount(pub u8);
 
 /// A scope handed to one finite raw order.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -116,11 +116,11 @@ pub struct ScopeId(pub usize);
 
 /// The most entries the owner retains.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
-pub struct EntryLimit(pub usize);
+pub(crate) struct EntryLimit(pub usize);
 
 /// Whether the file's demanded requirements have been prepared.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum FilePreparation {
+pub(crate) enum FilePreparation {
     #[default]
     Unprepared,
     Prepared,
@@ -128,7 +128,7 @@ pub enum FilePreparation {
 
 /// Whether two immutable identities describe the same retained thing.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum IdentityCompatibility {
+pub(crate) enum IdentityCompatibility {
     Compatible,
     Incompatible,
 }

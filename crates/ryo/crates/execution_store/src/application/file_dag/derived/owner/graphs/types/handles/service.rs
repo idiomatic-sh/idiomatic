@@ -16,7 +16,7 @@ use std::{ops::Deref, sync::Arc};
 
 /// An actual completed adjacency and its required lease, issued together.
 #[derive(Debug)]
-pub struct GraphHandle {
+pub(crate) struct GraphHandle {
     graph: Arc<CompactGraph>,
     orientation: Orientation,
     sharing: GraphSharing,
@@ -58,7 +58,7 @@ impl GraphHandle {
         &self.graph
     }
     /// The view the graph handle was acquired as.
-    pub fn acquired(&self) -> &AcquiredView {
+    pub(crate) fn acquired(&self) -> &AcquiredView {
         &self.acquired
     }
     pub(crate) fn backings(&self) -> &Arc<[Backing]> {
@@ -73,7 +73,7 @@ impl GraphHandle {
 }
 /// Membership never exposes a cloneable graph/domain allocation to a consumer.
 #[derive(Debug)]
-pub struct DomainHandle {
+pub(crate) struct DomainHandle {
     acquired: AcquiredView,
     parent: AcquiredView,
     domain: Arc<GraphDomain>,
@@ -134,14 +134,14 @@ impl DomainHandle {
 /// A completed dense answer keeps both its immutable source space and its
 /// required lease; callers cannot detach the Arc payload from that lease.
 #[derive(Debug)]
-pub struct RootAnswer {
+pub(crate) struct RootAnswer {
     rows: Arc<ReachedVertices>,
     _graph: Arc<DerivedStorage>,
     _lease: Arc<ResourceLease>,
 }
 impl RootAnswer {
     /// A root answer over reached vertices, kept alive by its graph's storage and lease.
-    pub fn new(
+    pub(crate) fn new(
         rows: Arc<ReachedVertices>,
         graph: Arc<DerivedStorage>,
         lease: Arc<ResourceLease>,
@@ -153,7 +153,7 @@ impl RootAnswer {
         }
     }
     /// Decode in the exact immutable dense space that completed this answer.
-    pub fn values(
+    pub(crate) fn values(
         &self,
     ) -> Result<
         impl Iterator<

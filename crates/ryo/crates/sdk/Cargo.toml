@@ -39,6 +39,7 @@ harness = false
 
 [features]
 diagnostic-row-progress = ["ryo_core/diagnostic-row-progress"]
+# Test support, not a public API: it may change without notice. Only a dev-dependency or this crate's own `fixtures` switches it on (`fixtures-feature`).
 fixtures = ["ryo_core/fixtures", "ryo_language/fixtures", "ryo_values/fixtures"]
 
 [lints]

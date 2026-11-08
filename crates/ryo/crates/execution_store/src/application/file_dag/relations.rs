@@ -21,6 +21,7 @@ pub(crate) mod producer;
 pub(crate) mod source;
 pub mod generation;
 pub mod publication;
+#[cfg(test)]
 use admission::service::BorrowedInput;
 use generation::service::GenerationLease;
 use handle::service::PublishedInput;

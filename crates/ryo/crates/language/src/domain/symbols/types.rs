@@ -24,7 +24,7 @@ pub(crate) struct Notes {
 /// element table. A name that is not in the file (a piece of a path, a joined list) is derived: its
 /// text is kept in `derived`, after the names of the file.
 ///
-/// ```compile_fail
+/// ```compile_fail,E0603
 /// let forged = ryo_language::domain::symbols::types::Symbols(Default::default());
 /// ```
 #[derive(Debug, Default)]
@@ -34,7 +34,7 @@ pub struct Symbols(SymbolsEngine);
 /// source-name boundary belongs to language fact readers, not query operators.
 /// This borrow has no mutable access to `Symbols` and cannot call `intern`.
 ///
-/// ```compile_fail
+/// ```compile_fail,E0603
 /// let mut symbols = ryo_language::domain::symbols::types::Symbols::default();
 /// let forged = ryo_language::domain::symbols::types::QuerySymbols(&mut symbols);
 /// ```
@@ -44,12 +44,12 @@ pub struct QuerySymbols<'a>(pub(super) &'a mut Symbols);
 /// Engine-held authority to admit transported name places into exactly one
 /// live symbol generation. A query only receives QuerySymbols, never this key.
 ///
-/// ```compile_fail
+/// ```compile_fail,E0423
 /// use ryo_language::domain::symbols::types::TransportPermit;
 /// let forged = TransportPermit(std::sync::Arc::new(()));
 /// ```
 ///
-/// ```compile_fail
+/// ```compile_fail,E0308
 /// use ryo_language::domain::symbols::{service::transport_permit, types::{QuerySymbols, Symbols}};
 /// let mut symbols = Symbols::default();
 /// let query = QuerySymbols::from(&mut symbols);

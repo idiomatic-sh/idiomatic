@@ -153,7 +153,7 @@ impl AdmittedViewInputs<'_> {
 
 impl AcquiredView {
     /// The lease that keeps the view alive.
-    pub fn lease(
+    pub(crate) fn lease(
         &self,
     ) -> &Arc<ResourceLease> {
         &self.lease
