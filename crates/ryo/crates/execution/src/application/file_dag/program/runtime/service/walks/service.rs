@@ -7,7 +7,7 @@ use ryo_execution_domain::domain::executable_program::types::InputId;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 
 impl KernelPermit<'_> {
-    pub(in crate::application::file_dag::program) fn require_file_walk(
+    pub(crate) fn require_file_walk(
         &self,
         expected: &FileGeneration,
     ) -> Result<(), OperatingError> {
@@ -22,7 +22,7 @@ impl KernelPermit<'_> {
             _ => Err(OperatingError::NotRead),
         }
     }
-    pub(in crate::application::file_dag::program) fn require_project_walk(
+    pub(crate) fn require_project_walk(
         &self,
     ) -> Result<(), OperatingError> {
         self.validate_live()?;
@@ -31,7 +31,7 @@ impl KernelPermit<'_> {
             _ => Err(OperatingError::NotRead),
         }
     }
-    pub(in crate::application::file_dag::program) fn admit_walk_source<'call>(
+    pub(crate) fn admit_walk_source<'call>(
         &'call self,
         relation: ryo_relations::domain::relations::types::Relation,
         rows: &'call ryo_execution_domain::domain::table_model::types::Rows<'call>,
@@ -59,7 +59,7 @@ impl KernelPermit<'_> {
         source.walk_source(relation, rows, self.generation)
     }
 
-    pub(in crate::application::file_dag::program) fn validate_walk_source(
+    pub(crate) fn validate_walk_source(
         &self,
         source: &AdmittedWalkSource<'_>,
     ) -> Result<(), OperatingError> {

@@ -11,7 +11,7 @@ use ryo_values::domain::plan_parts::types::{Input, StepId};
 use ryo_values::domain::plans::types::{Operation, Plan};
 
 /// One entry per plan, in rule order.
-pub(in crate::application::file_dag::program::preparation) fn rules(
+pub(crate) fn rules(
     program: &ExecutableProgram,
     named: Option<&ObservationMetadata>,
     plans: &[Plan],

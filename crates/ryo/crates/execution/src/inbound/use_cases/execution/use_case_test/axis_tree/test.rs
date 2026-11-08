@@ -38,7 +38,7 @@ fn node(position: u32) -> Cell {
     Cell::Node(node_id(FileId(0), Position(position)))
 }
 /// What the third input of a walk over the tree is: the nodes of a table, or the elements of the tree.
-pub(in crate::inbound::use_cases::execution::use_case_test) enum Domain {
+pub(crate) enum Domain {
     /// A table of nodes.
     Nodes(Table),
     /// The elements of the tree.
@@ -72,7 +72,7 @@ fn axis(direction: Direction, filter: Vec<PlanComparison>, output: Vec<JoinColum
     }
 }
 /// What the item makes of the operation over the tree, from the nodes in `starts`.
-pub(in crate::inbound::use_cases::execution::use_case_test) fn over_the_tree(
+pub(crate) fn over_the_tree(
     operation: &Operation,
     starts: &Table,
     domain: &Domain,

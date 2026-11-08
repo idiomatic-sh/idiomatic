@@ -3,7 +3,7 @@ use ryo_derived::domain::request::types::DerivedKind;
 
 /// How the last consumer of a family leaves through its production entry.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in crate::application::file_dag) enum Exit {
+pub(crate) enum Exit {
     /// The view is acquired, read and dropped.
     Succeeds,
     /// The demand is withdrawn after the request is prepared and before the view is read.
@@ -13,7 +13,7 @@ pub(in crate::application::file_dag) enum Exit {
 }
 /// The production entry a family is acquired through.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in crate::application::file_dag) enum Entry {
+pub(crate) enum Entry {
     /// `InputAdmissions::{acquire_derived, try_native_lookup}` over an invocation workspace.
     Workspace,
     /// The `PartitionedClosure` cursor of `closure_partitions`.
@@ -22,7 +22,7 @@ pub(in crate::application::file_dag) enum Entry {
     Graph,
 }
 /// Exhaustive on purpose: a new family must name its production entry before this file compiles.
-pub(in crate::application::file_dag) fn entry(kind: DerivedKind) -> Entry {
+pub(crate) fn entry(kind: DerivedKind) -> Entry {
     match kind {
         DerivedKind::Equality
         | DerivedKind::CycleAdjacency
@@ -33,7 +33,7 @@ pub(in crate::application::file_dag) fn entry(kind: DerivedKind) -> Entry {
         DerivedKind::Adjacency | DerivedKind::Membership => Entry::Graph,
     }
 }
-pub(in crate::application::file_dag::derived::owner::acquisition::family::fixtures::route) fn released(kind: DerivedKind, exit: Exit, ledger: (usize, usize, usize)) {
+pub(crate) fn released(kind: DerivedKind, exit: Exit, ledger: (usize, usize, usize)) {
     assert_eq!(
         ledger,
         (0, 0, 0),
@@ -43,7 +43,7 @@ pub(in crate::application::file_dag::derived::owner::acquisition::family::fixtur
 /// The exit itself: the handles and results of the production entry are dropped and the generation
 /// is still live, so nothing but the entry's own release can have returned the required bytes to
 /// `floor`, what the owner keeps for its admitted sources until the generation retires.
-pub(in crate::application::file_dag::derived::owner::acquisition::family::fixtures::route) fn released_at_exit(kind: DerivedKind, exit: Exit, ledger: (usize, usize, usize), floor: usize) {
+pub(crate) fn released_at_exit(kind: DerivedKind, exit: Exit, ledger: (usize, usize, usize), floor: usize) {
     assert_eq!(
         ledger.0, floor,
         "{kind:?} {exit:?}: the exit itself releases the required lease, before the generation retires"

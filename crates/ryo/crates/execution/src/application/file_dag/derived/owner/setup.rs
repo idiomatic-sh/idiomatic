@@ -8,7 +8,7 @@ use ryo_relations::domain::relations::types::Relation;
 impl DerivedOwner {
     /// Configure the real installed backend for required-versus-optional controls.
     #[cfg(test)]
-    pub(in crate::application::file_dag) fn set_optional_limit(
+    pub(crate) fn set_optional_limit(
         &self,
         limit: crate::application::file_dag::derived::owner::index::types::ByteLimit,
     ) -> Result<(), OperatingError> {
@@ -20,7 +20,7 @@ impl DerivedOwner {
 }
 
 impl DerivedOwner {
-    pub(in crate::application::file_dag) fn prepare_program_file(
+    pub(crate) fn prepare_program_file(
         &self,
         prepared: &RequestDerived,
         demanded: &[ryo_execution_domain::domain::coverage::types::RuleIndex],
@@ -56,7 +56,7 @@ impl DerivedOwner {
 }
 
 impl RequestDerived {
-    pub(in crate::application::file_dag) fn wanted(
+    pub(crate) fn wanted(
         &self,
         demanded: &[RuleIndex],
     ) -> Result<Vec<Relation>, OperatingError> {

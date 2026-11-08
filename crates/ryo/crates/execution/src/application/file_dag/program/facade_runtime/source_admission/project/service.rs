@@ -10,7 +10,7 @@ use ryo_execution_domain::domain::operating::types::OperatorContext;
 use std::rc::Rc;
 
 impl ProjectSources<'_> {
-    pub(in crate::application::file_dag::program::facade_runtime::source_admission) fn ordinary_place(
+    pub(crate) fn ordinary_place(
         &self,
         source: ryo_execution_domain::domain::executable_program::types::InputSource,
     ) -> Option<OrdinaryPlace> {
@@ -20,7 +20,7 @@ impl ProjectSources<'_> {
             .map(OrdinaryPlace)
     }
 
-    pub(in crate::application::file_dag::program::facade_runtime::source_admission) fn provides(
+    pub(crate) fn provides(
         &self,
         source: ryo_execution_domain::domain::executable_program::types::InputSource,
     ) -> Provision {
@@ -43,7 +43,7 @@ impl ProjectSources<'_> {
     }
     /// Called only by an actual DemandAction::Admit. Raw source handles and
     /// errors remain untouched when a branch does not demand them.
-    pub(in crate::application::file_dag::program::facade_runtime::source_admission) fn supply(
+    pub(crate) fn supply(
         &mut self,
         source: ryo_execution_domain::domain::executable_program::types::InputSource,
         partition: &Partition,

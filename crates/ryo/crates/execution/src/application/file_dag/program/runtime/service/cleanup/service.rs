@@ -9,7 +9,7 @@ use ryo_execution_domain::domain::executable_program::types::RegionId;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 
 impl RetirementWork {
-    pub(in crate::application::file_dag::program::runtime::service) fn reset(&mut self) {
+    pub(crate) fn reset(&mut self) {
         self.simulated.clear();
         self.touched.clear();
         self.pending.clear();
@@ -18,7 +18,7 @@ impl RetirementWork {
 impl ProgramExecution {
     /// A prepared consumer obligation can finish once. The whole transitive
     /// cancellation is preflighted before any slot, count or lease changes.
-    pub(in crate::application::file_dag::program::runtime) fn release_inputs(
+    pub(crate) fn release_inputs(
         &self,
         state: &RuntimeState,
         consumer: RegionId,
@@ -35,7 +35,7 @@ impl ProgramExecution {
         self.observe_consumer_release(state, consumer, ConsumerReleasePoint::After);
         result
     }
-    pub(in crate::application::file_dag::program::runtime) fn retire(
+    pub(crate) fn retire(
         &self,
         state: &RuntimeState,
         consumer: RegionId,
@@ -144,7 +144,7 @@ impl ProgramExecution {
         work.retired_scratch = retired_scratch;
         Ok(())
     }
-    pub(in crate::application::file_dag::program::runtime::service) fn wake_retirements(
+    pub(crate) fn wake_retirements(
         &self,
         state: &RuntimeState,
         producer: RegionId,
@@ -171,7 +171,7 @@ impl ProgramExecution {
             }
         }
     }
-    pub(in crate::application::file_dag::program::runtime::service) fn cleanup_status(
+    pub(crate) fn cleanup_status(
         &self,
     ) -> Result<(), OperatingError> {
         if let Some(error) = self.cleanup_failure.borrow().as_ref() {

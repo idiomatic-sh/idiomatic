@@ -49,7 +49,7 @@ const SCHEMA: &[OperationKind] = &[
     OperationKind::Intersection,
     OperationKind::Difference,
 ];
-pub(in crate::inbound::use_cases::execution::use_case_test) fn operation(kind: OperationKind, invalid: bool) -> Operation {
+pub(crate) fn operation(kind: OperationKind, invalid: bool) -> Operation {
     let left = PlanInput::Relation(Relation::Function);
     let right = PlanInput::Relation(if invalid || kind == OperationKind::Join {
         Relation::Resolves
@@ -93,7 +93,7 @@ pub(in crate::inbound::use_cases::execution::use_case_test) fn operation(kind: O
         _ => panic!("this constructor names exactly the six declared schema-first kinds"),
     }
 }
-pub(in crate::inbound::use_cases::execution::use_case_test) fn population(relation: Relation, malformed: bool, symbol: Symbol) -> Table {
+pub(crate) fn population(relation: Relation, malformed: bool, symbol: Symbol) -> Table {
     let kinds = kinds(relation).to_vec();
     let mut cells = Vec::new();
     for row in 1..=2 {
@@ -119,14 +119,14 @@ pub(in crate::inbound::use_cases::execution::use_case_test) fn population(relati
     }
 }
 #[derive(Clone, Copy)]
-pub(in crate::inbound::use_cases::execution::use_case_test) enum InputSupply {
+pub(crate) enum InputSupply {
     Present,
     MissingLeft,
     MissingRight,
     MissingAfterFirst,
     Changed,
 }
-pub(in crate::inbound::use_cases::execution::use_case_test) fn execute(
+pub(crate) fn execute(
     plan: Plan,
     malformed: bool,
     supply: InputSupply,
@@ -173,7 +173,7 @@ pub(in crate::inbound::use_cases::execution::use_case_test) fn execute(
     .map(|(table, _)| table);
     (result, [counts[0].get(), counts[1].get()])
 }
-pub(in crate::inbound::use_cases::execution::use_case_test) fn layout_error(kind: OperationKind) -> OperatingError {
+pub(crate) fn layout_error(kind: OperationKind) -> OperatingError {
     match kind {
         OperationKind::Select | OperationKind::Project | OperationKind::Join => {
             OperatingError::Table(RowsError::NoSuchColumn { index: 99 })

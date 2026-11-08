@@ -22,7 +22,7 @@ use ryo_execution_domain::domain::{
 };
 use std::sync::Arc;
 
-pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn adjacency(
+pub(crate) fn adjacency(
     owner: &DerivedOwner,
     population: PopulationId,
     admitted: &AdmittedViewInputs<'_>,
@@ -90,7 +90,7 @@ pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn adja
     }))
 }
 
-pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn domain(
+pub(crate) fn domain(
     owner: &DerivedOwner,
     population: PopulationId,
     plan: &Arc<ryo_execution_domain::domain::derived_views::types::contract::value::DerivedContract>,

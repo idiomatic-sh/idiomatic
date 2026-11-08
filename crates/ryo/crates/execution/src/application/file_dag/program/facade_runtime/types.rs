@@ -37,7 +37,7 @@ pub(super) struct PreparedNamed {
 }
 /// The delivery, observation and capture a file declared for one rule.
 #[derive(Clone, Copy, Debug)]
-pub(super) struct DeclaredIntent {
+pub(crate) struct DeclaredIntent {
     pub(super) delivery:
         ryo_execution_domain::domain::rule_intent::types::DiagnosticDelivery,
     pub(super) demand: ryo_execution_domain::domain::rule_intent::types::ObservationDemand,
@@ -85,13 +85,13 @@ impl ProgramServices {
             request: Arc::new(RequestIdentity::new(corpus)),
         }
     }
-    pub(in crate::application::file_dag::program) fn request(&self) -> &Arc<RequestIdentity> {
+    pub(crate) fn request(&self) -> &Arc<RequestIdentity> {
         &self.request
     }
-    pub(in crate::application::file_dag::program) fn kernels(&self) -> &dyn PrimitiveExecutor {
+    pub(crate) fn kernels(&self) -> &dyn PrimitiveExecutor {
         self.kernels.as_ref()
     }
-    pub(in crate::application::file_dag::program) fn derived(
+    pub(crate) fn derived(
         &self,
     ) -> &crate::application::file_dag::derived::owner::types::DerivedAccess {
         &self.derived
@@ -158,15 +158,15 @@ impl PublicationScope {
             }
         }
     }
-    pub(in crate::application::file_dag::program) fn program(
+    pub(crate) fn program(
         &self,
     ) -> &Arc<ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram> {
         &self.program
     }
-    pub(in crate::application::file_dag) fn owner(&self) -> &Rc<RelationOwner> {
+    pub(crate) fn owner(&self) -> &Rc<RelationOwner> {
         &self.owner
     }
-    pub(in crate::application::file_dag::program) fn validate_partitions(
+    pub(crate) fn validate_partitions(
         &self,
         required: &RequiredPartitions,
     ) -> Result<(), OperatingError> {
@@ -176,7 +176,7 @@ impl PublicationScope {
             Err(OperatingError::NotRead)
         }
     }
-    pub(in crate::application::file_dag::program) fn validate_request(
+    pub(crate) fn validate_request(
         &self,
         services: &ProgramServices,
         required: &RequiredPartitions,
@@ -188,7 +188,7 @@ impl PublicationScope {
         }
         Ok(())
     }
-    pub(in crate::application::file_dag::program) fn validate_query(
+    pub(crate) fn validate_query(
         &self,
         symbols: &ryo_language::domain::symbols::types::QuerySymbols<'_>,
     ) -> Result<(), OperatingError> {

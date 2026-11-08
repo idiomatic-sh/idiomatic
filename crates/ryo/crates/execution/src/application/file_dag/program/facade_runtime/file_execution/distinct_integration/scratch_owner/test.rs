@@ -6,7 +6,7 @@ use ryo_values::domain::{
     plan_parts::types::{HostedNumber, Operand, PlanComparison, Test},
     row_texts::types::Cell as HostedCell,
 };
-pub(in super::super) fn hosted(kinds: &[HostKind], rows: Vec<Vec<HostedCell>>) -> HostRelation {
+pub(crate) fn hosted(kinds: &[HostKind], rows: Vec<Vec<HostedCell>>) -> HostRelation {
     HostRelation {
         name: HostName("scratch-input".into()),
         columns: kinds
@@ -20,7 +20,7 @@ pub(in super::super) fn hosted(kinds: &[HostKind], rows: Vec<Vec<HostedCell>>) -
         rows: rows.into_iter().map(HostRow).collect(),
     }
 }
-pub(in super::super) fn execute(
+pub(crate) fn execute(
     operation: Operation,
     host: HostRelation,
     symbols: &mut Symbols,

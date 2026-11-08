@@ -24,7 +24,7 @@ pub struct BoundInput {
 
 /// Admission preserves independent input successes and explicit refusal causes.
 #[derive(Clone)]
-pub(in crate::application::file_dag) struct FrontierSource {
+pub(crate) struct FrontierSource {
     pub input: ryo_values::domain::plan_parts::types::Input,
     pub root: Result<
         ryo_execution_domain::domain::executable_program::types::InputSource,
@@ -35,14 +35,14 @@ pub(in crate::application::file_dag) struct FrontierSource {
 /// root of one population (see `FrontierCache`); a clone shares the rows and never copies them.
 #[derive(Clone)]
 pub struct PreparedFrontiers {
-    pub(in crate::application::file_dag) producer: ryo_execution_domain::domain::coverage::types::RuleIndex,
-    pub(in crate::application::file_dag) sources: std::sync::Arc<[FrontierSource]>,
-    pub(in crate::application::file_dag) rows: std::sync::Arc<[FrontierInput]>,
-    pub(in crate::application::file_dag) program:
+    pub(crate) producer: ryo_execution_domain::domain::coverage::types::RuleIndex,
+    pub(crate) sources: std::sync::Arc<[FrontierSource]>,
+    pub(crate) rows: std::sync::Arc<[FrontierInput]>,
+    pub(crate) program:
         std::sync::Arc<ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram>,
-    pub(in crate::application::file_dag) required:
+    pub(crate) required:
         crate::application::file_dag::program::admission::RequiredPartitions,
-    pub(in crate::application::file_dag) refused:
+    pub(crate) refused:
         std::sync::Arc<[ryo_execution_domain::domain::frontiers::types::RefusedFrontier]>,
 }
 
@@ -154,7 +154,7 @@ pub(crate) struct DecodeCount(pub usize);
 
 /// What a packed frontier decodes to: compact rows for a step, decoded rows for any other input.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in crate::application::file_dag) enum DecodeShape {
+pub(crate) enum DecodeShape {
     Compact,
     Decoded,
 }
@@ -163,7 +163,7 @@ pub(in crate::application::file_dag) enum DecodeShape {
 /// generation it read them, and what it admitted. A later root's content-equal words find this decode
 /// by their digest, so the packed words are released once decoded; the admitted rows are what the
 /// population retains.
-pub(in crate::application::file_dag) struct DecodedFrontier {
+pub(crate) struct DecodedFrontier {
     pub content: ryo_values::domain::stored_facts::types::Digest,
     pub shape: DecodeShape,
     pub mode: ryo_values::domain::table_words::types::DecodeMode,
@@ -176,7 +176,7 @@ pub(in crate::application::file_dag) struct DecodedFrontier {
 /// decodes them, and every later root of the scope receives the same rows, relabelled with its own
 /// input and coverage. Names are places in the symbol generation that decoded them, so a decode is
 /// shared only within that generation.
-pub(in crate::application::file_dag) struct FrontierDecodes {
+pub(crate) struct FrontierDecodes {
     pub(super) decoded: std::cell::RefCell<Vec<DecodedFrontier>>,
     pub(super) count: std::cell::Cell<DecodeCount>,
     /// What names the content of the words: the request's digest port.
@@ -186,7 +186,7 @@ pub(in crate::application::file_dag) struct FrontierDecodes {
 impl FrontierDecodes {
     /// The decodes of one publication scope: `publication_owner` issues it into the scope, over the
     /// digest port the prepared program carries.
-    pub(in crate::application::file_dag) fn new(
+    pub(crate) fn new(
         digest: std::sync::Arc<dyn crate::outbound::digest::interface::DigestPort>,
     ) -> Self {
         Self {
@@ -197,7 +197,7 @@ impl FrontierDecodes {
     }
     #[cfg(test)]
     /// How many packed frontiers this scope decoded.
-    pub(in crate::application::file_dag) fn count(&self) -> DecodeCount {
+    pub(crate) fn count(&self) -> DecodeCount {
         self.count.get()
     }
     /// Admit one packed frontier: words this scope already decoded in the same shape, mode and
@@ -288,7 +288,7 @@ fn relabel(
 }
 
 impl PreparedFrontiers {
-    pub(in crate::application::file_dag) fn validate_scope(
+    pub(crate) fn validate_scope(
         &self,
         program: &std::sync::Arc<ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram>,
         required: &crate::application::file_dag::program::admission::RequiredPartitions,
@@ -302,7 +302,7 @@ impl PreparedFrontiers {
     }
 }
 
-pub(in crate::application::file_dag) fn validate_consumer_sources(
+pub(crate) fn validate_consumer_sources(
     prepared: &crate::application::file_dag::program::preparation::types::PreparedProgram,
     producer: ryo_execution_domain::domain::coverage::types::RuleIndex,
     sources: &[FrontierSource],
@@ -347,18 +347,18 @@ pub enum InputReadiness {
 
 /// The address of one provider, the identity of what a population was read from.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in crate::application::file_dag) struct ProviderAddress(pub usize);
+pub(crate) struct ProviderAddress(pub usize);
 
 /// The two providers a population is read from: the facts provider and the project provider.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in crate::application::file_dag) struct Providers {
+pub(crate) struct Providers {
     pub facts: ProviderAddress,
     pub project: ProviderAddress,
 }
 
 /// Whether the files a source proof accounts for are exactly the files the request requires.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in crate::application::file_dag) enum FileAccounting {
+pub(crate) enum FileAccounting {
     /// Every required file is accounted for, and no other.
     Exact,
     /// A required file is missing, or an unrequired one is named.

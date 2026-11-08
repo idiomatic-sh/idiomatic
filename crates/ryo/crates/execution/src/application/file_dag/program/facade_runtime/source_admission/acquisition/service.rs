@@ -18,7 +18,7 @@ use ryo_execution_domain::domain::operating::types::OperatorContext;
 use std::rc::Rc;
 
 impl SourceInputs<'_, '_> {
-    pub(in crate::application::file_dag::program::facade_runtime::source_admission) fn supply_source(
+    pub(crate) fn supply_source(
         &mut self,
         source: ryo_execution_domain::domain::executable_program::types::InputSource,
         partition: &Partition,
@@ -231,7 +231,7 @@ impl SourceInputs<'_, '_> {
         Ok(AvailableInput::published(admitted))
     }
 }
-pub(in crate::application::file_dag::program::facade_runtime::source_admission) fn admit_published(
+pub(crate) fn admit_published(
     owner: &Rc<RelationOwner>,
     publication: PublishedInput,
     source: ryo_execution_domain::domain::executable_program::types::InputSource,

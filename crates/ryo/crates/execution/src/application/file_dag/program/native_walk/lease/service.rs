@@ -17,7 +17,7 @@ pub(crate) struct PermittedWalk<'call, 'context, 'scope> {
     work: &'call mut WalkWork,
 }
 impl<'call, 'context, 'scope> PermittedWalk<'call, 'context, 'scope> {
-    pub(in crate::application::file_dag::program::native_walk) fn new(
+    pub(crate) fn new(
         permit: &'call KernelPermit<'scope>,
         prepared: &'call PreparedProgram,
         source: crate::application::file_dag::program::admission::AdmittedWalkSource<'call>,
@@ -36,7 +36,7 @@ impl<'call, 'context, 'scope> PermittedWalk<'call, 'context, 'scope> {
     }
 }
 impl PermittedWalk<'_, '_, '_> {
-    pub(in crate::application::file_dag) fn dispatch(self) -> Result<NativeBatch, OperatingError> {
+    pub(crate) fn dispatch(self) -> Result<NativeBatch, OperatingError> {
         self.permit.validate_program(self.prepared.program())?;
         self.permit.validate_walk_source(&self.source)?;
         let batch = ryo_execution_domain::domain::shared_walk::service::evaluate(

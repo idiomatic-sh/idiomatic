@@ -11,15 +11,15 @@ use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::records::types::ObservationReadinessLayout;
 use ryo_values::domain::rule_requests::types::RuleSpec;
 
-pub(in super::super) struct Authored {
-    pub(in super::super) plans: Vec<Plan>,
-    pub(in super::super) rules: Vec<RuleSpec>,
-    pub(in super::super) intents: Vec<FileRuleIntent>,
-    pub(in super::super) observations: ObservationIdentity,
+pub(crate) struct Authored {
+    pub(crate) plans: Vec<Plan>,
+    pub(crate) rules: Vec<RuleSpec>,
+    pub(crate) intents: Vec<FileRuleIntent>,
+    pub(crate) observations: ObservationIdentity,
     /// Parameter bindings of each rule; empty when no rule binds a parameter.
-    pub(in super::super) bindings: Vec<Vec<ParameterBinding>>,
+    pub(crate) bindings: Vec<Vec<ParameterBinding>>,
     /// Host relations the request declares.
-    pub(in super::super) hosts: Vec<HostRelation>,
+    pub(crate) hosts: Vec<HostRelation>,
 }
 pub(super) fn rules(plans: &[Plan]) -> Vec<RuleSpec> {
     plans
@@ -99,7 +99,7 @@ fn captured() -> FileRuleIntent {
 }
 impl Authored {
     /// Two rules sharing one class under the production intent shape.
-    pub(in super::super) fn captured() -> Self {
+    pub(crate) fn captured() -> Self {
         let plans = vec![
             extended(ColumnIndex(2), Integer(7)),
             extended(ColumnIndex(2), Integer(7)),
@@ -116,7 +116,7 @@ impl Authored {
     /// Two relations, two classes on the first (`> 1` and `> 2`) and one class on the
     /// second (`> 1`) consumed by two rules: rules 0 and 1 read `LanguageTarget`,
     /// rules 2 and 3 read `FilesystemLineCount`.
-    pub(in super::super) fn relations() -> Self {
+    pub(crate) fn relations() -> Self {
         let on = |relation, number| {
             head_of(
                 relation,
@@ -139,7 +139,7 @@ impl Authored {
             observations: ObservationIdentity::Independent,
         }
     }
-    pub(in super::super) fn continuations() -> Self {
+    pub(crate) fn continuations() -> Self {
         let good = extended(ColumnIndex(2), Integer(7));
         let plans = vec![
             extended(ColumnIndex(1), Integer(99)),
@@ -166,7 +166,7 @@ impl Authored {
         }
     }
     /// A derived operation after a shared head, beside a plain head of the same class.
-    pub(in super::super) fn grouped() -> Self {
+    pub(crate) fn grouped() -> Self {
         let mut grouped = head(
             vec![ColumnIndex(1)],
             vec![comparison(Test::GreaterThan, Integer(1))],
@@ -196,7 +196,7 @@ impl Authored {
             observations: ObservationIdentity::Independent,
         }
     }
-    pub(in super::super) fn named() -> Self {
+    pub(crate) fn named() -> Self {
         let columns = vec![ObservationColumn {
             name: ObservationColumnName("number".into()),
             kind: CellKind::Number,

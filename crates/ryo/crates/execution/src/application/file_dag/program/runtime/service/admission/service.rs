@@ -19,19 +19,19 @@ use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operating::types::OperatorContext;
 
 impl<'a> KernelAdmission<'a> {
-    pub(in crate::application::file_dag::program) fn execution(&self) -> &'a ProgramExecution {
+    pub(crate) fn execution(&self) -> &'a ProgramExecution {
         self.execution
     }
-    pub(in crate::application::file_dag::program) fn region(&self) -> RegionId {
+    pub(crate) fn region(&self) -> RegionId {
         self.region
     }
 }
 impl ReadySelection<'_, '_> {
-    pub(in crate::application::file_dag::program) fn permit(&self) -> &KernelPermit<'_> {
+    pub(crate) fn permit(&self) -> &KernelPermit<'_> {
         self.permit
     }
 }
-pub(in crate::application::file_dag::program::runtime::service) fn first_preflight(
+pub(crate) fn first_preflight(
     region: &Region,
 ) -> Option<ryo_execution_domain::domain::operator::contract::types::PreflightOrder> {
     region
@@ -40,7 +40,7 @@ pub(in crate::application::file_dag::program::runtime::service) fn first_preflig
         .map(|instruction| instruction.contract().semantics.preflight)
 }
 impl AdmissionProgress {
-    pub(in crate::application::file_dag::program::runtime::service) fn is_empty(
+    pub(crate) fn is_empty(
         &mut self,
         inputs: &dyn Inputs,
         source: ryo_execution_domain::domain::executable_program::types::InputSource,
@@ -63,7 +63,7 @@ impl AdmissionProgress {
         Ok(emptiness)
     }
 
-    pub(in crate::application::file_dag::program::runtime::service) fn check_schema(
+    pub(crate) fn check_schema(
         &mut self,
         region: &Region,
     ) -> Result<(), OperatingError> {
@@ -83,7 +83,7 @@ impl AdmissionProgress {
         }
         Ok(())
     }
-    pub(in crate::application::file_dag::program::runtime::service) fn supply(
+    pub(crate) fn supply(
         &mut self,
         inputs: &mut dyn Inputs,
         source: ryo_execution_domain::domain::executable_program::types::InputSource,
@@ -112,7 +112,7 @@ impl AdmissionProgress {
         });
         Ok(())
     }
-    pub(in crate::application::file_dag::program::runtime::service) fn admit(
+    pub(crate) fn admit(
         &mut self,
         inputs: &mut dyn Inputs,
         source: ryo_execution_domain::domain::executable_program::types::InputSource,
@@ -138,7 +138,7 @@ impl AdmissionProgress {
         }
     }
 }
-pub(in crate::application::file_dag::program::runtime::service) fn empty_output_kinds(
+pub(crate) fn empty_output_kinds(
     region: &Region,
     gate: &ryo_execution_domain::domain::operator::contract::types::EmptyResult,
 ) -> Result<Vec<ryo_relations::domain::relations::types::CellKind>, OperatingError> {

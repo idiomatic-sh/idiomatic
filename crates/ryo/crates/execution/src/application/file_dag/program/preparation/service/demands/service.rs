@@ -11,7 +11,7 @@ use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_values::domain::records::types::ObservationIndex;
 
 /// One demand per rule, in rule order.
-pub(in crate::application::file_dag::program::preparation) fn file_demands(
+pub(crate) fn file_demands(
     program: &ExecutableProgram,
     metadata: &[RuleMetadata],
 ) -> Result<Box<[FileRuleDemand]>, OperatingError> {
@@ -38,7 +38,7 @@ pub(in crate::application::file_dag::program::preparation) fn file_demands(
         .into_boxed_slice())
 }
 /// For each rule and frontier input, the named outputs that the input commits.
-pub(in crate::application::file_dag::program::preparation) fn frontier_outputs(
+pub(crate) fn frontier_outputs(
     metadata: &[RuleMetadata],
     named: Option<&ObservationMetadata>,
 ) -> Box<[Box<[Box<[ObservationIndex]>]>]> {

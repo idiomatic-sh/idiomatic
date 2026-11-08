@@ -16,7 +16,7 @@ use ryo_execution_domain::domain::operating::errors::OperatingError;
 impl ProgramExecution {
     /// Observe actual release boundaries without retaining a producer or a backing lease.
     #[cfg(test)]
-    pub(in crate::application::file_dag::program) fn observe_producer_releases(
+    pub(crate) fn observe_producer_releases(
         &self,
         state: &RuntimeState,
         producer: RegionId,
@@ -40,7 +40,7 @@ impl ProgramExecution {
         Ok(())
     }
     #[cfg(test)]
-    pub(in crate::application::file_dag::program::runtime::service) fn observe_consumer_release(
+    pub(crate) fn observe_consumer_release(
         &self,
         state: &RuntimeState,
         consumer: RegionId,
@@ -82,7 +82,7 @@ impl ProgramExecution {
         });
     }
     #[cfg(test)]
-    pub(in crate::application::file_dag::program) fn take_producer_releases(
+    pub(crate) fn take_producer_releases(
         &self,
         state: &RuntimeState,
     ) -> Vec<ProducerLeaseEvent> {
@@ -97,7 +97,7 @@ impl ProgramExecution {
     }
     /// Observes completed dispatches even after the real retirement drops invocation scratch.
     #[cfg(test)]
-    pub(in crate::application::file_dag::program) fn route_observation(
+    pub(crate) fn route_observation(
         &self,
         state: &RuntimeState,
         rule: ryo_execution_domain::domain::coverage::types::RuleIndex,
@@ -119,7 +119,7 @@ impl ProgramExecution {
         self.region_observation(state, *region)
     }
     #[cfg(test)]
-    pub(in crate::application::file_dag::program) fn region_observation(
+    pub(crate) fn region_observation(
         &self,
         state: &RuntimeState,
         region: RegionId,
@@ -139,7 +139,7 @@ impl ProgramExecution {
         })
     }
     #[cfg(test)]
-    pub(in crate::application::file_dag::program) fn retry_checkpoint(
+    pub(crate) fn retry_checkpoint(
         &self,
         state: &RuntimeState,
         id: RegionId,

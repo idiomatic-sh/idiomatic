@@ -9,59 +9,59 @@ use ryo_derived::domain::vertices::types::VertexId;
 use std::sync::Arc;
 /// The dense vertices a completed closure reached, in typed value order: the bare numbers inside are named here.
 #[derive(Debug)]
-pub(in crate::application::file_dag) struct ReachedVertices(pub Vec<u32>);
+pub(crate) struct ReachedVertices(pub Vec<u32>);
 
 /// The index of one nearest memo among the retained memos: the bare index inside is named here.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in crate::application::file_dag::derived::owner) struct NearestSlot(pub usize);
+pub(crate) struct NearestSlot(pub usize);
 
 #[derive(Debug)]
-pub(in crate::application::file_dag::derived::owner) struct RootMemo {
+pub(crate) struct RootMemo {
     /// Dense root already identifies its partition.
-    pub(in crate::application::file_dag::derived::owner) root: VertexId,
+    pub(crate) root: VertexId,
     /// Requested traversal orientation.
-    pub(in crate::application::file_dag::derived::owner) orientation: Orientation,
+    pub(crate) orientation: Orientation,
     /// Reachable dense IDs in typed Value order.
-    pub(in crate::application::file_dag::derived::owner) reached: Arc<ReachedVertices>,
-    pub(in crate::application::file_dag::derived::owner) _lease: Arc<ResourceLease>,
+    pub(crate) reached: Arc<ReachedVertices>,
+    pub(crate) _lease: Arc<ResourceLease>,
 }
 
 #[derive(Debug)]
-pub(in crate::application::file_dag::derived::owner) struct GraphEntry {
+pub(crate) struct GraphEntry {
     /// Immutable handle may be held across nested emit after mutable cache access ends.
-    pub(in crate::application::file_dag::derived::owner) graph: Arc<CompactGraph>,
+    pub(crate) graph: Arc<CompactGraph>,
     /// Successful source requests only; never a full all-roots closure.
-    pub(in crate::application::file_dag::derived::owner) roots: Vec<RootMemo>,
-    pub(in crate::application::file_dag::derived::owner) population: PopulationId,
-    pub(in crate::application::file_dag::derived::owner) storage: Arc<DerivedStorage>,
-    pub(in crate::application::file_dag::derived::owner) backings: Arc<[Backing]>,
-    pub(in crate::application::file_dag::derived::owner) _lease: Arc<ResourceLease>,
+    pub(crate) roots: Vec<RootMemo>,
+    pub(crate) population: PopulationId,
+    pub(crate) storage: Arc<DerivedStorage>,
+    pub(crate) backings: Arc<[Backing]>,
+    pub(crate) _lease: Arc<ResourceLease>,
 }
 
 #[derive(Debug)]
-pub(in crate::application::file_dag::derived::owner) struct DomainEntry {
-    pub(in crate::application::file_dag::derived::owner) graph_storage: Arc<DerivedStorage>,
+pub(crate) struct DomainEntry {
+    pub(crate) graph_storage: Arc<DerivedStorage>,
     /// Adjacency whose dense IDs the membership vector uses.
-    pub(in crate::application::file_dag::derived::owner) graph: Arc<CompactGraph>,
+    pub(crate) graph: Arc<CompactGraph>,
     /// Exact membership context.
-    pub(in crate::application::file_dag::derived::owner) domain: Arc<GraphDomain>,
-    pub(in crate::application::file_dag::derived::owner) population: PopulationId,
-    pub(in crate::application::file_dag::derived::owner) storage: Arc<DerivedStorage>,
-    pub(in crate::application::file_dag::derived::owner) backings: Arc<[Backing]>,
-    pub(in crate::application::file_dag::derived::owner) _lease: Arc<ResourceLease>,
+    pub(crate) domain: Arc<GraphDomain>,
+    pub(crate) population: PopulationId,
+    pub(crate) storage: Arc<DerivedStorage>,
+    pub(crate) backings: Arc<[Backing]>,
+    pub(crate) _lease: Arc<ResourceLease>,
 }
 
 #[derive(Debug)]
-pub(in crate::application::file_dag::derived::owner) struct NearestMemo {
-    pub(in crate::application::file_dag::derived::owner) _graph_storage: Arc<DerivedStorage>,
-    pub(in crate::application::file_dag::derived::owner) _domain_storage: Arc<DerivedStorage>,
+pub(crate) struct NearestMemo {
+    pub(crate) _graph_storage: Arc<DerivedStorage>,
+    pub(crate) _domain_storage: Arc<DerivedStorage>,
     /// Exact adjacency context.
-    pub(in crate::application::file_dag::derived::owner) graph: Arc<CompactGraph>,
+    pub(crate) graph: Arc<CompactGraph>,
     /// Exact membership context.
-    pub(in crate::application::file_dag::derived::owner) domain: Arc<GraphDomain>,
+    pub(crate) domain: Arc<GraphDomain>,
     /// Parent direction whose forest was validated.
-    pub(in crate::application::file_dag::derived::owner) orientation: Orientation,
+    pub(crate) orientation: Orientation,
     /// Unknown/absent/answer sentinels or dense IDs, never public values.
-    pub(in crate::application::file_dag::derived::owner) answers: Vec<VertexId>,
-    pub(in crate::application::file_dag::derived::owner) _lease: Arc<ResourceLease>,
+    pub(crate) answers: Vec<VertexId>,
+    pub(crate) _lease: Arc<ResourceLease>,
 }

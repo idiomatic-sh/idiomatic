@@ -350,7 +350,7 @@ impl<'a> CrossPublications<'a> {
         }
         Ok(())
     }
-    pub(in crate::application::file_dag::observations) fn release_unused_arena(&mut self, worker: WorkerNumber) {
+    pub(crate) fn release_unused_arena(&mut self, worker: WorkerNumber) {
         let index = worker.0 as usize;
         if index >= self.inherited.0 && self.references.get(index) == Some(&ReferenceCount(0)) {
             if let Some(arena) = self.arenas.get_mut(index) {
@@ -368,7 +368,7 @@ impl Drop for CrossPublications<'_> {
         self.arenas.truncate(self.inherited.0);
     }
 }
-pub(in crate::application::file_dag::observations) fn incomplete() -> OperatingError {
+pub(crate) fn incomplete() -> OperatingError {
     OperatingError::ObservationIncomplete {
         reason: PUBLICATION_INCOMPLETE.into(),
     }

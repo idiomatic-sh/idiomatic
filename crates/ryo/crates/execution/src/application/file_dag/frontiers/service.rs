@@ -156,7 +156,7 @@ pub(super) fn prepare(
 /// The first demand of the frontiers: decode what preparation left packed, in place, once per
 /// population of the publication scope (`decodes`). A failed decode becomes the typed refusal the
 /// first demand of that source returns.
-pub(in crate::application::file_dag) fn admit_all(
+pub(crate) fn admit_all(
     frontiers: &mut PreparedFrontiers,
     symbols: &mut Symbols,
     decodes: &FrontierDecodes,

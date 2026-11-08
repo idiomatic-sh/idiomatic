@@ -9,7 +9,7 @@ use crate::application::file_dag::derived::owner::*;
 use crate::application::file_dag::route_counts;
 
 impl DerivedOwner {
-    pub(in crate::application::file_dag::derived::owner::acquisition) fn acquire_shared_with_requirement(
+    pub(crate) fn acquire_shared_with_requirement(
         &self,
         requirement: RequirementIdentity,
         plan: &Arc<DerivedContract>,
@@ -32,7 +32,7 @@ impl DerivedOwner {
         )?
         .ok_or(OperatingError::WrongOperation)
     }
-    pub(in crate::application::file_dag::derived::owner::acquisition) fn try_acquire_shared_with_requirement(
+    pub(crate) fn try_acquire_shared_with_requirement(
         &self,
         requirement: RequirementIdentity,
         plan: &Arc<DerivedContract>,

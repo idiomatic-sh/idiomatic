@@ -81,12 +81,12 @@ fn plan(relation: Relation) -> Plan {
     }
 }
 
-pub(in super::super) struct CompiledCase {
-    pub(in super::super) execution: Rc<ProgramExecution>,
-    pub(in super::super) roots: [RegionId; 2],
+pub(crate) struct CompiledCase {
+    pub(crate) execution: Rc<ProgramExecution>,
+    pub(crate) roots: [RegionId; 2],
 }
 
-pub(in super::super) fn compiled() -> CompiledCase {
+pub(crate) fn compiled() -> CompiledCase {
     let plans = [plan(Relation::Function), plan(Relation::Identifier)];
     let semantic = crate::application::file_dag::fixtures::program_derived_port();
     let prepared =
@@ -124,7 +124,7 @@ pub(in super::super) fn compiled() -> CompiledCase {
     CompiledCase { execution, roots }
 }
 
-pub(in super::super) fn value(kind: CellKind) -> Value {
+pub(crate) fn value(kind: CellKind) -> Value {
     match kind {
         CellKind::Node => Value::Node(NodeId(0)),
         CellKind::Symbol => Value::Symbol(Symbol(0)),
@@ -138,13 +138,13 @@ pub(in super::super) fn value(kind: CellKind) -> Value {
     }
 }
 
-pub(in super::super) struct TestInputs {
+pub(crate) struct TestInputs {
     owner: Rc<RelationOwner>,
     sources: HashMap<Relation, Table>,
     admitted: Vec<InputSource>,
 }
 impl TestInputs {
-    pub(in super::super) fn new(execution: &ProgramExecution) -> Self {
+    pub(crate) fn new(execution: &ProgramExecution) -> Self {
         let sources = [Relation::Function, Relation::Identifier]
             .into_iter()
             .map(|relation| {

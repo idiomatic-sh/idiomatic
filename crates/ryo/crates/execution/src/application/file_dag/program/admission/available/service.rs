@@ -9,7 +9,7 @@ use std::rc::Rc;
 impl AvailableInput {
     /// Attach the demand's physical evidence without re-reading the cached
     /// source or forcing its deferred admission/geometry refusal.
-    pub(in crate::application::file_dag::program) fn with_coverage(
+    pub(crate) fn with_coverage(
         self,
         coverage: ryo_execution_domain::domain::completion::types::CoverageState,
     ) -> Self {
@@ -31,12 +31,12 @@ impl AvailableInput {
         };
         Self { body }
     }
-    pub(in crate::application::file_dag::program) fn published(input: AdmittedInput) -> Self {
+    pub(crate) fn published(input: AdmittedInput) -> Self {
         Self {
             body: AvailableBody::Published(input),
         }
     }
-    pub(in crate::application::file_dag::program) fn source(
+    pub(crate) fn source(
         owner: Rc<RelationOwner>,
         publication: PublishedInput,
         root: ProducerRoot,
@@ -80,7 +80,7 @@ impl AvailableInput {
             },
         })
     }
-    pub(in crate::application::file_dag::program) fn admit(
+    pub(crate) fn admit(
         &self,
         owner: &Rc<RelationOwner>,
         partition: &Partition,

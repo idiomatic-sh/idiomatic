@@ -3,17 +3,17 @@ use super::types::ObservedPublication;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 
 impl ObservedPublication {
-    pub(in crate::application::file_dag::program) fn from_admitted(
+    pub(crate) fn from_admitted(
         admitted: crate::application::file_dag::program::admission::AdmittedInput,
     ) -> Self {
         Self { admitted }
     }
-    pub(in crate::application::file_dag::program) fn admitted(
+    pub(crate) fn admitted(
         &self,
     ) -> &crate::application::file_dag::program::admission::AdmittedInput {
         &self.admitted
     }
-    pub(in crate::application::file_dag) fn validate_transfer_readiness(
+    pub(crate) fn validate_transfer_readiness(
         &self,
         owner: &std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
         readiness: &ryo_values::domain::records::types::ProducerReadiness,

@@ -2,7 +2,7 @@
 use super::super::*;
 use ryo_relations::domain::relations::{service::from_bits, types::Bits};
 
-pub(in super::super) fn encoded(
+pub(crate) fn encoded(
     relation: Relation,
     table: Table,
     representation: RepresentationKind,
@@ -47,7 +47,7 @@ pub(in super::super) fn encoded(
         representation,
     }
 }
-pub(in super::super) fn schema_column(relation: Relation, kind: CellKind, ordinal: usize) -> u32 {
+pub(crate) fn schema_column(relation: Relation, kind: CellKind, ordinal: usize) -> u32 {
     kinds(relation)
         .iter()
         .enumerate()
@@ -56,7 +56,7 @@ pub(in super::super) fn schema_column(relation: Relation, kind: CellKind, ordina
         .unwrap()
         .0 as u32
 }
-pub(in super::super) fn table(relation: Relation, rows: &[Vec<(u32, Cell)>]) -> Table {
+pub(crate) fn table(relation: Relation, rows: &[Vec<(u32, Cell)>]) -> Table {
     Table {
         kinds: kinds(relation).to_vec(),
         count: RowCount(rows.len()),
@@ -77,7 +77,7 @@ pub(in super::super) fn table(relation: Relation, rows: &[Vec<(u32, Cell)>]) -> 
             .collect(),
     }
 }
-pub(in super::super) fn request(left: &[u32], right: &[u32], output: &[(Side, u32)]) -> Plan {
+pub(crate) fn request(left: &[u32], right: &[u32], output: &[(Side, u32)]) -> Plan {
     let mut request = plan(Scenario::ProjectRetry);
     request.steps = vec![PlanStep {
         scope: StepScope::PerFile,
@@ -86,7 +86,7 @@ pub(in super::super) fn request(left: &[u32], right: &[u32], output: &[(Side, u3
     request.emit.step = StepId(0);
     request
 }
-pub(in super::super) fn simple(
+pub(crate) fn simple(
     left: &[i64],
     right: &[(i64, i64)],
     representation: RepresentationKind,

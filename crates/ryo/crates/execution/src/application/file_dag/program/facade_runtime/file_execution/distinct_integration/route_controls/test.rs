@@ -309,7 +309,7 @@ fn ordered_strategy_and_real_extra_consumer_decline_preserve_the_same_root() {
         }
     }
 }
-pub(in super::super) fn ordered_strategy_fixture() -> (Plan, Vec<CellKind>) {
+pub(crate) fn ordered_strategy_fixture() -> (Plan, Vec<CellKind>) {
     use ryo_values::domain::plan_parts::types::{JoinColumn, Side};
     let schema = kinds(ryo_relations::domain::relations::types::Relation::SourceLocation).to_vec();
     let number = ColumnIndex(

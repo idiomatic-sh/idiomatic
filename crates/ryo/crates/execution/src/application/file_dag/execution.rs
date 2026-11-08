@@ -5,8 +5,8 @@ use crate::application::file_dag::executor::{KernelAnswer, KernelFault};
 use ryo_execution_domain::domain::operator::contract::types::PrimitiveSemantics;
 use crate::outbound::operators::interface::OperatorsPort;
 mod constants;
-pub(in crate::application::file_dag) mod lease;
-pub(in crate::application::file_dag) mod output;
+pub(crate) mod lease;
+pub(crate) mod output;
 
 #[derive(Debug)]
 pub(crate) struct CommonOperatorEngine {
@@ -34,7 +34,7 @@ impl PrimitiveExecutor for CommonOperatorEngine {
         }
     }
 }
-pub(super) struct PrimitiveSemanticsBridge<'a> {
+pub(crate) struct PrimitiveSemanticsBridge<'a> {
     /// The file's profile, the observer a primitive reports its progress to.
     #[cfg(feature = "diagnostic-row-progress")]
     pub(super) progress: &'a crate::application::file_dag::route_counts::types::RouteProfile,

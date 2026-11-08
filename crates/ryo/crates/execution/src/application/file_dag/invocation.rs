@@ -3,9 +3,9 @@ use super::derived::owner::acquisition::admission::service::AcquiredView;
 mod binding;
 mod constants;
 mod groups;
-pub(in crate::application::file_dag) mod index;
+pub(crate) mod index;
 mod prepared_use;
-pub(in crate::application::file_dag) mod service;
+pub(crate) mod service;
 mod views;
 use index::IndexResource;
 use prepared_use::service::prepared;
@@ -71,7 +71,7 @@ impl<'f> InvocationResources<'f> {
     /// Validate required Join resource metadata without constructing a payload.
     /// Availability, geometry and static output checks remain at their existing
     /// owner boundaries; an optional unsupported native lookup still declines.
-    pub(in crate::application::file_dag) fn validate_row_metadata(
+    pub(crate) fn validate_row_metadata(
         contract: &OperatorContract,
         inputs: &[RepresentationInput<'_>],
     ) -> Result<(), OperatingError> {

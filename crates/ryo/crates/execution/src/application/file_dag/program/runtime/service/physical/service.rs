@@ -5,12 +5,12 @@ use ryo_execution_domain::domain::executable_program::types::RouteKind;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 
 impl<'scope> SemanticPermit<'scope> {
-    pub(in crate::application::file_dag::program::runtime::service) fn operation(
+    pub(crate) fn operation(
         &self,
     ) -> &ryo_values::domain::plans::types::Operation {
         &self.program.regions()[self.region.0].instructions()[self.instruction.0].operation()
     }
-    pub(in crate::application::file_dag::program::runtime::service) fn validate_live(
+    pub(crate) fn validate_live(
         &self,
     ) -> Result<(), OperatingError> {
         if self.live.is_live() == crate::application::file_dag::relations::types::Liveness::Live {
@@ -19,7 +19,7 @@ impl<'scope> SemanticPermit<'scope> {
             Err(OperatingError::NotRead)
         }
     }
-    pub(in crate::application::file_dag) fn physical<'call, 'meaning>(
+    pub(crate) fn physical<'call, 'meaning>(
         &'call self,
         binding: &ryo_execution_domain::domain::executable_program::physical::PhysicalBinding<'_>,
         meaning: ryo_operators::inbound::use_cases::operators::types::OperatorCall<'meaning>,
@@ -44,7 +44,7 @@ impl<'scope> SemanticPermit<'scope> {
     }
 }
 impl PermittedPhysical<'_, '_, '_> {
-    pub(in crate::application::file_dag) fn dispatch(
+    pub(crate) fn dispatch(
         self,
         port: &dyn crate::outbound::operators::interface::OperatorsPort,
     ) -> Result<

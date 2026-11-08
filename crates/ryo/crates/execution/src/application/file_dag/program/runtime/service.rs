@@ -22,18 +22,18 @@ use ryo_execution_domain::domain::operating::types::OperatorContext;
 use std::cell::RefCell;
 use std::sync::Arc;
 
-pub(in crate::application::file_dag::program) struct KernelAdmission<'a> {
+pub(crate) struct KernelAdmission<'a> {
     execution: &'a ProgramExecution,
     region: RegionId,
 }
 
 /// Only the completed admission interpreter can issue a ready selection head.
-pub(in crate::application::file_dag::program) struct ReadySelection<'call, 'scope> {
+pub(crate) struct ReadySelection<'call, 'scope> {
     permit: &'call KernelPermit<'scope>,
 }
 /// Application-owned preparation/acquisition supplies the borrowed semantic call.
 /// All implementations are required; no missing-capability or fallback path.
-pub(in crate::application::file_dag::program) trait KernelInvocation {
+pub(crate) trait KernelInvocation {
     fn ready(
         &self,
         _ready: &ReadySelection<'_, '_>,
@@ -150,7 +150,7 @@ enum RootReaders {
     Declared,
     Selected(Arc<ryo_execution_domain::domain::executable_program::types::RemainingTable>),
 }
-pub(in crate::application::file_dag::program) struct RuntimeState {
+pub(crate) struct RuntimeState {
     generation: Arc<()>,
     scope: crate::application::file_dag::relations::publication::types::ProducerScope,
     roots: RefCell<RootReaders>,
@@ -168,7 +168,7 @@ struct Continue<'a> {
     scratch: &'a mut [KernelScratch],
     output: &'a mut dyn Emit,
 }
-pub(in crate::application::file_dag::program) enum InvocationOutcome {
+pub(crate) enum InvocationOutcome {
     Suspended(RegionId),
     Ready,
     Published(AdmittedInput),
@@ -210,7 +210,7 @@ pub(crate) struct KernelPermit<'scope> {
 
 /// Pure borrowed semantic authority. It exposes neither worker ownership nor
 /// dependency acquisition, and cannot outlive its admitted invocation permit.
-pub(in crate::application::file_dag) struct SemanticPermit<'scope> {
+pub(crate) struct SemanticPermit<'scope> {
     program: &'scope ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram,
     region: RegionId,
     instruction: InstructionIndex,
@@ -227,7 +227,7 @@ pub(crate) struct PermittedPhysical<'permit, 'meaning, 'scope> {
 }
 
 /// The borrowed frame of one poll that the demand stages share; it grants nothing the poll lacked.
-pub(in crate::application::file_dag::program::runtime::service) struct Poll<'call, 'ctx> {
+pub(crate) struct Poll<'call, 'ctx> {
     id: RegionId,
     region: &'call Region,
     completion: &'call ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy,

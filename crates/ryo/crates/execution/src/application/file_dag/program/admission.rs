@@ -9,7 +9,7 @@ mod available;
 mod partitions;
 /// Whether two admitted identities are the same.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in crate::application::file_dag) enum Agreement {
+pub(crate) enum Agreement {
     Same,
     Different,
 }
@@ -23,7 +23,7 @@ use ryo_relations::domain::relations::types::FileId;
 use std::{rc::Rc, sync::Arc};
 
 #[derive(Clone)]
-pub(super) struct FileGeneration {
+pub(crate) struct FileGeneration {
     file: FileId,
     generation: Arc<()>,
 }
@@ -48,7 +48,7 @@ impl PartialEq for RequiredPartitions {
 }
 impl Eq for RequiredPartitions {}
 #[derive(Clone)]
-pub(super) enum Partition {
+pub(crate) enum Partition {
     RequestInvariant,
     File(FileGeneration),
     Project(RequiredPartitions),
@@ -62,7 +62,7 @@ pub struct ApplicabilityProof {
 }
 /// Whether an admitted input has no rows in a given representation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in crate::application::file_dag::program) enum Emptiness {
+pub(crate) enum Emptiness {
     Empty,
     Populated,
 }
@@ -82,13 +82,13 @@ enum Readiness {
 /// published result carries what its admitted contributors carried. Callers pass this proof to
 /// `AdmittedInput::from_publication` and never name a readiness.
 #[derive(Clone)]
-pub(super) struct ReadProof {
+pub(crate) struct ReadProof {
     partition: Partition,
     readiness: Readiness,
 }
 /// Root provenance remains attached even when no rows can be supplied.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) enum ProducerRoot {
+pub(crate) enum ProducerRoot {
     Input(InputSource),
     Region(RegionId),
 }
@@ -110,7 +110,7 @@ pub(crate) struct AdmittedInput {
 /// Pure inspection uses the first borrow; its owned result is committed at the
 /// declared schema boundary. No provider borrow survives suspension or is reread at commit.
 #[derive(Clone)]
-pub(super) struct AvailableInput {
+pub(crate) struct AvailableInput {
     body: AvailableBody,
 }
 #[derive(Clone)]
@@ -126,13 +126,13 @@ enum AvailableBody {
 
 /// Whether a partition covers the partition a consumer requires.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) enum PartitionSupply {
+pub(crate) enum PartitionSupply {
     Supplies,
     Lacks,
 }
 /// Whether an admitted input is complete enough to feed a named observation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) enum ObservationReadiness {
+pub(crate) enum ObservationReadiness {
     Ready,
     Waiting,
 }
@@ -144,7 +144,7 @@ pub(super) struct AliasSlot(pub usize);
 pub(super) struct AliasMember(pub usize);
 
 /// Private to the common invocation. A semantic kernel cannot import this trait.
-pub(super) trait Inputs {
+pub(crate) trait Inputs {
     fn population_scope(
         &self,
     ) -> crate::application::file_dag::relations::publication::types::ProducerScope;
@@ -192,13 +192,13 @@ pub(super) trait Inputs {
 }
 
 /// What a publication holds, stated by the producer and never inferred by the publisher.
-pub(in crate::application::file_dag::program) enum Representation {
+pub(crate) enum Representation {
     /// Rows the operators computed, empty or not: the owner stores them as computed rows.
     Computed(ryo_values::domain::rows::types::Table),
 }
 impl Representation {
     /// No rows over `schema`; a refused schema stays the producer's fault.
-    pub(in crate::application::file_dag::program) fn empty(
+    pub(crate) fn empty(
         schema: Result<Vec<ryo_relations::domain::relations::types::CellKind>, OperatingError>,
     ) -> Result<Self, OperatingError> {
         let mut rows = ryo_values::domain::rows::types::Table::default();
@@ -209,14 +209,14 @@ impl Representation {
 
 /// Borrowed source access issued only after exact relation, schema and owner admission.
 /// No source backing or generation proof can be replaced independently.
-pub(super) struct AdmittedWalkSource<'a> {
+pub(crate) struct AdmittedWalkSource<'a> {
     source: &'a AdmittedInput,
     rows: &'a ryo_execution_domain::domain::table_model::types::Rows<'a>,
     relation: ryo_relations::domain::relations::types::Relation,
     population: PopulationId,
 }
 impl<'a> AdmittedWalkSource<'a> {
-    pub(in crate::application::file_dag::program) fn require_input(
+    pub(crate) fn require_input(
         &self,
         input: &AdmittedInput,
     ) -> Result<(), OperatingError> {

@@ -2,7 +2,7 @@
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::contract::types::OperatorContract;
 
-pub(in crate::application::file_dag::invocation) fn prepared(
+pub(crate) fn prepared(
     contract: &OperatorContract,
     kind: ryo_derived::domain::request::types::DerivedKind,
 ) -> Result<&ryo_execution_domain::domain::derived_views::types::contract::value::PreparedViewUse, OperatingError> {

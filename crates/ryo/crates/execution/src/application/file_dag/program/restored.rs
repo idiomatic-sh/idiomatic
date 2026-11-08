@@ -23,7 +23,7 @@ use std::sync::Arc;
 pub(crate) mod types;
 use types::ValidatedFrontier;
 
-pub(in crate::application) fn validate_restored_frontier(
+pub(crate) fn validate_restored_frontier(
     prepared: &Arc<PreparedProgram>,
     producer: RuleIndex,
     input: InputNumber,
@@ -121,11 +121,11 @@ pub(in crate::application) fn validate_restored_frontier(
     })
 }
 impl ValidatedFrontier {
-    pub(in crate::application) fn coverage(&self) -> &CoverageState {
+    pub(crate) fn coverage(&self) -> &CoverageState {
         &self.coverage
     }
 
-    pub(in crate::application) fn words(&self) -> &KeptWords {
+    pub(crate) fn words(&self) -> &KeptWords {
         &self.payload.words
     }
     pub(super) fn materialize(

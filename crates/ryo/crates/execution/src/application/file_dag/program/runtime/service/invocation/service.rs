@@ -26,7 +26,7 @@ use ryo_execution_domain::domain::operating::types::OperatorContext;
 use ryo_relations::domain::relations::types::Value;
 
 impl ProgramExecution {
-    pub(in crate::application::file_dag::program) fn poll(
+    pub(crate) fn poll(
         &self,
         state: &RuntimeState,
         id: RegionId,
@@ -165,7 +165,7 @@ impl ProgramExecution {
         }
     }
 }
-pub(in crate::application::file_dag::program::runtime::service) fn continuation(
+pub(crate) fn continuation(
     invocation: &KernelPermit<'_>,
     region: &Region,
     at: InstructionIndex,

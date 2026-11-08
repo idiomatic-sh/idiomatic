@@ -28,7 +28,7 @@ use ryo_execution_domain::domain::{
     },
 };
 use std::sync::Arc;
-pub(in crate::application::file_dag::derived::owner) fn acquire(
+pub(crate) fn acquire(
     plan: &Arc<ryo_execution_domain::domain::derived_views::types::contract::value::DerivedContract>,
     input: &GraphInput<'_>,
     cache: &mut CacheBackend,
@@ -124,7 +124,7 @@ pub(super) fn graph_requirement(
         keys: identity.keys.clone().into(),
     }
 }
-pub(in crate::application::file_dag::derived::owner) fn domain(
+pub(crate) fn domain(
     plan: &Arc<ryo_execution_domain::domain::derived_views::types::contract::value::DerivedContract>,
     access: &GraphHandle,
     input: &GraphInput<'_>,

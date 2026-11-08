@@ -4,42 +4,42 @@ use rustc_hash::FxHashMap;
 
 /// Physical bytes.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub(in crate::application::file_dag) struct ByteCount(pub usize);
+pub(crate) struct ByteCount(pub usize);
 
 /// Immutable row-position capacity.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub(in crate::application::file_dag) struct UnitCount(pub usize);
+pub(crate) struct UnitCount(pub usize);
 
 /// Live leases of one class on one backing.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub(in crate::application::file_dag) struct HoldCount(pub usize);
+pub(crate) struct HoldCount(pub usize);
 
 /// Backings of one kind a ledger holds.
 #[cfg(test)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(in crate::application::file_dag) struct BackingCount(pub usize);
+pub(crate) struct BackingCount(pub usize);
 
 /// Elements a container has reserved room for.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub(in crate::application::file_dag) struct SlotCount(pub usize);
+pub(crate) struct SlotCount(pub usize);
 
 /// The kind of physical payload a backing is.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub(in crate::application::file_dag) struct BackingTag(pub u8);
+pub(crate) struct BackingTag(pub u8);
 
 /// The address of the allocation a backing is, or the scope id of an unshared one.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub(in crate::application::file_dag) struct BackingAddress(pub usize);
+pub(crate) struct BackingAddress(pub usize);
 
 /// One physical allocation, identified across every handle that shares it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub(in crate::application::file_dag) struct BackingKey {
+pub(crate) struct BackingKey {
     pub tag: BackingTag,
     pub address: BackingAddress,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in crate::application::file_dag) struct Backing {
+pub(crate) struct Backing {
     pub key: BackingKey,
     pub bytes: ByteCount,
     /// Immutable row-position capacity when this backing is optionally retained.
@@ -47,14 +47,14 @@ pub(in crate::application::file_dag) struct Backing {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in crate::application::file_dag) enum LeaseClass {
+pub(crate) enum LeaseClass {
     Required,
     /// Derived-view retention, subject to the view byte and position caps.
     Optional,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(in crate::application::file_dag) struct LedgerSnapshot {
+pub(crate) struct LedgerSnapshot {
     pub required_bytes: ByteCount,
     /// Physical bytes retained by derived views, counted once per backing.
     pub optional_bytes: ByteCount,
@@ -73,7 +73,7 @@ pub(in crate::application::file_dag) struct LedgerSnapshot {
 }
 
 #[derive(Debug)]
-pub(in crate::application::file_dag) struct LedgerEntry {
+pub(crate) struct LedgerEntry {
     pub(super) bytes: ByteCount,
     pub(super) retention_units: UnitCount,
     pub(super) required: HoldCount,
@@ -81,7 +81,7 @@ pub(in crate::application::file_dag) struct LedgerEntry {
 }
 
 #[derive(Debug)]
-pub(in crate::application::file_dag) struct Ledger {
+pub(crate) struct Ledger {
     pub(super) entries: FxHashMap<BackingKey, LedgerEntry>,
     pub(super) required_bytes: ByteCount,
     pub(super) optional_bytes: ByteCount,
@@ -101,7 +101,7 @@ pub(in crate::application::file_dag) struct Ledger {
 
 /// One physical handle, shared by consumers through an outer `Arc`.
 #[derive(Debug)]
-pub(in crate::application::file_dag) struct ResourceLease {
+pub(crate) struct ResourceLease {
     pub(super) ledger: Rc<RefCell<Ledger>>,
     pub(super) keys: Vec<BackingKey>,
     pub(super) class: LeaseClass,
@@ -110,7 +110,7 @@ pub(in crate::application::file_dag) struct ResourceLease {
 
 /// A backing with its immutable size, once the duplicates of a request are folded.
 #[derive(Clone, Copy, Debug)]
-pub(in crate::application::file_dag) struct Measured {
+pub(crate) struct Measured {
     pub key: BackingKey,
     pub bytes: ByteCount,
     pub units: UnitCount,
@@ -118,14 +118,14 @@ pub(in crate::application::file_dag) struct Measured {
 
 /// What releasing a set of optional handles would give back.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in crate::application::file_dag) struct Credit {
+pub(crate) struct Credit {
     pub bytes: ByteCount,
     pub units: UnitCount,
 }
 
 /// Whether the backings of a request are held by optional views alone.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in crate::application::file_dag) enum Dormancy {
+pub(crate) enum Dormancy {
     Dormant,
     Live,
 }

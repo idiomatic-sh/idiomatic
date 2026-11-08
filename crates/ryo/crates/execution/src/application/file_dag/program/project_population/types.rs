@@ -8,34 +8,34 @@ use ryo_execution_domain::domain::{
 use ryo_values::domain::{plan_parts::types::Input, rows::types::Table};
 use std::{cell::OnceCell, sync::Arc};
 #[derive(Clone, PartialEq, Eq)]
-pub(in crate::application::file_dag::program) enum ProjectFrontierPayload {
+pub(crate) enum ProjectFrontierPayload {
     Flat(Arc<Table>),
     Compact(Arc<ryo_values::domain::table_words::types::CompactTable>),
 }
 /// The ID and backing are inseparable and privately issued by this phase owner.
-pub(in crate::application::file_dag::program) struct ProjectFrontierPopulation<A> {
-    pub(in crate::application::file_dag::program) id: PopulationId,
-    pub(in crate::application::file_dag::program) source: Result<InputSource, OperatingError>,
-    pub(in crate::application::file_dag::program) coverage: CoverageState,
-    pub(in crate::application::file_dag::program) payload: ProjectFrontierPayload,
-    pub(in crate::application::file_dag::program) admitted: OnceCell<Result<A, OperatingError>>,
+pub(crate) struct ProjectFrontierPopulation<A> {
+    pub(crate) id: PopulationId,
+    pub(crate) source: Result<InputSource, OperatingError>,
+    pub(crate) coverage: CoverageState,
+    pub(crate) payload: ProjectFrontierPayload,
+    pub(crate) admitted: OnceCell<Result<A, OperatingError>>,
 }
 #[derive(PartialEq, Eq)]
-pub(in crate::application::file_dag::program) struct ProjectInvocationKey<R> {
-    pub(in crate::application::file_dag::program) sources: Vec<PopulationId>,
-    pub(in crate::application::file_dag::program) refused: Vec<ProjectRefusal>,
-    pub(in crate::application::file_dag::program) policy: CompletionPolicy,
-    pub(in crate::application::file_dag::program) bound: Vec<BoundKey<R>>,
+pub(crate) struct ProjectInvocationKey<R> {
+    pub(crate) sources: Vec<PopulationId>,
+    pub(crate) refused: Vec<ProjectRefusal>,
+    pub(crate) policy: CompletionPolicy,
+    pub(crate) bound: Vec<BoundKey<R>>,
 }
 #[derive(PartialEq, Eq)]
-pub(in crate::application::file_dag::program) struct ProjectRefusal {
-    pub(in crate::application::file_dag::program) source:
+pub(crate) struct ProjectRefusal {
+    pub(crate) source:
         Option<Result<InputSource, OperatingError>>,
-    pub(in crate::application::file_dag::program) input: Input,
-    pub(in crate::application::file_dag::program) error: OperatingError,
+    pub(crate) input: Input,
+    pub(crate) error: OperatingError,
 }
 #[derive(PartialEq, Eq)]
-pub(in crate::application::file_dag::program) enum BoundKey<R> {
+pub(crate) enum BoundKey<R> {
     Current(PopulationId, CoverageState),
     Restored(R),
     Refused(OperatingError),
@@ -43,7 +43,7 @@ pub(in crate::application::file_dag::program) enum BoundKey<R> {
 }
 
 /// Structural equality is the only reuse decision accepted by the source interner.
-pub(in crate::application::file_dag::program) enum ProjectSourceMatch {
+pub(crate) enum ProjectSourceMatch {
     Equivalent,
     Distinct,
 }

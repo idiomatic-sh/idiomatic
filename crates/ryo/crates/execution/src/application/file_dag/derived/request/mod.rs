@@ -18,14 +18,14 @@ use std::sync::Arc;
 pub(super) mod identity;
 use identity::types::StaticRequest;
 use types::InputPositions;
-pub(in crate::application::file_dag) struct RequestViews {
+pub(crate) struct RequestViews {
     semantic: crate::application::file_dag::derived::owner::types::DerivedAccess,
     plans: Vec<Arc<DerivedContract>>,
     bindings: Vec<Arc<PreparedViewUse>>,
     logical: Vec<ryo_values::domain::plan_parts::types::Input>,
 }
 impl RequestViews {
-    pub(in crate::application::file_dag) fn new(
+    pub(crate) fn new(
         semantic: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
     ) -> Self {
         Self {
@@ -36,7 +36,7 @@ impl RequestViews {
         }
     }
     /// Bind finite semantic requirements once per compiled operator. No rows or cache are read here.
-    pub(in crate::application::file_dag) fn bind(
+    pub(crate) fn bind(
         &mut self,
         contract: &mut OperatorContract,
     ) -> Result<(), OperatingError> {
@@ -345,7 +345,7 @@ impl RequestViews {
         self.plans.push((plan).clone());
         Ok(plan)
     }
-    pub(in crate::application::file_dag) fn intern(
+    pub(crate) fn intern(
         &mut self,
         request: &ViewRequest,
         schemas: &[InputShape<'_>],
@@ -370,7 +370,7 @@ impl RequestViews {
         Ok(plan)
     }
     #[cfg(test)]
-    pub(in crate::application::file_dag) fn count(&self) -> types::PlanCount {
+    pub(crate) fn count(&self) -> types::PlanCount {
         types::PlanCount(self.plans.len())
     }
 }
@@ -378,6 +378,6 @@ impl RequestViews {
 #[cfg(test)]
 mod test;
 
-pub(in crate::application::file_dag) mod types;
+pub(crate) mod types;
 
 use ryo_derived::domain::request::types::DerivedKind;

@@ -3,7 +3,7 @@ mod identity;
 use ryo_execution_domain::domain::{operating::errors::OperatingError, operation_schema::types::InputShape};
 
 /// All preparation routes delegate semantic metadata to the injected capability.
-pub(in crate::application::file_dag) fn view(
+pub(crate) fn view(
     semantic: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
     request: &ryo_execution_domain::domain::derived_views::types::ViewRequest,
     schemas: &[InputShape<'_>],

@@ -2,14 +2,14 @@
 use crate::application::file_dag::relations::*;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 impl RelationOwner {
-    pub(in crate::application::file_dag) fn source(
+    pub(crate) fn source(
         &self,
         relation: Relation,
         rows: &Rows<'_>,
     ) -> Result<PublishedInput, OperatingError> {
         self.source_borrowed(relation, RepresentationInput::from(rows))
     }
-    pub(in crate::application::file_dag::relations) fn source_borrowed(
+    pub(crate) fn source_borrowed(
         &self,
         relation: Relation,
         raw: RepresentationInput<'_>,
@@ -57,7 +57,7 @@ impl RelationOwner {
         Ok(result)
     }
     /// Custody of a supplied compact source; no kernel permit is issued here.
-    pub(in crate::application::file_dag) fn source_compact(
+    pub(crate) fn source_compact(
         &self,
         table: Arc<ryo_values::domain::table_words::types::CompactTable>,
     ) -> Result<PublishedInput, OperatingError> {
@@ -72,7 +72,7 @@ impl RelationOwner {
         }))
     }
     /// Custody of a supplied flat source, preserving exact geometry for first-borrow inspection.
-    pub(in crate::application::file_dag) fn source_shared_computed(
+    pub(crate) fn source_shared_computed(
         &self,
         table: Arc<Table>,
     ) -> Result<PublishedInput, OperatingError> {
@@ -86,7 +86,7 @@ impl RelationOwner {
             normalized: OnceLock::new(),
         }))
     }
-    pub(in crate::application::file_dag) fn computed(&self, table: Table) -> Result<PublishedInput, OperatingError> {
+    pub(crate) fn computed(&self, table: Table) -> Result<PublishedInput, OperatingError> {
         let input = RepresentationInput::Computed(&table);
         let contract = input.contract()?;
         registered(contract.kind).inspect(&contract)?;

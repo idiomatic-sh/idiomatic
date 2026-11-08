@@ -3,7 +3,7 @@ use crate::application::file_dag::derived::ledger::types::ByteCount;
 use crate::application::file_dag::derived::owner::acquisition::semantics::storage::DerivedStorage;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use std::sync::Arc;
-pub(in crate::application::file_dag::derived::owner) fn storage_bytes(
+pub(crate) fn storage_bytes(
     storage: &Arc<DerivedStorage>,
 ) -> Result<ByteCount, OperatingError> {
     DerivedStorage::backings(storage)?

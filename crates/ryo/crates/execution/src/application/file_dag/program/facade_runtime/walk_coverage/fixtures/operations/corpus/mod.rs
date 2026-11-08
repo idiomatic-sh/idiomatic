@@ -120,12 +120,12 @@ pub(crate) fn shapes() -> Vec<Plan> {
     plans.push(project);
     plans
 }
-pub(in super::super::super) struct Corpus {
+pub(crate) struct Corpus {
     pub program: ExecutableProgram,
     pub walk: ryo_execution_domain::domain::shared_walk::types::prepared_walk::value::PreparedWalk,
 }
 /// Every variant and shape through the normal operator, graph, program and walk compilers.
-pub(in super::super::super) fn compiled_operations() -> Corpus {
+pub(crate) fn compiled_operations() -> Corpus {
     let mut plans = Vec::new();
     let mut bindings = Vec::new();
     for operation in operations() {
@@ -162,7 +162,7 @@ pub(in super::super::super) fn compiled_operations() -> Corpus {
     Corpus { program, walk }
 }
 /// Authored plans through the normal operator, graph and program compilers, without a walk.
-pub(in super::super::super) fn compile_program(
+pub(crate) fn compile_program(
     plans: &[Plan],
     bindings: &[Vec<ParameterBinding>],
 ) -> ExecutableProgram {

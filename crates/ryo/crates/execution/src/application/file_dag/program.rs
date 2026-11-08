@@ -19,7 +19,7 @@ mod request_identity;
 mod request_identity_test;
 
 mod context;
-pub(in crate::application::file_dag) mod native_walk;
+pub(crate) mod native_walk;
 
 
 mod project_population;

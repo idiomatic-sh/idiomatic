@@ -11,7 +11,7 @@ use ryo_execution_domain::domain::operating::errors::OperatingError;
 use std::sync::Arc;
 
 impl<'scope> KernelPermit<'scope> {
-    pub(in crate::application::file_dag::program::runtime::service) fn code(
+    pub(crate) fn code(
         execution: &ProgramExecution,
         region: RegionId,
     ) -> Result<&ryo_execution_domain::domain::executable_program::types::region::value::Region, OperatingError> {
@@ -28,7 +28,7 @@ impl<'scope> KernelPermit<'scope> {
         }
         Ok(code)
     }
-    pub(in crate::application::file_dag::program) fn admitted(
+    pub(crate) fn admitted(
         authority: KernelAdmission<'scope>,
         inputs: &'scope [AdmittedInput],
     ) -> Result<Self, OperatingError> {
@@ -62,7 +62,7 @@ impl<'scope> KernelPermit<'scope> {
             strategy: RouteKind::Generic,
         })
     }
-    pub(in crate::application::file_dag::program) fn ordered(
+    pub(crate) fn ordered(
         authority: KernelAdmission<'scope>,
         input: &'scope AdmittedInput,
     ) -> Result<Self, OperatingError> {
@@ -91,7 +91,7 @@ impl<'scope> KernelPermit<'scope> {
     }
     /// A continuation borrows the already admitted invocation; no refcount,
     /// population walk, room or ledger operation occurs here.
-    pub(in crate::application::file_dag::program) fn instruction(
+    pub(crate) fn instruction(
         &self,
         at: InstructionIndex,
     ) -> Result<Self, OperatingError> {
@@ -111,10 +111,10 @@ impl<'scope> KernelPermit<'scope> {
             strategy: self.strategy,
         })
     }
-    pub(in crate::application::file_dag::program) fn region(&self) -> RegionId {
+    pub(crate) fn region(&self) -> RegionId {
         self.region
     }
-    pub(in crate::application::file_dag::program) fn validate_program(
+    pub(crate) fn validate_program(
         &self,
         program: &ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram,
     ) -> Result<(), OperatingError> {
@@ -126,15 +126,15 @@ impl<'scope> KernelPermit<'scope> {
         }
     }
     /// Opaque diagnostic correlation for this live generation; never execution authority.
-    pub(in crate::application::file_dag::program) fn diagnostic_generation(&self) -> *const () {
+    pub(crate) fn diagnostic_generation(&self) -> *const () {
         Arc::as_ptr(self.generation)
     }
-    pub(in crate::application::file_dag::program) fn descriptor(
+    pub(crate) fn descriptor(
         &self,
     ) -> &ryo_execution_domain::domain::executable_program::types::instruction::value::Instruction {
         &self.program.regions()[self.region.0].instructions()[self.instruction.0]
     }
-    pub(in crate::application::file_dag) fn semantics(&self) -> SemanticPermit<'_> {
+    pub(crate) fn semantics(&self) -> SemanticPermit<'_> {
         SemanticPermit {
             program: self.program,
             region: self.region,
@@ -143,7 +143,7 @@ impl<'scope> KernelPermit<'scope> {
             strategy: self.strategy,
         }
     }
-    pub(in crate::application::file_dag::program) fn bound_input(
+    pub(crate) fn bound_input(
         &self,
         at: InputId,
     ) -> Result<&AdmittedInput, OperatingError> {
@@ -153,7 +153,7 @@ impl<'scope> KernelPermit<'scope> {
         }
         .ok_or(OperatingError::MissingInput { position: at.0 + 1 })
     }
-    pub(in crate::application::file_dag::program) fn validate_live(
+    pub(crate) fn validate_live(
         &self,
     ) -> Result<(), OperatingError> {
         if self.live.is_live() == crate::application::file_dag::relations::types::Liveness::Live {
@@ -162,7 +162,7 @@ impl<'scope> KernelPermit<'scope> {
             Err(OperatingError::NotRead)
         }
     }
-    pub(in crate::application::file_dag) fn validate_registered(
+    pub(crate) fn validate_registered(
         &self,
         operation: &ryo_values::domain::plans::types::Operation,
     ) -> Result<(), OperatingError> {

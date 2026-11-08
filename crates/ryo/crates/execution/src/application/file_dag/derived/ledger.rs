@@ -5,14 +5,14 @@ use std::{cell::RefCell, rc::Rc};
 use rustc_hash::FxHashMap;
 
 mod arithmetic;
-pub(in crate::application::file_dag) mod capacity;
+pub(crate) mod capacity;
 mod constants;
 mod credit;
-pub(in crate::application::file_dag) mod lease;
+pub(crate) mod lease;
 mod snapshot;
 #[cfg(test)]
 mod test;
-pub(in crate::application::file_dag) mod types;
+pub(crate) mod types;
 
 #[cfg(test)]
 use types::{BackingCount, BackingTag};

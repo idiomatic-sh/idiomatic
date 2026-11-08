@@ -10,7 +10,7 @@ use ryo_execution_domain::domain::operating::types::OperatorContext;
 use std::rc::Rc;
 
 impl SourceInputs<'_, '_> {
-    pub(in crate::application::file_dag::program::facade_runtime::source_admission) fn publish_source(
+    pub(crate) fn publish_source(
         &mut self,
         root: ProducerRoot,
         partition: &Partition,
@@ -142,7 +142,7 @@ impl SourceInputs<'_, '_> {
             read,
         )
     }
-    pub(in crate::application::file_dag::program::facade_runtime::source_admission) fn replay_source(
+    pub(crate) fn replay_source(
         &self,
         input: &AdmittedInput,
         context: &mut OperatorContext<'_>,

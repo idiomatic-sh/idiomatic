@@ -10,50 +10,50 @@ use ryo_execution_domain::domain::table_model::{
 use ryo_relations::domain::relations::types::{CellKind, Relation};
 use std::sync::{Arc, OnceLock};
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub(in crate::application::file_dag::relations) struct SourceDescriptor {
-    pub(in crate::application::file_dag::relations) relation: Relation,
-    pub(in crate::application::file_dag::relations) kind: RepresentationKind,
-    pub(in crate::application::file_dag::relations) kinds: Vec<CellKind>,
-    pub(in crate::application::file_dag::relations) rows: RowCount,
-    pub(in crate::application::file_dag::relations) storage: Vec<StorageSpan>,
-    pub(in crate::application::file_dag::relations) projection:
+pub(crate) struct SourceDescriptor {
+    pub(crate) relation: Relation,
+    pub(crate) kind: RepresentationKind,
+    pub(crate) kinds: Vec<CellKind>,
+    pub(crate) rows: RowCount,
+    pub(crate) storage: Vec<StorageSpan>,
+    pub(crate) projection:
         Vec<ryo_values::domain::plan_parts::types::ColumnIndex>,
-    pub(in crate::application::file_dag::relations) source_kinds: Vec<CellKind>,
+    pub(crate) source_kinds: Vec<CellKind>,
 }
 #[derive(Debug)]
-pub(in crate::application::file_dag::relations) enum RelationBody {
+pub(crate) enum RelationBody {
     Source(SourceDescriptor),
     Computed(Arc<Table>),
     Compact(Arc<ryo_values::domain::table_words::types::CompactTable>),
 }
 /// Elements one borrowed storage block holds.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub(in crate::application::file_dag) struct SpanLength(pub usize);
+pub(crate) struct SpanLength(pub usize);
 
 /// One borrowed storage block: where it starts and how long it is.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub(in crate::application::file_dag) struct StorageSpan {
+pub(crate) struct StorageSpan {
     pub address: BackingAddress,
     pub length: SpanLength,
 }
 
 /// One canonical DAG producer inside one invocation namespace.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub(in crate::application::file_dag) struct ProducerKey {
+pub(crate) struct ProducerKey {
     pub scope: ProducerScope,
     pub region: RegionId,
 }
 
 /// The identities one producer keeps across rules and safe recomputation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in crate::application::file_dag) struct ProducerPopulation {
+pub(crate) struct ProducerPopulation {
     pub population: PopulationId,
     pub backing: PopulationId,
 }
 
 /// A typed invocation namespace; publications retain their actual population after it ends.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub(in crate::application::file_dag) enum ProducerScope {
+pub(crate) enum ProducerScope {
     File,
     Project(PopulationId),
 }
@@ -61,14 +61,14 @@ pub(in crate::application::file_dag) enum ProducerScope {
 /// Only this application module can construct or mutate proof state.
 #[derive(Debug)]
 pub(crate) struct RelationResult {
-    pub(in crate::application::file_dag::relations) population: PopulationId,
-    pub(in crate::application::file_dag::relations) producer: OnceLock<PopulationId>,
-    pub(in crate::application::file_dag::relations) producer_scope: OnceLock<ProducerScope>,
-    pub(in crate::application::file_dag::relations) generation: Arc<()>,
-    pub(in crate::application::file_dag::relations) body: RelationBody,
-    pub(in crate::application::file_dag::relations) inspected:
+    pub(crate) population: PopulationId,
+    pub(crate) producer: OnceLock<PopulationId>,
+    pub(crate) producer_scope: OnceLock<ProducerScope>,
+    pub(crate) generation: Arc<()>,
+    pub(crate) body: RelationBody,
+    pub(crate) inspected:
         OnceLock<Result<PhysicalShape, OperatingError>>,
-    pub(in crate::application::file_dag::relations) normalized: OnceLock<Arc<Table>>,
+    pub(crate) normalized: OnceLock<Arc<Table>>,
 }
 impl PublishedRelation for RelationResult {
     fn as_any(&self) -> &dyn std::any::Any {

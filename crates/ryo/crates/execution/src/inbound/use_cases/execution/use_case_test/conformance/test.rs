@@ -42,24 +42,24 @@ use ryo_values::domain::rows::types::Table;
 use std::sync::Arc;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in super::super) enum RefusalOutcome {
+pub(crate) enum RefusalOutcome {
     Failed,
     Unknown,
 }
-pub(in super::super) struct ObservedDelivery {
-    pub(in super::super) schema: Result<Vec<CellKind>, OperatingError>,
-    pub(in super::super) collected: Result<Table, OperatingError>,
-    pub(in super::super) rows: Vec<Vec<Cell>>,
-    pub(in super::super) stream_error: Option<OperatingError>,
-    pub(in super::super) visits: Vec<u64>,
-    pub(in super::super) scratch_cells: usize,
+pub(crate) struct ObservedDelivery {
+    pub(crate) schema: Result<Vec<CellKind>, OperatingError>,
+    pub(crate) collected: Result<Table, OperatingError>,
+    pub(crate) rows: Vec<Vec<Cell>>,
+    pub(crate) stream_error: Option<OperatingError>,
+    pub(crate) visits: Vec<u64>,
+    pub(crate) scratch_cells: usize,
 }
-pub(in super::super) fn same_rows(table: &Table, rows: &[Vec<Cell>]) -> bool {
+pub(crate) fn same_rows(table: &Table, rows: &[Vec<Cell>]) -> bool {
     table.count.0 == rows.len()
         && rows.iter().all(|row| row.len() == table.kinds.len())
         && table.cells == rows.iter().flatten().copied().collect::<Vec<_>>()
 }
-pub(in super::super) fn compare_delivery(
+pub(crate) fn compare_delivery(
     operation: &Operation,
     inputs: &[Table],
     bindings: &[ryo_values::domain::query_bindings::types::ParameterBinding],
@@ -78,7 +78,7 @@ pub(in super::super) fn compare_delivery(
         RefusalOutcome::Failed,
     )
 }
-pub(in super::super) fn compare_delivery_with_semantic(
+pub(crate) fn compare_delivery_with_semantic(
     operation: &Operation,
     inputs: &[Table],
     bindings: &[ryo_values::domain::query_bindings::types::ParameterBinding],
@@ -102,7 +102,7 @@ pub(in super::super) fn compare_delivery_with_semantic(
 }
 /// This helper only drives supported owner APIs. It cannot invoke a primitive,
 /// construct a permit, choose an execution strategy or supply an alternate executor.
-pub(in super::super) fn compare_delivery_with_port(
+pub(crate) fn compare_delivery_with_port(
     operation: &Operation,
     inputs: &[Table],
     bindings: &[ryo_values::domain::query_bindings::types::ParameterBinding],
@@ -331,7 +331,7 @@ fn all_registrations_refuse_a_foreign_variant() -> Result<(), Failure> {
     }
     Ok(())
 }
-pub(in super::super) fn repeated(table: &Table, times: usize) -> Table {
+pub(crate) fn repeated(table: &Table, times: usize) -> Table {
     Table {
         kinds: table.kinds.clone(),
         cells: table.cells.repeat(times),

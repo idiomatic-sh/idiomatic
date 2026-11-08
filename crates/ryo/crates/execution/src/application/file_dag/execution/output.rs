@@ -62,7 +62,7 @@ impl<'a> Headers<'a> {
 /// Deliver one committed publication through the same isolated downstream frame
 /// used by primitive output. Mutable consumer state lives for this delivery
 /// attempt, never in the producer context and never one allocation per row.
-pub(in crate::application::file_dag) fn replay(
+pub(crate) fn replay(
     rows: &ryo_execution_domain::domain::table_model::types::Rows<'_>,
     context: &mut OperatorContext<'_>,
     output: &mut dyn Emit,

@@ -8,7 +8,7 @@ use ryo_execution_domain::domain::{
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use std::{rc::Rc, sync::Arc};
 
-pub(in crate::application::file_dag) fn from_prepared<'f>(
+pub(crate) fn from_prepared<'f>(
     proof: crate::application::file_dag::relations::admission::service::BorrowedInput<'f>,
     partition_plan: Arc<DerivedContract>,
     closure_plan: Arc<DerivedContract>,

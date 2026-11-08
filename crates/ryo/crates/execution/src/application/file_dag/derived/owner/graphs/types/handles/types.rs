@@ -2,7 +2,7 @@
 
 /// Whether the graph behind a handle is retained by the cache for other demands.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in crate::application::file_dag) enum GraphSharing {
+pub(crate) enum GraphSharing {
     Shared,
     Local,
 }
@@ -10,4 +10,4 @@ pub(in crate::application::file_dag) enum GraphSharing {
 /// Which allocation a root answer reads, for proving two answers share it.
 #[cfg(test)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in crate::application::file_dag) struct DataIdentity(pub *const ());
+pub(crate) struct DataIdentity(pub *const ());

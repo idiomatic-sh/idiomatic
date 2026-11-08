@@ -13,7 +13,7 @@ impl ProgramExecution {
     /// Drives the admission half of this interpreter for every bound root.
     /// Newly discovered dependencies join the same queue; no dependency graph is
     /// walked ahead of the action that actually demands it.
-    pub(in crate::application::file_dag::program) fn prepare_roots(
+    pub(crate) fn prepare_roots(
         &self,
         state: &RuntimeState,
         roots: &[RegionId],
@@ -74,7 +74,7 @@ impl ProgramExecution {
             suspensions = counts.suspensions.0, wakeups = counts.wakeups.0);
         result
     }
-    pub(in crate::application::file_dag::program) fn published(
+    pub(crate) fn published(
         &self,
         state: &RuntimeState,
         id: RegionId,
@@ -101,7 +101,7 @@ impl ProgramExecution {
     }
     /// Observation and frontier aliases enter the same dynamic interpreter only
     /// after their caller's completeness gate has authorized this root.
-    pub(in crate::application::file_dag::program) fn admit_root(
+    pub(crate) fn admit_root(
         &self,
         state: &RuntimeState,
         rule: ryo_execution_domain::domain::coverage::types::RuleIndex,
@@ -120,7 +120,7 @@ impl ProgramExecution {
         let available = inputs.supply(source, &self.partition, context)?;
         inputs.admit(&available, &self.partition, context)
     }
-    pub(in crate::application::file_dag::program) fn invoke(
+    pub(crate) fn invoke(
         &self,
         state: &RuntimeState,
         id: RegionId,

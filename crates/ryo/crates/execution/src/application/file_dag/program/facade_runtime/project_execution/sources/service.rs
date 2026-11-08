@@ -20,12 +20,12 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 impl ProjectFrontierPopulation<AvailableInput> {
-    pub(in crate::application::file_dag::program::facade_runtime) fn source(
+    pub(crate) fn source(
         &self,
     ) -> &Result<InputSource, OperatingError> {
         &self.source
     }
-    pub(in crate::application::file_dag::program::facade_runtime) fn supply(
+    pub(crate) fn supply(
         &self,
         owner: &Rc<RelationOwner>,
         partition: &Partition,
@@ -60,7 +60,7 @@ impl ProjectFrontierPopulation<AvailableInput> {
 }
 
 impl PublicationScope {
-    pub(in crate::application::file_dag::program::facade_runtime::project_execution) fn sources(
+    pub(crate) fn sources(
         &self,
         owner: &Rc<RelationOwner>,
         sources: &[crate::application::file_dag::frontiers::types::FrontierSource],
@@ -118,7 +118,7 @@ impl PublicationScope {
             })
             .collect()
     }
-    pub(in crate::application::file_dag::program::facade_runtime::project_execution) fn invocation(
+    pub(crate) fn invocation(
         &self,
         owner: &Rc<RelationOwner>,
         sources: &[Rc<ProjectFrontierPopulation<AvailableInput>>],

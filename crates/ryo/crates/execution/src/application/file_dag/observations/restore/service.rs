@@ -55,7 +55,7 @@ impl CrossPublications<'_> {
         })
     }
     /// Each logical output retains its own readiness even when names share one physical bucket.
-    pub(in crate::application::file_dag::observations) fn install_frontier(
+    pub(crate) fn install_frontier(
         &mut self,
         slot: FrontierSlot,
         prepared: &PreparedFrontier,

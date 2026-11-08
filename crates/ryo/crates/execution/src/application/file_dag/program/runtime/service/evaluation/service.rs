@@ -19,7 +19,7 @@ use ryo_execution_domain::domain::operator::contract::types::PreflightOrder;
 use std::sync::Arc;
 
 impl ProgramExecution {
-    pub(in crate::application::file_dag::program::runtime::service) fn admit_demand(
+    pub(crate) fn admit_demand(
         &self,
         call: &mut Poll<'_, '_>,
         admitted: &mut Vec<AdmittedInput>,
@@ -123,7 +123,7 @@ impl ProgramExecution {
         progress.preflight_done = StageProgress::Done;
         Ok(None)
     }
-    pub(in crate::application::file_dag::program::runtime::service) fn evaluate(
+    pub(crate) fn evaluate(
         &self,
         call: &mut Poll<'_, '_>,
         admitted: &[AdmittedInput],

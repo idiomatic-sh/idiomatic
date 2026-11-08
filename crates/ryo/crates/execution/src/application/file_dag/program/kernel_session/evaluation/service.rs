@@ -24,7 +24,7 @@ use ryo_values::domain::rows::types::RowIndex;
 use std::rc::Rc;
 
 impl super::super::KernelSession<'_, '_> {
-    pub(in crate::application::file_dag::program::kernel_session) fn evaluate_session(
+    pub(crate) fn evaluate_session(
         &self,
         instruction: &Instruction,
         permit: &KernelPermit<'_>,

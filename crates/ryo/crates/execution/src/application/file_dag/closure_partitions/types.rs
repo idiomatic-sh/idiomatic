@@ -6,7 +6,7 @@ pub(super) struct OrderCursor(pub usize);
 
 /// Whether a cursor moved to a next partition or had none left.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in crate::application::file_dag) enum PartitionAdvance {
+pub(crate) enum PartitionAdvance {
     Advanced,
     Exhausted,
 }

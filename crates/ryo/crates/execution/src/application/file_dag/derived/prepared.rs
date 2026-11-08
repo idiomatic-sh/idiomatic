@@ -8,12 +8,12 @@ use ryo_execution_domain::domain::{
 use ryo_relations::domain::relations::types::Relation;
 
 use crate::application::file_dag::derived::owner::cache::types::GraphAdmission;
-pub(in crate::application::file_dag) struct RequestDerived {
+pub(crate) struct RequestDerived {
     relations: Box<[Box<[Relation]>]>,
     graph_rules: rustc_hash::FxHashSet<RuleIndex>,
 }
 impl RequestDerived {
-    pub(in crate::application::file_dag) fn compile(
+    pub(crate) fn compile(
         program: &ExecutableProgram,
     ) -> Result<Self, OperatingError> {
         let mut relations = Vec::with_capacity(program.rules().len());
@@ -70,7 +70,7 @@ impl RequestDerived {
             graph_rules,
         })
     }
-    pub(in crate::application::file_dag) fn relations_for(
+    pub(crate) fn relations_for(
         &self,
         rule: RuleIndex,
     ) -> Result<&[Relation], OperatingError> {
@@ -80,7 +80,7 @@ impl RequestDerived {
             .map(AsRef::as_ref)
             .ok_or(OperatingError::NotRun)
     }
-    pub(in crate::application::file_dag) fn graph_for(
+    pub(crate) fn graph_for(
         &self,
         rule: RuleIndex,
     ) -> Result<GraphAdmission, OperatingError> {

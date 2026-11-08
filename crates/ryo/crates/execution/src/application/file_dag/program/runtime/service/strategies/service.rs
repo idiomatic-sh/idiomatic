@@ -6,7 +6,7 @@ use crate::application::file_dag::program::runtime::types::StageProgress;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 
 impl ProgramExecution {
-    pub(in crate::application::file_dag::program::runtime::service) fn blocked(
+    pub(crate) fn blocked(
         &self,
         call: &mut Poll<'_, '_>,
     ) -> Result<Option<InvocationOutcome>, InvocationFailure> {
@@ -46,7 +46,7 @@ impl ProgramExecution {
         }
         Ok(None)
     }
-    pub(in crate::application::file_dag::program::runtime::service) fn ordered(
+    pub(crate) fn ordered(
         &self,
         call: &mut Poll<'_, '_>,
     ) -> Result<Option<InvocationOutcome>, InvocationFailure> {

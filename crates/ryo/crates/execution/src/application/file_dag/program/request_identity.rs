@@ -9,7 +9,7 @@ pub(super) enum CorpusMembership {
     Listed,
     Unlisted,
 }
-pub(super) struct RequestIdentity {
+pub(crate) struct RequestIdentity {
     corpus: Box<[CorpusInput]>,
     paths: Box<[ryo_language::domain::files::types::FilePath]>,
     generation: Arc<()>,

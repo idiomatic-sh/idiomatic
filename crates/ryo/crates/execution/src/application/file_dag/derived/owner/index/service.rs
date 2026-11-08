@@ -9,7 +9,7 @@ use ryo_relations::domain::relations::types::Relation;
 pub(crate) const LIMIT: usize = 16 * 1024 * 1024;
 
 /// Start one generation from the actual physical read state, not execution-mode coverage.
-pub(in crate::application::file_dag::derived::owner) fn new(
+pub(crate) fn new(
     wanted: &[Relation],
     partials: &[Partial],
     limit: ByteLimit,

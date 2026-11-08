@@ -4,7 +4,7 @@ use super::relations::{
     RelationOwner,
     types::{PinnedViewCount, ReuseEligibility},
 };
-pub(in crate::application::file_dag) mod types;
+pub(crate) mod types;
 use std::{rc::Rc, sync::Arc};
 use types::ScopePermit;
 
@@ -20,7 +20,7 @@ pub(crate) enum ScopePartials<'a> {
 }
 
 /// The one outer owner factory. Kernels have no way to acquire this permit.
-pub(in crate::application::file_dag) fn open_program_owner(
+pub(crate) fn open_program_owner(
     program: &Arc<ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram>,
     derived: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
     reuse: ReuseEligibility,

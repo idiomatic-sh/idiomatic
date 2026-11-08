@@ -7,16 +7,16 @@ use ryo_values::domain::{
     plan_parts::types::{LiteralText, Operand, PlanComparison, QueryLiteral, Test},
     rows::service::{push_row, row_in},
 };
-pub(in super::super) fn node(at: u32) -> Cell {
+pub(crate) fn node(at: u32) -> Cell {
     Cell::Node(node_id(FileId(0), Position(at)))
 }
-pub(in super::super) fn stretch(start: u32, end: u32) -> Cell {
+pub(crate) fn stretch(start: u32, end: u32) -> Cell {
     Cell::Span(Span {
         start: Offset(start),
         end: Offset(end),
     })
 }
-pub(in super::super) fn table_of(kinds: &[CellKind], rows: &[&[Cell]]) -> Table {
+pub(crate) fn table_of(kinds: &[CellKind], rows: &[&[Cell]]) -> Table {
     let mut table = Table {
         kinds: kinds.to_vec(),
         ..Table::default()
@@ -26,7 +26,7 @@ pub(in super::super) fn table_of(kinds: &[CellKind], rows: &[&[Cell]]) -> Table 
     }
     table
 }
-pub(in super::super) fn wide_tree(tokens: u32, named: bool) -> (Elements, Symbols) {
+pub(crate) fn wide_tree(tokens: u32, named: bool) -> (Elements, Symbols) {
     let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
     {
         let mut builder = table_builder(&mut elements, &mut symbols, ByteSlice(b"abcd"));
@@ -56,7 +56,7 @@ pub(in super::super) fn wide_tree(tokens: u32, named: bool) -> (Elements, Symbol
     (elements, symbols)
 }
 
-pub(in super::super) fn tree_rows(elements: &Elements, form: TreeForm) -> Rows<'_> {
+pub(crate) fn tree_rows(elements: &Elements, form: TreeForm) -> Rows<'_> {
     Rows::Tree(TreeRows {
         elements,
         file: FileId(0),

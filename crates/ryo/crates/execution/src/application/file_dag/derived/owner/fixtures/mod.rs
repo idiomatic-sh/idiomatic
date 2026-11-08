@@ -89,7 +89,7 @@ pub(crate) fn source_plan(relation: Relation) -> Plan {
     }
 }
 
-pub(in crate::application::file_dag) fn prepare_view(
+pub(crate) fn prepare_view(
     semantic: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
     request: ViewRequest,
     rows: &Rows<'_>,
@@ -107,7 +107,7 @@ pub(in crate::application::file_dag) fn prepare_view(
     )
 }
 
-pub(in crate::application::file_dag) mod graph;
+pub(crate) mod graph;
 mod graph_snapshot;
 mod observations;
-pub(in crate::application::file_dag) mod resources;
+pub(crate) mod resources;

@@ -7,7 +7,7 @@ use ryo_values::domain::query_operators::types::OperationKind;
 
 /// Where an instruction's first row comes from, as the walk may route it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub(in super::super) enum Route {
+pub(crate) enum Route {
     Shared,
     Representation,
     Dependent,
@@ -20,28 +20,28 @@ pub(in super::super) enum Route {
 
 /// Whether a per-file relation head is independently eligible for the shared walk.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in super::super) enum Eligibility {
+pub(crate) enum Eligibility {
     Eligible,
     Ineligible,
 }
 
 /// Where an instruction stands in its region.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in super::super) enum Place {
+pub(crate) enum Place {
     Head(Eligibility),
     Later,
 }
 
 /// Whether the region's first input is a named observation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in super::super) enum FirstInput {
+pub(crate) enum FirstInput {
     Observation,
     Ordinary,
 }
 
 /// What an operation means for a source walk, chosen per kind with no wildcard.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in super::super) enum Meaning {
+pub(crate) enum Meaning {
     /// Reads its input as selected or projected rows; the route follows the input.
     Selection,
     /// Computes new columns from each row.
@@ -52,7 +52,7 @@ pub(in super::super) enum Meaning {
     RequestOwned,
 }
 
-pub(in super::super) fn meaning(kind: OperationKind) -> Meaning {
+pub(crate) fn meaning(kind: OperationKind) -> Meaning {
     match kind {
         OperationKind::Select | OperationKind::Project => Meaning::Selection,
         OperationKind::Extend
@@ -83,7 +83,7 @@ pub(in super::super) fn meaning(kind: OperationKind) -> Meaning {
 
 /// The route of the first instruction of a region.
 /// `head` is the independent eligibility of a per-file relation head.
-pub(in super::super) fn head_route(
+pub(crate) fn head_route(
     operation: &Operation,
     first: FirstInput,
     head: Eligibility,
@@ -109,7 +109,7 @@ pub(in super::super) fn head_route(
 }
 
 /// The route of one instruction of a compiled program.
-pub(in super::super) fn route(
+pub(crate) fn route(
     program: &ExecutableProgram,
     region: &ryo_execution_domain::domain::executable_program::types::region::value::Region,
     instruction: &ryo_execution_domain::domain::executable_program::types::instruction::value::Instruction,

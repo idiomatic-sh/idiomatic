@@ -4,7 +4,7 @@ use crate::application::file_dag::derived::ledger::types::Backing;
 use crate::application::file_dag::derived::ledger::types::{ByteCount, UnitCount};
 use crate::application::file_dag::derived::owner::graphs::service::room;
 impl DerivedOwner {
-    pub(in crate::application::file_dag::derived::owner) fn prepare_graph_room(
+    pub(crate) fn prepare_graph_room(
         &self,
         cache: &mut CacheBackend,
         cost: ByteCount,

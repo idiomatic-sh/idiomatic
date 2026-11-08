@@ -117,11 +117,11 @@ pub(crate) fn weak_storage(
 /// Passive observation of actual portable builds; every call delegates to the
 /// production derived use case. No evaluator, scheduling or owner lives here.
 #[derive(Debug, Default)]
-pub(in crate::application::file_dag) struct RecordedDerived {
+pub(crate) struct RecordedDerived {
     builds: std::sync::Mutex<Vec<ryo_derived::domain::request::types::DerivedRequest>>,
 }
 impl RecordedDerived {
-    pub(in crate::application::file_dag) fn builds(
+    pub(crate) fn builds(
         &self,
     ) -> Vec<ryo_derived::domain::request::types::DerivedRequest> {
         self.builds.lock().expect("recorded semantic calls").clone()

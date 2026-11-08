@@ -29,7 +29,7 @@ use std::rc::Rc;
 
 impl FileRun<'_> {
     /// Bind selected external readers before a source or native walk is admitted.
-    pub(in crate::application::file_dag::program::facade_runtime::file_execution) fn bind_intents(
+    pub(crate) fn bind_intents(
         &mut self,
     ) -> Result<Vec<RuleIndex>, OperatingError> {
         use ryo_execution_domain::domain::executable_program::file_demand::types::{
@@ -178,7 +178,7 @@ impl FileRun<'_> {
         self.execution.activate_file_roots(&readers)?;
         Ok(demanded)
     }
-    pub(in crate::application::file_dag::program::facade_runtime::file_execution) fn declared(
+    pub(crate) fn declared(
         &self,
         rule: RuleIndex,
     ) -> Result<DeclaredIntent, OperatingError> {
@@ -195,7 +195,7 @@ impl FileRun<'_> {
             _ => Err(OperatingError::NotRun),
         }
     }
-    pub(in crate::application::file_dag::program::facade_runtime::file_execution) fn prepare_walk<
+    pub(crate) fn prepare_walk<
         'facts,
     >(
         &mut self,

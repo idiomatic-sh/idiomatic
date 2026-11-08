@@ -173,7 +173,7 @@ impl RequestExecution {
         })
     }
     /// Sessions exist only inside `ProjectRootExecution::evaluate`, one per declared root.
-    pub(in crate::application::file_dag::program) fn open_project<'a>(
+    pub(crate) fn open_project<'a>(
         &'a self,
         input: ProjectInput<'a>,
         symbols: &mut Symbols,

@@ -25,7 +25,7 @@ mod replay;
 mod schedule;
 
 impl PreparedProgram {
-    pub(in crate::application::file_dag::program) fn file_demand(
+    pub(crate) fn file_demand(
         &self,
         rule: RuleIndex,
     ) -> Result<
@@ -34,7 +34,7 @@ impl PreparedProgram {
     > {
         self.file_demands.get(rule.0).ok_or(OperatingError::NotRun)
     }
-    pub(in crate::application::file_dag::program) fn file_frontier_outputs(
+    pub(crate) fn file_frontier_outputs(
         &self,
         rule: RuleIndex,
         input: InputNumber,
@@ -45,29 +45,29 @@ impl PreparedProgram {
             .map(AsRef::as_ref)
             .ok_or(OperatingError::NotRun)
     }
-    pub(in crate::application::file_dag::program) fn walk(
+    pub(crate) fn walk(
         &self,
     ) -> &ryo_execution_domain::domain::shared_walk::types::prepared_walk::value::PreparedWalk {
         &self.walk
     }
-    pub(in crate::application::file_dag::program) fn all_bindings(
+    pub(crate) fn all_bindings(
         &self,
     ) -> &[Box<[ParameterBinding]>] {
         &self.bindings
     }
-    pub(in crate::application::file_dag::program) fn walk_class(
+    pub(crate) fn walk_class(
         &self,
         instruction: &ryo_execution_domain::domain::executable_program::types::instruction::value::Instruction,
     ) -> Option<ryo_execution_domain::domain::step_classes::types::ClassPlace> {
         self.walk.class_for(instruction)
     }
-    pub(in crate::application::file_dag::program) fn rule_id(
+    pub(crate) fn rule_id(
         &self,
         rule: RuleIndex,
     ) -> Result<&ryo_values::domain::runs::types::RuleId, OperatingError> {
         self.rule_ids.get(rule.0).ok_or(OperatingError::NotRun)
     }
-    pub(in crate::application::file_dag::program) fn applicability(
+    pub(crate) fn applicability(
         &self,
         rule: RuleIndex,
     ) -> Result<ryo_values::domain::runs::types::RuleApplicability, OperatingError> {
@@ -85,15 +85,15 @@ impl PreparedProgram {
             .copied()
             .ok_or(OperatingError::NotRun)
     }
-    pub(in crate::application::file_dag) fn program(&self) -> &Arc<ExecutableProgram> {
+    pub(crate) fn program(&self) -> &Arc<ExecutableProgram> {
         &self.program
     }
-    pub(in crate::application::file_dag::program) fn derived(
+    pub(crate) fn derived(
         &self,
     ) -> &crate::application::file_dag::derived::prepared::RequestDerived {
         &self.derived
     }
-    pub(in crate::application::file_dag::program) fn hosted(&self) -> &[HostRelation] {
+    pub(crate) fn hosted(&self) -> &[HostRelation] {
         &self.hosted
     }
     pub(crate) fn matchers(
@@ -107,7 +107,7 @@ impl PreparedProgram {
             .map(Box::as_ref)
             .ok_or(OperatingError::NotRun)
     }
-    pub(in crate::application::file_dag::program) fn rule_metadata(
+    pub(crate) fn rule_metadata(
         &self,
         rule: RuleIndex,
     ) -> Result<&RuleMetadata, OperatingError> {

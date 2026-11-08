@@ -27,7 +27,7 @@ use {
 };
 
 /// All resources are borrowed for this call. No mutable owner crosses the boundary.
-pub(in crate::application::file_dag) fn evaluate(
+pub(crate) fn evaluate(
     operators: &dyn PrimitiveExecutor,
     contract: &OperatorContract,
     permit: &crate::application::file_dag::program::runtime::service::KernelPermit<'_>,

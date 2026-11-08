@@ -11,7 +11,7 @@ use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use std::rc::Rc;
 
 impl super::super::KernelSession<'_, '_> {
-    pub(in crate::application::file_dag::program::kernel_session) fn ordered_session(
+    pub(crate) fn ordered_session(
         &self,
         shape: &ryo_execution_domain::domain::executable_program::types::OrderedExistence,
         permit: &KernelPermit<'_>,

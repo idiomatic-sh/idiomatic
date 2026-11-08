@@ -35,7 +35,7 @@ pub(crate) struct InvocationWorkspace {
 }
 
 impl InvocationWorkspace {
-    pub(in crate::application::file_dag) fn for_contract(
+    pub(crate) fn for_contract(
         owner: std::rc::Rc<super::relations::RelationOwner>,
         contract: &ryo_execution_domain::domain::operator::contract::types::OperatorContract,
     ) -> Self {
@@ -111,10 +111,10 @@ impl InvocationWorkspace {
 }
 
 impl InvocationWorkspace {
-    pub(in crate::application::file_dag) fn release_inputs(&mut self) {
+    pub(crate) fn release_inputs(&mut self) {
         self.publications.clear();
     }
-    pub(in crate::application::file_dag) fn capture_admitted(
+    pub(crate) fn capture_admitted(
         &mut self,
         publications: Vec<super::relations::handle::service::PublishedInput>,
     ) {
@@ -131,7 +131,7 @@ impl InvocationWorkspace {
 
 /// Only the workspace can bind an original graph row view to its admission.
 /// The graph path never receives independently replaceable raw rows and proof.
-pub(super) struct GraphInput<'a> {
+pub(crate) struct GraphInput<'a> {
     rows: &'a ryo_execution_domain::domain::table_model::types::Rows<'a>,
     proof: BorrowedInput<'a>,
     relation: Option<ryo_relations::domain::relations::types::Relation>,
@@ -199,7 +199,7 @@ pub(super) enum ViewInputs<'a, 's> {
 }
 /// One immutable demand scope, not a retained cache. At most three registered
 /// operator inputs are held; only demanded slots acquire a proof.
-pub(super) struct InputAdmissions<'a, 'f> {
+pub(crate) struct InputAdmissions<'a, 'f> {
     workspace: &'a InvocationWorkspace,
     inputs: &'a [RepresentationInput<'f>],
     proofs: [std::cell::OnceCell<BorrowedInput<'f>>; 3],

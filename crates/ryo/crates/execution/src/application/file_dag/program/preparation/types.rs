@@ -54,12 +54,12 @@ pub struct ReplayClosure {
     pub buckets: Vec<Bucket>,
 }
 
-pub(in crate::application::file_dag::program) struct RootMetadata {
+pub(crate) struct RootMetadata {
     pub source: Result<InputSource, OperatingError>,
     pub phase: StepScope,
     pub reads: Box<[RelationRead]>,
 }
-pub(in crate::application::file_dag::program) struct RuleMetadata {
+pub(crate) struct RuleMetadata {
     pub emit: Emit,
     pub emit_root: Result<RegionId, OperatingError>,
     pub frontiers: Box<[Input]>,
@@ -72,23 +72,23 @@ pub(in crate::application::file_dag::program) struct RuleMetadata {
     >,
 }
 #[derive(Clone, Copy)]
-pub(in crate::application) enum OutputRoot {
+pub(crate) enum OutputRoot {
     PerFile,
     CrossFile,
     Unavailable,
 }
-pub(in crate::application) struct OutputMetadata {
+pub(crate) struct OutputMetadata {
     pub root: OutputRoot,
     pub consumers: Vec<RuleIndex>,
 }
 pub(crate) struct ObservationMetadata {
-    pub(in crate::application) layout: ObservationReadinessLayout,
-    pub(in crate::application) slots: Box<[ObservationSlot]>,
-    pub(in crate::application) frontiers: Box<[ObservedFrontierRoot]>,
-    pub(in crate::application) bindings: Vec<Vec<ResolvedObservationBinding>>,
-    pub(in crate::application) consumers: Vec<Vec<Vec<RuleIndex>>>,
-    pub(in crate::application) outputs: Vec<Vec<OutputMetadata>>,
-    pub(in crate::application) retire:
+    pub(crate) layout: ObservationReadinessLayout,
+    pub(crate) slots: Box<[ObservationSlot]>,
+    pub(crate) frontiers: Box<[ObservedFrontierRoot]>,
+    pub(crate) bindings: Vec<Vec<ResolvedObservationBinding>>,
+    pub(crate) consumers: Vec<Vec<Vec<RuleIndex>>>,
+    pub(crate) outputs: Vec<Vec<OutputMetadata>>,
+    pub(crate) retire:
         Vec<Vec<ryo_execution_domain::domain::file_program::types::ObservationRetirement>>,
 }
 /// Immutable executable state has no RequestGraph, Plan, layout or old executor.

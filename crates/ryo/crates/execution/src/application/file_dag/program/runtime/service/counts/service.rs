@@ -5,7 +5,7 @@ use ryo_execution_domain::domain::operating::errors::OperatingError;
 impl ProgramExecution {
     /// Consume the generation once no invocation can remain active. Dropping
     /// its slots releases only engine-held storage; transferred leases own theirs.
-    pub(in crate::application::file_dag::program) fn state_counts(
+    pub(crate) fn state_counts(
         &self,
     ) -> ryo_execution_domain::domain::readiness::types::InvocationStateCounts {
         use ryo_execution_domain::domain::readiness::types::{InvocationStateCount, InvocationStateCounts};
@@ -25,7 +25,7 @@ impl ProgramExecution {
         }
         found
     }
-    pub(in crate::application::file_dag::program) fn logical_counts(
+    pub(crate) fn logical_counts(
         &self,
         state: &RuntimeState,
         rule: ryo_execution_domain::domain::coverage::types::RuleIndex,
@@ -72,7 +72,7 @@ impl ProgramExecution {
             },
         )
     }
-    pub(in crate::application::file_dag::program) fn readiness_counts(
+    pub(crate) fn readiness_counts(
         &self,
     ) -> ryo_execution_domain::domain::readiness::types::ReadinessCounts {
         *self.readiness_counts.borrow()

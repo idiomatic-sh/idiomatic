@@ -13,7 +13,7 @@ use super::*;
 use ryo_execution_domain::domain::stored_graph::types::GraphDomain;
 use ryo_derived::domain::adjacency::types::compact_graph::value::CompactGraph;
 impl DerivedOwner {
-    pub(in crate::application::file_dag::derived::owner) fn retain_graph(
+    pub(crate) fn retain_graph(
         &self,
         cache: &mut CacheBackend,
         population: PopulationId,
@@ -54,7 +54,7 @@ impl DerivedOwner {
         cache.graph_counts.refusals.0 += 1;
         Ok(GraphSharing::Local)
     }
-    pub(in crate::application::file_dag::derived::owner) fn retain_domain(
+    pub(crate) fn retain_domain(
         &self,
         cache: &mut CacheBackend,
         population: PopulationId,

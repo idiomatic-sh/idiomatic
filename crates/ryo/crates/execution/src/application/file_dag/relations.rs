@@ -18,10 +18,10 @@ use std::{
 use rustc_hash::FxHashMap;
 mod accounting;
 pub(crate) mod types;
-pub(in crate::application::file_dag) mod inspection;
-pub(in crate::application::file_dag) mod producer;
-pub(in crate::application::file_dag) mod source;
-pub(in crate::application::file_dag) mod generation;
+pub(crate) mod inspection;
+pub(crate) mod producer;
+pub(crate) mod source;
+pub(crate) mod generation;
 pub(crate) mod publication;
 use admission::service::BorrowedInput;
 use generation::service::GenerationLease;
@@ -33,13 +33,13 @@ use publication::types::{
 };
 use types::{CheckCount, PinnedViewCount, ReuseEligibility, Sameness};
 use ryo_values::domain::rows::types::Table;
-pub(in crate::application::file_dag) mod admission;
+pub(crate) mod admission;
 mod external;
-pub(in crate::application::file_dag) mod handle;
+pub(crate) mod handle;
 mod identity;
 
-pub(in crate::application::file_dag) mod number;
-pub(in crate::application::file_dag) mod packed;
+pub(crate) mod number;
+pub(crate) mod packed;
 
 struct SourceViews {
     population: SourceDescriptor,
@@ -59,34 +59,34 @@ pub(crate) struct RelationOwner {
     sources: RefCell<FxHashMap<Relation, SourceViews>>,
     max_views: PinnedViewCount,
     views: Cell<PinnedViewCount>,
-    pub(in crate::application::file_dag) checks: Cell<CheckCount>,
-    pub(in crate::application::file_dag) reuses: Cell<CheckCount>,
+    pub(crate) checks: Cell<CheckCount>,
+    pub(crate) reuses: Cell<CheckCount>,
     /// The route profile of the scope that opened this owner.
     routes: super::route_counts::types::RouteProfile,
 }
 impl RelationOwner {
-    pub(in crate::application::file_dag) fn derived(&self) -> &super::derived::owner::DerivedOwner {
+    pub(crate) fn derived(&self) -> &super::derived::owner::DerivedOwner {
         &self.derived
     }
     /// The route profile the opening scope handed down, for this owner's work to record into.
-    pub(in crate::application::file_dag) fn routes(
+    pub(crate) fn routes(
         &self,
     ) -> &super::route_counts::types::RouteProfile {
         &self.routes
     }
     #[cfg(test)]
-    pub(in crate::application::file_dag) fn derived_mut(
+    pub(crate) fn derived_mut(
         &mut self,
     ) -> &mut super::derived::owner::DerivedOwner {
         &mut self.derived
     }
-    pub(in crate::application::file_dag) fn generation_guard(&self) -> Arc<()> {
+    pub(crate) fn generation_guard(&self) -> Arc<()> {
         Arc::clone(&self.generation.borrow())
     }
-    pub(in crate::application::file_dag) fn generation_liveness(&self) -> Arc<GenerationLease> {
+    pub(crate) fn generation_liveness(&self) -> Arc<GenerationLease> {
         Arc::clone(&self.generation_live.borrow())
     }
-    pub(in crate::application::file_dag) fn matches_generation(
+    pub(crate) fn matches_generation(
         &self,
         generation: &Arc<()>,
     ) -> Sameness {
@@ -106,7 +106,7 @@ impl RelationOwner {
         Self::with_limits(ReuseEligibility::from(permit), views, semantic, routes)
     }
     #[cfg(test)]
-    pub(in crate::application) fn new(
+    pub(crate) fn new(
         stable: ReuseEligibility,
         semantic: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
     ) -> Self {
@@ -114,7 +114,7 @@ impl RelationOwner {
     }
     /// An owner whose work records into `routes`.
     #[cfg(test)]
-    pub(in crate::application) fn recording(
+    pub(crate) fn recording(
         stable: ReuseEligibility,
         semantic: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
         routes: super::route_counts::types::RouteProfile,
@@ -122,7 +122,7 @@ impl RelationOwner {
         Self::with_limits(stable, PinnedViewCount(1024), semantic, routes)
     }
     #[cfg(test)]
-    pub(in crate::application) fn for_request(
+    pub(crate) fn for_request(
         stable: ReuseEligibility,
         views: PinnedViewCount,
         semantic: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
@@ -176,7 +176,7 @@ impl RelationOwner {
 #[cfg(test)]
 mod owner_test;
 
-pub(in crate::application::file_dag) fn same_admitted_rows(
+pub(crate) fn same_admitted_rows(
     left: RepresentationInput<'_>,
     right: RepresentationInput<'_>,
 ) -> Sameness {

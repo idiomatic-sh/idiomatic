@@ -24,7 +24,7 @@ fn first<'a>(
 }
 
 /// Decline is a readable unsupported strategy, not an error or optional-retention decision.
-pub(in crate::application::file_dag::derived::owner::acquisition) fn build(
+pub(crate) fn build(
     port: Arc<dyn DerivedPort>,
     plan: &DerivedContract,
     inputs: DerivedInputs<'_, '_>,

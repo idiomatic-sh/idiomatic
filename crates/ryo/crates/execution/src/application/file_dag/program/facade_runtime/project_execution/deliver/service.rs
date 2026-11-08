@@ -19,7 +19,7 @@ use rustc_hash::FxHashMap;
 use std::rc::Rc;
 
 impl ProjectRun<'_> {
-    pub(in crate::application::file_dag::program::facade_runtime::project_execution) fn deliver(
+    pub(crate) fn deliver(
         &mut self,
         state: &crate::application::file_dag::program::runtime::service::RuntimeState,
         rule: RuleIndex,

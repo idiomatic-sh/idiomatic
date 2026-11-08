@@ -2,7 +2,7 @@
 use super::super::types::{RouteProfile, RouteState};
 
 /// Runs `visit` over the profile's state while it records; nothing when it does not.
-pub(in super::super) fn with_state<R>(
+pub(crate) fn with_state<R>(
     profile: &RouteProfile,
     visit: impl FnOnce(&mut RouteState) -> R,
 ) -> Option<R> {

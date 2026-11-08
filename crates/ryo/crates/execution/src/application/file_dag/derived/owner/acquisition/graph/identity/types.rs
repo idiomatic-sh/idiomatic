@@ -4,13 +4,13 @@ use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 /// Whether native syntax-tree populations may prove an identity, or only stored ones.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in crate::application::file_dag::derived::owner::acquisition::graph) enum PopulationScope {
+pub(crate) enum PopulationScope {
     Stored,
     Native,
 }
 
 /// A proven population with the original columns its rows expose.
-pub(in crate::application::file_dag::derived::owner::acquisition::graph) struct ProvenPopulation {
+pub(crate) struct ProvenPopulation {
     pub population: RelationPopulation,
     pub columns: Vec<ColumnIndex>,
 }

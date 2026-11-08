@@ -19,7 +19,7 @@ use ryo_values::domain::query_bindings::types::ParameterBinding;
 
 /// A compiler-proven direct row continuation has no acquisition program.
 /// This creates borrowed semantic capability state, not an invocation setup.
-pub(in crate::application::file_dag) fn continuation<'f>(
+pub(crate) fn continuation<'f>(
     contract: &OperatorContract,
 ) -> Result<InvocationResources<'f>, OperatingError> {
     if !matches!(contract.resources, ResourceProgram::None)
@@ -50,7 +50,7 @@ pub(in crate::application::file_dag) fn continuation<'f>(
 }
 
 
-pub(in crate::application::file_dag) fn prepare<'f>(
+pub(crate) fn prepare<'f>(
     contract: &OperatorContract,
     inputs: &[RepresentationInput<'f>],
     context: &mut OperatorContext<'_>,

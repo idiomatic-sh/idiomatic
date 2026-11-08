@@ -11,7 +11,7 @@ pub(crate) struct ExecutableLease<'call, 'resources, 'scope> {
     output: &'call mut dyn RowSink,
 }
 impl<'call, 'resources, 'scope> ExecutableLease<'call, 'resources, 'scope> {
-    pub(in crate::application::file_dag::execution::lease) fn new(
+    pub(crate) fn new(
         permit: &'call crate::application::file_dag::program::runtime::service::KernelPermit<
             'scope,
         >,
@@ -29,7 +29,7 @@ impl<'call, 'resources, 'scope> ExecutableLease<'call, 'resources, 'scope> {
         }
     }
 
-    pub(in crate::application::file_dag::execution) fn dispatch(
+    pub(crate) fn dispatch(
         self,
     ) -> Result<(), OperatingError> {
         self.permit.validate_registered(self.operation)?;

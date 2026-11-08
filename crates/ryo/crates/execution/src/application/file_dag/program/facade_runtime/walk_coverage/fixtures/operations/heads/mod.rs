@@ -12,9 +12,9 @@ pub(crate) const TEXT_A: &str = "a";
 pub(crate) const TEXT_B: &str = "b";
 pub(crate) const TEXT_EMPTY: &str = "";
 /// The function relation: id Node, name Symbol, file File, span Span.
-pub(in super::super::super) const FUNCTION: Relation = Relation::Function;
+pub(crate) const FUNCTION: Relation = Relation::Function;
 /// The syntax-child relation: parent Node, child Node, ordinal Number, field Symbol, file File.
-pub(in super::super::super) const EDGES: Relation = Relation::SyntaxChild;
+pub(crate) const EDGES: Relation = Relation::SyntaxChild;
 pub(crate) fn from(relation: Relation) -> Input {
     Input::Relation(relation)
 }
@@ -39,7 +39,7 @@ pub(crate) fn equal(column: ColumnIndex) -> PlanComparison {
     }
 }
 /// One head operation for every variant, over `FUNCTION` and `EDGES`, in no particular order.
-pub(in super::super::super) fn operations() -> Vec<Operation> {
+pub(crate) fn operations() -> Vec<Operation> {
     let f = from(FUNCTION);
     let e = from(EDGES);
     vec![

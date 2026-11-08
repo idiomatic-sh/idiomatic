@@ -11,11 +11,11 @@ use ryo_derived::domain::equality::types::KeyIndex;
 /// Owned immutable view handles stay in application; primitives borrow only the index.
 /// Whether an index over an empty input is skipped or still built.
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub(in crate::application::file_dag) enum EmptyInput {
+pub(crate) enum EmptyInput {
     Skip,
     Keep,
 }
-pub(in crate::application::file_dag) enum IndexResource<'f> {
+pub(crate) enum IndexResource<'f> {
     Derived {
         rows: RepresentationInput<'f>,
         view: AcquiredView,
@@ -52,7 +52,7 @@ impl<'f> IndexResource<'f> {
             view: storage,
         })
     }
-    pub(in crate::application::file_dag) fn view<'s>(
+    pub(crate) fn view<'s>(
         &'s self,
         #[cfg(feature = "diagnostic-row-progress")]
         progress: &'s dyn ryo_execution_domain::domain::operator::contract::views::ProgressObserver,
