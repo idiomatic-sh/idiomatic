@@ -4,7 +4,7 @@ pub(crate) mod service;
 
 pub(crate) mod scoped;
 
-pub(crate) mod population;
+pub mod population;
 
 pub(crate) mod graph;
 

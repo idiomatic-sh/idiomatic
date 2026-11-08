@@ -7,6 +7,6 @@ pub(crate) mod reclamation;
 
 pub(crate) mod reserve;
 
-pub(crate) mod retained;
+pub mod retained;
 
 pub mod handles;

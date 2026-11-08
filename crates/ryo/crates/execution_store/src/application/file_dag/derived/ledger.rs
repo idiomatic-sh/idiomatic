@@ -12,7 +12,7 @@ pub(crate) mod lease;
 mod snapshot;
 #[cfg(test)]
 mod test;
-pub(crate) mod types;
+pub mod types;
 
 #[cfg(any(test, feature = "fixtures"))]
 use types::{BackingCount, BackingTag};
