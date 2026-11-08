@@ -117,7 +117,9 @@ fn two_declared_roots_of_one_population_read_the_provider_once() {
                 &mut symbols,
                 CaptureContext {
                     worker: WorkerNumber(0),
-                    arena: ryo_execution::inbound::use_cases::execution::interface::Arena(&mut arena),
+                    arena: ryo_execution::inbound::use_cases::execution::interface::Arena(
+                        &mut arena,
+                    ),
                     places: &mut places,
                     words: &mut words,
                 },
@@ -218,6 +220,7 @@ fn two_declared_roots_of_one_population_read_the_provider_once() {
                 covered: &covered,
                 skipped: &[],
                 inapplicable: &[ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default()],
+                refused: &[ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default()],
                 facts: &stored,
                 project: &project,
                 project_symbols: &project_symbols,

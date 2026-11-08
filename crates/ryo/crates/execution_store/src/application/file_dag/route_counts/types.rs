@@ -158,7 +158,7 @@ pub struct OriginScope {
 /// The origin a profile had when an invocation began, with the profile it belongs to.
 #[cfg(feature = "diagnostic-row-progress")]
 #[derive(Clone, Debug)]
-pub(crate) struct CapturedOrigin {
+pub struct CapturedOrigin {
     pub(super) profile: RouteProfile,
     pub(super) origin: Option<RouteOrigin>,
 }

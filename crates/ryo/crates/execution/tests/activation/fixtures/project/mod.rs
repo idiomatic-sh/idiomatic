@@ -1,23 +1,25 @@
+use super::program::{corpus, engine, prepared};
+use super::subscriber::{Access, Activation, Sample};
+use ryo_execution::inbound::use_cases::execution::interface::Covered;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::inbound::use_cases::execution::interface::Partials;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
+use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
-use ryo_execution_runtime::outbound::facts::types::ColumnsMut;
+use ryo_execution_runtime::application::file_dag::frontiers::types::PublicationSlot;
+use ryo_execution_runtime::application::file_dag::program::project_phase::types::{
+    FrontierDemand, PhaseOccurrence, PhaseOccurrences, PhasePartials,
+};
+use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::ProjectBatch;
 use ryo_execution_runtime::outbound::facts::errors::FactsError;
 use ryo_execution_runtime::outbound::facts::interface::FactsFinish;
 use ryo_execution_runtime::outbound::facts::interface::FactsWorker;
+use ryo_execution_runtime::outbound::facts::types::ColumnsMut;
 use ryo_execution_runtime::outbound::facts::types::KeptBucket;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_execution_runtime::outbound::facts::types::WordsToKeep;
-use super::program::{corpus, engine, prepared};
-use super::subscriber::{Access, Activation, Sample};
-use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
-use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution;
-use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
-use ryo_execution_runtime::application::file_dag::frontiers::types::PublicationSlot;
-use ryo_execution_runtime::application::file_dag::program::project_phase::types::{FrontierDemand, PhaseOccurrence, PhaseOccurrences, PhasePartials};
-use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::ProjectBatch;
-use ryo_execution::inbound::use_cases::execution::interface::Covered;
-use ryo_execution::inbound::use_cases::execution::interface::Partials;
-use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{ColumnsView, FileId, Relation};
 use ryo_values::domain::stored_facts::types::Bucket;
@@ -98,6 +100,7 @@ pub(crate) fn measure_project(
                     covered: &covered,
                     skipped: &[],
                     inapplicable: &inapplicable,
+                    refused: &vec![ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(); inapplicable.len()],
                     facts: &NoFacts,
                     project: &NoFacts,
                     project_symbols: &project_symbols,

@@ -1,28 +1,32 @@
 //! A project root cannot reconstruct an unhanded per-file step from a provider.
-use ryo_execution_runtime::application::file_dag::program::project_phase::interface::{ProjectRootExecution as _, ProjectStage as _};
-use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
-use crate::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_values::cases::{Case, CaseName, Expect, Word, run};
-use ryo_execution_runtime::outbound::facts::types::ColumnsMut;
-use ryo_execution_runtime::outbound::facts::errors::FactsError;
-use ryo_execution_runtime::outbound::facts::interface::FactsFinish;
-use ryo_execution_runtime::outbound::facts::interface::FactsWorker;
-use ryo_execution_runtime::outbound::facts::types::KeptBucket;
-use ryo_execution_runtime::outbound::facts::types::ResidentStability;
-use ryo_execution_runtime::outbound::facts::types::WordsToKeep;
 use super::super::super::fixtures;
-use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
-use ryo_execution_runtime::application::file_dag::program::project_phase::types::{PhaseOccurrence, PhaseOccurrences, PhasePartials};
-use ryo_execution_runtime::application::file_dag::frontiers::types::PublicationSlot;
-use ryo_execution_runtime::application::file_dag::program::project_phase::types::FrontierDemand;
-use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::ProjectBatch;
-use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
 use crate::inbound::use_cases::execution::interface::Covered;
+use crate::inbound::use_cases::execution::interface::ExecutionUseCase;
 use crate::inbound::use_cases::execution::interface::OperatingError;
 use crate::inbound::use_cases::execution::interface::Partials;
 use crate::inbound::use_cases::execution::interface::RuleIndex;
+use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
+use ryo_execution_runtime::application::file_dag::frontiers::types::PublicationSlot;
+use ryo_execution_runtime::application::file_dag::program::project_phase::interface::{
+    ProjectRootExecution as _, ProjectStage as _,
+};
+use ryo_execution_runtime::application::file_dag::program::project_phase::types::FrontierDemand;
+use ryo_execution_runtime::application::file_dag::program::project_phase::types::{
+    PhaseOccurrence, PhaseOccurrences, PhasePartials,
+};
+use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
+use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::ProjectBatch;
+use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
+use ryo_execution_runtime::outbound::facts::errors::FactsError;
+use ryo_execution_runtime::outbound::facts::interface::FactsFinish;
+use ryo_execution_runtime::outbound::facts::interface::FactsWorker;
+use ryo_execution_runtime::outbound::facts::types::ColumnsMut;
+use ryo_execution_runtime::outbound::facts::types::KeptBucket;
+use ryo_execution_runtime::outbound::facts::types::ResidentStability;
+use ryo_execution_runtime::outbound::facts::types::WordsToKeep;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{ColumnsView, FileId, Relation};
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::{
     files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
     plan_parts::types::{ColumnIndex, Input as Source, StepId, StepScope},
@@ -112,7 +116,10 @@ fn project_step_without_a_declared_handover_cannot_read_a_per_file_source() -> R
             corpus: &corpus,
             covered: &covered,
             skipped: &[],
-            inapplicable: &[crate::inbound::use_cases::execution::interface::InapplicableFiles::default()],
+            inapplicable: &[
+                crate::inbound::use_cases::execution::interface::InapplicableFiles::default(),
+            ],
+            refused: &[crate::inbound::use_cases::execution::interface::RefusedFiles::default()],
             facts: &facts,
             project: &facts,
             project_symbols: &project_symbols,
@@ -156,17 +163,19 @@ enum Scenario {
 type Input = Scenario;
 type Value = ();
 type Failure = OperatingError;
-const CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: CaseName(stringify!(project_step_without_a_declared_handover_cannot_read_a_per_file_source)),
-        word: Word::Succeeds,
-        input: || Scenario::ProjectStepWithoutADeclaredHandoverCannotReadAPerFileSource,
-        expect: Expect::Value(()),
-    },
-];
+const CASES: &[Case<Input, Value, Failure>] = &[Case {
+    name: CaseName(stringify!(
+        project_step_without_a_declared_handover_cannot_read_a_per_file_source
+    )),
+    word: Word::Succeeds,
+    input: || Scenario::ProjectStepWithoutADeclaredHandoverCannotReadAPerFileSource,
+    expect: Expect::Value(()),
+}];
 fn subject(input: Input) -> Result<Value, Failure> {
     match input {
-        Scenario::ProjectStepWithoutADeclaredHandoverCannotReadAPerFileSource => project_step_without_a_declared_handover_cannot_read_a_per_file_source(),
+        Scenario::ProjectStepWithoutADeclaredHandoverCannotReadAPerFileSource => {
+            project_step_without_a_declared_handover_cannot_read_a_per_file_source()
+        }
     }
 }
 #[test]

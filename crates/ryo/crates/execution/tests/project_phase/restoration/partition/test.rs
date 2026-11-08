@@ -1,18 +1,20 @@
 //! Actual two-file named restoration and absence publication, including a
 //! downstream projection that would erase the completeness key if fused early.
+use super::super::super::*;
+use super::fixtures::Mode;
+use super::fixtures::authored;
 use crate::boundary_fixture::Observed as _;
-use ryo_execution::inbound::use_cases::execution::interface::ObservationExecution as _;
-use ryo_execution::inbound::use_cases::execution::interface::ObservationPublication as _;
 use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityReason;
 use ryo_execution::inbound::use_cases::execution::interface::FileObservationReadiness;
-use ryo_execution::inbound::use_cases::execution::interface::{InapplicableFiles, RefusedFiles};
+use ryo_execution::inbound::use_cases::execution::interface::ObservationExecution as _;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationPublication as _;
 use ryo_execution::inbound::use_cases::execution::interface::Partial;
+use ryo_execution::inbound::use_cases::execution::interface::{InapplicableFiles, RefusedFiles};
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution_runtime::application::file_dag::frontiers::types::InputReadiness;
 use ryo_execution_runtime::application::file_dag::observations::types::AdmittedOutput;
 use ryo_execution_runtime::application::file_dag::observations::types::RuleSelection;
-use ryo_execution_runtime::application::file_dag::frontiers::types::InputReadiness;
-use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
-use super::super::super::*;
 use ryo_language::domain::files::types::FilePath;
 use ryo_relations::domain::relations::types::Integer;
 use ryo_values::domain::files::types::CorpusInput;
@@ -27,8 +29,6 @@ use ryo_values::domain::stored_facts::types::KeptWords;
 use ryo_values::domain::table_words::fixtures::encode_table;
 use ryo_values::domain::table_words::fixtures::pack;
 use ryo_values::domain::table_words::types::WordSlice;
-use super::fixtures::Mode;
-use super::fixtures::authored;
 
 pub(super) fn exercise(empty: bool, project_away_file: bool, stale_complete: bool, mode: Mode) {
     exercise_with(empty, project_away_file, stale_complete, mode, &[]);
@@ -103,7 +103,9 @@ pub(super) fn exercise_with(
                     &mut symbols,
                     CaptureContext {
                         worker: WorkerNumber(0),
-                        arena: ryo_execution::inbound::use_cases::execution::interface::Arena(&mut arena),
+                        arena: ryo_execution::inbound::use_cases::execution::interface::Arena(
+                            &mut arena,
+                        ),
                         places: &mut places,
                         words: &mut words,
                     },
@@ -116,7 +118,11 @@ pub(super) fn exercise_with(
         }
         readiness.push(FileObservationReadiness {
             file: file_id,
-            root: file.finish().unwrap().readiness.observed("the finished file observed its readiness"),
+            root: file
+                .finish()
+                .unwrap()
+                .readiness
+                .observed("the finished file observed its readiness"),
         });
     }
     if stale_complete {
@@ -143,14 +149,18 @@ pub(super) fn exercise_with(
         use ryo_execution::inbound::use_cases::metadata::interface::{FilePartial, Lacking};
         Partials {
             entries: vec![FilePartial {
-                file: ryo_execution::inbound::use_cases::metadata::interface::PartialPlace::File(FileId(1)),
+                file: ryo_execution::inbound::use_cases::metadata::interface::PartialPlace::File(
+                    FileId(1),
+                ),
                 partial: Partial {
                     relation: Relation::ModuleIdentity,
                     cause: ryo_values::domain::stored_facts::types::PartialCause(
                         "missing project partition".into(),
                     ),
                     lacking: Lacking::Any,
-                    at: ryo_execution::inbound::use_cases::metadata::interface::PartialPlace::File(FileId(1)),
+                    at: ryo_execution::inbound::use_cases::metadata::interface::PartialPlace::File(
+                        FileId(1),
+                    ),
                 },
             }],
             unavailable_files: vec![],
@@ -172,7 +182,11 @@ pub(super) fn exercise_with(
             &[],
             &readiness,
             &[Bucket(0), Bucket(10), Bucket(20)],
-            &[RuleSelection::Unselected, RuleSelection::Selected, RuleSelection::Selected],
+            &[
+                RuleSelection::Unselected,
+                RuleSelection::Selected,
+                RuleSelection::Selected,
+            ],
         )
         .unwrap();
     let mut symbols = Symbols::default();
@@ -190,6 +204,7 @@ pub(super) fn exercise_with(
             covered: &[],
             skipped: &skipped,
             inapplicable: &vec![ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(); 3],
+            refused: &vec![ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(); 3],
             facts: &stored,
             project: &project_facts,
             project_symbols: &project_symbols,
@@ -261,14 +276,25 @@ pub(super) fn exercise_with(
                     RuleIndex(1),
                     slot,
                     forged,
-                    vec![AdmittedOutput { output, publication: publication.clone() }]
+                    vec![AdmittedOutput {
+                        output,
+                        publication: publication.clone()
+                    }]
                 )
                 .is_err(),
             "a Partial owner proof cannot be relabeled Complete"
         );
     }
     stage
-        .install(RuleIndex(1), slot, transfer, vec![AdmittedOutput { output, publication }])
+        .install(
+            RuleIndex(1),
+            slot,
+            transfer,
+            vec![AdmittedOutput {
+                output,
+                publication,
+            }],
+        )
         .unwrap();
     stage.finish(RuleIndex(1)).unwrap();
     let bound = stage.bindings(RuleIndex(2)).unwrap();
@@ -287,7 +313,9 @@ pub(super) fn exercise_with(
     let consumer_inapplicable = [
         ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
         ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
-        ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles(inapplicable.to_vec()),
+        ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles(
+            inapplicable.to_vec(),
+        ),
     ];
     let outcomes = crate::boundary_fixture::project_roots(
         &stage,
@@ -298,6 +326,12 @@ pub(super) fn exercise_with(
             covered: &[],
             skipped: &skipped,
             inapplicable: &consumer_inapplicable,
+            refused:
+                &vec![
+                    ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(
+                    );
+                    consumer_inapplicable.len()
+                ],
             facts: &stored,
             project: &project_facts,
             project_symbols: &project_symbols,

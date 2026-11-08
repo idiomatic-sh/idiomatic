@@ -198,6 +198,7 @@ pub(super) fn each_phase_owns_its_publication() {
                 covered,
                 &[],
                 &InapplicableFiles::default(),
+                &RefusedFiles::default(),
             )
             .expect("a declared rule has a scope");
         assert!(

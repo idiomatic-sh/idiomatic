@@ -6,17 +6,17 @@ use crate::application::cross_file::service::phase_partials;
 use crate::domain::answering::types::Todo;
 use ryo_execution::inbound::use_cases::execution::interface::FrontierDemand;
 use ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles;
+use ryo_execution::inbound::use_cases::execution::interface::OccurrenceNumber;
 use ryo_execution::inbound::use_cases::execution::interface::PhaseOccurrence;
 use ryo_execution::inbound::use_cases::execution::interface::PhaseOccurrences;
-use ryo_execution::inbound::use_cases::execution::interface::OccurrenceNumber;
 use ryo_execution::inbound::use_cases::execution::interface::PhasePartials;
-use ryo_execution::inbound::use_cases::execution::interface::ProjectOutputOutcome;
-use ryo_execution::inbound::use_cases::execution::interface::RuleOutcome;
-use ryo_execution::inbound::use_cases::metadata::interface::Covered;
 use ryo_execution::inbound::use_cases::execution::interface::PhaseStop;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectBatch;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectOutputOutcome;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution;
 use ryo_execution::inbound::use_cases::execution::interface::PublicationSlot;
+use ryo_execution::inbound::use_cases::execution::interface::RuleOutcome;
+use ryo_execution::inbound::use_cases::metadata::interface::Covered;
 use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::FileId;
@@ -99,7 +99,16 @@ pub(super) fn evaluate_outcome(
     mut partials: impl FnMut() -> Result<PhasePartials, CrossFileError>,
     symbols: &mut Symbols,
 ) -> Result<RuleOutcome<ProjectOutputOutcome>, PhaseStop<CrossFileError>> {
-    evaluate_one(world, phase, rule, rows, covered, symbols, |_| partials(), |_, outcome, _, _| Ok(outcome))
+    evaluate_one(
+        world,
+        phase,
+        rule,
+        rows,
+        covered,
+        symbols,
+        |_| partials(),
+        |_, outcome, _, _| Ok(outcome),
+    )
 }
 
 /// One occurrence a case scopes over coverage of its own: evaluated through the production phase call, then completed.
@@ -124,7 +133,9 @@ pub(super) fn evaluate_fixture(
         covered,
         symbols,
         |_| phase_partials(&crossing, todo),
-        |_, outcome, slot, symbols: &mut Symbols| service().complete_occurrence(&crossing, todo, outcome, slot, symbols),
+        |_, outcome, slot, symbols: &mut Symbols| {
+            service().complete_occurrence(&crossing, todo, outcome, slot, symbols)
+        },
     );
     done.map(|result| result.crossed)
         .map_err(|stop| refused(crate::application::cross_file::service::stopped(todo, stop)))
@@ -139,9 +150,23 @@ fn evaluate_one<T>(
     covered: &[Covered],
     symbols: &mut Symbols,
     partials: impl FnMut(OccurrenceNumber) -> Result<PhasePartials, CrossFileError>,
-    complete: impl FnMut(OccurrenceNumber, RuleOutcome<ProjectOutputOutcome>, PublicationSlot, &mut Symbols) -> Result<T, CrossFileError>,
+    complete: impl FnMut(
+        OccurrenceNumber,
+        RuleOutcome<ProjectOutputOutcome>,
+        PublicationSlot,
+        &mut Symbols,
+    ) -> Result<T, CrossFileError>,
 ) -> Result<T, PhaseStop<CrossFileError>> {
-    let mut done = evaluate_all(world, phase, &[rule], &[(rule, rows)], covered, symbols, partials, complete);
+    let mut done = evaluate_all(
+        world,
+        phase,
+        &[rule],
+        &[(rule, rows)],
+        covered,
+        symbols,
+        partials,
+        complete,
+    );
     assert_eq!(done.len(), 1, "one declared occurrence has one result");
     done.pop().expect("the exact result count was checked")
 }
@@ -156,13 +181,23 @@ pub(super) fn evaluate_all<T>(
     covered: &[Covered],
     symbols: &mut Symbols,
     partials: impl FnMut(OccurrenceNumber) -> Result<PhasePartials, CrossFileError>,
-    complete: impl FnMut(OccurrenceNumber, RuleOutcome<ProjectOutputOutcome>, PublicationSlot, &mut Symbols) -> Result<T, CrossFileError>,
+    complete: impl FnMut(
+        OccurrenceNumber,
+        RuleOutcome<ProjectOutputOutcome>,
+        PublicationSlot,
+        &mut Symbols,
+    ) -> Result<T, CrossFileError>,
 ) -> Vec<Result<T, PhaseStop<CrossFileError>>> {
     let (facts, project) = kept_facts(world, kept);
     let first = (0..world.ids.len())
         .map(|each| Bucket(u32::try_from(each).expect("a fixture rule numbers its bucket")))
         .collect::<Vec<_>>();
     let inapplicable = vec![InapplicableFiles::default(); world.ids.len()];
+    let refused_files =
+        vec![
+            ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default();
+            world.ids.len()
+        ];
     let project_symbols = Symbols::default();
     let occurrences = rules
         .iter()
@@ -181,6 +216,7 @@ pub(super) fn evaluate_all<T>(
             covered,
             skipped: &world.skipped,
             inapplicable: &inapplicable,
+            refused: &refused_files,
             facts: facts.as_ref(),
             project: project.as_ref(),
             project_symbols: &project_symbols,

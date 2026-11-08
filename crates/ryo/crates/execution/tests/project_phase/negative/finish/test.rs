@@ -1,16 +1,16 @@
 //! Finishing the phase refuses while a scope still shares the publication.
-use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use super::super::super::source_facts::fixtures::ProjectFacts;
 use super::super::fixtures::NoFileFrontiers;
 use crate::boundary_fixture::{corpus, engine, prepared};
+use ryo_execution::inbound::use_cases::execution::interface::Covered;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
-use ryo_execution_runtime::application::file_dag::program::project_phase::types::PhaseOccurrences;
-use ryo_execution::inbound::use_cases::execution::interface::Covered;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution::inbound::use_cases::execution::interface::Partials;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution_runtime::application::file_dag::program::project_phase::types::PhaseOccurrences;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{FileId, Relation};
 use ryo_values::domain::stored_facts::types::Bucket;
@@ -49,7 +49,13 @@ fn finish_refuses_while_a_scope_still_shares_the_publication() {
             corpus: &corpus,
             covered: &covered,
             skipped: &[],
-            inapplicable: &[ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default()],
+            inapplicable: &[
+                ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(
+                ),
+            ],
+            refused: &[
+                ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(),
+            ],
             facts: &NoFileFrontiers,
             project: &project,
             project_symbols: &project_symbols,

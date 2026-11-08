@@ -371,6 +371,9 @@ fn wholly_skipped_frontier_is_unavailable_without_fabricating_a_schema_or_rows()
                 ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(
                 ),
             ],
+            refused: &[
+                ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(),
+            ],
             facts: &stored,
             project: &project,
             project_symbols: &project_symbols,

@@ -1,30 +1,28 @@
 //! Deferred roots do not hide owning-phase faults or renumber file frontier refusals.
-use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase as _;
-use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
-use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use super::super::super::source_facts::fixtures::ProjectFacts;
 use super::super::fixtures::NoFileFrontiers;
-use crate::boundary_fixture::{
-    authored_request, corpus, demand, engine, prepared, source,
-};
+use crate::boundary_fixture::{authored_request, corpus, demand, engine, prepared, source};
+use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
+use ryo_execution::inbound::use_cases::execution::interface::Covered;
+use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
+use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
+use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
+use ryo_execution::inbound::use_cases::execution::interface::Partials;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
+use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase as _;
+use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
 use ryo_execution_runtime::application::file_dag::program::project_phase::types::PhaseOccurrences;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
-use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
-use ryo_execution::inbound::use_cases::execution::interface::Covered;
-use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
-use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
-use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
-use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
-use ryo_execution::inbound::use_cases::execution::interface::Partials;
-use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
+use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::{
     fixtures::kinds,
@@ -62,7 +60,13 @@ fn a_file_emit_defers_at_project_scope_but_its_real_file_failure_is_not_deferred
             corpus: &corpus,
             covered: &covered,
             skipped: &[],
-            inapplicable: &[ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default()],
+            inapplicable: &[
+                ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(
+                ),
+            ],
+            refused: &[
+                ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(),
+            ],
             facts: &NoFileFrontiers,
             project: &project,
             project_symbols: &project_symbols,

@@ -1,9 +1,9 @@
 //! The files, the function rows of each and the run through the owner that the rewrite proofs compare plans by.
 use super::super::*;
+use ryo_execution_domain::domain::frontier_capture::types::CapturedFrontier;
 use ryo_execution_runtime::outbound::facts::errors::FactsError;
 use ryo_execution_runtime::outbound::facts::interface::FactsFinish;
 use ryo_execution_runtime::outbound::facts::types::{BucketSource, KeptBucket};
-use ryo_execution::inbound::use_cases::execution::interface::CapturedFrontier;
 use ryo_language::domain::symbols::{fixtures::intern, types::ByteSlice};
 use ryo_relations::domain::relations::fixtures::node_id;
 use ryo_relations::domain::relations::types::{Offset, Position, Span};
@@ -42,10 +42,19 @@ pub(super) fn files() -> Vec<Vec<Function>> {
 }
 
 /// The function rows of `file`, their names interned in its symbols; each function is a node of the file at its place.
-fn functions(file: FileId, functions: &[Function], symbols: &mut Symbols) -> ryo_values::domain::rows::types::Table {
+fn functions(
+    file: FileId,
+    functions: &[Function],
+    symbols: &mut Symbols,
+) -> ryo_values::domain::rows::types::Table {
     assert_eq!(
         kinds(Relation::Function),
-        [CellKind::Node, CellKind::Symbol, CellKind::File, CellKind::Span],
+        [
+            CellKind::Node,
+            CellKind::Symbol,
+            CellKind::File,
+            CellKind::Span
+        ],
         "the proofs name the function relation's columns by place"
     );
     let main = intern(symbols, ByteSlice(SOURCE), Offset(0), Offset(4));
@@ -89,11 +98,17 @@ impl FactsFinish for CapturedBuckets {
     fn kept(&self, bucket: Bucket) -> Result<KeptBucket, FactsError> {
         let mut words = vec![];
         let mut sources = vec![];
-        for (file, capture) in self.captures.iter().filter(|(_, capture)| capture.bucket == bucket) {
+        for (file, capture) in self
+            .captures
+            .iter()
+            .filter(|(_, capture)| capture.bucket == bucket)
+        {
             sources.push(BucketSource {
                 file: *file,
                 start: ryo_execution_runtime::outbound::facts::types::KeptWordsStart(words.len()),
-                length: ryo_execution_runtime::outbound::facts::types::KeptWordsLength(capture.words.0.len()),
+                length: ryo_execution_runtime::outbound::facts::types::KeptWordsLength(
+                    capture.words.0.len(),
+                ),
                 proof: capture.proof.clone(),
             });
             words.extend_from_slice(&capture.words.0);
@@ -120,13 +135,12 @@ fn written(table: &ryo_values::domain::rows::types::Table) -> Vec<String> {
 /// The rows a plan of `steps` emitting `emitted` answers over the functions of `files`, run through the owner as a run runs it:
 /// each file's steps in the file, then the steps after the files over what every file captured.
 pub(super) fn rows(steps: Vec<PlanStep>, emitted: StepId, files: &[Vec<Function>]) -> Vec<String> {
-    let crossing = steps
-        .iter()
-        .any(|step| step.scope == StepScope::CrossFile);
+    let crossing = steps.iter().any(|step| step.scope == StepScope::CrossFile);
     let engine = engine();
     let mut input = authored_request(1);
     let plan = &mut crate::boundary_fixture::plans(&mut input)[0];
-    plan.frontier = ryo_query_language::inbound::use_cases::compile::fixtures::rewrites::frontier(&steps);
+    plan.frontier =
+        ryo_query_language::inbound::use_cases::compile::fixtures::rewrites::frontier(&steps);
     plan.steps = steps;
     plan.emit = Emit {
         step: emitted,
@@ -187,7 +201,11 @@ pub(super) fn rows(steps: Vec<PlanStep>, emitted: StepId, files: &[Vec<Function>
                 &mut symbols,
             )
             .expect("open the file");
-        match file.rule(RuleIndex(0), demand(), &mut symbols).expect("run the file").emit {
+        match file
+            .rule(RuleIndex(0), demand(), &mut symbols)
+            .expect("run the file")
+            .emit
+        {
             RootOutcome::Complete(table) => answered.extend(written(&table)),
             RootOutcome::Deferred {
                 phase: StepScope::CrossFile,
@@ -199,7 +217,9 @@ pub(super) fn rows(steps: Vec<PlanStep>, emitted: StepId, files: &[Vec<Function>
                         &mut symbols,
                         CaptureContext {
                             worker: WorkerNumber(0),
-                            arena: ryo_execution::inbound::use_cases::execution::interface::Arena(&mut arena),
+                            arena: ryo_execution::inbound::use_cases::execution::interface::Arena(
+                                &mut arena,
+                            ),
                             places: &mut places,
                             words: &mut words,
                         },
@@ -224,45 +244,27 @@ pub(super) fn rows(steps: Vec<PlanStep>, emitted: StepId, files: &[Vec<Function>
             })
             .collect();
         let phase = request.project_phase().expect("the project phase");
-        let scope = phase
-            .project_scope(
-                RuleIndex(0),
-                &corpus,
-                &covered,
-                &[],
-                &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
-            )
-            .expect("the project scope");
         let project_symbols = Symbols::default();
         let mut symbols = Symbols::default();
-        let ordinary = request
-            .prepare_frontiers(
-                FrontierRequest {
-                    demand: FrontierDemand::Diagnostic,
-                    scope: &scope,
-                    rule: RuleIndex(0),
-                    first: Bucket(0),
-                    facts: &facts,
-                    project: &project,
-                    project_symbols: &project_symbols,
-                },
-                &mut symbols,
-            )
-            .expect("admit what the files captured");
         let partials = Partials::default();
         let arenas = [ArenaBytes(arena)];
         let RootOutcome::Complete(table) = crate::boundary_fixture::project_root(
             &phase,
-            RuleIndex(0),
-            demand(),
-            ProjectInput {
-                scope: &scope,
-                evaluation: &partials,
-                publication: &partials,
-                ordinary,
-                bound: &[],
+            PhaseOccurrences {
+                occurrences: &[crate::boundary_fixture::ordinary_occurrence(RuleIndex(0))],
+                first: &[Bucket(0)],
+                corpus: &corpus,
+                covered: &covered,
+                skipped: &[],
+                inapplicable: &[ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default()],
+                refused: &[ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default()],
+                facts: &facts,
+                project: &project,
+                project_symbols: &project_symbols,
                 arenas: &arenas,
             },
+            &partials,
+            &partials,
             &mut symbols,
         )
         .expect("run the steps after the files")
@@ -271,7 +273,6 @@ pub(super) fn rows(steps: Vec<PlanStep>, emitted: StepId, files: &[Vec<Function>
             panic!("the steps after the files complete")
         };
         answered.extend(written(&table));
-        drop(scope);
         phase.finish().expect("finish the project phase");
     }
     request.finish();

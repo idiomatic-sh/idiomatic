@@ -34,8 +34,6 @@ fn project_hosted_text_joins_named_publication_text_by_spelling() {
     }
 }
 
-
-
 fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>) {
     let union_semantic_calls = Arc::new(UnionSemanticCalls::default());
     let engine = PrepareUseCaseImpl::new(
@@ -66,24 +64,28 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
             name: ObservationColumnName("code".into()),
             kind: CellKind::Symbol,
         });
-        crate::boundary_fixture::plans(&mut authored)[0].steps.push(PlanStep {
-            scope: StepScope::CrossFile,
-            operation: Operation::Extend {
-                from: Input::Step(StepId(0)),
-                values: vec![ryo_values::domain::plan_parts::types::Operand::Literal(
-                    ryo_values::domain::plan_parts::types::QueryLiteral::Text(
-                        ryo_values::domain::plan_parts::types::LiteralText("F401".into()),
-                    ),
-                )],
-            },
-        });
+        crate::boundary_fixture::plans(&mut authored)[0]
+            .steps
+            .push(PlanStep {
+                scope: StepScope::CrossFile,
+                operation: Operation::Extend {
+                    from: Input::Step(StepId(0)),
+                    values: vec![ryo_values::domain::plan_parts::types::Operand::Literal(
+                        ryo_values::domain::plan_parts::types::QueryLiteral::Text(
+                            ryo_values::domain::plan_parts::types::LiteralText("F401".into()),
+                        ),
+                    )],
+                },
+            });
     }
-    crate::boundary_fixture::plans(&mut authored)[0].observations.push(PlanObservation {
-        name: ObservationName("files".into()),
-        source: Input::Step(StepId(if selected_text.is_some() { 1 } else { 0 })),
-        columns: columns.clone(),
-        scope: StepScope::CrossFile,
-    });
+    crate::boundary_fixture::plans(&mut authored)[0]
+        .observations
+        .push(PlanObservation {
+            name: ObservationName("files".into()),
+            source: Input::Step(StepId(if selected_text.is_some() { 1 } else { 0 })),
+            columns: columns.clone(),
+            scope: StepScope::CrossFile,
+        });
     crate::boundary_fixture::plans(&mut authored)[1].steps = vec![PlanStep {
         scope: StepScope::CrossFile,
         operation: Operation::Select {
@@ -114,30 +116,32 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
                 ryo_values::domain::row_texts::types::Cell::Text(selected.into()),
             ])],
         });
-        crate::boundary_fixture::plans(&mut authored)[1].steps.extend([
-            PlanStep {
-                scope: StepScope::CrossFile,
-                operation: Operation::Hosted {
-                    relation: HostedNumber(0),
+        crate::boundary_fixture::plans(&mut authored)[1]
+            .steps
+            .extend([
+                PlanStep {
+                    scope: StepScope::CrossFile,
+                    operation: Operation::Hosted {
+                        relation: HostedNumber(0),
+                    },
                 },
-            },
-            PlanStep {
-                scope: StepScope::CrossFile,
-                operation: Operation::Join {
-                    left: Input::Step(StepId(0)),
-                    right: Input::Step(StepId(1)),
-                    left_on: vec![ColumnIndex(1)],
-                    right_on: vec![ColumnIndex(0)],
-                    output: vec![JoinColumn {
-                        side: Side::Left,
-                        column: ColumnIndex(0),
-                    }],
-                    filter: vec![],
-                    view: vec![],
-                    reach: None,
+                PlanStep {
+                    scope: StepScope::CrossFile,
+                    operation: Operation::Join {
+                        left: Input::Step(StepId(0)),
+                        right: Input::Step(StepId(1)),
+                        left_on: vec![ColumnIndex(1)],
+                        right_on: vec![ColumnIndex(0)],
+                        output: vec![JoinColumn {
+                            side: Side::Left,
+                            column: ColumnIndex(0),
+                        }],
+                        filter: vec![],
+                        view: vec![],
+                        reach: None,
+                    },
                 },
-            },
-        ]);
+            ]);
         crate::boundary_fixture::plans(&mut authored)[1].emit.step = StepId(2);
     }
     let producer = authored.rules[0].id.clone();
@@ -176,7 +180,11 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
     let mut symbols = Symbols::default();
     let slot = stage.reserve(RuleIndex(0)).unwrap();
     let partials = Partials::default();
-    let inapplicable = vec![ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(); 2];
+    let inapplicable =
+        vec![
+            ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default();
+            2
+        ];
     let mut result = crate::boundary_fixture::project_root(
         &stage,
         PhaseOccurrences {
@@ -191,6 +199,12 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
             covered: &covered,
             skipped: &[],
             inapplicable: &inapplicable,
+            refused:
+                &vec![
+                    ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(
+                    );
+                    inapplicable.len()
+                ],
             facts: &stored,
             project: &project,
             project_symbols: &project_symbols,
@@ -204,7 +218,10 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
     // The phase call always demands the emit; that an undemanded emit answers `NoQuery` is proved in the runtime by
     // `project_phase::service_test::a_root_whose_emit_is_not_demanded_answers_no_query`.
     assert!(
-        !matches!(result.emit, RootOutcome::Failed(_) | RootOutcome::Unknown(_)),
+        !matches!(
+            result.emit,
+            RootOutcome::Failed(_) | RootOutcome::Unknown(_)
+        ),
         "the phase call evaluates the producer's own emit beside its publication"
     );
     let ProjectOutputOutcome {
@@ -275,7 +292,10 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
                     },
                 }],
             },
-            vec![AdmittedOutput { output, publication }],
+            vec![AdmittedOutput {
+                output,
+                publication,
+            }],
         )
         .unwrap();
     stage.finish(RuleIndex(0)).unwrap();
@@ -305,6 +325,12 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
             covered: &covered,
             skipped: &[],
             inapplicable: &inapplicable,
+            refused:
+                &vec![
+                    ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(
+                    );
+                    inapplicable.len()
+                ],
             facts: &stored,
             project: &project,
             project_symbols: &project_symbols,

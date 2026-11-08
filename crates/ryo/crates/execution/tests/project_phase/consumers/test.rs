@@ -1,10 +1,10 @@
 //! Same producer proof, distinct resolved input slots, one project batch protocol.
-use ryo_execution_runtime::application::file_dag::observations::types::AdmittedOutput;
-use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
-use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use super::super::*;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationExecution;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationPublication;
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution_runtime::application::file_dag::observations::types::AdmittedOutput;
 use ryo_values::domain::{
     observations::types::*,
     plan_parts::types::ObservationBindingId,
@@ -59,11 +59,12 @@ fn two_project_consumers_bind_their_own_slots_to_the_same_producer_in_both_order
             }];
             crate::boundary_fixture::plans(&mut authored)[consumer].frontier =
                 vec![Input::BoundObservation(ObservationBindingId(0))];
-            crate::boundary_fixture::plans(&mut authored)[consumer].observation_inputs = vec![BoundObservationInput {
-                name: ObservationBindingName("files".into()),
-                columns: columns.clone(),
-                scope: StepScope::CrossFile,
-            }];
+            crate::boundary_fixture::plans(&mut authored)[consumer].observation_inputs =
+                vec![BoundObservationInput {
+                    name: ObservationBindingName("files".into()),
+                    columns: columns.clone(),
+                    scope: StepScope::CrossFile,
+                }];
             authored.rules[consumer].observations = vec![ObservationBinding {
                 name: ObservationBindingName("files".into()),
                 columns: columns.clone(),
@@ -95,7 +96,12 @@ fn two_project_consumers_bind_their_own_slots_to_the_same_producer_in_both_order
         let partials = Partials::default();
         let slot = stage.reserve(RuleIndex(0)).unwrap();
         let first = [Bucket(0), Bucket(1), Bucket(2)];
-        let inapplicable = vec![ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(); 3];
+        let inapplicable =
+            vec![
+                ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(
+                );
+                3
+            ];
         let mut produced = crate::boundary_fixture::project_root(
             &stage,
             PhaseOccurrences {
@@ -110,6 +116,7 @@ fn two_project_consumers_bind_their_own_slots_to_the_same_producer_in_both_order
                 covered: &covered,
                 skipped: &[],
                 inapplicable: &inapplicable,
+                refused: &vec![ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(); inapplicable.len()],
                 facts: &stored,
                 project: &project,
                 project_symbols: &project_symbols,
@@ -123,7 +130,10 @@ fn two_project_consumers_bind_their_own_slots_to_the_same_producer_in_both_order
         // The phase call always demands the emit; that an undemanded emit answers `NoQuery` is proved in the runtime by
         // `project_phase::service_test::a_root_whose_emit_is_not_demanded_answers_no_query`.
         assert!(
-            !matches!(produced.emit, RootOutcome::Failed(_) | RootOutcome::Unknown(_)),
+            !matches!(
+                produced.emit,
+                RootOutcome::Failed(_) | RootOutcome::Unknown(_)
+            ),
             "the phase call evaluates the producer's own emit beside its publication"
         );
         let ProjectOutputOutcome {
@@ -145,7 +155,7 @@ fn two_project_consumers_bind_their_own_slots_to_the_same_producer_in_both_order
         let mut places = vec![];
         let mut words = Words::default();
         ryo_execution::application::publication::service::publication(
-        ryo_execution::application::publication::types::PublicationInput {
+            ryo_execution::application::publication::types::PublicationInput {
                 table: &mut table,
                 symbols: &mut symbols,
                 inherited: stage.arenas(),
@@ -172,7 +182,10 @@ fn two_project_consumers_bind_their_own_slots_to_the_same_producer_in_both_order
                         arenas: vec![],
                     }],
                 },
-                vec![AdmittedOutput { output, publication }],
+                vec![AdmittedOutput {
+                    output,
+                    publication,
+                }],
             )
             .unwrap();
         stage.finish(RuleIndex(0)).unwrap();
@@ -200,6 +213,7 @@ fn two_project_consumers_bind_their_own_slots_to_the_same_producer_in_both_order
                 covered: &covered,
                 skipped: &[],
                 inapplicable: &inapplicable,
+                refused: &vec![ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(); inapplicable.len()],
                 facts: &stored,
                 project: &project,
                 project_symbols: &project_symbols,

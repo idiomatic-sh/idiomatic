@@ -110,7 +110,9 @@ fn project_grouping_reads_only_actual_captured_function_names() {
                 &mut symbols,
                 CaptureContext {
                     worker: WorkerNumber(0),
-                    arena: ryo_execution::inbound::use_cases::execution::interface::Arena(&mut arena),
+                    arena: ryo_execution::inbound::use_cases::execution::interface::Arena(
+                        &mut arena,
+                    ),
                     places: &mut places,
                     words: &mut words,
                 },
@@ -144,7 +146,13 @@ fn project_grouping_reads_only_actual_captured_function_names() {
             corpus: &corpus,
             covered: &covered,
             skipped: &[],
-            inapplicable: &[ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default()],
+            inapplicable: &[
+                ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(
+                ),
+            ],
+            refused: &[
+                ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(),
+            ],
             facts: &stored,
             project: &project,
             project_symbols: &project_symbols,
@@ -161,10 +169,7 @@ fn project_grouping_reads_only_actual_captured_function_names() {
         "no unrelated project facts"
     );
     assert_eq!(stored.reads.load(Ordering::SeqCst), 1);
-    let RootOutcome::Complete(result) = outcome
-    .unwrap()
-    .emit
-    else {
+    let RootOutcome::Complete(result) = outcome.unwrap().emit else {
         panic!("project count must complete")
     };
     assert_eq!(result.count, RowCount(2));

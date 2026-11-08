@@ -73,23 +73,25 @@ fn project_text_identity_does_not_depend_on_inherited_arenas() {
                     use ryo_values::domain::query_bindings::types::{
                         BindingCell, BindingTable, ParameterBinding,
                     };
-                    crate::boundary_fixture::plans(&mut authored)[0].parameters = vec![PlanParameter {
-                        name: ParameterName("codes".into()),
-                        kind: ParameterType::Tables,
-                    }];
-                    crate::boundary_fixture::bindings(&mut authored)[0] =
-                        vec![ParameterBinding::Tables(vec![BindingTable(vec![
-                            BindingCell {
-                                key: LiteralText("code".into()),
-                                value: LiteralText(selected.into()),
-                            },
-                        ])])];
-                    crate::boundary_fixture::plans(&mut authored)[0].steps[2].operation = Operation::Rows {
-                        parameter: ParameterId(0),
-                        keys: vec![TableKey("code".into())],
-                    };
+                    crate::boundary_fixture::plans(&mut authored)[0].parameters =
+                        vec![PlanParameter {
+                            name: ParameterName("codes".into()),
+                            kind: ParameterType::Tables,
+                        }];
+                    crate::boundary_fixture::bindings(&mut authored)[0] = vec![
+                        ParameterBinding::Tables(vec![BindingTable(vec![BindingCell {
+                            key: LiteralText("code".into()),
+                            value: LiteralText(selected.into()),
+                        }])]),
+                    ];
+                    crate::boundary_fixture::plans(&mut authored)[0].steps[2].operation =
+                        Operation::Rows {
+                            parameter: ParameterId(0),
+                            keys: vec![TableKey("code".into())],
+                        };
                 }
-                crate::boundary_fixture::plans(&mut authored)[0].frontier = vec![Input::Relation(Relation::ModuleIdentity)];
+                crate::boundary_fixture::plans(&mut authored)[0].frontier =
+                    vec![Input::Relation(Relation::ModuleIdentity)];
                 crate::boundary_fixture::plans(&mut authored)[0].emit.step = StepId(3);
                 let prepared = engine.prepare(authored).unwrap();
                 let corpus = corpus();
@@ -117,6 +119,7 @@ fn project_text_identity_does_not_depend_on_inherited_arenas() {
                         covered: &covered,
                         skipped: &[],
                         inapplicable: &[ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default()],
+                        refused: &[ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default()],
                         facts: &stored,
                         project: &project,
                         project_symbols: &project_symbols,

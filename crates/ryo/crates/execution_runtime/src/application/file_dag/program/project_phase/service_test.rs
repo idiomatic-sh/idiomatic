@@ -1,13 +1,22 @@
 //! A project submission answers exactly the roots it names, and refuses by name the ones it did not declare. These are the runtime's
 //! own contracts on the crate-private root evaluation: a caller of `evaluate_occurrences` cannot assemble such roots.
-use super::fixtures::{Entry, Root, corpus, covered, foreign_phase_outcome, prepare_for, producer_program, program, submit};
+use super::fixtures::{
+    Entry, Root, corpus, covered, foreign_phase_outcome, prepare_for, producer_program, program,
+    submit,
+};
 use crate::application::file_dag::frontiers::types::PreparedFrontiers;
-use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
 use crate::application::file_dag::program::project_phase::interface::ProjectStage as _;
-use crate::application::file_dag::program::project_phase::types::{PhaseScope, ProjectInput, ProjectPhase, ProjectTask};
+use crate::application::file_dag::program::project_phase::types::{
+    PhaseScope, ProjectInput, ProjectPhase, ProjectTask,
+};
 use crate::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
-use crate::application::file_dag::program::rule_outcome::types::{ProjectBatch, ProjectOutputOutcome, RuleOutcome};
-use ryo_execution_domain::domain::coverage::types::{Covered, InapplicableFiles, Partials, RuleIndex};
+use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
+use crate::application::file_dag::program::rule_outcome::types::{
+    ProjectBatch, ProjectOutputOutcome, RuleOutcome,
+};
+use ryo_execution_domain::domain::coverage::types::{
+    Covered, InapplicableFiles, Partials, RefusedFiles, RuleIndex,
+};
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::rule_intent::types::{EmitDemand, ObservationDemand, RuleDemand};
 use ryo_language::domain::symbols::types::Symbols;
@@ -48,7 +57,11 @@ fn an_extra_root_is_refused_by_name_without_displacing_the_declared_roots() {
     };
     let submitted = submit(Entry::Phase, 3, &[root(0), extra, root(2)], None);
     assert!(submitted.refused.is_none());
-    assert_eq!(submitted.outcomes.len(), 3, "the extra root keeps its own slot");
+    assert_eq!(
+        submitted.outcomes.len(),
+        3,
+        "the extra root keeps its own slot"
+    );
     assert!(submitted.outcomes[0].is_ok());
     assert!(
         matches!(submitted.outcomes[1], Err(OperatingError::NotRun)),
@@ -56,8 +69,16 @@ fn an_extra_root_is_refused_by_name_without_displacing_the_declared_roots() {
     );
     assert!(submitted.outcomes[2].is_ok());
 
-    let guarded = submit(Entry::Phase, 3, &[root(0), extra, root(2)], Some(RuleIndex(3)));
-    assert!(matches!(guarded.refused, Some(OperatingError::WrongBinding)));
+    let guarded = submit(
+        Entry::Phase,
+        3,
+        &[root(0), extra, root(2)],
+        Some(RuleIndex(3)),
+    );
+    assert!(matches!(
+        guarded.refused,
+        Some(OperatingError::WrongBinding)
+    ));
     assert_eq!(
         guarded.outcomes.len(),
         1,
@@ -76,7 +97,11 @@ fn an_in_range_root_the_session_did_not_declare_is_refused_by_name() {
     for entry in [Entry::Phase, Entry::Stage] {
         let submitted = submit(entry, 3, &[root(0), undeclared, root(2)], None);
         assert!(submitted.refused.is_none());
-        assert_eq!(submitted.outcomes.len(), 3, "the undeclared root keeps its own slot");
+        assert_eq!(
+            submitted.outcomes.len(),
+            3,
+            "the undeclared root keeps its own slot"
+        );
         assert!(submitted.outcomes[0].is_ok());
         assert!(
             matches!(submitted.outcomes[1], Err(OperatingError::NotRead)),
@@ -93,8 +118,16 @@ fn a_guard_refusal_at_an_undeclared_in_range_root_completes_only_the_roots_befor
         declared: 0,
         named: 1,
     };
-    let refused = submit(Entry::Phase, 3, &[root(0), undeclared, root(2)], Some(RuleIndex(1)));
-    assert!(matches!(refused.refused, Some(OperatingError::WrongBinding)));
+    let refused = submit(
+        Entry::Phase,
+        3,
+        &[root(0), undeclared, root(2)],
+        Some(RuleIndex(1)),
+    );
+    assert!(matches!(
+        refused.refused,
+        Some(OperatingError::WrongBinding)
+    ));
     assert_eq!(refused.outcomes.len(), 1);
     assert!(refused.outcomes[0].is_ok());
     assert!(refused.guarded.contains(&RuleIndex(1)));
@@ -144,7 +177,10 @@ fn every_holder_of_roots_refuses_an_incomplete_extra_or_undeclared_root() {
         assert_eq!(collected.outcomes.len(), 3);
         assert!(matches!(collected.outcomes[1], Err(OperatingError::NotRun)));
         let callback = submit(entry, 3, &[root(0), extra, root(2)], Some(RuleIndex(3)));
-        assert!(matches!(callback.refused, Some(OperatingError::WrongBinding)));
+        assert!(matches!(
+            callback.refused,
+            Some(OperatingError::WrongBinding)
+        ));
         assert_eq!(callback.outcomes.len(), 1);
         // In range, but the session declared rule 0: refused, never run undeclared.
         let mismatch = submit(entry, 3, &[root(0), undeclared, root(2)], None);
@@ -160,7 +196,10 @@ fn every_holder_of_roots_refuses_an_incomplete_extra_or_undeclared_root() {
 
 #[test]
 fn a_scope_belongs_to_its_own_phase() {
-    assert!(matches!(foreign_phase_outcome(), Err(OperatingError::NotRead)));
+    assert!(matches!(
+        foreign_phase_outcome(),
+        Err(OperatingError::NotRead)
+    ));
 }
 
 /// The one root `rule` evaluated in `phase` over `scope` and `ordinary`, with `demand`.
@@ -206,21 +245,47 @@ fn frontiers_from_another_request_are_refused() {
     let prepared = program(Entry::Phase, 1);
     let corpus = corpus();
     let covered = covered(1);
-    let first = crate::application::file_dag::program::request_execution::service::begin(&prepared, &corpus);
-    let second = crate::application::file_dag::program::request_execution::service::begin(&prepared, &corpus);
+    let first = crate::application::file_dag::program::request_execution::service::begin(
+        &prepared, &corpus,
+    );
+    let second = crate::application::file_dag::program::request_execution::service::begin(
+        &prepared, &corpus,
+    );
     let (owner, other) = (
-        first.project_phase().expect("the first request's phase opens"),
-        second.project_phase().expect("the second request's phase opens"),
+        first
+            .project_phase()
+            .expect("the first request's phase opens"),
+        second
+            .project_phase()
+            .expect("the second request's phase opens"),
     );
     let owned = owner
-        .project_scope(RuleIndex(0), &corpus, &covered, &[], &InapplicableFiles::default())
+        .project_scope(
+            RuleIndex(0),
+            &corpus,
+            &covered,
+            &[],
+            &InapplicableFiles::default(),
+            &RefusedFiles::default(),
+        )
         .expect("a declared rule has a scope");
-    let frontiers = prepare_for(&first, &owned, RuleIndex(0)).expect("the first request's frontiers");
+    let frontiers =
+        prepare_for(&first, &owned, RuleIndex(0)).expect("the first request's frontiers");
     let scope = other
-        .project_scope(RuleIndex(0), &corpus, &covered, &[], &InapplicableFiles::default())
+        .project_scope(
+            RuleIndex(0),
+            &corpus,
+            &covered,
+            &[],
+            &InapplicableFiles::default(),
+            &RefusedFiles::default(),
+        )
         .expect("a declared rule has a scope");
     assert!(
-        matches!(evaluate_one(&other, RuleIndex(0), DIAGNOSTIC, &scope, frontiers), Err(OperatingError::NotRead)),
+        matches!(
+            evaluate_one(&other, RuleIndex(0), DIAGNOSTIC, &scope, frontiers),
+            Err(OperatingError::NotRead)
+        ),
         "an unrelated request cannot admit the original frontiers"
     );
     drop((owned, scope));
@@ -235,22 +300,42 @@ fn frontiers_from_another_request_are_refused() {
 fn frontiers_over_another_coverage_are_refused() {
     let prepared = program(Entry::Phase, 2);
     let corpus = corpus();
-    let request = crate::application::file_dag::program::request_execution::service::begin(&prepared, &corpus);
+    let request = crate::application::file_dag::program::request_execution::service::begin(
+        &prepared, &corpus,
+    );
     let phase = request.project_phase().expect("the phase opens");
     let old = phase
-        .project_scope(RuleIndex(1), &corpus, &[], &[], &InapplicableFiles::default())
+        .project_scope(
+            RuleIndex(1),
+            &corpus,
+            &[],
+            &[],
+            &InapplicableFiles::default(),
+            &RefusedFiles::default(),
+        )
         .expect("a declared rule has a scope");
-    let frontiers = prepare_for(&request, &old, RuleIndex(1)).expect("frontiers over the old coverage");
+    let frontiers =
+        prepare_for(&request, &old, RuleIndex(1)).expect("frontiers over the old coverage");
     let changed = [Covered {
         file: ryo_relations::domain::relations::types::FileId(0),
         rules: vec![RuleIndex(0)],
         partial: vec![],
     }];
     let scope = phase
-        .project_scope(RuleIndex(1), &corpus, &changed, &[], &InapplicableFiles::default())
+        .project_scope(
+            RuleIndex(1),
+            &corpus,
+            &changed,
+            &[],
+            &InapplicableFiles::default(),
+            &RefusedFiles::default(),
+        )
         .expect("a declared rule has a scope");
     assert!(
-        matches!(evaluate_one(&phase, RuleIndex(1), DIAGNOSTIC, &scope, frontiers), Err(OperatingError::NotRead)),
+        matches!(
+            evaluate_one(&phase, RuleIndex(1), DIAGNOSTIC, &scope, frontiers),
+            Err(OperatingError::NotRead)
+        ),
         "a changed physical coverage declaration cannot consume frontiers prepared over another"
     );
     drop((old, scope));
@@ -264,17 +349,27 @@ fn frontiers_over_another_coverage_are_refused() {
 fn a_root_whose_emit_is_not_demanded_answers_no_query() {
     let prepared = program(Entry::Phase, 1);
     let corpus = corpus();
-    let request = crate::application::file_dag::program::request_execution::service::begin(&prepared, &corpus);
+    let request = crate::application::file_dag::program::request_execution::service::begin(
+        &prepared, &corpus,
+    );
     let phase = request.project_phase().expect("the phase opens");
     let scope = phase
-        .project_scope(RuleIndex(0), &corpus, &covered(1), &[], &InapplicableFiles::default())
+        .project_scope(
+            RuleIndex(0),
+            &corpus,
+            &covered(1),
+            &[],
+            &InapplicableFiles::default(),
+            &RefusedFiles::default(),
+        )
         .expect("a declared rule has a scope");
     let frontiers = prepare_for(&request, &scope, RuleIndex(0)).expect("declared frontiers");
     let silent = RuleDemand {
         emit: EmitDemand::Disabled,
         observations: ObservationDemand::NotRequired,
     };
-    let outcome = evaluate_one(&phase, RuleIndex(0), silent, &scope, frontiers).expect("the root is evaluated");
+    let outcome = evaluate_one(&phase, RuleIndex(0), silent, &scope, frontiers)
+        .expect("the root is evaluated");
     assert!(matches!(outcome.emit, RootOutcome::NoQuery));
     assert!(outcome.observations.is_empty());
     drop(scope);
@@ -288,19 +383,32 @@ fn a_root_whose_emit_is_not_demanded_answers_no_query() {
 fn a_root_whose_observations_are_not_required_invokes_no_observation_root() {
     let prepared = producer_program();
     let corpus = corpus();
-    let request = crate::application::file_dag::program::request_execution::service::begin(&prepared, &corpus);
+    let request = crate::application::file_dag::program::request_execution::service::begin(
+        &prepared, &corpus,
+    );
     let phase = request.project_phase().expect("the phase opens");
     let scope = phase
-        .project_scope(RuleIndex(0), &corpus, &covered(1), &[], &InapplicableFiles::default())
+        .project_scope(
+            RuleIndex(0),
+            &corpus,
+            &covered(1),
+            &[],
+            &InapplicableFiles::default(),
+            &RefusedFiles::default(),
+        )
         .expect("a declared rule has a scope");
     let frontiers = prepare_for(&request, &scope, RuleIndex(0)).expect("declared frontiers");
     let emit_only = RuleDemand {
         emit: EmitDemand::Enabled,
         observations: ObservationDemand::NotRequired,
     };
-    let outcome = evaluate_one(&phase, RuleIndex(0), emit_only, &scope, frontiers).expect("the root is evaluated");
+    let outcome = evaluate_one(&phase, RuleIndex(0), emit_only, &scope, frontiers)
+        .expect("the root is evaluated");
     assert!(outcome.observations.is_empty(), "no observation root ran");
-    assert!(!matches!(outcome.emit, RootOutcome::Failed(_) | RootOutcome::Unknown(_)));
+    assert!(!matches!(
+        outcome.emit,
+        RootOutcome::Failed(_) | RootOutcome::Unknown(_)
+    ));
     drop(scope);
     phase.finish().expect("the phase finishes");
     request.finish();

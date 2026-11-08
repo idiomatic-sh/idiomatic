@@ -1,13 +1,13 @@
 //! Closed empty declarations remain typed populations; absent declarations remain refusals.
+use super::super::*;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationExecution;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIntentError;
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
+use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
 use ryo_execution_runtime::application::file_dag::frontiers::types::InputReadiness;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
-use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
-use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
-use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
-use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use super::super::*;
-use ryo_execution::inbound::use_cases::execution::interface::ObservationExecution;
 use ryo_values::domain::{
     observations::types::{
         BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn,
@@ -44,7 +44,8 @@ fn declared() -> PrepareRequest {
             kept: vec![],
         },
     }];
-    crate::boundary_fixture::plans(&mut input)[0].frontier = vec![Input::BoundObservation(ObservationBindingId(0))];
+    crate::boundary_fixture::plans(&mut input)[0].frontier =
+        vec![Input::BoundObservation(ObservationBindingId(0))];
     input.observations = ObservationIdentity::Named(
         ryo_values::domain::records::types::ObservationReadinessLayout(Digest([9; 16])),
     );
@@ -142,7 +143,8 @@ fn declared_empty_observation_defers_in_file_and_publishes_typed_empty_in_projec
     let bound = stage.bindings(RuleIndex(0)).unwrap();
     let project_symbols = Symbols::default();
     let partials = Partials::default();
-    let inapplicable = [ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default()];
+    let inapplicable =
+        [ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default()];
     // Two declared occurrences of the one rule share the invocation; each prepares its own frontiers.
     let occurrence = PhaseOccurrence {
         bound: &bound,
@@ -157,6 +159,12 @@ fn declared_empty_observation_defers_in_file_and_publishes_typed_empty_in_projec
             covered: &covered,
             skipped: &[],
             inapplicable: &inapplicable,
+            refused:
+                &vec![
+                    ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(
+                    );
+                    inapplicable.len()
+                ],
             facts: &stored,
             project: &project,
             project_symbols: &project_symbols,
@@ -232,7 +240,13 @@ fn project_refuses(input: PrepareRequest, expected: &str, ready: InputReadiness)
             corpus: &corpus,
             covered: &covered,
             skipped: &[],
-            inapplicable: &[ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default()],
+            inapplicable: &[
+                ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(
+                ),
+            ],
+            refused: &[
+                ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(),
+            ],
             facts: &stored,
             project: &project,
             project_symbols: &project_symbols,
@@ -271,7 +285,8 @@ fn missing_declarations_outputs_and_mismatched_schemas_are_not_closed_empty() {
         ))
     ));
     let mut mismatch = declared();
-    crate::boundary_fixture::plans(&mut mismatch)[0].observation_inputs[0].columns[0].kind = CellKind::Number;
+    crate::boundary_fixture::plans(&mut mismatch)[0].observation_inputs[0].columns[0].kind =
+        CellKind::Number;
     project_refuses(
         mismatch,
         "observation does not match its actual consumer declaration",
@@ -292,7 +307,8 @@ fn missing_declarations_outputs_and_mismatched_schemas_are_not_closed_empty() {
     let mut missing_output = declared();
     let other = authored_request(2);
     missing_output.rules.push(other.rules[1].clone());
-    crate::boundary_fixture::plans(&mut missing_output).push(crate::boundary_fixture::plans_of(&other)[1].clone());
+    crate::boundary_fixture::plans(&mut missing_output)
+        .push(crate::boundary_fixture::plans_of(&other)[1].clone());
     missing_output.digests.push(other.digests[1]);
     crate::boundary_fixture::bindings(&mut missing_output).push(vec![]);
     missing_output.rules[0].observations[0].producers = vec![ObservationProducer::Output {
