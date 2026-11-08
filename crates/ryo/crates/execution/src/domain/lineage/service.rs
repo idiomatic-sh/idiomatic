@@ -2,8 +2,9 @@
 //!
 //! A relation's rows are partitioned by their file column and its nodes lie in that file, and a per-file step reads only the rows
 //! of one file, so each of their file and node columns lies in the file its row comes from. A cross-file step keeps that only
-//! through what it does: a row it passes on keeps its columns, and a join keeps it only when a key pairs a column of each operand
-//! that lies in its row's file, so the two rows it combines come from one file.
+//! through what it does: a row it passes on keeps its columns, and a join keeps it when a key pairs a column of each operand
+//! that lies in its row's file, so the two rows it combines come from one file, or when every file or node column of its answer
+//! comes from one operand, so the answer holds the files and nodes of that operand's row alone.
 use super::types::{ColumnAnchor, KeyPairing, Lineage};
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn, Side};
@@ -121,7 +122,21 @@ fn widened(lineage: Lineage, kinds: &[CellKind]) -> Lineage {
     }
 }
 
-/// The lineage of the answer of a join or an ordered match, whose `output` names columns of either operand.
+/// The one operand every file or node column of a join's answer comes from, when there is one: its rows' files are the answer's.
+fn file_side(output: &[JoinColumn], kinds: &[CellKind]) -> Option<Side> {
+    let mut sides = output
+        .iter()
+        .zip(kinds)
+        .filter(|(_, kind)| matches!(kind, CellKind::File | CellKind::Node))
+        .map(|(column, _)| column.side);
+    let first = sides.next()?;
+    sides.all(|side| side == first).then_some(first)
+}
+
+/// The lineage of the answer of a join or an ordered match, whose `output` names columns of either operand; `kinds` are the
+/// kinds of the answer's columns. Without a key pairing a column of each operand that lies in its row's file, the answer still
+/// lies in one file when every file or node column of it comes from one operand: each row then holds the files and nodes of that
+/// operand's row alone, and the other operand's columns hold no file or node.
 fn joined(
     left: &Lineage,
     left_on: &[ColumnIndex],
@@ -129,16 +144,35 @@ fn joined(
     right_on: &[ColumnIndex],
     output: &[JoinColumn],
     view: &[ColumnIndex],
+    kinds: &[CellKind],
 ) -> Lineage {
-    if pairing(left, left_on, right, right_on, view) == KeyPairing::Unproven {
+    let anchor = |column: &JoinColumn| match column.side {
+        Side::Left => anchor_at(left, column.column),
+        Side::Right => anchor_through(right, view, column.column),
+    };
+    if pairing(left, left_on, right, right_on, view) == KeyPairing::SameFile {
+        return Lineage::OneFile(output.iter().map(anchor).collect());
+    }
+    let Some(side) = file_side(output, kinds) else {
+        return Lineage::Mixed;
+    };
+    if output.len() != kinds.len()
+        || matches!(
+            if side == Side::Left { left } else { right },
+            Lineage::Mixed
+        )
+    {
         return Lineage::Mixed;
     }
     Lineage::OneFile(
         output
             .iter()
-            .map(|column| match column.side {
-                Side::Left => anchor_at(left, column.column),
-                Side::Right => anchor_through(right, view, column.column),
+            .map(|column| {
+                if column.side == side {
+                    anchor(column)
+                } else {
+                    ColumnAnchor::Elsewhere
+                }
             })
             .collect(),
     )
@@ -199,13 +233,13 @@ pub(crate) fn of_step(operation: &Operation, operands: &[Lineage], kinds: &[Cell
             view,
             reach: None,
             ..
-        } => joined(&first, left_on, &second, right_on, output, view),
+        } => joined(&first, left_on, &second, right_on, output, view, kinds),
         Operation::OrderedMatch {
             left_on,
             right_on,
             output,
             ..
-        } => joined(&first, left_on, &second, right_on, output, &[]),
+        } => joined(&first, left_on, &second, right_on, output, &[], kinds),
         Operation::GroupCount { keys, .. } | Operation::GroupDigest { keys, .. } => {
             if keys
                 .iter()

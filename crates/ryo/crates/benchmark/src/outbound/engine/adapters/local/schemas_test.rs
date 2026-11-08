@@ -135,8 +135,11 @@ fn typed_syntax_skips_require_matching_policy_input_and_projection() {
     .expect_err("expected refusal");
     let other_file = std::collections::BTreeSet::from([linter::RelativePath("else.py".into())]);
     let _verified_5 =
-        validate_skips(&[skipped], &selected, &policy, &other_file, true)
+        validate_skips(std::slice::from_ref(&skipped), &selected, &policy, &other_file, true)
             .expect_err("expected refusal");
+    // A rule the run did not keep, as selected or as a producer of a selected rule, has no skip to explain.
+    let _verified_6 = validate_skips(&[skipped], &std::collections::BTreeSet::new(), &policy, &files, true)
+        .expect_err("expected refusal");
 }
 
 fn worker_refuses_module_paths_outside_the_profile() {

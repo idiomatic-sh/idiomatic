@@ -393,5 +393,7 @@ mod project_inputs_test;
 
 mod i001_observation_test;
 
+mod rejected_syntax_consumer_test;
+
 #[cfg(test)]
 mod worker_request_input_test;

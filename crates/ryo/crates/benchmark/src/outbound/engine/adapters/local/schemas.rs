@@ -139,10 +139,11 @@ pub(super) fn load_rules(
 }
 
 
-/// Refuse skips that do not follow the sealed syntax-applicability policy.
+/// Refuse skips that do not follow the sealed syntax-applicability policy. `retained_rules` are the rules the run kept: the selected
+/// ones and the producers a selected rule reads, which follow their own pin at a rejected file as well.
 pub(super) fn validate_skips(
     skipped: &[linter::Skipped],
-    selected_rules: &std::collections::BTreeSet<RuleId>,
+    retained_rules: &std::collections::BTreeSet<RuleId>,
     applicability_by_rule: &BTreeMap<RuleLabel, ApplicabilityPolicy>,
     files: &std::collections::BTreeSet<linter::RelativePath>,
     frontend_diagnostic_enabled: bool,
@@ -151,7 +152,7 @@ pub(super) fn validate_skips(
     for skip in skipped {
         if skip.reason != linter::SkipReason::SyntaxRejected
             || !files.contains(&skip.path)
-            || !selected_rules.contains(&skip.rule)
+            || !retained_rules.contains(&skip.rule)
             || applicability_by_rule
                 .get(&RuleLabel(skip.rule.as_ref().to_owned()))
                 .map(|policy| policy.0.as_str())

@@ -17,6 +17,9 @@ enum Scenario {
     AJoinKeyedByFileKeepsItsRowsInOneFile,
     /// A join on a byte offset may combine the rows of two files.
     AJoinOnAByteOffsetMayCombineTwoFiles,
+    /// A join with a hosted relation holding no file, whose answer takes every file and node column from the other operand,
+    /// keeps that operand's rows in their file; one taking a file or node column of each operand does not.
+    AJoinTakingEveryFileColumnFromOneOperandKeepsItsFile,
     /// A count keyed by file keeps its keys; one keyed by no file may count two files' rows.
     ACountKeepsItsRowsInOneFileOnlyWhenKeyedByFile,
     /// The rows of a union lie in one file each; a column lies in it only when it does in every member.
@@ -90,6 +93,61 @@ fn subject(input: Input) {
             ),
             Lineage::Mixed
         ),
+        Scenario::AJoinTakingEveryFileColumnFromOneOperandKeepsItsFile => {
+            let configuration = of_step(
+                &Operation::Hosted {
+                    relation: ryo_values::domain::plan_parts::types::HostedNumber(0),
+                },
+                &[],
+                &[CellKind::Symbol],
+            );
+            assert_eq!(configuration, Lineage::Mixed);
+            let on_code = |output: Vec<JoinColumn>| Operation::Join {
+                left: PlanInput::Step(StepId(0)),
+                right: PlanInput::Step(StepId(1)),
+                left_on: vec![ColumnIndex(2)],
+                right_on: vec![ColumnIndex(0)],
+                output,
+                filter: Vec::new(),
+                view: Vec::new(),
+                reach: None,
+            };
+            let column = |side, at| JoinColumn {
+                side,
+                column: ColumnIndex(at),
+            };
+            assert_eq!(
+                of_step(
+                    &on_code(vec![
+                        column(Side::Left, 0),
+                        column(Side::Left, 1),
+                        column(Side::Right, 0),
+                    ]),
+                    &[relation.clone(), configuration.clone()],
+                    &[CellKind::Node, CellKind::File, CellKind::Symbol]
+                ),
+                columns(&[InFile, InFile, Elsewhere]),
+                "every file and node column comes from the left row"
+            );
+            assert_eq!(
+                of_step(
+                    &on_code(vec![column(Side::Left, 0), column(Side::Right, 1)]),
+                    &[relation.clone(), relation.clone()],
+                    &[CellKind::Node, CellKind::File]
+                ),
+                Lineage::Mixed,
+                "a node of the left row beside a file of the right row may name two files"
+            );
+            assert_eq!(
+                of_step(
+                    &on_code(vec![column(Side::Left, 0)]),
+                    &[Lineage::Mixed, configuration],
+                    &[CellKind::Node]
+                ),
+                Lineage::Mixed,
+                "an operand of mixed rows keeps no column in one file"
+            );
+        }
         Scenario::ACountKeepsItsRowsInOneFileOnlyWhenKeyedByFile => {
             let count = |key: u32| Operation::GroupCount {
                 from: PlanInput::Step(StepId(0)),
@@ -152,6 +210,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_join_on_a_byte_offset_may_combine_two_files"),
         word: Word::Succeeds,
         input: || Scenario::AJoinOnAByteOffsetMayCombineTwoFiles,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("a_join_taking_every_file_column_from_one_operand_keeps_its_file"),
+        word: Word::Succeeds,
+        input: || Scenario::AJoinTakingEveryFileColumnFromOneOperandKeepsItsFile,
         expect: Expect::Value(()),
     },
     Case {

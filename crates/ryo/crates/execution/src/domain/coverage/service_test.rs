@@ -3,7 +3,7 @@
 use ryo_relations::domain::relations::types::Integer;
 use ryo_relations::domain::relations::types::{CellKind, FileId, Relation, Value as Cell};
 
-use super::service::{affected_ordinals, drop_uncertain, partial_of};
+use super::service::{affected_ordinals, drop_inapplicable, drop_uncertain, partial_of};
 use super::types::{DeclaredFiles, Recovery};
 use crate::domain::operating::errors::OperatingError;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
@@ -21,6 +21,14 @@ enum Scenario {
     KeyedByFile,
     /// Drops from the answer of an antijoin keyed by a name the rows that missing rows of any file could change.
     KeyedByName,
+    /// Drops from the answer of a join nothing that a skipped file 2 lacks: the rows it would have added are not there, and the rest
+    /// stand.
+    SkippedBesideAJoin,
+    /// Drops from the answer of an antijoin keyed by file the rows of the skipped file 2 only.
+    SkippedBesideAnAntijoin,
+    /// Drops from the answer of an antijoin whose file key sits at another place on the right only the rows of file 2: the key is
+    /// read from the answer, the antijoin's left rows.
+    KeyedByFileAtAnotherRightPlace,
     /// Says why a file with syntax errors is read in part.
     Recovered,
     /// The relations a file whose tokens are complete is read in part in, with and without a refusal of the reader.
@@ -92,6 +100,47 @@ fn subject(scenario: Scenario) -> Result<Value, Failure> {
             );
             Ok(table.count.0)
         }
+        Scenario::SkippedBesideAJoin => {
+            let mut table = rows();
+            let join = Operation::Join {
+                left: PlanInput::Step(StepId(0)),
+                right: PlanInput::Step(StepId(1)),
+                left_on: vec![ColumnIndex(1)],
+                right_on: vec![ColumnIndex(0)],
+                output: Vec::new(),
+                filter: Vec::new(),
+                view: Vec::new(),
+                reach: None,
+            };
+            drop_inapplicable(&join, &[CellKind::File, CellKind::Number], &mut table, &[FileId(2)]);
+            Ok(table.count.0)
+        }
+        Scenario::SkippedBesideAnAntijoin => {
+            let mut table = rows();
+            drop_inapplicable(
+                &antijoin(0),
+                &[CellKind::File, CellKind::Number],
+                &mut table,
+                &[FileId(2)],
+            );
+            Ok(table.count.0)
+        }
+        Scenario::KeyedByFileAtAnotherRightPlace => {
+            let mut table = rows();
+            let antijoin = Operation::Antijoin {
+                left: PlanInput::Step(StepId(0)),
+                right: PlanInput::Step(StepId(1)),
+                left_on: vec![ColumnIndex(0)],
+                right_on: vec![ColumnIndex(1)],
+            };
+            drop_inapplicable(
+                &antijoin,
+                &[CellKind::File, CellKind::Number],
+                &mut table,
+                &[FileId(2)],
+            );
+            Ok(table.count.0)
+        }
         Scenario::Recovered => Ok(partial_of(
             &[],
             Recovery::SyntaxErrors,
@@ -121,6 +170,24 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Scenario::KeyedByName,
         expect: Expect::Value(0),
+    },
+    Case {
+        name: CaseName("a_skipped_file_drops_no_row_of_a_join"),
+        word: Word::Succeeds,
+        input: || Scenario::SkippedBesideAJoin,
+        expect: Expect::Value(2),
+    },
+    Case {
+        name: CaseName("a_skipped_file_drops_only_its_own_rows_of_an_antijoin_keyed_by_file"),
+        word: Word::Succeeds,
+        input: || Scenario::SkippedBesideAnAntijoin,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("an_antijoin_reads_its_file_key_from_its_answer"),
+        word: Word::Succeeds,
+        input: || Scenario::KeyedByFileAtAnotherRightPlace,
+        expect: Expect::Value(1),
     },
     Case {
         name: CaseName("a_file_with_syntax_errors_is_read_in_part_in_the_relations_of_code_only"),
