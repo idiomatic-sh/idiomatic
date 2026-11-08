@@ -95,7 +95,7 @@ pub(crate) fn head_route(
         Meaning::Selection => {
             let (Operation::Select { from, .. } | Operation::Project { from, .. }) = operation
             else {
-                unreachable!("a selection meaning is Select or Project")
+                panic!("a selection meaning is Select or Project")
             };
             match from {
                 Input::Relation(_) if head == Eligibility::Eligible => Route::Shared,

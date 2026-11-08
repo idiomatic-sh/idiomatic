@@ -94,7 +94,7 @@ impl DerivedOwner {
         Ok(AdmittedViewInputs {
             origin: AcquisitionOrigin {
                 owner: Arc::clone(&self.identity),
-                live: owner.generation_liveness(),
+                live: owner.current_generation(),
                 plan: Arc::clone(plan),
                 populations,
                 lifetime: AcquisitionLifetime::Population,
@@ -158,7 +158,7 @@ impl DerivedOwner {
         }
         parent.origin().validate(self, &parent.origin().plan)?;
         let mut admitted = self.graph_sources(plan, input)?;
-        if !Arc::ptr_eq(&parent.origin().live, &admitted.origin.live) {
+        if crate::application::file_dag::relations::generation::service::GenerationLease::same(&parent.origin().live, &admitted.origin.live) == crate::application::file_dag::relations::types::Sameness::Different {
             return Err(OperatingError::NotRead);
         }
         let graph = parent

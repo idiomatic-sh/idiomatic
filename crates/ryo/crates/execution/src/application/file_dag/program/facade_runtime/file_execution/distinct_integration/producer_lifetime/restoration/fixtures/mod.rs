@@ -1,7 +1,8 @@
 //! A captured file producer admitted to the real named project publication owner.
 use super::super::super::*;
 use super::super::fixtures::{FinalConsumer, ProjectionOrder, shared_plan};
-use crate::application::file_dag::frontiers::types::{BoundInput, BoundMember, PreparedFrontiers};
+use crate::application::file_dag::frontiers::fixtures::prepared_frontiers;
+use crate::application::file_dag::frontiers::types::{BoundInput, BoundMember};
 use crate::application::file_dag::program::admission::RequiredPartitions;
 use crate::application::file_dag::program::facade_runtime::project_execution::{
     ProjectRun, open_project,
@@ -287,14 +288,14 @@ impl CapturedProject {
             },
             ProjectFrontiers {
                 publication: &phase,
-                ordinary: PreparedFrontiers {
-                    producer: RuleIndex(5),
-                    sources: std::sync::Arc::new([]),
-                    rows: vec![].into(),
-                    program: Arc::clone(prepared.program()),
-                    required: required.clone(),
-                    refused: vec![].into(),
-                },
+                ordinary: prepared_frontiers(
+                    RuleIndex(5),
+                    std::sync::Arc::new([]),
+                    vec![].into(),
+                    Arc::clone(prepared.program()),
+                    required.clone(),
+                    vec![].into(),
+                ),
                 bound_inputs: &[],
             },
             symbols,
@@ -359,14 +360,14 @@ impl CapturedProject {
             },
             ProjectFrontiers {
                 publication: &self.phase,
-                ordinary: PreparedFrontiers {
-                    producer: rule,
-                    sources: std::sync::Arc::new([]),
-                    rows: vec![].into(),
-                    program: Arc::clone(self.prepared.program()),
-                    required: self.required.clone(),
-                    refused: vec![].into(),
-                },
+                ordinary: prepared_frontiers(
+                    rule,
+                    std::sync::Arc::new([]),
+                    vec![].into(),
+                    Arc::clone(self.prepared.program()),
+                    self.required.clone(),
+                    vec![].into(),
+                ),
                 bound_inputs: if matches!(supply, BoundSupply::Refused) {
                     &self.refused
                 } else {

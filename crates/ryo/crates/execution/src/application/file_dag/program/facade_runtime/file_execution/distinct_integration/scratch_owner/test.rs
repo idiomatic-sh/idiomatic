@@ -208,7 +208,7 @@ fn aggregation_resources_are_engine_owned_and_released() {
                 keys,
                 over,
             },
-            _ => unreachable!(),
+            _ => panic!("the fixture lists every case it builds"),
         };
         let (result, observed) = execute(
             operation,

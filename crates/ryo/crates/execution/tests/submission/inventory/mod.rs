@@ -6,56 +6,68 @@ use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
 use ryo_values::domain::runs::types::Skipped;
-use std::{collections::BTreeSet, fs, path::Path};
+use std::collections::BTreeSet;
 
-pub(super) const PROTOCOL: &str = "../execution_domain/src/domain/rule_intent/types.rs";
-pub(super) fn identifier(text: &str) -> &str {
-    text.split(|c: char| !(c.is_alphanumeric() || c == '_'))
-        .next()
-        .unwrap_or_default()
+/// The position of each variant in its inventory. Each match names every variant with no wildcard, so a variant added to the
+/// enum is a compile error (E0004) here until it is given its place in the inventory beside it.
+pub(super) fn delivery_place(value: DiagnosticDelivery) -> usize {
+    match value {
+        DiagnosticDelivery::Disabled => 0,
+        DiagnosticDelivery::Collected => 1,
+        DiagnosticDelivery::Forwarded => 2,
+    }
 }
-/// The variants a declaration lists, read from its source text.
-pub(super) fn variants(source: &str, name: &str) -> BTreeSet<String> {
-    let start = source
-        .find(&format!("enum {name} {{"))
-        .unwrap_or_else(|| panic!("{name} is declared in its inventory source"));
-    let mut depth = 0;
-    let mut found = BTreeSet::new();
-    for (at, line) in source[start..].lines().enumerate() {
-        let trimmed = line.trim();
-        if depth == 1
-            && !trimmed.is_empty()
-            && !trimmed.starts_with("//")
-            && !trimmed.starts_with("#[")
-            && !trimmed.starts_with(['}', ')'])
-        {
-            found.insert(identifier(trimmed).to_owned());
-        }
-        for c in line.chars() {
-            depth += match c {
-                '{' | '(' => 1,
-                '}' | ')' => -1,
-                _ => 0,
-            };
-        }
-        if at > 0 && depth == 0 {
-            break;
+pub(super) fn demand_place(value: ObservationDemand) -> usize {
+    match value {
+        ObservationDemand::Required => 0,
+        ObservationDemand::NotRequired => 1,
+    }
+}
+pub(super) fn capture_place(value: CaptureIntent) -> usize {
+    match value {
+        CaptureIntent::Disabled => 0,
+        CaptureIntent::Observations => 1,
+        CaptureIntent::DiagnosticAndObservations => 2,
+    }
+}
+pub(super) fn reason_place(value: ApplicabilityReason) -> usize {
+    match value {
+        ApplicabilityReason::SyntaxRejected => 0,
+        ApplicabilityReason::DiagnosticNotApplicable => 1,
+    }
+}
+pub(super) fn refusal_place(value: ApplicabilityRefusal) -> usize {
+    match value {
+        ApplicabilityRefusal::SyntaxUndetermined => 0,
+        ApplicabilityRefusal::MetadataUnavailable => 1,
+    }
+}
+/// The position of an intent in `every_intent`: the shape of each variant fixes it from the positions of its parts.
+pub(super) fn intent_place(value: FileRuleIntent) -> usize {
+    let (reasons, refusals) = (REASONS.len(), REFUSALS.len());
+    match value {
+        FileRuleIntent::Undemanded => 0,
+        FileRuleIntent::Skipped(why) => 1 + reason_place(why),
+        FileRuleIntent::Refused(why) => 1 + reasons + refusal_place(why),
+        FileRuleIntent::Run {
+            diagnostic,
+            observations,
+            capture: captured,
+        } => {
+            1 + reasons
+                + refusals
+                + (delivery_place(diagnostic) * DEMANDS.len() + demand_place(observations)) * CAPTURES.len()
+                + capture_place(captured)
         }
     }
-    found
 }
-pub(super) fn covered<T: std::fmt::Debug>(values: &[T]) -> BTreeSet<String> {
-    values
-        .iter()
-        .map(|value| identifier(&format!("{value:?}")).to_owned())
-        .collect()
-}
-pub(super) fn assert_inventory(root: &Path, file: &str, name: &str, covered: BTreeSet<String>) {
-    let source = fs::read_to_string(root.join(file)).unwrap();
+/// An inventory lists each variant once, at the place its exhaustive match gives it.
+pub(super) fn assert_inventory<T: Copy + std::fmt::Debug>(name: &str, values: &[T], position: fn(T) -> usize) {
+    let places: BTreeSet<usize> = values.iter().map(|&value| position(value)).collect();
     assert_eq!(
-        variants(&source, name),
-        covered,
-        "{name} gained or lost a variant: add or remove its submission control"
+        places,
+        (0..values.len()).collect::<BTreeSet<_>>(),
+        "{name} lists each variant once at its place: add or remove its submission control"
     );
 }
 

@@ -128,14 +128,14 @@ fn subject(case: Input) -> Result<Value, Failure> {
         } else {
             required.clone()
         };
-        let handover = crate::application::file_dag::frontiers::types::PreparedFrontiers {
-            producer: RuleIndex(0),
-            sources: std::sync::Arc::new([]),
-            rows: vec![].into(),
-            refused: vec![].into(),
-            program: Arc::clone(prepared.program()),
-            required: actual,
-        };
+        let handover = crate::application::file_dag::frontiers::fixtures::prepared_frontiers(
+            RuleIndex(0),
+            std::sync::Arc::new([]),
+            vec![].into(),
+            Arc::clone(prepared.program()),
+            actual,
+            vec![].into(),
+        );
         handover.validate_scope(prepared.program(), &required)?;
         return Ok("frontier-scope");
     }

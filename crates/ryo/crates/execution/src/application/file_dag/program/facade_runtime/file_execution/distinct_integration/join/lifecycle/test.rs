@@ -64,7 +64,7 @@ fn exercise_nested(single_result: bool) -> Result<(), OperatingError> {
         request.steps = steps.clone();
         let mut join = operation(&[0], &[0], &[(Side::Right, output)], vec![], &[]);
         let Operation::Join { left, right, .. } = &mut join else {
-            unreachable!()
+            panic!("the fixture builds a Join")
         };
         *left = l;
         *right = r;

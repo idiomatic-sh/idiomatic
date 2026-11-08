@@ -16,7 +16,8 @@ use ryo_values::domain::{plans::types::Operation, rows::types::Table};
 use super::super::{CoverageState, ObservationAdmission, RegionAdmission, ScopeIdentity};
 #[derive(Clone, PartialEq, Eq)]
 enum CompletionBehavior {
-    BlockBeforeRun(std::sync::Arc<[Partial]>),
+    /// A file scope's behaviour: the file it blocks is the one it runs over, so a blocked read names it.
+    BlockBeforeRun(FileId, std::sync::Arc<[Partial]>),
     DropAfterCollect(std::sync::Arc<Partials>),
 }
 /// No Default: the scope's actual partiality source must be supplied.
@@ -42,8 +43,8 @@ impl CompletionPolicy {
     ) -> Self {
         Self {
             scope: ScopeIdentity::File { rule, file },
-            behavior: CompletionBehavior::BlockBeforeRun(evaluation.into()),
-            publication: CompletionBehavior::BlockBeforeRun(publication.into()),
+            behavior: CompletionBehavior::BlockBeforeRun(file, evaluation.into()),
+            publication: CompletionBehavior::BlockBeforeRun(file, publication.into()),
         }
     }
     /// The policy of one rule over the project: rows from partial inputs are dropped after they are collected.
@@ -74,17 +75,12 @@ impl CompletionPolicy {
     /// The coverage of the reads, as the policy decides it.
     pub fn coverage(&self, reads: &[RelationRead]) -> CoverageState {
         let files = match &self.publication {
-            CompletionBehavior::BlockBeforeRun(partials)
+            CompletionBehavior::BlockBeforeRun(file, partials)
                 if blocked(reads, partials) == Blocking::Blocked =>
             {
-                match self.scope {
-                    ScopeIdentity::File { file, .. } => vec![Some(file)],
-                    ScopeIdentity::Project { .. } => {
-                        unreachable!("file completion policy has a file scope")
-                    }
-                }
+                vec![Some(*file)]
             }
-            CompletionBehavior::BlockBeforeRun(_) => Vec::new(),
+            CompletionBehavior::BlockBeforeRun(..) => Vec::new(),
             // A skipped file reaches the answer through the readiness of its inputs, which knows what the answer is keyed by.
             CompletionBehavior::DropAfterCollect(partials) => partial_files_for(partials, reads),
         };
@@ -114,7 +110,7 @@ impl CompletionPolicy {
             return coverage;
         };
         let missing = |file: Option<FileId>| match &self.publication {
-            CompletionBehavior::BlockBeforeRun(partials) => {
+            CompletionBehavior::BlockBeforeRun(_, partials) => {
                 missing_of_partials(partials.iter().filter(|each| each.relation == relation))
             }
             CompletionBehavior::DropAfterCollect(partials) => missing_of_partials(
@@ -145,7 +141,7 @@ impl CompletionPolicy {
     /// Whether the reads permit observation publication.
     pub fn observation_admission(&self, reads: &[RelationRead]) -> ObservationAdmission {
         let ready = match &self.publication {
-            CompletionBehavior::BlockBeforeRun(partials) => {
+            CompletionBehavior::BlockBeforeRun(_, partials) => {
                 blocked(reads, partials) == Blocking::Free
             }
             CompletionBehavior::DropAfterCollect(partials) => files_for(partials, reads).is_empty(),
@@ -173,7 +169,7 @@ impl CompletionPolicy {
     /// Whether the needed reads permit a region to run.
     pub fn region_admission(&self, needs: &[RelationRead]) -> RegionAdmission {
         let allowed = match &self.behavior {
-            CompletionBehavior::BlockBeforeRun(partials) => {
+            CompletionBehavior::BlockBeforeRun(_, partials) => {
                 blocked(needs, partials) == Blocking::Free
             }
             CompletionBehavior::DropAfterCollect(_) => true,

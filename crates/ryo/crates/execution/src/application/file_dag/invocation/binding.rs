@@ -13,9 +13,9 @@ impl PrimitiveResources for InvocationInputs<'_> {
     }
     fn index(&self) -> Option<IndexedRows<'_>> {
         #[cfg(feature = "diagnostic-row-progress")]
-        let index = self.index.as_ref().map(|index| index.view(&self.progress));
+        let index = self.index.as_ref().and_then(|index| index.view(&self.progress));
         #[cfg(not(feature = "diagnostic-row-progress"))]
-        let index = self.index.as_ref().map(|index| index.view());
+        let index = self.index.as_ref().and_then(|index| index.view());
         index
     }
     fn appended(&self) -> Option<&[Value]> {

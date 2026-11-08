@@ -64,7 +64,7 @@ fn computed_publication_clones_keep_required_backing_until_last_handle_in_live_g
         crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
         crate::application::file_dag::fixtures::program_derived_port(),
     );
-    let generation = owner.generation_guard();
+    let generation = owner.current_generation();
     let publication = owner
         .computed(Table {
             kinds: vec![CellKind::Number],
@@ -99,7 +99,7 @@ fn computed_publication_clones_keep_required_backing_until_last_handle_in_live_g
         assert_eq!(owner.derived.publication_ownership_bytes(), charged);
     }
     assert_eq!(owner.matches_generation(&generation), crate::application::file_dag::relations::types::Sameness::Same);
-    assert_eq!(owner.generation_liveness().is_live(), crate::application::file_dag::relations::types::Liveness::Live);
+    assert_eq!(owner.current_generation().is_live(), crate::application::file_dag::relations::types::Liveness::Live);
     drop(alias);
     assert!(
         record.upgrade().is_none(),
@@ -111,5 +111,5 @@ fn computed_publication_clones_keep_required_backing_until_last_handle_in_live_g
         crate::application::file_dag::relations::types::Sameness::Same,
         "release did not rely on retiring the generation"
     );
-    assert_eq!(owner.generation_liveness().is_live(), crate::application::file_dag::relations::types::Liveness::Live);
+    assert_eq!(owner.current_generation().is_live(), crate::application::file_dag::relations::types::Liveness::Live);
 }

@@ -193,7 +193,7 @@ fn native(scenario: Scenario) -> Result<Value, Failure> {
                 *left = Source::Step(StepId(0));
                 *right = Source::Relation(Relation::SyntaxTree);
             }
-            _ => unreachable!(),
+            _ => panic!("the fixture lists every case it builds"),
         }
         let plan = inputs::plan(vec![first, operation]);
         let output = fixtures::requests::published_file(plan, vec![], vec![], b"x", &elements, &mut symbols)?;

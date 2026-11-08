@@ -57,7 +57,6 @@ impl<'scope> KernelPermit<'scope> {
             generation: &execution.generation,
             owner: execution.owner.as_ref(),
             partition: execution.partition(),
-            live: &execution.generation_live,
             bindings: BoundInputs::Ordinary(inputs),
             strategy: RouteKind::Generic,
         })
@@ -84,7 +83,6 @@ impl<'scope> KernelPermit<'scope> {
             generation: &execution.generation,
             owner: execution.owner.as_ref(),
             partition: execution.partition(),
-            live: &execution.generation_live,
             bindings: BoundInputs::Ordered(input),
             strategy: RouteKind::OrderedExistence,
         })
@@ -106,7 +104,6 @@ impl<'scope> KernelPermit<'scope> {
             generation: self.generation,
             owner: self.owner,
             partition: self.partition,
-            live: self.live,
             bindings: self.bindings,
             strategy: self.strategy,
         })
@@ -127,7 +124,7 @@ impl<'scope> KernelPermit<'scope> {
     }
     /// Opaque diagnostic correlation for this live generation; never execution authority.
     pub(crate) fn diagnostic_generation(&self) -> *const () {
-        Arc::as_ptr(self.generation)
+        Arc::as_ptr(self.generation).cast::<()>()
     }
     pub(crate) fn descriptor(
         &self,
@@ -139,7 +136,7 @@ impl<'scope> KernelPermit<'scope> {
             program: self.program,
             region: self.region,
             instruction: self.instruction,
-            live: self.live,
+            live: self.generation,
             strategy: self.strategy,
         }
     }
@@ -156,7 +153,7 @@ impl<'scope> KernelPermit<'scope> {
     pub(crate) fn validate_live(
         &self,
     ) -> Result<(), OperatingError> {
-        if self.live.is_live() == ryo_execution_store::application::file_dag::relations::types::Liveness::Live {
+        if self.generation.is_live() == ryo_execution_store::application::file_dag::relations::types::Liveness::Live {
             Ok(())
         } else {
             Err(OperatingError::NotRead)

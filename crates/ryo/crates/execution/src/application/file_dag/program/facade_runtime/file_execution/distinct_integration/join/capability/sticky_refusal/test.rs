@@ -88,7 +88,7 @@ fn fused_semantic_refusal_stays_sticky_when_the_kernel_continues_and_reports_suc
         ..
     } = &mut op
     else {
-        unreachable!()
+        panic!("the fixture builds a Join")
     };
     *from = l;
     *other = r;

@@ -67,7 +67,7 @@ pub(crate) fn open_project<'a>(
         &frontiers.publication.decodes,
     );
     ryo_execution_domain::domain::spelling::service::check_name_spellings(
-        frontiers.ordinary.rows.iter().flat_map(|input| -> Box<dyn Iterator<Item = ryo_relations::domain::relations::types::Name> + '_> {
+        frontiers.ordinary.rows().iter().flat_map(|input| -> Box<dyn Iterator<Item = ryo_relations::domain::relations::types::Name> + '_> {
             match input {
                 crate::application::file_dag::frontiers::types::FrontierInput::Decoded { frontier, .. } => Box::new(frontier.table.cells.iter().filter_map(|value| match value { ryo_relations::domain::relations::types::Value::Name(name) => Some(*name), _ => None })),
                 crate::application::file_dag::frontiers::types::FrontierInput::Compact { spelling, .. } => Box::new(spelling.iter().copied()),
@@ -95,8 +95,8 @@ pub(crate) fn open_project<'a>(
     let execution = scope.execution.get().ok_or(OperatingError::NotRun)?;
     let ordinary = scope.sources(
         &owner,
-        &frontiers.ordinary.sources,
-        &frontiers.ordinary.rows,
+        frontiers.ordinary.sources(),
+        frontiers.ordinary.rows(),
     )?;
     Ok(ProjectRun {
         program,
@@ -104,10 +104,10 @@ pub(crate) fn open_project<'a>(
         execution,
         owner,
         partials,
-        frontier_producer: frontiers.ordinary.producer,
-        frontier_sources: frontiers.ordinary.sources,
+        frontier_producer: frontiers.ordinary.producer(),
+        frontier_sources: Arc::clone(frontiers.ordinary.sources()),
         ordinary,
-        refused: frontiers.ordinary.refused.to_vec(),
+        refused: frontiers.ordinary.refused().to_vec(),
         bound: frontiers.bound_inputs.iter().cloned().map(Some).collect(),
         cache: Vec::new(),
         context: super::super::context::RunContext::project(

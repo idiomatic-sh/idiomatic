@@ -64,7 +64,7 @@ pub(crate) struct RelationResult {
     pub(in crate::application::file_dag::relations) population: PopulationId,
     pub(in crate::application::file_dag::relations) producer: OnceLock<PopulationId>,
     pub(in crate::application::file_dag::relations) producer_scope: OnceLock<ProducerScope>,
-    pub(in crate::application::file_dag::relations) generation: Arc<()>,
+    pub(in crate::application::file_dag::relations) generation: Arc<crate::application::file_dag::relations::generation::service::GenerationLease>,
     pub(in crate::application::file_dag::relations) body: RelationBody,
     pub(in crate::application::file_dag::relations) inspected:
         OnceLock<Result<PhysicalShape, OperatingError>>,

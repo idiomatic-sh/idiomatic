@@ -95,7 +95,7 @@ fn tells_a_name_equal_to_a_text_by_its_hash() -> Result<Value, OperatingError> {
         let mut scratch = OperatorScratch::default();
         let mut context = context(&mut symbols, source, &mut memo, &mut scratch);
         let Operation::Select { comparisons, .. } = operation else {
-            unreachable!()
+            panic!("the fixture builds a Select")
         };
         let names = NameCount(
             ryo_language::domain::names::service::name_count(context.symbols.as_ref()).0,
@@ -151,7 +151,7 @@ fn decides_once_for_each_name() -> Result<Value, OperatingError> {
     let mut scratch = OperatorScratch::default();
     let mut context = context(&mut symbols, source, &mut memo, &mut scratch);
     let Operation::Select { comparisons, .. } = operation else {
-        unreachable!()
+        panic!("the fixture builds a Select")
     };
     let names =
         NameCount(ryo_language::domain::names::service::name_count(context.symbols.as_ref()).0);
@@ -214,7 +214,7 @@ fn remembers_what_a_text_was_decided_in_another_file() -> Result<Value, Operatin
         let mut memo = Vec::new();
         let mut context = context(&mut symbols, source, &mut memo, &mut scratch);
         let Operation::Select { comparisons, .. } = &operation else {
-            unreachable!()
+            panic!("the fixture builds a Select")
         };
         let names = NameCount(
             ryo_language::domain::names::service::name_count(context.symbols.as_ref()).0,

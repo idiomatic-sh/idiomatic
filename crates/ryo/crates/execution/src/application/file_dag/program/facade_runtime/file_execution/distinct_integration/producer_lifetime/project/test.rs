@@ -4,7 +4,7 @@ use super::fixtures::{PhaseExit, PreparedCase, prepare_case};
 use ryo_execution_store::application::file_dag::derived::owner::witness::service::BackingLiveness;
 use crate::application::file_dag::frontiers::types::FrontierInput;
 use crate::application::file_dag::frontiers::types::FrontierSource;
-use crate::application::file_dag::frontiers::types::PreparedFrontiers;
+use crate::application::file_dag::frontiers::fixtures::prepared_frontiers;
 use crate::application::file_dag::program::facade_runtime::project_execution::ProjectRoot;
 use crate::application::file_dag::program::facade_runtime::project_execution::evaluate_roots;
 use crate::application::file_dag::program::facade_runtime::types::ProjectFrontiers;
@@ -92,14 +92,14 @@ fn exercise(exit: PhaseExit, delivery: Delivery) -> Result<(), OperatingError> {
                 },
                 ProjectFrontiers {
                     publication: &phase,
-                    ordinary: PreparedFrontiers {
-                        producer: RuleIndex(at),
-                        sources: vec![FrontierSource {
+                    ordinary: prepared_frontiers(
+                        RuleIndex(at),
+                        vec![FrontierSource {
                             input: source,
                             root: source_root.clone(),
                         }]
                         .into(),
-                        rows: vec![FrontierInput::Decoded {
+                        vec![FrontierInput::Decoded {
                             frontier: Frontier {
                                 input: source,
                                 table: std::sync::Arc::new(table),
@@ -107,10 +107,10 @@ fn exercise(exit: PhaseExit, delivery: Delivery) -> Result<(), OperatingError> {
                             coverage: CoverageState::Complete,
                         }]
                         .into(),
-                        program: Arc::clone(prepared.program()),
-                        required: required.clone(),
-                        refused: vec![].into(),
-                    },
+                        Arc::clone(prepared.program()),
+                        required.clone(),
+                        vec![].into(),
+                    ),
                     bound_inputs: &[],
                 },
                 &mut symbols,
@@ -251,14 +251,14 @@ fn exercise(exit: PhaseExit, delivery: Delivery) -> Result<(), OperatingError> {
                 },
                 ProjectFrontiers {
                     publication: &phase,
-                    ordinary: PreparedFrontiers {
-                        producer: RuleIndex(at),
-                        sources: vec![FrontierSource {
+                    ordinary: prepared_frontiers(
+                        RuleIndex(at),
+                        vec![FrontierSource {
                             input: source,
                             root: source_root.clone(),
                         }]
                         .into(),
-                        rows: vec![FrontierInput::Decoded {
+                        vec![FrontierInput::Decoded {
                             frontier: Frontier {
                                 input: source,
                                 table: Arc::new(Table {
@@ -276,10 +276,10 @@ fn exercise(exit: PhaseExit, delivery: Delivery) -> Result<(), OperatingError> {
                             },
                             coverage: CoverageState::Complete,
                         }].into(),
-                        program: Arc::clone(prepared.program()),
-                        required: required.clone(),
-                        refused: vec![].into(),
-                    },
+                        Arc::clone(prepared.program()),
+                        required.clone(),
+                        vec![].into(),
+                    ),
                     bound_inputs: &[],
                 },
                 &mut symbols,

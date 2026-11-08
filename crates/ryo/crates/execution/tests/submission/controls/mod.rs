@@ -1,8 +1,8 @@
 //! A control for every entry method: an incomplete, extra or undeclared root is refused.
 use ryo_execution::application::file_dag::observations::types::RuleSelection;
 use super::inventory::{
-    CAPTURES, DELIVERIES, DEMANDS, PROTOCOL, REASONS, REFUSALS, assert_inventory,
-    covered, every_intent,
+    CAPTURES, DELIVERIES, DEMANDS, REASONS, REFUSALS, assert_inventory, capture_place,
+    delivery_place, demand_place, every_intent, intent_place, reason_place, refusal_place,
 };
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::outbound::facts::types::ResidentStability;
@@ -40,7 +40,7 @@ use ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
-use std::{collections::BTreeSet, path::Path};
+use std::collections::BTreeSet;
 
 /// What a method does with a root set: refuse an incomplete, extra or undeclared one, or
 /// accept none at all (its inputs carry no rule, scope or intent to declare).

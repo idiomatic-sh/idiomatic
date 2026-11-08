@@ -70,7 +70,7 @@ fn schema_failures_and_emitter_prefix_survive_the_common_path() -> Result<(), Fa
             Operation::SourceMatches { span, .. } | Operation::SpanBounds { span, .. } => {
                 *span = ColumnIndex(99)
             }
-            _ => unreachable!("four explicit fixtures"),
+            _ => panic!("four explicit fixtures"),
         }
         let observed =
             compare_delivery(&invalid, &case.inputs, &[], SOURCE, &mut case.symbols, None).unwrap();

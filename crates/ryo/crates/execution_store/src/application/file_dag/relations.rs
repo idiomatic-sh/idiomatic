@@ -54,8 +54,8 @@ pub struct RelationOwner {
     derived: super::derived::owner::DerivedOwner,
     next_population: Cell<PopulationId>,
     producer_populations: RefCell<FxHashMap<ProducerKey, ProducerPopulation>>,
-    generation: RefCell<Arc<()>>,
-    generation_live: RefCell<Arc<GenerationLease>>,
+    /// The lease of the resident population: its allocation is the generation, replaced on each release.
+    generation: RefCell<Arc<GenerationLease>>,
     stable: ReuseEligibility,
     sources: RefCell<FxHashMap<Relation, SourceViews>>,
     max_views: PinnedViewCount,
@@ -83,23 +83,16 @@ impl RelationOwner {
         &mut self.derived
     }
     /// The generation of the resident population, for a proof to keep and present back.
-    pub fn generation_guard(&self) -> Arc<()> {
+    /// The resident population's generation: the lease the owner issued for it.
+    pub fn current_generation(&self) -> Arc<GenerationLease> {
         Arc::clone(&self.generation.borrow())
-    }
-    /// The revocation lease of the resident population.
-    pub fn generation_liveness(&self) -> Arc<GenerationLease> {
-        Arc::clone(&self.generation_live.borrow())
     }
     /// Whether `generation` is the resident population's generation.
     pub fn matches_generation(
         &self,
-        generation: &Arc<()>,
+        generation: &Arc<GenerationLease>,
     ) -> Sameness {
-        if Arc::ptr_eq(generation, &self.generation.borrow()) {
-            Sameness::Same
-        } else {
-            Sameness::Different
-        }
+        GenerationLease::same(generation, &self.generation.borrow())
     }
 
     pub(super) fn for_scope(
@@ -152,8 +145,7 @@ impl RelationOwner {
             derived: super::derived::owner::DerivedOwner::new(max_derived, semantic, routes.clone()),
             next_population: Cell::new(PopulationId(0)),
             producer_populations: RefCell::new(FxHashMap::default()),
-            generation: RefCell::new(Arc::new(())),
-            generation_live: RefCell::new(Arc::new(GenerationLease::new())),
+            generation: RefCell::new(Arc::new(GenerationLease::new())),
             stable,
             sources: RefCell::new(FxHashMap::default()),
             max_views,
@@ -174,9 +166,8 @@ impl RelationOwner {
         self.producer_populations.borrow_mut().clear();
         self.sources.borrow_mut().clear();
         self.views.set(PinnedViewCount(0));
-        self.generation_live.borrow().invalidate();
-        *self.generation_live.borrow_mut() = Arc::new(GenerationLease::new());
-        *self.generation.borrow_mut() = Arc::new(());
+        self.generation.borrow().invalidate();
+        *self.generation.borrow_mut() = Arc::new(GenerationLease::new());
     }
 }
 

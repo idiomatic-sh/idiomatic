@@ -15,14 +15,17 @@ pub(crate) enum EmptyInput {
     Skip,
     Keep,
 }
+/// An equality index the invocation holds: its key columns are read from the plan once, at acquisition, so a plan
+/// that is not an equality is refused there and the variants hold only what an equality index has.
 pub(crate) enum IndexResource<'f> {
     Derived {
         rows: RepresentationInput<'f>,
+        columns: Vec<ryo_values::domain::plan_parts::types::ColumnIndex>,
         view: AcquiredView,
     },
     Empty {
         rows: RepresentationInput<'f>,
-        plan: std::sync::Arc<ryo_execution_domain::domain::derived_views::types::contract::value::DerivedContract>,
+        columns: Vec<ryo_values::domain::plan_parts::types::ColumnIndex>,
         index: KeyIndex,
     },
 }
@@ -35,13 +38,17 @@ impl<'f> IndexResource<'f> {
     ) -> Result<Self, OperatingError> {
         use ryo_derived::domain::request::types::DerivedKind;
         let use_ = prepared(contract, DerivedKind::Equality)?;
+        let ryo_execution_domain::domain::derived_views::types::ViewRequest::Equality { columns } = &use_.plan.request else {
+            return Err(OperatingError::WrongOperation);
+        };
+        let columns = columns.clone();
         let place = use_.inputs[0];
         let source = admission.input(place)?;
         // Absence's established empty-RHS gate precedes key interpretation.
         if empty == EmptyInput::Skip && source.count().0 == 0 {
             return Ok(Self::Empty {
                 rows: source,
-                plan: use_.plan.clone(),
+                columns,
                 index: KeyIndex::default(),
             });
         }
@@ -49,48 +56,32 @@ impl<'f> IndexResource<'f> {
         let storage = admission.acquire_rows(use_, context)?;
         Ok(Self::Derived {
             rows: source,
+            columns,
             view: storage,
         })
     }
+    /// The index the rows are looked up through. The derived port answers the view of the plan it built; an answer of
+    /// another family lends no index, so the primitive refuses its missing index instead of reading a wrong one.
     pub(crate) fn view<'s>(
         &'s self,
         #[cfg(feature = "diagnostic-row-progress")]
         progress: &'s dyn ryo_execution_domain::domain::operator::contract::views::ProgressObserver,
-    ) -> IndexedRows<'s> {
-        match self {
-            Self::Derived { rows, view } => {
-                let ryo_execution_domain::domain::derived_views::types::ViewRequest::Equality { columns } =
-                    &view.contract().request
-                else {
-                    unreachable!("prepared equality")
+    ) -> Option<IndexedRows<'s>> {
+        let (rows, columns, index) = match self {
+            Self::Derived { rows, columns, view } => {
+                let Ok(ryo_derived::domain::contract::types::DerivedView::Equality(index)) = view.view() else {
+                    return None;
                 };
-                let ryo_derived::domain::contract::types::DerivedView::Equality(index) =
-                    view.view().expect(super::constants::VALIDATED_EQUALITY)
-                else {
-                    unreachable!("prepared equality")
-                };
-                IndexedRows {
-                    #[cfg(feature = "diagnostic-row-progress")]
-                    progress,
-                    rows: *rows,
-                    columns,
-                    index,
-                }
+                (rows, columns, index)
             }
-            Self::Empty { rows, plan, index } => {
-                let ryo_execution_domain::domain::derived_views::types::ViewRequest::Equality { columns } =
-                    &plan.request
-                else {
-                    unreachable!("prepared empty equality")
-                };
-                IndexedRows {
-                    #[cfg(feature = "diagnostic-row-progress")]
-                    progress,
-                    rows: *rows,
-                    columns,
-                    index,
-                }
-            }
-        }
+            Self::Empty { rows, columns, index } => (rows, columns, index),
+        };
+        Some(IndexedRows {
+            #[cfg(feature = "diagnostic-row-progress")]
+            progress,
+            rows: *rows,
+            columns,
+            index,
+        })
     }
 }

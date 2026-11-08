@@ -114,7 +114,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::FilteredJoin => {
             let comparison = match &plan.steps[2].operation {
                 Operation::Select { comparisons, .. } => comparisons[0].clone(),
-                _ => unreachable!(),
+                _ => panic!("the fixture lists every case it builds"),
             };
             if let Operation::Join { filter, .. } = &mut plan.steps[1].operation {
                 filter.push(comparison);

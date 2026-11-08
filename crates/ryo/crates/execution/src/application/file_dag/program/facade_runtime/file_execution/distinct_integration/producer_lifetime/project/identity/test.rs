@@ -3,7 +3,7 @@ use super::super::super::super::*;
 use super::super::fixtures::{PhaseExit, PreparedCase, prepare_case};
 use crate::application::file_dag::frontiers::types::FrontierInput;
 use crate::application::file_dag::frontiers::types::FrontierSource;
-use crate::application::file_dag::frontiers::types::PreparedFrontiers;
+use crate::application::file_dag::frontiers::fixtures::prepared_frontiers;
 use crate::application::file_dag::program::facade_runtime::types::ProjectFrontiers;
 use ryo_execution_domain::domain::{
     completion::types::CoverageState, coverage::types::Partials, table_model::types::Frontier,
@@ -58,14 +58,14 @@ fn project_rules_with_different_inapplicable_files_share_one_phase_execution() {
             },
             ProjectFrontiers {
                 publication: &phase,
-                ordinary: PreparedFrontiers {
-                    producer: RuleIndex(rule),
-                    sources: vec![FrontierSource {
+                ordinary: prepared_frontiers(
+                    RuleIndex(rule),
+                    vec![FrontierSource {
                         input: source,
                         root: source_root.clone(),
                     }]
                     .into(),
-                    rows: vec![FrontierInput::Decoded {
+                    vec![FrontierInput::Decoded {
                         frontier: Frontier {
                             input: source,
                             table: Arc::new(table),
@@ -73,10 +73,10 @@ fn project_rules_with_different_inapplicable_files_share_one_phase_execution() {
                         coverage: CoverageState::Complete,
                     }]
                     .into(),
-                    program: Arc::clone(prepared.program()),
+                    Arc::clone(prepared.program()),
                     required,
-                    refused: vec![].into(),
-                },
+                    vec![].into(),
+                ),
                 bound_inputs: &[],
             },
             &mut symbols,

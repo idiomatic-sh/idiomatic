@@ -35,14 +35,14 @@ pub(crate) struct FrontierSource {
 /// root of one population (see `FrontierCache`); a clone shares the rows and never copies them.
 #[derive(Clone)]
 pub struct PreparedFrontiers {
-    pub(crate) producer: ryo_execution_domain::domain::coverage::types::RuleIndex,
-    pub(crate) sources: std::sync::Arc<[FrontierSource]>,
-    pub(crate) rows: std::sync::Arc<[FrontierInput]>,
-    pub(crate) program:
+    pub(in crate::application::file_dag::frontiers) producer: ryo_execution_domain::domain::coverage::types::RuleIndex,
+    pub(in crate::application::file_dag::frontiers) sources: std::sync::Arc<[FrontierSource]>,
+    pub(in crate::application::file_dag::frontiers) rows: std::sync::Arc<[FrontierInput]>,
+    pub(in crate::application::file_dag::frontiers) program:
         std::sync::Arc<ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram>,
-    pub(crate) required:
+    pub(in crate::application::file_dag::frontiers) required:
         crate::application::file_dag::program::admission::RequiredPartitions,
-    pub(crate) refused:
+    pub(in crate::application::file_dag::frontiers) refused:
         std::sync::Arc<[ryo_execution_domain::domain::frontiers::types::RefusedFrontier]>,
 }
 
@@ -288,6 +288,22 @@ fn relabel(
 }
 
 impl PreparedFrontiers {
+    /// The rule whose frontiers these are.
+    pub(crate) fn producer(&self) -> ryo_execution_domain::domain::coverage::types::RuleIndex {
+        self.producer
+    }
+    /// The sources the frontier rows were read from, shared with every root of the population.
+    pub(crate) fn sources(&self) -> &std::sync::Arc<[FrontierSource]> {
+        &self.sources
+    }
+    /// The frontier rows, shared with every root of the population.
+    pub(crate) fn rows(&self) -> &std::sync::Arc<[FrontierInput]> {
+        &self.rows
+    }
+    /// The frontiers the preparation refused, each with its error.
+    pub(crate) fn refused(&self) -> &[ryo_execution_domain::domain::frontiers::types::RefusedFrontier] {
+        &self.refused
+    }
     pub(crate) fn validate_scope(
         &self,
         program: &std::sync::Arc<ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram>,

@@ -15,11 +15,11 @@ impl FileGeneration {
     pub(crate) fn matches(
         &self,
         expected: &Self,
-        generation: &Arc<()>,
+        generation: &Arc<ryo_execution_store::application::file_dag::relations::generation::service::GenerationLease>,
     ) -> Agreement {
         if self.file == expected.file
-            && Arc::ptr_eq(&self.generation, &expected.generation)
-            && Arc::ptr_eq(generation, &expected.generation)
+            && ryo_execution_store::application::file_dag::relations::generation::service::GenerationLease::same(&self.generation, &expected.generation) == ryo_execution_store::application::file_dag::relations::types::Sameness::Same
+            && ryo_execution_store::application::file_dag::relations::generation::service::GenerationLease::same(generation, &expected.generation) == ryo_execution_store::application::file_dag::relations::types::Sameness::Same
         {
             Agreement::Same
         } else {
@@ -35,7 +35,7 @@ impl FileGeneration {
     ) -> Self {
         Self {
             file,
-            generation: owner.generation_guard(),
+            generation: owner.current_generation(),
         }
     }
 }
@@ -134,7 +134,7 @@ impl Partition {
             (Self::RequestInvariant, _) => true,
             (Self::File(actual), Self::File(required)) => {
                 actual.file == required.file
-                    && Arc::ptr_eq(&actual.generation, &required.generation)
+                    && ryo_execution_store::application::file_dag::relations::generation::service::GenerationLease::same(&actual.generation, &required.generation) == ryo_execution_store::application::file_dag::relations::types::Sameness::Same
             }
             (Self::Project(actual), Self::Project(required)) => actual == required,
             _ => false,

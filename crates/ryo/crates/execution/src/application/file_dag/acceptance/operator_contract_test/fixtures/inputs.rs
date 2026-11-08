@@ -102,7 +102,7 @@ pub(crate) fn table_inputs(
                         CellKind::Number => HostKind::Number,
                         CellKind::Symbol => HostKind::Text,
                         CellKind::File => HostKind::File,
-                        _ => unreachable!(),
+                        _ => panic!("the fixture lists every case it builds"),
                     },
                 })
                 .collect();
@@ -116,7 +116,7 @@ pub(crate) fn table_inputs(
                                 Value::Number(n) => HostCell::Number(n),
                                 Value::Symbol(_) => HostCell::Text(text(*cell, symbols).into()),
                                 Value::File(_) => HostCell::File("operator-contract.py".into()),
-                                _ => unreachable!(),
+                                _ => panic!("the fixture lists every case it builds"),
                             })
                             .collect(),
                     )

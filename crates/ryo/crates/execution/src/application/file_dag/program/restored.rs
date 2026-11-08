@@ -112,7 +112,7 @@ pub(crate) fn validate_restored_frontier(
     };
     Ok(ValidatedFrontier {
         program: Arc::clone(prepared.program()),
-        generation: scope.owner().generation_guard(),
+        generation: scope.owner().current_generation(),
         root,
         partition: required.clone(),
         coverage,

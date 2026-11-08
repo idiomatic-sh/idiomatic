@@ -31,7 +31,7 @@ impl RelationOwner {
     }
 
     pub(in crate::application::file_dag::relations) fn generation(&self, result: &RelationResult) -> Result<(), OperatingError> {
-        if Arc::ptr_eq(&self.generation.borrow(), &result.generation) {
+        if self.matches_generation(&result.generation) == crate::application::file_dag::relations::types::Sameness::Same {
             Ok(())
         } else {
             Err(OperatingError::NotRead)

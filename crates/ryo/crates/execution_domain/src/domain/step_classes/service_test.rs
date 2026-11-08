@@ -245,7 +245,7 @@ fn relation_identity_and_wide_source_projections_are_preserved() {
         kept,
     } = &mut wide.steps[0].operation
     else {
-        unreachable!();
+        panic!("the fixture builds a Select");
     };
     *from = PlanInput::Relation(Relation::SourceLocation);
     comparisons[0] = PlanComparison {
@@ -272,7 +272,7 @@ fn relation_identity_and_wide_source_projections_are_preserved() {
     });
     let mut semantic = plan("word");
     let Operation::Select { from, .. } = &mut semantic.steps[0].operation else {
-        unreachable!();
+        panic!("the fixture builds a Select");
     };
     *from = PlanInput::Relation(Relation::SemanticSyntax);
     let merged = merge(&[plan("word"), semantic, wide], &vec![vec![]; 3]);
