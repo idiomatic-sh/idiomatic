@@ -22,6 +22,8 @@ pub(super) const NAME: &str = "name";
 pub(super) const INLINE: &str = "inline";
 /// The value of a `#[path]`.
 pub(super) const PATH: &str = "path";
+/// Whether a declaration is under `#[cfg(test)]`.
+pub(super) const TEST_ONLY: &str = "test_only";
 /// The segments of a written path.
 pub(super) const SEGMENTS: &str = "segments";
 /// The inline modules around a written path.
@@ -37,7 +39,7 @@ pub(super) const BOUND: &str = "bound";
 /// How many fields a note has.
 pub(super) const NOTE_FIELDS: usize = 3;
 /// How many fields a declaration has.
-pub(super) const DECLARED_FIELDS: usize = 4;
+pub(super) const DECLARED_FIELDS: usize = 5;
 /// How many fields an inline block has.
 pub(super) const STEP_FIELDS: usize = 2;
 /// How many fields a written path has.

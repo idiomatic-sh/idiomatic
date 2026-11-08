@@ -299,10 +299,17 @@ pub(crate) fn examine(
     };
     let mut edges: BTreeSet<UnplacedLink<'_>> = BTreeSet::new();
     for (each, module) in memberships {
-        let role = role_of(each);
+        let target_role = role_of(each);
         for written in &known.written {
             let mut current = module.0.clone();
             current.extend(written.enclosing.iter().cloned());
+            // A module under `#[cfg(test)]`, or inside one, is built for the unit tests, with the dev-dependencies.
+            let gated = (0..=current.len()).any(|length| each.tests.contains(&ModulePath(current[..length].to_vec())));
+            let role = if target_role == TargetRole::Ordinary && gated {
+                TargetRole::Test
+            } else {
+                target_role
+            };
             let segments = through_uses(known, written);
             let Some(targets) = resolve(each, &current, &segments)
                 .or_else(|| resolve_extern(externs.by_package.get(own), role, trees, &segments))

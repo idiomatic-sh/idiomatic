@@ -21,6 +21,7 @@ fn facts() -> Facts {
         clean: Cleanliness::Clean,
         declared: vec![
             ModDeclaration {
+                gate: crate::domain::module_tree::types::Gate::Always,
                 around: vec![EnclosingBlock {
                     name: Segment("outer".into()),
                     path: Section::Present(WrittenPath("x".into())),
@@ -30,6 +31,7 @@ fn facts() -> Facts {
                 path: Section::Absent,
             },
             ModDeclaration {
+                gate: crate::domain::module_tree::types::Gate::Always,
                 around: Vec::new(),
                 name: Segment("inner".into()),
                 body: Body::Inline,

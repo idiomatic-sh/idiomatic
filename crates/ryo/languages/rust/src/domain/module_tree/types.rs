@@ -19,6 +19,8 @@ pub(crate) struct ModuleTree {
     pub files: BTreeMap<RepoPath, Vec<ModulePath>>,
     /// Each module that could not be followed, and why: no file for it, two, or a file already being loaded.
     pub gaps: Vec<Unfollowed>,
+    /// The modules declared under `#[cfg(test)]`: they and every module inside them are built for the unit tests alone.
+    pub tests: std::collections::BTreeSet<ModulePath>,
 }
 
 /// Where a `mod` declaration puts its module: the module's path, and the directories its children and its `#[path]` resolve under.
@@ -149,6 +151,18 @@ pub(crate) struct ModDeclaration {
     pub body: Body,
     /// The value of its `#[path = "…"]`, when it has one.
     pub path: Section<WrittenPath>,
+    /// Whether the module is built always, or only for the package's unit tests.
+    pub gate: Gate,
+}
+
+/// When a module is built: always, or only under `#[cfg(test)]`, for the package's unit tests, with its dev-dependencies.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) enum Gate {
+    /// In every build of its crate.
+    #[default]
+    Always,
+    /// Only under `#[cfg(test)]`.
+    Test,
 }
 
 /// Whether a module is written inline in its file or in a file of its own.

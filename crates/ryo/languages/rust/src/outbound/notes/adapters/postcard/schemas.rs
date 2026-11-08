@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize, Serializer};
 
 use super::constants::{
     AROUND, BOUND, CLEAN, DECLARED, DECLARED_FIELD, DECLARED_FIELDS, ENCLOSING, END, INLINE, NAME, NOTE,
-    NOTE_FIELDS, PATH, SEGMENTS, START, STEP, STEP_FIELDS, TEXT, WRITTEN, WRITTEN_FIELD,
+    NOTE_FIELDS, PATH, SEGMENTS, TEST_ONLY, START, STEP, STEP_FIELDS, TEXT, WRITTEN, WRITTEN_FIELD,
     WRITTEN_FIELDS,
 };
 use super::types::Leftover;
@@ -70,6 +70,8 @@ pub(super) struct DeclaredSchema<'a> {
     inline: FlagSchema,
     /// The `#[path]` the declaration is given, when it has one.
     path: Option<TextSchema>,
+    /// Whether the declaration is under `#[cfg(test)]`.
+    test_only: FlagSchema,
 }
 
 /// A path a file writes, as it is read.
@@ -119,6 +121,7 @@ impl<'a> From<NoteSchema<'a>> for Note<'a> {
                     name: NoteName(Cow::Borrowed(each.name.0)),
                     inline: NoteFlag(each.inline.0),
                     path: path(each.path),
+                    test_only: NoteFlag(each.test_only.0),
                 })
                 .collect(),
             written: schema
@@ -186,6 +189,7 @@ impl Serialize for DeclaredViewSchema<'_, '_> {
         declared.serialize_field(NAME, &*self.0.name.0)?;
         declared.serialize_field(INLINE, &self.0.inline.0)?;
         declared.serialize_field(PATH, &self.0.path.as_ref().map(|each| &each.0))?;
+        declared.serialize_field(TEST_ONLY, &self.0.test_only.0)?;
         declared.end()
     }
 }

@@ -12,3 +12,13 @@ mod shadow {
     use crate::util as helper;
     const _: fn(u8) -> u8 = helper::double;
 }
+
+mod outside {
+    use std::fmt as helper;
+    const _: Option<helper::Error> = None;
+}
+
+#[cfg(test)]
+mod unit {
+    const _: fn() = tool::ready;
+}

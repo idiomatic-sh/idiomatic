@@ -60,6 +60,8 @@ pub(crate) struct DeclaredNote<'a> {
     pub inline: NoteFlag,
     /// The value of its `#[path = "…"]`, when it has one.
     pub path: Option<NotePath>,
+    /// Whether it is declared under `#[cfg(test)]`: built only for the package's unit tests, with its dev-dependencies.
+    pub test_only: NoteFlag,
 }
 
 /// A path a file writes.

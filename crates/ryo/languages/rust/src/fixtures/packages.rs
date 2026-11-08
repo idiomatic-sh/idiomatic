@@ -166,6 +166,13 @@ pub(super) fn expected() -> ManifestExpected {
             span: span((7, 17), (7, 30)),
             written: name("helper::ready"),
         },
+        // Unit-test code under `#[cfg(test)]` names the dev-dependency; `helper::Error` beside `use std::fmt as helper` names nothing.
+        SourceDependencyExpectedRow {
+            source: file("app/src/lib.rs"),
+            target: file("tool/src/lib.rs"),
+            span: span((23, 21), (23, 32)),
+            written: name("tool::ready"),
+        },
         // A test target names its dev-dependency.
         SourceDependencyExpectedRow {
             source: file("app/tests/smoke.rs"),

@@ -6,7 +6,7 @@ use crate::domain::tokens::types::Token;
 use ryo::languages::{self, Position, Tree};
 use std::borrow::Cow;
 
-use super::constants::{PATH_ATTRIBUTE, RAW_PREFIX};
+use super::constants::{PATH_ATTRIBUTE, RAW_PREFIX, TEST_ATTRIBUTE};
 use crate::domain::fact_notes::types::{
     DeclaredNote, Note, NoteFlag, NoteName, NoteOffset, NotePath, StepNote, WrittenNote,
 };
@@ -89,6 +89,7 @@ fn declarations<'a>(
             name: NoteName(Cow::Borrowed(name.0)),
             inline: NoteFlag(list.is_some()),
             path: path.clone(),
+            test_only: test_attribute(tree, item),
         });
         if let Some(list) = list {
             let depth = around.len();
@@ -114,6 +115,15 @@ pub(crate) fn specifier(tree: &Tree<'_>, at: Position) -> languages::Flag {
     } else {
         languages::Flag::Lowered
     }
+}
+
+/// Whether `item` carries `#[cfg(test)]`, its whitespace left out.
+fn test_attribute(tree: &Tree<'_>, item: Position) -> NoteFlag {
+    NoteFlag(
+        languages::children(tree.elements, item)
+            .filter(|each| kind(tree, *each) == Kind::Node(Node::Attr))
+            .any(|attr| spelled(tree, attr).0 == TEST_ATTRIBUTE),
+    )
 }
 
 /// The value of `item`'s `#[path = "…"]`, when it has one.

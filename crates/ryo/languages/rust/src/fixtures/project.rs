@@ -64,6 +64,7 @@ pub(crate) fn encode(facts: &Facts) -> languages::Bytes {
 /// The package `a`, rooted at `a/src/lib.rs`, which declares `b` and `c`; `b` writes a path into `c`. The notes are of the files, in their order; the manifests of the workspace are files of the run too.
 pub(crate) fn linked() -> (Vec<languages::Bytes>, Vec<languages::FilePath>) {
     let declared = |name: &str| ModDeclaration {
+        gate: crate::domain::module_tree::types::Gate::Always,
         around: Vec::new(),
         name: Segment(name.into()),
         body: Body::File,
