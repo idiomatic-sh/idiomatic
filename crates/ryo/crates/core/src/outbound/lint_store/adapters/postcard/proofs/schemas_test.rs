@@ -47,7 +47,7 @@ fn subject() -> Value {
     };
     [complete, partial]
         .into_iter()
-        .all(|row| proof_row(&proof_schema(&row)) == Ok(row))
+        .all(|row| proof_row(&proof_schema(&row, 0), &[row.proof.rule_digest.0]) == Ok(row))
 }
 
 #[test]

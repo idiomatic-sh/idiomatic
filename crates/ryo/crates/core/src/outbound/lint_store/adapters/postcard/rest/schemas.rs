@@ -80,6 +80,8 @@ pub(in crate::outbound::lint_store::adapters::postcard) struct RestSchema<'a> {
     /// Source identity and coverage for each payload row, in the rest section
     /// so existing bucket byte framing and unchanged-bucket copying stay exact.
     pub(in crate::outbound::lint_store::adapters::postcard) proofs: Vec<FrontierProofSchema>,
+    /// Every rule digest the proofs name, each once: a proof names its rule's digest by its place here.
+    pub(in crate::outbound::lint_store::adapters::postcard) digests: Vec<[u8; 16]>,
     /// Every text the rows name, each once.
     #[serde(borrow)]
     pub(in crate::outbound::lint_store::adapters::postcard) strings: Vec<Cow<'a, str>>,
@@ -146,9 +148,24 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn rest_of<'a>(stored: &
                 .collect(),
         })
         .collect();
+    let mut digests: Vec<[u8; 16]> = Vec::new();
+    let mut places: rustc_hash::FxHashMap<[u8; 16], u32> = rustc_hash::FxHashMap::default();
+    let proofs = stored
+        .proofs
+        .iter()
+        .map(|row| {
+            let digest = row.proof.rule_digest.0;
+            let place = *places.entry(digest).or_insert_with(|| {
+                digests.push(digest);
+                u32::try_from(digests.len() - 1).unwrap_or(u32::MAX)
+            });
+            proof_schema(row, place)
+        })
+        .collect();
     RestSchema {
         observations,
-        proofs: stored.proofs.iter().map(proof_schema).collect(),
+        proofs,
+        digests,
         texts: stored
             .texts
             .iter()
@@ -182,7 +199,7 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn handed_of(rest: &Rest
     let mut proofs = rest
         .proofs
         .iter()
-        .map(proof_row)
+        .map(|row| proof_row(row, &rest.digests))
         .collect::<Result<Vec<_>, _>>()?;
     proofs.sort_by_key(|row| (row.file.0, row.bucket.0));
     if proofs
