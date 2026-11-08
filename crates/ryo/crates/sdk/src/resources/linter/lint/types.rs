@@ -168,7 +168,7 @@ pub(crate) struct LinterLintEngine {
     /// The matching every run checks its globs with: a set made once is not made again.
     pub matching: Arc<dyn MatchingPort>,
     /// The plans compiled so far, by rule id.
-    pub plans: ryo_execution::application::rule_compilation::service::CompiledPlans,
+    pub plans: ryo_execution::inbound::use_cases::compile_rules::interface::CompiledPlans,
     /// The scheduler over the pool the caller built and injected once: every run's work is spread over it.
     pub scheduler: Arc<dyn SchedulerPort>,
     /// How many workers the scheduler runs jobs on.

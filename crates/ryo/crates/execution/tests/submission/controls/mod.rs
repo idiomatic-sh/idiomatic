@@ -34,8 +34,6 @@ use ryo_execution_runtime::application::file_dag::program::file_session::types::
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
 use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution;
 use ryo_execution::inbound::use_cases::execution::interface::PreparedReporting;
-use ryo_execution::application::rule_compilation::service::ExecutionCompilation;
-use ryo_execution::application::rule_compilation::service::PreparedQueries;
 use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityReason;
 use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityRefusal;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;

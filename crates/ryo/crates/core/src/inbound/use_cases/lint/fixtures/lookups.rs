@@ -164,7 +164,7 @@ pub(crate) fn changed_nested_module() -> Result<(usize, usize), LintError> {
 /// A module-only predicate edit changes actual findings through a retained real compiler plan.
 pub(crate) fn changed_fragment_plan() -> Result<(usize, usize), LintError> {
     use ryo_execution::outbound::query_language::factory;
-    use ryo_execution::inbound::use_cases::prepare::interface::CompiledPlans;
+    use ryo_execution::inbound::use_cases::compile_rules::interface::CompiledPlans;
     use ryo_execution::outbound::query_language::interface::QueryLanguagePort;
 
     let make_bundle = |prefix: &str| {

@@ -19,4 +19,12 @@ pub enum RuleCompilationError {
         /// Typed compiler diagnostic with original source provenance.
         error: RefusedQuery,
     },
+    /// A rule writes a word for a kind no linked language has: refused before any file is read.
+    #[error("rule `{}`: {}", .id.0, .reason.0)]
+    UnknownKind {
+        /// The rule that writes the word.
+        id: ryo_values::domain::runs::types::RuleId,
+        /// What the kind check says of the word.
+        reason: ryo_execution_domain::domain::kind_check::types::KindMessage,
+    },
 }

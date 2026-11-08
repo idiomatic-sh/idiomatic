@@ -2,19 +2,13 @@
 //! service may name them, so a use case builds none.
 
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase as _;
-use super::types::KindRefused;
-use crate::outbound::language::interface::LanguagePort;
-use ryo_execution::inbound::use_cases::metadata::interface::{MetadataUseCase as _, RuleIndex};
-use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use std::sync::Arc;
 
+use ryo_execution::inbound::use_cases::compile_rules::interface::{CompileRulesUseCase, CompiledRules, RuleCompilationError, CompiledPlans};
+use ryo_execution::inbound::use_cases::compile_rules::types::CompileRequest;
+use ryo_execution::inbound::use_cases::compile_rules::use_case::CompileRulesUseCaseImpl;
 use ryo_execution::inbound::use_cases::execution::interface::PreparedExecutionProgram;
 use ryo_execution::inbound::use_cases::execution::interface::RequestExecution;
-use ryo_execution::inbound::use_cases::prepare::interface::RuleCompilationError;
-use ryo_execution::inbound::use_cases::prepare::interface::{
-    CompiledPlans, CompiledQueries, ExecutionCompilation, PreparedQueries as _, QueryCompilation,
-};
-use ryo_execution::inbound::use_cases::prepare::interface::PreparedRuleIdentities;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::prepare::types::PrepareRequest;
@@ -26,7 +20,7 @@ use ryo_execution::outbound::query_language::interface::QueryLanguagePort;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 
 /// The engine's rule compilation, with the plans it keeps.
-pub struct Compilation(QueryCompilation);
+pub(crate) struct Compilation(CompileRulesUseCaseImpl);
 
 impl std::fmt::Debug for Compilation {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -36,72 +30,22 @@ impl std::fmt::Debug for Compilation {
 }
 
 impl Compilation {
-    /// Compilation over the query language the edge injects.
+    /// Compilation over the query language and the digest the edge injects.
     #[must_use]
-    pub fn new(compiler: Arc<dyn QueryLanguagePort>) -> Self {
-        Self(QueryCompilation::new(compiler))
+    pub(crate) fn new(compiler: Arc<dyn QueryLanguagePort>, digest: Arc<dyn DigestPort>) -> Self {
+        Self(CompileRulesUseCaseImpl::new(compiler, digest))
+    }
+
+    /// The same, keeping the plans it compiles in `plans`, which other use cases share.
+    #[must_use]
+    pub(crate) fn compiling_into(self, plans: CompiledPlans) -> Self {
+        Self(self.0.compiling_into(plans))
     }
 }
 
-impl Compilation {
-    /// The rules compiled, and refused before any file is read when one writes a word for a kind no linked language has: the
-    /// inner answer is that refusal, the outer one the compilation's.
-    pub(crate) fn checked(
-        &self,
-        rules: &[ryo_values::domain::rule_requests::types::RuleSpec],
-        hosted: &[ryo_values::domain::hosted::types::HostRelation],
-        digest: &dyn DigestPort,
-        language: &dyn LanguagePort,
-    ) -> Result<Result<CompiledQueries, KindRefused>, RuleCompilationError> {
-        let compiled = self.0.compile(rules, hosted, digest)?;
-        // Rules that write no word for a kind need no vocabulary.
-        if compiled
-            .plans()
-            .iter()
-            .zip(compiled.bindings())
-            .all(|(plan, bound)| MetadataUseCaseImpl.kinds_asked(plan, bound).is_empty())
-        {
-            return Ok(Ok(compiled));
-        }
-        let vocabularies = language.kind_vocabularies();
-        Ok(match MetadataUseCaseImpl.first_unknown(
-            compiled.plans(),
-            compiled.bindings(),
-            &vocabularies,
-            &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl::new(),
-        ) {
-            Some(unknown) => Err(KindRefused {
-                rule: RuleIndex(unknown.rule.0),
-                reason: MetadataUseCaseImpl
-                    .unknown_kind_message(&unknown.word, &vocabularies)
-                    .message,
-            }),
-            None => Ok(compiled),
-        })
-    }
-}
-
-impl ExecutionCompilation for Compilation {
-    fn compiling_into(self, cache: CompiledPlans) -> Self {
-        Self(self.0.compiling_into(cache))
-    }
-
-    fn compile(
-        &self,
-        rules: &[ryo_values::domain::rule_requests::types::RuleSpec],
-        hosted: &[ryo_values::domain::hosted::types::HostRelation],
-        digest: &dyn DigestPort,
-    ) -> Result<CompiledQueries, RuleCompilationError> {
-        self.0.compile(rules, hosted, digest)
-    }
-
-    fn identify(
-        &self,
-        queries: &CompiledQueries,
-        digest: &dyn DigestPort,
-        rules: Vec<ryo_values::domain::stores::types::StoredRule>,
-    ) -> Result<PreparedRuleIdentities, RuleCompilationError> {
-        self.0.identify(queries, digest, rules)
+impl CompileRulesUseCase for Compilation {
+    fn compile_rules(&self, request: CompileRequest<'_>) -> Result<CompiledRules, RuleCompilationError> {
+        self.0.compile_rules(request)
     }
 }
 

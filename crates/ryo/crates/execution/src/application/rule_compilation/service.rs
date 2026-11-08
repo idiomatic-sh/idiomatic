@@ -12,8 +12,8 @@ use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::rule_requests::service::{bind, check_ids};
 use ryo_values::domain::rule_requests::types::RuleSpec;
 use std::sync::{Arc, Mutex, PoisonError};
-use crate::application::rule_compilation::types::PreparedRuleIdentities;
 use ryo_execution_runtime::outbound::digest::interface::DigestPort;
+use super::types::PreparedRuleIdentities;
 
 
 /// The plan compiled so far for each rule id, shared by every use case built over them: a program that lints many projects with the
@@ -23,9 +23,42 @@ use ryo_execution_runtime::outbound::digest::interface::DigestPort;
 #[derive(Clone, Debug, Default)]
 pub struct CompiledPlans(pub(super) Arc<Mutex<PlanCache>>);
 
-/// Request preparation retains its graph privately; callers may inspect source plans only.
-pub struct CompiledQueries {
+/// The rules of a request compiled: their plans and bindings may be read and their stored identities named, nothing else of the
+/// compilation.
+#[derive(Debug)]
+pub struct CompiledRules {
     pub(crate) inner: Compiled,
+}
+
+impl CompiledRules {
+    /// The plans, in the order of the rules.
+    #[must_use]
+    pub fn plans(&self) -> &[ryo_values::domain::plans::types::Plan] {
+        &self.inner.plans
+    }
+    /// What each rule binds its parameters to, in the order of the plan's parameters.
+    #[must_use]
+    pub fn bindings(&self) -> &[Vec<ryo_values::domain::query_bindings::types::ParameterBinding>] {
+        &self.inner.bindings
+    }
+    /// The identity of each stored rule and the observation layout of the request, from the plans and producers compiled.
+    ///
+    /// # Errors
+    ///
+    /// Refuses rules whose producers do not agree with the compiled schedule.
+    pub fn identify(
+        &self,
+        digest: &dyn DigestPort,
+        rules: Vec<ryo_values::domain::stores::types::StoredRule>,
+    ) -> Result<PreparedRuleIdentities, RuleCompilationError> {
+        super::identity::with_producers(
+            digest,
+            rules,
+            &self.inner.plans,
+            &self.inner.schedule,
+            &self.inner.observations,
+        )
+    }
 }
 
 /// One cohesive compiler operation, sharing only bounded immutable plans across invocations.
@@ -249,80 +282,4 @@ pub(crate) fn observed(
     digest: &dyn DigestPort,
 ) {
     super::observing::compiled(rules, plans, bindings, hosted, digest);
-}
-
-pub trait ExecutionCompilation {
-    fn compiling_into(self, cache: CompiledPlans) -> Self;
-    fn compile(
-        &self,
-        rules: &[ryo_values::domain::rule_requests::types::RuleSpec],
-        hosted: &[ryo_values::domain::hosted::types::HostRelation],
-        digest: &dyn DigestPort,
-    ) -> Result<CompiledQueries, RuleCompilationError>;
-    fn identify(
-        &self,
-        queries: &CompiledQueries,
-        digest: &dyn DigestPort,
-        rules: Vec<ryo_values::domain::stores::types::StoredRule>,
-    ) -> Result<PreparedRuleIdentities, RuleCompilationError>;
-}
-pub trait PreparedQueries {
-    fn plans(&self) -> &[ryo_values::domain::plans::types::Plan];
-    fn bindings(&self) -> &[Vec<ryo_values::domain::query_bindings::types::ParameterBinding>];
-}
-/// Query compilation is a preparation use case, not a second execution pipeline.
-pub struct QueryCompilation {
-    inner: crate::application::rule_compilation::service::RuleCompilation,
-}
-impl QueryCompilation {
-    pub fn new(compiler: Arc<dyn QueryLanguagePort>) -> Self {
-        Self {
-            inner: crate::application::rule_compilation::service::RuleCompilation::new(compiler),
-        }
-    }
-}
-impl ExecutionCompilation for QueryCompilation {
-    fn compiling_into(self, cache: CompiledPlans) -> Self {
-        Self {
-            inner: self.inner.compiling_into(cache),
-        }
-    }
-    fn compile(
-        &self,
-        rules: &[ryo_values::domain::rule_requests::types::RuleSpec],
-        hosted: &[ryo_values::domain::hosted::types::HostRelation],
-        digest: &dyn DigestPort,
-    ) -> Result<CompiledQueries, RuleCompilationError> {
-        let inner = self.inner.prepare(rules, hosted)?;
-        crate::application::rule_compilation::service::observed(
-            rules,
-            &inner.plans,
-            &inner.bindings,
-            hosted,
-            digest,
-        );
-        Ok(CompiledQueries { inner })
-    }
-    fn identify(
-        &self,
-        queries: &CompiledQueries,
-        digest: &dyn DigestPort,
-        rules: Vec<ryo_values::domain::stores::types::StoredRule>,
-    ) -> Result<PreparedRuleIdentities, RuleCompilationError> {
-        crate::application::rule_compilation::identity::with_producers(
-            digest,
-            rules,
-            &queries.inner.plans,
-            &queries.inner.schedule,
-            &queries.inner.observations,
-        )
-    }
-}
-impl PreparedQueries for CompiledQueries {
-    fn plans(&self) -> &[ryo_values::domain::plans::types::Plan] {
-        &self.inner.plans
-    }
-    fn bindings(&self) -> &[Vec<ryo_values::domain::query_bindings::types::ParameterBinding>] {
-        &self.inner.bindings
-    }
 }
