@@ -248,7 +248,57 @@ Decisions recorded with the row:
 - `library-surface` on the runtime and top crates waits for those crates (landing 1). In the single execution crate the holder half of B3 is the `allowed` list of `derived-view-acquisition`; after the split, the cross-crate holders become `library-surface`'s `surface`.
 - B5's non-entry reasons live in the entry's `non-entries` param, not in doc comments, so no production file changed.
 - B1 does not see a variant written only inside a macro's arguments (`matches!(call, OperatorCall::Union { .. })`); the rule's `why` says so.
-- Still source-reading after this row, class (a), landing 1: the overlay harness, the census `Entry`/`kind` tables, the submission census tests (2) and (3), `inventory::variants`, `OneSemanticPerKind` and the QL keyword arm count.
+- Still source-reading after this row, class (a), landing 1: the overlay harness, the census `Entry`/`kind` tables, the submission census tests (2) and (3), `inventory::variants`, `OneSemanticPerKind` and the QL keyword arm count. Landing 1 deletes all of them except the QL keyword arm count (see "Landing 1: ownership carries authority").
+
+### Landing 1: ownership carries authority
+
+Row ryo-2ln5 (with ryo-s1s2's class (a)), branch `claude/l1-ownership` from checkpoint 323 `7d93840b19`. Counts are `git grep -c` (matching lines) over `crates/execution/src` at each source; "production files" excludes `*_test.rs`, `test.rs`, `tests/`, `fixtures` and `probe` paths. Each commit is one concept, checked with the package-scoped check of `idiomatic-sh-ryo-execution` (all features, tests; 0 errors, no warning added) and `tm` over its files (0 findings). Nothing was run.
+
+| Measure | 323 | Landing 1 |
+|---|---:|---:|
+| `Arc::ptr_eq` | 59 | 47 (25 production, 22 tests) |
+| `Arc<()>` | 19 | 3 (derived owner identity, request identity, their field) |
+| `unreachable!` | 34 | 0 |
+| `RefCell<` | 33 | 32 |
+| `Mutex<` | 12 | 12 |
+| `#[cfg(test)]` in production files | 474 | 475 |
+| Source-reading test files (the bead's census, probe, allowlist and `tests/source_boundary` paths) | 39 | 12 |
+| Lines in deleted test files | | 4,238, plus 163 net in partial sections (235 removed, 72 added) |
+
+What changed, each a representation change of an existing concept:
+- **The generation.** The relation owner kept two per-population values that it replaced together on release: an `Arc<()>` token compared by `Arc::ptr_eq`, and an `Arc<GenerationLease>` read for liveness. They are one concept. The lease is now the generation, and every proof keeps the lease it was issued under: `AdmissionOrigin`, `RelationResult`, `PopulationProof`, `FileGeneration`, `ValidatedFrontier`, `ProgramExecution`, `RuntimeState` and `KernelPermit`. `GenerationLease::same` states the identity once, and the duplicate fields on `ProgramExecution` and `KernelPermit` are gone. 13 `ptr_eq` sites and one `RefCell` field are removed. It is still a runtime check: the owner is shared through `Rc` by the file run and the project states, and a `'gen` brand would need `ProgramExecution`, which is held beside that `Rc` owner, to borrow it.
+- **Typed plans.** `IndexResource` reads its equality columns from the plan once, at acquisition, and refuses any other plan there (`WrongOperation`). The port's view answer is data, so an answer of another family lends no index (`view` returns `Option`, as `PrimitiveResources::index` already did). `CompletionBehavior::BlockBeforeRun` carries the file it blocks. Together these remove the 3 production `unreachable!` and one `expect`. The 31 test `unreachable!` are fixture assertions: they become `panic!` naming what the fixture builds, because `clippy.toml` allows panic in tests and has no allowance for `clippy::unreachable`.
+- **Structure delta: 0 data structures added.** One file was added in the existing `fixtures` role: `frontiers/fixtures.rs`, with one test constructor. Functions added: four `PreparedFrontiers` accessors, `GenerationLease::same`, and `RelationOwner::current_generation`, which replaces `generation_guard` and `generation_liveness`. Fields removed: the `Arc<()>` generation, `ProgramExecution.generation_live` and `KernelPermit.live`.
+
+Deleted tests and the guarantee that replaces each one:
+
+| Deleted | What it held | Replaced by |
+|---|---|---|
+| `tests/source_boundary/{test,fixtures,mod}.rs` | Runtime authority records cannot be forged or retargeted by a sibling (overlay `cargo check`, E0451/E0616/E0603) | rustc privacy on the private fields; `idiomatic.ryo/runtime-authority` rejects a widened field; after the cut, the crate boundary (B1/B2) |
+| `source_boundary/activation/**` | A seeded mutation of `derived/owner/setup.rs` makes `tests/activation` fail | No compiler guarantee: this is cargo-mutants' job, deferred until after the alpha. The `tests/activation` behaviour target stays |
+| `source_boundary/derived/{mod,kernel,sealing,witness}` | Derived-owner records, ports and handles are owner-private | E0451/E0616 on their private fields; `runtime-authority` 0.2.0 `owner-records` (B8); the store crate boundary (B2) |
+| `source_boundary/derived/census/**` | Compile-control tables per owner entry, and per-kind test-name pins | The controls go with the probes; `DerivedKind` routes are an exhaustive match (E0004, `wildcard_enum_match_arm = "deny"`); a name pin catches a rename, not a defect |
+| `source_boundary/facade` | Deleted re-exports stay deleted | E0432 on the path; `idiomatic.arch/no-reexports` |
+| `source_boundary/hardening` | Ledger, lease, `FrontierCache`, read proof, region and `RelationOwner` fields and constructors are private | E0451/E0616/E0624; `runtime-authority` |
+| `source_boundary/publication/**` | A consumer clones the leased publication, never the raw record | E0616 on the record field |
+| `source_boundary/submission/mod.rs` | `PreparedProgram.rules` and `frontiers::service::prepare` are private | E0616 and E0603 |
+| `tests/representation_capabilities` | Relation methods and representation arms are required; readers cannot mutate the cache or name `'static` sources | E0046, E0004, E0609, E0599, E0596 and E0451, by rustc on the real source |
+| `tests/owner_resource_capabilities` | Only the derived owner mutates the backend | E0616/E0451/E0609 |
+| `tests/executable_program_authority` | Program state, physical permits and lease revocation are owner-only | E0616/E0451/E0624; after this landing, also the single generation lease that only `RelationOwner::release_population` replaces |
+| `core/tests/project_batch/**` and `core/tests/test.rs` | `SealedBatch` cannot be forged by a core sibling | E0451/E0616/E0308; `idiomatic.ryo/project-batch-owner` |
+| census `prepared_frontiers_are_built_only_by_the_frontiers_module` | A `PreparedFrontiers` literal appears only in `frontiers` | Its fields are now private to `frontiers` (E0451 anywhere else). Readers use accessors and tests build through `frontiers::fixtures::prepared_frontiers` |
+| census `every_trait_method_has_its_own_variant` | One `Method` variant and one witness call per entry-trait method | E0046 on `Witness` plus the exhaustive `control(method)` (E0004) |
+| `inventory::variants` (text parse of `rule_intent/types.rs`) | Each intent inventory lists every variant | One exhaustive `*_place` match per enum (E0004 on a new variant), and `assert_inventory` checks that each listed value takes its own place |
+| `OneSemanticPerKind` (`domain/operator/service_test.rs`) | One evaluation arm per operation kind | The operators' exhaustive `evaluate` match under `wildcard_enum_match_arm = "deny"` and `unreachable_patterns` |
+
+Pins removed with them: 30 `program-runtime-proof` placements (`crates/execution/tastemaker.toml`), 4 `sealed-batch-proof` placements (`crates/ryo/tastemaker.toml`) and 4 `[[test]]` blocks (3 in execution, `project_batch_boundary` in core).
+
+Left as they are, with the reason:
+- **The QL keyword arm count** (`winnow/adapter_test.rs`, `include_str!("constants.rs")`). Its replacement, a generated `Keyword::ALL`, would have no production reader. That is dead code under `dead_code = "deny"`, or else a new `cfg(test)` item in a production file.
+- **25 production `Arc::ptr_eq` lines.** 10 are memo lookups over retained immutable allocations in the derived graph cache: the entry keeps the allocation alive, so there is no ABA. 3 check a handle's graph, members or storage against what it was issued over. The rest are program identity (5), plan identity (3), the publication record (1), `GenerationLease::same` (1), and the two remaining `Arc<()>` tokens, the derived owner and the request (2). The 22 test lines assert structural sharing, which is a performance contract. Only the two tokens carry authority.
+- **`Mutex`.** `FrontierCache`, `CompiledPlans`, `RouteProfile`, `RemainingMemo` and the kind-set vocabulary are shared across rayon workers. The two facts workers (`MemoryWorker.words`, `SpillWorker.spill`) lock because `FactsWorker::keep(&self)` is called while `rows(&self)` lends the same worker's columns. A `&mut self` keep needs the worker split into a rows handle and a words sink: a port change across execution and core, not made here.
+- **Test counters on production structs** (`Slot.observed` and `registered_calls`, `RuntimeState.reader_initializations`, `ProgramExecution.producer_lease_probe`, `RelationOwner.identity_checks`, `DerivedOwner.last_scoped_storage`). Each one counts a production event on its path. Moving it out means emitting a tracing event on that path, which the perf ratchet must accept, and rewriting its tests to count through a subscriber. That rewrite needs a test run to prove, and builders do not run tests.
+- **The `fixtures` feature migration (R3).** A gate turns into `cfg(any(test, feature = "fixtures"))` only where a consumer exists in another crate's tests. In the single crate there is no such consumer: under the feature, outside `cfg(test)`, every converted `pub(crate)` item is unused, and `dead_code` is deny. The conversion belongs on the moved paths, at the integrator's merge of B1/B2.
 
 ### Owner decisions pending
 
