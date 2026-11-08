@@ -1,7 +1,7 @@
 //! Real owner handles remain valid/accounted across clear and cannot poison refill.
 use crate::application::file_dag::derived::owner::graphs::types::handles::types::GraphSharing;
 use crate::application::file_dag::derived::owner::*;
-use crate::domain::{
+use ryo_execution_domain::domain::{
     stored_graph::types::{GraphWalk, Orientation},
     table_model::types::Rows,
 };

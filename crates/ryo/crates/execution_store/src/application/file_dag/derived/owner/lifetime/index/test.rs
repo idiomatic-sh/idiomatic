@@ -4,8 +4,8 @@ use fixtures::resources::ResourceFixture;
 use ryo_derived::domain::contract::types::DerivedView;
 use ryo_relations::domain::relations::types::{CellKind, ColumnsView, FactColumn, Relation};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use crate::domain::table_model::types::Rows;
-use crate::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::table_model::types::Rows;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 const KINDS: &[CellKind] = &[CellKind::Number, CellKind::Number];
 fn fixture(columns: &[FactColumn]) -> ResourceFixture {
     let fixture = ResourceFixture::new(

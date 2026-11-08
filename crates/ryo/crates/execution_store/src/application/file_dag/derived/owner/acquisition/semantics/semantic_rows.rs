@@ -1,8 +1,8 @@
 //! Borrowed adapters that present admitted rows and texts to the injected semantic port.
-use crate::domain::operator::contract::{failure::FailureLatch, };
-use crate::domain::table_model::types::RepresentationInput;
-use crate::domain::table_texts::service::{datum, name_text, symbol_text};
-use crate::domain::table_texts::types::{Datum, Texts};
+use ryo_execution_domain::domain::operator::contract::{failure::FailureLatch, };
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::table_texts::service::{datum, name_text, symbol_text};
+use ryo_execution_domain::domain::table_texts::types::{Datum, Texts};
 use ryo_derived::domain::row_cells::types::RowCells;
 use ryo_language::domain::symbols::{
     service::query_intern_derived,
@@ -27,7 +27,7 @@ pub(super) struct AdmittedRows<'a, 'f> {
 impl RowCells for AdmittedRows<'_, '_> {
     fn bulk(&self) -> Option<ryo_derived::domain::row_cells::types::BulkRows<'_>> {
         if self.failure.borrow().failed()
-            == crate::domain::operator::contract::failure::LatchState::Failed
+            == ryo_execution_domain::domain::operator::contract::failure::LatchState::Failed
         {
             return None;
         }
@@ -48,7 +48,7 @@ impl RowCells for AdmittedRows<'_, '_> {
     }
     fn cell(&self, row: RowIndex, column: ColumnIndex) -> Option<Value> {
         if self.failure.borrow().failed()
-            == crate::domain::operator::contract::failure::LatchState::Failed
+            == ryo_execution_domain::domain::operator::contract::failure::LatchState::Failed
         {
             return None;
         }
@@ -62,7 +62,7 @@ impl RowCells for AdmittedRows<'_, '_> {
     }
     fn read_row<'a>(&'a self, row: RowIndex, buffer: &'a mut Vec<Value>) -> Option<&'a [Value]> {
         if self.failure.borrow().failed()
-            == crate::domain::operator::contract::failure::LatchState::Failed
+            == ryo_execution_domain::domain::operator::contract::failure::LatchState::Failed
         {
             return None;
         }
@@ -87,7 +87,7 @@ pub(super) struct CanonicalTexts<'a, 's> {
 impl ryo_derived::domain::row_cells::types::ValueTexts for CanonicalTexts<'_, '_> {
     fn text(&self, value: Value) -> Option<CellText<'_>> {
         if self.failure.borrow().failed()
-            == crate::domain::operator::contract::failure::LatchState::Failed
+            == ryo_execution_domain::domain::operator::contract::failure::LatchState::Failed
         {
             return None;
         }

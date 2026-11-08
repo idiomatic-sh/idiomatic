@@ -1,5 +1,5 @@
 //! Request-only interning. Runtime acquisition compares prepared IDs, never request metadata.
-use crate::domain::{
+use ryo_execution_domain::domain::{
     derived_views::types::{
         contract::value::{
             DerivedContract, DerivedSlots, PreparedViewGroup, PreparedViewUse, kind_of,

@@ -27,7 +27,7 @@ impl AdmittedViewInputs<'_> {
     ) -> Result<(), OperatingError> {
         self.origin.validate(owner, plan)?;
 
-use crate::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
         let admitted_rows = match (&self.sources, inputs) {
             (
                 AcquisitionSources::Rows(_),

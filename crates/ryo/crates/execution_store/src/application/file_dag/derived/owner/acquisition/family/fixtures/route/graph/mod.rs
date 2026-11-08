@@ -1,10 +1,10 @@
 //! The graph entry: adjacency and membership acquired through an admitted graph input.
 use crate::application::file_dag::derived::owner::acquisition::family::fixtures::route::exit::{Exit, released, released_at_exit};
 use crate::application::file_dag::derived::owner::{fixtures::graph::GraphFixture, index::service::LIMIT};
-use crate::domain::{
+use ryo_execution_domain::domain::{
     operating::errors::OperatingError, table_model::types::Rows,
 };
-use crate::domain::derived_views::types::ViewRequest;
+use ryo_execution_domain::domain::derived_views::types::ViewRequest;
 use ryo_derived::domain::request::types::DerivedKind;
 use ryo_relations::domain::relations::types::{
     CellKind, ColumnsView, FactColumn, Relation,

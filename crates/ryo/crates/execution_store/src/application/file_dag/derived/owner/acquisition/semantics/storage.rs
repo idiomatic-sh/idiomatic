@@ -2,9 +2,9 @@
 use crate::application::file_dag::derived::ledger::types::{
     BackingAddress, BackingKey, BackingTag, ByteCount, UnitCount,
 };
-use crate::domain::operating::errors::OperatingError;
-use crate::domain::operator::contract::derived::portable_fault;
-use crate::domain::stored_graph::types::GraphIdentity;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operator::contract::derived::portable_fault;
+use ryo_execution_domain::domain::stored_graph::types::GraphIdentity;
 use crate::outbound::derived::interface::DerivedPort;
 use ryo_derived::domain::contract::types::derived_payload::value::DerivedPayload;
 use ryo_derived::domain::contract::types::DerivedView;

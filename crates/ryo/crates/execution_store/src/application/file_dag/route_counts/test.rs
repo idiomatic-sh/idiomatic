@@ -163,9 +163,9 @@ fn owner_identity_distinguishes_live_population_keys_and_rules_are_named_once() 
 fn owner_routes_count_each_physical_equality_build_once() {
     use crate::application::file_dag::derived::owner::ViewContext;
     use crate::application::file_dag::relations::RelationOwner;
-    use crate::domain::{
+    use ryo_execution_domain::domain::{
         derived_views::types::*, operation_schema::types::InputShape};
-use crate::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
     use ryo_relations::domain::relations::types::{CellKind, ColumnsView, FactColumn};
     use ryo_values::domain::plan_parts::types::ColumnIndex;
     use std::sync::Arc;

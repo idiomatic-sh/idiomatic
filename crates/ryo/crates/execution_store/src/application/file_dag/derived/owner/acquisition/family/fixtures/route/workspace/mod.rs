@@ -2,14 +2,14 @@
 use crate::application::file_dag::derived::owner::acquisition::family::fixtures::route::exit::{Exit, released};
 use crate::application::file_dag::derived::owner::acquisition::family::fixtures::request::{observed, request};
 use crate::application::file_dag::derived::owner::acquisition::family::fixtures::{SmallTree, numbers, small_tree};
-use crate::domain::table_cells::service_test::SMALL_SOURCE;
+use ryo_execution_domain::domain::table_cells::service_test::SMALL_SOURCE;
 use crate::application::file_dag::{
     derived::owner::{ViewContext, acquisition::admission::service::AcquiredView},
     relations::RelationOwner,
     fixtures::program_derived_port,
     workspace::{InputAdmissions, InvocationWorkspace, ViewInputs},
 };
-use crate::domain::{
+use ryo_execution_domain::domain::{
     derived_views::types::contract::value::PreparedViewUse,
     operating::errors::OperatingError,
     operation_schema::types::InputShape,
@@ -17,7 +17,7 @@ use crate::domain::{
     table_model::types::Rows,
     table_texts::types::Texts,
 };
-use crate::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_derived::domain::request::types::DerivedKind;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, FileId, NodeId, Relation, Value};
@@ -91,7 +91,7 @@ fn through_workspace(
             ryo_values::domain::plan_parts::types::InputNumber(1),
         ],
         relations: [None, None],
-        len: crate::domain::derived_views::types::InputsUsed(
+        len: ryo_execution_domain::domain::derived_views::types::InputsUsed(
             u8::try_from(len).map_err(|_| OperatingError::ShapeMismatch)?,
         ),
     };

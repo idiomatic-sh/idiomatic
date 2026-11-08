@@ -1,6 +1,6 @@
 //! Finite request descriptors; no executable Plan or mutable worker pool survives.
 use crate::application::file_dag::derived::constants as activation;
-use crate::domain::{
+use ryo_execution_domain::domain::{
     coverage::types::RuleIndex,
     executable_program::types::{executable_program::value::ExecutableProgram, InputSource},
     operating::errors::OperatingError,

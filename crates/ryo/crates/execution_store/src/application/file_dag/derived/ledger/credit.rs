@@ -3,7 +3,7 @@ use super::types::{
     Backing, BackingKey, ByteCount, Credit, Dormancy, HoldCount, LeaseClass, Ledger, ResourceLease,
     UnitCount,
 };
-use crate::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use std::sync::Arc;
 use rustc_hash::FxHashMap;
 

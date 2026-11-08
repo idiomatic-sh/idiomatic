@@ -3,11 +3,11 @@ use super::service::AcquiredView;
 use crate::application::file_dag::derived::owner::acquisition::population::types::Construction;
 use crate::application::file_dag::{relations::RelationOwner, fixtures::program_derived_port};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::{
+use ryo_execution_domain::domain::{
     derived_views::types::{DerivedInputs, DerivedScratch, MembershipSpace, ViewRequest},
     operating::errors::OperatingError,
     operation_schema::types::InputShape};
-use crate::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
 use ryo_values::domain::{
     plan_parts::types::ColumnIndex,

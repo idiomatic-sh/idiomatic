@@ -2,7 +2,7 @@
 use crate::application::file_dag::derived::ledger::types::{Backing, ResourceLease};
 use crate::application::file_dag::derived::owner::acquisition::semantics::storage::DerivedStorage;
 use crate::application::file_dag::derived::population::types::PopulationId;
-use crate::domain::{
+use ryo_execution_domain::domain::{
     derived_views::types::{contract::value::DerivedContract, DerivedInputs, MembershipSpace},
     operating::errors::OperatingError,
 };
@@ -125,9 +125,9 @@ pub(in crate::application::file_dag) struct AdmittedViewInputs<'a> {
     sources: AcquisitionSources<'a>,
 }
 enum AcquisitionSources<'a> {
-    Rows(Vec<crate::domain::table_model::types::RepresentationInput<'a>>),
+    Rows(Vec<ryo_execution_domain::domain::table_model::types::RepresentationInput<'a>>),
     Dense {
-        rows: Vec<crate::domain::table_model::types::RepresentationInput<'a>>,
+        rows: Vec<ryo_execution_domain::domain::table_model::types::RepresentationInput<'a>>,
         graph: Arc<ryo_derived::domain::adjacency::types::compact_graph::value::CompactGraph>,
     },
 }

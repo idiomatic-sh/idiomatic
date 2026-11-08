@@ -1,6 +1,6 @@
 //! Catalog-wide physical access and owner-only admission, independent of semantic completeness.
 use super::RelationOwner;
-use crate::domain::{
+use ryo_execution_domain::domain::{
     coverage::types::{Lacking, Partial},
     operating::errors::OperatingError,
     table_model::{
@@ -8,7 +8,7 @@ use crate::domain::{
         types::{PublishedRelation, Rows},
     },
 };
-use crate::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_relations::domain::relations::{
     service::{all, kinds, to_bits},
     types::{CellKind, ColumnsView, FileId, Integer, Relation, Value},
@@ -63,7 +63,7 @@ fn compact_publications_share_backing_accounting_and_expire_with_generation() {
     owner
         .admit(
             first.as_ref(),
-            crate::domain::table_model::types::RepresentationInput::Compact(&compact),
+            ryo_execution_domain::domain::table_model::types::RepresentationInput::Compact(&compact),
         )
         .unwrap();
     let first_unique = owner.derived.publication_ownership_bytes().2;
@@ -71,7 +71,7 @@ fn compact_publications_share_backing_accounting_and_expire_with_generation() {
     owner
         .admit(
             second.as_ref(),
-            crate::domain::table_model::types::RepresentationInput::Compact(&compact),
+            ryo_execution_domain::domain::table_model::types::RepresentationInput::Compact(&compact),
         )
         .unwrap();
     assert_eq!(first.same_record(&second), crate::application::file_dag::relations::types::Sameness::Different);
@@ -273,7 +273,7 @@ fn stable_partial_population_reuses_structure_without_proving_semantic_absence()
         relation,
         cause: PartialCause("fixture partial".into()),
         lacking: Lacking::Any,
-        at: crate::domain::coverage::types::PartialPlace::File(FileId(9)),
+        at: ryo_execution_domain::domain::coverage::types::PartialPlace::File(FileId(9)),
     }];
     let owner = RelationOwner::new(
         crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
@@ -300,7 +300,7 @@ fn stable_partial_population_reuses_structure_without_proving_semantic_absence()
         .derived
         .prepare_program_file(
             &prepared,
-            &[crate::domain::coverage::types::RuleIndex(0)],
+            &[ryo_execution_domain::domain::coverage::types::RuleIndex(0)],
             &partials,
         )
         .unwrap();

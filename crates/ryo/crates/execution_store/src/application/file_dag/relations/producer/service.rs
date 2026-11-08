@@ -117,7 +117,7 @@ impl RelationOwner {
     pub(in crate::application::file_dag) fn release_derived_producer(
         &self,
         scope: ProducerScope,
-        node: crate::domain::executable_program::types::RegionId,
+        node: ryo_execution_domain::domain::executable_program::types::RegionId,
     ) {
         if let Some(known) = self
             .producer_populations

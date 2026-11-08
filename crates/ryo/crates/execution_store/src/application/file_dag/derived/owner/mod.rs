@@ -3,7 +3,7 @@ use crate::application::file_dag::derived::constants;
 use crate::application::file_dag::derived::ledger::types::ByteCount;
 use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
 use crate::application::file_dag::derived::population::types::PopulationId;
-use crate::domain::{
+use ryo_execution_domain::domain::{
     derived_views::types::{contract::value::DerivedContract, *},
     operating::errors::OperatingError,
 };
@@ -113,7 +113,7 @@ impl DerivedOwner {
     pub(in crate::application::file_dag) fn prepare_view(
         &self,
         request: &ViewRequest,
-        schemas: &[crate::domain::operation_schema::types::InputShape<'_>],
+        schemas: &[ryo_execution_domain::domain::operation_schema::types::InputShape<'_>],
     ) -> Result<DerivedContract, OperatingError> {
         super::prepare::view(self.semantic.clone(), request, schemas)
     }

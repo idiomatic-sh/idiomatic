@@ -3,9 +3,9 @@ use super::{PartitionedClosure, types::OrderCursor};
 use crate::application::file_dag::{
     derived::owner::acquisition::admission::service::AcquiredView, relations::RelationOwner,
 };
-use crate::domain::{
+use ryo_execution_domain::domain::{
     derived_views::types::contract::value::DerivedContract, operating::errors::OperatingError};
-use crate::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use std::{rc::Rc, sync::Arc};
 
 pub(in crate::application::file_dag) fn from_prepared<'f>(
@@ -15,11 +15,11 @@ pub(in crate::application::file_dag) fn from_prepared<'f>(
     ordered: AcquiredView,
     owner: Rc<RelationOwner>,
 ) -> Result<PartitionedClosure<'f>, OperatingError> {
-    crate::domain::derived_views::service::validate(
+    ryo_execution_domain::domain::derived_views::service::validate(
         ryo_derived::domain::request::types::DerivedKind::PartitionOrder,
         &partition_plan,
     )?;
-    crate::domain::derived_views::service::validate(
+    ryo_execution_domain::domain::derived_views::service::validate(
         ryo_derived::domain::request::types::DerivedKind::ClosureAdjacency,
         &closure_plan,
     )?;
@@ -49,7 +49,7 @@ pub(in crate::application::file_dag) fn from_prepared<'f>(
         cursor: OrderCursor(0),
         key: Vec::new(),
         current: None,
-        scratch: crate::domain::derived_views::types::DerivedScratch::default(),
+        scratch: ryo_execution_domain::domain::derived_views::types::DerivedScratch::default(),
     })
 }
 #[cfg(test)]
@@ -61,9 +61,9 @@ pub(crate) fn prepare<'f>(
     destination: ryo_values::domain::plan_parts::types::ColumnIndex,
     owner: Rc<RelationOwner>,
 ) -> Result<PartitionedClosure<'f>, OperatingError> {
-    use crate::domain::derived_views::types::{DerivedInputs, DerivedScratch, ViewRequest};
+    use ryo_execution_domain::domain::derived_views::types::{DerivedInputs, DerivedScratch, ViewRequest};
     input.validate()?;
-    let schema = [crate::domain::operation_schema::types::InputShape {
+    let schema = [ryo_execution_domain::domain::operation_schema::types::InputShape {
         kinds: input.kinds(),
         tree: None,
     }];

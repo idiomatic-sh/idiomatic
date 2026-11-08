@@ -1,12 +1,12 @@
 //! Adapt already-admitted finite physical data; all semantic builds cross the injected port.
-use crate::domain::derived_views::types::{
+use ryo_execution_domain::domain::derived_views::types::{
     contract::value::DerivedContract, DerivedInputs, DerivedScratch, ViewRequest,
 };
-use crate::domain::operating::errors::OperatingError;
-use crate::domain::operator::contract::{
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operator::contract::{
     derived::portable_fault, failure::FailureLatch, 
 };
-use crate::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use crate::outbound::derived::interface::DerivedPort;
 use std::{cell::RefCell, sync::Arc};
 
@@ -43,10 +43,10 @@ pub(in crate::application::file_dag::derived::owner::acquisition) fn build(
                     return Err(OperatingError::WrongOperation);
                 };
                 let form = match tree.form {
-                    crate::domain::table_cells::types::TreeForm::Elements => {
+                    ryo_execution_domain::domain::table_cells::types::TreeForm::Elements => {
                         ryo_derived::domain::native::types::NativeForm::Elements
                     }
-                    crate::domain::table_cells::types::TreeForm::Edges => {
+                    ryo_execution_domain::domain::table_cells::types::TreeForm::Edges => {
                         ryo_derived::domain::native::types::NativeForm::Edges
                     }
                 };
@@ -100,13 +100,13 @@ pub(in crate::application::file_dag::derived::owner::acquisition) fn build(
                 failure: &failure,
             };
             let space = match space {
-                crate::domain::derived_views::types::MembershipSpace::Values => {
+                ryo_execution_domain::domain::derived_views::types::MembershipSpace::Values => {
                     ryo_derived::domain::membership::types::MarkSpace::Values
                 }
-                crate::domain::derived_views::types::MembershipSpace::Dense(values) => {
+                ryo_execution_domain::domain::derived_views::types::MembershipSpace::Dense(values) => {
                     ryo_derived::domain::membership::types::MarkSpace::Dense(values)
                 }
-                crate::domain::derived_views::types::MembershipSpace::Native(tree) => {
+                ryo_execution_domain::domain::derived_views::types::MembershipSpace::Native(tree) => {
                     ryo_derived::domain::membership::types::MarkSpace::Native {
                         file: tree.file,
                         elements: ryo_derived::domain::membership::types::MarkCount(
@@ -184,8 +184,8 @@ pub(in crate::application::file_dag::derived::owner::acquisition) fn build(
                 return Err(OperatingError::WrongOperation);
             };
             let expected = match source.orientation {
-                crate::domain::stored_graph::types::Orientation::Forward => *endpoints,
-                crate::domain::stored_graph::types::Orientation::Reverse => {
+                ryo_execution_domain::domain::stored_graph::types::Orientation::Forward => *endpoints,
+                ryo_execution_domain::domain::stored_graph::types::Orientation::Reverse => {
                     [endpoints[1], endpoints[0]]
                 }
             };

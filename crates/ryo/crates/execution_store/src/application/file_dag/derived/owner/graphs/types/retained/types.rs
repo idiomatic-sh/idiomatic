@@ -3,7 +3,7 @@ use crate::application::file_dag::derived::ledger::types::Backing;
 use crate::application::file_dag::derived::ledger::types::ResourceLease;
 use crate::application::file_dag::derived::owner::acquisition::semantics::storage::DerivedStorage;
 use crate::application::file_dag::derived::population::types::PopulationId;
-use crate::domain::stored_graph::types::{GraphDomain, Orientation};
+use ryo_execution_domain::domain::stored_graph::types::{GraphDomain, Orientation};
 use ryo_derived::domain::adjacency::types::compact_graph::value::CompactGraph;
 use ryo_derived::domain::vertices::types::VertexId;
 use std::sync::Arc;

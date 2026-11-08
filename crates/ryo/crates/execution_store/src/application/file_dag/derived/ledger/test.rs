@@ -2,7 +2,7 @@ use super::types::{
     Backing, BackingAddress, BackingKey, BackingTag, ByteCount, Credit, LeaseClass, Ledger,
     UnitCount,
 };
-use crate::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use std::{cell::RefCell, rc::Rc, sync::Arc};
 
 fn backing(key: BackingAddress, bytes: ByteCount) -> Backing {

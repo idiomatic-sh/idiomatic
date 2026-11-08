@@ -10,7 +10,7 @@ use super::super::{
     },
 };
 use super::*;
-use crate::domain::stored_graph::types::GraphDomain;
+use ryo_execution_domain::domain::stored_graph::types::GraphDomain;
 use ryo_derived::domain::adjacency::types::compact_graph::value::CompactGraph;
 impl DerivedOwner {
     pub(in crate::application::file_dag::derived::owner) fn retain_graph(

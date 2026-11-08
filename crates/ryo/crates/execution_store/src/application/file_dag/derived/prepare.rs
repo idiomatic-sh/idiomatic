@@ -1,14 +1,14 @@
 //! Standalone application preparation uses the same required declarations as request preparation.
 mod identity;
-use crate::domain::{operating::errors::OperatingError, operation_schema::types::InputShape};
+use ryo_execution_domain::domain::{operating::errors::OperatingError, operation_schema::types::InputShape};
 
 /// All preparation routes delegate semantic metadata to the injected capability.
 pub(in crate::application::file_dag) fn view(
     semantic: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
-    request: &crate::domain::derived_views::types::ViewRequest,
+    request: &ryo_execution_domain::domain::derived_views::types::ViewRequest,
     schemas: &[InputShape<'_>],
-) -> Result<crate::domain::derived_views::types::contract::value::DerivedContract, OperatingError> {
-    use crate::domain::derived_views::types::{contract::value::DerivedContract, ViewRequest};
+) -> Result<ryo_execution_domain::domain::derived_views::types::contract::value::DerivedContract, OperatingError> {
+    use ryo_execution_domain::domain::derived_views::types::{contract::value::DerivedContract, ViewRequest};
     use ryo_derived::domain::request::types::DerivedRequest as SemanticRequest;
     let meaning = match request {
         ViewRequest::Equality { columns } => SemanticRequest::Equality {
@@ -75,7 +75,7 @@ pub(in crate::application::file_dag) fn view(
     let request = request.clone();
     use std::hash::{Hash, Hasher};
     let mut identity = std::collections::hash_map::DefaultHasher::new();
-    let kind = crate::domain::derived_views::types::contract::value::kind_of(&request);
+    let kind = ryo_execution_domain::domain::derived_views::types::contract::value::kind_of(&request);
     kind.hash(&mut identity);
     let schemas = schemas
         .iter()
@@ -84,7 +84,7 @@ pub(in crate::application::file_dag) fn view(
     schemas.hash(&mut identity);
     identity::hash_request(&request, &mut identity);
     Ok(DerivedContract::issue(
-        crate::domain::derived_views::types::IdentityHash(identity.finish()),
+        ryo_execution_domain::domain::derived_views::types::IdentityHash(identity.finish()),
         prepared,
         request,
         schemas,

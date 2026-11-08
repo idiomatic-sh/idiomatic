@@ -9,11 +9,11 @@ use ryo_derived::domain::contract::types::DerivedView;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use {
-    crate::domain::derived_views::types::ViewRequest,
-    crate::domain::operation_schema::types::InputShape,
+    ryo_execution_domain::domain::derived_views::types::ViewRequest,
+    ryo_execution_domain::domain::operation_schema::types::InputShape,
     ryo_values::domain::rows::service::push_row,
 };
-use crate::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 
 fn source() -> Table {
     let mut table = Table {
@@ -110,7 +110,7 @@ fn acquire_pair(
         .admit_view(plan, owner, &[&left, &right])
         .unwrap();
     let symbols = ryo_language::domain::symbols::types::Symbols::default();
-    let texts = crate::domain::table_texts::types::Texts {
+    let texts = ryo_execution_domain::domain::table_texts::types::Texts {
         symbols: &symbols,
         source: ryo_values::domain::files::types::SourceView(&[]),
         paths: &[],

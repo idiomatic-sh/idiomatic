@@ -1,48 +1,48 @@
 //! The application owns each invocation's mutable allocations and release boundary.
 use super::relations::admission::service::BorrowedInput;
-use crate::domain::{
+use ryo_execution_domain::domain::{
     derived_views::types::{InputsUsed, contract::value::PreparedViewUse},
     operating::{errors::OperatingError, types::OperatorContext}};
-use crate::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use std::sync::Arc;
 use self::constants::EXPECT_DEMANDED_INPUT;
 use ryo_values::domain::plan_parts::types::InputNumber;
 
-use crate::domain::operator::contract::types::{AxisWorkspace, DfsWorkspace};
+use ryo_execution_domain::domain::operator::contract::types::{AxisWorkspace, DfsWorkspace};
 
-use crate::domain::table_model::types::Rows;
-use crate::domain::table_reach::types::Walk;
+use ryo_execution_domain::domain::table_model::types::Rows;
+use ryo_execution_domain::domain::table_reach::types::Walk;
 use ryo_relations::domain::relations::types::{Position, Value};
 pub(crate) struct InvocationWorkspace {
-    pub work: crate::domain::operator::contract::types::WorkCounters,
+    pub work: ryo_execution_domain::domain::operator::contract::types::WorkCounters,
     #[cfg(feature = "diagnostic-row-progress")]
     pub progress_origin: super::route_counts::types::CapturedOrigin,
-    derived_scratch: std::cell::RefCell<crate::domain::derived_views::types::DerivedScratch>,
+    derived_scratch: std::cell::RefCell<ryo_execution_domain::domain::derived_views::types::DerivedScratch>,
     relation_owner: std::rc::Rc<super::relations::RelationOwner>,
     pub publications:
         Vec<Option<crate::application::file_dag::relations::handle::service::PublishedInput>>,
     #[cfg(test)]
-    pub observation: crate::domain::operating::fixtures::ExecutionObservation,
-    pub downstream_scratch: crate::domain::table_scratch::types::OperatorScratch,
-    pub downstream_memo: Vec<crate::domain::operating::types::Memo>,
-    pub predicates: crate::domain::table_scratch::types::LazyScratch<
-        crate::domain::table_scratch::types::SelectScratch,
+    pub observation: ryo_execution_domain::domain::operating::fixtures::ExecutionObservation,
+    pub downstream_scratch: ryo_execution_domain::domain::table_scratch::types::OperatorScratch,
+    pub downstream_memo: Vec<ryo_execution_domain::domain::operating::types::Memo>,
+    pub predicates: ryo_execution_domain::domain::table_scratch::types::LazyScratch<
+        ryo_execution_domain::domain::table_scratch::types::SelectScratch,
     >,
-    pub predicate_memo: Vec<crate::domain::operating::types::Memo>,
-    pub predicate_names: Option<crate::domain::operating::types::NameCount>,
+    pub predicate_memo: Vec<ryo_execution_domain::domain::operating::types::Memo>,
+    pub predicate_names: Option<ryo_execution_domain::domain::operating::types::NameCount>,
     pub literal_regex: Option<ryo_matching::inbound::use_cases::matching::compiled::CompiledRegex>,
-    pub primitive: crate::domain::operator::contract::types::PrimitiveWorkspace,
+    pub primitive: ryo_execution_domain::domain::operator::contract::types::PrimitiveWorkspace,
 }
 
 impl InvocationWorkspace {
     pub(in crate::application::file_dag) fn for_contract(
         owner: std::rc::Rc<super::relations::RelationOwner>,
-        contract: &crate::domain::operator::contract::types::OperatorContract,
+        contract: &ryo_execution_domain::domain::operator::contract::types::OperatorContract,
     ) -> Self {
         let mut workspace = Self::new(owner);
-        crate::domain::operator::contract::workspace::begin(
+        ryo_execution_domain::domain::operator::contract::workspace::begin(
             &contract.workspace,
-            crate::domain::operator::contract::types::WorkspaceLifetime::Invocation,
+            ryo_execution_domain::domain::operator::contract::types::WorkspaceLifetime::Invocation,
             &mut workspace.primitive,
         );
         workspace
@@ -68,7 +68,7 @@ impl InvocationWorkspace {
     }
 
     #[cfg(test)]
-    pub(crate) fn measured(&self) -> crate::domain::operating::fixtures::ExecutionObservation {
+    pub(crate) fn measured(&self) -> ryo_execution_domain::domain::operating::fixtures::ExecutionObservation {
         let mut observed = self.observation;
         observed.regexes = self
             .predicates
@@ -132,7 +132,7 @@ impl InvocationWorkspace {
 /// Only the workspace can bind an original graph row view to its admission.
 /// The graph path never receives independently replaceable raw rows and proof.
 pub(super) struct GraphInput<'a> {
-    rows: &'a crate::domain::table_model::types::Rows<'a>,
+    rows: &'a ryo_execution_domain::domain::table_model::types::Rows<'a>,
     proof: BorrowedInput<'a>,
     relation: Option<ryo_relations::domain::relations::types::Relation>,
     owner: &'a super::relations::RelationOwner,
@@ -140,7 +140,7 @@ pub(super) struct GraphInput<'a> {
 impl<'a> GraphInput<'a> {
     pub(super) fn admission(
         &self,
-        plan: &Arc<crate::domain::derived_views::types::contract::value::DerivedContract>,
+        plan: &Arc<ryo_execution_domain::domain::derived_views::types::contract::value::DerivedContract>,
     ) -> Result<
         crate::application::file_dag::derived::owner::acquisition::admission::service::AdmittedViewInputs<'a>,
         OperatingError,
@@ -149,7 +149,7 @@ impl<'a> GraphInput<'a> {
             .derived()
             .admit_view(plan, self.owner, &[&self.proof])
     }
-    pub(super) fn rows(&self) -> &crate::domain::table_model::types::Rows<'a> {
+    pub(super) fn rows(&self) -> &ryo_execution_domain::domain::table_model::types::Rows<'a> {
         self.rows
     }
     pub(super) fn owner(&self) -> &super::derived::owner::DerivedOwner {
@@ -171,12 +171,12 @@ impl InvocationWorkspace {
     pub(super) fn graph_input<'a>(
         &'a self,
         place: InputNumber,
-        rows: &'a crate::domain::table_model::types::Rows<'a>,
+        rows: &'a ryo_execution_domain::domain::table_model::types::Rows<'a>,
     ) -> Result<Option<GraphInput<'a>>, OperatingError> {
         let proof = self.admit(place, RepresentationInput::from(rows))?;
         match proof.physical_shape() {
-            crate::domain::table_model::collections::representations::types::PhysicalShape::ReadablePhysicalFallback => Ok(None),
-            crate::domain::table_model::collections::representations::types::PhysicalShape::Complete => {
+            ryo_execution_domain::domain::table_model::collections::representations::types::PhysicalShape::ReadablePhysicalFallback => Ok(None),
+            ryo_execution_domain::domain::table_model::collections::representations::types::PhysicalShape::Complete => {
                 let relation = proof.graph_relation(self.owner())?;
                 Ok(Some(GraphInput { rows, proof, relation, owner: self.owner() }))
             },
@@ -189,7 +189,7 @@ pub(super) enum ViewInputs<'a, 's> {
     Rows,
     MembershipValues,
     MembershipNative,
-    Text(&'a crate::domain::table_texts::types::Texts<'a>),
+    Text(&'a ryo_execution_domain::domain::table_texts::types::Texts<'a>),
     Dfs {
         symbols: &'a mut ryo_language::domain::symbols::types::QuerySymbols<'s>,
         source: ryo_values::domain::files::types::SourceView<'a>,
@@ -275,7 +275,7 @@ impl<'a, 'f> InputAdmissions<'a, 'f> {
         owner.derived().try_acquire_rows(
             &use_.plan,
             &admitted,
-            crate::domain::derived_views::types::DerivedInputs::Rows(&[left.rows(), right.rows()]),
+            ryo_execution_domain::domain::derived_views::types::DerivedInputs::Rows(&[left.rows(), right.rows()]),
             &mut self.workspace.derived_scratch.borrow_mut(),
         )
     }
