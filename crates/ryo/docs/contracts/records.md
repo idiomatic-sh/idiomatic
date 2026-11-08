@@ -1,6 +1,6 @@
 # Integration records
 
-The integration records of checkpoints 319 to 325 and the branch records they merged, newest checkpoint last; the current checkpoint's record is in [the matrix](README.md).
+The integration records of checkpoints 319 to 325 and the branch records they merged, newest checkpoint last; the current checkpoint's record is in [the matrix](README.md), and checkpoint 326 onward in [records-326.md](records-326.md).
 
 ## Checkpoint 319 integration record
 
