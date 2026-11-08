@@ -261,7 +261,18 @@ fn an_absent_input_is_a_typed_reason_not_a_pass() {
         workload::NotAvailable::CorpusAbsent(absent.to_path_buf())
     );
     let pinned = tempfile::tempdir().expect("a directory");
-    std::fs::write(pinned.path().join("cold-request.json"), "{}").expect("a request");
+    std::fs::write(pinned.path().join("request.json"), "{}").expect("a request");
+    let receipt = pinned.path().join("staged.json");
+    assert_eq!(
+        workload::inputs_at(pinned.path(), None).expect_err("the request is not staged"),
+        workload::NotAvailable::RequestNotStaged(receipt.clone())
+    );
+    std::fs::write(&receipt, r#"{"staged_digest": ""}"#).expect("a receipt with no digest");
+    assert_eq!(
+        workload::inputs_at(pinned.path(), None).expect_err("an empty digest is not staged"),
+        workload::NotAvailable::RequestNotStaged(receipt.clone())
+    );
+    std::fs::write(&receipt, r#"{"staged_digest": "04f6c9d8"}"#).expect("a staged receipt");
     assert_eq!(
         workload::inputs_at(pinned.path(), None).expect_err("no worker is named"),
         workload::NotAvailable::WorkerNotNamed
