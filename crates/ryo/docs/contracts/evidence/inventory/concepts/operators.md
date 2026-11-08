@@ -8,9 +8,9 @@ One row per concept directory (a directory holding service.rs, types.rs, interfa
 | domain | append | 22 | 1 | service |
 | domain | axis | 134 | 2 | service, types |
 | domain | capture | 173 | 3 | service, types |
-| domain | closure | 114 | 2 | service, types |
+| domain | closure | 118 | 2 | service, types |
 | domain | contract | 286 | 2 | types |
-| domain | cycles | 210 | 2 | service, types |
+| domain | cycles | 216 | 2 | service, types |
 | domain | equality_join | 430 | 3 | service, types |
 | domain | evaluation | 427 | 2 | service, types |
 | domain | fits_rendered | 188 | 2 | service, types |

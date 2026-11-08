@@ -9,7 +9,7 @@ import json, sys, collections as C, os
 
 OUT = sys.argv[1]
 MARKERS = {"service", "types", "interface", "adapter", "use_case"}
-LIBS = {"ryo_" + c: c for c in "benchmark benchmark_contracts core derived execution language matching operators query_language relations values".split()}
+LIBS = {"ryo_" + c: c for c in "benchmark benchmark_contracts core derived execution execution_domain execution_runtime execution_store language matching operators query_language relations values".split()}
 
 
 def load(name):

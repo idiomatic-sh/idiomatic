@@ -65,7 +65,7 @@ One row per concept directory (a directory holding service.rs, types.rs, interfa
 | outbound | lint_store | 214 | 8 | interface, types |
 | outbound | lint_store/adapters/discard | 79 | 2 | adapter, types |
 | outbound | lint_store/adapters/memory | 160 | 3 | adapter, types |
-| outbound | lint_store/adapters/postcard | 3423 | 20 | adapter, types |
+| outbound | lint_store/adapters/postcard | 3449 | 20 | adapter, types |
 | outbound | memory | 67 | 5 | interface |
 | outbound | memory/adapters/sysinfo | 58 | 1 | adapter |
 | outbound | row_sink | 117 | 6 | interface, types |

@@ -93,16 +93,16 @@ def registry(title, source, kinds, crates, layers=None, exact=False):
 
 
 op_kinds = grep_variants("values/src/domain/query_operators/types.rs", r"operation_kinds! \{", r"\n\}")
-registry("Operator kinds (OperationKind, grep: macro list)", "values/query_operators", op_kinds, {"operators", "execution", "execution_domain", "execution_store"}, {"domain", "application"})
+registry("Operator kinds (OperationKind, grep: macro list)", "values/query_operators", op_kinds, {"operators", "execution", "execution_domain", "execution_runtime", "execution_store"}, {"domain", "application"})
 dk = grep_variants("derived/src/domain/request/types.rs", r"kinds!\(", r"\);")
-registry("Derived kinds (DerivedKind::ALL, grep: macro list)", "derived/contract", dk, {"derived", "execution", "execution_domain", "execution_store"})
+registry("Derived kinds (DerivedKind::ALL, grep: macro list)", "derived/contract", dk, {"derived", "execution", "execution_domain", "execution_runtime", "execution_store"})
 members = sorted({f["dir"].split("/")[3] for f in files if f["crate"] == "relations" and f["dir"].startswith("relations/collections/relations/") and len(f["dir"].split("/")) > 3})
-registry("Relation members (relations catalog, RyoQL: member directories)", "relations/collections/relations", [m.title().replace("_", "") for m in members], {"language", "execution", "execution_domain", "execution_store", "core"}, None)
+registry("Relation members (relations catalog, RyoQL: member directories)", "relations/collections/relations", [m.title().replace("_", "") for m in members], {"language", "execution", "execution_domain", "execution_runtime", "execution_store", "core"}, None)
 walk = []
 for en, path in (("WalkRoute", "execution_domain/src/domain/shared_walk/types/walk_route/value.rs"), ("WalkBarrier", "execution_domain/src/domain/shared_walk/types/walk_route/value.rs"),
                  ("Route", "execution_domain/src/domain/executable_program/types.rs"), ("BuildRoute", "execution_store/src/application/file_dag/route_counts/types.rs")):
     walk += [v for v in enum_variants("crates/" + path.split("/", 1)[0] + "/" + path.split("/", 1)[1], en)]
-registry("Walk and build routes (WalkRoute, WalkBarrier, Route, BuildRoute; RyoQL enum members)", "execution", walk, {"execution", "execution_domain", "execution_store"})
+registry("Walk and build routes (WalkRoute, WalkBarrier, Route, BuildRoute; RyoQL enum members)", "execution", walk, {"execution", "execution_domain", "execution_runtime", "execution_store"})
 
 lines = ["## Implementations per kind", "",
          "Kinds come from RyoQL rows; the two macro-declared lists are read by grep. An implementation is a concept directory declaring a free function whose name carries the kind's name (a name match, not a call graph). A kind is behind a port when its implementing files hold `impl <Trait> for` for a workspace trait with two or more impls.", ""]
@@ -125,7 +125,7 @@ for title, source, kinds, crates, layers, exact in REG:
 roles = ("decode", "finish", "render", "fits", "gate", "escape", "carry")
 rows = []
 for f in fns:
-    if f["crate"] in ("execution", "execution_domain", "execution_store", "query_language", "core") and any(f["name"].startswith(r) or f["name"].startswith("call_" + r) for r in roles):
+    if f["crate"] in ("execution", "execution_domain", "execution_runtime", "execution_store", "query_language", "core") and any(f["name"].startswith(r) or f["name"].startswith("call_" + r) for r in roles):
         rows.append((f["name"], concept(f["crate"], f["layer"], f["dir"]), f["file"].split("/")[-1]))
 lines += ["### Frontier decoders, finishers, renderers and text gates (functions by role word)", "",
           "Free functions whose name starts with decode, finish, render, fits, gate, escape or carry, in execution, query_language and core. They are listed by name; whether each is behind a port is not decided by a name match.", "",

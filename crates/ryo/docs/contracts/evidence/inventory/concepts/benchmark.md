@@ -73,7 +73,7 @@ One row per concept directory (a directory holding service.rs, types.rs, interfa
 | outbound | execution/adapters/process | 155 | 2 | adapter |
 | outbound | execution/adapters/timed | 246 | 4 | adapter |
 | outbound | inventory | 349 | 5 | interface, types |
-| outbound | inventory/adapters/local | 1397 | 13 | adapter, types |
+| outbound | inventory/adapters/local | 1401 | 13 | adapter, types |
 | outbound | linter | 114 | 5 | interface, types |
 | outbound | linter/adapters/ryo | 973 | 9 | adapter, types |
 | outbound | receipts | 100 | 6 | interface, types |
