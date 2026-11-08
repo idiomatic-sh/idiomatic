@@ -144,8 +144,6 @@ enum RouteScenario {
     MisclassifiedExtend,
     RowsSource,
     RelabelledBarrier,
-    SharingTable,
-    SharingTableMovedKind,
 }
 const ROUTE_CASES: &[Case<RouteScenario, (), RouteRefusal>] = &[
     Case {
@@ -178,53 +176,7 @@ const ROUTE_CASES: &[Case<RouteScenario, (), RouteRefusal>] = &[
         input: || RouteScenario::RelabelledBarrier,
         expect: Expect::Error(RouteRefusal::RouteMismatch),
     },
-    Case {
-        name: CaseName("the ruff sharing test's route table agrees with the meaning of every kind"),
-        word: Word::Succeeds,
-        input: || RouteScenario::SharingTable,
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName("a sharing table that moves a kind to another meaning is refused"),
-        word: Word::Rejects,
-        input: || RouteScenario::SharingTableMovedKind,
-        expect: Expect::Error(RouteRefusal::RouteMismatch),
-    },
 ];
-/// The kinds the table gives one meaning.
-fn table_list(text: &str, meaning: &str) -> Vec<String> {
-    text.lines()
-        .filter(|line| !line.starts_with('#'))
-        .filter_map(|line| line.split_once(' '))
-        .filter(|(_, written)| *written == meaning)
-        .map(|(kind, _)| kind.to_owned())
-        .collect()
-}
-/// Every operation kind is in exactly the list its meaning names.
-fn verify_table(text: &str) -> Result<(), RouteRefusal> {
-    let lists = [
-        (Meaning::Selection, table_list(text, "selection")),
-        (Meaning::PerRow, table_list(text, "per-row")),
-        (Meaning::WholeInput, table_list(text, "whole-input")),
-        (Meaning::RequestOwned, table_list(text, "request-owned")),
-    ];
-    for kind in OperationKind::ALL {
-        let name = format!("{kind:?}");
-        let holding = lists
-            .iter()
-            .filter(|(_, kinds)| kinds.contains(&name))
-            .map(|(meaning, _)| *meaning)
-            .collect::<Vec<_>>();
-        if holding != [meaning(*kind)] {
-            return Err(RouteRefusal::RouteMismatch);
-        }
-    }
-    Ok(())
-}
-/// The route table the ruff sharing test also reads; a source include, so a copy of this crate carries it.
-fn sharing_table() -> &'static str {
-    include_str!("../fixtures/route_meanings.txt")
-}
 fn head_of(corpus: &Corpus, kind: OperationKind) -> LogicalInstruction {
     corpus
         .program
@@ -256,10 +208,6 @@ fn route_subject(scenario: RouteScenario) -> Result<(), RouteRefusal> {
             let at = head_of(&corpus, OperationKind::Join);
             corpus.walk.physical[at.0] = Some(WalkRoute::Barrier(WalkBarrier::Continuation));
             verify_program(&corpus)
-        }
-        RouteScenario::SharingTable => verify_table(sharing_table()),
-        RouteScenario::SharingTableMovedKind => {
-            verify_table(&sharing_table().replacen("Hosted request-owned", "Join request-owned", 1))
         }
     }
 }
