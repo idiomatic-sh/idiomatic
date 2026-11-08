@@ -310,23 +310,22 @@
   "validation": 331,
   "raw_identity": "/tmp/ryo-contract-validation331-20261108",
   "tm_whole_tree": {
-    "command": "tm --root crates/ryo check --format json on 340808449f (the gate tm 0.1.0; no --fix; git status unchanged); tm_whole_tree.json and tm_whole_tree.err in the raw directory",
-    "total": 36,
+    "command": "tm --root crates/ryo check --format json (the gate tm 0.1.0; no --fix; git status unchanged), run on 340808449f (36 findings, tm_whole_tree.json in the raw directory) and again after the evidence-only commit that replaced the bead ids of evidence/checkpoint/tm-steward.json with open-item titles (18 findings)",
+    "total": 18,
     "suppressed": 6,
     "at_checkpoint_318": 3676,
     "at_checkpoint_330": 18,
     "status": "measured whole-tree state at checkpoint 331 on the validated source; not a baseline and not a waiver",
-    "per_crate": {"crates/execution_domain": 18, "docs/contracts": 18},
+    "per_crate": {"crates/execution_domain": 18},
     "module_cycles_findings": 0,
     "no_domain_concept_cycles_findings": 18,
-    "no_tracker_text_shipped_findings": 18,
     "tm_validate": "crates/ryo: 241 versions hold, 0 do not; repository root: 224 hold, 0 do not",
     "unknown_findings": 0,
     "owned": {
-      "no-domain-concept-cycles (execution_domain) 18": "the domain concept cycle row: a 15-concept model cycle and a 3-concept program cycle",
-      "no-tracker-text-shipped (docs/contracts/evidence/checkpoint/tm-steward.json) 18": "the 330 TM steward evidence names beads by id; the push hook requires the file; the spec excludes no review evidence (open, named in the 331 record)"
+      "no-domain-concept-cycles (execution_domain) 18": "the domain concept cycle row: a 15-concept model cycle and a 3-concept program cycle"
     },
-    "new_at_330_fixed": "the 13 findings new at 330 (query_language README sections, UnknownRuleIndex test, file_owner_released, README:45/:107) are 0 on this source"
+    "new_at_330_fixed": "the 13 findings new at 330 (query_language README sections, UnknownRuleIndex test, file_owner_released, README:45/:107) are 0 on this source",
+    "tracker_ids_in_evidence": "18 no-tracker-text-shipped findings at 340808449f, all in evidence/checkpoint/tm-steward.json; cleared by the owner decision that evidence JSON carries no tracker ids (each bead id is now an open-item title)"
   },
   "tm_targets": {
     "tm_cli_source": {

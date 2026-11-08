@@ -27,7 +27,7 @@
     {"class": "rustfmt internal error / hunk (A9, gate)", "decision": "a", "mechanism": "rustfmt already gates; fix completion/service.rs:106", "proof_count": null},
     {"class": "cargo-machete self-ignore (gate)", "decision": "a", "mechanism": "cargo-machete already gates; fix crates/derived/Cargo.toml:40", "proof_count": null},
     {"class": "13 unnamed TM findings at 1086 (README sections, UnknownRuleIndex test, file_owner_released, /tmp paths)", "decision": "d", "mechanism": "already enforced; rules fired in this gate", "proof_count": 13},
-    {"class": "project-batch-owner inert; cross-crate source-dependency blind (ryo-00qd)", "decision": "a", "mechanism": "branch claude/w12-repairs-xiv (evaluate crate-private, rule deleted, source-dependency fix, shared-walk-owner 0.2.0)", "proof_count": null},
+    {"class": "project-batch-owner inert; cross-crate source-dependency blind (open item: review repairs XIV)", "decision": "a", "mechanism": "branch claude/w12-repairs-xiv (evaluate crate-private, rule deleted, source-dependency fix, shared-walk-owner 0.2.0)", "proof_count": null},
     {"class": "placeholder placement description", "decision": "d", "mechanism": "removed with the placement on repairs-xiv; one-off", "proof_count": null},
     {"class": "fixtures-only-in-tests blind to gated modules/impls (S32)", "decision": "b", "mechanism": "fixtures-only-in-tests@0.4.0 on claude/w12-leak-repairs-a", "proof_count": 1},
     {"class": "cli->sdk edge unenforced (L29)", "decision": "b", "mechanism": "layer-order@0.2.0 on claude/w12-leak-repairs-a", "proof_count": 1},
@@ -37,20 +37,20 @@
     {"class": "compile_fail doctests without error code (sweep 2, review-324)", "decision": "d", "mechanism": "NEW FINDING: stable 1.97.1 rustdoc does not check compile_fail error codes (nightly only), so a code requirement would be a string marker; use the existing compile-fail template + compiler-ui rule (trybuild stderr) or nightly doctests where the exact error is the contract; f3f68c4df1's codes are unverified by test-doc", "proof_count": null},
     {"class": "core domain takes another crate's inbound use-case trait (MetadataUseCase, 6 services)", "decision": "b", "mechanism": "deferred (gate red): idiomatic-rust@0.1.12 directions-domain forbids *::inbound::use_cases::*::interface, matching its own description; lands with core's fix", "proof_count": null},
     {"class": "fixtures feature in published API; sdk_api.py without all features (sweep 6)", "decision": "a", "mechanism": "CI script --all-features, not TM", "proof_count": null},
-    {"class": "product-corpus proofs in cli/tests/replay (sweep 1)", "decision": "d", "mechanism": "in flight ryo-l2uc", "proof_count": null},
+    {"class": "product-corpus proofs in cli/tests/replay (sweep 1)", "decision": "d", "mechanism": "in flight open item: engine assertions out of the Ruff benchmark", "proof_count": null},
     {"class": "perf evidence sources wrong (E1-E5); hook push/merge gaps", "decision": "a", "mechanism": "branch claude/w12-perf-gate (hook)", "proof_count": 1},
     {"class": "unit-test dev-deps and use alias in source-dependency (331b #3)", "decision": "a", "mechanism": "repairs-xiv 73d5a6bb55", "proof_count": null},
     {"class": "wording/advisories (N999 proves, p6 method.md, zo3j map type, agent names)", "decision": "d", "mechanism": "docs/advisories on their branches", "proof_count": null},
     {"class": "execution_domain ring", "decision": "d", "mechanism": "already enforced, standing", "proof_count": 18}
   ],
   "p1_bugs": [
-    {"id": "ryo-b6pw", "decision": "close", "reason": "fixed: OWN_UNRAN/ONLY_UNRAN verdict queries (scenario_judging/constants.rs:83-94), evaluated only where a file is reached (applying/service.rs:89-95); test cli/tests/replay/validate.rs:20; residual: found_rule bare-suffix match is cosmetic"},
-    {"id": "ryo-o9u2", "decision": "close", "reason": "fixed: unreached() emits <id>#coverage at error (applying/service.rs:121-137); test cli/tests/replay/check.rs:56"},
-    {"id": "ryo-n0of", "decision": "close", "reason": "fixed: --fix rewrites only a LockVersion lock, other errors propagate (check/use_case.rs:208-233); validate .ok() carries reasoned ignores; test cli/tests/replay/check.rs:94"},
-    {"id": "ryo-9jqi", "decision": "fix", "reason": "code fixed (closing/service.rs:91-96 uses owns like nest()), but no test covers a rules-only instance nested in a closed scope; add that regression test"},
-    {"id": "ryo-8m9v", "decision": "close", "reason": "fixed: strays() + ValidateError::Stray (packages/service.rs:335, validate/use_case.rs:2245); test cli/tests/replay/validate.rs:47"},
-    {"id": "ryo-i6y4", "decision": "close", "reason": "fixed per owner: create needs --set extension, refuses without (create/errors.rs:28); no language default in init/scaffold/add/create"},
-    {"id": "ryo-wx8b", "decision": "close", "reason": "fixed: tracing::warn! in check/validate, warnings layer in every timings mode (cli/src/output.rs:209-250, timings.rs, phases.rs:218); test cli/src/output_test.rs:115"}
+    {"id": "open item: a scenario that reads nothing fails", "decision": "close", "reason": "fixed: OWN_UNRAN/ONLY_UNRAN verdict queries (scenario_judging/constants.rs:83-94), evaluated only where a file is reached (applying/service.rs:89-95); test cli/tests/replay/validate.rs:20; residual: found_rule bare-suffix match is cosmetic"},
+    {"id": "open item: an include that reaches no file reports coverage", "decision": "close", "reason": "fixed: unreached() emits <id>#coverage at error (applying/service.rs:121-137); test cli/tests/replay/check.rs:56"},
+    {"id": "open item: a corrupt tastemaker.lock propagates its error", "decision": "close", "reason": "fixed: --fix rewrites only a LockVersion lock, other errors propagate (check/use_case.rs:208-233); validate .ok() carries reasoned ignores; test cli/tests/replay/check.rs:94"},
+    {"id": "open item: closed() and rules-only nested instances", "decision": "fix", "reason": "code fixed (closing/service.rs:91-96 uses owns like nest()), but no test covers a rules-only instance nested in a closed scope; add that regression test"},
+    {"id": "open item: tm validate refuses a stray package file", "decision": "close", "reason": "fixed: strays() + ValidateError::Stray (packages/service.rs:335, validate/use_case.rs:2245); test cli/tests/replay/validate.rs:47"},
+    {"id": "open item: tm create writes scenarios in the workspace language", "decision": "close", "reason": "fixed per owner: create needs --set extension, refuses without (create/errors.rs:28); no language default in init/scaffold/add/create"},
+    {"id": "open item: a failed cache save warns on stderr", "decision": "close", "reason": "fixed: tracing::warn! in check/validate, warnings layer in every timings mode (cli/src/output.rs:209-250, timings.rs, phases.rs:218); test cli/src/output_test.rs:115"}
   ],
   "asset_counts": {
     "before": {"rules": 27, "specs": 11, "templates": 27, "placements": 185},
