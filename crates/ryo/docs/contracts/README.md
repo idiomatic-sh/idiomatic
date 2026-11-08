@@ -305,7 +305,7 @@ Decisions recorded with the row:
 
 ### Landing 1: ownership carries authority
 
-Row ryo-2ln5 (with ryo-s1s2's class (a)), branch `claude/l1-ownership` from checkpoint 323 `7d93840b19`. Counts are `git grep -c` (matching lines) over `crates/execution/src` at each source; "production files" excludes `*_test.rs`, `test.rs`, `tests/`, `fixtures` and `probe` paths. Each commit is one concept, checked with the package-scoped check of `idiomatic-sh-ryo-execution` (all features, tests; 0 errors, no warning added) and `tm` over its files (0 findings). Nothing was run.
+The ownership row (with the enforcement row's class (a) deletions), branch `claude/l1-ownership` from checkpoint 323 `7d93840b19`. Counts are `git grep -c` (matching lines) over `crates/execution/src` at each source; "production files" excludes `*_test.rs`, `test.rs`, `tests/`, `fixtures` and `probe` paths. Each commit is one concept, checked with the package-scoped check of `idiomatic-sh-ryo-execution` (all features, tests; 0 errors, no warning added) and `tm` over its files (0 findings). Nothing was run.
 
 | Measure | 323 | Landing 1 |
 |---|---:|---:|
