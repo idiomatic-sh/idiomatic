@@ -1,0 +1,202 @@
+{
+ "bead": "ryo-682p",
+ "question": "all-413 Phase 1 parity: ryo run-ryo vs Ruff on full Django, finding by finding",
+ "source": "1086daee4b3a4435e60438d2df6ec7a7128dd883",
+ "staged_source_commit": "4df6abaca2fb9b8e24bf35261477ceae87bb60ab",
+ "staged_source_note": "rules/, fragments/ and benchmark.toml are byte-identical between 4df6abaca2 and 1086daee4b (git diff --stat empty)",
+ "worker": {
+  "path": "/tmp/ryo-django330/worker-4df6abaca2",
+  "sha256": "f1ba077013da3df5da94439a2468ff2379f7583ec87bc566a5549b365e6a59e5",
+  "build_json_sha256": "fae47f500d876dc63fb949f92ecf49a0892f2c64c652e5adc7922c634db2c054"
+ },
+ "staged_digest": "0132c274d68dc22252b09d0551a36617652fd7ffecaff02a246e5bf0448027df",
+ "request_sha256": "314aa80c2475fd30d8330e015a4594ff4d12e07f73f84dd576b1558bbf6591e8",
+ "corpus": "/tmp/ryo-event-ready-django213-20261105/corpus",
+ "files": 2875,
+ "selected_rules": 413,
+ "target": "python-target=3.10 / py310",
+ "ryo_run": {
+  "reused": "/tmp/ryo-django330/default/out",
+  "sha256": "53b163f4bda83afaac6c5b7ff7c11bba65532c1de6f664bc75fabc52cbb547b4",
+  "rc": 0,
+  "command": "worker-4df6abaca2 run-ryo --request-file /tmp/ryo-django330/stage/request.json python-target=3.10 (run.sh, under the measure and cargo-build locks)"
+ },
+ "ruff_run": {
+  "version": "ruff 0.16.5",
+  "path": "/home/vscode/.local/bin/ruff",
+  "sha256_output": "7e7ebe9bb99f1187bcfcdf66958f45f0132e1eb4a2caa3724e79504a22e7e76d",
+  "command": "ruff check --isolated --no-cache --output-format json --select <request selected_rules> --target-version py310 <request files>, cwd corpus, one invocation, under the measure and cargo-build locks",
+  "exit": "1 (findings present; xargs reported 123)",
+  "stderr": "3 warnings: invalid # noqa directive at tests/model_forms/models.py:167, tests/timezones/urls.py:3, tests/utils_tests/test_module_loading.py:43"
+ },
+ "comparison_path": "verify_profiles.py has no whole-project mode: its reference comparison is per-case (profile_worker.verify_reference_profile, multiset of rule/file/start/end bytes) and --parity-check compares monolithic against sharded ryo. This run reuses its normaliser authoring.case_records.ruff_location_to_byte and asserts agreement on every Ruff finding.",
+ "match_key": "(file, rule, line, column), multiset",
+ "normalisation": "ryo reports UTF-8 byte offsets; converted to 1-based line and 1-based Unicode-character column (lines split on \\r\\n|\\r|\\n, as ruff_location_to_byte does). Ruff row/column used as given (both 1-based). Ruff filenames made relative to the corpus root. End positions compared on matched pairs: 0 differ.",
+ "outside_selection": {
+  "ruff": {
+   "invalid-syntax": 2
+  },
+  "ryo": {
+   "invalid-syntax": 2
+  },
+  "note": "both report the same 2 invalid-syntax findings at identical positions (with_generic_model/models.py 12:25, tagged/tests_syntax_error.py 11:2); excluded from the per-rule table"
+ },
+ "ryo_skipped": {
+  "rows": 395,
+  "reasons": {
+   "syntax-rejected": 395
+  },
+  "files": [
+   "tests/test_runner_apps/tagged/tests_syntax_error.py"
+  ]
+ },
+ "report_totals": {
+  "ryo": 8804,
+  "ruff": 8663
+ },
+ "totals": {
+  "ryo": 8802,
+  "ruff": 8661,
+  "matched": 8656,
+  "missing": 5,
+  "extra": 146,
+  "end_differs": 0
+ },
+ "classes": {
+  "identical": 401,
+  "ryo-extra": 9,
+  "both": 1,
+  "ryo-missing": 2
+ },
+ "rules_by_class": {
+  "ryo-missing": [
+   "RUF100",
+   "UP032"
+  ],
+  "ryo-extra": [
+   "B020",
+   "F811",
+   "F822",
+   "FURB122",
+   "ISC004",
+   "PLR1704",
+   "PLW0127",
+   "RUF059",
+   "UP028"
+  ],
+  "both": [
+   "I001"
+  ]
+ },
+ "differences": [
+  {
+   "rule": "RUF059",
+   "class": "ryo-extra",
+   "ryo": 328,
+   "ruff": 244,
+   "missing": 0,
+   "extra": 84,
+   "suspected_cause": "ryo flags each unused unpacked binding; Ruff does not when the same name is rebound and read later in the scope (admin/checks.py field, sql/compiler.py alias)."
+  },
+  {
+   "rule": "B020",
+   "class": "ryo-extra",
+   "ryo": 36,
+   "ruff": 6,
+   "missing": 0,
+   "extra": 30,
+   "suspected_cause": "ryo matches the loop target against attribute names in the iterable (for many_to_many in self.opts.many_to_many; for secret in [self.secret, ...]); Ruff matches only bare Name references."
+  },
+  {
+   "rule": "PLW0127",
+   "class": "ryo-extra",
+   "ryo": 12,
+   "ruff": 2,
+   "missing": 0,
+   "extra": 10,
+   "suspected_cause": "ryo reports tuple swaps (model, dependency = dependency, model; d, now = now, d) as self-assignment; Ruff compares element by position."
+  },
+  {
+   "rule": "I001",
+   "class": "both",
+   "ryo": 17,
+   "ruff": 16,
+   "missing": 3,
+   "extra": 4,
+   "suspected_cause": "import section classification differs: Ruff treats the file's own top-level package (template_tests) as first-party and flags, ryo does not; the 4 extras are django/ files importing their own package (options.py, sql/query.py, http/request.py)."
+  },
+  {
+   "rule": "UP028",
+   "class": "ryo-extra",
+   "ryo": 7,
+   "ruff": 0,
+   "missing": 0,
+   "extra": 7,
+   "suspected_cause": "ryo flags for-yield loops whose target name is also bound by other loops in the function (paginator.py page); Ruff skips when the target is referenced outside the loop."
+  },
+  {
+   "rule": "F822",
+   "class": "ryo-extra",
+   "ryo": 3,
+   "ruff": 0,
+   "missing": 0,
+   "extra": 3,
+   "suspected_cause": "ryo does not honour the module-level __getattr__ in django/core/mail/__init__.py; Ruff skips undefined-export when the module defines __getattr__."
+  },
+  {
+   "rule": "FURB122",
+   "class": "ryo-extra",
+   "ryo": 4,
+   "ruff": 1,
+   "missing": 0,
+   "extra": 3,
+   "suspected_cause": "ryo flags write-in-loop where the loop target name (part) is reused by neighbouring loops; suspected the same name-versus-binding scope difference as UP028, unconfirmed."
+  },
+  {
+   "rule": "ISC004",
+   "class": "ryo-extra",
+   "ryo": 292,
+   "ruff": 290,
+   "missing": 0,
+   "extra": 2,
+   "suspected_cause": "ryo flags an implicitly concatenated string that has its own parentheses as the first element of an unparenthesised returned tuple (mysql/operations.py); Ruff treats it as parenthesised."
+  },
+  {
+   "rule": "PLR1704",
+   "class": "ryo-extra",
+   "ryo": 15,
+   "ruff": 13,
+   "missing": 0,
+   "extra": 2,
+   "suspected_cause": "ryo compares the loop target with the parameter name; Ruff compares with the current binding, so it skips when the argument was already rebound locally (forms/fields.py initial, core/exceptions.py message)."
+  },
+  {
+   "rule": "F811",
+   "class": "ryo-extra",
+   "ryo": 1,
+   "ruff": 0,
+   "missing": 0,
+   "extra": 1,
+   "suspected_cause": "ryo treats the function parameter sql in def mogrify(sql, ...) as redefining the module import sql (psycopg_any.py); Ruff does not, since the parameter is in a different scope."
+  },
+  {
+   "rule": "RUF100",
+   "class": "ryo-missing",
+   "ryo": 77,
+   "ruff": 78,
+   "missing": 1,
+   "extra": 0,
+   "suspected_cause": "ryo treats the blanket # NOQA on line 1 of db/models/sql/__init__.py (star import) as used; Ruff reports it unused. Suspected: a suppressed ryo-only finding on that line, unverified."
+  },
+  {
+   "rule": "UP032",
+   "class": "ryo-missing",
+   "ryo": 180,
+   "ruff": 181,
+   "missing": 1,
+   "extra": 0,
+   "suspected_cause": "ryo misses .format() on a multi-line implicit concatenation that repeats positional indexes ({1}, {2} reused) in db/migrations/loader.py."
+  }
+ ],
+ "fixes": "none; measurement only"
+}
