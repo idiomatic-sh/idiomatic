@@ -3,7 +3,6 @@ use super::super::{
     AdmittedInput, AdmittedWalkSource, Agreement, ObservationReadiness, Partition, PartitionSupply,
     PopulationProof, ProducerRoot, ReadProof, Readiness,
 };
-use ryo_execution_store::application::file_dag::derived::population::types::PopulationId;
 use ryo_execution_store::application::file_dag::relations::{RelationOwner, handle::service::PublishedInput};
 use ryo_execution_domain::domain::{executable_program::types::InputSource, operating::errors::OperatingError};
 use std::{rc::Rc, sync::Arc};

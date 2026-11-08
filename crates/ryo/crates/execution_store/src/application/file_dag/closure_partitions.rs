@@ -13,6 +13,7 @@ use std::{rc::Rc, sync::Arc};
 
 /// Ordering metadata can be shared across consumers; only the current partition
 /// owns values/adjacency. Advancing releases the previous partition's logical contents.
+#[derive(Debug)]
 pub struct PartitionedClosure<'f> {
     input: RepresentationInput<'f>,
     proof: super::relations::admission::service::BorrowedInput<'f>,

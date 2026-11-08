@@ -8,6 +8,7 @@ use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Direction};
 
 /// The graph an axis or reach operator reads, cached for its invocation.
+#[derive(Debug)]
 pub enum CachedGraph {
     Reach(ReachGraph),
     Axis(AxisGraph),
@@ -22,6 +23,7 @@ pub(super) struct PartitionWidth(pub(super) usize);
 pub(super) struct KeyPosition(pub(super) usize);
 
 /// A cached reachability graph.
+#[derive(Debug)]
 pub struct ReachGraph {
     pub(super) access: GraphHandle,
     pub(super) left_on: Vec<ColumnIndex>,
@@ -34,6 +36,7 @@ pub struct ReachGraph {
 }
 
 /// A cached axis graph.
+#[derive(Debug)]
 pub struct AxisGraph {
     pub(super) access: GraphHandle,
     pub(super) domain: DomainHandle,

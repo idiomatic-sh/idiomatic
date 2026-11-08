@@ -122,6 +122,7 @@ pub(crate) struct AcquisitionOrigin {
     lifetime: AcquisitionLifetime,
 }
 /// Only acquisition admission binds actual immutable sources to their owner and descriptor.
+#[derive(Debug)]
 pub struct AdmittedViewInputs<'a> {
     origin: AcquisitionOrigin,
     sources: AcquisitionSources<'a>,

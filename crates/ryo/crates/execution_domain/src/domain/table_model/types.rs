@@ -89,7 +89,7 @@ pub trait PublishedRelation: std::any::Any + std::fmt::Debug + Send + Sync {
 pub mod registered_representation;
 
 /// The representation a physical row source is held in.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum RepresentationInput<'a> {
     /// Stored columns.
     Stored(ColumnsView<'a>),
@@ -145,6 +145,7 @@ pub enum PhysicalShape {
 }
 
 /// What a representation declares of its rows: the input, its kind, its cell kinds and its row count.
+#[derive(Debug)]
 pub struct RelationContract<'a> {
     /// The rows' representation.
     pub input: RepresentationInput<'a>,

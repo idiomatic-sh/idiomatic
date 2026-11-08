@@ -21,6 +21,7 @@ struct RulePartitions {
 }
 /// No public field or alternate constructor can install guessed producer provenance.
 /// These compact declarations belong to the same frozen request as the supplied sources.
+#[derive(Debug)]
 pub struct SourcePartitions {
     rules: Vec<Result<RulePartitions, OperatingError>>,
     hosted: HostedCount,

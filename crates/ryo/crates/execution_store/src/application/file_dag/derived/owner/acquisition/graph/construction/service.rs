@@ -26,7 +26,7 @@ pub(crate) fn adjacency(
     owner: &DerivedOwner,
     population: PopulationId,
     admitted: &AdmittedViewInputs<'_>,
-    plan: &std::sync::Arc<ryo_execution_domain::domain::derived_views::types::contract::value::DerivedContract>,
+    plan: &Arc<ryo_execution_domain::domain::derived_views::types::contract::value::DerivedContract>,
     source: ryo_execution_domain::domain::stored_graph::types::GraphSource,
     rows: &Rows<'_>,
     cache: Option<&mut CacheBackend>,

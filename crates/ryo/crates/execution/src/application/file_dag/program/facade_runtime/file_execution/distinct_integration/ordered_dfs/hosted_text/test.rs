@@ -225,7 +225,7 @@ fn one_file_owner_resets_dfs_across_closure_empty_and_different_graph() {
         }; 4],
         services,
         ryo_values::domain::files::types::SourceView(b""),
-        ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible,
+        ReuseEligibility::Eligible,
         &mut symbols,
         None,
         None,

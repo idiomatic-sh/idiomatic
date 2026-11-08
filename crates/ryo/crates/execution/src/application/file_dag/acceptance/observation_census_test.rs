@@ -187,7 +187,7 @@ fn shared_walk_census_includes_every_synthetic_observation_union() -> Result<(),
     assert_eq!(unions, 2, "both named observation inputs compile a union");
     assert!(total > program.logical_regions().len());
     let bindings = vec![vec![]; plans.len()];
-    let mut walk = ryo_execution_domain::domain::shared_walk::types::prepared_walk::value::PreparedWalk::compile(
+    let mut walk = PreparedWalk::compile(
         &plans, &bindings,
     );
     walk.retain_program_consumers(&program).unwrap();

@@ -154,7 +154,7 @@ fn failed_emit_and_failed_observation_do_not_erase_the_independent_root() {
             ],
             services,
             ryo_values::domain::files::types::SourceView(b""),
-            ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible,
+            ReuseEligibility::Eligible,
             &mut symbols,
             None,
             None)

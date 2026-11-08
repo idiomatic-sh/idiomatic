@@ -21,6 +21,7 @@ struct Entry {
     waiters: Vec<RegionId>,
 }
 /// Owns only readiness transitions. The application polls the sole actual interpreter.
+#[derive(Debug)]
 pub struct ReadyQueue {
     region_count: RegionCount,
     entries: FxHashMap<RegionId, Entry>,

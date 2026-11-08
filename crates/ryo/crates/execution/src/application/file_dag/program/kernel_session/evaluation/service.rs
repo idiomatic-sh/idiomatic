@@ -4,7 +4,7 @@ use crate::application::file_dag::program::runtime::types::InvocationFailure;
 use crate::application::file_dag::program::runtime::types::KernelInput;
 use crate::application::file_dag::program::runtime::types::KernelScratch;
 use crate::application::file_dag::invocation::InvocationResources;
-use ryo_execution_domain::domain::{executable_program::types::instruction::value::Instruction, operating::{errors::OperatingError, types::{Emit, InputPlace, OperatorContext}}, operator::contract::{primitive::PreparedInputs, types::InputMode}, table_model::{service::{count_of, read_row}, types::Rows}};
+use ryo_execution_domain::domain::{executable_program::types::instruction::value::Instruction, operating::{errors::OperatingError, types::{Emit, InputPlace, OperatorContext}}, operator::contract::{primitive::PreparedInputs, types::InputMode}, table_model::service::{count_of, read_row}};
 use ryo_execution_store::application::file_dag::workspace::InvocationWorkspace;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_values::domain::rows::types::RowIndex;

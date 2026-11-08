@@ -89,7 +89,7 @@ fn forward(
     program: &Program,
     symbols: &mut Symbols,
     each: &mut dyn FnMut(&[Cell]) -> Result<(), OperatingError>,
-) -> Result<ryo_execution_domain::domain::row_emission::types::RowEmission, OperatingError> {
+) -> Result<RowEmission, OperatingError> {
     file.emit_rows(
         RuleIndex(2),
         &|relation| program.read(relation),

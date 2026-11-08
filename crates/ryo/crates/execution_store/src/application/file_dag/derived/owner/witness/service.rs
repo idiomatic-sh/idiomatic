@@ -13,7 +13,7 @@ pub enum BackingIdentity {
     Different,
 }
 /// An observation of a view's backing that grants no access to it.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct BackingWitness {
     backing: Weak<dyn Any>,
 }

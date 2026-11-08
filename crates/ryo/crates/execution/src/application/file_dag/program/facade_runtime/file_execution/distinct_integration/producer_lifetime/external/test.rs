@@ -48,7 +48,7 @@ fn external_root_exit(exit: ExternalRootExit) -> Result<(), OperatingError> {
         &intents,
         services,
         ryo_values::domain::files::types::SourceView(b""),
-        ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible,
+        ReuseEligibility::Eligible,
         &mut symbols,
         None,
         None,

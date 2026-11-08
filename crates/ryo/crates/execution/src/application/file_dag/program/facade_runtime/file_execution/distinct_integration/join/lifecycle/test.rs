@@ -170,7 +170,7 @@ fn exercise_nested(single_result: bool) -> Result<(), OperatingError> {
         ],
         services,
         ryo_values::domain::files::types::SourceView(b""),
-        ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible,
+        ReuseEligibility::Eligible,
         &mut symbols,
         Some(&lookup),
         None,

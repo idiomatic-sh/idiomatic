@@ -46,6 +46,7 @@ struct SourceViews {
 }
 
 /// The relation owner of one file generation: it publishes relations, admits borrowed inputs and issues the generation they are bound to.
+#[derive(Debug)]
 pub struct RelationOwner {
     #[cfg(test)]
     pub(super) identity_checks: Cell<CheckCount>,

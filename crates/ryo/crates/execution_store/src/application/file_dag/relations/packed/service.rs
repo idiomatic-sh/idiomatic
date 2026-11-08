@@ -5,7 +5,7 @@ use ryo_values::domain::stored_facts::types::{ArenaBytes, KeptWords};
 use std::sync::Arc;
 
 /// Coordinator-local lease. Only the immutable words, never this lease, enter a worker closure.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PackedPublication {
     _words: Arc<KeptWords>,
     _lease: Arc<ResourceLease>,

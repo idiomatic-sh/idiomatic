@@ -19,7 +19,6 @@ use ryo_execution_store::application::file_dag::relations::RelationOwner;
 use ryo_execution_store::application::file_dag::service::ScopePartials;
 use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
-use ryo_execution_domain::domain::executable_program::types::InputSource;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use rustc_hash::FxHashMap;
 use std::rc::Rc;
@@ -124,7 +123,7 @@ impl ProjectRun<'_> {
         &self,
         rule: RuleIndex,
     ) -> Result<
-        ryo_execution_store::application::file_dag::derived::population::types::PopulationId,
+        PopulationId,
         OperatingError,
     > {
         crate::application::file_dag::frontiers::types::validate_consumer_sources(

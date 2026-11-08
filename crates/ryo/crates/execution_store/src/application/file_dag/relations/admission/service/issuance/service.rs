@@ -17,7 +17,7 @@ impl<'a> BorrowedInput<'a> {
         let actual = owner.private(publication)?;
         if self.publication_population != actual.population
             || population != owner.result_population(actual)
-            || crate::application::file_dag::relations::generation::service::GenerationLease::same(&self.origin.generation, &actual.generation) == Sameness::Different
+            || GenerationLease::same(&self.origin.generation, &actual.generation) == Sameness::Different
         {
             return Err(OperatingError::NotRead);
         }
@@ -51,7 +51,7 @@ impl<'a> BorrowedInput<'a> {
         self.shape
     }
     /// The generation this input was admitted under.
-    pub fn generation(&self) -> Arc<crate::application::file_dag::relations::generation::service::GenerationLease> {
+    pub fn generation(&self) -> Arc<GenerationLease> {
         Arc::clone(&self.origin.generation)
     }
     /// The admitted rows.

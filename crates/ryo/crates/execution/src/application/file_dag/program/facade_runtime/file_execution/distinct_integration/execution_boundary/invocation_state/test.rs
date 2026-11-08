@@ -97,7 +97,7 @@ fn chained_registered_evaluations_reuse_downstream_invocation_state() {
         }],
         services,
         ryo_values::domain::files::types::SourceView(b""),
-        ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible,
+        ReuseEligibility::Eligible,
         &mut symbols,
         None,
         None,

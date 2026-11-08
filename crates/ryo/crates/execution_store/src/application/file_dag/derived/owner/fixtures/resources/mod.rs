@@ -19,10 +19,12 @@ pub struct Snapshot {
     pub graph_early_stops: u64,
 }
 /// A relation owner over a recording port, with the resource acquisitions a proof drives.
+#[derive(Debug)]
 pub struct ResourceFixture {
     owner: Rc<RelationOwner>,
 }
 impl ResourceFixture {
+    /// A fixture over the wanted relations and partials, with the retained-byte limit; `None` when the owner declines.
     pub fn new(wanted: &[Relation], partials: &[Partial], limit: usize) -> Option<Self> {
         let owner = Rc::new(RelationOwner::new(
             crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
@@ -99,12 +101,15 @@ impl ResourceFixture {
             }),
         )
     }
+    /// Whether no invocation holds an index handle.
     pub fn no_invocation_index_handles(&self) -> bool {
         self.owner.derived().no_invocation_index_handles()
     }
+    /// How many index backings are shared.
     pub fn shared_index_backings(&self) -> usize {
         self.owner.derived().shared_index_backings()
     }
+    /// A weak reference to the first retained index, to observe its release.
     pub fn first_index_weak(&self) -> Option<Weak<KeyIndex>> {
         self.owner.derived().first_index_weak()
     }

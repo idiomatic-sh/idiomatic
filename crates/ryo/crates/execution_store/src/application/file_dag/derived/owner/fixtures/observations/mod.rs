@@ -38,6 +38,7 @@ impl DerivedOwner {
                 available: true,
             })
     }
+    /// Whether `relation` is eligible for a retained index.
     pub fn relation_eligible(&self, relation: Relation) -> bool {
         self.backend
             .borrow()
@@ -45,6 +46,7 @@ impl DerivedOwner {
             .is_some_and(|cache| cache.eligible.contains(&relation))
     }
 
+    /// Whether no invocation holds an index handle.
     pub fn no_invocation_index_handles(&self) -> bool {
         self.state.borrow().entries.values().all(|entry| {
             if entry._plan.kind != DerivedKind::Equality {
@@ -56,6 +58,7 @@ impl DerivedOwner {
         })
     }
 
+    /// A weak reference to the first retained index, to observe its release.
     pub fn first_index_weak(
         &self,
     ) -> Option<Weak<ryo_derived::domain::equality::types::KeyIndex>> {
@@ -70,6 +73,7 @@ impl DerivedOwner {
                 .map(|index| Arc::downgrade(&index.0))
         })
     }
+    /// How many index backings are shared.
     pub fn shared_index_backings(&self) -> usize {
         self.ledger
             .borrow()

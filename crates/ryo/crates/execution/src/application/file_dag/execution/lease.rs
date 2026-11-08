@@ -11,7 +11,6 @@ use ryo_execution_domain::domain::operating::{
 use ryo_execution_domain::domain::operator::contract::{
     context::with_primitive_context, primitive::{portable_fault, PreparedInputs}, types::*,
 };
-use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_domain::domain::table_scratch::types::OperatorScratch;
 use ryo_execution_domain::domain::table_texts::{
     service::datum,
@@ -20,10 +19,7 @@ use ryo_execution_domain::domain::table_texts::{
 use capability::service::ExecutableLease;
 use ryo_language::domain::symbols::service::query_reborrow;
 use ryo_relations::domain::relations::types::Value;
-use {
-    ryo_execution_domain::domain::table_model::types::Verdict, ryo_values::domain::rows::service::cell,
-    ryo_values::domain::rows::service::reset,
-};
+use ryo_values::domain::rows::service::cell;
 
 /// All resources are borrowed for this call. No mutable owner crosses the boundary.
 pub(crate) fn evaluate(
@@ -75,7 +71,7 @@ fn evaluate_once(
         workspace.progress_origin().resume();
     #[cfg(test)]
     resources.observe(workspace);
-    let mut parts = workspace.parts();
+    let parts = workspace.parts();
     let semantic_failure = std::sync::OnceLock::new();
     let row = match input {
         PreparedInputs::Row { input, sides, row } => {

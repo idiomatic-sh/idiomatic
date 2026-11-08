@@ -8,12 +8,10 @@ use std::sync::Arc;
 use self::constants::EXPECT_DEMANDED_INPUT;
 use ryo_values::domain::plan_parts::types::InputNumber;
 
-use ryo_execution_domain::domain::operator::contract::types::{AxisWorkspace, DfsWorkspace};
 
-use ryo_execution_domain::domain::table_model::types::Rows;
-use ryo_execution_domain::domain::table_reach::types::Walk;
 use ryo_relations::domain::relations::types::{Position, Value};
 /// One invocation's mutable allocations and the admitted publications it reads, released when it ends.
+#[derive(Debug)]
 pub struct InvocationWorkspace {
     work: ryo_execution_domain::domain::operator::contract::types::WorkCounters,
     #[cfg(feature = "diagnostic-row-progress")]
@@ -179,6 +177,7 @@ impl InvocationWorkspace {
 
 /// Only the workspace can bind an original graph row view to its admission.
 /// The graph path never receives independently replaceable raw rows and proof.
+#[derive(Debug)]
 pub struct GraphInput<'a> {
     rows: &'a ryo_execution_domain::domain::table_model::types::Rows<'a>,
     proof: BorrowedInput<'a>,
@@ -237,10 +236,12 @@ impl InvocationWorkspace {
 }
 
 /// Sources are supplied only by admitted inputs, never independently by a view caller.
+#[derive(Debug)]
 pub enum ViewInputs<'a, 's> {
     Rows,
     MembershipValues,
     MembershipNative,
+    /// Text cells, read through the texts.
     Text(&'a ryo_execution_domain::domain::table_texts::types::Texts<'a>),
     Dfs {
         symbols: &'a mut ryo_language::domain::symbols::types::QuerySymbols<'s>,
@@ -251,6 +252,7 @@ pub enum ViewInputs<'a, 's> {
 }
 /// One immutable demand scope, not a retained cache. At most three registered
 /// operator inputs are held; only demanded slots acquire a proof.
+#[derive(Debug)]
 pub struct InputAdmissions<'a, 'f> {
     workspace: &'a InvocationWorkspace,
     inputs: &'a [RepresentationInput<'f>],

@@ -21,7 +21,7 @@ enum CompletionBehavior {
     DropAfterCollect(std::sync::Arc<Partials>),
 }
 /// No Default: the scope's actual partiality source must be supplied.
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct CompletionPolicy {
     scope: ScopeIdentity,
     behavior: CompletionBehavior,
@@ -30,6 +30,7 @@ pub struct CompletionPolicy {
     publication: CompletionBehavior,
 }
 impl CompletionPolicy {
+    /// The completion policy of one rule over one file, with its partials.
     #[cfg(any(test, feature = "fixtures"))]
     pub fn file(rule: RuleIndex, file: FileId, partials: &[Partial]) -> Self {
         Self::file_inputs(rule, file, partials, partials)

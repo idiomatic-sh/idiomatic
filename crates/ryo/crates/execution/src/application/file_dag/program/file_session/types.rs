@@ -66,6 +66,7 @@ pub struct FileFinished {
 /// Output storage only; source file and rule digest come from the bound session.
 pub struct CaptureContext<'a> {
     pub worker: ryo_relations::domain::relations::types::WorkerNumber,
+    /// The arena the finished rows are written into.
     pub arena: ryo_execution_domain::domain::finish::types::Arena<'a>,
     pub places: &'a mut Vec<ryo_relations::domain::relations::types::NamePlace>,
     pub words: &'a mut ryo_relations::domain::relations::types::Words,
@@ -95,7 +96,9 @@ pub enum FileStop {
 pub enum RuleAfter {
     /// Its frontiers were captured, the kept ones kept and committed, and its steps counted.
     Ran {
+        /// The frontier captures of the file.
         captures: Vec<ryo_execution_domain::domain::frontier_capture::types::FrontierCapture>,
+        /// The rows fed to each operator.
         fed: Box<[ryo_execution_domain::domain::operator::types::RowsFed]>,
     },
     /// The emitted root failed, so the file stops at it.
@@ -112,6 +115,7 @@ pub enum EmittedRoot {
 }
 /// What one rule of a file came to, in the order it ran.
 pub struct RanRule {
+    /// The rule.
     pub rule: ryo_execution_domain::domain::coverage::types::RuleIndex,
     pub emit: EmittedRoot,
     pub after: RuleAfter,
@@ -133,6 +137,7 @@ pub struct FileRules {
 /// Where a rule of a file runs: the rule, the file and the first frontier bucket of every rule.
 #[derive(Clone, Copy)]
 pub struct RuleFile<'a> {
+    /// The rule.
     pub rule: ryo_execution_domain::domain::coverage::types::RuleIndex,
     pub file: ryo_relations::domain::relations::types::FileId,
     pub first: &'a [ryo_values::domain::stored_facts::types::Bucket],

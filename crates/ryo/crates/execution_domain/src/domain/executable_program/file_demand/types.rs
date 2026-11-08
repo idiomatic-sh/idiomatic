@@ -43,6 +43,7 @@ impl FileDemand {
     };
 }
 /// Where a demanded observation's rows come from, and its phase.
+#[derive(Debug)]
 pub struct ObservationDemandSource {
     /// The input the observation reads, or why it could not be resolved.
     pub source: Result<InputSource, OperatingError>,
@@ -75,7 +76,7 @@ pub struct FileMode {
     pub observations: Box<[ObservationIndex]>,
 }
 /// How many named outputs a rule has.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct NamedOutputCount(pub usize);
 /// A rule's file demand in every demand mode.
 #[derive(Debug)]

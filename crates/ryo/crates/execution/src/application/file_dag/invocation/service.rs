@@ -10,7 +10,7 @@ use ryo_execution_domain::domain::operator::contract::{
     views::NativeJoin,
     resources::{IndexColumns, JoinResources, ResourceProgram},
     types::OperatorContract,
-    
+
 };
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_domain::domain::table_texts::types::Texts;
@@ -233,7 +233,7 @@ pub(crate) fn prepare<'f>(
             resources.inputs.cycles = Some(admitted.acquire_rows(use_, context)?);
         }
         ResourceProgram::Ordered { .. } => {
-            use ryo_execution_domain::domain::derived_views::types::DerivedInputs;
+
             use ryo_derived::domain::request::types::DerivedKind;
             let use_ = prepared(contract, DerivedKind::OrderedKeys)?;
             let texts = Texts {
@@ -249,7 +249,7 @@ pub(crate) fn prepare<'f>(
             )?);
         }
         ResourceProgram::Dfs(_) => {
-            use ryo_execution_domain::domain::derived_views::types::DerivedInputs;
+
             use ryo_derived::domain::request::types::DerivedKind;
             let use_ = prepared(contract, DerivedKind::OrderedDfs)?;
             resources.inputs.dfs = Some(admitted.acquire_derived(
@@ -265,7 +265,7 @@ pub(crate) fn prepare<'f>(
         }
         ResourceProgram::Axis(program) => {
             use crate::application::file_dag::axis_resources::{AxisMode, classify};
-            use ryo_execution_domain::domain::derived_views::types::{DerivedInputs, MembershipSpace};
+
             use ryo_derived::domain::request::types::DerivedKind;
             let edges = input(inputs, InputNumber(1))?;
             let domain = input(inputs, InputNumber(2))?;

@@ -25,8 +25,6 @@ use ryo_execution_store::application::file_dag::service::ScopePartials;
 use ryo_execution_store::application::file_dag::service::open_program_owner;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-#[cfg(test)]
-use ryo_execution_domain::domain::table_model::service::materialize;
 use ryo_execution_domain::domain::table_model::types::Rows;
 use ryo_relations::domain::relations::types::FileId;
 use ryo_relations::domain::relations::types::Relation;

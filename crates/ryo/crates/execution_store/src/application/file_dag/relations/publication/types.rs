@@ -54,7 +54,9 @@ pub(crate) struct ProducerPopulation {
 /// A typed invocation namespace; publications retain their actual population after it ends.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum ProducerScope {
+    /// A file-scoped publication.
     File,
+    /// A project-scoped publication of one population.
     Project(PopulationId),
 }
 

@@ -24,7 +24,7 @@ impl DerivedOwner {
     pub fn prepare_program_file(
         &self,
         prepared: &RequestDerived,
-        demanded: &[ryo_execution_domain::domain::coverage::types::RuleIndex],
+        demanded: &[RuleIndex],
         partial: &[Partial],
     ) -> Result<(), OperatingError> {
         if self.file_prepared.get() == FilePreparation::Prepared {

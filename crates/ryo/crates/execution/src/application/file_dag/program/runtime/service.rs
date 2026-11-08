@@ -133,7 +133,7 @@ struct ProjectState {
 }
 pub(crate) struct ProgramExecution {
     program: Arc<ExecutableProgram>,
-    owner: std::rc::Rc<ryo_execution_store::application::file_dag::relations::RelationOwner>,
+    owner: std::rc::Rc<RelationOwner>,
     /// The owner's generation when this execution opened; its liveness is the execution's.
     generation: Arc<ryo_execution_store::application::file_dag::relations::generation::service::GenerationLease>,
     partition: Partition,
@@ -195,7 +195,7 @@ enum BoundInputs<'a> {
     Ordered(&'a AdmittedInput),
 }
 pub(crate) struct KernelPermit<'scope> {
-    program: &'scope ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram,
+    program: &'scope ExecutableProgram,
     region: RegionId,
     instruction: InstructionIndex,
     generation:
@@ -209,7 +209,7 @@ pub(crate) struct KernelPermit<'scope> {
 /// Pure borrowed semantic authority. It exposes neither worker ownership nor
 /// dependency acquisition, and cannot outlive its admitted invocation permit.
 pub(crate) struct SemanticPermit<'scope> {
-    program: &'scope ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram,
+    program: &'scope ExecutableProgram,
     region: RegionId,
     instruction: InstructionIndex,
     live:

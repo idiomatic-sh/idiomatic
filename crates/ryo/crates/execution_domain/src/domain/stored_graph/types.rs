@@ -9,7 +9,7 @@ use ryo_values::domain::rows::types::RowCount;
 pub mod traversal;
 
 /// Exact immutable relation population within one file-generation owner.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Copy)]
 pub struct RelationPopulation {
     /// Provider relation; native domain populations use their distinct native relation.
     pub relation: Relation,
@@ -50,6 +50,7 @@ pub enum Orientation {
 /// A graph handle and requested orientation; no mutable cache borrow survives acquisition.
 
 /// Canonical graph identity plus the columns needed to build it from the current logical row view.
+#[derive(Debug)]
 pub struct GraphSource {
     /// Exact physical population key.
     pub identity: GraphIdentity,
@@ -194,7 +195,7 @@ pub struct EarlyStops(pub u64);
 pub struct ForestHits(pub u64);
 
 /// Opt-in-compatible aggregate work counts for one generation.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone, Copy)]
 pub struct GraphCounts {
     /// Dormant ordinary indexes reclaimed only to admit a complete new adjacency.
     pub reclaimed_indexes: ReclaimedIndexes,

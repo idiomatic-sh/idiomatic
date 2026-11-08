@@ -47,12 +47,12 @@ fn acquired(
     kind: ryo_derived::domain::request::types::DerivedKind,
     request: ryo_execution_domain::domain::derived_views::types::ViewRequest,
     rows: RepresentationInput<'_>,
-) -> ryo_execution_store::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView {
+) -> AcquiredView {
     let plan = Arc::new(
         ryo_execution_store::application::file_dag::derived::prepare::view(
             (std::sync::Arc::new(
                 ryo_execution_store::application::file_dag::fixtures::derived(),
-            ) as std::sync::Arc<dyn ryo_execution_store::outbound::derived::interface::DerivedPort>),
+            ) as Arc<dyn ryo_execution_store::outbound::derived::interface::DerivedPort>),
             &request,
             &[ryo_execution_domain::domain::operation_schema::types::InputShape {
                 kinds: rows.kinds(),
@@ -65,7 +65,7 @@ fn acquired(
         ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Ineligible,
         (std::sync::Arc::new(
             ryo_execution_store::application::file_dag::fixtures::derived(),
-        ) as std::sync::Arc<dyn ryo_execution_store::outbound::derived::interface::DerivedPort>),
+        ) as Arc<dyn ryo_execution_store::outbound::derived::interface::DerivedPort>),
     );
     let RepresentationInput::Computed(table) = rows else {
         panic!("computed fixture")

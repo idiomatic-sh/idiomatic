@@ -229,7 +229,7 @@ impl CapturedProject {
             &intents,
             Arc::clone(&services),
             ryo_values::domain::files::types::SourceView(b""),
-            ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible,
+            ReuseEligibility::Eligible,
             symbols,
             None,
             None)?;
@@ -290,7 +290,7 @@ impl CapturedProject {
                 publication: &phase,
                 ordinary: prepared_frontiers(
                     RuleIndex(5),
-                    std::sync::Arc::new([]),
+                    Arc::new([]),
                     vec![].into(),
                     Arc::clone(prepared.program()),
                     required.clone(),
@@ -362,7 +362,7 @@ impl CapturedProject {
                 publication: &self.phase,
                 ordinary: prepared_frontiers(
                     rule,
-                    std::sync::Arc::new([]),
+                    Arc::new([]),
                     vec![].into(),
                     Arc::clone(self.prepared.program()),
                     self.required.clone(),

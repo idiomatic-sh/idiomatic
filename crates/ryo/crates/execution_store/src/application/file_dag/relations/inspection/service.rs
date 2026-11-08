@@ -31,7 +31,7 @@ impl RelationOwner {
     }
 
     pub(crate) fn generation(&self, result: &RelationResult) -> Result<(), OperatingError> {
-        if self.matches_generation(&result.generation) == crate::application::file_dag::relations::types::Sameness::Same {
+        if self.matches_generation(&result.generation) == Sameness::Same {
             Ok(())
         } else {
             Err(OperatingError::NotRead)

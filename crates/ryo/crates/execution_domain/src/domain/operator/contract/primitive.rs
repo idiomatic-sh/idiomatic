@@ -6,7 +6,7 @@ use crate::domain::table_model::types::RepresentationInput;
 use ryo_relations::domain::relations::types::Value;
 
 /// Immutable inputs only. No Feed, callback, scheduler or owned/retained Arc is supplied.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum PreparedInputs<'a> {
     /// One row of the triggering input with its immutable side inputs.
     Row {
@@ -26,6 +26,7 @@ pub enum PreparedInputs<'a> {
 /// Borrowed portable primitive meanings; the application supplies the implementation.
 /// No outbound adapter, cache owner or scheduler is reachable from a primitive.
 pub trait PrimitiveSemantics: Sync {
+    /// The observer the evaluation reports its row progress to.
     #[cfg(feature = "diagnostic-row-progress")]
     fn progress(&self) -> &dyn super::views::ProgressObserver {
         &super::views::IgnoredProgress

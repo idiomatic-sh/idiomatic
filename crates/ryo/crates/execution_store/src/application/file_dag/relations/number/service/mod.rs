@@ -4,6 +4,7 @@ use ryo_execution_domain::domain::self_join_recogniser::types::NumberRequirement
 
 /// The borrowed publication pins its exact population/generation for the invocation.
 /// Construction is private: a schema or a caller assertion cannot mint this witness.
+#[derive(Debug)]
 pub struct AdmittedNumber<'a> {
     pub(crate) publication: &'a PublishedInput,
     pub(crate) column: ryo_values::domain::plan_parts::types::ColumnIndex,

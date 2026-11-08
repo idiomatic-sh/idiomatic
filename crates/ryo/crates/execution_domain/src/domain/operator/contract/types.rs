@@ -1,5 +1,5 @@
 //! Prepared metadata is request-owned; invocation capabilities borrow engine-owned data.
-use super::primitive::{PreparedInputs, PrimitiveSemantics};
+use super::primitive::PrimitiveSemantics;
 use super::views::{IndexedRows, PredicateProgram, ValidatedSource};
 use crate::domain::operating::errors::OperatingError;
 use ryo_language::domain::symbols::types::QuerySymbols;
@@ -92,6 +92,7 @@ pub struct SemanticContract {
 
 /// What an operation declares of its semantics: its input contract, its effects and the
 /// inputs whose absence of rows it trusts.
+#[derive(Debug)]
 pub struct OperationSemantics {
     /// The operation's input contract.
     pub contract: SemanticContract,
@@ -242,6 +243,7 @@ pub trait PrimitiveResources {
 
 /// Only row-varying context is assembled at row delivery. Acquired resources
 /// remain in the invocation and are reached through a borrowed reader.
+#[derive(Debug)]
 pub struct PrimitiveViews<'a> {
     /// Whether the operation runs after the files of the request.
     pub phase: crate::domain::operating::types::AfterTheFiles,
@@ -269,6 +271,7 @@ pub struct PrimitiveViews<'a> {
 
 /// Allocation slots owned once by the application invocation. A primitive only
 /// receives a reborrow; no cache, owner or generation identity is reachable.
+#[derive(Debug)]
 pub struct PrimitiveWorkspace {
     /// The buffers the operators fill while they evaluate a kind.
     pub evaluation: ryo_operators::domain::evaluation::types::EvaluationScratch,
@@ -292,9 +295,10 @@ pub struct FoundRows(pub u64);
 
 /// The engine constructs and releases this borrow; a primitive owns no service state.
 /// Borrowed logical work counters; storage belongs to the invocation owner.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct WorkCounters(pub(super) [std::cell::Cell<u64>; 3]);
 /// The borrowed context one primitive evaluation reaches its capabilities through.
+#[derive(Debug)]
 pub struct PrimitiveLease<'a> {
     pub(crate) views: PrimitiveViews<'a>,
     pub(crate) workspace: &'a mut PrimitiveWorkspace,
@@ -312,6 +316,7 @@ pub trait RowSink {
 }
 
 /// First-occurrence row semantics, bounded and released by the engine invocation.
+#[derive(Debug)]
 pub struct DistinctWorkspace {
     /// Whether the remembered rows' schema was admitted, or why not.
     pub schema: Result<(), OperatingError>,

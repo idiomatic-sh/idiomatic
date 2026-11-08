@@ -17,6 +17,7 @@ pub(crate) enum OperandReads {
 
 /// One actually admitted operand's schema and physical completeness. MissingRows
 /// operands are intentionally absent when a lazy demand gate did not read them.
+#[derive(Debug)]
 pub struct InputCoverage<'a> {
     /// The operand's place among the operation's operands.
     pub ordinal: OperandOrdinal,

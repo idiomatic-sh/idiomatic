@@ -50,7 +50,7 @@ pub(crate) fn source(rows: Rows<'_>) -> Result<Table, OperatingError> {
         }],
         services,
         ryo_values::domain::files::types::SourceView(b""),
-        ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible,
+        ReuseEligibility::Eligible,
         &mut symbols,
         None,
         None,

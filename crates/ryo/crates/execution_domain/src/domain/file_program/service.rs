@@ -28,7 +28,7 @@ use std::sync::Arc;
 #[cfg(any(test, feature = "fixtures"))]
 pub fn compile_prepared(
     plans: &[Plan],
-    operators: &crate::domain::file_program::types::RequestOperators,
+    operators: &RequestOperators,
 ) -> RequestGraph {
     compile_prepared_observations(plans, operators, ObservationRequest::Independent)
 }
@@ -36,7 +36,7 @@ pub fn compile_prepared(
 /// Extend the same graph with named producer edges after all real contracts are prepared.
 pub fn compile_prepared_observations(
     plans: &[Plan],
-    operators: &crate::domain::file_program::types::RequestOperators,
+    operators: &RequestOperators,
     observations: ObservationRequest<'_>,
 ) -> RequestGraph {
     let bound_offsets = binding_offsets(plans, observations);

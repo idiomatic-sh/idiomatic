@@ -1,9 +1,6 @@
 //! The tree item reads the elements and the edges of a syntax tree from the tree itself and refuses every other representation.
 use crate::domain::table_model::types::PhysicalShape;
-use super::super::{
-    interface::RepresentationsItem,
-    types::CellRead,
-};
+use super::super::interface::RepresentationsItem;
 use crate::domain::table_model::types::RepresentationInput;
 use super::item::TreeItem;
 use crate::domain::operating::errors::OperatingError;

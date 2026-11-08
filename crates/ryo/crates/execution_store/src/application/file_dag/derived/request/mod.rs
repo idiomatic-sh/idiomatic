@@ -19,6 +19,7 @@ pub(super) mod identity;
 use identity::types::StaticRequest;
 use types::InputPositions;
 /// The derived views a request's operators bind, prepared once for the request.
+#[derive(Debug)]
 pub struct RequestViews {
     semantic: crate::application::file_dag::derived::owner::types::DerivedAccess,
     plans: Vec<Arc<DerivedContract>>,

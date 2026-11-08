@@ -9,7 +9,7 @@ use ryo_relations::domain::relations::types::Relation;
 
 /// Only the representation owner can bind population identity to borrowed input.
 /// No provider reference or proof is retained beyond the immutable demand scope.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct BorrowedInput<'a> {
     rows: RepresentationInput<'a>,
     shape: PhysicalShape,

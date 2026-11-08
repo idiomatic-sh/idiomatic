@@ -15,6 +15,7 @@ use ryo_derived::domain::adjacency::types::compact_graph::value::CompactGraph;
 use std::{ops::Deref, sync::Arc};
 
 /// An actual completed adjacency and its required lease, issued together.
+#[derive(Debug)]
 pub struct GraphHandle {
     graph: Arc<CompactGraph>,
     orientation: Orientation,
@@ -71,6 +72,7 @@ impl GraphHandle {
     }
 }
 /// Membership never exposes a cloneable graph/domain allocation to a consumer.
+#[derive(Debug)]
 pub struct DomainHandle {
     acquired: AcquiredView,
     parent: AcquiredView,

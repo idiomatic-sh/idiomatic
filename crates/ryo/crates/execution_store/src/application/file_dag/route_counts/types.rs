@@ -144,10 +144,12 @@ pub(crate) struct RouteState {
 pub struct RouteProfile(pub(super) Option<std::sync::Arc<std::sync::Mutex<RouteState>>>);
 
 /// The profile of one file while its scope is open; it reports the file's counts when it closes.
+#[derive(Debug)]
 pub struct FileScope {
     pub(super) profile: RouteProfile,
 }
 /// The origin a profile records under until this scope ends, when the previous one is restored.
+#[derive(Debug)]
 pub struct OriginScope {
     pub(super) profile: RouteProfile,
     pub(super) previous: Option<RouteOrigin>,
@@ -155,7 +157,7 @@ pub struct OriginScope {
 
 /// The origin a profile had when an invocation began, with the profile it belongs to.
 #[cfg(feature = "diagnostic-row-progress")]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct CapturedOrigin {
     pub(super) profile: RouteProfile,
     pub(super) origin: Option<RouteOrigin>,

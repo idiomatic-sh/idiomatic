@@ -17,7 +17,7 @@ use ryo_relations::domain::terms::types::NameText;
 use ryo_execution_domain::domain::kind_sets::service::{names_a_kind, satisfies};
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operating::types::KindNaming;
-use ryo_execution_domain::domain::table_model::types::{Rows, Verdict};
+use ryo_execution_domain::domain::table_model::types::Verdict;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::PlanComparison;
@@ -27,7 +27,7 @@ use ryo_values::domain::plan_parts::types::Operand;
 use ryo_values::domain::plan_parts::types::QueryLiteral;
 use ryo_values::domain::plan_parts::types::Test;
 use ryo_values::domain::plans::types::Operation;
-use {ryo_execution_domain::domain::table_texts::types::TextView, ryo_values::domain::files::types::SourceView};
+use ryo_execution_domain::domain::table_texts::types::TextView;
 
 /// A scenario: what a row observes of the kind sets, as a number.
 type Input = fn() -> Result<Value, OperatingError>;
@@ -122,7 +122,7 @@ fn a_file_with_no_names_teaches_nothing_about_kinds() -> Result<Value, Operating
         kept: vec![column(0)],
     };
     let (engine, prepared) = fixtures::requests::prepared(inputs::plan(vec![operation]), vec![], vec![])?;
-    let never = |_| Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead);
+    let never = |_| Err(OperatingError::NotRead);
     let empty = fixtures::requests::run_prepared(
         &engine,
         &prepared,

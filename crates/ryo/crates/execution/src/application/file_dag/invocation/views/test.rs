@@ -22,7 +22,7 @@ fn production_cycle_lease_borrows_actual_trait_output_and_refuses_foreign_storag
         ryo_execution_store::application::file_dag::derived::prepare::view(
             (std::sync::Arc::new(
                 ryo_execution_store::application::file_dag::fixtures::derived(),
-            ) as std::sync::Arc<dyn ryo_execution_store::outbound::derived::interface::DerivedPort>),
+            ) as Arc<dyn ryo_execution_store::outbound::derived::interface::DerivedPort>),
             &ViewRequest::CycleAdjacency {
                 source: ColumnIndex(0),
                 destination: ColumnIndex(1),
@@ -38,7 +38,7 @@ fn production_cycle_lease_borrows_actual_trait_output_and_refuses_foreign_storag
         ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible,
         (std::sync::Arc::new(
             ryo_execution_store::application::file_dag::fixtures::derived(),
-        ) as std::sync::Arc<dyn ryo_execution_store::outbound::derived::interface::DerivedPort>),
+        ) as Arc<dyn ryo_execution_store::outbound::derived::interface::DerivedPort>),
     );
     let publication = owner.computed(table.clone()).unwrap();
     let held = owner
@@ -77,7 +77,7 @@ fn production_cycle_lease_borrows_actual_trait_output_and_refuses_foreign_storag
         ryo_execution_store::application::file_dag::derived::prepare::view(
             (std::sync::Arc::new(
                 ryo_execution_store::application::file_dag::fixtures::derived(),
-            ) as std::sync::Arc<dyn ryo_execution_store::outbound::derived::interface::DerivedPort>),
+            ) as Arc<dyn ryo_execution_store::outbound::derived::interface::DerivedPort>),
             &ViewRequest::Equality {
                 columns: vec![ColumnIndex(0)],
             },

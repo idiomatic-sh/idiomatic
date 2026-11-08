@@ -9,6 +9,7 @@ use ryo_relations::domain::relations::types::Relation;
 
 use crate::application::file_dag::derived::owner::cache::types::GraphAdmission;
 /// The derived needs of a compiled request: the relations each rule reads and the rules that walk a graph.
+#[derive(Debug)]
 pub struct RequestDerived {
     relations: Box<[Box<[Relation]>]>,
     graph_rules: rustc_hash::FxHashSet<RuleIndex>,

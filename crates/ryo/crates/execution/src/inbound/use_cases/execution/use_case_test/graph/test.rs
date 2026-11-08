@@ -56,7 +56,7 @@ fn build(
     rows: &Rows<'_>,
     endpoints: [ColumnIndex; 2],
     keys: &[ColumnIndex],
-) -> Result<Option<Arc<CompactGraph>>, ryo_execution_domain::domain::operating::errors::OperatingError> {
+) -> Result<Option<Arc<CompactGraph>>, OperatingError> {
     assert_eq!(
         identity.population.rows,
         ryo_execution_domain::domain::table_model::service::count_of(rows)
@@ -66,7 +66,7 @@ fn build(
     // to this port; invalid columns must be refused by the port itself.
     let semantics = (std::sync::Arc::new(
         fixtures::derived(),
-    ) as std::sync::Arc<dyn ryo_execution_store::outbound::derived::interface::DerivedPort>);
+    ) as Arc<dyn ryo_execution_store::outbound::derived::interface::DerivedPort>);
     let prepared = semantics.prepare(
         DerivedRequest::Adjacency {
             endpoints,
@@ -75,7 +75,7 @@ fn build(
         vec![ryo_execution_domain::domain::table_model::service::kinds_of(rows).to_vec()],
     );
     let Rows::Computed(table) = rows else {
-        return Err(ryo_execution_domain::domain::operating::errors::OperatingError::WrongOperation);
+        return Err(OperatingError::WrongOperation);
     };
     let complete = CompleteTableRows(table);
     match semantics

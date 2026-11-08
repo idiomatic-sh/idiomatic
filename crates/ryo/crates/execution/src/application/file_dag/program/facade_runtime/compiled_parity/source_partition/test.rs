@@ -130,7 +130,7 @@ fn subject(case: Input) -> Result<Value, Failure> {
         };
         let handover = crate::application::file_dag::frontiers::fixtures::prepared_frontiers(
             RuleIndex(0),
-            std::sync::Arc::new([]),
+            Arc::new([]),
             vec![].into(),
             Arc::clone(prepared.program()),
             actual,

@@ -247,7 +247,7 @@ pub(crate) fn observe(omit: bool) -> Coverage {
             &[intent; 5],
             services,
             ryo_values::domain::files::types::SourceView(SMALL_SOURCE),
-            ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible,
+            ReuseEligibility::Eligible,
             &mut symbols,
             None,
             None)

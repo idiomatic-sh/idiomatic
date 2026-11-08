@@ -11,7 +11,7 @@ pub enum LatchState {
 }
 
 /// The first failure an evaluation records, kept until it is taken.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct FailureLatch(Option<OperatingError>);
 impl FailureLatch {
     /// Whether a failure was recorded.

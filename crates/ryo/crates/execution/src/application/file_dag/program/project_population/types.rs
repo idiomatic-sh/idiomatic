@@ -39,7 +39,7 @@ pub(crate) enum BoundKey<R> {
     Current(PopulationId, CoverageState),
     Restored(R),
     Refused(OperatingError),
-    Input(ryo_execution_domain::domain::executable_program::types::InputSource),
+    Input(InputSource),
 }
 
 /// Structural equality is the only reuse decision accepted by the source interner.

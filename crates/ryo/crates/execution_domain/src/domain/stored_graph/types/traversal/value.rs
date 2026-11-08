@@ -10,6 +10,7 @@ pub const UNKNOWN: VertexId = VertexId(u32::MAX);
 pub(crate) const ABSENT: VertexId = VertexId(u32::MAX - 1);
 
 /// A read-only graph plus reusable invocation-owned traversal memory.
+#[derive(Debug)]
 pub struct GraphTraversal<'a> {
     /// Complete, immutable adjacency.
     graph: &'a CompactGraph,

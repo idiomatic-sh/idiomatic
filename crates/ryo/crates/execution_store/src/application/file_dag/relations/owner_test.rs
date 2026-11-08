@@ -4,7 +4,7 @@ use ryo_execution_domain::domain::{
     coverage::types::{Lacking, Partial},
     operating::errors::OperatingError,
     table_model::{
-        types::{PhysicalShape, RepresentationKind},
+        types::PhysicalShape,
         types::{PublishedRelation, Rows},
     },
 };
@@ -63,7 +63,7 @@ fn compact_publications_share_backing_accounting_and_expire_with_generation() {
     owner
         .admit(
             first.as_ref(),
-            ryo_execution_domain::domain::table_model::types::RepresentationInput::Compact(&compact),
+            RepresentationInput::Compact(&compact),
         )
         .unwrap();
     let first_unique = owner.derived.publication_ownership_bytes().2;
@@ -71,7 +71,7 @@ fn compact_publications_share_backing_accounting_and_expire_with_generation() {
     owner
         .admit(
             second.as_ref(),
-            ryo_execution_domain::domain::table_model::types::RepresentationInput::Compact(&compact),
+            RepresentationInput::Compact(&compact),
         )
         .unwrap();
     assert_eq!(first.same_record(&second), crate::application::file_dag::relations::types::Sameness::Different);

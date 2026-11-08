@@ -19,6 +19,7 @@ use ryo_values::domain::{
 };
 
 /// A linked request owns its remapped plans and typed producer references. Cached plans are untouched.
+#[derive(Debug)]
 pub struct LinkedObservationPlans {
     /// The plans, with their observation references remapped.
     pub plans: Vec<Plan>,
@@ -340,7 +341,7 @@ fn frontier(plan: &Plan) -> Result<Vec<Input>, RuleIntentError> {
 /// Actual bound sources beneath each retained cross frontier, including per-file transforms.
 pub fn frontier_dependencies(
     plan: &Plan,
-) -> Result<Vec<Vec<ryo_values::domain::plan_parts::types::ObservationBindingId>>, RuleIntentError>
+) -> Result<Vec<Vec<ObservationBindingId>>, RuleIntentError>
 {
     if plan.observation_inputs.is_empty() {
         return Ok(vec![Vec::new(); plan.frontier.len()]);
@@ -385,7 +386,7 @@ fn bound_input_dependencies(
     input: ryo_values::domain::plan_parts::types::Input,
     steps: &[BTreeSet<ryo_values::domain::plan_parts::types::ObservationBindingId>],
     count: BindingCount,
-) -> Result<BTreeSet<ryo_values::domain::plan_parts::types::ObservationBindingId>, RuleIntentError>
+) -> Result<BTreeSet<ObservationBindingId>, RuleIntentError>
 {
     use ryo_values::domain::plan_parts::types::Input;
     match input {

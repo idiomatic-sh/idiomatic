@@ -98,6 +98,7 @@ pub struct ResolvedObservationBinding {
     pub producers: Vec<ResolvedObservationProducer>,
 }
 /// Compile-time descriptors and their resolved graph references travel together.
+#[derive(Debug)]
 pub struct PreparedObservationInputs {
     /// Compiler declarations in original local input order.
     pub schemas: Vec<ryo_values::domain::observations::types::BoundObservationInput>,
@@ -128,7 +129,7 @@ pub struct ObservationSlot {
     pub input: ryo_values::domain::plan_parts::types::ObservationBindingId,
 }
 /// Actual prepared root location; unsupported admission never becomes complete-empty.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Copy)]
 pub enum GraphObservationRoot {
     /// The root is produced for each file, by this node.
     PerFile(ProgramNodeId),
@@ -278,7 +279,7 @@ pub struct RequestOperators {
     pub ordered_existence:
         Vec<std::sync::OnceLock<crate::domain::self_join_recogniser::types::Program>>,
     /// The prepared operator contracts of each rule, one per compiled operation.
-    pub rules: Vec<Vec<std::sync::Arc<crate::domain::operator::contract::types::OperatorContract>>>,
+    pub rules: Vec<Vec<Arc<crate::domain::operator::contract::types::OperatorContract>>>,
     /// How many contracts were prepared.
     pub preparations: crate::domain::operator::contract::types::PreparationCount,
 }

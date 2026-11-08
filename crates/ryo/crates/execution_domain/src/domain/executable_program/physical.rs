@@ -8,6 +8,7 @@ use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_operators::types::OperationKind;
 
 /// How the physical kernel of an instruction is reached.
+#[derive(Debug)]
 pub enum PhysicalRoute<'a> {
     /// Through the registered operator.
     Registered,
@@ -15,6 +16,7 @@ pub enum PhysicalRoute<'a> {
     Ordered(&'a OrderedExistence),
 }
 /// What a physical evaluation is bound to: the request's parameters, the regular expression's identity and the source's length.
+#[derive(Debug)]
 pub struct PhysicalBinding<'a> {
     /// The request's parameter bindings.
     pub bindings: &'a [ryo_values::domain::query_bindings::types::ParameterBinding],
@@ -24,6 +26,7 @@ pub struct PhysicalBinding<'a> {
     pub source_len: ryo_operators::domain::contract::types::SourceByteLength,
 }
 /// The proof that one operator call is the compiled meaning of its instruction; only [`authorize`] makes one.
+#[derive(Debug)]
 pub struct PhysicalAuthorization {
     _sealed: std::marker::PhantomData<()>,
 }

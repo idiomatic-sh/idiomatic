@@ -32,6 +32,7 @@ pub enum ProgressCounter {
 #[cfg(feature = "diagnostic-row-progress")]
 #[derive(Clone, Copy, Debug)]
 pub struct ProgressAmount(pub u64);
+/// Receives the counts a profiled run observes.
 #[cfg(feature = "diagnostic-row-progress")]
 pub trait ProgressObserver: Sync {
     /// Adds `amount` to what `counter` has counted.
@@ -39,7 +40,7 @@ pub trait ProgressObserver: Sync {
 }
 /// The observer of a run that profiles nothing.
 #[cfg(feature = "diagnostic-row-progress")]
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct IgnoredProgress;
 #[cfg(feature = "diagnostic-row-progress")]
 impl ProgressObserver for IgnoredProgress {
@@ -47,7 +48,7 @@ impl ProgressObserver for IgnoredProgress {
 }
 
 /// Exact typed key lookup prepared by the engine; primitives only probe it.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct IndexedRows<'a> {
     /// The observer the probes report their work to.
     #[cfg(feature = "diagnostic-row-progress")]
@@ -155,7 +156,7 @@ pub struct PartitionCount(pub usize);
 pub struct PartitionIndex(pub usize);
 
 /// The closure partitions an operation reads.
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, Debug)]
 pub enum ClosureViews<'a> {
     /// No partition.
     #[default]
@@ -190,6 +191,7 @@ impl<'a> ClosureViews<'a> {
     }
 }
 /// The partitions of a closure, one at a time.
+#[derive(Debug)]
 pub struct ClosureIter<'a> {
     views: ClosureViews<'a>,
     at: PartitionIndex,
@@ -304,7 +306,7 @@ pub fn validate<'a>(
 }
 
 /// A native lookup bound to a join: the tree it finds candidates in, and how it finds them.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct NativeJoin<'a> {
     /// The tree the lookup finds candidates in.
     pub tree: crate::domain::table_cells::types::TreeRows<'a>,
@@ -338,7 +340,7 @@ pub(crate) struct JoinCursor<'f> {
 }
 
 /// The axis resources one walk runs over: none, a tree of elements, or an index of edges with its domain.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum PreparedAxis<'a> {
     /// No resource.
     Empty,

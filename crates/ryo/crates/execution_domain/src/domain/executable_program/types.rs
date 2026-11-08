@@ -196,7 +196,7 @@ pub(crate) struct Fusibilities {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct ReaderMultiplicity(pub usize);
 /// One direct consumer and the number of its repeated dependency edges.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct ConsumerObligation {
     /// The region that consumes.
     pub consumer: RegionId,

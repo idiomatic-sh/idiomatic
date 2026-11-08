@@ -36,6 +36,7 @@ pub(crate) struct InvocationStorage {
 }
 
 /// The stored relation a build reads, when the build is for a stored relation.
+#[derive(Debug)]
 pub struct StoredColumns {
     pub relation: ryo_relations::domain::relations::types::Relation,
 }

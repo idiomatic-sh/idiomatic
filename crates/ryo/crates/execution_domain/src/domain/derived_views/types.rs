@@ -86,6 +86,7 @@ pub struct IdentityHash(pub u64);
 pub mod contract;
 
 /// Membership semantics can address values, existing dense graph vertices or a native tree.
+#[derive(Debug)]
 pub enum MembershipSpace<'a> {
     /// Any values.
     Values,
@@ -95,6 +96,7 @@ pub enum MembershipSpace<'a> {
     Native(TreeRows<'a>),
 }
 /// Inputs are semantic capabilities only; none can schedule upstream work or select a cache policy.
+#[derive(Debug)]
 pub enum DerivedInputs<'a, 's> {
     /// The rows of one partition.
     Partition {
@@ -145,7 +147,7 @@ pub enum DerivedInputs<'a, 's> {
     },
 }
 /// The buffers a derived build reuses between builds.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct DerivedScratch {
     /// The derived crate's build workspace.
     pub semantic: ryo_derived::domain::contract::types::BuildWorkspace,

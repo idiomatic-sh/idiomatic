@@ -150,10 +150,10 @@ pub(crate) trait Inputs {
     fn dependency(
         &self,
         _input: InputSource,
-    ) -> Result<Option<ryo_execution_domain::domain::executable_program::types::RegionId>, OperatingError> {
+    ) -> Result<Option<RegionId>, OperatingError> {
         Ok(None)
     }
-    fn bind_rule(&mut self, _rule: ryo_execution_domain::domain::coverage::types::RuleIndex) {}
+    fn bind_rule(&mut self, _rule: RuleIndex) {}
 
     fn supply(
         &mut self,

@@ -16,7 +16,6 @@ use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
 use ryo_execution_domain::domain::shared_walk::types::WalkCounts;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::stored_facts::types::Bucket;
-use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
 impl FileExecution for FileSession<'_, '_> {
     fn readiness_counts(&self) -> ReadinessCounts {
         self.inner.readiness_counts()

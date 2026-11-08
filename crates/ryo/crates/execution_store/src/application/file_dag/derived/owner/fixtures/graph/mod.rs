@@ -27,6 +27,7 @@ use ryo_values::domain::{
 use std::rc::Rc;
 
 /// A derived owner over a fake port, with the graph acquisitions a proof drives.
+#[derive(Debug)]
 pub struct GraphFixture {
     pub(crate) owner: Rc<RelationOwner>,
     wanted: Vec<Relation>,
@@ -148,7 +149,7 @@ impl GraphFixture {
                     .resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))?;
                 self.owner.admit(
                     publication.as_ref(),
-                    ryo_execution_domain::domain::table_model::types::RepresentationInput::from(&supplied),
+                    RepresentationInput::from(&supplied),
                 )?;
                 publication
             }
@@ -260,6 +261,7 @@ impl GraphFixture {
             .acquire_graph_domain(&plan, graph, &source, &mut cache)
             .map(Some)
     }
+    /// Reaches the fixture graph from its roots.
     pub fn reach(
         &self,
         access: &GraphHandle,
@@ -325,6 +327,7 @@ impl GraphFixture {
             }),
         )
     }
+    /// Sets the owner's retained-byte limit.
     pub fn set_limit(&mut self, limit: usize) {
         self.limit = limit;
         self.owner
@@ -346,6 +349,7 @@ impl GraphFixture {
         self.owner.release_population();
         self.setup();
     }
+    /// Whether reclaiming `cost` bytes succeeds.
     pub fn reclaim(&self, cost: usize) -> bool {
         let mut backend = self.owner.derived().backend.borrow_mut();
         self.owner
@@ -358,6 +362,7 @@ impl GraphFixture {
             .unwrap()
             == Room::Fits
     }
+    /// The bytes the graph retains.
     pub fn graph_cost(&self, graph: &GraphHandle) -> usize {
         let backend = self.owner.derived().backend.borrow();
         let cache = backend.as_ref().unwrap();

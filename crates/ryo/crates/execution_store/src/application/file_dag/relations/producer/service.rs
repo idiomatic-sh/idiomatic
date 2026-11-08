@@ -119,7 +119,7 @@ impl RelationOwner {
     pub fn release_derived_producer(
         &self,
         scope: ProducerScope,
-        node: ryo_execution_domain::domain::executable_program::types::RegionId,
+        node: RegionId,
     ) {
         if let Some(known) = self
             .producer_populations

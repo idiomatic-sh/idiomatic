@@ -10,6 +10,7 @@ use ryo_relations::domain::relations::types::{FileId, KindBits, Offset};
 use ryo_relations::domain::terms::types::NameText;
 
 /// A tree of four elements: a `file` node holding the tokens `word`, `other` and `word`, in this order, at positions 1 to 3.
+#[derive(Debug)]
 pub struct SmallTree {
     /// The elements.
     pub elements: Elements,

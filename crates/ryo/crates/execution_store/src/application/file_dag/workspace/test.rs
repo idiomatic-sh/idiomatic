@@ -87,7 +87,7 @@ fn use_(
             ryo_values::domain::plan_parts::types::InputNumber(1),
         ],
         relations: [None, None],
-        len: ryo_execution_domain::domain::derived_views::types::InputsUsed(len),
+        len: InputsUsed(len),
     }
 }
 fn context<'a>(
