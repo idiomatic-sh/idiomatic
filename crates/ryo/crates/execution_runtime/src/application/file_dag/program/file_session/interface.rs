@@ -16,7 +16,8 @@ use ryo_values::domain::stored_facts::types::Bucket;
 /// Applicability cannot be changed after another rule has started the shared walk.
 /// ```compile_fail,E0599
 /// use ryo_execution_runtime::application::file_dag::program::file_session::{interface::FileExecution, types::FileSession};
-/// use ryo_execution::inbound::use_cases::execution::interface::{ApplicabilityReason, RuleIndex};
+/// use ryo_execution_domain::domain::coverage::types::RuleIndex;
+/// use ryo_execution_domain::domain::rule_intent::types::ApplicabilityReason;
 /// fn late_skip(file: &mut FileSession<'_, '_>) {
 ///     file.skip_rule(RuleIndex(0), ApplicabilityReason::SyntaxRejected).unwrap();
 /// }

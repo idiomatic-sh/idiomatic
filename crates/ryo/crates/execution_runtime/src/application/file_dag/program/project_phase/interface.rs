@@ -31,7 +31,8 @@ use ryo_values::domain::runs::types::Skipped;
 ///     types::{ProjectPhase, ProjectTask},
 /// };
 /// use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::{ProjectBatch, ProjectOutputOutcome, RuleOutcome};
-/// use ryo_execution::inbound::use_cases::execution::interface::{OperatingError, RuleIndex};
+/// use ryo_execution_domain::domain::coverage::types::RuleIndex;
+/// use ryo_execution_domain::domain::operating::errors::OperatingError;
 /// use ryo_language::domain::symbols::types::Symbols;
 /// fn evaluate(
 ///     phase: &ProjectPhase<'_>,
