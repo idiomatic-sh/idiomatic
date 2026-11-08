@@ -1,11 +1,9 @@
 //! Request-local demand closure over immutable cached plans; no source names are resolved here.
 use crate::domain::coverage::types::RuleIndex;
 use crate::domain::rule_intent::errors::RuleIntentError;
-use crate::domain::file_program::{
-    types::{
-        BindingCount, EscapingOutputs, ExportedOutputs, PendingStep, ResolvedObservationBinding,
-        ResolvedObservationProducer, UsedInputs, WantedSteps,
-    },
+use crate::domain::file_program::types::{
+    BindingCount, EscapingOutputs, ExportedOutputs, PendingStep, ResolvedObservationBinding,
+    ResolvedObservationProducer, UsedInputs, WantedSteps,
 };
 use ryo_values::domain::plan_parts::types::StepScope;
 use std::collections::BTreeSet;

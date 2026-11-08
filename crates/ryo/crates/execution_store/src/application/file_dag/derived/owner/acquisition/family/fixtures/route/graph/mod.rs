@@ -1,6 +1,6 @@
 //! The graph entry: adjacency and membership acquired through an admitted graph input.
 use crate::application::file_dag::derived::owner::acquisition::family::fixtures::route::exit::{Exit, released, released_at_exit};
-use crate::application::file_dag::derived::owner::{fixtures::graph::GraphFixture, index::service::LIMIT};
+use crate::application::file_dag::derived::owner::{fixtures::{graph::GraphFixture, graph_snapshot::Snapshot}, index::service::LIMIT};
 use ryo_execution_domain::domain::{
     operating::errors::OperatingError, table_model::types::Rows,
 };
@@ -16,20 +16,15 @@ pub(super) fn graph(kind: DerivedKind, exit: Exit) -> Result<DerivedKind, Operat
     let mut floor = 0;
     let result = through_graph(kind, exit, &fixture, &mut floor);
     let at_exit = fixture.snapshot();
-    released_at_exit(
-        kind,
-        exit,
-        (at_exit.required_bytes, at_exit.optional_bytes, at_exit.unique_bytes),
-        floor,
-    );
+    released_at_exit(kind, exit, retained(&at_exit), floor);
     fixture.clear();
     let state = fixture.snapshot();
-    released(
-        kind,
-        exit,
-        (state.required_bytes, state.optional_bytes, state.unique_bytes),
-    );
+    released(kind, exit, retained(&state));
     result
+}
+/// The required, optional and unique bytes the owner retains.
+fn retained(state: &Snapshot) -> (usize, usize, usize) {
+    (state.required_bytes, state.optional_bytes, state.unique_bytes)
 }
 fn through_graph(
     kind: DerivedKind,
