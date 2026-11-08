@@ -3,7 +3,7 @@
 //! each file. Narrowing cuts a per-file input by the nodes or files the other input holds, never by a span.
 use super::super::*;
 use super::fixtures::{FILE, ID, NAME, SPAN, files, functions_kept, rows};
-use ryo_query_language::inbound::use_cases::compile::fixtures::{narrowed, regrouped, selections_pushed};
+use ryo_query_language::inbound::use_cases::compile::fixtures::rewrites::{narrowed, regrouped, selections_pushed};
 use ryo_values::domain::plan_parts::types::{
     ComparisonOrigin, LiteralText, Operand, PlanComparison, QueryLiteral, Test,
 };

@@ -132,7 +132,7 @@ fn file_side(output: &[JoinColumn], kinds: &[CellKind]) -> Option<Side> {
     let mut sides = output
         .iter()
         .zip(kinds)
-        .filter(|(_, kind)| matches!(kind, CellKind::File | CellKind::Node))
+        .filter(|(_, kind)| anchor_of(**kind) == ColumnAnchor::InFile)
         .map(|(column, _)| column.side);
     let first = sides.next()?;
     sides.all(|side| side == first).then_some(first)

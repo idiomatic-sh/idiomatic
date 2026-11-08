@@ -63,9 +63,11 @@ fn file_of(value: Value) -> Option<FileId> {
     }
 }
 
-/// Whether a column holds the files or the nodes of files.
+/// Whether a column holds the files or the nodes of files: the one lineage rule of when a column states its row's file.
 fn is_file_kind(kind: CellKind) -> Keying {
-    if matches!(kind, CellKind::File | CellKind::Node) {
+    if ryo_values::domain::lineage::service::anchor_of(kind)
+        == ryo_values::domain::lineage::types::ColumnAnchor::InFile
+    {
         Keying::ByFile
     } else {
         Keying::NotByFile

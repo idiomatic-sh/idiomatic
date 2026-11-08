@@ -74,7 +74,8 @@ pub(crate) fn keyed(fields: &[PlannedColumn]) -> FileOrigin {
 /// its row's file by the one lineage rule (`anchor_of`), or a span. A span states no file, but inside the rows of one file it is a
 /// place in that file, and the planner keeps a step on it in each file. That is a choice of where a step runs, never a proof that
 /// two rows come from one file: a rewrite that moves a step after the files into each file reads the lineage rule alone, under
-/// which a key of spans proves nothing.
+/// which a key of spans proves nothing. A per-file join on spans pairs rows within one file only: that is a decision of the
+/// language's semantics, which spans of two files never meet under.
 fn held_in_file(kind: CellKind) -> FileOrigin {
     if anchor_of(kind) == ColumnAnchor::InFile || kind == CellKind::Span {
         FileOrigin::Held

@@ -16,6 +16,8 @@ enum Scenario {
     KeyFromAPerFileStep,
     /// The key after the files is read from a whole relation.
     KeyFromARelation,
+    /// The key after the files is a row count made after the files, whose values no per-file step holds.
+    KeyFromACountAfterTheFiles,
 }
 
 /// Whether the plan came back as the row expects it.
@@ -37,6 +39,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_key_read_from_a_whole_relation_leaves_the_join_as_it_is"),
         word: Word::Succeeds,
         input: || Scenario::KeyFromARelation,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("a_row_count_after_the_files_stops_the_cut"),
+        word: Word::Succeeds,
+        input: || Scenario::KeyFromACountAfterTheFiles,
         expect: Expect::Value(true),
     },
 ];
@@ -135,6 +143,15 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 StepScope::CrossFile,
             ));
             (steps, after, StepId(5))
+        }
+        Scenario::KeyFromACountAfterTheFiles => {
+            let mut steps = before(Reads::Step(StepId(0)));
+            steps[1].operation = Operation::GroupCount {
+                from: Reads::Step(StepId(0)),
+                keys: Vec::new(),
+                distinct: None,
+            };
+            (steps.clone(), steps, StepId(3))
         }
         Scenario::KeyFromARelation => {
             let steps = before(Reads::Relation(Relation::Function));

@@ -126,7 +126,7 @@ pub(super) fn rows(steps: Vec<PlanStep>, emitted: StepId, files: &[Vec<Function>
     let engine = engine();
     let mut input = authored_request(1);
     let plan = &mut crate::boundary_fixture::plans(&mut input)[0];
-    plan.frontier = ryo_query_language::inbound::use_cases::compile::fixtures::frontier(&steps);
+    plan.frontier = ryo_query_language::inbound::use_cases::compile::fixtures::rewrites::frontier(&steps);
     plan.steps = steps;
     plan.emit = Emit {
         step: emitted,
