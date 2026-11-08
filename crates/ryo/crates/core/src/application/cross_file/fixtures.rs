@@ -171,7 +171,7 @@ pub(super) fn world_with_applicability(
     let metadata = ryo_values::domain::run_metadata::service::from_plans(&plans);
     let engine = PrepareUseCaseImpl::new(
         operators,
-        Arc::new(ryo_execution_store::outbound::derived::factory::semantics()),
+        ryo_execution::derived(),
         Arc::new(ryo_execution::outbound::digest::factory::blake3()),
     );
     let program = Arc::new(

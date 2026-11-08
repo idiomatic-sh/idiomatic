@@ -5,7 +5,6 @@ use ryo_execution_store::application::file_dag::derived::owner::types::DerivedAc
 use crate::application::file_dag::program::prepared_execution::service::prepare;
 use crate::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_store::outbound::derived::interface::DerivedPort;
 use crate::outbound::digest::interface::DigestPort;
 use crate::outbound::operators::interface::OperatorsPort;
 use std::sync::Arc;
@@ -21,7 +20,7 @@ impl PrepareUseCaseImpl {
     /// A use case over the engine's operators, derived views and digest.
     pub fn new(
         operators: Arc<dyn OperatorsPort>,
-        derived: Arc<dyn DerivedPort>,
+        derived: impl Into<DerivedAccess>,
         digest: Arc<dyn DigestPort>,
     ) -> Self {
         Self {

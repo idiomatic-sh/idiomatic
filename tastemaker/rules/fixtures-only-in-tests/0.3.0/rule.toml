@@ -1,5 +1,5 @@
-description = "An item gated by `cfg(any(test, feature = \"fixtures\"))` is named only by test code: a test file, a fixtures file, a file declared under a test or `fixtures` cfg, or an item gated by one. A production file calling a gated method, or naming a gated function, constant or type of its own package, is a finding."
-why = "The gate builds an item for the crate's own tests and, through the `fixtures` feature, for other crates' tests. A feature is additive: when any crate in the build turns `fixtures` on (the core's `fixtures` forwards the engine's), the item compiles into every crate that sees it, so the gate alone does not keep production off it, and a production caller compiles whenever the feature is on (ExecutionRequest::open_file is such a seal: outside the engine's tests a file runs through `run_file`). Test code is a path the test layout places (`tests/`, `test/`, `*_test/`, `benches/`, `*_test.rs`, `test.rs`, `tests.rs`, `fixtures.rs`, `fixtures/`), a file whose module is declared under a `cfg` naming `test` or the `fixtures` feature, or a use inside an item decorated by such a `cfg`. Names are read as written, not resolved: a method is matched by the method name of a method call in any package, and only while no production file declares a method of that name outside the gate (a test or fixtures file that implements the gated trait method without the gate, as a test witness does, does not unseal it); a function, constant or type by the last path segment written in its own package, and only while the package declares nothing else under that name. Not seen: a gated module (its files are test code here; `no-runtime-fixtures` keeps production off `fixtures`), a gated item named from another package by a path, a name inside a macro's tokens, and a gated method that shares its name with an ungated method of a production file."
+description = "An item gated by `cfg(any(test, feature = \"fixtures\"))` is named only by test code: a test file, a fixtures file, a file declared under a test or `fixtures` cfg, or an item gated by one. A production file calling a gated method, by a method call or by its path, or naming a gated function, constant or type of its own package, is a finding."
+why = "The gate builds an item for the crate's own tests and, through the `fixtures` feature, for other crates' tests. A feature is additive: when any crate in the build turns `fixtures` on (the core's `fixtures` forwards the engine's), the item compiles into every crate that sees it, so the gate alone does not keep production off it, and a production caller compiles whenever the feature is on (ExecutionRequest::open_file is such a seal: outside the engine's tests a file runs through `run_file`). Test code is a path the test layout places (`tests/`, `test/`, `*_test/`, `benches/`, `*_test.rs`, `test.rs`, `tests.rs`, `fixtures.rs`, `fixtures/`), a file whose module is declared under a `cfg` naming `test` or the `fixtures` feature, or a use inside an item decorated by such a `cfg`. Names are read as written, not resolved: a method is matched by the method name of a method call in any package, and only while no production file declares a method of that name outside the gate; the same method named by its path (`Trait::method(&value, ..)` or `Type::method(..)`, in any package) is matched by the last segment of a path whose qualifier ends in a capitalised name (a type or a trait, so `module::method` and `crate::method` are read as functions), under the same seal (a test or fixtures file that implements the gated trait method without the gate, as a test witness does, does not unseal it); a function, constant or type by the last path segment written in its own package, and only while the package declares nothing else under that name. Not seen: a gated module (its files are test code here; `no-runtime-fixtures` keeps production off `fixtures`), a gated item named from another package by a path, a name inside a macro's tokens, and a gated method that shares its name with an ungated method of a production file."
 
 query = '''
 let rust-files = select l."path" as "file" from "filesystem.file" as l where glob_any(l."path", "**/*.rs");
@@ -47,7 +47,20 @@ let ungated-packaged = select l."name" as "name", r."package" as "package" from 
 let sealed-items = antijoin(left=gated-packaged, right=ungated-packaged, left-on=["name", "package"], right-on=["name", "package"]);
 let named-paths = select l."id" as "id", l."file" as "file", l."span" as "span", l."text" as "text", r."package" as "package" from path-refs as l join sealed-items as r on l."text" = r."name";
 let item-uses = select l."id" as "id", l."file" as "file", l."span" as "span", l."text" as "text" from named-paths as l join "file-package" as r on l."file" = r."path" and l."package" = r."package";
-let uses = union(left=method-uses, right=item-uses);
+let segment-refs = select l."parent" as "segment", l."child" as "ref" from "syntax-child" as l join segments as r on l."parent" = r."id";
+let segment-in-path = select l."parent" as "path", l."child" as "segment" from "syntax-child" as l join segments as r on l."child" = r."id";
+let path-nodes = select l."id" as "id" from "syntax-tree" as l where l."kind" = "path";
+let qualifiers = select l."parent" as "path", l."child" as "qualifier" from "syntax-child" as l join path-nodes as r on l."child" = r."id";
+let qualifier-segments = select l."path" as "path", r."segment" as "segment" from qualifiers as l join segment-in-path as r on l."qualifier" = r."path";
+let qualifier-refs = select l."path" as "path", r."ref" as "ref" from qualifier-segments as l join segment-refs as r on l."segment" = r."segment";
+let qualifier-names = select l."path" as "path", r."text" as "qualifier" from qualifier-refs as l join ref-tokens as r on l."ref" = r."ref";
+let typed-paths = select * from qualifier-names where glob_any(qualifier, "[A-Z]*");
+let typed-segments = select r."segment" as "segment" from typed-paths as l join segment-in-path as r on l."path" = r."path";
+let typed-segment-refs = select r."ref" as "ref" from typed-segments as l join segment-refs as r on l."segment" = r."segment";
+let typed-refs = select r."id" as "id", r."file" as "file", r."span" as "span", r."text" as "text" from typed-segment-refs as l join ref-tokens as r on l."ref" = r."ref";
+let method-path-uses = select l."id" as "id", l."file" as "file", l."span" as "span", l."text" as "text" from typed-refs as l join sealed-methods as r on l."text" = r."name";
+let call-uses = union(left=method-uses, right=method-path-uses);
+let uses = union(left=call-uses, right=item-uses);
 let production-uses = antijoin(left=uses, right=test-files, left-on=["file"], right-on=["file"]);
 let excluded-items = select l."declaration" as "id" from test-cfgs as l;
 let inside = axis(from=production-uses, relation="syntax-child", direction=ancestor, domain=excluded-items);
@@ -163,6 +176,46 @@ pub fn lint(engine: &engine::Engine) -> usize {
 then.findings = [
   { path = 'core/src/lib.rs', line = 7 },
 ]
+
+[[scenarios]]
+id = 'production-calls-a-gated-method-by-its-path'
+scenario = "The 324 review's note: the core calls the gated `open_file` by the trait's path, `Request::open_file(engine, ..)`, which compiles whenever the `fixtures` feature is on: it is reported at the method's segment."
+given.files.'core/src/lib.rs' = '''
+//! Core.
+
+use engine::Request;
+
+/// Lints one file through the engine.
+pub fn lint(engine: &engine::Engine) -> usize {
+    Request::open_file(engine, "a.rs") + engine::Engine::open_file(engine, "b.rs") + crate::open_file("c.rs")
+}
+
+/// Opens a file the core's own way: a function, not the gated method.
+pub fn open_file(path: &str) -> usize {
+    path.len()
+}
+'''
+then.findings = [
+  { path = 'core/src/lib.rs', line = 7 },
+  { path = 'core/src/lib.rs', line = 7 },
+]
+
+[[scenarios]]
+id = 'a-path-named-like-a-production-function'
+scenario = "A production function of the core is named `open_file` too, and is called by a module path (`crate::open_file`), which is read as the function: nothing is reported."
+given.files.'core/src/lib.rs' = '''
+//! Core.
+
+/// Opens a file the core's own way.
+pub fn open_file(path: &str) -> usize {
+    path.len()
+}
+
+/// Lints one file.
+pub fn lint() -> usize {
+    crate::open_file("a.rs")
+}
+'''
 
 [[scenarios]]
 id = 'production-names-a-gated-constant'

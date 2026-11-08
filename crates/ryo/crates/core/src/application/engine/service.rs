@@ -19,7 +19,7 @@ use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::prepare::types::PrepareRequest;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
-use ryo_execution_store::outbound::derived::interface::DerivedPort;
+use ryo_execution::inbound::use_cases::prepare::interface::DerivedAccess;
 use ryo_execution::outbound::digest::interface::DigestPort;
 use ryo_execution::outbound::operators::interface::OperatorsPort;
 use ryo_execution::outbound::query_language::interface::QueryLanguagePort;
@@ -120,7 +120,7 @@ impl Execution {
     #[must_use]
     pub fn new(
         operators: Arc<dyn OperatorsPort>,
-        derived: Arc<dyn DerivedPort>,
+        derived: impl Into<DerivedAccess>,
         digest: Arc<dyn DigestPort>,
     ) -> Self {
         Self(PrepareUseCaseImpl::new(operators, derived, digest))
