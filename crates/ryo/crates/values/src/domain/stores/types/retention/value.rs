@@ -155,8 +155,8 @@ impl RetainedBytes {
     /// Original worker notes lend their actual owner and the note field of each entry.
     /// Metadata is derived from the reserved allocation of the vector that holds them, including unused capacity.
     ///
-    /// ```compile_fail
-    /// use ryo_values::domain::records::types::retention::value::RetainedBytes;
+    /// ```compile_fail,E0308
+    /// use ryo_values::domain::stores::types::retention::value::RetainedBytes;
     /// use ryo_values::domain::stored_facts::types::FileNotes;
     /// let notes: Vec<FileNotes> = Vec::new();
     /// let _ = RetainedBytes::worker_notes(0, notes.iter());
@@ -205,8 +205,8 @@ impl RetainedBytes {
     /// Exact decoded inputs borrow the actual owning vector and each entry's table field.
     /// The owning allocation is measured here rather than supplied as a caller-computed byte count.
     ///
-    /// ```compile_fail
-    /// use ryo_values::domain::records::types::retention::value::RetainedBytes;
+    /// ```compile_fail,E0308
+    /// use ryo_values::domain::stores::types::retention::value::RetainedBytes;
     /// use ryo_values::domain::rows::types::Table;
     /// let tables: Vec<Table> = Vec::new();
     /// let _ = RetainedBytes::inputs(0, tables.iter());

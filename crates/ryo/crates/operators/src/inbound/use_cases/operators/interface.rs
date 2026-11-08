@@ -43,13 +43,11 @@ use crate::domain::contract::types::PortableOperatorFault;
 ///
 /// A borrowed request cannot retain its input beyond the invocation.
 ///
-/// ```compile_fail
+/// ```compile_fail,E0521
 /// use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
-/// use ryo_relations::domain::relations::types::Value;
-/// fn retain(call: OperatorCall<'_>) -> &'static [Value] {
-///     match call {
-///         OperatorCall::Project { row, .. } => row,
-///         _ => &[],
+/// fn retain(call: OperatorCall<'_>) {
+///     if let OperatorCall::Project { row, .. } = call {
+///         let _ = std::thread::spawn(move || row.len());
 ///     }
 /// }
 /// ```

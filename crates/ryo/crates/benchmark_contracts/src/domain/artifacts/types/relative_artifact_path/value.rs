@@ -5,7 +5,7 @@ use std::path::{Component, Path};
 /// A nonempty relative artifact path containing only normal components.
 ///
 /// A caller cannot construct an unchecked artifact address.
-/// ```compile_fail
+/// ```compile_fail,E0423
 /// use ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath;
 /// let _ = RelativeArtifactPath(std::path::Path::new("../escape"));
 /// ```

@@ -261,7 +261,7 @@ pub fn query_reborrow<'a>(symbols: &'a mut QuerySymbols<'_>) -> QuerySymbols<'a>
 /// assert_eq!(text_of(query.as_ref(), ByteSlice(b""), made).map(|text| text.0), Some("name"));
 /// ```
 ///
-/// ```compile_fail
+/// ```compile_fail,E0308
 /// use ryo_language::domain::symbols::service::{intern, query_intern_derived, text_of};
 /// use ryo_language::domain::symbols::types::{ByteSlice, QuerySymbols, Symbols};
 /// use ryo_relations::domain::relations::types::Offset;

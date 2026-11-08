@@ -15,9 +15,9 @@ pub struct ShardCount(
 );
 
 /// Validated zero-based shard coordinates.
-/// ```compile_fail
-/// use ryo_benchmark_contracts::domain::requests::types::case_shard::value::CaseShard;
-/// let _ = CaseShard { index: 0, count: 0 };
+/// ```compile_fail,E0451
+/// use ryo_benchmark_contracts::domain::requests::types::case_shard::value::{CaseShard, ShardCount, ShardIndex};
+/// let _ = CaseShard { index: ShardIndex(0), count: ShardCount(1) };
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct CaseShard {

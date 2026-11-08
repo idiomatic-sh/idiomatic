@@ -9,11 +9,11 @@ use ryo_benchmark_contracts::domain::measurements::types::SampleName;
 
 /// Reference and candidate observations retained under the explicit diagnostics comparison contract.
 ///
-/// ```compile_fail
+/// ```compile_fail,E0451
 /// use ryo_benchmark_contracts::domain::measurements::types::Measurement;
 /// use ryo_benchmark::domain::measurements::types::pair::value::Pair;
-/// fn forge(reference: Measurement, candidate: Measurement) -> Pair {
-///     Pair { reference, candidate }
+/// fn forge(reference: Measurement, candidate: Measurement, from: Pair) -> Pair {
+///     Pair { reference, candidate, ..from }
 /// }
 /// ```
 #[derive(Clone, Debug)]
