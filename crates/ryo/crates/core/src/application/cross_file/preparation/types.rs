@@ -4,9 +4,6 @@ use ryo_execution::inbound::use_cases::execution::interface::PreparedFrontiers;
 use ryo_execution::inbound::use_cases::execution::interface::PhaseScope;
 use ryo_execution::inbound::use_cases::execution::interface::PublicationSlot;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct OccurrenceNumber(pub usize);
-
 pub(crate) struct PreparedProject {
     pub scope: PhaseScope,
     pub frontier: PreparedFrontiers,

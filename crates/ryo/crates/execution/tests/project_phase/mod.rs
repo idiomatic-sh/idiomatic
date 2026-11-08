@@ -1,5 +1,6 @@
 //! A compiled project emit defers at file scope while real file frontiers remain available.
 use ryo_execution_runtime::application::file_dag::observations::types::AdmittedOutput;
+use ryo_execution_runtime::application::file_dag::frontiers::types::ReadinessProof;
 use ryo_execution_runtime::application::file_dag::frontiers::types::InputReadiness;
 use ryo_execution_runtime::outbound::operators::interface::OperatorsPort as _;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;

@@ -88,7 +88,7 @@ pub(crate) fn build_engine(
         language: Arc::new(language::factory::use_case(handles)),
         query_language: Arc::new(query_language::factory::use_case(compile, typecheck)),
         matching: Arc::new(matching::factory::globset()),
-        plans: ryo_execution::application::rule_compilation::service::CompiledPlans::default(),
+        plans: ryo_execution::inbound::use_cases::compile_rules::interface::CompiledPlans::default(),
         scheduler: pool.of(),
         workers,
         build,

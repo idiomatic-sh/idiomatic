@@ -298,23 +298,30 @@ impl std::fmt::Display for ProviderFault {
     }
 }
 
-impl From<ryo_execution::inbound::use_cases::prepare::interface::RuleCompilationError> for LintError {
+impl From<ryo_execution::inbound::use_cases::compile_rules::interface::RuleCompilationError> for LintError {
     fn from(
-        error: ryo_execution::inbound::use_cases::prepare::interface::RuleCompilationError,
+        error: ryo_execution::inbound::use_cases::compile_rules::interface::RuleCompilationError,
     ) -> Self {
         match error {
-            ryo_execution::inbound::use_cases::prepare::interface::RuleCompilationError::Observations(
+            ryo_execution::inbound::use_cases::compile_rules::interface::RuleCompilationError::Observations(
                 reason,
             ) => Self::ObservationBindings {
                 reason: reason.to_string(),
             },
-            ryo_execution::inbound::use_cases::prepare::interface::RuleCompilationError::Rules(reason) => {
+            ryo_execution::inbound::use_cases::compile_rules::interface::RuleCompilationError::Rules(reason) => {
                 reason.into()
             }
-            ryo_execution::inbound::use_cases::prepare::interface::RuleCompilationError::Query {
+            ryo_execution::inbound::use_cases::compile_rules::interface::RuleCompilationError::Query {
                 id,
                 error,
             } => Self::Query { id, error },
+            ryo_execution::inbound::use_cases::compile_rules::interface::RuleCompilationError::UnknownKind {
+                id,
+                reason,
+            } => Self::UnknownKind {
+                id: id.0.to_string(),
+                reason: reason.0.into(),
+            },
         }
     }
 }

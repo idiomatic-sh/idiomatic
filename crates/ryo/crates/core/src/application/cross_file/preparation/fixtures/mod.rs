@@ -5,7 +5,7 @@ use crate::application::cross_file::{
     preparation::{
         errors::BatchPreparationError,
         service::Preparation,
-        types::{OccurrenceNumber, PreparedProject},
+        types::PreparedProject,
     },
     fixtures::{
         ProjectCalls, counting_plan, crossing, frontier_rows, prepared_in, service, todo,
@@ -13,6 +13,7 @@ use crate::application::cross_file::{
     },
 };
 use crate::domain::answering::types::Todo;
+use ryo_execution::inbound::use_cases::execution::interface::OccurrenceNumber;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;

@@ -1,6 +1,6 @@
 //! Test support for `cross_file`: the worlds, plans and frontier rows its cases are stated over.
 #![cfg(test)]
-use ryo_execution_runtime::outbound::operators::interface::OperatorsPort as _;
+use ryo_execution_runtime::outbound::facts::interface::{FactsFinish, FactsPort as _, FactsWorker};
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
@@ -251,20 +251,13 @@ pub(super) fn prepared<'a>(
     Ok((phase, scope, frontiers))
 }
 
-pub(super) fn prepared_in(
-    world: &World,
-    phase: &ProjectPhase<'_>,
-    rule: RuleIndex,
-    covered: &[Covered],
-    rows: &[(FileId, Table)],
-    symbols: &mut Symbols,
-) -> Result<(PhaseScope, PreparedFrontiers), RuleRequestsError> {
-    use ryo_execution_runtime::outbound::facts::interface::FactsPort as _;
+/// Finished facts and a project worker beside them.
+type KeptFacts = (Box<dyn FactsFinish>, Box<dyn FactsWorker>);
+/// The facts of `rows` kept in bucket 0 for `rule`'s frontier, finished, with a project worker beside them.
+pub(super) fn kept_facts(world: &World, rule: RuleIndex, rows: &[(FileId, Table)]) -> KeptFacts {
     use ryo_execution_runtime::outbound::facts::types::WordsToKeep;
-    use ryo_values::domain::{
-        records::types::{FrontierCoverage, FrontierProof},
-        stored_facts::types::Bucket,
-    };
+    use ryo_values::domain::records::types::{FrontierCoverage, FrontierProof};
+    use ryo_values::domain::stored_facts::types::Bucket;
     let facts_port = ryo_execution_runtime::outbound::facts::fixtures::fake::FactsFake::default();
     let mut workers = Vec::new();
     let proof = FrontierProof {
@@ -294,6 +287,19 @@ pub(super) fn prepared_in(
         .finish(&mut workers.into_iter())
         .expect("facts finish");
     let project = facts_port.worker().expect("project facts");
+    (facts, project)
+}
+
+pub(super) fn prepared_in(
+    world: &World,
+    phase: &ProjectPhase<'_>,
+    rule: RuleIndex,
+    covered: &[Covered],
+    rows: &[(FileId, Table)],
+    symbols: &mut Symbols,
+) -> Result<(PhaseScope, PreparedFrontiers), RuleRequestsError> {
+    use ryo_values::domain::stored_facts::types::Bucket;
+    let (facts, project) = kept_facts(world, rule, rows);
     let scope = phase
         .project_scope(
             rule,

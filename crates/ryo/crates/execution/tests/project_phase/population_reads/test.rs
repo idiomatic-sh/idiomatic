@@ -196,7 +196,7 @@ fn two_declared_roots_of_one_population_read_the_provider_once() {
         let _other = prepare(
             &mut symbols,
             FrontierDemand::Observations {
-                ready: &[InputReadiness::Ready, InputReadiness::Ready],
+                ready: &ReadinessProof::stated(vec![InputReadiness::Ready, InputReadiness::Ready]),
             },
         );
         assert_eq!(

@@ -1,5 +1,6 @@
 //! A request execution: its files, its project phase and its observation stage.
 use crate::application::file_dag::frontiers::errors::PreparationError;
+use crate::application::file_dag::frontiers::service::PreparationPolicy;
 use crate::application::file_dag::frontiers::types::PreparedFrontiers;
 use crate::application::file_dag::program::facade_runtime;
 use crate::application::file_dag::program::file_session::interface::FileExecution;
@@ -31,6 +32,9 @@ use crate::application::file_dag::program::project_phase::types::ProjectPhase;
 use crate::application::file_dag::program::request_execution::interface::ExecutionRequest;
 use crate::application::file_dag::program::project_phase::types::FrontierDemand;
 use crate::application::file_dag::program::project_phase::types::FrontierRequest;
+use crate::application::file_dag::program::project_phase::types::{OccurrenceNumber, OrdinaryPhase, OrdinaryRules, PhasePartials};
+use crate::application::file_dag::program::rule_outcome::types::{ProjectOutputOutcome, RuleOutcome};
+use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use crate::application::file_dag::program::request_execution::types::RequestExecution;
 use ryo_execution_store::application::file_dag::service::ScopePartials;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
@@ -66,9 +70,9 @@ impl ExecutionRequest for RequestExecution {
         input: FrontierRequest<'_>,
         symbols: &mut Symbols,
     ) -> Result<PreparedFrontiers, PreparationError> {
-        let readiness = match input.demand {
-            FrontierDemand::Diagnostic => Vec::new(),
-            FrontierDemand::Observations { ready } => ready.to_vec(),
+        let policy = match input.demand {
+            FrontierDemand::Diagnostic => PreparationPolicy::Diagnostic,
+            FrontierDemand::Observations { ready } => PreparationPolicy::Observations { ready: &ready.0 },
         };
         self.frontiers.prepared(
             &self.program,
@@ -79,16 +83,7 @@ impl ExecutionRequest for RequestExecution {
             input.project_symbols,
             symbols,
             &input.scope.required,
-            match input.demand {
-                FrontierDemand::Diagnostic => {
-                    crate::application::file_dag::frontiers::service::PreparationPolicy::Diagnostic
-                }
-                FrontierDemand::Observations { .. } => {
-                    crate::application::file_dag::frontiers::service::PreparationPolicy::Observations {
-                        ready: &readiness,
-                    }
-                }
-            },
+            policy,
         )
     }
     fn finish(self) {
@@ -111,6 +106,17 @@ impl ExecutionRequest for RequestExecution {
         facts: &dyn FactsWorker,
     ) -> FileRules {
         run_file(self, input, symbols, capture, facts)
+    }
+    fn ordinary_phase<H, T, E>(
+        &self,
+        phase: OrdinaryPhase<'_>,
+        symbols: &mut Symbols,
+        before: impl FnMut(OccurrenceNumber) -> Result<H, E>,
+        partials: impl FnMut(OccurrenceNumber) -> Result<PhasePartials, E>,
+        guard: impl FnMut(RuleIndex) -> Result<(), E>,
+        complete: impl FnMut(OccurrenceNumber, RuleOutcome<ProjectOutputOutcome>, &mut Symbols) -> Result<T, E>,
+    ) -> Result<OrdinaryRules<T, E>, OperatingError> {
+        self.ordinary(phase, symbols, before, partials, guard, complete)
     }
     fn project_phase(&self) -> Result<ProjectPhase<'_>, OperatingError> {
         Ok(ProjectPhase {

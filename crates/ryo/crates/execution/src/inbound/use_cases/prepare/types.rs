@@ -1,5 +1,5 @@
-//! The request `prepare` takes: its queries, rules, digests, hosted relations and observation identity.
-use crate::application::rule_compilation::service::CompiledQueries;
+//! The request `prepare` takes: its plans, rules, digests, hosted relations and observation identity.
+use crate::application::rule_compilation::service::CompiledRules;
 use ryo_execution_domain::domain::prepared_request::types::ObservationIdentity;
 
 /// Where the plans of a request come from.
@@ -9,8 +9,8 @@ pub enum PlanSource {
         plans: Vec<ryo_values::domain::plans::types::Plan>,
         bindings: Vec<Vec<ryo_values::domain::query_bindings::types::ParameterBinding>>,
     },
-    /// Queries a compilation already produced.
-    Compiled(CompiledQueries),
+    /// Rules the `compile` use case compiled.
+    Compiled(CompiledRules),
 }
 
 /// What a caller asks to have prepared.

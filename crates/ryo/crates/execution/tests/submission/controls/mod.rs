@@ -11,8 +11,13 @@ use super::witness::{ALL, Method, Witness, implements_every_entry_trait};
 use crate::boundary_fixture::{corpus, demand, engine, prepared_rules};
 use crate::file_intents::named_request;
 use crate::project_phase::negative::fixtures::{
-    Entry, Held, foreign_phase_outcome, prepare_for, with_held,
+    Entry, Held, NoFacts, foreign_phase_outcome, prepare_for, with_held,
 };
+use ryo_execution::inbound::use_cases::execution::interface::OccurrenceNumber;
+use ryo_execution::inbound::use_cases::execution::interface::OrdinaryPhase;
+use ryo_execution::inbound::use_cases::execution::interface::Partials;
+use ryo_execution::inbound::use_cases::execution::interface::PhasePartials;
+use ryo_execution::inbound::use_cases::execution::interface::PhaseStop;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
@@ -29,8 +34,6 @@ use ryo_execution_runtime::application::file_dag::program::file_session::types::
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
 use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution;
 use ryo_execution::inbound::use_cases::execution::interface::PreparedReporting;
-use ryo_execution::application::rule_compilation::service::ExecutionCompilation;
-use ryo_execution::application::rule_compilation::service::PreparedQueries;
 use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityReason;
 use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityRefusal;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
@@ -56,6 +59,7 @@ pub(super) fn control(method: Method) -> Control {
         Method::RequestRunFile => Control::Refuses(run_file_route),
         Method::RequestObservations => Control::Refuses(observations_need_a_named_program),
         Method::RequestPrepareFrontiers => Control::Refuses(frontiers_of_an_undeclared_rule),
+        Method::RequestOrdinaryPhase => Control::Refuses(ordinary_occurrence_of_an_undeclared_rule),
         Method::RequestProjectPhase => Control::Refuses(a_scope_belongs_to_its_own_phase),
         Method::RootsEvaluate => Control::Refuses(evaluate_routes),
         Method::StageProjectScope => Control::Refuses(|| scope_of_an_undeclared_rule(Entry::Phase)),
@@ -65,6 +69,7 @@ pub(super) fn control(method: Method) -> Control {
         Method::ObservedReserve
         | Method::ObservedBindings
         | Method::ObservedBindingReadiness
+        | Method::ObservedFrontierReadiness
         | Method::ObservedFinish => Control::Refuses(observed_undeclared_rule),
         Method::FileEmitRows
         | Method::FileRule
@@ -123,6 +128,49 @@ pub(super) fn frontiers_of_an_undeclared_rule() {
             ));
         },
     );
+}
+/// An ordinary phase refuses the occurrence of a rule the program did not declare, and that refusal stays with the occurrence: the
+/// declared occurrence beside it is still evaluated and completed, and the phase is released.
+pub(super) fn ordinary_occurrence_of_an_undeclared_rule() {
+    with_held(&engine(), Entry::Phase, 3, |request, _, corpus, covered| {
+        let inapplicable = vec![InapplicableFiles::default(); 4];
+        let project_symbols = ryo_language::domain::symbols::types::Symbols::default();
+        let mut symbols = ryo_language::domain::symbols::types::Symbols::default();
+        let ran = request
+            .ordinary_phase(
+                OrdinaryPhase {
+                    occurrences: &[RuleIndex(0), RuleIndex(3)],
+                    first: &[ryo_values::domain::stored_facts::types::Bucket(0); 4],
+                    corpus,
+                    covered,
+                    skipped: &[],
+                    inapplicable: &inapplicable,
+                    facts: &NoFacts,
+                    project: &NoFacts,
+                    project_symbols: &project_symbols,
+                    arenas: &[],
+                },
+                &mut symbols,
+                |_| Ok::<_, OperatingError>(()),
+                |_| {
+                    Ok(PhasePartials {
+                        evaluation: Partials::default(),
+                        publication: Partials::default(),
+                    })
+                },
+                |_| Ok(()),
+                |occurrence: OccurrenceNumber, _, _| Ok(occurrence),
+            )
+            .expect("the phase opens");
+        assert!(matches!(ran.occurrences.first(), Some(Ok(OccurrenceNumber(0)))));
+        assert!(matches!(
+            ran.occurrences.get(1),
+            Some(Err(PhaseStop::Operating(OperatingError::NotRun)))
+        ));
+        assert_eq!(ran.occurrences.len(), 2);
+        assert!(ran.refused.is_none());
+        assert!(ran.finished.is_ok(), "the phase is released once its occurrences are completed");
+    });
 }
 pub(super) fn a_scope_belongs_to_its_own_phase() {
     assert!(matches!(
@@ -217,6 +265,7 @@ pub(super) fn observed_undeclared_rule() {
         assert!(stage.reserve(undeclared).is_err());
         assert!(stage.bindings(undeclared).is_err());
         assert!(stage.binding_readiness(undeclared).is_err());
+        assert!(stage.frontier_readiness(undeclared).is_err());
         assert!(ObservationExecution::finish(stage, undeclared).is_err());
     });
 }

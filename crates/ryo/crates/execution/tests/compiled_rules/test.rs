@@ -1,5 +1,13 @@
 //! Independently compiled rules keep their declarations and frontiers through the owner.
 use super::super::*;
+use ryo_execution::inbound::use_cases::compile_rules::interface::CompileRulesUseCase as _;
+use ryo_execution::inbound::use_cases::compile_rules::types::CompileRequest;
+use ryo_execution::inbound::use_cases::compile_rules::use_case::CompileRulesUseCaseImpl;
+
+/// Rule compilation over `provider`, the real handover into preparation.
+fn compiling_with(provider: Arc<dyn QueryLanguagePort>) -> CompileRulesUseCaseImpl {
+    CompileRulesUseCaseImpl::new(provider, Arc::new(ryo_execution_runtime::outbound::digest::fixtures::fake::DigestFake))
+}
 
 /// A provider result, not a query parser or execution implementation: this
 /// control exercises the real compilation handover and every subsequent owner.
@@ -33,14 +41,17 @@ impl QueryLanguagePort for AuthoredQueryProvider {
 
 #[test]
 fn public_compiled_independent_rules_keep_exact_per_rule_source_declarations() {
-    use ryo_execution::application::rule_compilation::service::QueryCompilation;
-    use ryo_execution::application::rule_compilation::service::ExecutionCompilation;
     let engine = engine();
     let raw = authored_request(2);
-    let compiler =
-        QueryCompilation::new(Arc::new(AuthoredQueryProvider(crate::boundary_fixture::plans_of(&raw)[0].clone())));
+    let compiler = compiling_with(Arc::new(AuthoredQueryProvider(
+        crate::boundary_fixture::plans_of(&raw)[0].clone(),
+    )));
     let compiled = compiler
-        .compile(&raw.rules, &raw.hosted, &ryo_execution_runtime::outbound::digest::fixtures::fake::DigestFake)
+        .compile_rules(CompileRequest {
+            rules: &raw.rules,
+            hosted: &raw.hosted,
+            vocabularies: &ryo_values::domain::descriptions::types::KindVocabularies(Vec::new()),
+        })
         .expect("compile independent rules");
     let program = engine
         .prepare(PrepareRequest { plans: PlanSource::Compiled(compiled), rules: raw.rules, digests: raw.digests, hosted: raw.hosted, observations: ObservationIdentity::Independent })
@@ -101,7 +112,11 @@ fn public_compiled_independent_rules_keep_exact_per_rule_source_declarations() {
 
     let raw = authored_request(2);
     let compiled = compiler
-        .compile(&raw.rules, &raw.hosted, &ryo_execution_runtime::outbound::digest::fixtures::fake::DigestFake)
+        .compile_rules(CompileRequest {
+            rules: &raw.rules,
+            hosted: &raw.hosted,
+            vocabularies: &ryo_values::domain::descriptions::types::KindVocabularies(Vec::new()),
+        })
         .expect("compile second request");
     let mut substituted = raw.rules;
     substituted.pop();
@@ -267,8 +282,6 @@ fn closure_runs_every_partition_and_empty_input_through_the_owner() {
 #[test]
 fn independent_compilation_preserves_unused_steps_and_original_frontier_order() {
     use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution;
-    use ryo_execution::application::rule_compilation::service::QueryCompilation;
-    use ryo_execution::application::rule_compilation::service::PreparedQueries;
     use ryo_values::domain::plan_parts::types::RepeatedRows;
     let engine = engine();
     let mut raw = authored_request(1);
@@ -296,9 +309,13 @@ fn independent_compilation_preserves_unused_steps_and_original_frontier_order() 
         Input::Step(StepId(2)),
     ];
     let original = crate::boundary_fixture::plans(&mut raw)[0].clone();
-    let compiler = QueryCompilation::new(Arc::new(AuthoredQueryProvider(original.clone())));
+    let compiler = compiling_with(Arc::new(AuthoredQueryProvider(original.clone())));
     let compiled = compiler
-        .compile(&raw.rules, &raw.hosted, &ryo_execution_runtime::outbound::digest::fixtures::fake::DigestFake)
+        .compile_rules(CompileRequest {
+            rules: &raw.rules,
+            hosted: &raw.hosted,
+            vocabularies: &ryo_values::domain::descriptions::types::KindVocabularies(Vec::new()),
+        })
         .expect("independent compile");
     assert_eq!(
         compiled.plans(),

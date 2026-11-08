@@ -2,7 +2,8 @@
 
 use super::service::Compilation;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_execution::inbound::use_cases::prepare::interface::{ExecutionCompilation as _, PreparedQueries as _};
+use ryo_execution::inbound::use_cases::compile_rules::interface::CompileRulesUseCase as _;
+use ryo_execution::inbound::use_cases::compile_rules::types::CompileRequest;
 use ryo_execution::outbound::query_language::fixtures::fake::QueryLanguageFake;
 
 /// What a row of the cases asks of the service.
@@ -22,9 +23,16 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
 
 /// Compiles no rules through the engine's compilation over the fake query language.
 fn subject(_: Input) -> Result<Value, Failure> {
-    let compilation = Compilation::new(std::sync::Arc::new(QueryLanguageFake::default()));
+    let compilation = Compilation::new(
+        std::sync::Arc::new(QueryLanguageFake::default()),
+        std::sync::Arc::new(ryo_execution_runtime::outbound::digest::fixtures::fake::DigestFake),
+    );
     Ok(compilation
-        .compile(&[], &[], &ryo_execution_runtime::outbound::digest::fixtures::fake::DigestFake)
+        .compile_rules(CompileRequest {
+            rules: &[],
+            hosted: &[],
+            vocabularies: &ryo_values::domain::descriptions::types::KindVocabularies(Vec::new()),
+        })
         .expect("no rules compile")
         .plans()
         .is_empty())

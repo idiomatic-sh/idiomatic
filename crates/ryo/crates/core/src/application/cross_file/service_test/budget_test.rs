@@ -227,3 +227,104 @@ pub(super) fn refused_frontier_ordinal_keeps_its_actual_compiled_source_in_each_
     }
     Ok(())
 }
+
+/// Resident bytes read in turn from a script, then none: each read is the next reading.
+#[derive(Debug)]
+struct ScriptedMemory {
+    readings: &'static [u64],
+    read: std::sync::atomic::AtomicUsize,
+}
+impl MemoryPort for ScriptedMemory {
+    fn budget(&self) -> Result<MemoryBytes, MemoryError> {
+        Ok(MemoryBytes(100))
+    }
+    fn resident_bytes(&self) -> Result<MemoryBytes, MemoryError> {
+        let at = self.read.fetch_add(1, Ordering::SeqCst);
+        Ok(MemoryBytes(self.readings.get(at).copied().unwrap_or(0)))
+    }
+}
+
+/// The ordinary phase checks the budget for the first rule before it opens, and for each later occurrence before its preparation:
+/// a refusal stays with its own occurrence, a later occurrence is still prepared and fails on its own, the prepared one is
+/// evaluated and completed, and the phase is released; a refusal of the first rule refuses the whole phase.
+pub(super) fn ordinary_phase_keeps_each_refusal_with_its_occurrence_in_declaration_order()
+-> Result<(), RuleRequestsError> {
+    use crate::application::cross_file::errors::CrossFileError;
+    use crate::application::cross_file::fixtures::kept_facts;
+    use crate::application::cross_file::types::OrdinaryRun;
+    use crate::domain::budget::errors::BudgetError;
+    use ryo_values::domain::stored_facts::types::Bucket;
+    let plan = counting_plan(1, vec![]);
+    let rules = world_with(
+        vec![plan.clone(), plan],
+        Arc::new(ProjectCalls::default()),
+    );
+    let (facts, project) = kept_facts(&rules, RuleIndex(0), &frontier_rows());
+    let project_symbols = Symbols::default();
+    // Rule 0 twice, then rule 1, whose frontier has no first bucket.
+    let todo = [
+        Todo {
+            rule: RuleIndex(0),
+            id: rules.ids[0].clone(),
+        },
+        Todo {
+            rule: RuleIndex(0),
+            id: rules.ids[0].clone(),
+        },
+        Todo {
+            rule: RuleIndex(1),
+            id: rules.ids[1].clone(),
+        },
+    ];
+    let first_bucket = [Bucket(0)];
+    let run = || OrdinaryRun {
+        crossing: crossing(&rules),
+        services: &rules.request,
+        todo: &todo,
+        first_bucket: &first_bucket,
+        facts: facts.as_ref(),
+        project: project.as_ref(),
+        project_symbols: &project_symbols,
+        ids: &rules.ids,
+        budget: MemoryBytes(100),
+    };
+    // The first rule's check passes, the second occurrence's is over the budget, the third's passes.
+    let memory = ScriptedMemory {
+        readings: &[0, 200, 0],
+        read: std::sync::atomic::AtomicUsize::new(0),
+    };
+    let outcome = service()
+        .ordinary(run(), &memory)
+        .expect("the phase runs")
+        .expect("three occurrences make a phase");
+    assert_eq!(outcome.outcomes.len(), 3, "every occurrence answers, in declaration order");
+    let mut outcomes = outcome.outcomes.into_iter();
+    let first = outcomes.next().unwrap();
+    assert_eq!(first.todo.rule, RuleIndex(0));
+    assert!(first.result.is_ok(), "the prepared occurrence is evaluated and completed");
+    let second = outcomes.next().unwrap();
+    assert!(
+        matches!(second.result, Err(CrossFileError::Budget(BudgetError::Exceeded { used: MemoryBytes(200), budget: MemoryBytes(100), ref plans })) if plans == &[rules.ids[0].clone()]),
+        "the budget refusal stays with the occurrence it was checked for"
+    );
+    let third = outcomes.next().unwrap();
+    assert!(
+        matches!(third.result, Err(CrossFileError::Rules(RuleRequestsError::Failed { ref id, ref reason })) if id == &rules.ids[1] && reason == "missing frontier bucket"),
+        "a later occurrence is still prepared after a refusal, and fails on its own"
+    );
+    assert!(outcome.refused.is_none(), "no cohort was refused");
+    assert!(outcome.finished.is_ok(), "the phase is released");
+    assert!(memory.read.load(Ordering::SeqCst) >= 3);
+    // Over the budget before the phase opens: the whole phase is refused for the first rule.
+    let refused = service().ordinary(
+        run(),
+        &ScriptedMemory {
+            readings: &[200],
+            read: std::sync::atomic::AtomicUsize::new(0),
+        },
+    );
+    assert!(
+        matches!(refused, Err(CrossFileError::Budget(BudgetError::Exceeded { ref plans, .. })) if plans == &[rules.ids[0].clone()])
+    );
+    Ok(())
+}
