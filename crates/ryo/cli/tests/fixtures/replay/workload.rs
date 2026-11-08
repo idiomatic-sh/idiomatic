@@ -7,11 +7,9 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
-/// The directory of the staged Django run: `request.json` (the corpus of 2,875 files and the staged rules) and the `staged.json`
+/// The environment variable that names the sealed worker, as the preflight of the Python ruff benchmark reads it. The staged
+/// Django run is the worker's directory: `request.json` (the corpus of 2,875 files and the staged rules) and the `staged.json`
 /// receipt that `--stage-request` wrote beside it.
-pub(crate) const PINNED: &str = "/tmp/ryo-django326";
-
-/// The environment variable that names the sealed worker, as the preflight of the Python ruff benchmark reads it.
 pub(crate) const WORKER: &str = "RYO_PREFLIGHT_WORKER";
 
 /// Why a workload cannot run here.
@@ -50,21 +48,21 @@ impl std::fmt::Display for NotAvailable {
 #[derive(Debug)]
 pub(crate) struct Inputs {
     /// The staged run.
-    pub corpus: PathBuf,
+    pub staged: PathBuf,
     /// The sealed worker.
     pub worker: PathBuf,
 }
 
-/// The inputs at the staged run `corpus` with the worker `worker` names, or why not.
+/// The inputs at the staged run `staged` with the worker `worker` names, or why not.
 ///
 /// # Errors
 ///
 /// The input that is absent.
-pub(crate) fn inputs_at(corpus: &Path, worker: Option<OsString>) -> Result<Inputs, NotAvailable> {
-    if !corpus.join("request.json").is_file() {
-        return Err(NotAvailable::CorpusAbsent(corpus.to_path_buf()));
+pub(crate) fn inputs_at(staged: &Path, worker: Option<OsString>) -> Result<Inputs, NotAvailable> {
+    if !staged.join("request.json").is_file() {
+        return Err(NotAvailable::CorpusAbsent(staged.to_path_buf()));
     }
-    let receipt = corpus.join("staged.json");
+    let receipt = staged.join("staged.json");
     let digest = std::fs::read_to_string(&receipt)
         .ok()
         .and_then(|text| serde_json::from_str::<serde_json::Value>(&text).ok())
@@ -77,7 +75,7 @@ pub(crate) fn inputs_at(corpus: &Path, worker: Option<OsString>) -> Result<Input
         return Err(NotAvailable::WorkerAbsent(named));
     }
     Ok(Inputs {
-        corpus: corpus.to_path_buf(),
+        staged: staged.to_path_buf(),
         worker: named,
     })
 }
@@ -88,7 +86,11 @@ pub(crate) fn inputs_at(corpus: &Path, worker: Option<OsString>) -> Result<Input
 ///
 /// The input that is absent.
 pub(crate) fn inputs() -> Result<Inputs, NotAvailable> {
-    inputs_at(Path::new(PINNED), std::env::var_os(WORKER))
+    let worker = std::env::var_os(WORKER).ok_or(NotAvailable::WorkerNotNamed)?;
+    let staged = Path::new(&worker)
+        .parent()
+        .map_or_else(PathBuf::new, Path::to_path_buf);
+    inputs_at(&staged, Some(worker))
 }
 
 /// Which rules and files a run is asked for.
@@ -124,7 +126,7 @@ pub(crate) fn request(
     cache: &Path,
     directory: &Path,
 ) -> PathBuf {
-    let text = std::fs::read_to_string(inputs.corpus.join("request.json"))
+    let text = std::fs::read_to_string(inputs.staged.join("request.json"))
         .expect("the staged request is read");
     let mut request: serde_json::Value = serde_json::from_str(&text).expect("a request is JSON");
     request["cache"] = cache.to_string_lossy().as_ref().into();
@@ -168,6 +170,17 @@ fn sampled(pid: u32) -> Option<(u128, u128)> {
     Some((ticks * 10, kilobytes))
 }
 
+/// The corpus root `request` names, which the worker runs in.
+///
+/// # Panics
+///
+/// When the request cannot be read or names no root.
+fn root(request: &Path) -> PathBuf {
+    let text = std::fs::read_to_string(request).expect("the request is read");
+    let request: serde_json::Value = serde_json::from_str(&text).expect("a request is JSON");
+    PathBuf::from(request["root"].as_str().expect("the request names its corpus root"))
+}
+
 /// Runs the worker over `request` on one worker thread and measures it from outside: the last sample before it exits is its cost.
 ///
 /// # Panics
@@ -180,7 +193,7 @@ pub(crate) fn run(inputs: &Inputs, request: &Path) -> Cost {
         .args(["run-ryo", "--request-file"])
         .arg(request)
         .arg("python-target=3.10")
-        .current_dir(inputs.corpus.join("corpus"))
+        .current_dir(root(request))
         .env("RAYON_NUM_THREADS", "1")
         .stdout(Stdio::null())
         .stderr(std::fs::File::create(&said).expect("the worker's stderr file is made"))

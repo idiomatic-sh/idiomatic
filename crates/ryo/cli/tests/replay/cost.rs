@@ -2,7 +2,7 @@
 //! edit and at its peak, and the runbook workloads over Django. A run may not cost more than the best a run has done, within its
 //! tolerance, and a run that beats it must lower it. The budget (the `[budget]` table of the same file) is the target and is
 //! never changed: each run reports its gap to it. These rows time the process: they run on a quiet lock, alone, and the Django rows run
-//! only where the pinned run and the sealed worker are on disk.
+//! only where the sealed worker is named and its directory holds a staged request.
 
 use crate::ratchet::{budget_number, hold, judge};
 use crate::workload::{self, Workload};
