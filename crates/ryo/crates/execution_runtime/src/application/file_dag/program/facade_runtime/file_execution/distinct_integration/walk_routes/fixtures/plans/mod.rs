@@ -139,6 +139,68 @@ impl Authored {
             observations: ObservationIdentity::Independent,
         }
     }
+    /// One admitted sharing class in `scope`: rules 0 and 1 author the same `head` over
+    /// `LanguageTarget`, and rule 2 a selection of the same relation with another predicate
+    /// (`> 1`), so the request holds two distinct classes over one source.
+    pub(crate) fn sharing(scope: StepScope, head: Operation) -> Self {
+        let mut plans = vec![
+            plan(vec![PlanStep {
+                scope,
+                operation: head.clone(),
+            }]),
+            plan(vec![PlanStep {
+                scope,
+                operation: head,
+            }]),
+            plan(vec![PlanStep {
+                scope,
+                operation: Operation::Select {
+                    from: PlanInput::Relation(Relation::LanguageTarget),
+                    comparisons: vec![comparison(Test::GreaterThan, Integer(1))],
+                    kept: vec![ColumnIndex(1)],
+                },
+            }]),
+        ];
+        if scope == StepScope::CrossFile {
+            for plan in &mut plans {
+                plan.frontier = vec![PlanInput::Relation(Relation::LanguageTarget)];
+            }
+        }
+        Self {
+            rules: rules(&plans),
+            intents: vec![collected(); plans.len()],
+            plans,
+            bindings: vec![],
+            hosts: vec![],
+            observations: ObservationIdentity::Independent,
+        }
+    }
+    /// A shared head beside a projection that drops repeated rows: the walk declines that
+    /// representation.
+    pub(crate) fn declined() -> Self {
+        let plans = vec![
+            head(
+                vec![ColumnIndex(1)],
+                vec![comparison(Test::GreaterThan, Integer(1))],
+            ),
+            plan(vec![PlanStep {
+                scope: StepScope::PerFile,
+                operation: Operation::Project {
+                    from: PlanInput::Relation(Relation::LanguageTarget),
+                    columns: vec![ColumnIndex(1)],
+                    distinct: RepeatedRows::Dropped,
+                },
+            }]),
+        ];
+        Self {
+            rules: rules(&plans),
+            intents: vec![collected(); plans.len()],
+            plans,
+            bindings: vec![],
+            hosts: vec![],
+            observations: ObservationIdentity::Independent,
+        }
+    }
     pub(crate) fn continuations() -> Self {
         let good = extended(ColumnIndex(2), Integer(7));
         let plans = vec![

@@ -15,3 +15,5 @@ mod observation;
 mod retention;
 #[cfg(test)]
 mod row_semantics;
+#[cfg(test)]
+mod sharing;

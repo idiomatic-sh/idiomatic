@@ -6,7 +6,7 @@
 numbers rest on: library tests, `boundary_contract`, `project_boundary`,
 `activation`, `bdd`, `core_bdd`, `core_allocation`, the execution program
 authority targets, the doctests (execution, its domain, store and runtime, values, core, sdk, derived),
-`ruff_sharing` and `ruff` (the python target), the ten language `conformance`
+`ruff` (the python target), the ten language `conformance`
 targets, the command line's `cli_tests` (`replay`, `blocks`, `call_count`,
 `command_line`, `command_tree`, `readme`), `bench_build` (the command line's and
 the core's benches compile), `no_print` (the two print lints over the execution,
