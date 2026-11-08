@@ -19,9 +19,7 @@ pub(crate) fn compiled(
     plans: &[Plan],
     semantic: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
 ) -> ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram {
-    use ryo_execution_domain::domain::{
-        source_partitions::types::source_partitions::value::SourcePartitions,
-    };
+    use ryo_execution_domain::domain::source_partitions::types::source_partitions::value::SourcePartitions;
     use ryo_values::domain::{
         query_tokens::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
         rule_requests::types::{RuleParameters, RuleSpec},

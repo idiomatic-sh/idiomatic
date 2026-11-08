@@ -175,4 +175,3 @@ fn unsupported_and_empty_gates_precede_derived_handle_requirement() {
 }
 
 use ryo_values::domain::rows::types::Table;
-use ryo_execution_domain::domain::table_model::types::RepresentationInput;

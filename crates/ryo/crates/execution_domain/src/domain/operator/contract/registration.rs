@@ -2,7 +2,7 @@
 //! by its declared contract and evaluated by the operators' one meaning of it.
 use ryo_values::domain::query_operators::types::OperationKind;
 /// Only this registry constructs a callable operator selected by the exhaustive kind.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct RegisteredOperator {
     kind: OperationKind,
 }

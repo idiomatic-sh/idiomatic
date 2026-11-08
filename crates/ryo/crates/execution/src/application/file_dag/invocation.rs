@@ -16,7 +16,7 @@ use ryo_execution_domain::domain::operator::contract::{
     views::NativeJoin,
     resources::ResourceProgram,
     types::OperatorContract,
-    views::{IndexedRows},
+    views::IndexedRows,
 };
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_domain::domain::table_groups::types::Group;

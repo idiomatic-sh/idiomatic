@@ -92,7 +92,7 @@ pub struct SemanticContract {
 
 /// What an operation declares of its semantics: its input contract, its effects and the
 /// inputs whose absence of rows it trusts.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct OperationSemantics {
     /// The operation's input contract.
     pub contract: SemanticContract,

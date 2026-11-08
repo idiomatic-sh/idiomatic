@@ -1,6 +1,5 @@
 //! Forged metadata never gains authority it was not issued.
 use super::*;
-use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 #[derive(Debug)]
 struct Forged;
 impl PublishedRelation for Forged {

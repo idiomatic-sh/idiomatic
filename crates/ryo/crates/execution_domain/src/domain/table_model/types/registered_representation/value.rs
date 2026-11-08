@@ -17,7 +17,7 @@ use ryo_values::domain::{
     rows::types::{RowCount, RowIndex},
 };
 /// The representation registered for one kind, through which its rows are prepared and inspected.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct RegisteredRepresentation {
     kind: RepresentationKind,
 }

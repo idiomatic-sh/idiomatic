@@ -9,7 +9,6 @@ use ryo_derived::domain::contract::types::DerivedView;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use {
-    ryo_execution_domain::domain::derived_views::types::ViewRequest,
     ryo_execution_domain::domain::operation_schema::types::InputShape,
     ryo_values::domain::rows::service::push_row,
 };

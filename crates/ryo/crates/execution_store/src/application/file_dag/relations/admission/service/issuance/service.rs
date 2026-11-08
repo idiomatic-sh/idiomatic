@@ -4,8 +4,6 @@ use crate::application::file_dag::relations::admission::types::AdmissionOrigin;
 use crate::application::file_dag::relations::publication::types::*;
 use crate::application::file_dag::relations::types::Sameness;
 use crate::application::file_dag::relations::*;
-use ryo_execution_domain::domain::table_model::types::PublishedRelation;
-use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 impl<'a> BorrowedInput<'a> {
     /// Checks that `publication` is the one this input was admitted from.
     pub fn require_publication(

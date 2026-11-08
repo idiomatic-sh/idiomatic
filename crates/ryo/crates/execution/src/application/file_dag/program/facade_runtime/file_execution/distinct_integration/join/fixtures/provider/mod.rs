@@ -1,6 +1,5 @@
 //! Canonical provider data and its physical encoding; no evaluator or admission factory.
 use super::super::super::*;
-use ryo_execution_domain::domain::table_cells::types::TreeRows;
 use ryo_execution_domain::domain::table_model::types::RepresentationKind;
 use ryo_execution_domain::domain::table_model::service::materialize;
 use ryo_relations::domain::relations::service::to_bits;

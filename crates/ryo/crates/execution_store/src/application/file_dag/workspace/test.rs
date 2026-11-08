@@ -7,7 +7,6 @@ use ryo_execution_domain::domain::{
     operation_schema::types::InputShape,
     table_model::types::Rows,
 };
-use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_derived::domain::contract::types::DerivedView;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{

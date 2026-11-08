@@ -1,7 +1,6 @@
 //! Generation checks, identity matches, resolution and physical inspection of publications.
 use crate::application::file_dag::relations::types::NormalizationCharge;
 use crate::application::file_dag::relations::*;
-use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 impl RelationOwner {
     /// The cell kinds of a publication.
     pub fn publication_kinds<'a>(

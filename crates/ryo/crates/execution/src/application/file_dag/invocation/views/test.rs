@@ -109,4 +109,3 @@ fn production_cycle_lease_borrows_actual_trait_output_and_refuses_foreign_storag
 }
 
 use ryo_values::domain::rows::types::Table;
-use ryo_execution_domain::domain::table_model::types::RepresentationInput;

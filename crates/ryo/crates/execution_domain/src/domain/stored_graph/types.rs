@@ -63,7 +63,7 @@ pub struct GraphSource {
 /// Shared domain membership belongs to one exact adjacency as well as its own population.
 
 /// Exact domain membership context for graph/nearest reuse.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Copy)]
 pub struct DomainIdentity {
     /// Domain population, distinct from the graph's population.
     pub population: RelationPopulation,

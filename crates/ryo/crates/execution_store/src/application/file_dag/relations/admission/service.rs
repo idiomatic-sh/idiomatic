@@ -1,9 +1,7 @@
 //! A demand-scoped immutable input and the one admission decision that belongs to it.
 use crate::application::file_dag::derived::population::types::PopulationId;
 use crate::application::file_dag::relations::admission::types::AdmissionOrigin;
-use ryo_execution_domain::domain::{
-    table_model::types::PhysicalShape,
-};
+use ryo_execution_domain::domain::table_model::types::PhysicalShape;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_relations::domain::relations::types::Relation;
 

@@ -4,7 +4,7 @@ use ryo_execution_domain::domain::{
     operating::errors::OperatingError,
     operator::contract::{
         views::PreparedAxis,
-        views::{IndexedRows},
+        views::IndexedRows,
     },
     table_cells::types::TreeRows,
 };

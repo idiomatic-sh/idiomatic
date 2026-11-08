@@ -4,7 +4,6 @@ use crate::application::file_dag::relations::*;
 
 use crate::application::file_dag::derived::population::types::PopulationId;
 use crate::application::file_dag::relations::handle::service::PublishedInput;
-use ryo_execution_domain::domain::executable_program::types::RegionId;
 use ryo_execution_domain::domain::self_join_recogniser::types::{
     NumberRequirement, SchemaWidth, StoredNumberOrigin,
 };
@@ -13,7 +12,6 @@ use ryo_relations::domain::relations::{
     types::{ColumnsView, FactColumn},
 };
 use ryo_values::domain::plan_parts::types::{ColumnIndex, StepId};
-use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 #[test]
 fn number_witness_rejects_wrong_producer_and_recycled_generation() {
     let relation = Relation::SourceLocation;

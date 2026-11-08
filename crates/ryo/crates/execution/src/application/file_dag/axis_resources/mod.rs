@@ -9,7 +9,7 @@ mod test;
 use ryo_execution_store::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView;
 use ryo_execution_domain::domain::{
     operating::errors::OperatingError,
-    operator::contract::{resources::AxisResources, },
+    operator::contract::resources::AxisResources,
     table_cells::types::{TreeForm, TreeRows},
     table_model::service::check_columns,
     tree_walk::service::entity_of,
