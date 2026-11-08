@@ -42,7 +42,7 @@ pub(crate) struct Route {
 // The route each operation kind's meaning allows. Execution's route test checks this table against its
 // `meaning` for every operation kind, so the two cannot drift.
 pub(crate) const MEANINGS: &str = include_str!(
-    "../../../../../../../crates/execution/src/application/file_dag/program/facade_runtime/walk_coverage/fixtures/route_meanings.txt"
+    "../../../../../../../crates/execution_runtime/src/application/file_dag/program/facade_runtime/walk_coverage/fixtures/route_meanings.txt"
 );
 /// The meaning the shared table gives an operation kind.
 pub(crate) fn meaning_of(kind: &str) -> Option<&'static str> {
