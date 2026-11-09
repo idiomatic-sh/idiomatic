@@ -360,6 +360,8 @@ mod operation_routes;
 
 mod route_controls;
 
+mod ordered_partial;
+
 mod ordered_dfs;
 
 mod closure_abort;
