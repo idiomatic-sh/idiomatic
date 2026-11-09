@@ -64,6 +64,9 @@ pub struct GroupCoordinate(pub u32);
 pub struct GroupDigest(pub i64);
 /// Mutable reduction storage is borrowed from one engine invocation, never retained by semantics.
 pub trait StreamingReduction {
+    /// # Errors
+    ///
+    /// [`ContractError::Interrupted`] when an engine-retained error interrupts the grouping.
     fn group(
         &mut self,
         key: &[ryo_relations::domain::relations::types::Value],

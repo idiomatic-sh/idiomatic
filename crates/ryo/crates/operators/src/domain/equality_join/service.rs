@@ -111,11 +111,9 @@ fn keyed(
     key: &[Value],
     right: &[Value],
 ) -> crate::domain::contract::types::PredicateOutcome {
-    if right_on
-        .iter()
-        .zip(key)
-        .all(|(column, value)| right.get(column.0 as usize) == Some(value))
-    {
+    if right_on.iter().zip(key).all(|(column, value)| {
+        right.get(usize::try_from(column.0).unwrap_or(usize::MAX)) == Some(value)
+    }) {
         crate::domain::contract::types::PredicateOutcome::Holds
     } else {
         crate::domain::contract::types::PredicateOutcome::Fails
@@ -129,7 +127,7 @@ fn closure_cell(
     source: Value,
     reached: Value,
 ) -> Result<Value, PortableOperatorFault> {
-    let at = column.0 as usize;
+    let at = usize::try_from(column.0).map_err(|_| PortableOperatorFault::ShapeMismatch)?;
     if let Some(each) = key.get(at) {
         Ok(*each)
     } else if at == key.len() {
@@ -177,7 +175,8 @@ fn reach_join(
         for destination in graph.destinations {
             right.clear();
             for column in &reach.columns {
-                let at = column.0 as usize;
+                let at =
+                    usize::try_from(column.0).map_err(|_| PortableOperatorFault::ShapeMismatch)?;
                 right.push(if at < reach.keys.len() + 1 {
                     *graph
                         .request
@@ -217,10 +216,13 @@ fn reach_join(
                 .iter()
                 .zip(key.iter())
                 .all(|(column, value)| {
-                    let Some(logical) = reach.columns.get(column.0 as usize) else {
+                    let Some(logical) = reach
+                        .columns
+                        .get(usize::try_from(column.0).unwrap_or(usize::MAX))
+                    else {
                         return false;
                     };
-                    let at = logical.0 as usize;
+                    let at = usize::try_from(logical.0).unwrap_or(usize::MAX);
                     if at < partition_key.len() {
                         partition_key.get(at) == Some(value)
                     } else if at == partition_key.len() {

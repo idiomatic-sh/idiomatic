@@ -8,6 +8,10 @@ pub trait JoinDriver {
     /// Advance to the next admitted match for this left key. Every yielded candidate
     /// must satisfy the prepared equality or native lookup contract; the kernel does
     /// not repeat verified key comparisons. Empty sources never access output cells.
+    ///
+    /// # Errors
+    ///
+    /// [`EqualityJoinError::Interrupted`](super::errors::EqualityJoinError::Interrupted) when the engine interrupts the join.
     fn next(
         &mut self,
         key: &[ryo_relations::domain::relations::types::Value],
@@ -18,6 +22,10 @@ pub trait JoinDriver {
         column: ryo_values::domain::plan_parts::types::ColumnIndex,
     ) -> Option<ryo_relations::domain::relations::types::Value>;
     /// Deliver one projected row. After interruption every later call must remain interrupted.
+    ///
+    /// # Errors
+    ///
+    /// [`EqualityJoinError::Interrupted`](super::errors::EqualityJoinError::Interrupted) when the engine interrupts the join.
     fn emit(
         &mut self,
         row: &[ryo_relations::domain::relations::types::Value],
@@ -56,6 +64,10 @@ pub enum JoinInput<'a> {
 /// Borrowed matching position rows. No semantic cell is decoded by this interface.
 pub trait PositionJoinDriver {
     /// Advance in the original bag order. The first error is sticky.
+    ///
+    /// # Errors
+    ///
+    /// [`EqualityJoinError::Interrupted`](super::errors::EqualityJoinError::Interrupted) when the engine interrupts the join.
     fn next(&mut self) -> Result<Advance, EqualityJoinError>;
     /// File-local position slots of the current already matching RHS row.
     fn right_positions(&self) -> PositionSlots<'_>;

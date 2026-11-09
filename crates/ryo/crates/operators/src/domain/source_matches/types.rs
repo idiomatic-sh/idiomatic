@@ -36,6 +36,9 @@ pub trait TextRowDriver {
         &mut self,
         text: ryo_values::domain::row_texts::types::CellText<'_>,
     ) -> ryo_relations::domain::relations::types::Value;
+    /// # Errors
+    ///
+    /// [`ContractError::Interrupted`] when an engine-retained error interrupts the delivery.
     fn emit(
         &mut self,
         row: &[ryo_relations::domain::relations::types::Value],

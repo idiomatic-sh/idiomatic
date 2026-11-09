@@ -63,11 +63,12 @@ fn source(input: Input) -> Result<Value, Failure> {
         "(?P<cap>x)"
     } else {
         "(?P<cap>b|c|d)"
-    });
+    })
+    .unwrap();
     let capture = match input {
         Scenario::SourceMissingCapture => Some("absent"),
         Scenario::SourceMissingOptions => None,
-        _ => Some("cap"),
+        Scenario::SourceLines | Scenario::SourceInterrupted => Some("cap"),
     };
     let mut delivery = fixtures::SourceDelivery {
         fail_second: matches!(input, Scenario::SourceInterrupted),

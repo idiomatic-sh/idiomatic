@@ -114,7 +114,7 @@ fn source_optional(input: Input) -> Result<Value, Failure> {
     } else {
         "a\r\nb\rc"
     };
-    let regex = fixtures::regex("(?P<cap>b|c|d)");
+    let regex = fixtures::regex("(?P<cap>b|c|d)").unwrap();
     let mut delivery = fixtures::SourceDelivery {
         fail_second: interrupted,
         ..fixtures::SourceDelivery::default()
