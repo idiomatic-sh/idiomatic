@@ -385,3 +385,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
 }
+#[cfg(test)]
+mod comparisons_test;
+#[cfg(test)]
+mod nested_test;

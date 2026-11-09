@@ -16,7 +16,8 @@ use crate::domain::{
         types::Kind,
     },
 };
-use ryo::languages::{self, Position, Symbols, Tree};
+use ryo::languages::{self, EmbeddedSource, Position, Symbols, Tree};
+use std::ops::Range;
 
 /// Every stable identity available to the explicit semantic projection.
 pub(crate) fn positions(tree: &Tree<'_>) -> impl Iterator<Item = Position> {
@@ -24,39 +25,72 @@ pub(crate) fn positions(tree: &Tree<'_>) -> impl Iterator<Item = Position> {
 }
 
 /// Whether an occurrence belongs to native syntax or an enabled embedded expression.
+/// The file's embedded expressions are projected once; each occurrence is then one bisection.
 pub(crate) fn visibility(
     tree: &Tree<'_>,
     model: &Declarations,
     at: Position,
     symbols: &mut Symbols,
 ) -> Visibility {
-    let Some(embedding) = languages::embedded_expressions(tree.elements)
-        .find(|embedding| embedding.root <= at && at < embedding.end)
-    else {
-        return Visibility::Visible;
-    };
     if model.semantic.borrow().state == QualificationState::Fresh {
-        let provenance = prepare(tree, model);
-        let mut semantic = model.semantic.borrow_mut();
-        semantic.roots.clear();
-        for expression in languages::embedded_expressions(tree.elements) {
-            let parent_enabled = languages::embedded_expressions(tree.elements)
-                .find(|outer| outer.root <= expression.host && expression.host < outer.end)
-                .is_none_or(|outer| semantic.roots.contains(&outer.root));
-            if parent_enabled
-                && type_position(tree, model, &provenance, expression.host, symbols)
-                    == TypeContext::Type
-            {
-                semantic.roots.push(expression.root);
-            }
+        // Native occurrences leave the projection unbuilt until an embedded occurrence is read.
+        if languages::embedded_source_at(tree.elements, at).is_none() {
+            return Visibility::Visible;
         }
+        let mut hidden = std::mem::take(&mut model.semantic.borrow_mut().hidden);
+        hidden.clear();
+        let provenance = prepare(tree, model);
+        project(
+            languages::embedded_expressions(tree.elements),
+            &mut hidden,
+            bounds,
+            |host| type_position(tree, model, &provenance, host, symbols),
+        );
+        let mut semantic = model.semantic.borrow_mut();
+        semantic.hidden = hidden;
         semantic.state = QualificationState::Ready;
     }
-    if model.semantic.borrow().roots.contains(&embedding.root) {
-        Visibility::Visible
-    } else {
+    if enclosing(&model.semantic.borrow().hidden, at, bounds).is_some() {
         Visibility::Hidden
+    } else {
+        Visibility::Visible
     }
+}
+
+/// The appended element interval of one embedded expression.
+fn bounds(source: &EmbeddedSource) -> Range<Position> {
+    source.root..source.end
+}
+
+/// Keep, in append order, each embedded expression that is not a type expression or whose host
+/// lies in a hidden one. `typed` is asked only for a host outside every hidden expression;
+/// `bounds` reads one expression's interval per comparison.
+pub(crate) fn project(
+    sources: impl IntoIterator<Item = EmbeddedSource>,
+    hidden: &mut Vec<EmbeddedSource>,
+    mut bounds: impl FnMut(&EmbeddedSource) -> Range<Position>,
+    mut typed: impl FnMut(Position) -> TypeContext,
+) {
+    for source in sources {
+        // A holder starts before its nested host, so it is already decided.
+        if enclosing(hidden, source.host, &mut bounds).is_some()
+            || typed(source.host) != TypeContext::Type
+        {
+            hidden.push(source);
+        }
+    }
+}
+
+/// The expression holding `at` among disjoint expressions ascending by root, found by bisection.
+pub(crate) fn enclosing(
+    sources: &[EmbeddedSource],
+    at: Position,
+    mut bounds: impl FnMut(&EmbeddedSource) -> Range<Position>,
+) -> Option<&EmbeddedSource> {
+    let next = sources.partition_point(|source| bounds(source).start <= at);
+    next.checked_sub(1)
+        .and_then(|index| sources.get(index))
+        .filter(|source| at < bounds(source).end)
 }
 
 /// Resolve a typing form using the same lexical provenance as ordinary expressions.
