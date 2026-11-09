@@ -58,7 +58,7 @@ fn run(source_span: Option<Span>, line: i64, stream: bool) -> (Result<(), Operat
 /// pattern's. The literal pattern is compiled once, eagerly, when the request is prepared (L-span L1), so every run
 /// counts that one build, and a row that passes the gates meets the compiled refusal.
 #[test]
-fn malformed_source_and_line_refuse_without_acquiring_bad_regex() {
+fn malformed_source_and_line_refuse_before_the_prepared_regex() {
     for stream in [false, true] {
         assert_eq!(
             run(Some(span(0, 2)), 1, stream),

@@ -738,7 +738,11 @@ const RENDER: &[Raiser] = &[
     Raiser::Rows(OperationKind::RenderSyntax),
     Raiser::Rows(OperationKind::FitsRendered),
 ];
-const TEXT_GATE: &[Raiser] = &[Raiser::Rows(OperationKind::Replace)];
+const TEXT_GATE: &[Raiser] = &[
+    Raiser::Rows(OperationKind::Replace),
+    Raiser::Rows(OperationKind::SourceMatches),
+];
+const CAPTURE: &[Raiser] = &[Raiser::Pattern(OperationKind::SourceMatches)];
 const REGEX: &[Raiser] = &[
     Raiser::Rows(OperationKind::Select),
     Raiser::Rows(OperationKind::Join),
@@ -768,7 +772,7 @@ fn operating(error: &OperatingError) -> Fault {
         // A regular expression read from the row, or a literal one that does not compile.
         OperatingError::InvalidRegex { .. } => Fault::RowFallible(REGEX),
         OperatingError::WrongTest => Fault::Comparison,
-        // Replace's text gate; any other source is a schema check.
+        // Replace's text gate and SourceMatches' span gate; any other source is a schema check.
         OperatingError::ShapeMismatch => Fault::RowFallible(TEXT_GATE),
         OperatingError::Spelling(_)
         | OperatingError::ObservationConfiguration(_)
@@ -790,12 +794,9 @@ fn portable(fault: &ryo_operators::domain::contract::types::PortableOperatorFaul
         InvalidSpan => Fault::RowFallible(SPAN),
         InvalidSourceMatchSpan => Fault::RowFallible(SOURCE_SPAN),
         UnsupportedRender => Fault::RowFallible(RENDER),
-        NoSuchColumn { .. }
-        | WrongOperation
-        | UnboundKey
-        | WrongBinding
-        | Unbound
-        | MissingCapture => Fault::Fixed,
+        NoSuchColumn { .. } | WrongOperation | UnboundKey | WrongBinding | Unbound => Fault::Fixed,
+        // A named capture the matcher lacks, raised when a row first reaches the search.
+        MissingCapture => Fault::RowFallible(CAPTURE),
         Interrupted | NotRun => Fault::Engine,
     }
 }
@@ -863,9 +864,10 @@ fn raising(raiser: Raiser) -> Operation {
             pattern: literal,
             replacement: LiteralText("b".into()),
         },
+        // A per-file search over the comment span, so its contract declares `UnlessLocated`.
         OperationKind::SourceMatches => Operation::SourceMatches {
-            from,
-            span: ColumnIndex(0),
+            from: Source::Relation(Relation::Comment),
+            span: ColumnIndex(3),
             base_line: None,
             pattern: literal,
             capture: None,
@@ -918,21 +920,89 @@ fn raising(raiser: Raiser) -> Operation {
     }
 }
 
-/// Whether the raiser declares the input it raises on: the prepared contract's failure mask, or the fold's check of a
-/// literal pattern.
-fn declared(raiser: Raiser) -> bool {
+/// One fault the catalogue audits: an operating error or a portable operator fault.
+#[derive(Clone, Copy, Debug)]
+enum Raised<'a> {
+    Operating(&'a OperatingError),
+    Portable(&'a ryo_operators::domain::contract::types::PortableOperatorFault),
+}
+
+/// The proof that lets the fold drop an `UnlessLocated` failure term for a fault: the file's admission of the relied spans
+/// through the search's own span gate (`validate_spans`), or the prepared slot's compile of the pattern and its named
+/// capture (`relied`). The matches are exhaustive, so a new fault cannot land without saying whether a proof covers it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum LocatedProof {
+    SpanGate,
+    MatcherSlot,
+}
+fn located_proof(raised: Raised<'_>) -> Option<LocatedProof> {
+    use ryo_operators::domain::contract::types::PortableOperatorFault as P;
+    match raised {
+        Raised::Operating(
+            OperatingError::InvalidSourceMatchSpan | OperatingError::ShapeMismatch,
+        )
+        | Raised::Portable(P::InvalidSourceMatchSpan | P::ShapeMismatch) => {
+            Some(LocatedProof::SpanGate)
+        }
+        Raised::Operating(OperatingError::InvalidRegex { .. })
+        | Raised::Portable(P::MissingCapture) => Some(LocatedProof::MatcherSlot),
+        Raised::Operating(
+            OperatingError::DuplicateDfsOrder
+            | OperatingError::DfsOrdinalOverflow
+            | OperatingError::DuplicateOrder
+            | OperatingError::InvalidSpan
+            | OperatingError::InvalidSpanBounds
+            | OperatingError::SemanticRender(_)
+            | OperatingError::SemanticBatchShape
+            | OperatingError::WrongTest
+            | OperatingError::Spelling(_)
+            | OperatingError::ObservationConfiguration(_)
+            | OperatingError::MissingInput { .. }
+            | OperatingError::WrongOperation
+            | OperatingError::Unbound
+            | OperatingError::WrongBinding
+            | OperatingError::Table(_)
+            | OperatingError::NotRun
+            | OperatingError::NotRead
+            | OperatingError::ObservationIncomplete { .. }
+            | OperatingError::SemanticIncomplete { .. },
+        )
+        | Raised::Portable(
+            P::InvalidSpanBounds
+            | P::InvalidSpan
+            | P::UnsupportedRender
+            | P::NoSuchColumn { .. }
+            | P::WrongOperation
+            | P::UnboundKey
+            | P::WrongBinding
+            | P::Unbound
+            | P::Interrupted
+            | P::NotRun,
+        ) => None,
+    }
+}
+
+/// Whether the raiser declares the input it raises this fault on: the prepared contract's failure mask, or the fold's
+/// check of a literal pattern. `UnlessLocated` declares a fault only when a proof the fold requires before dropping the
+/// term covers it.
+fn declared(raiser: Raiser, raised: Raised<'_>) -> bool {
     let operation = raising(raiser);
     let kind = ryo_values::domain::plans::service::kind_of(&operation);
-    let function = kinds(Relation::Function);
+    let relation = match kind {
+        OperationKind::SourceMatches => Relation::Comment,
+        _ => Relation::Function,
+    };
     let shapes = [InputShape {
-        kinds: function,
+        kinds: kinds(relation),
         tree: None,
     }; 3];
     let failure = prepare_for(kind, &operation, &shapes, &[], StepScope::PerFile)
         .map(|contract| contract.failure);
-    // `UnlessLocated` declares the first input's rows; the fold drops it only on the proofs the L-span pins check.
-    let rows = matches!(failure, Ok(RowFailure::OnRows(mask)) if mask != InputMask(0))
-        || matches!(failure, Ok(RowFailure::UnlessLocated(_)));
+    let rows = match failure {
+        Ok(RowFailure::OnRows(mask)) => mask != InputMask(0),
+        Ok(RowFailure::UnlessLocated(_)) => located_proof(raised).is_some(),
+        Ok(RowFailure::Never) | Err(_) => false,
+    };
     match raiser {
         Raiser::Rows(_) => rows,
         Raiser::Pattern(_) => {
@@ -974,18 +1044,38 @@ fn every_fault_has_a_verdict() -> Result<(), OperatingError> {
     ];
     let verdicts = errors
         .iter()
-        .map(operating)
-        .chain(faults.iter().map(portable));
-    for verdict in verdicts {
+        .map(|error| (Raised::Operating(error), operating(error)))
+        .chain(
+            faults
+                .iter()
+                .map(|fault| (Raised::Portable(fault), portable(fault))),
+        );
+    let mut searched = Vec::new();
+    let mut proven = Vec::new();
+    for (raised, verdict) in verdicts {
         if let Fault::RowFallible(raisers) = verdict {
             for raiser in raisers {
                 assert!(
-                    declared(*raiser),
-                    "{raiser:?} raises a row error it does not declare"
+                    declared(*raiser, raised),
+                    "{raiser:?} raises {raised:?} on rows and does not declare it"
                 );
             }
+            if raisers.iter().any(|raiser| {
+                matches!(
+                    raiser,
+                    Raiser::Rows(OperationKind::SourceMatches)
+                        | Raiser::Pattern(OperationKind::SourceMatches)
+                )
+            }) {
+                searched.push(format!("{raised:?}"));
+            }
+        }
+        if located_proof(raised).is_some() {
+            proven.push(format!("{raised:?}"));
         }
     }
+    // The faults a source search raises on rows are exactly the faults an L-span proof covers.
+    assert_eq!(searched, proven);
     // A literal pattern over the compiled size limit is refused at first use like a syntax error, and declared alike.
     let oversized = Operation::Select {
         from: Source::Relation(Relation::Function),
@@ -1010,7 +1100,7 @@ fn every_fault_has_a_verdict() -> Result<(), OperatingError> {
     assert_eq!(operating(&OperatingError::NotRun), Fault::Engine);
     assert_eq!(
         portable(&PortableOperatorFault::MissingCapture),
-        Fault::Fixed
+        Fault::RowFallible(CAPTURE)
     );
     Ok(())
 }
