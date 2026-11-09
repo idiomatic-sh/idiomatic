@@ -72,10 +72,13 @@ pub fn keep(
             }
         }
         Relation::Names => {
-            if let Some(written) = column(ImportColumn(TARGET)) {
+            if let (Some(written), Some(binding)) =
+                (column(ImportColumn(TARGET)), column(ImportColumn(BINDING)))
+            {
                 rows.names.push(Name {
                     source: path,
                     written: WrittenPath(written.0),
+                    binding: ModuleName(binding.0),
                     span: place,
                 });
             }
@@ -129,8 +132,8 @@ fn holds(outer: ImportPlace, inner: ImportPlace) -> Holding {
 }
 
 /// Every import the files make, read from the rows of the import relations: each path that names another file of the
-/// repository, written as the `use` that holds it writes it, or as the edge's `written` column says the file writes it, and
-/// each other name an import brings in, which reaches the manifest of a package of the repository the file's own package
+/// repository, written as the `use` that holds it writes it, or as the edge's `written` column says the file writes it
+/// when no import of the file binds the name it starts at (a path through an import is that import's), and each other name an import brings in, which reaches the manifest of a package of the repository the file's own package
 /// depends on by a binding its first names are written with, or a module outside it. A file's package is the one
 /// `file-package` says, whatever language's manifest it is.
 #[must_use]
@@ -163,9 +166,19 @@ pub fn imports(rows: &ImportRows) -> Vec<Import> {
     for (source, paths) in &edges {
         let brought = names.get(source).map(Vec::as_slice).unwrap_or_default();
         for edge in paths {
-            let text = brought
+            let held = brought
                 .iter()
-                .find(|name| holds(name.span, edge.span) == Holding::Holds)
+                .find(|name| holds(name.span, edge.span) == Holding::Holds);
+            // A path written at a use site that starts at a name one of the file's imports binds reaches through that
+            // import, which is judged where it is written: the path is no import of its own.
+            if held.is_none()
+                && segments(&edge.written)
+                    .first()
+                    .is_some_and(|first| brought.iter().any(|name| name.binding == *first))
+            {
+                continue;
+            }
+            let text = held
                 .map(|name| name.written.clone())
                 .or_else(|| match edge.span {
                     ImportPlace::At(_) => Some(edge.written.clone()),

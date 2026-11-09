@@ -72,6 +72,8 @@ pub struct Name {
     pub source: RepoPath,
     /// The path as written.
     pub written: WrittenPath,
+    /// The name it binds in the file: a path written at a use site that starts at it is this import's.
+    pub binding: ModuleName,
     /// Where.
     pub span: ImportPlace,
 }

@@ -7,8 +7,8 @@ use crate::domain::applications::types::CellText;
 use crate::domain::comments::types::ByteSpan;
 use crate::domain::findings::types::ByteOffset;
 use crate::domain::imports::types::{
-    Import, ImportColumn, ImportPlace, ImportRows, Name, Owner, Package, PackageBinding, Relation,
-    Target, WrittenPath,
+    Import, ImportColumn, ImportPlace, ImportRows, ModuleName, Name, Owner, Package,
+    PackageBinding, Relation, Target, WrittenPath,
 };
 use crate::domain::paths::types::RepoPath;
 
@@ -23,6 +23,9 @@ enum Question {
     Resolved(&'static str),
     /// The rows the packages keep from a row whose `target` is empty: a package the repository does not hold.
     Outside,
+    /// What the imports of `src/a.x` written `use crate::contract` (binding `contract`, at 0 to 21) are, with an edge to
+    /// `src/contract/collect.x` written at a use site, at 40 to 56, as this path.
+    UseSite(&'static str),
 }
 
 type Input = Question;
@@ -54,6 +57,7 @@ fn expected(relation: Relation) -> ImportRows {
         Relation::Names => rows.names.push(Name {
             source: path("a.txt"),
             written: WrittenPath("b.txt".into()),
+            binding: ModuleName("other".into()),
             span: place(),
         }),
         Relation::Packages => rows.packages.push(Package {
@@ -144,6 +148,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Question::Resolved("@scope/my-lib/thing"),
         expect: Expect::Value(String::new()),
     },
+    Case {
+        name: CaseName("a_path_at_a_use_site_through_a_name_an_import_binds_is_that_imports"),
+        word: Word::Succeeds,
+        input: || Question::UseSite("contract::Collect"),
+        expect: Expect::Value(String::new()),
+    },
+    Case {
+        name: CaseName("a_path_at_a_use_site_from_the_package_root_is_an_import_of_its_own"),
+        word: Word::Succeeds,
+        input: || Question::UseSite("crate::contract::Collect"),
+        expect: Expect::Value(String::new()),
+    },
 ];
 
 /// The query each relation's rule is written as.
@@ -179,6 +195,7 @@ fn resolved(written: &'static str) -> String {
         names: vec![Name {
             source: path("src/a.x"),
             written: WrittenPath(written.into()),
+            binding: ModuleName("thing".into()),
             span: place(),
         }],
         packages: vec![
@@ -209,8 +226,55 @@ fn resolved(written: &'static str) -> String {
     }
 }
 
+fn at(start: usize, end: usize) -> ImportPlace {
+    ImportPlace::At(ByteSpan {
+        start: ByteOffset(start),
+        end: ByteOffset(end),
+    })
+}
+
+/// The imports read when the use-site path is `written`: the `use` alone when the path starts at the name it binds,
+/// the `use` and the path otherwise.
+fn use_site(written: &'static str) -> String {
+    let declared = Import {
+        source: path("src/a.x"),
+        span: at(0, 21),
+        written: WrittenPath("crate::contract".into()),
+        target: Target::File(path("src/contract.x")),
+    };
+    let site = Import {
+        source: path("src/a.x"),
+        span: at(40, 56),
+        written: WrittenPath(written.into()),
+        target: Target::File(path("src/contract/collect.x")),
+    };
+    let rows = ImportRows {
+        edges: vec![declared.clone(), site.clone()],
+        names: vec![Name {
+            source: path("src/a.x"),
+            written: WrittenPath("crate::contract".into()),
+            binding: ModuleName("contract".into()),
+            span: at(0, 21),
+        }],
+        packages: Vec::new(),
+        owners: Vec::new(),
+    };
+    let wanted = if written.starts_with("contract") {
+        vec![declared]
+    } else {
+        vec![declared, site]
+    };
+    let found = imports(&rows);
+    if found == wanted {
+        String::new()
+    } else {
+        format!("{found:?}")
+    }
+}
+
 fn subject(question: Input) -> Value {
     match question {
+        Question::UseSite(written) => use_site(written),
         Question::Resolved(written) => resolved(written),
         Question::Outside => {
             let mut rows = ImportRows::default();
