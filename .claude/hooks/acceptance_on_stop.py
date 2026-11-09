@@ -81,8 +81,20 @@ def shape_problem(review, agent):
     return None
 
 
-def verdict_problem(path, agent, source, since):
-    """Why path is not this run's verdict for source, or None."""
+def guard_module():
+    """guard_shell.py beside this hook, loaded by path: the push gate's own definitions (stands_for)."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("guard_shell", os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                                                             "guard_shell.py"))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def verdict_problem(path, agent, source, since, tree):
+    """Why path is not this run's verdict for source, or None. A TM steward's verdict, like the push gate's
+    previous_reviews, may name SOURCE (the landed head it decides) or an ancestor with only evidence changed since
+    (guard_shell.stands_for, the one definition)."""
     try:
         if os.path.getmtime(path) < since:
             return path + " was not written during this run"
@@ -95,7 +107,12 @@ def verdict_problem(path, agent, source, since):
     problem = shape_problem(review, agent)
     if problem:
         return path + " " + problem
-    if review.get("source") != source:
+    if agent == "tm-steward":
+        guard = guard_module()
+        if not guard.stands_for(tree, review["source"], source, guard.EVIDENCE):
+            return path + " decides " + repr(review["source"]) + ", which does not stand for SOURCE=" + source + \
+                " (the landed head, or an ancestor with only evidence changed since)"
+    elif review.get("source") != source:
         return path + " reviews " + repr(review.get("source")) + ", not SOURCE=" + source
     return None
 
@@ -119,7 +136,7 @@ def reviewer_stop(data, agent):
     if since is None:
         return hold("its transcript has no timestamp, so the run's start is unknown")
     rel = "branches/" + branch.replace("/", "-") + ".json" if agent == "leak-review" and branch else REVIEWERS[agent]
-    problem = verdict_problem(os.path.join(tree, EVIDENCE, rel), agent, source, since)
+    problem = verdict_problem(os.path.join(tree, EVIDENCE, rel), agent, source, since, tree)
     return hold(problem) if problem else 0
 
 
