@@ -159,6 +159,9 @@ VARIANTS = [  # (reviewer, document, valid): the behaviour table; the hook calls
     ("leak-review", {"source": SHA, "verdict": "PASS", "reviewer": "leak-review", "checks": GOOD, "enforcement_candidates": [{"id": candidate_id("c", "pub fn"), "class": "c", "signature": "pub fn", "scope": ["crates/a"], "suggested_mechanism": "new rule", "plants": []}]}, False),
     ("leak-review", {"source": SHA, "verdict": "PASS", "reviewer": "leak-review", "checks": GOOD, "enforcement_candidates": [{"id": candidate_id("c", "pub fn"), "class": "c", "signature": "pub   fn", "scope": ["crates/a"], "suggested_mechanism": "new rule", "plants": [{"file": "a.rs", "line": 3, "text": "t"}]}]}, True),
     ("tm-steward", {"source": SHA, "verdict": "PASS", "reviewer": "tm-steward", "checks": GOOD, "candidate_decisions": [{"id": "c-1", "decision": "none", "mechanism": "", "plant_counts": [], "reason": "one-off"}]}, False),
+    ("leak-review", {"source": SHA, "verdict": "PASS", "reviewer": "leak-review", "checks": GOOD, "enforcement_candidates": [{"id": candidate_id("c", "pub fn"), "class": "c", "signature": "pub fn", "scope": ["crates/a"], "suggested_mechanism": "new rule", "instance_status": "fixed", "plants": [{"file": "a.rs", "line": 3, "text": "t"}]}]}, True),
+    ("leak-review", {"source": SHA, "verdict": "PASS", "reviewer": "leak-review", "checks": GOOD, "enforcement_candidates": [{"id": candidate_id("c", "pub fn"), "class": "c", "signature": "pub fn", "scope": ["crates/a"], "suggested_mechanism": "new rule", "instance_status": "open", "plants": [{"file": "a.rs", "line": 3, "text": "t"}]}]}, True),
+    ("leak-review", {"source": SHA, "verdict": "PASS", "reviewer": "leak-review", "checks": GOOD, "enforcement_candidates": [{"id": candidate_id("c", "pub fn"), "class": "c", "signature": "pub fn", "scope": ["crates/a"], "suggested_mechanism": "new rule", "instance_status": "gone", "plants": [{"file": "a.rs", "line": 3, "text": "t"}]}]}, False),
 ]
 
 

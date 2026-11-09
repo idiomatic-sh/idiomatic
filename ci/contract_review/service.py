@@ -77,6 +77,8 @@ def candidates(listing: object) -> None:
             raise ValueError("suggested_mechanism is not compiler, strengthen <rule id> or new rule")
         if entry.get("id") != candidate_id(entry["class"], entry["signature"]):
             raise ValueError("an enforcement candidate id is not candidate_id(class, signature)")
+        if "instance_status" in entry and entry["instance_status"] not in ("fixed", "open"):
+            raise ValueError("an enforcement candidate instance_status is not fixed or open")
         scope = entry.get("scope")
         if not isinstance(scope, list) or not scope or not all(isinstance(p, str) and p.strip() for p in scope):
             raise ValueError("an enforcement candidate scope is not a non-empty list of paths")

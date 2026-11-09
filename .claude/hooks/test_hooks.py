@@ -571,6 +571,32 @@ class PreviousReviewsPush(unittest.TestCase):
         self.assertEqual(result.returncode, 2)
         self.assertIn(new["id"], result.stderr)
 
+    def branch_rewrite(self, rewritten):
+        old = self.candidate()
+        path = os.path.join(self.tree, "crates/ryo/docs/contracts/evidence/branches/claude-old.json")
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        def put(candidates):
+            with open(path, "w", encoding="utf-8") as handle:
+                json.dump(dict(self.body("PASS", "leak-review", self.previous), enforcement_candidates=candidates), handle)
+            git(self.tree, "add", path)
+            git(self.tree, "commit", "-q", "-m", "branch evidence")
+        put([old])
+        git(self.tree, "push", "-q", "origin", "HEAD:claude/ryo-consolidation")
+        self.setUp_after_landing()
+        put(rewritten(old))
+        self.with_candidates(decisions=[self.decision(old)])
+        return self.push()
+
+    def test_dropping_a_candidate_when_a_branch_file_is_modified_is_refused(self):
+        result = self.branch_rewrite(lambda old: [self.candidate("other", "let z")])
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("append-only", result.stderr)
+
+    def test_carrying_a_candidate_forward_as_fixed_is_allowed(self):
+        result = self.branch_rewrite(lambda old: [dict(old, instance_status="fixed")])
+        self.assertEqual(result.returncode, 2 if "append-only" in result.stderr else 0, result.stderr)
+        self.assertEqual(result.returncode, 0)
+
     def test_a_candidate_without_plants_is_refused(self):
         one = dict(self.candidate(), plants=[])
         self.with_candidates(leak=[one], decisions=[self.decision(one)])

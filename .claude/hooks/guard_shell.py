@@ -392,6 +392,17 @@ def candidate_problem(tree, sha, head, leak):
             reviews.append((name, json.loads(text)))
         except ValueError:
             return name + " at " + sha[:10] + " is not JSON"
+        if status == "M":
+            code, before = git_out(tree, "show", head + ":" + name)
+            try:
+                earlier = service_ids(json.loads(before)) if code == 0 else {}
+            except ValueError:
+                earlier = {}
+            now = service_ids(reviews[-1][1])
+            dropped = [i for i in earlier if i not in now]
+            if dropped:
+                return (name + " drops enforcement candidate " + ", ".join(dropped) + " of its earlier version; "
+                        "candidates are append-only: carry each forward with instance_status fixed or open")
     ids, plants = [], {}
     for name, review in reviews:
         if isinstance(review, dict) and "enforcement_candidates" in review:
