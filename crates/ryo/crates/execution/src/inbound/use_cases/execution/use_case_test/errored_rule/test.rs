@@ -9,6 +9,7 @@ use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::{FileInput, SourceLanguage, SourceRows};
 use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
 use super::super::super::{fixtures, interface::*};
+use ryo_execution_domain::domain::rule_intent::types::{EmitDemand, RuleDemand};
 use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
 use crate::outbound::query_language::{
     errors::QueryLanguageError, fixtures::fake::QueryLanguageFake, interface::QueryLanguagePort,

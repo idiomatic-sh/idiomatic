@@ -17,11 +17,11 @@ use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::
 use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityReason;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
-use ryo_execution::inbound::use_cases::execution::interface::EmitDemand;
+use ryo_execution_domain::domain::rule_intent::types::EmitDemand;
 use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
-use ryo_execution::inbound::use_cases::execution::interface::RuleDemand;
+use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::prepare::interface::ObservationIdentity;
 use ryo_language::domain::symbols::types::Symbols;

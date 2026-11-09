@@ -12,11 +12,11 @@ use ryo_execution_runtime::application::file_dag::program::file_session::types::
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
 use crate::inbound::use_cases::execution::interface::CaptureIntent;
 use crate::inbound::use_cases::execution::interface::DiagnosticDelivery;
-use crate::inbound::use_cases::execution::interface::EmitDemand;
+use ryo_execution_domain::domain::rule_intent::types::EmitDemand;
 use crate::inbound::use_cases::execution::interface::FileRuleIntent;
 use crate::inbound::use_cases::execution::interface::ObservationDemand;
 use crate::inbound::use_cases::execution::interface::OperatingError;
-use crate::inbound::use_cases::execution::interface::RuleDemand;
+use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
 use crate::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution_domain::domain::prepared_request::types::ObservationIdentity;
 use ryo_language::domain::{elements::types::Elements, symbols::types::Symbols};
