@@ -23,8 +23,6 @@ pub(crate) const END_OPTIONS: &str = "--";
 pub(crate) const SHOW_FILES: &str = "--show-files";
 /// Discovery root relative to the explicit working directory.
 pub(crate) const CURRENT_DIRECTORY: &str = ".";
-/// Environment control for Rayon worker count.
-pub(crate) const WORKERS_ENV: &str = "RAYON_NUM_THREADS";
 /// Pin the reference to one worker for comparable execution.
 pub(crate) const ONE_WORKER: &str = "1";
 /// Refusal preventing an empty explicit selection from becoming directory discovery.
