@@ -17,7 +17,7 @@ const HEAD: &str = "// this file is the command line's one registry of languages
 //! registration, which discovery finds, and is named nowhere else.
 
 use ryo_core::outbound::corpus::types::SkippedDirectories;
-use ryo_core::outbound::language::{interface::LanguagePort, factory::LanguageConnection};
+use ryo_core::outbound::language::{factory::LanguageConnection, interface::LanguagePort};
 
 /// The handles of one linked language: what the language factory is given of it.
 macro_rules! handles {
