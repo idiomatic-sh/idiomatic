@@ -201,6 +201,20 @@ fn declared_cell_overflow_does_not_admit_current_frame_names() {
         differential(Arc::new(KeptWords(PackedWords(bytes.clone()))), mode);
     }
 }
+fn empty_bucket_schema_is_metadata_not_unloaded_rows() {
+    let mut places = vec![];
+    let Admitted { table: meta, .. } = compact::admit_compact(
+        crate::domain::table_words::types::CompactBacking(Arc::new(KeptWords(
+            PackedWords::default(),
+        ))),
+        &mut places,
+        DecodeMode::Complete,
+    )
+    .unwrap();
+    assert_eq!(compact::compact_rows(&meta), RowCount(0));
+    assert_eq!(meta.cells, CellCount(0));
+    assert!(compact::compact_read(&meta, RowIndex(0), &mut [Cell::Number(Integer(0))]).is_none());
+}
 type Input = fn() -> Result<(), Failure>;
 type Value = ();
 type Failure = crate::domain::table_words::errors::TableWordsError;
@@ -244,6 +258,17 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             || {
                 declared_cell_overflow_does_not_admit_current_frame_names();
+                Ok(())
+            }
+        },
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("empty_bucket_schema_is_metadata_not_unloaded_rows"),
+        word: Word::Succeeds,
+        input: || {
+            || {
+                empty_bucket_schema_is_metadata_not_unloaded_rows();
                 Ok(())
             }
         },

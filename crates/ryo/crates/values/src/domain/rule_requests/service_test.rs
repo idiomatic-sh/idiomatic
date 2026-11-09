@@ -134,9 +134,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
 
 fn matches_id_and_reason(error: &RuleRequestsError, want: &str) -> bool {
     match error {
-        RuleRequestsError::Failed { id, reason }
-        | RuleRequestsError::ObservationIncomplete { id, reason }
-        | RuleRequestsError::SemanticIncomplete { id, reason } => &*id.0 == "a" && reason == want,
+        RuleRequestsError::Failed { id, reason } => &*id.0 == "a" && reason == want,
         RuleRequestsError::BlankRuleId
         | RuleRequestsError::DuplicateRuleId { .. }
         | RuleRequestsError::MissingParameter { .. } => false,
