@@ -1,75 +1,81 @@
 {
  "branch": "claude/w15-loop",
- "source": "94a0b93588b94ddfb0cfbc36325d11138dbd1854",
- "base": "794ec68025a5e1ea34af3725f11ddb83f92c4ad6",
+ "source": "944b21be87ed7c28e8aa9f972dc169bc7cae5ff3",
+ "base": "94a0b93588b94ddfb0cfbc36325d11138dbd1854",
  "verdict": "FAIL",
  "checks": [
   {
    "id": "1",
    "verdict": "PASS",
-   "evidence": "PASS. The delta (794ec68025..94a0b93588) touches only .agents/agents/tm-specialist.md:15, .claude/hooks/acceptance_on_stop.py:84-115,139, .claude/hooks/test_hooks.py:1422-1442, ci/contract_review/service.py:56 and service_test.py:148. It changes no Rust and asserts no engine, core or SDK contract from benchmarks/ or languages/."
+   "evidence": "git diff 94a0b93588..944b21be87 touches only .claude/hooks/{README.md,acceptance_on_stop.py,guard_shell.py,test_hooks.py} and ci/contract_review/{service.py,service_test.py}; no Rust, no benchmarks/ or languages/ proof."
   },
   {
    "id": "2",
    "verdict": "FAIL",
-   "evidence": "FAIL. acceptance_on_stop.py:111-112 now releases the tm-steward hold through guard_shell.stands_for (guard_shell.py:700-707), and that function lists changes with `git diff --name-only` (line 706). Git's default rename detection prints only a rename's new path, so `git mv code.rs crates/ryo/docs/contracts/evidence/checkpoint/code.rs` between the decided sha and SOURCE returns True: a code change passes as evidence-only. The same class appears at guard_shell.py:743 (the push gate's previous_reviews), at guard_shell.py:828 (names_pushed_work), at ci/contract_review/service.py:116 (a protected file moved out of the protected tree, crates/ryo/src/x.rs to crates/other/src/x.rs, gives since=['crates/other/src/x.rs'] and no protected change; with --no-renames both paths appear and the change is protected) and at service.py:100 (the activation check). A second variant: guard_module() at acceptance_on_stop.py:85-92,111 runs outside a try. A guard_shell.py that fails to import makes the hook exit 1, which releases the stop. A planted `raise ImportError` turned all four subtests of the new test into exit 1, including the two that must hold (expected 2). This contradicts shape_problem's own policy at :77 ('holds the stop, never releases it'). Without the plants the new test passes 4/4, ReviewerStop passes 6/6 and the service_test table passes 62. The 15 errors in the archive copy are setup errors, because the copy is not a git repo. Tracker: (?<![\\w-])ryo-... still matches ryo-g3xh, (ryo-g3xh), bead:ryo-abc1, see ryo-fpg4.2.1.92 and ryo-tq5.18, and no longer matches idiomatic-sh-ryo-sdk. The candidate validator scans json.dumps(entry) (service.py:91), so class/signature text such as 'see ryo-ab12.3' is still refused (service_test.py:147). Advisory: a hyphen- or underscore-joined id (fix-ryo-g3xh, bead_ryo-abc) is no longer caught; the old \\b also missed the underscore form."
+   "evidence": "Both earlier fixes fire: reverting guard_shell.py:706 --no-renames fails ReviewerStop 'code renamed into the evidence directory since'; reverting service.py:141 fails test_a_protected_file_renamed_into_the_receipts_is_a_protected_change; unwrapping acceptance_on_stop.py:111-115 fails test_a_guard_that_fails_to_load_holds_the_tm_steward (1 != 2). Still open: ci/contract_review/command.py:18 'git diff --name-only -z HEAD' without --no-renames, a staged git mv of crates/ryo/Cargo.toml into evidence/ shows 0 protected changes. New regression: service.py:56-81 names_tracker now accepts a parenthesized id of four letters and no digit, which the 94a0b93588 validator refused; the same spelling is in the real tree at audits/2026-11-06-phase3/review-314.json:61, phase4/review-314.json:81, records-326.md:174."
   },
   {
    "id": "3",
    "verdict": "PASS",
-   "evidence": "PASS. No visibility, manifest, package allowlist or import boundary changed. guard_module() loads the sibling .claude/hooks/guard_shell.py by path, inside the hooks directory."
+   "evidence": "service.py:56 reads tastemaker/specs/idiomatic-project/*/spec.toml by path, read-only; no visibility, manifest, allowlist or import boundary changed."
   },
   {
    "id": "4",
    "verdict": "PASS",
-   "evidence": "PASS. The stop hook reuses guard_shell.stands_for and guard_shell.EVIDENCE (acceptance_on_stop.py:112) and keeps no second ancestry check, so the stop hook and the push gate have one definition. Advisory: EVIDENCE means the evidence root in acceptance_on_stop.py:16 and the checkpoint subdirectory in guard_shell.py:29 (EVIDENCE_ROOT there is the root). This is one name with two meanings, which existed before the delta."
+   "evidence": "service.py:60-69 reads the tracker globs from the no-tracker-text-shipped placement (spec.toml:16) instead of its own regex; tracker-id-definition-split-78f9a5a1 is fixed: one definition."
   },
   {
    "id": "5",
    "verdict": "PASS",
-   "evidence": "PASS. No Rust source changed; no nu-hex layer is touched."
+   "evidence": "No Rust changed."
   },
   {
    "id": "6",
    "verdict": "PASS",
-   "evidence": "PASS. The only test addition is the unittest at test_hooks.py:1422. Nothing in production imports it, and the delta adds no feature, cfg(test) bypass or fixture constructor."
+   "evidence": "Only additions under test: test_hooks.py:1448 and service_test.py:74 and the None-removal in service_test.py:29; no production path imports them."
   }
  ],
  "plants": [
   {
-   "claim": "tm-steward stop hold (acceptance_on_stop.py:112 via guard_shell.stands_for): ancestor with code changed since, new test",
-   "file": ".claude/hooks/test_hooks.py:1438",
-   "count": 1,
-   "reverted": true
-  },
-  {
-   "claim": "tm-steward stop hold: decided sha not an ancestor of SOURCE, new test",
-   "file": ".claude/hooks/test_hooks.py:1439",
-   "count": 1,
-   "reverted": true
-  },
-  {
-   "claim": "guard_shell.stands_for: code file renamed into evidence/checkpoint/ (scratch repo)",
+   "claim": "stands_for --no-renames (ReviewerStop rename subtest)",
    "file": ".claude/hooks/guard_shell.py:706",
-   "count": 0,
-   "reverted": true
-  },
-  {
-   "claim": "contract_review.validate since-list: protected file renamed out of crates/ryo/ (scratch repo)",
-   "file": "ci/contract_review/service.py:116",
-   "count": 0,
-   "reverted": true
-  },
-  {
-   "claim": "tm-steward stop hold with guard_shell.py failing to import (archive copy)",
-   "file": ".claude/hooks/acceptance_on_stop.py:111",
-   "count": 0,
-   "reverted": true
-  },
-  {
-   "claim": "TRACKER refuses a candidate class 'see ryo-ab12.3'",
-   "file": "ci/contract_review/service_test.py:147",
    "count": 1,
+   "reverted": true
+  },
+  {
+   "claim": "validate since-review --no-renames (service_test rename case)",
+   "file": "ci/contract_review/service.py:141",
+   "count": 1,
+   "reverted": true
+  },
+  {
+   "claim": "loader exception holds the tm-steward stop",
+   "file": ".claude/hooks/acceptance_on_stop.py:111",
+   "count": 1,
+   "reverted": true
+  },
+  {
+   "claim": "validate activation --no-renames (no test covers it)",
+   "file": "ci/contract_review/service.py:125",
+   "count": 0,
+   "reverted": true
+  },
+  {
+   "claim": "branch_packages --no-renames (no test covers it)",
+   "file": ".claude/hooks/guard_shell.py:364",
+   "count": 0,
+   "reverted": true
+  },
+  {
+   "claim": "command.py working-tree protected-change check sees a staged rename",
+   "file": "ci/contract_review/command.py:18",
+   "count": 0,
+   "reverted": true
+  },
+  {
+   "claim": "candidate validator refuses a digitless four-letter tracker id in parentheses",
+   "file": "ci/contract_review/service.py:73",
+   "count": 0,
    "reverted": true
   }
  ],
@@ -700,8 +706,9 @@
    "class": "name-only-diff-hides-rename-source",
    "signature": "git_out(tree, \"diff\", \"--name-only\", source, head)",
    "scope": [
-    ".claude/hooks/guard_shell.py",
     ".claude/hooks/acceptance_on_stop.py",
+    ".claude/hooks/guard_shell.py",
+    "ci/contract_review/command.py",
     "ci/contract_review/service.py"
    ],
    "suggested_mechanism": "new rule",
@@ -715,6 +722,11 @@
      "file": "ci/contract_review/service.py",
      "line": 116,
      "text": "git mv crates/ryo/src/x.rs crates/other/src/x.rs  # since == ['crates/other/src/x.rs'], no protected change seen"
+    },
+    {
+     "file": "ci/contract_review/command.py",
+     "line": 18,
+     "text": "git mv crates/ryo/Cargo.toml crates/ryo/docs/contracts/evidence/Cargo.toml  # staged: protected changes seen 0, with --no-renames 1"
     }
    ],
    "instance_status": "open"
@@ -734,9 +746,55 @@
      "text": "raise ImportError(\"planted\")  # tm-steward stop exits 1 (released) instead of 2"
     }
    ],
-   "instance_status": "open"
+   "instance_status": "fixed"
+  },
+  {
+   "id": "tracker-id-definition-split-78f9a5a1",
+   "class": "tracker id definition split",
+   "signature": "TRACKER = re.compile(r\"(?<![\\w-])ryo-[a-z0-9]{3,}(\\.[0-9]+)*\\b\")",
+   "scope": [
+    "ci/contract_review/service.py",
+    "tastemaker/specs/idiomatic-project/0.3.1/spec.toml"
+   ],
+   "suggested_mechanism": "strengthen idiomatic.arch/no-tracker-text-shipped",
+   "plants": [
+    {
+     "file": "crates/ryo/docs/contracts/evidence/branches/claude-w14-provider-alias.json",
+     "line": 1,
+     "text": "{\"enforcement_candidates\": [{\"class\": \"bead-<tracker id> leak\"}]}"
+    }
+   ],
+   "instance_status": "fixed"
+  },
+  {
+   "id": "tracker-id-without-digit-unmatched-6c8faa27",
+   "class": "tracker-id-without-digit-unmatched",
+   "signature": "(ryo-[a-z][a-z][a-z][a-z])",
+   "scope": [
+    "tastemaker/specs/idiomatic-project/0.3.1/spec.toml",
+    "ci/contract_review/service.py"
+   ],
+   "suggested_mechanism": "strengthen idiomatic.arch/no-tracker-text-shipped",
+   "instance_status": "open",
+   "plants": [
+    {
+     "file": "crates/ryo/docs/contracts/audits/2026-11-06-phase3/review-314.json",
+     "line": 61,
+     "text": "the 413 comparison is not built (<ryo- and four letters, no digit>)"
+    },
+    {
+     "file": "crates/ryo/docs/contracts/audits/2026-11-06-phase4/review-314.json",
+     "line": 81,
+     "text": "consumer census across 13 kinds (<ryo- and four letters, no digit>)"
+    },
+    {
+     "file": "crates/ryo/docs/contracts/records-326.md",
+     "line": 174,
+     "text": "the Rust gate whitespace and `ok_or` notes (<ryo- and four letters, no digit>)"
+    }
+   ]
   }
  ],
  "reviewer": "leak-review",
- "date": "2026-11-09T19:24:00+00:00"
+ "date": "2026-11-09T19:38:28+00:00"
 }
