@@ -46,6 +46,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || span_bounds_types_outputs_and_file_scope,
         expect: Expect::Value(()),
     },
+    Case {
+        name: CaseName("a_step_on_spans_alone_needs_per_file_input"),
+        word: Word::Succeeds,
+        input: || a_step_on_spans_alone_needs_per_file_input,
+        expect: Expect::Value(()),
+    },
 ];
 
 fn subject(check: Input) -> Result<Value, Failure> {
@@ -360,4 +366,41 @@ fn span_bounds_types_outputs_and_file_scope() {
         cross_plan.frontier.is_empty(),
         "hosted-only input needs no file frontier"
     );
+}
+
+/// A span states no file, so a step that compares rows on spans alone is kept only when every input is per-file and it runs inside
+/// one file. Over the rows of a hosted relation, made after the files, it is refused with a request for a file key; a file key
+/// beside the span is kept.
+fn a_step_on_spans_alone_needs_per_file_input() {
+    use ryo_values::domain::plan_parts::types::StepScope;
+    let global = [HostedRelation {
+        name: HostedName("global".into()),
+        columns: vec![
+            HostedColumn {
+                name: ColumnLabel("file".into()),
+                kind: CellKind::File,
+            },
+            HostedColumn {
+                name: ColumnLabel("span".into()),
+                kind: CellKind::Span,
+            },
+        ],
+    }];
+    let per_file = r#"let rows = select l.id as left, r.id as right, l.file as file, l.span as span from "function" as l join "function" as r on l.span = r.span; emit rows subject file key(left,right,span);"#;
+    let plan = span_plan(per_file, None, &[]).expect("a join on spans of per-file inputs is kept");
+    assert!(
+        plan.steps.iter().any(|step| matches!(step.operation, Operation::Join { .. })
+            && step.scope == StepScope::PerFile),
+        "the join on spans runs inside one file: {:?}",
+        plan.steps
+    );
+    let refusal = "a step keyed on spans alone needs per-file input";
+    let cross = r#"let rows = select l.id as left, l.file as file, l.span as span, r.file as other from "function" as l join "global" as r on l.span = r.span; emit rows subject file key(left,other);"#;
+    let error = span_plan(cross, None, &global).expect_err("a join on spans alone over rows after the files is refused");
+    assert!(error.contains(refusal), "{error}");
+    let keyed = r#"let rows = select l.id as left, l.file as file, l.span as span, r.file as other from "function" as l join "global" as r on l.file = r.file and l.span = r.span; emit rows subject file key(left,other);"#;
+    let _plan = span_plan(keyed, None, &global).expect("a file key beside the span is kept");
+    let count = r#"let c = group-count(from="global", keys=["span"], count="n"); emit c subject span key(n);"#;
+    let error = span_plan(count, None, &global).expect_err("a count on spans alone over rows after the files is refused");
+    assert!(error.contains(refusal), "{error}");
 }

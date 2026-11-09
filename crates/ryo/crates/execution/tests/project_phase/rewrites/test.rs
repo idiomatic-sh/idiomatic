@@ -1,6 +1,9 @@
-//! Regrouping, narrowing and selection pushing each leave the rows a plan answers over several files as they were. A join on spans
-//! alone pairs functions of two files whose spans are equal, so regrouping leaves it after the files; a join on the file is made in
-//! each file. Narrowing cuts a per-file input by the nodes or files the other input holds, never by a span.
+//! Regrouping, narrowing and selection pushing each leave the rows a plan answers over several files as they were. A span states no
+//! file and span equality is value equality, so a join on spans alone after the files pairs functions of two files whose spans are
+//! equal. The compiler refuses such a step (`LoweringError::CrossFileSpanKey`: a step keyed on spans alone needs per-file input);
+//! the plans here are built by hand to show the rewrites still leave it after the files, never making it in each file, where it would
+//! answer other rows. A join on the file is made in each file. Narrowing cuts a per-file input by the nodes or files the other input
+//! holds, never by a span.
 use super::super::*;
 use super::fixtures::{FILE, ID, NAME, SPAN, files, functions_kept, rows};
 use ryo_query_language::inbound::use_cases::compile::fixtures::rewrites::{narrowed, regrouped, selections_pushed};

@@ -22,6 +22,8 @@ enum Scenario {
     VirtualJoin,
     HostedWithoutSource,
     HostedKinds,
+    CyclesOfTwoKinds,
+    ClosureOfTwoKinds,
 }
 type Input = Scenario;
 type Value = ();
@@ -147,6 +149,43 @@ fn hosted_metadata_preserves_every_supplied_kind_without_constructing_rows()
     Ok(())
 }
 
+/// A cycles step whose source is a node and whose destination is a file of the edges.
+fn cycles_of_two_kinds() -> Result<Value, Failure> {
+    let edges = [InputShape {
+        kinds: &[CellKind::Node, CellKind::File],
+        tree: None,
+    }];
+    schema_of(
+        &Operation::Cycles {
+            edges: FROM,
+            source: ColumnIndex(0),
+            destination: ColumnIndex(1),
+        },
+        &edges,
+        &[],
+    )
+    .map(|_| ())
+}
+
+/// A closure whose source is a node and whose destination is a file of the edges.
+fn closure_of_two_kinds() -> Result<Value, Failure> {
+    let edges = [InputShape {
+        kinds: &[CellKind::Node, CellKind::File],
+        tree: None,
+    }];
+    schema_of(
+        &Operation::Closure {
+            edges: FROM,
+            keys: vec![],
+            source: ColumnIndex(0),
+            destination: ColumnIndex(1),
+        },
+        &edges,
+        &[],
+    )
+    .map(|_| ())
+}
+
 fn subject(scenario: Input) -> Result<Value, Failure> {
     match scenario {
         Scenario::DeclaredKinds => {
@@ -157,6 +196,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             demand_join_schema_uses_virtual_partition_source_destination_projection()
         }
         Scenario::HostedWithoutSource => hosted_without_its_request_source(),
+        Scenario::CyclesOfTwoKinds => cycles_of_two_kinds(),
+        Scenario::ClosureOfTwoKinds => closure_of_two_kinds(),
         Scenario::HostedKinds => {
             hosted_metadata_preserves_every_supplied_kind_without_constructing_rows()
         }
@@ -188,6 +229,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Scenario::HostedWithoutSource,
         expect: Expect::Error(OperatingError::MissingInput { position: 1 }),
+    },
+    Case {
+        name: CaseName("cycles_whose_source_and_destination_differ_in_kind_is_refused"),
+        word: Word::Refuses,
+        input: || Scenario::CyclesOfTwoKinds,
+        expect: Expect::Error(OperatingError::ShapeMismatch),
+    },
+    Case {
+        name: CaseName("a_closure_whose_source_and_destination_differ_in_kind_is_refused"),
+        word: Word::Refuses,
+        input: || Scenario::ClosureOfTwoKinds,
+        expect: Expect::Error(OperatingError::ShapeMismatch),
     },
 ];
 

@@ -23,6 +23,20 @@ pub(crate) fn reach_kinds(
     projected(&projected(kinds, &columns)?, &reach.columns)
 }
 
+/// Refuses a graph whose edges join vertices of two kinds: a closure or cycles walks from a source to a destination that is the
+/// next source, so both must be of one kind. Where such a step runs reads the source alone.
+fn same_vertices(
+    kinds: &[CellKind],
+    source: ColumnIndex,
+    destination: ColumnIndex,
+) -> Result<(), OperatingError> {
+    if projected(kinds, &[source])? == projected(kinds, &[destination])? {
+        Ok(())
+    } else {
+        Err(OperatingError::ShapeMismatch)
+    }
+}
+
 /// Derive an operation's ordered output schema from metadata alone.
 ///
 /// This function cannot read rows, source bytes, symbols or execution scratch.
@@ -97,6 +111,7 @@ pub fn schema_of(
         } => {
             let input = first()?;
             check_columns(input.kinds, &[*source, *destination])?;
+            same_vertices(input.kinds, *source, *destination)?;
             let mut answer = projected(input.kinds, keys)?;
             answer.extend(projected(input.kinds, &[*source, *destination])?);
             Ok(answer)
@@ -105,7 +120,12 @@ pub fn schema_of(
             source,
             destination,
             ..
-        } => projected(first()?.kinds, &[*source, *destination]),
+        } => {
+            let input = first()?;
+            let answer = projected(input.kinds, &[*source, *destination])?;
+            same_vertices(input.kinds, *source, *destination)?;
+            Ok(answer)
+        }
         Operation::Rows { parameter, keys } => BindingShape::new(bindings).rows(*parameter, keys),
         Operation::Hosted { .. } => Ok(schema_input(inputs, InputPlace(0))?.kinds.to_vec()),
         Operation::SpanBetween { start, end, .. } => {

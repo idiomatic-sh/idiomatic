@@ -46,6 +46,19 @@ pub(crate) enum LoweringError {
         /// The call that cannot run after the files.
         span: QuerySpan,
     },
+    /// A step compares rows on spans alone, with no file or node key, over rows made after the files: a span states no file, so
+    /// equal spans of two files would meet.
+    #[error("a step keyed on spans alone needs per-file input; key it by `file` or a node as well")]
+    CrossFileSpanKey {
+        /// The statement whose step compares on spans alone.
+        span: QuerySpan,
+    },
+    /// A closure or cycles step walks from a source to a destination of another kind.
+    #[error("a closure or cycles step needs a source and a destination of one kind")]
+    MixedVertices {
+        /// The statement whose step walks between two kinds.
+        span: QuerySpan,
+    },
     /// The diagnostic-only comparison origin table cannot represent another entry.
     #[error("too many comparison source origins")]
     TooManyComparisonOrigins {

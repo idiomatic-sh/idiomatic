@@ -81,6 +81,7 @@ mod manifests_pnpm;
 #[cfg(feature = "python")]
 mod manifests_uv;
 mod peak;
+mod recordings;
 mod rule_fixtures;
 mod sdk;
 mod snapshot;

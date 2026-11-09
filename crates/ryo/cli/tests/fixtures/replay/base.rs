@@ -25,14 +25,14 @@ use ryo_values::domain::files::types::Glob;
 use ryo_values::domain::plan_parts::types::{
     FlagState, LiteralText, ParameterName, QueryText as CoreQueryText, WholeNumber,
 };
-use ryo_values::domain::query_bindings::types::{ParameterType, PlanParameter};
 
 /// The directory of the recordings.
 pub(crate) fn directory() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/recordings")
 }
 
-/// Whether a recorded rule waits for something ryo does not do yet.
+/// Whether a recorded rule waits for something ryo does not do yet: only a relation its language does not provide, which the
+/// recording's `pending.txt` names.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum Pending {
     /// The rule runs and is replayed.
@@ -67,14 +67,25 @@ pub(crate) fn text(path: &Path) -> String {
     }
 }
 
-/// A list of text of a table of `file`, by key.
+/// The text of a file a recording or a fixture must hold: an absent one fails.
+pub(crate) fn required_text(path: &Path) -> String {
+    std::fs::read_to_string(path).unwrap_or_else(|error| panic!("{}: {error}", path.display()))
+}
+
+/// A list of text of a table of `file`, by key: absent, it is empty; anything but a list of text fails.
 pub(crate) fn texts(table: &toml::Table, key: &str) -> Vec<String> {
-    table
-        .get(key)
-        .and_then(toml::Value::as_array)
-        .into_iter()
-        .flatten()
-        .filter_map(|each| each.as_str().map(str::to_owned))
+    let Some(value) = table.get(key) else {
+        return Vec::new();
+    };
+    value
+        .as_array()
+        .unwrap_or_else(|| panic!("`{key}` is not a list: {value}"))
+        .iter()
+        .map(|each| {
+            each.as_str()
+                .unwrap_or_else(|| panic!("`{key}` holds `{each}`, which is not text"))
+                .to_owned()
+        })
         .collect()
 }
 
@@ -116,8 +127,10 @@ pub(crate) fn parameter(name: &str, value: &toml::Value) -> Option<RuleParameter
     })
 }
 
-/// The parameters a query declares, as the query language reads them; or why ryo does not compile the query.
-pub(crate) fn compile(query: &str) -> Result<Vec<PlanParameter>, String> {
+/// The plan ryo compiles a query to, or why it does not compile it.
+pub(crate) fn compiled(
+    query: &str,
+) -> Result<ryo_values::domain::plans::types::Plan, ryo_query_language::inbound::use_cases::compile::errors::CompileError> {
     let compiler = CompileUseCaseImpl::new(
         Arc::new(ryo_query_language::outbound::syntax::factory::winnow()),
         Arc::new(ryo_query_language::outbound::catalog::factory::language()),
@@ -133,8 +146,21 @@ pub(crate) fn compile(query: &str) -> Result<Vec<PlanParameter>, String> {
             modules: ryo_values::domain::program::types::ParsedModules::default(),
         },
     )
-    .map(|report| report.plan.parameters)
-    .map_err(|error| format!("ryo does not compile the recorded query: {error}"))
+    .map(|report| report.plan)
+}
+
+/// The names of the relations of ryo a plan reads, each once, in order.
+pub(crate) fn relations_read(plan: &ryo_values::domain::plans::types::Plan) -> Vec<String> {
+    let mut read = std::collections::BTreeSet::new();
+    for step in &plan.steps {
+        let mut operation = step.operation.clone();
+        ryo_values::domain::plans::service::each_input(&mut operation, &mut |input| {
+            if let ryo_values::domain::plan_parts::types::Input::Relation(relation) = input {
+                let _new = read.insert(ryo_relations::domain::relations::service::name(*relation).0.to_owned());
+            }
+        });
+    }
+    read.into_iter().collect()
 }
 
 /// Every recorded rule, in the order of their names.
@@ -143,63 +169,140 @@ pub(crate) fn recordings() -> Vec<Recording> {
         .expect("a folder of the fixtures is read")
         .map(|entry| entry.expect("an entry of a folder of the fixtures is read"))
         .filter(|entry| entry.path().is_dir())
-        .map(|entry| {
-            let at = entry.path();
-            let scope: toml::Table = text(&at.join("scope.toml")).parse().unwrap_or_default();
-            let given: toml::Table = text(&at.join("parameters.toml"))
-                .parse()
-                .unwrap_or_default();
-            let unbound = given
-                .iter()
-                .any(|(name, value)| parameter(name, value).is_none());
-            let query = text(&at.join("query.ryoql"));
-            let compiled = compile(&query);
-            let pending = Some(text(&at.join("pending.txt")).trim().to_owned())
-                .filter(|why| !why.is_empty())
-                .or_else(|| unbound.then(|| "a parameter ryo cannot declare or bind".to_owned()))
-                .or_else(|| compiled.as_ref().err().cloned());
-            let mut recording = Recording {
-                name: entry.file_name().to_string_lossy().into_owned(),
-                query,
-                parameters: given
-                    .iter()
-                    .filter_map(|(name, value)| parameter(name, value))
-                    .chain(
-                        compiled
-                            .iter()
-                            .flatten()
-                            .filter(|declared| !given.contains_key(&*declared.name.0))
-                            .filter_map(|declared| {
-                                Some(RuleParameter {
-                                    name: declared.name.clone(),
-                                    value: match declared.kind {
-                                        ParameterType::Texts => ParameterValue::Texts(Vec::new()),
-                                        ParameterType::Numbers => {
-                                            ParameterValue::Numbers(Vec::new())
-                                        }
-                                        ParameterType::Flag
-                                        | ParameterType::Number
-                                        | ParameterType::Text
-                                        | ParameterType::TextSets
-                                        | ParameterType::Tables => return None,
-                                    },
-                                })
-                            }),
-                    )
-                    .collect(),
-                include: texts(&scope, "include"),
-                exclude: texts(&scope, "exclude"),
-                pending: pending.map_or(Pending::Missing, Pending::Because),
-            };
-            if recording.pending == Pending::Missing {
-                recording.pending =
-                    does_not_run(&recording).map_or(Pending::Missing, Pending::Because);
-            }
-            recording
-        })
+        .map(|entry| recording_at(&entry.path()))
         .collect();
     found.sort_by(|left, right| left.name.cmp(&right.name));
     found
+}
+
+/// A recorded table of `file` under `at`: an absent file is an empty table, a malformed one fails.
+pub(crate) fn table_at(at: &Path, file: &str) -> toml::Table {
+    text(&at.join(file))
+        .parse()
+        .unwrap_or_else(|error| panic!("{}: {error}", at.join(file).display()))
+}
+
+/// The recording in the directory `at`, checked. It must hold its query and its scope. A rule that does not compile, binds a
+/// parameter ryo cannot bind, leaves a parameter its query declares without a value, reads a relation the Rust language does not
+/// provide, or is refused by the engine fails. The one exception is a `pending.txt`, which names exactly the relations the rule
+/// reads that its language does not provide: the query must fail on no other ground, and either name one relation ryo does not
+/// own (the compile refusal `no relation named`) or compile to a plan whose unprovided relations are exactly those named.
+pub(crate) fn recording_at(at: &Path) -> Recording {
+    let name = at
+        .file_name()
+        .map(|each| each.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let query = required_text(&at.join("query.ryoql"));
+    let _scope_held = required_text(&at.join("scope.toml"));
+    let scope = table_at(at, "scope.toml");
+    // A scope says which files the rule was recorded over: its `include` globs, and the `exclude` globs it may add. Nothing else.
+    assert!(
+        scope.contains_key("include") && scope.keys().all(|key| key == "include" || key == "exclude"),
+        "{}: scope.toml holds {:?}, not `include` and an optional `exclude`",
+        at.display(),
+        scope.keys().collect::<Vec<_>>()
+    );
+    let given = table_at(at, "parameters.toml");
+    let unbound: Vec<&String> = given
+        .iter()
+        .filter(|(name, value)| parameter(name, value).is_none())
+        .map(|(name, _)| name)
+        .collect();
+    let plan = compiled(&query);
+    let undeclared: Vec<String> = plan
+        .iter()
+        .flat_map(|plan| plan.parameters.iter())
+        .filter(|declared| !given.contains_key(&*declared.name.0))
+        .map(|declared| declared.name.0.to_string())
+        .collect();
+    let pending = Some(text(&at.join("pending.txt")).trim().to_owned()).filter(|why| !why.is_empty());
+    let mut recording = Recording {
+        name,
+        query,
+        parameters: given
+            .iter()
+            .filter_map(|(name, value)| parameter(name, value))
+            .collect(),
+        include: texts(&scope, "include"),
+        exclude: texts(&scope, "exclude"),
+        pending: Pending::Missing,
+    };
+    let name = recording.name.clone();
+    let named = pending.as_deref().map(unprovided);
+    match (&plan, &named) {
+        (
+            Err(ryo_query_language::inbound::use_cases::compile::errors::CompileError::UnknownRelation { name: unknown, .. }),
+            Some(named),
+        ) => {
+            assert!(
+                named.as_slice() == std::slice::from_ref(unknown),
+                "{name}: the query reads `{unknown}`, which ryo does not own, and pending.txt names {named:?}"
+            );
+        }
+        (Err(error), _) => panic!("{name}: ryo does not compile the recorded query: {error}"),
+        (Ok(plan), _) => {
+            let mut absent: Vec<String> = relations_read(plan)
+                .into_iter()
+                .filter(|relation| !provided(relation))
+                .collect();
+            absent.sort();
+            let mut expected = named.clone().unwrap_or_default();
+            expected.sort();
+            assert!(
+                absent == expected,
+                "{name}: the plan reads {absent:?}, which the Rust language does not provide, and pending.txt names {expected:?}"
+            );
+            assert!(unbound.is_empty(), "{name}: ryo cannot bind the parameters {unbound:?}");
+            assert!(
+                undeclared.is_empty(),
+                "{name}: the query declares {undeclared:?}, which parameters.toml gives no value"
+            );
+            let stray: Vec<&String> = given
+                .keys()
+                .filter(|given| !plan.parameters.iter().any(|declared| &*declared.name.0 == given.as_str()))
+                .collect();
+            assert!(stray.is_empty(), "{name}: parameters.toml gives {stray:?}, which the query does not declare");
+            if let Some(refusal) = does_not_run(&recording) {
+                panic!("{name}: {refusal}");
+            }
+        }
+    }
+    if let Some(why) = pending {
+        recording.pending = Pending::Because(why);
+    }
+    recording
+}
+
+/// The relations a `pending.txt` names, in its one form: `reads <relation>, <relation>, which the Rust language of ryo does not
+/// provide`.
+pub(crate) fn unprovided(why: &str) -> Vec<String> {
+    let named = why
+        .strip_prefix("reads ")
+        .and_then(|rest| rest.split_once(", which the Rust language of ryo does not provide"))
+        .map(|(names, _)| names)
+        .unwrap_or_else(|| panic!("pending.txt says `{why}`, not `reads <relations>, which the Rust language of ryo does not provide`"));
+    let relations: Vec<String> = named.split(", ").map(str::to_owned).collect();
+    assert!(
+        relations.iter().all(|relation| !relation.is_empty()),
+        "pending.txt names an empty relation: `{why}`"
+    );
+    relations
+}
+
+/// Whether the Rust language, the one the replay links, provides the relation RyoQL calls `relation`: a relation ryo does not
+/// own (a host's) is provided by no language.
+pub(crate) fn provided(relation: &str) -> bool {
+    use ryo_core::outbound::language::interface::LanguagePort as _;
+    let Some(owned) =
+        ryo_relations::domain::relations::service::relation_named(ryo_relations::domain::labels::types::NameRef(relation))
+    else {
+        return false;
+    };
+    language::factory::use_case(vec![LanguageConnection::from(ryo_rust::linked())])
+        .supports(owned)
+        .0
+        .iter()
+        .any(|answer| answer.absence == language::types::Absence::Reads)
 }
 
 /// The real store, kept in the cache directory under `root`, for the build the tests are.
@@ -448,8 +551,19 @@ pub(crate) fn rule_of(each: &Recording) -> Rule {
 
 /// Why a rule does not run, found on a few lines of Rust: the engine refuses it at run time, for a table it builds from what the query asks.
 pub(crate) fn does_not_run(each: &Recording) -> Option<String> {
-    let sample = tempfile::tempdir().ok()?;
-    std::fs::write(sample.path().join("lib.rs"), "use std::fmt;\nfn run(value: u8) -> u8 { value }\nstruct Point { x: u8 }\nimpl Point { fn new() -> Self { Point { x: 0 } } }\n").ok()?;
+    does_not_run_in(tempfile::tempdir(), each)
+}
+
+/// Why a rule does not run in the sample directory `sample`: a sample that could not be made or written is a failure too, never a
+/// rule that runs.
+pub(crate) fn does_not_run_in(sample: std::io::Result<tempfile::TempDir>, each: &Recording) -> Option<String> {
+    let sample = match sample {
+        Ok(sample) => sample,
+        Err(error) => return Some(format!("the sample to run the recorded query in was not made: {error}")),
+    };
+    if let Err(error) = std::fs::write(sample.path().join("lib.rs"), "use std::fmt;\nfn run(value: u8) -> u8 { value }\nstruct Point { x: u8 }\nimpl Point { fn new() -> Self { Point { x: 0 } } }\n") {
+        return Some(format!("the sample to run the recorded query in was not written: {error}"));
+    }
     lint_over(sample.path(), vec![rule_of(each)])
         .err()
         .map(|failure| format!("ryo does not run the recorded query: {failure}"))
@@ -469,6 +583,9 @@ pub(crate) fn base_rows(collected: &row_sink::factory::CollectorConnection) -> V
     .collect()
 }
 
+/// How a cell a row does not have reads, apart from a cell of empty text.
+pub(crate) const ABSENT: &str = "(absent)";
+
 /// A finding's typed row as the text a recording holds: its rule, its subject, its key values joined with commas, its line and its
 /// character, each value as it reads (a span as its two ends); its columns, which a recording does not hold, left out. A row not laid
 /// out as a finding's is each of its cells as text.
@@ -486,7 +603,7 @@ pub(crate) fn finding_texts(
             ryo_relations::domain::relations::constants::UNLOCATED.to_owned()
         }
         Some(Cell::Span(span)) => format!("{}..{}", span.start.0, span.end.0),
-        None => String::new(),
+        None => ABSENT.to_owned(),
     };
     match cells {
         [
@@ -497,11 +614,10 @@ pub(crate) fn finding_texts(
             line,
             column,
         ] => {
-            let key: Vec<String> = rest
-                .iter()
-                .take(usize::try_from(count.0).unwrap_or(0))
-                .map(text)
-                .collect();
+            let Ok(count) = usize::try_from(count.0) else {
+                return cells.iter().map(text).collect();
+            };
+            let key: Vec<String> = rest.iter().take(count).map(text).collect();
             vec![
                 text(rule),
                 text(subject),

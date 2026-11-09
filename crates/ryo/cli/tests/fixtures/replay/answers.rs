@@ -1,6 +1,6 @@
 //! What the replay adds to the base: each recording run again and held to the rows it expects, and the answer to a question about them.
 
-use super::base::{Pending, Recording, directory, recordings, rule_of, text};
+use super::base::{Pending, Recording, directory, recordings, required_text, rule_of, text};
 use std::collections::BTreeMap;
 use std::path::Path;
 use std::sync::Mutex;
@@ -18,30 +18,68 @@ pub(crate) struct Expectation {
 
 /// What `each` expects, read from its recording.
 pub(crate) fn expectation(each: &Recording) -> Expectation {
-    let at = directory().join(&each.name);
-    // The rows of a recording, each as `path<TAB>key` the way the replay writes what it finds.
-    let lines = |file: &str| -> Vec<String> {
-        let table: toml::Table = text(&at.join(file)).parse().expect("the recorded rows");
-        table
-            .get("rows")
-            .and_then(toml::Value::as_array)
-            .into_iter()
-            .flatten()
-            .filter_map(|row| {
-                let row = row.as_table()?;
-                Some(format!(
-                    "{}\t{}",
-                    row.get("path")?.as_str()?,
-                    row.get("key")?.as_str()?
-                ))
-            })
-            .collect()
+    expectation_at(&directory().join(&each.name))
+}
+
+/// The rows of the recorded file `file` under `at`, each as `path<TAB>key` the way the replay writes what it finds. The file must
+/// be there, and each row must have a path and a key.
+pub(crate) fn recorded_rows(at: &Path, file: &str) -> Vec<String> {
+    let path = at.join(file);
+    let read = std::fs::read_to_string(&path).unwrap_or_else(|error| panic!("{}: {error}", path.display()));
+    let table: toml::Table = read
+        .parse()
+        .unwrap_or_else(|error| panic!("{}: {error}", path.display()));
+    let rows = table
+        .get("rows")
+        .and_then(toml::Value::as_array)
+        .unwrap_or_else(|| panic!("{}: no `rows` list", path.display()));
+    rows.iter().map(|row| row_text(row, &path)).collect()
+}
+
+/// One recorded row, a table with a `path` and a `key`, as `path<TAB>key`.
+fn row_text(row: &toml::Value, file: &Path) -> String {
+    let field = |name: &str| {
+        row.as_table()
+            .and_then(|row| row.get(name))
+            .and_then(toml::Value::as_str)
+            .unwrap_or_else(|| panic!("{}: a row has no `{name}`: {row}", file.display()))
+            .to_owned()
     };
+    format!("{}\t{}", field("path"), field("key"))
+}
+
+/// What the recording in the directory `at` expects. A recording holds its rows in `expected.toml`; one today's ryo could not
+/// decide says why in `undecided.txt` and holds the findings checked by hand in `checked.toml`, `rows = []` when there are none.
+pub(crate) fn expectation_at(at: &Path) -> Expectation {
+    let undecided = at.join("undecided.txt").exists();
+    if undecided {
+        assert!(
+            !text(&at.join("undecided.txt")).trim().is_empty(),
+            "{}: undecided.txt names no reason",
+            at.display()
+        );
+    }
+    let expected = recorded_rows(at, "expected.toml");
+    assert!(
+        !undecided || expected.is_empty(),
+        "{}: an undecided recording records {} rows that nothing compares",
+        at.display(),
+        expected.len()
+    );
+    assert!(
+        undecided || !at.join("checked.toml").exists(),
+        "{}: checked.toml beside no undecided.txt is compared with nothing",
+        at.display()
+    );
     Expectation {
-        plan: text(&at.join("plan")).trim().to_owned(),
-        expected: lines("expected.toml"),
-        undecided: at.join("undecided.txt").exists(),
-        checked: lines("checked.toml"),
+        plan: required_text(&at.join("plan")).trim().to_owned(),
+        expected,
+        undecided,
+        checked: if undecided {
+            recorded_rows(at, "checked.toml")
+        } else {
+            Vec::new()
+        },
     }
 }
 
@@ -88,24 +126,39 @@ pub(crate) fn replay(recordings: &[Recording]) -> Result<Replayed, String> {
         .map(|file| file.path.0.to_string())
         .collect();
     eprintln!("the replay took {} ms", started.elapsed().as_millis());
-    let mut by_rule: BTreeMap<String, Vec<String>> = BTreeMap::new();
-    for row in &rows {
-        if let [rule, path, key, ..] = row.as_slice() {
-            by_rule
-                .entry(rule.clone())
-                .or_default()
-                .push(format!("{path}\t{key}"));
-        }
-    }
-    for each in by_rule.values_mut() {
-        each.sort();
-    }
+    let live: Vec<&str> = recordings
+        .iter()
+        .filter(|each| each.pending == Pending::Missing)
+        .map(|each| each.name.as_str())
+        .collect();
     Ok(Replayed {
-        rows: by_rule,
+        rows: by_rule(&rows, &live)?,
         unread,
         unknowns,
         fed,
     })
+}
+
+/// The findings `rows` by the rule that gave them, each as `path<TAB>key`, sorted. A row of fewer than three cells, or one under a
+/// rule that is not in `live`, is a failure: it would otherwise be dropped unseen.
+pub(crate) fn by_rule(rows: &[Vec<String>], live: &[&str]) -> Result<BTreeMap<String, Vec<String>>, String> {
+    let mut by_rule: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    for row in rows {
+        let [rule, path, key, ..] = row.as_slice() else {
+            return Err(format!("a finding has fewer than three cells: {row:?}"));
+        };
+        if !live.contains(&rule.as_str()) {
+            return Err(format!("a finding is given under `{rule}`, which is not a live recorded rule: {row:?}"));
+        }
+        by_rule
+            .entry(rule.clone())
+            .or_default()
+            .push(format!("{path}\t{key}"));
+    }
+    for each in by_rule.values_mut() {
+        each.sort();
+    }
+    Ok(by_rule)
 }
 
 /// A feature as the listings write it: `operation:join`, `family:glob-any`, `direction:nearest-ancestor`, `relation:syntax-tree`.
@@ -182,48 +235,65 @@ pub(crate) fn difference(each: &Recording, given: &[String]) -> Option<String> {
 /// each rule with `extra` (the rows) and `why` (what ryo sees that the recording could not).
 fn recorded_extra_rows(rule: &str) -> Vec<String> {
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/differences.toml");
-    let table: toml::Table = text(&path).parse().expect("the recorded row differences");
-    table
+    let table: toml::Table = required_text(&path).parse().expect("the recorded row differences");
+    extra_rows_in(&table, rule, &path)
+}
+
+/// The rows `table`, read from `path`, lists for `rule`. An entry must say why ryo gives them, in a non-empty `why`, and each row
+/// must have a path and a key.
+pub(crate) fn extra_rows_in(table: &toml::Table, rule: &str, path: &Path) -> Vec<String> {
+    let Some(each) = table
         .get("rule")
         .and_then(toml::Value::as_table)
         .and_then(|rules| rules.get(rule))
-        .and_then(toml::Value::as_table)
-        .and_then(|each| each.get("extra"))
+    else {
+        return Vec::new();
+    };
+    let each = each
+        .as_table()
+        .unwrap_or_else(|| panic!("{}: `rule.{rule}` is not a table", path.display()));
+    assert!(
+        each.get("why")
+            .and_then(toml::Value::as_str)
+            .is_some_and(|why| !why.trim().is_empty()),
+        "{}: `rule.{rule}` says no `why`",
+        path.display()
+    );
+    each.get("extra")
         .and_then(toml::Value::as_array)
-        .into_iter()
-        .flatten()
-        .filter_map(|row| {
-            let row = row.as_table()?;
-            Some(format!(
-                "{}\t{}",
-                row.get("path")?.as_str()?,
-                row.get("key")?.as_str()?
-            ))
-        })
+        .unwrap_or_else(|| panic!("{}: `rule.{rule}` lists no `extra` rows", path.display()))
+        .iter()
+        .map(|row| row_text(row, path))
         .collect()
 }
 
-/// How the rows of a rule today's ryo could not decide differ from what was checked by hand against ruff: a rule with
-/// no checked findings must give none, and every checked finding must be given.
+/// How the rows of a rule today's ryo could not decide differ from what was checked by hand against ruff: the rows it gives,
+/// without the ones `fixtures/differences.toml` lists for it with a reason, are exactly the checked findings.
 pub(crate) fn unchecked(each: &Recording, given: &[String]) -> Option<String> {
     let said = expectation(each);
-    if said.checked.is_empty() {
-        return (!given.is_empty()).then(|| {
-            format!(
-                "rule `{}` was checked by hand to give no finding on ruff and gives {}: {}",
-                each.name,
-                given.len(),
-                given.first().map_or("", String::as_str)
-            )
-        });
+    unchecked_rows(&each.name, &said.checked, &recorded_extra_rows(&each.name), given)
+}
+
+/// How `given`, the rows of the undecided rule `rule`, differ from the findings `checked` by hand: a checked finding not given, or
+/// a row given that is neither checked nor among the rows `allowed` with a reason; a row `allowed` that is no longer given fails too.
+pub(crate) fn unchecked_rows(rule: &str, checked: &[String], allowed: &[String], given: &[String]) -> Option<String> {
+    if let Some(gone) = allowed.iter().find(|row| !given.contains(row)) {
+        return Some(format!(
+            "rule `{rule}` has the recorded difference `{gone}` in fixtures/differences.toml and no longer gives it"
+        ));
     }
-    said.checked
+    if let Some(missing) = checked.iter().find(|row| !given.contains(row)) {
+        return Some(format!(
+            "rule `{rule}` does not give `{missing}`, which was checked by hand against ruff"
+        ));
+    }
+    given
         .iter()
-        .find(|row| !given.contains(row))
-        .map(|row| {
+        .find(|row| !checked.contains(row) && !allowed.contains(row))
+        .map(|extra| {
             format!(
-                "rule `{}` does not give `{row}`, which was checked by hand against ruff",
-                each.name
+                "rule `{rule}` gives `{extra}`, which is not among the {} findings checked by hand against ruff nor a recorded difference",
+                checked.len()
             )
         })
 }
@@ -248,6 +318,9 @@ pub(crate) fn answer(input: &str) -> String {
         .iter()
         .filter(|each| each.pending == Pending::Missing)
         .collect();
+    if live.is_empty() {
+        return "no recorded rule is live, so nothing is replayed".to_owned();
+    }
     match input {
         "unknowns" => {
             let wrong = unknown_differences(&outcome.unknowns);
@@ -269,7 +342,7 @@ pub(crate) fn answer(input: &str) -> String {
             difference(first, &altered).unwrap_or_else(|| "no difference".to_owned())
         }
         "recognition" => {
-            let recognized = text(&directory().join("recognized.txt"));
+            let recognized = required_text(&directory().join("recognized.txt"));
             let unread: Vec<&str> = recognized
                 .lines()
                 .filter(|path| outcome.unread.iter().any(|each| each == path))
@@ -332,30 +405,59 @@ fn recorded_rules(all: &[Recording], live: &[&Recording], outcome: &Replayed) ->
         .unwrap_or_else(|| "every rule gives its rows".to_owned())
 }
 
+/// The golden findings of ruff: `findings.toml`, which must be there and hold a `rules` table.
+fn golden() -> toml::Table {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/replay/targets/ruff/findings.toml");
+    let table: toml::Table = required_text(&path)
+        .parse()
+        .unwrap_or_else(|error| panic!("{}: {error}", path.display()));
+    golden_rules(&table, &path).clone()
+}
+
+/// The `rules` table of the golden findings `table`, read from `path`: a golden without one fails.
+pub(crate) fn golden_rules<'t>(table: &'t toml::Table, path: &Path) -> &'t toml::Table {
+    table
+        .get("rules")
+        .and_then(toml::Value::as_table)
+        .unwrap_or_else(|| panic!("{}: no `rules` table", path.display()))
+}
+
+/// How many findings the golden `rules` expects of the live rule `rule`: a decided rule has its count, an undecided one has the
+/// count of what the golden could not decide (`#unknown`) and no count to compare (`None`). A rule with no entry, or with a count
+/// that is not a whole number of zero or more, fails.
+pub(crate) fn golden_count(rules: &toml::Table, rule: &str, undecided: bool) -> Result<Option<usize>, String> {
+    let key = if undecided {
+        format!("idiomatic.arch/{rule}#unknown")
+    } else {
+        format!("idiomatic.arch/{rule}")
+    };
+    let count = rules
+        .get(&key)
+        .ok_or_else(|| format!("the golden findings have no `{key}`"))?
+        .as_integer()
+        .and_then(|count| usize::try_from(count).ok())
+        .ok_or_else(|| format!("the golden count of `{key}` is not a whole number of zero or more"))?;
+    Ok((!undecided).then_some(count))
+}
+
 /// The distinct rows of each live rule against the count `findings.toml` expects of ruff: the first that differs, or that they match.
 fn findings(live: &[&Recording], outcome: &Replayed) -> String {
-    let expected: toml::Table = text(
-        &Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("tests/fixtures/replay/targets/ruff/findings.toml"),
-    )
-    .parse()
-    .unwrap_or_default();
-    let counts = expected.get("rules").and_then(toml::Value::as_table);
+    let rules = golden();
     let wrong: Vec<String> = live
         .iter()
         .filter_map(|each| {
-            let wanted = counts?
-                .get(&format!("idiomatic.arch/{}", each.name))?
-                .as_integer()
-                .unwrap_or(0);
+            let wanted = match golden_count(&rules, &each.name, expectation(each).undecided) {
+                Ok(Some(wanted)) => wanted,
+                Ok(None) => return None,
+                Err(failure) => return Some(failure),
+            };
             let mut distinct = outcome.rows.get(&each.name).cloned().unwrap_or_default();
             distinct.dedup();
             // Without the rows `fixtures/differences.toml` says ryo gives and the golden could not.
             let extra = recorded_extra_rows(&each.name);
             distinct.retain(|row| !extra.contains(row));
             let got = distinct.len();
-            (i64::try_from(got).unwrap_or(-1) != wanted)
-                .then(|| format!("{} gives {got}, ruff expects {wanted}", each.name))
+            (got != wanted).then(|| format!("{} gives {got}, ruff expects {wanted}", each.name))
         })
         .collect();
     wrong
@@ -405,13 +507,13 @@ fn features(outcome: &Replayed) -> String {
 
 /// Whether every name in the files that say why something differs is a recorded rule or a feature of the language.
 fn names(all: &[Recording], outcome: &Replayed) -> String {
-    // Every name in the files that say why something differs is a rule that is recorded or a feature the language has, so a typo
-    // fails at once and not when it happens to be the one that mattered.
+    // Every name in the files that say why something differs, and every rule of the golden findings, is a rule that is recorded or a
+    // feature the language has, so a typo, a deleted or a renamed recording fails at once and not when it happens to matter.
     let table = |file: &str, key: &str| -> Vec<String> {
         let path = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("tests/fixtures")
             .join(file);
-        let table: toml::Table = text(&path).parse().expect("a table that reads");
+        let table: toml::Table = required_text(&path).parse().expect("a table that reads");
         table
             .get(key)
             .and_then(toml::Value::as_table)
@@ -428,6 +530,7 @@ fn names(all: &[Recording], outcome: &Replayed) -> String {
                 .filter(|name| !rules.contains(&name.as_str()))
                 .map(move |name| format!("`{name}` in {file} is not a recorded rule"))
         })
+        .chain(golden_strays(&golden(), &rules))
         .chain(
             table("unfed.toml", "feature")
                 .into_iter()
@@ -438,38 +541,67 @@ fn names(all: &[Recording], outcome: &Replayed) -> String {
     unknown.unwrap_or_else(|| "every name is a recorded rule or a feature".to_owned())
 }
 
+/// The keys of the golden `rules` that name no recorded rule, each as the failure it is: a key is `idiomatic.arch/<rule>` or
+/// `idiomatic.arch/<rule>#unknown`, for a rule that is recorded, so a recording deleted or renamed fails the replay.
+pub(crate) fn golden_strays(rules: &toml::Table, recorded: &[&str]) -> Vec<String> {
+    rules
+        .keys()
+        .filter(|key| {
+            !key.strip_prefix("idiomatic.arch/")
+                .map(|rule| rule.strip_suffix("#unknown").unwrap_or(rule))
+                .is_some_and(|rule| recorded.contains(&rule))
+        })
+        .map(|key| format!("`{key}` in replay/targets/ruff/findings.toml is not a recorded rule"))
+        .collect()
+}
+
 /// The features `fixtures/unfed.toml` says ruff does not feed 1,000 rows, each with the reason.
 fn recorded_unfed() -> Vec<String> {
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/unfed.toml");
-    let table: toml::Table = text(&path).parse().expect("the recorded unfed features");
-    table
+    let table: toml::Table = required_text(&path).parse().expect("the recorded unfed features");
+    unfed_in(&table, &path)
+}
+
+/// The features `table`, read from `path`, lists as unfed: each must say why, in a non-empty `why`.
+pub(crate) fn unfed_in(table: &toml::Table, path: &Path) -> Vec<String> {
+    let features = table
         .get("feature")
         .and_then(toml::Value::as_table)
-        .into_iter()
-        .flat_map(|features| features.keys().cloned())
-        .collect()
+        .unwrap_or_else(|| panic!("{}: no `feature` table", path.display()));
+    for (name, each) in features {
+        assert!(
+            each.get("why")
+                .and_then(toml::Value::as_str)
+                .is_some_and(|why| !why.trim().is_empty()),
+            "{}: `feature.{name}` says no `why`",
+            path.display()
+        );
+    }
+    features.keys().cloned().collect()
 }
 
 /// How many things the golden says each rule could not decide over ruff, by rule: the `#unknown` lines of its findings.
 fn golden_unknowns() -> BTreeMap<String, usize> {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/fixtures/replay/targets/ruff/findings.toml");
-    let table: toml::Table = text(&path).parse().expect("the golden findings");
-    table
-        .get("rules")
-        .and_then(toml::Value::as_table)
-        .map(|rules| {
-            rules
-                .iter()
-                .filter_map(|(key, count)| {
-                    let rule = key
-                        .strip_suffix("#unknown")?
-                        .strip_prefix("idiomatic.arch/")?;
-                    Some((rule.to_owned(), usize::try_from(count.as_integer()?).ok()?))
-                })
-                .collect()
+    unknowns_in(&golden())
+}
+
+/// The `#unknown` counts of the golden `rules`, by rule. An `#unknown` key not of `idiomatic.arch/<rule>`, or a count that is not
+/// a whole number of zero or more, fails.
+pub(crate) fn unknowns_in(rules: &toml::Table) -> BTreeMap<String, usize> {
+    rules
+        .iter()
+        .filter_map(|(key, count)| Some((key.strip_suffix("#unknown")?, key, count)))
+        .map(|(rule, key, count)| {
+            let rule = rule
+                .strip_prefix("idiomatic.arch/")
+                .unwrap_or_else(|| panic!("the golden key `{key}` names no `idiomatic.arch/` rule"));
+            let count = count
+                .as_integer()
+                .and_then(|count| usize::try_from(count).ok())
+                .unwrap_or_else(|| panic!("the golden count of `{key}` is not a whole number of zero or more"));
+            (rule.to_owned(), count)
         })
-        .unwrap_or_default()
+        .collect()
 }
 
 /// Where ryo and the golden differ in what a rule could not decide, and the rows of `fixtures/unknowns.toml` that say why: each
@@ -477,10 +609,12 @@ fn golden_unknowns() -> BTreeMap<String, usize> {
 fn unknown_differences(ours: &BTreeMap<String, usize>) -> Vec<String> {
     let golden = golden_unknowns();
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/unknowns.toml");
-    let table: toml::Table = text(&path).parse().expect("the recorded differences");
+    let table: toml::Table = required_text(&path).parse().expect("the recorded differences");
     let rows = table.get("rule").and_then(toml::Value::as_table);
     let mut wrong = Vec::new();
-    let rules: std::collections::BTreeSet<&String> = ours.keys().chain(golden.keys()).collect();
+    // A row of `fixtures/unknowns.toml` for a rule neither side has an unknown for is a difference that went away, and fails too.
+    let recorded: Vec<String> = rows.map(|rows| rows.keys().cloned().collect()).unwrap_or_default();
+    let rules: std::collections::BTreeSet<&String> = ours.keys().chain(golden.keys()).chain(recorded.iter()).collect();
     for rule in rules {
         let (mine, theirs) = (
             ours.get(rule).copied().unwrap_or(0),
