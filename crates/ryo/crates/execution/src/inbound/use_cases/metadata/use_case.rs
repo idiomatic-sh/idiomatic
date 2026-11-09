@@ -27,12 +27,12 @@ impl MetadataUseCase for MetadataUseCaseImpl {
         &self,
         plan: &Plan,
         vocabularies: &KindVocabularies,
-        matching: &dyn ryo_matching::inbound::use_cases::matching::interface::MatchingUseCase,
+        matching: &impl ryo_matching::inbound::use_cases::matching::interface::MatchingUseCase,
     ) -> Option<KindRefusal> {
         ryo_execution_domain::domain::kind_check::service::refusal(
             plan,
             vocabularies,
-            ryo_execution_domain::domain::matching::types::PatternMatcher(&ryo_execution_domain::application::matching::service::HandedMatching(matching)),
+            ryo_execution_domain::domain::matching::types::PatternMatcher(matching),
         )
     }
     fn kinds_asked(&self, plan: &Plan, bound: &[ParameterBinding]) -> Vec<AskedKind> {
@@ -43,13 +43,13 @@ impl MetadataUseCase for MetadataUseCaseImpl {
         plans: &[Plan],
         bindings: &[Vec<ParameterBinding>],
         vocabularies: &KindVocabularies,
-        matching: &dyn ryo_matching::inbound::use_cases::matching::interface::MatchingUseCase,
+        matching: &impl ryo_matching::inbound::use_cases::matching::interface::MatchingUseCase,
     ) -> Option<UnknownKind> {
         ryo_execution_domain::domain::kind_check::service::first_unknown(
             plans,
             bindings,
             vocabularies,
-            ryo_execution_domain::domain::matching::types::PatternMatcher(&ryo_execution_domain::application::matching::service::HandedMatching(matching)),
+            ryo_execution_domain::domain::matching::types::PatternMatcher(matching),
         )
     }
     fn unknown_kind_message(

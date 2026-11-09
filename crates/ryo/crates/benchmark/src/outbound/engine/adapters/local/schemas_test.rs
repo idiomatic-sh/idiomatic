@@ -1,5 +1,5 @@
 //! Query registry and exact skip-accounting contracts.
-use super::{load_rules, validate_skips};
+use super::{load_rules, refuse_incomplete, source_inputs, validate_skips};
 use ryo::linter::{self, RuleApplicability, RuleId};
 use crate::outbound::engine::adapters::local::constants;
 use ryo_benchmark_contracts::domain::requests::types::{ApplicabilityPolicy, QueryModuleName, RuleLabel};
@@ -208,6 +208,56 @@ fn named_input_declarations_attach_to_registered_definitions_and_reject_unknown_
     assert!(error.to_string().contains("unregistered consumer"));
 }
 
+/// A rule left undecided in a file refuses the candidate even when every file was read: unknowns are never a checked answer.
+fn unknowns_without_unread_refuse_the_candidate() {
+    let none = std::collections::BTreeSet::new();
+    let refused = refuse_incomplete(&["rule R1 reads `identifier` in part in input.txt"], &[], &none, 1);
+    assert!(
+        matches!(&refused, Err(ryo_benchmark_contracts::domain::reports::errors::ReportsError::Invalid(message))
+            if message.starts_with("incomplete candidate:") && message.contains("unknown_count=1") && message.contains("unread_count=0")),
+        "an unknown with nothing unread is refused: {refused:?}"
+    );
+    let undecided: &[&str] = &[];
+    assert_eq!(
+        refuse_incomplete(undecided, &[], &none, 1).map_err(|error| error.to_string()),
+        Ok(()),
+        "nothing undecided and nothing unread is complete"
+    );
+}
+
+/// A requested source that is not on disk, and that context validation did not declare absent, fails the read with `NotFound`.
+fn an_undeclared_missing_source_fails_its_read() {
+    let root = tempfile::tempdir().expect("a root");
+    let request = ryo_benchmark_contracts::domain::requests::types::WorkerRequest {
+        performance: Default::default(),
+        selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Frozen,
+        rule_observations: ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+        rule_context: ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+        project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
+        given_project_inventory: Default::default(),
+        project_context_mode: Default::default(),
+        context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
+        root: root.path().into(),
+        rules: root.path().into(),
+        query_modules: BTreeMap::default(),
+        rule_applicability: BTreeMap::default(),
+        parser_configuration: ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
+        source_language: ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
+        files: vec![linter::RelativePath("missing.py".into())],
+        state: ryo_benchmark_contracts::domain::requests::types::WorkerState::Fresh,
+    };
+    let read = source_inputs(&request, &std::collections::BTreeSet::new());
+    assert!(
+        matches!(&read, Err(ryo_benchmark_contracts::domain::reports::errors::ReportsError::Io(error)) if error.kind() == std::io::ErrorKind::NotFound),
+        "an undeclared missing source is a NotFound read: {:?}",
+        read.map(|_| ())
+    );
+    let declared = std::collections::BTreeSet::from([linter::RelativePath("missing.py".into())]);
+    let (sources, accepted) = source_inputs(&request, &declared).expect("a declared absence is not read");
+    assert!(sources.is_empty(), "a declared absence supplies no bytes");
+    assert_eq!(accepted, declared, "the declared absence keeps its requested path");
+}
+
 type Scenario = fn();
 type Input = Scenario;
 type Value = ();
@@ -259,6 +309,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("named_input_declarations_attach_to_registered_definitions_and_reject_unknown_consumers"),
         word: Word::Succeeds,
         input: || named_input_declarations_attach_to_registered_definitions_and_reject_unknown_consumers as Scenario,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("unknowns_without_unread_refuse_the_candidate"),
+        word: Word::Succeeds,
+        input: || unknowns_without_unread_refuse_the_candidate as Scenario,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("an_undeclared_missing_source_fails_its_read"),
+        word: Word::Succeeds,
+        input: || an_undeclared_missing_source_fails_its_read as Scenario,
         expect: Expect::Value(()),
     },
 ];

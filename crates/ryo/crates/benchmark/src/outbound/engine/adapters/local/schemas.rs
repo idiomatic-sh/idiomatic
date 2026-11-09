@@ -218,6 +218,28 @@ fn query_modules(
 }
 
 
+/// Refuses a report that leaves a rule undecided in some file, or leaves unread a file that is not one of the declared absences: a
+/// candidate answers every selected rule at every file, or it is no candidate.
+pub(super) fn refuse_incomplete<Undecided: std::fmt::Debug>(
+    unknowns: &[Undecided],
+    unread: &[linter::Unread],
+    selected_missing: &std::collections::BTreeSet<linter::RelativePath>,
+    selected_pairs: impl std::fmt::Display,
+) -> Result<(), Error> {
+    let unexpected_unread = unread.iter().any(|unread| {
+        !matches!(&unread.reason, linter::Unreadable::Failed(_))
+            || !selected_missing.contains(&unread.path)
+    });
+    if !unknowns.is_empty() || unexpected_unread {
+        return Err(Error::Invalid(format!(
+            "incomplete candidate: selected_rule_file_pairs={selected_pairs}; unknown_count={}; unread_count={}; unknowns={unknowns:?}; unread={unread:?}",
+            unknowns.len(),
+            unread.len(),
+        )));
+    }
+    Ok(())
+}
+
 /// Read each explicitly requested source once, retaining its exact ordered inventory.
 pub(super) fn source_inputs(
     request: &WorkerRequest,

@@ -187,19 +187,7 @@ impl EngineExecution for LocalEngineSession<'_> {
             },
         )
         .map_err(|error| Error::Invalid(error.to_string()))?;
-        let unexpected_unread = report.unread.iter().any(|unread| {
-            !matches!(&unread.reason, linter::Unreadable::Failed(_))
-                || !selected_missing.contains(&unread.path)
-        });
-        if !report.unknowns.is_empty() || unexpected_unread {
-            return Err(Error::Invalid(format!(
-                "incomplete candidate: selected_rule_file_pairs={selected_pairs}; unknown_count={}; unread_count={}; unknowns={:?}; unread={:?}",
-                report.unknowns.len(),
-                report.unread.len(),
-                report.unknowns,
-                report.unread
-            )));
-        }
+        super::schemas::refuse_incomplete(&report.unknowns, &report.unread, &selected_missing, selected_pairs)?;
         let input_files: std::collections::BTreeSet<_> = accepted.iter().cloned().collect();
         super::schemas::validate_skips(
             &report.skipped,

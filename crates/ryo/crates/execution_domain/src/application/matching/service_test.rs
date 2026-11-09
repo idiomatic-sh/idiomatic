@@ -1,7 +1,6 @@
 //! The `matching` service's cases: the domain's pattern semantics answer as the matching use case does, whether the parent hands
 //! down the use case itself or a trait object of it.
 
-use super::service::HandedMatching;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::matching::types::PatternSemantics;
 use ryo_matching::inbound::use_cases::matching::errors::MatchingError;
@@ -14,7 +13,7 @@ use ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl;
 enum Handed {
     /// The use case itself, through the blanket bridge.
     Itself,
-    /// A trait object of it, through `HandedMatching`.
+    /// A trait object of it, through the same bridge over `dyn MatchingUseCase`.
     TraitObject,
 }
 
@@ -58,12 +57,20 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 /// Compiles and matches the row's patterns through the port, handed down as the row says.
 fn subject((handed, regex, glob, text): Input) -> Result<Value, Failure> {
-    let use_case: &dyn MatchingUseCase = &MatchingUseCaseImpl;
-    let trait_object = HandedMatching(use_case);
-    let semantics: &dyn PatternSemantics = match handed {
-        Handed::Itself => &MatchingUseCaseImpl,
-        Handed::TraitObject => &trait_object,
-    };
+    let trait_object: &dyn MatchingUseCase = &MatchingUseCaseImpl;
+    match handed {
+        Handed::Itself => through(&MatchingUseCaseImpl, regex, glob, text),
+        Handed::TraitObject => through(trait_object, regex, glob, text),
+    }
+}
+
+/// Compiles and matches through `PatternSemantics` alone.
+fn through<Semantics: PatternSemantics + ?Sized>(
+    semantics: &Semantics,
+    regex: &str,
+    glob: &str,
+    text: &str,
+) -> Result<Value, Failure> {
     let compiled = semantics
         .compile_regex(RegexSource(regex))
         .map_err(|error| match error {
