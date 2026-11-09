@@ -17,6 +17,8 @@ Phases 1-7 are complete when each box below is ticked.
   - [ ] the relational hot path (multi-input region overhead, join/antijoin/group/axis kernels, materialised intermediates, relational fusion)
   - [ ] dense slots and streaming rows behind the port
   - [ ] the simple path as a small engine-adapter piece passed into that port, not a second implementation
+    - Owner success criterion (owner, 2026-11-08): "if we're able to implement the simple change through an adapter and the change is very tiny, we've accomplished what i've been driving toward".
+    - Checkable: the landing's diff touches only the engine adapter that implements the port and the composition that injects it, and no other engine file. Its production diff is small and its line count is recorded in the landing record. This is the test that the architecture's isolation works.
   - [ ] shared prepared program and compile cache
   - [ ] allocation churn
   - [ ] allocator decay
