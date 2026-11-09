@@ -104,10 +104,13 @@ pub fn keep(
                 Some(MODULE_KIND) => ScopeKind::Module,
                 _ => return,
             };
-            rows.scopes
-                .entry(path)
-                .or_default()
-                .push(Scope { span: place, kind });
+            let scope = Scope { span: place, kind };
+            match rows.scopes.get_mut(&path) {
+                Some(scopes) => scopes.push(scope),
+                None => {
+                    let _: Option<Vec<Scope>> = rows.scopes.insert(path, vec![scope]);
+                }
+            }
         }
     }
 }
@@ -210,13 +213,13 @@ pub fn imports(rows: &ImportRows) -> Vec<Import> {
     let mut found = Vec::new();
     for (source, paths) in &edges {
         let brought = names.get(source).map(Vec::as_slice).unwrap_or_default();
-        let spans = |kept: &dyn Fn(ScopeKind) -> bool| {
+        let spans = |only: Option<ScopeKind>| {
             let mut spans = rows
                 .scopes
                 .get(*source)
                 .into_iter()
                 .flatten()
-                .filter(|scope| kept(scope.kind))
+                .filter(|scope| only.is_none_or(|kind| scope.kind == kind))
                 .filter_map(|scope| match scope.span {
                     ImportPlace::At(span) => Some(span),
                     ImportPlace::Unplaced => None,
@@ -225,8 +228,8 @@ pub fn imports(rows: &ImportRows) -> Vec<Import> {
             spans.sort();
             spans
         };
-        let scopes = spans(&|_| true);
-        let modules = spans(&|kind| kind == ScopeKind::Module);
+        let scopes = spans(None);
+        let modules = spans(Some(ScopeKind::Module));
         // Each import's innermost scope, read once: the bindings a use-site path may start at, where each binds.
         let bindings = brought
             .iter()
