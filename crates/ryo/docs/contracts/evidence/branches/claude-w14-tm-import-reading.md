@@ -1,52 +1,57 @@
-# Leak review: claude/w14-tm-import-reading
+# Leak review: claude/w14-tm-import-reading (re-review)
 
-Source `e196dbe50300fb85144bc19da48d3f81b507acde`, base `f67311c99057245e20ae4ed0da490bf4ee39e885`.
+Source `f1c9e1c968d443ca0334182c40eacd0eb96a9d8d`, base `f67311c99057245e20ae4ed0da490bf4ee39e885`. The previous review, of `e196dbe503`, was FAIL: 2, 3.
 
-## The leak
-The new drop at `crates/tastemaker/crates/core/src/domain/import_rows/service.rs:172-179` matches against bindings file-wide. If any import anywhere in the file binds a use-site path's first segment, the path is dropped:
+## The fix
+`import_rows/service.rs` `in_scope` (`:144-169`) drops a use-site path only when two conditions hold:
+- the innermost block (`stmt-list`) or inline module (`item-list`) holding the binding `use` also holds the path;
+- no inline module lies between them.
 
-```rust
-.is_some_and(|first| brought.iter().any(|name| name.binding == *first))
-```
-
-The check ignores the scope the import binds in. An import bound in one scope therefore hides a same-named extern-crate path in another scope, where Rust resolves the name to the crate.
-
-**Plants.** I ran the built tm 0.1.2 (`scratchpad/w14tm/tm012`) on a full archive of `e196dbe503`. The workspace is copied from the spec scenarios: `deny` by default, allow `crate::shared::*` and `ryo_language::*`, with a denied crate `engine`.
-
-| `demo/src/domain/model.rs` | Findings |
-| --- | --- |
-| control: `pub fn work() { engine::run(); }` | 1 |
-| top-level `use crate::shared::contract as engine;` + `mod inner { pub fn work() { engine::run(); } }` | **0** |
-| `fn a() { use crate::shared::contract as engine; … }` + `fn b() { engine::run(); }` | **0** |
-| `fn b() { engine::run(); }` + `#[cfg(test)] mod tests { use crate::shared::contract as engine; … }` | **0** |
-| `use crate::shared::*;` + `fn b() { engine::run(); }` | 1 (glob imports are unaffected) |
-| `self::engine::Collect` through the import | 0 (judged as written, as before) |
-
-**Required change.** Drop a use-site path only when the `use` that binds its first segment is in scope at that path, and no nearer scope rebinds the name. In scope means the `use`'s enclosing module or block span holds the path's span. In every other case, judge the path as written. Add three scenarios to `provider-imports`, one per plant above (nested mod, sibling fn, `cfg(test)` mod), each expecting the finding at the `engine::run` line.
+The scope rows are read from `syntax-tree`.
 
 ## Check 1 Proof where the contract lives: PASS
-The proofs are the core unit cases and the spec scenarios, both on fixture workspaces.
+The proofs are the core unit cases plus three new spec scenarios (`spec.toml:350, :396, :442`), one per plant.
 
-## Check 2 Every enforcement claim fires: FAIL
-`provider-imports` reports 0 on the three plants above.
+## Check 2 Every enforcement claim fires: PASS
 
-The existing tests can fail:
-- The two `use_site` unit cases discriminate:
-  - removing the drop leaves the site import in `contract::Collect` → fails;
-  - an over-broad drop removes the site import from `crate::contract::Collect` → fails.
-- Each of the four scenarios discriminates in the same way.
+**Plants re-run** with `tm012b` on a full archive of `f1c9e1c968`:
 
-None of them puts a binding out of scope.
+| Plant | provider-imports |
+| --- | --- |
+| control `engine::run()` | line 1 |
+| `use … as engine` at top, `engine::run()` inside `mod inner` | line 4 |
+| `use … as engine` in `fn a`, `engine::run()` in `fn b` | line 2 |
+| `use … as engine` in a `cfg(test)` mod, `engine::run()` outside it | line 1 |
+| in scope: file-level `use`, path in the file | 0 (correct) |
+| in scope: `use` and path in the same block | 0 (correct) |
 
-## Check 3 Boundaries hold across crates: FAIL
-The import boundary is unenforced in the cases above: provider code reaches a denied crate with no finding.
+**Real tree** (`languages/rust/src/.../annotates/item.rs`):
+- the control `ryo::query::ValidateRequest` reports `provider-imports`;
+- the sibling-function plant reports 0. The cause is the provider leak below, not tm's reading.
 
-The allow-list entries `ryo::link` and `ryo::reads` (`crates/ryo/tastemaker.toml:205`) are narrow:
-- each is an exact name, not a glob;
-- both are `#[macro_export]` macros (`sdk/src/resources/languages/macros/link.rs:10`, `reads.rs:53`), so nothing can be reached below them.
+## The provider leak (separate bead; does not block this branch)
+`crates/ryo/languages/rust/src/domain/links/service.rs:232-249`: `through_uses` resolves a path's first name through any `use` with `each.enclosing == written.enclosing` (`:238`). That compares modules and ignores blocks, so a function-local alias rewrites same-named paths in sibling functions.
+
+I verified it with this tree's provider (ryo 0.1.2) on a two-crate fixture. `source-dependency` targets:
+
+| Path in `fn b` | Target |
+| --- | --- |
+| `ryo::query::ValidateRequest`, with `use crate::shared as ryo;` in `fn a` | `demo/src/shared.rs` (wrong) |
+| the same path, no alias | `ryo/src/query.rs` |
+
+The installed ryo 0.1.1 binary gives no use-site edge even for the control, so it could not show this.
+
+Why it does not block this branch:
+- tm's in-scope rule is correct and proven by the plants above.
+- The fault is in the provider, which tm links from the registry at 0.1.1.
+
+Required fix: `through_uses` scopes a binding to the block or inline module that holds the `use` (the rule tm now applies). Then release the provider and bump tm's pin.
+
+## Check 3 Boundaries hold across crates: PASS
+For tm's reading, the boundary now holds by scope. `ryo::link` and `ryo::reads` stay narrow: exact names, and both are `#[macro_export]` macros.
 
 ## Check 4 One implementation and one representation per concept: PASS
-There is one import reader. `Name` gains a `binding` field, read from the existing Names relation column.
+There is still one import reader; scopes are a new relation read, not a copy.
 
 ## Check 5 Layer direction: PASS
 The change stays in tastemaker core's domain.
@@ -54,10 +59,13 @@ The change stays in tastemaker core's domain.
 ## Check 6 Test seams stay out of production: PASS
 None.
 
-## Advisory
-A `use` silenced by an in-source ignore now also silences every use-site path through its binding. That fits judging the import once, but the ignore reaches further than its line.
+## Ignore advisory: the reason holds; closed
+A path tm drops is now one that the binding `use` is in scope for, so it names the same imported module. An ignore on that `use` exempts that one dependency; reporting each in-scope use of it would only repeat the same dependency. The scope fix also removes the over-reach flagged in the first review: an ignored `use` in one block no longer covers a same-named path elsewhere.
 
-## Enforcement candidate
-`use-site-binding-matched-file-wide-f7738c58`, mechanism: strengthen `idiomatic.ryo/provider-imports`.
+## Enforcement candidates
+| Candidate | Instance |
+| --- | --- |
+| `use-site-binding-matched-file-wide-f7738c58` | fixed |
+| `provider-alias-resolved-across-blocks-3c609ce6` | open |
 
-VERDICT: FAIL: 2, 3
+VERDICT: PASS
