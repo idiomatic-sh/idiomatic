@@ -43,21 +43,27 @@ fn compare_emptied(
     use ryo_values::domain::plan_parts::types::{Input, StepId, StepScope};
     use ryo_values::domain::plans::types::PlanStep;
     let schema = super::super::conformance::test::schema(operation, inputs, bindings);
-    let mut authored = super::super::conformance::test::author(operation, inputs, bindings, symbols);
+    let mut authored =
+        super::super::conformance::test::author(operation, inputs, bindings, symbols);
     let mut last = authored
         .plan
         .steps
         .pop()
         .expect("the operation under proof is the authored plan's last step");
     let mut sources = Vec::new();
-    ryo_values::domain::plans::service::each_input(&mut last.operation, &mut |input| sources.push(*input));
+    ryo_values::domain::plans::service::each_input(&mut last.operation, &mut |input| {
+        sources.push(*input)
+    });
     let mut replaced = Vec::new();
     for (at, source) in sources.iter().enumerate() {
         if emptied.contains(&at) {
             replaced.push(Input::Step(StepId(authored.plan.steps.len() as u32)));
             authored.plan.steps.push(PlanStep {
                 scope: StepScope::PerFile,
-                operation: Operation::Difference { left: *source, right: *source },
+                operation: Operation::Difference {
+                    left: *source,
+                    right: *source,
+                },
             });
         } else {
             replaced.push(*source);
@@ -104,7 +110,8 @@ fn every_required_input_empty_answers_no_rows() -> Result<(), Failure> {
         .map(|observed| (observed.collected.map(|table| table.count.0), observed.rows.len()))
     };
     for kind in OperationKind::ALL {
-        let presence = ryo_execution_domain::domain::operator::contract::service::semantics(*kind).presence;
+        let presence =
+            ryo_execution_domain::domain::operator::contract::service::semantics(*kind).presence;
         let width = fixture(*kind).inputs.len();
         let emptied: Vec<Vec<usize>> = match presence {
             PresenceMask::AllOf(mask) => (0..width)
@@ -116,14 +123,23 @@ fn every_required_input_empty_answers_no_rows() -> Result<(), Failure> {
             }
             PresenceMask::Always => continue,
         };
-        assert!(!emptied.is_empty(), "{kind:?} declares a required input its fixture lacks");
+        assert!(
+            !emptied.is_empty(),
+            "{kind:?} declares a required input its fixture lacks"
+        );
         for inputs in emptied {
             let mut case = fixture(*kind);
-            assert_eq!(rows(&mut case, &inputs)?, (Ok(0), 0), "{kind:?} with inputs {inputs:?} empty");
+            assert_eq!(
+                rows(&mut case, &inputs)?,
+                (Ok(0), 0),
+                "{kind:?} with inputs {inputs:?} empty"
+            );
         }
     }
     let mut reach = fixture(OperationKind::Join);
-    if let ryo_values::domain::plans::types::Operation::Join { reach: lookup, .. } = &mut reach.operation {
+    if let ryo_values::domain::plans::types::Operation::Join { reach: lookup, .. } =
+        &mut reach.operation
+    {
         *lookup = Some(ryo_values::domain::plan_parts::types::ReachLookup {
             source: ryo_values::domain::plan_parts::types::ColumnIndex(0),
             destination: ryo_values::domain::plan_parts::types::ColumnIndex(1),
@@ -134,7 +150,11 @@ fn every_required_input_empty_answers_no_rows() -> Result<(), Failure> {
             ],
         });
     }
-    assert_eq!(rows(&mut reach, &[1])?, (Ok(0), 0), "a reach join over no edge");
+    assert_eq!(
+        rows(&mut reach, &[1])?,
+        (Ok(0), 0),
+        "a reach join over no edge"
+    );
     Ok(())
 }
 type Input = fn() -> Result<Value, Failure>;
@@ -386,7 +406,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || every_required_input_empty_answers_no_rows,
         expect: Expect::Value(()),
-    },];
+    },
+];
 fn subject(input: Input) -> Result<Value, Failure> {
     input()
 }

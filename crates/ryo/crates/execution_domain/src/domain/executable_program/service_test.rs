@@ -110,7 +110,9 @@ fn subject(check: Input) -> Result<Value, Failure> {
             regions_merge_cost_is_linear_in_rule_count();
             Ok(())
         }
-        Check::NameWithoutTextFailsTheReplaceGate => a_name_without_text_is_refused_by_the_replace_text_gate(),
+        Check::NameWithoutTextFailsTheReplaceGate => {
+            a_name_without_text_is_refused_by_the_replace_text_gate()
+        }
         Check::UnresolvedRegionKeepsItsOperators => {
             let route = Route::default();
             assert!(matches!(route, Route::Generic));
@@ -135,7 +137,13 @@ fn demand_program(order: DemandOrder, count: usize, expected: &[usize]) -> Resul
             tree: None,
         },
     ];
-    let mut contract = prepare_for(OperationKind::Axis, &operation, &inputs, &[], ryo_values::domain::plan_parts::types::StepScope::PerFile)?;
+    let mut contract = prepare_for(
+        OperationKind::Axis,
+        &operation,
+        &inputs,
+        &[],
+        ryo_values::domain::plan_parts::types::StepScope::PerFile,
+    )?;
     assert_eq!(contract.semantics.demand, DemandOrder::LeftThenRight);
     contract.semantics.demand = order;
     let program = DemandProgram::compiled(
@@ -188,8 +196,14 @@ fn contract() -> Arc<crate::domain::operator::contract::types::OperatorContract>
         },
     ];
     Arc::new(
-        prepare_for(OperationKind::Axis, &axis(0), &inputs, &[], ryo_values::domain::plan_parts::types::StepScope::PerFile)
-            .expect("the axis contract prepares"),
+        prepare_for(
+            OperationKind::Axis,
+            &axis(0),
+            &inputs,
+            &[],
+            ryo_values::domain::plan_parts::types::StepScope::PerFile,
+        )
+        .expect("the axis contract prepares"),
     )
 }
 struct Draft {
@@ -412,7 +426,10 @@ fn a_name_without_text_is_refused_by_the_replace_text_gate() -> Result<Value, Fa
             pattern: ryo_values::domain::plan_parts::types::LiteralText("a".into()),
             replacement: ryo_values::domain::plan_parts::types::LiteralText("b".into()),
         },
-        &[InputShape { kinds: &kinds, tree: None }],
+        &[InputShape {
+            kinds: &kinds,
+            tree: None,
+        }],
         &[],
         StepScope::PerFile,
     )
@@ -424,14 +441,15 @@ fn a_name_without_text_is_refused_by_the_replace_text_gate() -> Result<Value, Fa
         paths: &[],
         arenas: &[],
     };
-    let row = [ryo_relations::domain::relations::types::Value::Name(ryo_relations::domain::relations::types::Name {
-        hash: ryo_relations::domain::relations::types::TextHash(7),
-        place: ryo_relations::domain::relations::types::PlaceNumber(0),
-    })];
+    let row = [ryo_relations::domain::relations::types::Value::Name(
+        ryo_relations::domain::relations::types::Name {
+            hash: ryo_relations::domain::relations::types::TextHash(7),
+            place: ryo_relations::domain::relations::types::PlaceNumber(0),
+        },
+    )];
     assert_eq!(
         crate::domain::executable_program::kernel::row_admissible(&contract, &row, &texts),
         Err(crate::domain::operating::errors::OperatingError::ShapeMismatch)
     );
     Ok(())
 }
-

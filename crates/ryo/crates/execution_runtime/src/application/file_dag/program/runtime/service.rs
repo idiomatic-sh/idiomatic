@@ -167,9 +167,12 @@ pub(crate) struct RuntimeState {
     dormant: RefCell<rustc_hash::FxHashMap<RegionId, ReaderCount>>,
     retirement: RefCell<RetirementWork>,
     /// The file roots this file found absent: each publishes the empty table and owes no input.
-    absent: RefCell<ryo_execution_domain::domain::executable_program::file_demand::types::AbsentRoots>,
+    absent:
+        RefCell<ryo_execution_domain::domain::executable_program::file_demand::types::AbsentRoots>,
     /// The other regions the file's admitted roots reach whose skip formula fails on the file.
-    interior: RefCell<ryo_execution_domain::domain::executable_program::file_demand::types::AbsentRegions>,
+    interior: RefCell<
+        ryo_execution_domain::domain::executable_program::file_demand::types::AbsentRegions,
+    >,
     /// The sources the file's presence read met refused, each the file's refusal for that source.
     refused: RefCell<Vec<super::types::SourceRefusal>>,
     #[cfg(test)]

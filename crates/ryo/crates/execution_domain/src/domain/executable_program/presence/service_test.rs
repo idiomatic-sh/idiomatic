@@ -6,20 +6,18 @@ use super::types::{FormulaId, GraphPresence, PresenceFormula, PresenceTable};
 use crate::domain::file_program::types::RequestGraph;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operation_schema::types::InputShape;
+use crate::domain::operator::contract::presence::{InputMask, PresenceMask, RowFailure};
 use crate::domain::operator::contract::service::{prepare_for, semantics};
 use crate::domain::operator::contract::types::EmptyRepresentation;
-use crate::domain::operator::contract::presence::{InputMask, PresenceMask, RowFailure};
 use ryo_relations::domain::relations::service::kinds;
-use ryo_relations::domain::relations::types::{
-    CellKind, Relation,
-};
+use ryo_relations::domain::relations::types::{CellKind, Relation};
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, ComparisonOrigin, Input as Source, JoinColumn, LiteralText, Operand,
     PlanComparison, QueryLiteral, ReachLookup, Side, StepId, StepScope, Test,
 };
 use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
 use ryo_values::domain::query_operators::types::OperationKind;
-use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 
 fn equal(column: u32, text: &str) -> PlanComparison {
     PlanComparison {
@@ -61,7 +59,12 @@ fn plan(steps: Vec<PlanStep>) -> Plan {
         steps,
     }
 }
-fn graph(plans: &[Plan]) -> (RequestGraph, crate::domain::file_program::types::RequestOperators) {
+fn graph(
+    plans: &[Plan],
+) -> (
+    RequestGraph,
+    crate::domain::file_program::types::RequestOperators,
+) {
     let operators = crate::domain::file_program::service::operators::prepare(
         plans,
         &vec![vec![]; plans.len()],
@@ -74,7 +77,13 @@ fn graph(plans: &[Plan]) -> (RequestGraph, crate::domain::file_program::types::R
     (graph, operators)
 }
 fn fold(plans: &[Plan]) -> GraphPresence {
-    of_graph(&graph(plans).0, &|_| super::types::RelationScope::CurrentFile, crate::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl))
+    of_graph(
+        &graph(plans).0,
+        &|_| super::types::RelationScope::CurrentFile,
+        crate::domain::matching::types::PatternMatcher(
+            &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
+        ),
+    )
 }
 /// The skip formula of the last step of the first plan.
 fn last(presence: &GraphPresence, plans: &[Plan]) -> FormulaId {
@@ -93,7 +102,10 @@ fn conjuncts(table: &PresenceTable, formula: FormulaId) -> Vec<(Relation, Vec<Pl
     };
     match &table.formulas[formula.0] {
         PresenceFormula::Test(id) => vec![test(id)],
-        PresenceFormula::All(parts) => parts.iter().flat_map(|part| conjuncts(table, *part)).collect(),
+        PresenceFormula::All(parts) => parts
+            .iter()
+            .flat_map(|part| conjuncts(table, *part))
+            .collect(),
         PresenceFormula::Always | PresenceFormula::Any(_) => vec![],
     }
 }
@@ -129,19 +141,32 @@ fn replace(column: u32, kinds: &[CellKind], scope: StepScope) -> RowFailure {
     .unwrap_or(RowFailure::OnRows(InputMask(0)))
 }
 
-fn replace_can_err_on_rows_unless_a_per_file_step_reads_a_symbol_or_file_column() -> Result<(), OperatingError> {
+fn replace_can_err_on_rows_unless_a_per_file_step_reads_a_symbol_or_file_column()
+-> Result<(), OperatingError> {
     let kinds = [CellKind::Node, CellKind::Symbol, CellKind::File];
     assert_eq!(replace(1, &kinds, StepScope::PerFile), RowFailure::Never);
     assert_eq!(replace(2, &kinds, StepScope::PerFile), RowFailure::Never);
-    assert_eq!(replace(0, &kinds, StepScope::PerFile), RowFailure::OnRows(InputMask(1)));
-    assert_eq!(replace(1, &kinds, StepScope::CrossFile), RowFailure::OnRows(InputMask(1)));
-    assert_eq!(replace(9, &kinds, StepScope::PerFile), RowFailure::OnRows(InputMask(1)));
+    assert_eq!(
+        replace(0, &kinds, StepScope::PerFile),
+        RowFailure::OnRows(InputMask(1))
+    );
+    assert_eq!(
+        replace(1, &kinds, StepScope::CrossFile),
+        RowFailure::OnRows(InputMask(1))
+    );
+    assert_eq!(
+        replace(9, &kinds, StepScope::PerFile),
+        RowFailure::OnRows(InputMask(1))
+    );
     Ok(())
 }
 
 fn the_row_fallible_operators_name_the_inputs_whose_rows_can_err() -> Result<(), OperatingError> {
     let kinds = kinds(Relation::Function);
-    let shape = [InputShape { kinds, tree: None }, InputShape { kinds, tree: None }];
+    let shape = [
+        InputShape { kinds, tree: None },
+        InputShape { kinds, tree: None },
+    ];
     let failure = |kind: OperationKind, operation: Operation| {
         prepare_for(kind, &operation, &shape, &[], StepScope::PerFile)
             .map(|contract| contract.failure)
@@ -188,9 +213,18 @@ fn the_row_fallible_operators_name_the_inputs_whose_rows_can_err() -> Result<(),
 fn every_always_gated_empty_result_lies_inside_the_presence_mask() -> Result<(), OperatingError> {
     let node = kinds(Relation::SyntaxChild);
     let shapes = [
-        InputShape { kinds: node, tree: None },
-        InputShape { kinds: node, tree: None },
-        InputShape { kinds: node, tree: None },
+        InputShape {
+            kinds: node,
+            tree: None,
+        },
+        InputShape {
+            kinds: node,
+            tree: None,
+        },
+        InputShape {
+            kinds: node,
+            tree: None,
+        },
     ];
     let operations = [
         Operation::Antijoin {
@@ -222,7 +256,12 @@ fn every_always_gated_empty_result_lies_inside_the_presence_mask() -> Result<(),
         };
         for gate in &contract.empty_results {
             if gate.representation == EmptyRepresentation::Any {
-                assert_ne!(mask.0 & (1 << gate.input.0), 0, "{kind:?} gates on input {}", gate.input.0);
+                assert_ne!(
+                    mask.0 & (1 << gate.input.0),
+                    0,
+                    "{kind:?} gates on input {}",
+                    gate.input.0
+                );
             }
         }
     }
@@ -239,8 +278,14 @@ fn a_self_join_tests_each_side_on_its_own() -> Result<(), OperatingError> {
             left_on: vec![ColumnIndex(3)],
             right_on: vec![ColumnIndex(3)],
             output: vec![
-                JoinColumn { side: Side::Left, column: ColumnIndex(1) },
-                JoinColumn { side: Side::Right, column: ColumnIndex(1) },
+                JoinColumn {
+                    side: Side::Left,
+                    column: ColumnIndex(1),
+                },
+                JoinColumn {
+                    side: Side::Right,
+                    column: ColumnIndex(1),
+                },
             ],
             filter: vec![],
             view: vec![],
@@ -272,7 +317,10 @@ fn join_right_columns_resolve_through_the_schema_functions() -> Result<(), Opera
                 right: Source::Relation(Relation::SyntaxTree),
                 left_on: vec![ColumnIndex(0)],
                 right_on: vec![ColumnIndex(0)],
-                output: vec![JoinColumn { side: Side::Right, column: ColumnIndex(0) }],
+                output: vec![JoinColumn {
+                    side: Side::Right,
+                    column: ColumnIndex(0),
+                }],
                 filter,
                 view,
                 reach,
@@ -321,13 +369,19 @@ fn a_union_is_any_of_its_branches_and_resets_origins() -> Result<(), OperatingEr
     let plans = [plan(vec![
         select(Source::Relation(Relation::SyntaxTree), vec![equal(1, "x")]),
         select(Source::Relation(Relation::SyntaxTree), vec![equal(1, "y")]),
-        step(Operation::Union { left: at(0), right: at(1) }),
+        step(Operation::Union {
+            left: at(0),
+            right: at(1),
+        }),
         select(at(2), vec![equal(2, "z")]),
     ])];
     let presence = fold(&plans);
     let formula = last(&presence, &plans);
     let PresenceFormula::Any(branches) = &presence.table.formulas[formula.0] else {
-        panic!("a union is any of its branches: {:?}", presence.table.formulas[formula.0]);
+        panic!(
+            "a union is any of its branches: {:?}",
+            presence.table.formulas[formula.0]
+        );
     };
     assert_eq!(branches.len(), 2);
     assert!(conjuncts(&presence.table, formula).is_empty());
@@ -358,13 +412,19 @@ fn unconditional_nodes_and_their_consumers_are_always() -> Result<(), OperatingE
 fn a_fallible_operator_upstream_holds_the_skip_formula_open() -> Result<(), OperatingError> {
     let plans = [plan(vec![
         select(Source::Relation(Relation::SyntaxTree), vec![]),
-        step(Operation::SpanBounds { from: at(0), span: ColumnIndex(4) }),
+        step(Operation::SpanBounds {
+            from: at(0),
+            span: ColumnIndex(4),
+        }),
         select(at(1), vec![equal(1, "never")]),
     ])];
     let presence = fold(&plans);
     let formula = last(&presence, &plans);
     let PresenceFormula::Any(parts) = &presence.table.formulas[formula.0] else {
-        panic!("the failure term is OR-ed in: {:?}", presence.table.formulas[formula.0]);
+        panic!(
+            "the failure term is OR-ed in: {:?}",
+            presence.table.formulas[formula.0]
+        );
     };
     assert_eq!(parts.len(), 2);
     Ok(())
@@ -373,7 +433,10 @@ fn a_fallible_operator_upstream_holds_the_skip_formula_open() -> Result<(), Oper
 /// Each region takes its last node's formula; a synthesized region, which is no node, and a region upstream of an
 /// ordered-existence source are `Always`.
 fn the_region_table_takes_each_regions_node() -> Result<(), OperatingError> {
-    let plans = [plan(vec![select(Source::Relation(Relation::SyntaxTree), vec![equal(1, "x")])])];
+    let plans = [plan(vec![select(
+        Source::Relation(Relation::SyntaxTree),
+        vec![equal(1, "x")],
+    )])];
     let presence = fold(&plans);
     let node = super::types::FoldedNode(0);
     let table = for_regions(
@@ -432,7 +495,10 @@ const ORDERED: &[Raiser] = &[Raiser::Rows(OperationKind::OrderedMatch)];
 const SPAN: &[Raiser] = &[Raiser::Rows(OperationKind::SpanBetween)];
 const SOURCE_SPAN: &[Raiser] = &[Raiser::Rows(OperationKind::SourceMatches)];
 const BOUNDS: &[Raiser] = &[Raiser::Rows(OperationKind::SpanBounds)];
-const RENDER: &[Raiser] = &[Raiser::Rows(OperationKind::RenderSyntax), Raiser::Rows(OperationKind::FitsRendered)];
+const RENDER: &[Raiser] = &[
+    Raiser::Rows(OperationKind::RenderSyntax),
+    Raiser::Rows(OperationKind::FitsRendered),
+];
 const TEXT_GATE: &[Raiser] = &[Raiser::Rows(OperationKind::Replace)];
 const REGEX: &[Raiser] = &[
     Raiser::Rows(OperationKind::Select),
@@ -450,12 +516,16 @@ const REGEX: &[Raiser] = &[
 /// raise it.
 fn operating(error: &OperatingError) -> Fault {
     match error {
-        OperatingError::DuplicateDfsOrder | OperatingError::DfsOrdinalOverflow => Fault::RowFallible(DFS),
+        OperatingError::DuplicateDfsOrder | OperatingError::DfsOrdinalOverflow => {
+            Fault::RowFallible(DFS)
+        }
         OperatingError::DuplicateOrder => Fault::RowFallible(ORDERED),
         OperatingError::InvalidSpan => Fault::RowFallible(SPAN),
         OperatingError::InvalidSourceMatchSpan => Fault::RowFallible(SOURCE_SPAN),
         OperatingError::InvalidSpanBounds => Fault::RowFallible(BOUNDS),
-        OperatingError::SemanticRender(_) | OperatingError::SemanticBatchShape => Fault::RowFallible(RENDER),
+        OperatingError::SemanticRender(_) | OperatingError::SemanticBatchShape => {
+            Fault::RowFallible(RENDER)
+        }
         // A regular expression read from the row, or a literal one that does not compile.
         OperatingError::InvalidRegex { .. } => Fault::RowFallible(REGEX),
         OperatingError::WrongTest => Fault::Comparison,
@@ -469,9 +539,8 @@ fn operating(error: &OperatingError) -> Fault {
         | OperatingError::WrongBinding
         | OperatingError::Table(_) => Fault::Fixed,
         OperatingError::NotRun | OperatingError::NotRead => Fault::Engine,
-        OperatingError::ObservationIncomplete { .. } | OperatingError::SemanticIncomplete { .. } => {
-            Fault::Incomplete
-        }
+        OperatingError::ObservationIncomplete { .. }
+        | OperatingError::SemanticIncomplete { .. } => Fault::Incomplete,
     }
 }
 fn portable(fault: &ryo_operators::domain::contract::types::PortableOperatorFault) -> Fault {
@@ -482,9 +551,12 @@ fn portable(fault: &ryo_operators::domain::contract::types::PortableOperatorFaul
         InvalidSpan => Fault::RowFallible(SPAN),
         InvalidSourceMatchSpan => Fault::RowFallible(SOURCE_SPAN),
         UnsupportedRender => Fault::RowFallible(RENDER),
-        NoSuchColumn { .. } | WrongOperation | UnboundKey | WrongBinding | Unbound | MissingCapture => {
-            Fault::Fixed
-        }
+        NoSuchColumn { .. }
+        | WrongOperation
+        | UnboundKey
+        | WrongBinding
+        | Unbound
+        | MissingCapture => Fault::Fixed,
         Interrupted | NotRun => Fault::Engine,
     }
 }
@@ -503,14 +575,21 @@ fn raising(raiser: Raiser) -> Operation {
     };
     let (kind, pattern) = match raiser {
         Raiser::Rows(kind) => (kind, Operand::Column(ColumnIndex(1))),
-        Raiser::Pattern(kind) => (kind, Operand::Literal(QueryLiteral::Text(LiteralText("(".into())))),
+        Raiser::Pattern(kind) => (
+            kind,
+            Operand::Literal(QueryLiteral::Text(LiteralText("(".into()))),
+        ),
     };
     let literal = match &pattern {
         Operand::Literal(QueryLiteral::Text(text)) => text.clone(),
         _ => LiteralText("a".into()),
     };
     match kind {
-        OperationKind::Select => Operation::Select { from, comparisons: comparisons(pattern), kept: vec![] },
+        OperationKind::Select => Operation::Select {
+            from,
+            comparisons: comparisons(pattern),
+            kept: vec![],
+        },
         OperationKind::Join => Operation::Join {
             left: from,
             right: from,
@@ -537,7 +616,11 @@ fn raising(raiser: Raiser) -> Operation {
         OperationKind::Replace => Operation::Replace {
             from,
             // A node column has no text, so the text gate raises on its rows.
-            text: ColumnIndex(if matches!(raiser, Raiser::Rows(_)) { 0 } else { 1 }),
+            text: ColumnIndex(if matches!(raiser, Raiser::Rows(_)) {
+                0
+            } else {
+                1
+            }),
             pattern: literal,
             replacement: LiteralText("b".into()),
         },
@@ -570,8 +653,15 @@ fn raising(raiser: Raiser) -> Operation {
             right_order: ColumnIndex(0),
             output: vec![],
         },
-        OperationKind::SpanBetween => Operation::SpanBetween { from, start: ColumnIndex(0), end: ColumnIndex(0) },
-        OperationKind::SpanBounds => Operation::SpanBounds { from, span: ColumnIndex(0) },
+        OperationKind::SpanBetween => Operation::SpanBetween {
+            from,
+            start: ColumnIndex(0),
+            end: ColumnIndex(0),
+        },
+        OperationKind::SpanBounds => Operation::SpanBounds {
+            from,
+            span: ColumnIndex(0),
+        },
         OperationKind::RenderSyntax => Operation::RenderSyntax {
             from,
             node: ColumnIndex(0),
@@ -595,8 +685,12 @@ fn declared(raiser: Raiser) -> bool {
     let operation = raising(raiser);
     let kind = ryo_values::domain::plans::service::kind_of(&operation);
     let function = kinds(Relation::Function);
-    let shapes = [InputShape { kinds: function, tree: None }; 3];
-    let failure = prepare_for(kind, &operation, &shapes, &[], StepScope::PerFile).map(|contract| contract.failure);
+    let shapes = [InputShape {
+        kinds: function,
+        tree: None,
+    }; 3];
+    let failure = prepare_for(kind, &operation, &shapes, &[], StepScope::PerFile)
+        .map(|contract| contract.failure);
     let rows = matches!(failure, Ok(RowFailure::OnRows(mask)) if mask != InputMask(0));
     match raiser {
         Raiser::Rows(_) => rows,
@@ -636,11 +730,17 @@ fn every_fault_has_a_verdict() -> Result<(), OperatingError> {
         PortableOperatorFault::UnsupportedRender,
         PortableOperatorFault::MissingCapture,
     ];
-    let verdicts = errors.iter().map(operating).chain(faults.iter().map(portable));
+    let verdicts = errors
+        .iter()
+        .map(operating)
+        .chain(faults.iter().map(portable));
     for verdict in verdicts {
         if let Fault::RowFallible(raisers) = verdict {
             for raiser in raisers {
-                assert!(declared(*raiser), "{raiser:?} raises a row error it does not declare");
+                assert!(
+                    declared(*raiser),
+                    "{raiser:?} raises a row error it does not declare"
+                );
             }
         }
     }
@@ -665,7 +765,10 @@ fn every_fault_has_a_verdict() -> Result<(), OperatingError> {
         Some(InputMask(1))
     );
     assert_eq!(operating(&OperatingError::NotRun), Fault::Engine);
-    assert_eq!(portable(&PortableOperatorFault::MissingCapture), Fault::Fixed);
+    assert_eq!(
+        portable(&PortableOperatorFault::MissingCapture),
+        Fault::Fixed
+    );
     Ok(())
 }
 
@@ -674,25 +777,33 @@ type Value = ();
 type Failure = OperatingError;
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName(stringify!(every_operation_declares_the_inputs_its_rows_need)),
+        name: CaseName(stringify!(
+            every_operation_declares_the_inputs_its_rows_need
+        )),
         word: Word::Succeeds,
         input: || every_operation_declares_the_inputs_its_rows_need,
         expect: Expect::Value(()),
     },
     Case {
-        name: CaseName(stringify!(replace_can_err_on_rows_unless_a_per_file_step_reads_a_symbol_or_file_column)),
+        name: CaseName(stringify!(
+            replace_can_err_on_rows_unless_a_per_file_step_reads_a_symbol_or_file_column
+        )),
         word: Word::Succeeds,
         input: || replace_can_err_on_rows_unless_a_per_file_step_reads_a_symbol_or_file_column,
         expect: Expect::Value(()),
     },
     Case {
-        name: CaseName(stringify!(the_row_fallible_operators_name_the_inputs_whose_rows_can_err)),
+        name: CaseName(stringify!(
+            the_row_fallible_operators_name_the_inputs_whose_rows_can_err
+        )),
         word: Word::Succeeds,
         input: || the_row_fallible_operators_name_the_inputs_whose_rows_can_err,
         expect: Expect::Value(()),
     },
     Case {
-        name: CaseName(stringify!(every_always_gated_empty_result_lies_inside_the_presence_mask)),
+        name: CaseName(stringify!(
+            every_always_gated_empty_result_lies_inside_the_presence_mask
+        )),
         word: Word::Succeeds,
         input: || every_always_gated_empty_result_lies_inside_the_presence_mask,
         expect: Expect::Value(()),
@@ -704,25 +815,33 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(()),
     },
     Case {
-        name: CaseName(stringify!(join_right_columns_resolve_through_the_schema_functions)),
+        name: CaseName(stringify!(
+            join_right_columns_resolve_through_the_schema_functions
+        )),
         word: Word::Succeeds,
         input: || join_right_columns_resolve_through_the_schema_functions,
         expect: Expect::Value(()),
     },
     Case {
-        name: CaseName(stringify!(a_union_is_any_of_its_branches_and_resets_origins)),
+        name: CaseName(stringify!(
+            a_union_is_any_of_its_branches_and_resets_origins
+        )),
         word: Word::Succeeds,
         input: || a_union_is_any_of_its_branches_and_resets_origins,
         expect: Expect::Value(()),
     },
     Case {
-        name: CaseName(stringify!(unconditional_nodes_and_their_consumers_are_always)),
+        name: CaseName(stringify!(
+            unconditional_nodes_and_their_consumers_are_always
+        )),
         word: Word::Succeeds,
         input: || unconditional_nodes_and_their_consumers_are_always,
         expect: Expect::Value(()),
     },
     Case {
-        name: CaseName(stringify!(a_fallible_operator_upstream_holds_the_skip_formula_open)),
+        name: CaseName(stringify!(
+            a_fallible_operator_upstream_holds_the_skip_formula_open
+        )),
         word: Word::Succeeds,
         input: || a_fallible_operator_upstream_holds_the_skip_formula_open,
         expect: Expect::Value(()),

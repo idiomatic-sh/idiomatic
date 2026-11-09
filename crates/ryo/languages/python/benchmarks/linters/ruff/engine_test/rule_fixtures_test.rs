@@ -126,9 +126,18 @@ pub(super) fn write_suppress_module(root: &std::path::Path) -> Result<(), Error>
         ),
         ("noqa-heads", include_str!("../fragments/noqa-heads.ryoql")),
         ("noqa-codes", include_str!("../fragments/noqa-codes.ryoql")),
-        ("noqa-blankets", include_str!("../fragments/noqa-blankets.ryoql")),
-        ("noqa-ranges", include_str!("../fragments/noqa-ranges.ryoql")),
-        ("noqa-suppressions", include_str!("../fragments/noqa-suppressions.ryoql")),
+        (
+            "noqa-blankets",
+            include_str!("../fragments/noqa-blankets.ryoql"),
+        ),
+        (
+            "noqa-ranges",
+            include_str!("../fragments/noqa-ranges.ryoql"),
+        ),
+        (
+            "noqa-suppressions",
+            include_str!("../fragments/noqa-suppressions.ryoql"),
+        ),
         (
             "noqa-suppressions-with-additional-lines",
             include_str!("../fragments/noqa-suppressions-with-additional-lines.ryoql"),

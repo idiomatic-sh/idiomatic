@@ -2,6 +2,7 @@
 use crate::application::file_dag::program::admission::ApplicabilityProof;
 use crate::application::file_dag::program::admission::Inputs;
 use crate::application::file_dag::program::admission::Partition;
+use crate::application::file_dag::program::constants::{EXECUTION_TARGET, PRESENCE_FILE};
 use crate::application::file_dag::program::constants::{
     METADATA_UNAVAILABLE, PRODUCER_COVERAGE_INCOMPLETE, SOURCE_FACTS_INCOMPLETE,
     SYNTAX_UNDETERMINED,
@@ -11,15 +12,14 @@ use crate::application::file_dag::program::facade_runtime::file_execution::class
 use crate::application::file_dag::program::facade_runtime::file_execution::readiness_of;
 use crate::application::file_dag::program::facade_runtime::source_admission::SourceInputs;
 use crate::application::file_dag::program::facade_runtime::types::{
-    DeclaredIntent, FileRoot, FrontierCommit, NamedReadiness, PendingActivation, PreparedNamed, PresenceGate,
-    RootCandidate, WalkPreparation,
+    DeclaredIntent, FileRoot, FrontierCommit, NamedReadiness, PendingActivation, PreparedNamed,
+    PresenceGate, RootCandidate, WalkPreparation,
 };
-use crate::application::file_dag::program::constants::{EXECUTION_TARGET, PRESENCE_FILE};
-use ryo_execution_domain::domain::executable_program::file_demand::types::AbsentRoots;
-use ryo_execution_domain::domain::executable_program::presence::types::RegionPresence;
 use crate::application::file_dag::program::native_walk::Deliveries;
 use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
+use ryo_execution_domain::domain::executable_program::file_demand::types::AbsentRoots;
+use ryo_execution_domain::domain::executable_program::presence::types::RegionPresence;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::rule_intent::types::CaptureIntent;
 use ryo_execution_domain::domain::rule_intent::types::DiagnosticDelivery;
@@ -263,10 +263,7 @@ impl FileRun<'_> {
         }
         Ok(())
     }
-    pub(crate) fn declared(
-        &self,
-        rule: RuleIndex,
-    ) -> Result<DeclaredIntent, OperatingError> {
+    pub(crate) fn declared(&self, rule: RuleIndex) -> Result<DeclaredIntent, OperatingError> {
         match self.intents.get(rule.0) {
             Some(FileRuleIntent::Run {
                 diagnostic,
@@ -386,4 +383,3 @@ impl FileRun<'_> {
         Ok(())
     }
 }
-

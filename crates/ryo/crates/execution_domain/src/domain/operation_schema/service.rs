@@ -341,4 +341,3 @@ fn appended(
     output.push(kind);
     Ok(output)
 }
-

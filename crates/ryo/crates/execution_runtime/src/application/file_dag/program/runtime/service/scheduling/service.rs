@@ -23,10 +23,10 @@ impl ProgramExecution {
         context: &mut OperatorContext<'_>,
     ) -> Result<(), OperatingError> {
         self.validate_state(state)?;
+        use ryo_execution_domain::domain::executable_program::types::RegionCount;
         use ryo_execution_domain::domain::readiness::types::{
             ReadinessAction, ReadinessOutcome, ready_queue::value::ReadyQueue,
         };
-        use ryo_execution_domain::domain::executable_program::types::RegionCount;
         // Publication delivery and retries must not re-enter readiness work.
         let mut pending = Vec::with_capacity(roots.len());
         for &root in roots {

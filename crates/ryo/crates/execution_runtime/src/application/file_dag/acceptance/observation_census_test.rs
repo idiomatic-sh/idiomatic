@@ -29,7 +29,16 @@ fn the_census_includes_every_synthetic_observation_union() -> Result<(), Operati
         operators,
     } = declared(FrontierSlots::Declared);
     let slots = graph.observations.as_ref().unwrap().slots.clone();
-    let program = compile(&plans, graph, &DeclaredFileProducers, &operators, ryo_execution_domain::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl)).unwrap();
+    let program = compile(
+        &plans,
+        graph,
+        &DeclaredFileProducers,
+        &operators,
+        ryo_execution_domain::domain::matching::types::PatternMatcher(
+            &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
+        ),
+    )
+    .unwrap();
     use ryo_values::domain::{
         plan_parts::types::{Input as PlanInput, StepId},
         plans::types::Operation,
@@ -135,7 +144,16 @@ fn shared_walk_census_includes_every_synthetic_observation_union() -> Result<(),
         },
     );
     let slots = graph.observations.as_ref().unwrap().slots.clone();
-    let program = compile(&plans, graph, &DeclaredFileProducers, &operators, ryo_execution_domain::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl)).unwrap();
+    let program = compile(
+        &plans,
+        graph,
+        &DeclaredFileProducers,
+        &operators,
+        ryo_execution_domain::domain::matching::types::PatternMatcher(
+            &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
+        ),
+    )
+    .unwrap();
     use ryo_values::domain::{
         plan_parts::types::{Input as PlanInput, StepId},
         plans::types::Operation,

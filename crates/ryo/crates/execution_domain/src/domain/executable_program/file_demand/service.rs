@@ -184,26 +184,38 @@ pub fn table(
     // A region is pushed once, when it is first reached, so the stack never outgrows the program.
     let mut queued = vec![false; regions.len()];
     let mut pending = Vec::with_capacity(regions.len());
-    for &SelectedRoot { region: root, readers } in selected {
+    for &SelectedRoot {
+        region: root,
+        readers,
+    } in selected
+    {
         let count = counts.get_mut(root.0).ok_or(OperatingError::NotRun)?;
         count.0 = count
             .0
             .checked_add(readers.0)
             .ok_or(OperatingError::ShapeMismatch)?;
         let seen = queued.get_mut(root.0).ok_or(OperatingError::NotRun)?;
-        if !*seen && absent.presence(root) == crate::domain::executable_program::presence::types::RegionPresence::Present {
+        if !*seen
+            && absent.presence(root)
+                == crate::domain::executable_program::presence::types::RegionPresence::Present
+        {
             *seen = true;
             pending.push(root);
         }
     }
     while let Some(id) = pending.pop() {
-        if absent.presence(id) == crate::domain::executable_program::presence::types::RegionPresence::Absent {
+        if absent.presence(id)
+            == crate::domain::executable_program::presence::types::RegionPresence::Absent
+        {
             continue;
         }
         let region = regions.get(id.0).ok_or(OperatingError::NotRun)?;
         for &dependency in region.dependencies() {
             let count = counts.get_mut(dependency.0).ok_or(OperatingError::NotRun)?;
-            count.0 = count.0.checked_add(1).ok_or(OperatingError::ShapeMismatch)?;
+            count.0 = count
+                .0
+                .checked_add(1)
+                .ok_or(OperatingError::ShapeMismatch)?;
             let seen = queued.get_mut(dependency.0).ok_or(OperatingError::NotRun)?;
             if !*seen {
                 *seen = true;
@@ -219,6 +231,13 @@ pub fn table(
 /// # Errors
 ///
 /// [`OperatingError::NotRun`] for a region the program does not have.
-pub fn reader_count(table: &RemainingTable, producer: RegionId) -> Result<ReaderMultiplicity, OperatingError> {
-    table.counts.get(producer.0).copied().ok_or(OperatingError::NotRun)
+pub fn reader_count(
+    table: &RemainingTable,
+    producer: RegionId,
+) -> Result<ReaderMultiplicity, OperatingError> {
+    table
+        .counts
+        .get(producer.0)
+        .copied()
+        .ok_or(OperatingError::NotRun)
 }

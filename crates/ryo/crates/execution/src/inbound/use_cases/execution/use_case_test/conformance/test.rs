@@ -113,7 +113,18 @@ pub(crate) fn compare_delivery_with_port(
 ) -> Result<ObservedDelivery, OperatingError> {
     let schema = schema(operation, inputs, bindings);
     let authored = author(operation, inputs, bindings, symbols);
-    deliver(authored, schema, inputs.len(), bindings, source, symbols, stop, semantic, refusal, port)
+    deliver(
+        authored,
+        schema,
+        inputs.len(),
+        bindings,
+        source,
+        symbols,
+        stop,
+        semantic,
+        refusal,
+        port,
+    )
 }
 
 /// The operation's output schema over these input tables.
@@ -329,8 +340,7 @@ pub(crate) fn deliver(
         }
         _ => panic!("declared per-file operation must settle"),
     };
-    let visits =
-        collected_file.counts(RuleIndex(0))?.fed[emit.0 as usize].0[..width].to_vec();
+    let visits = collected_file.counts(RuleIndex(0))?.fed[emit.0 as usize].0[..width].to_vec();
     collected_file.finish()?;
     let forward_intent = [FileRuleIntent::Run {
         diagnostic: DiagnosticDelivery::Forwarded,
@@ -362,7 +372,13 @@ fn all_registrations_refuse_a_foreign_variant() -> Result<(), Failure> {
     for (at, kind) in OperationKind::ALL.iter().enumerate() {
         let foreign = fixture(OperationKind::ALL[(at + 1) % OperationKind::ALL.len()]);
         assert!(matches!(
-            prepare_operator(*kind, &foreign.operation, &[], &[], ryo_values::domain::plan_parts::types::StepScope::PerFile),
+            prepare_operator(
+                *kind,
+                &foreign.operation,
+                &[],
+                &[],
+                ryo_values::domain::plan_parts::types::StepScope::PerFile
+            ),
             Err(OperatingError::WrongOperation)
         ));
     }

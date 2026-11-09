@@ -56,8 +56,8 @@ use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
 
 mod emission;
 mod frontier;
-mod rule;
 mod presence;
+mod rule;
 mod walk;
 
 pub(crate) struct FileRun<'a> {
@@ -195,8 +195,10 @@ impl FileRun<'_> {
         &self,
         region: ryo_execution_domain::domain::executable_program::types::RegionId,
     ) -> super::types::RegionProbe {
-        use crate::application::file_dag::program::runtime::types::{DependencyCheckpoint, SlotHolding};
         use super::types::{InputRelease, Instantiated};
+        use crate::application::file_dag::program::runtime::types::{
+            DependencyCheckpoint, SlotHolding,
+        };
         let held = self.execution.instantiated(region);
         super::types::RegionProbe {
             instantiated: match (held.slot, held.dormant) {
@@ -204,7 +206,11 @@ impl FileRun<'_> {
                 (SlotHolding::Missing, SlotHolding::Held) => Instantiated::Dormant,
                 (SlotHolding::Missing, SlotHolding::Missing) => Instantiated::Never,
             },
-            inputs: match (held.slot, self.execution.retry_checkpoint(self.execution.file_state(), region)) {
+            inputs: match (
+                held.slot,
+                self.execution
+                    .retry_checkpoint(self.execution.file_state(), region),
+            ) {
                 (SlotHolding::Held, Ok(checkpoint)) => Some(match checkpoint.dependencies {
                     DependencyCheckpoint::Consumed => InputRelease::Released,
                     DependencyCheckpoint::Pending => InputRelease::Owed,
@@ -228,7 +234,9 @@ impl FileRun<'_> {
     }
     /// The live state the file's execution holds.
     #[cfg(test)]
-    pub(crate) fn state_counts(&self) -> ryo_execution_domain::domain::readiness::types::InvocationStateCounts {
+    pub(crate) fn state_counts(
+        &self,
+    ) -> ryo_execution_domain::domain::readiness::types::InvocationStateCounts {
         self.execution.state_counts()
     }
     /// Weak lifetime observation only; the test never retains a workspace or owner.

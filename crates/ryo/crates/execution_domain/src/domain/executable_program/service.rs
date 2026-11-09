@@ -243,9 +243,12 @@ pub fn compile(
         &observed_roots,
     );
     // Merged twins compute the same rows from the same inputs, so they have the same formula.
-    debug_assert!(representative.iter().enumerate().all(|(node, served)| {
-        presence.nodes.get(node) == presence.nodes.get(served.0)
-    }));
+    debug_assert!(
+        representative
+            .iter()
+            .enumerate()
+            .all(|(node, served)| { presence.nodes.get(node) == presence.nodes.get(served.0) })
+    );
     // An ordered-existence route certifies its source's numbers from the relations the source's lineage read in this
     // file, so every region upstream of a route source runs whenever it is reached: an empty publication reads no relation.
     let mut certified = vec![false; regions.len()];
@@ -258,7 +261,13 @@ pub fn compile(
             && !*seen
         {
             *seen = true;
-            pending.extend(regions.get(id.0).map_or(&[][..], Region::dependencies).iter().copied());
+            pending.extend(
+                regions
+                    .get(id.0)
+                    .map_or(&[][..], Region::dependencies)
+                    .iter()
+                    .copied(),
+            );
         }
     }
     let presence = crate::domain::executable_program::presence::service::for_regions(

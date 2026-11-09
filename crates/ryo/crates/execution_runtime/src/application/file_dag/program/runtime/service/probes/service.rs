@@ -23,8 +23,14 @@ impl ProgramExecution {
         &self,
         id: RegionId,
     ) -> crate::application::file_dag::program::runtime::types::Instantiation {
-        use crate::application::file_dag::program::runtime::types::{SlotHolding, Instantiation};
-        let held = |present| if present { SlotHolding::Held } else { SlotHolding::Missing };
+        use crate::application::file_dag::program::runtime::types::{Instantiation, SlotHolding};
+        let held = |present| {
+            if present {
+                SlotHolding::Held
+            } else {
+                SlotHolding::Missing
+            }
+        };
         Instantiation {
             slot: held(self.file_state.slots.borrow().contains_key(&id)),
             dormant: held(self.file_state.dormant.borrow().contains_key(&id)),

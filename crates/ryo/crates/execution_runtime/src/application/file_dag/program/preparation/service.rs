@@ -265,13 +265,17 @@ pub(crate) fn prepare(
                 .map(|plan| vec![FrontierPurpose::Diagnostic; plan.frontier.len()])
                 .collect()
         });
-    let program = Arc::new(ryo_execution_domain::domain::executable_program::service::compile(
-        &plans,
-        graph,
-        &partitions,
-        &operators,
-        ryo_execution_domain::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl),
-    )?);
+    let program = Arc::new(
+        ryo_execution_domain::domain::executable_program::service::compile(
+            &plans,
+            graph,
+            &partitions,
+            &operators,
+            ryo_execution_domain::domain::matching::types::PatternMatcher(
+                &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
+            ),
+        )?,
+    );
     walk.retain_program_consumers(&program)?;
     census::service::trace(rules, &walk, &program);
     let derived =

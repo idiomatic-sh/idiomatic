@@ -125,22 +125,27 @@ fn absent_roots_stop_the_walk_at_any_depth() {
         } else {
             vec![RegionId(1)].into_boxed_slice()
         };
-        let regions = [f, vec![RegionId(2)].into_boxed_slice(), vec![RegionId(3)].into_boxed_slice(), Box::new([])]
-            .into_iter()
-            .map(|dependencies| {
-                let mut region = Region::new(
-                    RuleIndex(0),
-                    Ok(Box::new([])),
-                    StepScope::PerFile,
-                    Box::new([]),
-                    Box::new([]),
-                    ReaderMultiplicity(1),
-                );
-                region.set_dependencies(dependencies);
-                region
-            })
-            .collect::<Vec<_>>()
-            .into_boxed_slice();
+        let regions = [
+            f,
+            vec![RegionId(2)].into_boxed_slice(),
+            vec![RegionId(3)].into_boxed_slice(),
+            Box::new([]),
+        ]
+        .into_iter()
+        .map(|dependencies| {
+            let mut region = Region::new(
+                RuleIndex(0),
+                Ok(Box::new([])),
+                StepScope::PerFile,
+                Box::new([]),
+                Box::new([]),
+                ReaderMultiplicity(1),
+            );
+            region.set_dependencies(dependencies);
+            region
+        })
+        .collect::<Vec<_>>()
+        .into_boxed_slice();
         let rules = vec![RuleProgram {
             root_readers: vec![RegionId(0), RegionId(1)].into_boxed_slice(),
             original_steps: Box::new([]),
@@ -159,17 +164,32 @@ fn absent_roots_stop_the_walk_at_any_depth() {
     regions.insert(RegionId(1));
     let absent = AbsentRoots::decided(regions);
     let alone = program(false);
-    assert_eq!(walked(&alone, &selected, &absent, RegionId(1)).unwrap(), ReaderMultiplicity(2));
-    assert_eq!(walked(&alone, &selected, &absent, RegionId(2)).unwrap(), ReaderMultiplicity(0));
-    assert_eq!(walked(&alone, &selected, &absent, RegionId(3)).unwrap(), ReaderMultiplicity(0));
+    assert_eq!(
+        walked(&alone, &selected, &absent, RegionId(1)).unwrap(),
+        ReaderMultiplicity(2)
+    );
+    assert_eq!(
+        walked(&alone, &selected, &absent, RegionId(2)).unwrap(),
+        ReaderMultiplicity(0)
+    );
+    assert_eq!(
+        walked(&alone, &selected, &absent, RegionId(3)).unwrap(),
+        ReaderMultiplicity(0)
+    );
     assert_eq!(
         walked(&alone, &selected, &AbsentRoots::default(), RegionId(3)).unwrap(),
         ReaderMultiplicity(1),
         "with no absent root, the walk is today's table"
     );
     let shared = program(true);
-    assert_eq!(walked(&shared, &selected, &absent, RegionId(2)).unwrap(), ReaderMultiplicity(0));
-    assert_eq!(walked(&shared, &selected, &absent, RegionId(3)).unwrap(), ReaderMultiplicity(1));
+    assert_eq!(
+        walked(&shared, &selected, &absent, RegionId(2)).unwrap(),
+        ReaderMultiplicity(0)
+    );
+    assert_eq!(
+        walked(&shared, &selected, &absent, RegionId(3)).unwrap(),
+        ReaderMultiplicity(1)
+    );
 }
 enum Scenario {
     Mode(bool, bool, usize, usize, usize),

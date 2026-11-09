@@ -70,7 +70,10 @@ fn step_reads(
     }
     // The kind provenance of the step's columns is the one column-origin propagation; a join's sides hand theirs on as
     // none, so a kind is only narrowed through the rows of one read.
-    let origins: Vec<&[Option<ReadIndex>]> = parts.iter().map(|part| part.provenance.as_slice()).collect();
+    let origins: Vec<&[Option<ReadIndex>]> = parts
+        .iter()
+        .map(|part| part.provenance.as_slice())
+        .collect();
     let provenance = crate::domain::operation_schema::projection::output_origins(
         operation,
         &[],

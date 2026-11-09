@@ -3,9 +3,9 @@
 //! operator upstream could have rows to fail on. No rows, IO or ports.
 use super::narrowing::{formula, test};
 use super::types::{
-    Certification, ColumnOrigin, Conditionality, FoldedNode, FormulaId, GraphPresence, NodeFacts, OccurrenceId,
-    PresenceFormula, PresenceTable, PresenceTables, PresenceTest, ReadId, RegionNode, RelationScope, RelationTests,
-    SideOccurrence, TestId,
+    Certification, ColumnOrigin, Conditionality, FoldedNode, FormulaId, GraphPresence, NodeFacts,
+    OccurrenceId, PresenceFormula, PresenceTable, PresenceTables, PresenceTest, ReadId, RegionNode,
+    RelationScope, RelationTests, SideOccurrence, TestId,
 };
 use crate::domain::file_program::types::{NodeInput, RequestGraph, SchemaValidity};
 use crate::domain::operation_schema::projection::{output_origins, tree_output};
@@ -197,7 +197,9 @@ pub fn of_graph(
             skips.push(ALWAYS);
             continue;
         }
-        let base = match crate::domain::operator::contract::service::semantics(node.contract.kind).presence {
+        let base = match crate::domain::operator::contract::service::semantics(node.contract.kind)
+            .presence
+        {
             PresenceMask::AllOf(mask) => all(&mut tables, masked(mask, &presences)),
             PresenceMask::AnyOf(mask) => any(&mut tables, masked(mask, &presences)),
             PresenceMask::Always => ALWAYS,
@@ -232,7 +234,9 @@ pub fn of_graph(
         });
         skips.push(skip);
     }
-    let PresenceTables { tests, formulas, .. } = tables;
+    let PresenceTables {
+        tests, formulas, ..
+    } = tables;
     GraphPresence {
         table: PresenceTable {
             relations: by_relation(&tests),
@@ -242,7 +246,10 @@ pub fn of_graph(
             reads: Box::new([]),
         },
         nodes: skips.into_boxed_slice(),
-        reads: facts.into_iter().map(|node| node.reads.into_boxed_slice()).collect(),
+        reads: facts
+            .into_iter()
+            .map(|node| node.reads.into_boxed_slice())
+            .collect(),
     }
 }
 
@@ -250,7 +257,10 @@ pub fn of_graph(
 fn by_relation(tests: &[PresenceTest]) -> Box<[RelationTests]> {
     let mut grouped: Vec<RelationTests> = Vec::new();
     for (at, test) in tests.iter().enumerate() {
-        match grouped.iter_mut().find(|group| group.relation == test.relation) {
+        match grouped
+            .iter_mut()
+            .find(|group| group.relation == test.relation)
+        {
             Some(group) => {
                 let mut members = std::mem::take(&mut group.tests).into_vec();
                 members.push(TestId(at));
@@ -296,4 +306,3 @@ pub fn for_regions(
     table.reads = region_reads.into_boxed_slice();
     table
 }
-

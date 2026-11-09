@@ -199,7 +199,9 @@ impl ProgramExecution {
             .map(|(region, count)| {
                 ryo_execution_domain::domain::executable_program::file_demand::types::SelectedRoot {
                     region,
-                    readers: ryo_execution_domain::domain::operator::types::ReaderMultiplicity(count),
+                    readers: ryo_execution_domain::domain::operator::types::ReaderMultiplicity(
+                        count,
+                    ),
                 }
             })
             .collect();
@@ -214,7 +216,8 @@ impl ProgramExecution {
     }
     /// Whether the file scope has touched a region: before it has, its reader counts may be bound again.
     pub(crate) fn touched(&self) -> Touch {
-        if self.file_state.slots.borrow().is_empty() && self.file_state.dormant.borrow().is_empty() {
+        if self.file_state.slots.borrow().is_empty() && self.file_state.dormant.borrow().is_empty()
+        {
             Touch::Untouched
         } else {
             Touch::Touched
@@ -246,13 +249,13 @@ impl ProgramExecution {
         *self.file_state.interior.borrow_mut() = interior;
     }
     /// The file's presence read met this source refused: its refusal is the file's refusal for the source.
-    pub(crate) fn refuse_source(&self, refusal: crate::application::file_dag::program::runtime::types::SourceRefusal) {
+    pub(crate) fn refuse_source(
+        &self,
+        refusal: crate::application::file_dag::program::runtime::types::SourceRefusal,
+    ) {
         self.file_state.refused.borrow_mut().push(refusal);
     }
-    pub(crate) fn validate_state(
-        &self,
-        state: &RuntimeState,
-    ) -> Result<(), OperatingError> {
+    pub(crate) fn validate_state(&self, state: &RuntimeState) -> Result<(), OperatingError> {
         if ryo_execution_store::application::file_dag::relations::generation::service::GenerationLease::same(&self.generation, &state.generation) == ryo_execution_store::application::file_dag::relations::types::Sameness::Same && self.generation.is_live() == ryo_execution_store::application::file_dag::relations::types::Liveness::Live {
             Ok(())
         } else {

@@ -293,11 +293,10 @@ fn union_preserves_left_source_refusal_and_demands_right_after_empty_left() {
                 // admission meets it without reading the right side again.
                 assert!(left_reads.get() > 0);
                 assert_eq!(order.first(), Some(&Relation::Function));
-                assert!(
-                    order
-                        .iter()
-                        .all(|relation| matches!(relation, Relation::Function | Relation::SemanticChild))
-                );
+                assert!(order.iter().all(|relation| matches!(
+                    relation,
+                    Relation::Function | Relation::SemanticChild
+                )));
             }
         }
         assert_eq!(

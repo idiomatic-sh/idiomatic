@@ -104,7 +104,9 @@ pub(crate) fn compiled() -> CompiledCase {
             graph,
             &FileProducers,
             &prepared,
-            ryo_execution_domain::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl),
+            ryo_execution_domain::domain::matching::types::PatternMatcher(
+                &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
+            ),
         )
         .unwrap(),
     );

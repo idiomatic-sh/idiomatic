@@ -16,7 +16,10 @@ pub struct ExecutableProgram {
     logical_regions: Box<[RegionId]>,
     observation_regions: Box<[Result<RegionId, OperatingError>]>,
     /// The partition requirement of each relation source: the first region declaring it decides, found once per program.
-    relation_partitions: rustc_hash::FxHashMap<ryo_relations::domain::relations::types::Relation, PartitionRequirement>,
+    relation_partitions: rustc_hash::FxHashMap<
+        ryo_relations::domain::relations::types::Relation,
+        PartitionRequirement,
+    >,
     /// What a file must hold for each region to have a row or a row error there.
     presence: crate::domain::executable_program::presence::types::PresenceTable,
     /// The fusion classification of every instruction, indexed by its logical number.
@@ -53,7 +56,11 @@ impl ExecutableProgram {
             logical_regions,
             observation_regions,
             presence: crate::domain::executable_program::presence::types::PresenceTable {
-                regions: vec![crate::domain::executable_program::presence::service::ALWAYS; region_count].into_boxed_slice(),
+                regions: vec![
+                    crate::domain::executable_program::presence::service::ALWAYS;
+                    region_count
+                ]
+                .into_boxed_slice(),
                 reads: vec![Box::default(); region_count].into_boxed_slice(),
                 ..Default::default()
             },
@@ -82,7 +89,11 @@ impl ExecutableProgram {
         &self,
         region: RegionId,
     ) -> Result<crate::domain::executable_program::presence::types::FormulaId, OperatingError> {
-        self.presence.regions.get(region.0).copied().ok_or(OperatingError::NotRun)
+        self.presence
+            .regions
+            .get(region.0)
+            .copied()
+            .ok_or(OperatingError::NotRun)
     }
     /// The same program with the fusion classification the compiler made, which only the controls read.
     #[cfg(any(test, feature = "fixtures"))]

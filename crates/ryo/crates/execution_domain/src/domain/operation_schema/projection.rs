@@ -139,16 +139,23 @@ pub fn output_origins<T: Copy>(
 ) -> Vec<Option<T>> {
     // ignore: idiomatic.arch/no-unwrap-or-on-lookup - an input a step lacks (a deferred schema fault) has no origins: none is the answer.
     let input = |place: InputPlace| origins.get(place.0).copied().unwrap_or(&[]);
-    let pick = |from: &[Option<T>], column: ColumnIndex| from.get(column.0 as usize).copied().flatten();
+    let pick =
+        |from: &[Option<T>], column: ColumnIndex| from.get(column.0 as usize).copied().flatten();
     let mut answer = input(InputPlace(0)).to_vec();
     match operation {
         Operation::Select { kept, .. } => {
             if !kept.is_empty() {
-                answer = kept.iter().map(|column| pick(input(InputPlace(0)), *column)).collect();
+                answer = kept
+                    .iter()
+                    .map(|column| pick(input(InputPlace(0)), *column))
+                    .collect();
             }
         }
         Operation::Project { columns, .. } => {
-            answer = columns.iter().map(|column| pick(input(InputPlace(0)), *column)).collect();
+            answer = columns
+                .iter()
+                .map(|column| pick(input(InputPlace(0)), *column))
+                .collect();
         }
         Operation::Extend { values, .. } => answer.extend(values.iter().map(|_| None)),
         Operation::SpanBetween { .. } | Operation::RenderSyntax { .. } => answer.push(None),
@@ -166,13 +173,11 @@ pub fn output_origins<T: Copy>(
             }
             if capture.is_some() {
                 answer.push(None);
-                if *capture_text
-                    == ryo_values::domain::query_operators::types::TextOutput::Appended
+                if *capture_text == ryo_values::domain::query_operators::types::TextOutput::Appended
                 {
                     answer.push(None);
                 }
-                if *capture_line
-                    == ryo_values::domain::query_operators::types::LineOutput::Appended
+                if *capture_line == ryo_values::domain::query_operators::types::LineOutput::Appended
                 {
                     answer.push(None);
                 }
@@ -186,13 +191,15 @@ pub fn output_origins<T: Copy>(
             reach,
             ..
         } => {
-            let view = right_view(view, inputs.get(1).and_then(|right| right.tree), reach.as_ref());
+            let view = right_view(
+                view,
+                inputs.get(1).and_then(|right| right.tree),
+                reach.as_ref(),
+            );
             answer = output
                 .iter()
                 .map(|column| match column.side {
-                    Side::Left => {
-                        side(OriginSide::Left, pick(input(InputPlace(0)), column.column))
-                    }
+                    Side::Left => side(OriginSide::Left, pick(input(InputPlace(0)), column.column)),
                     Side::Right if reach.is_some() => None,
                     Side::Right => side(
                         OriginSide::Right,

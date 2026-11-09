@@ -161,7 +161,10 @@ pub(crate) trait Inputs {
     fn bind_rule(&mut self, _rule: RuleIndex) {}
     /// Whether a region the file's admitted roots reach can have a row or a row error there. It cannot fail: a scope that
     /// decided nothing answers `Present`, and the region runs in full.
-    fn presence(&mut self, _region: RegionId) -> ryo_execution_domain::domain::executable_program::presence::types::RegionPresence {
+    fn presence(
+        &mut self,
+        _region: RegionId,
+    ) -> ryo_execution_domain::domain::executable_program::presence::types::RegionPresence {
         ryo_execution_domain::domain::executable_program::presence::types::RegionPresence::Present
     }
 

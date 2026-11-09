@@ -224,7 +224,9 @@ fn a_region_evaluated_in_its_preparation_is_counted_once_as_a_dispatched_one_is(
 #[test]
 fn reached_slots_initialize_reader_obligations_once() {
     let CompiledCase { execution, roots } = compiled();
-    execution.activate_file_roots(&roots, Default::default()).unwrap();
+    execution
+        .activate_file_roots(&roots, Default::default())
+        .unwrap();
     let state = execution.file_state();
     let before = state.reader_initializations.get();
     let mut slots = state.slots.borrow_mut();

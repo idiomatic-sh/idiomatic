@@ -16,22 +16,24 @@ use ryo_execution_domain::domain::file_program::types::RuleSchedule;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::prepared_request::types::{Compiled, ObservationIdentity};
 use ryo_execution_domain::domain::rule_intent::types::{
-    ApplicabilityReason, CaptureIntent, DiagnosticDelivery, EmitDemand, FileRuleIntent, ObservationDemand,
-    RuleDemand,
+    ApplicabilityReason, CaptureIntent, DiagnosticDelivery, EmitDemand, FileRuleIntent,
+    ObservationDemand, RuleDemand,
 };
 use ryo_execution_domain::domain::table_model::types::Rows;
 use ryo_execution_store::application::file_dag::service::ScopePartials;
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
 use ryo_relations::domain::relations::service::kinds;
-use ryo_relations::domain::relations::types::{CellKind, FileId, Flag, NodeId, Relation, Span, Value};
+use ryo_relations::domain::relations::types::{
+    CellKind, FileId, Flag, NodeId, Relation, Span, Value,
+};
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::files::types::{
     CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds, SourceView,
 };
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, ComparisonOrigin, Input, JoinColumn, LiteralText, Operand, PlanComparison, QueryLiteral,
-    RepeatedRows, Side, StepId, StepScope, Test,
+    ColumnIndex, ComparisonOrigin, Input, JoinColumn, LiteralText, Operand, PlanComparison,
+    QueryLiteral, RepeatedRows, Side, StepId, StepScope, Test,
 };
 use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
 use ryo_values::domain::query_tokens::types::{QueryBundle, QueryDocumentSource, QuerySourceId};
@@ -312,10 +314,16 @@ fn run(
         );
         outcomes.push(outcome.map(|outcome| outcome.emit));
     }
-    let probes = regions.iter().map(|region| file.region_probe(*region)).collect();
+    let probes = regions
+        .iter()
+        .map(|region| file.region_probe(*region))
+        .collect();
     let presence_absent = file.readiness_counts().presence_absent.0;
     let cleanup = file.cleanup_status();
-    let again = regions.iter().map(|region| file.retire_again(*region)).collect();
+    let again = regions
+        .iter()
+        .map(|region| file.retire_again(*region))
+        .collect();
     let dormant = file.state_counts().dormant_obligations.0;
     let finished = file.finish().map(|_| ());
     Ran {
@@ -349,7 +357,9 @@ fn rows(outcome: &Result<RootOutcome, OperatingError>) -> Option<(usize, Vec<Cel
 }
 fn error(outcome: &Result<RootOutcome, OperatingError>) -> Option<OperatingError> {
     match outcome {
-        Ok(RootOutcome::Failed(error) | RootOutcome::Unknown(error)) | Err(error) => Some(error.clone()),
+        Ok(RootOutcome::Failed(error) | RootOutcome::Unknown(error)) | Err(error) => {
+            Some(error.clone())
+        }
         _ => None,
     }
 }
@@ -376,12 +386,23 @@ fn an_absent_rule_is_never_instantiated_and_answers_as_its_full_run() {
     let intents = [run_intent(), run_intent()];
     let absent = run(&prepared, &mut facts(&["x"], &["f"]), &intents, &[], &b);
     let (root, dependencies) = b.split_last().expect("B has steps");
-    assert!(dependencies.iter().all(|region| region != root), "B's root is its own region");
+    assert!(
+        dependencies.iter().all(|region| region != root),
+        "B's root is its own region"
+    );
     let root_probe = &absent.probes[b.len() - 1];
-    assert_eq!(root_probe.instantiated, Instantiated::Slot, "B's root has one slot");
+    assert_eq!(
+        root_probe.instantiated,
+        Instantiated::Slot,
+        "B's root has one slot"
+    );
     assert_eq!(root_probe.inputs, Some(InputRelease::Released));
     for (region, probe) in dependencies.iter().zip(&absent.probes) {
-        assert_eq!(probe.instantiated, Instantiated::Never, "B's input region {region:?} was never instantiated");
+        assert_eq!(
+            probe.instantiated,
+            Instantiated::Never,
+            "B's input region {region:?} was never instantiated"
+        );
     }
     assert_eq!(absent.cleanup, Ok(()));
     assert_eq!(absent.finished, Ok(()));
@@ -391,7 +412,11 @@ fn an_absent_rule_is_never_instantiated_and_answers_as_its_full_run() {
     let empty = Some((0, kinds(Relation::Comment).to_vec()));
     assert_eq!(rows(&absent.outcomes[0]), empty);
     assert_eq!(rows(&control.outcomes[0]), empty);
-    assert_eq!(rows(&control.outcomes[1]), empty, "the antijoin gate publishes the same shape");
+    assert_eq!(
+        rows(&control.outcomes[1]),
+        empty,
+        "the antijoin gate publishes the same shape"
+    );
     // Negative control: on the control file B's root ran in full and released its inputs; a second release still refuses.
     assert_eq!(control.again[b.len() - 1], Err(OperatingError::NotRun));
 }
@@ -418,7 +443,13 @@ fn absences_and_alternatives_are_never_skipped_where_they_have_rows() {
         }),
     ]);
     let prepared = prepare(vec![antijoin, union]);
-    let ran = run(&prepared, &mut facts(&["x"], &["f"]), &[run_intent(), run_intent()], &[], &[]);
+    let ran = run(
+        &prepared,
+        &mut facts(&["x"], &["f"]),
+        &[run_intent(), run_intent()],
+        &[],
+        &[],
+    );
     assert_eq!(rows(&ran.outcomes[0]).map(|(count, _)| count), Some(1));
     assert_eq!(rows(&ran.outcomes[1]).map(|(count, _)| count), Some(1));
     assert_eq!(ran.finished, Ok(()));
@@ -451,7 +482,13 @@ fn a_self_join_with_a_literal_on_each_side_runs() {
         select(at(1), vec![equal(0, "x"), equal(1, "z")]),
     ]);
     let prepared = prepare(vec![self_join]);
-    let ran = run(&prepared, &mut facts(&["x", "z"], &[]), &[run_intent()], &[], &[]);
+    let ran = run(
+        &prepared,
+        &mut facts(&["x", "z"], &[]),
+        &[run_intent()],
+        &[],
+        &[],
+    );
     assert_eq!(rows(&ran.outcomes[0]).map(|(count, _)| count), Some(1));
     assert_eq!(ran.presence_absent, 0);
 }
@@ -478,10 +515,27 @@ fn a_join_without_a_view_runs_where_both_sides_have_rows() {
         }),
     ]);
     let prepared = prepare(vec![joined]);
-    let ran = run(&prepared, &mut facts(&["x"], &["f"]), &[run_intent()], &[], &[]);
-    assert_eq!(rows(&ran.outcomes[0]).map(|(count, _)| count), Some(1), "{:?}", error(&ran.outcomes[0]));
+    let ran = run(
+        &prepared,
+        &mut facts(&["x"], &["f"]),
+        &[run_intent()],
+        &[],
+        &[],
+    );
+    assert_eq!(
+        rows(&ran.outcomes[0]).map(|(count, _)| count),
+        Some(1),
+        "{:?}",
+        error(&ran.outcomes[0])
+    );
     assert_eq!(ran.presence_absent, 0);
-    let skipped = run(&prepared, &mut facts(&["x"], &["g"]), &[run_intent()], &[], &[]);
+    let skipped = run(
+        &prepared,
+        &mut facts(&["x"], &["g"]),
+        &[run_intent()],
+        &[],
+        &[],
+    );
     assert_eq!(rows(&skipped.outcomes[0]).map(|(count, _)| count), Some(0));
     assert!(skipped.presence_absent >= 1);
 }
@@ -549,14 +603,21 @@ fn row_errors_upstream_keep_the_rule_running() {
     let intents = [run_intent(), run_intent(), run_intent(), run_intent()];
     let symbol = regions_of(&prepared, 2);
     let ran = run(&prepared, &mut file, &intents, &[], &symbol);
-    assert_eq!(error(&ran.outcomes[0]), Some(OperatingError::DuplicateOrder));
+    assert_eq!(
+        error(&ran.outcomes[0]),
+        Some(OperatingError::DuplicateOrder)
+    );
     assert!(matches!(
         error(&ran.outcomes[1]),
         Some(OperatingError::InvalidSpanBounds { .. })
     ));
     assert_eq!(rows(&ran.outcomes[2]).map(|(count, _)| count), Some(0));
     assert_eq!(symbol.len(), 4);
-    assert_eq!(ran.probes[1].instantiated, Instantiated::Never, "the Symbol Replace never ran");
+    assert_eq!(
+        ran.probes[1].instantiated,
+        Instantiated::Never,
+        "the Symbol Replace never ran"
+    );
     assert_eq!(error(&ran.outcomes[3]), Some(OperatingError::ShapeMismatch));
 }
 
@@ -577,9 +638,18 @@ fn an_invalid_replace_pattern_is_reported_where_its_input_has_rows() {
         join_on_file(1, 2, 1),
     ]);
     let prepared = prepare(vec![invalid]);
-    let ran = run(&prepared, &mut facts(&["x"], &["f"]), &[run_intent()], &[], &[]);
+    let ran = run(
+        &prepared,
+        &mut facts(&["x"], &["f"]),
+        &[run_intent()],
+        &[],
+        &[],
+    );
     let reported = error(&ran.outcomes[0]);
-    assert!(matches!(reported, Some(OperatingError::InvalidRegex { .. })), "{reported:?}");
+    assert!(
+        matches!(reported, Some(OperatingError::InvalidRegex { .. })),
+        "{reported:?}"
+    );
 }
 
 /// R1.6: a select's literal `matches` pattern is compiled when a row first reaches it, so one that does not compile, by
@@ -595,9 +665,18 @@ fn an_invalid_select_pattern_is_reported_where_its_input_has_rows() {
             join_on_file(1, 2, 1),
         ]);
         let prepared = prepare(vec![invalid]);
-        let ran = run(&prepared, &mut facts(&["x"], &["f"]), &[run_intent()], &[], &[]);
+        let ran = run(
+            &prepared,
+            &mut facts(&["x"], &["f"]),
+            &[run_intent()],
+            &[],
+            &[],
+        );
         let reported = error(&ran.outcomes[0]);
-        assert!(matches!(reported, Some(OperatingError::InvalidRegex { .. })), "{pattern}: {reported:?}");
+        assert!(
+            matches!(reported, Some(OperatingError::InvalidRegex { .. })),
+            "{pattern}: {reported:?}"
+        );
     }
 }
 
@@ -616,7 +695,10 @@ fn an_absent_root_inside_an_admitted_rule_leaves_nothing_owed() {
     };
     for shared in [false, true] {
         let mut f = a();
-        f.push(select(Input::Relation(Relation::Comment), vec![equal(TEXT, "x")]));
+        f.push(select(
+            Input::Relation(Relation::Comment),
+            vec![equal(TEXT, "x")],
+        ));
         f.push(step(Operation::Union {
             left: at(3),
             right: at(if shared { 0 } else { 4 }),
@@ -624,13 +706,28 @@ fn an_absent_root_inside_an_admitted_rule_leaves_nothing_owed() {
         let prepared = prepare(vec![plan(a()), plan(f)]);
         let regions = regions_of(&prepared, 0);
         let intents = [run_intent(), run_intent()];
-        let ran = run(&prepared, &mut facts(&["x"], &["f"]), &intents, &[], &regions);
+        let ran = run(
+            &prepared,
+            &mut facts(&["x"], &["f"]),
+            &intents,
+            &[],
+            &regions,
+        );
         assert_eq!(rows(&ran.outcomes[0]).map(|(count, _)| count), Some(0));
-        assert_eq!(rows(&ran.outcomes[1]).map(|(count, _)| count), Some(1), "{:?}", error(&ran.outcomes[1]));
+        assert_eq!(
+            rows(&ran.outcomes[1]).map(|(count, _)| count),
+            Some(1),
+            "{:?}",
+            error(&ran.outcomes[1])
+        );
         let x = &ran.probes[1];
         assert_eq!(x.instantiated, Instantiated::Never, "X is never visited");
         let y = &ran.probes[0];
-        assert_eq!(y.instantiated == Instantiated::Slot, shared, "Y runs only when F reads it");
+        assert_eq!(
+            y.instantiated == Instantiated::Slot,
+            shared,
+            "Y runs only when F reads it"
+        );
         assert_eq!(ran.dormant, 0);
         assert_eq!(ran.cleanup, Ok(()));
         assert_eq!(ran.finished, Ok(()));
@@ -641,8 +738,13 @@ fn an_absent_root_inside_an_admitted_rule_leaves_nothing_owed() {
 fn routed() -> Plan {
     let schema = kinds(Relation::SourceLocation);
     let number = ColumnIndex(
-        u32::try_from(schema.iter().position(|kind| *kind == CellKind::Number).expect("a numeric column"))
-            .unwrap_or(0),
+        u32::try_from(
+            schema
+                .iter()
+                .position(|kind| *kind == CellKind::Number)
+                .expect("a numeric column"),
+        )
+        .unwrap_or(0),
     );
     plan(vec![
         select(Input::Relation(Relation::SourceLocation), vec![]),
@@ -703,19 +805,35 @@ fn a_cascade_stops_at_an_absent_root_that_never_ran() {
         ]
     };
     let mut f = a();
-    f.push(select(Input::Relation(Relation::Function), vec![equal(TEXT, "g")]));
+    f.push(select(
+        Input::Relation(Relation::Function),
+        vec![equal(TEXT, "g")],
+    ));
     f.push(join_on_file(3, 4, 5));
-    f.push(select(Input::Relation(Relation::Comment), vec![equal(TEXT, "x")]));
+    f.push(select(
+        Input::Relation(Relation::Comment),
+        vec![equal(TEXT, "x")],
+    ));
     f.push(step(Operation::Union {
         left: at(5),
         right: at(6),
     }));
     let prepared = prepare(vec![plan(f), plan(a())]);
     let regions = regions_of(&prepared, 1);
-    let ran = run(&prepared, &mut facts(&["x"], &["f"]), &[run_intent(), run_intent()], &[], &regions);
+    let ran = run(
+        &prepared,
+        &mut facts(&["x"], &["f"]),
+        &[run_intent(), run_intent()],
+        &[],
+        &regions,
+    );
     assert_eq!(rows(&ran.outcomes[0]).map(|(count, _)| count), Some(1));
     assert_eq!(rows(&ran.outcomes[1]).map(|(count, _)| count), Some(0));
-    assert_eq!(ran.probes[1].instantiated, Instantiated::Never, "A's input was never released or run");
+    assert_eq!(
+        ran.probes[1].instantiated,
+        Instantiated::Never,
+        "A's input was never released or run"
+    );
     assert_eq!(ran.cleanup, Ok(()));
     assert_eq!(ran.finished, Ok(()));
 }
@@ -733,12 +851,26 @@ fn an_absent_root_of_a_routed_program_never_enters_the_route() {
         )),
         "the fixture compiles a routed region"
     );
-    let ran = run(&prepared, &mut facts(&[], &[]), &[run_intent()], &[], &regions);
-    assert!(matches!(ran.outcomes[0], Ok(RootOutcome::Complete(_))), "{:?}", error(&ran.outcomes[0]));
+    let ran = run(
+        &prepared,
+        &mut facts(&[], &[]),
+        &[run_intent()],
+        &[],
+        &regions,
+    );
+    assert!(
+        matches!(ran.outcomes[0], Ok(RootOutcome::Complete(_))),
+        "{:?}",
+        error(&ran.outcomes[0])
+    );
     let root = *regions.last().expect("the routed rule has steps");
     for (region, probe) in regions.iter().zip(&ran.probes) {
         if *region != root {
-            assert_eq!(probe.instantiated, Instantiated::Never, "{region:?} was never demanded");
+            assert_eq!(
+                probe.instantiated,
+                Instantiated::Never,
+                "{region:?} was never demanded"
+            );
         }
     }
     assert_eq!(ran.presence_absent, 1);
@@ -759,9 +891,25 @@ fn counts_report_only_what_ran() {
     let prepared = prepare(vec![absent, ran_rule]);
     let intents = [run_intent(), run_intent()];
     let ran = run(&prepared, &mut facts(&["x"], &["f"]), &intents, &[], &[]);
-    let alone = run(&prepare(vec![plan(vec![shared(), select(at(0), vec![equal(TEXT, "x")])])]), &mut facts(&["x"], &["f"]), &[run_intent()], &[], &[]);
-    assert_eq!(ran.fed[0][1..], [0, 0], "the absent rule's own regions did not run");
-    assert_eq!(ran.fed[1], alone.fed[0], "the other rule's counts are unchanged");
+    let alone = run(
+        &prepare(vec![plan(vec![
+            shared(),
+            select(at(0), vec![equal(TEXT, "x")]),
+        ])]),
+        &mut facts(&["x"], &["f"]),
+        &[run_intent()],
+        &[],
+        &[],
+    );
+    assert_eq!(
+        ran.fed[0][1..],
+        [0, 0],
+        "the absent rule's own regions did not run"
+    );
+    assert_eq!(
+        ran.fed[1], alone.fed[0],
+        "the other rule's counts are unchanged"
+    );
 }
 
 /// R1.10: an inapplicable rule keeps its skipped root and is never consulted; a file with a partial read runs with the gate
@@ -778,17 +926,32 @@ fn inapplicable_rules_and_partial_files_keep_their_full_routes() {
         &b,
     );
     assert_eq!(skipped.presence_absent, 0);
-    assert!(skipped.probes.iter().all(|probe| probe.instantiated == Instantiated::Never));
+    assert!(
+        skipped
+            .probes
+            .iter()
+            .all(|probe| probe.instantiated == Instantiated::Never)
+    );
     let partial = Partial {
         relation: Relation::Function,
         cause: ryo_values::domain::stored_facts::types::PartialCause("unparsed".into()),
         lacking: ryo_execution_domain::domain::coverage::types::Lacking::Any,
         at: ryo_execution_domain::domain::coverage::types::PartialPlace::File(FileId(0)),
     };
-    let gated_off = run(&prepared, &mut facts(&["x"], &["f"]), &[run_intent()], std::slice::from_ref(&partial), &b);
+    let gated_off = run(
+        &prepared,
+        &mut facts(&["x"], &["f"]),
+        &[run_intent()],
+        std::slice::from_ref(&partial),
+        &b,
+    );
     assert_eq!(gated_off.presence_absent, 0);
     assert!(
-        gated_off.probes.iter().take(b.len() - 1).any(|probe| probe.instantiated == Instantiated::Slot),
+        gated_off
+            .probes
+            .iter()
+            .take(b.len() - 1)
+            .any(|probe| probe.instantiated == Instantiated::Slot),
         "with the gate off, B's inputs run"
     );
 }
@@ -802,7 +965,13 @@ fn a_test_error_holds_and_the_answer_is_unchanged() {
         select(at(0), vec![compare(TEXT, Test::Matches, "(")]),
     ]);
     let prepared = prepare(vec![erring]);
-    let ran = run(&prepared, &mut facts(&["y"], &[]), &[run_intent()], &[], &[]);
+    let ran = run(
+        &prepared,
+        &mut facts(&["y"], &[]),
+        &[run_intent()],
+        &[],
+        &[],
+    );
     assert_eq!(rows(&ran.outcomes[0]).map(|(count, _)| count), Some(0));
     assert_eq!(ran.finished, Ok(()));
 }
@@ -820,8 +989,17 @@ fn a_schema_error_under_a_false_formula_is_reported() {
         }),
     ]);
     let prepared = prepare(vec![invalid]);
-    let ran = run(&prepared, &mut facts(&["x"], &[]), &[run_intent()], &[], &[]);
-    assert!(error(&ran.outcomes[0]).is_some(), "the schema error is reported");
+    let ran = run(
+        &prepared,
+        &mut facts(&["x"], &[]),
+        &[run_intent()],
+        &[],
+        &[],
+    );
+    assert!(
+        error(&ran.outcomes[0]).is_some(),
+        "the schema error is reported"
+    );
 }
 
 /// R1.3 and R1.13: everything downstream of a bound observation may have rows in any file. A consumer of a producer's
@@ -833,8 +1011,8 @@ fn consumers_of_a_bound_observation_are_never_absent() {
         ObservationRequest, ResolvedObservationBinding, ResolvedObservationProducer,
     };
     use ryo_values::domain::observations::types::{
-        BoundObservationInput, ObservationBindingName, ObservationColumn, ObservationColumnName, ObservationName,
-        PlanObservation,
+        BoundObservationInput, ObservationBindingName, ObservationColumn, ObservationColumnName,
+        ObservationName, PlanObservation,
     };
     use ryo_values::domain::plan_parts::types::ObservationBindingId;
     use ryo_values::domain::records::types::{ObservationIndex, ObservationReadinessLayout};
@@ -917,8 +1095,12 @@ fn consumers_of_a_bound_observation_are_never_absent() {
     );
     let presence = ryo_execution_domain::domain::executable_program::presence::service::of_graph(
         &graph,
-        &|_| ryo_execution_domain::domain::executable_program::presence::types::RelationScope::CurrentFile,
-        ryo_execution_domain::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl),
+        &|_| {
+            ryo_execution_domain::domain::executable_program::presence::types::RelationScope::CurrentFile
+        },
+        ryo_execution_domain::domain::matching::types::PatternMatcher(
+            &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
+        ),
     );
     let consumer = graph.program_nodes[1]
         .iter()
@@ -937,4 +1119,3 @@ fn consumers_of_a_bound_observation_are_never_absent() {
         "the unrelated select keeps its test"
     );
 }
-

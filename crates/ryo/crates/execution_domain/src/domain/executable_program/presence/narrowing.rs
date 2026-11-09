@@ -1,10 +1,11 @@
 //! One part of the `presence` service: the presence tests a select's comparisons, or a join's filter over its raw right
 //! input, narrow the node to, grouped by the occurrence of the read each column comes from.
 use super::types::{
-    ColumnOrigin, ComparisonGroup, FormulaId, OriginComparison, PresenceFormula, PresenceTables, PresenceTest, TestBucket, TestId,
+    ColumnOrigin, ComparisonGroup, FormulaId, OriginComparison, PresenceFormula, PresenceTables,
+    PresenceTest, TestBucket, TestId,
 };
-use ryo_relations::domain::relations::types::Relation;
 use crate::domain::operator::contract::presence::InputMask;
+use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Operand, PlanComparison, QueryLiteral};
 use ryo_values::domain::plans::types::Operation;
 
@@ -50,11 +51,17 @@ fn pick(origins: &[Option<ColumnOrigin>], column: ColumnIndex) -> Option<ColumnO
 }
 /// The narrowing tests of a select's comparisons, or of a join's filter over its raw right input. A reach join's filter
 /// reads the closure's columns, which have no origin.
-pub(super) fn node_narrowing(tables: &mut PresenceTables, operation: &Operation, origins: &[Vec<Option<ColumnOrigin>>]) -> Vec<FormulaId> {
+pub(super) fn node_narrowing(
+    tables: &mut PresenceTables,
+    operation: &Operation,
+    origins: &[Vec<Option<ColumnOrigin>>],
+) -> Vec<FormulaId> {
     let (comparisons, input) = match operation {
         Operation::Select { comparisons, .. } => (comparisons, 0),
         Operation::Join {
-            filter, reach: None, ..
+            filter,
+            reach: None,
+            ..
         } => (filter, 1),
         _ => return Vec::new(),
     };
@@ -138,7 +145,11 @@ pub(super) fn formula(tables: &mut PresenceTables, formula: PresenceFormula) -> 
     id
 }
 
-pub(super) fn test(tables: &mut PresenceTables, relation: Relation, comparisons: Vec<PlanComparison>) -> FormulaId {
+pub(super) fn test(
+    tables: &mut PresenceTables,
+    relation: Relation,
+    comparisons: Vec<PlanComparison>,
+) -> FormulaId {
     use std::hash::{Hash, Hasher};
     let mut state = std::hash::DefaultHasher::new();
     relation.hash(&mut state);

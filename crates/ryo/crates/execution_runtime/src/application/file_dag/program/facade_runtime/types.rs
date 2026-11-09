@@ -120,7 +120,9 @@ pub(crate) struct FilePresence {
     pub(super) cells: Vec<ryo_relations::domain::relations::types::Value>,
     pub(super) open: Vec<ryo_execution_domain::domain::executable_program::presence::types::TestId>,
     pub(super) memo: Vec<ryo_execution_domain::domain::operating::types::Memo>,
-    pub(super) scratch: ryo_execution_domain::domain::table_scratch::types::SelectScratch,
+    pub(super) scratch: ryo_execution_domain::domain::table_scratch::types::LazyScratch<
+        ryo_execution_domain::domain::table_scratch::types::SelectScratch,
+    >,
 }
 pub(super) struct FileRoot {
     pub(super) readiness: Option<ryo_values::domain::records::types::ProducerReadiness>,

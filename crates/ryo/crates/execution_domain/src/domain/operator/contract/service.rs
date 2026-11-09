@@ -1,7 +1,7 @@
 //! Exhaustive semantic declarations; strategy, cache admission and lifetimes are not kinds.
 use super::types::*;
-use crate::domain::operator::contract::presence::{InputMask, PresenceMask, RowFailure};
 use crate::domain::operating::errors::OperatingError;
+use crate::domain::operator::contract::presence::{InputMask, PresenceMask, RowFailure};
 use ryo_values::domain::query_operators::types::OperationKind;
 
 /// One semantic input and dependency contract, independent of output delivery.
@@ -205,7 +205,9 @@ fn failure(
     use ryo_values::domain::plans::types::Operation;
     match operation {
         Operation::Replace { text, .. } => {
-            let kind = inputs.first().and_then(|input| input.kinds.get(text.0 as usize));
+            let kind = inputs
+                .first()
+                .and_then(|input| input.kinds.get(text.0 as usize));
             if scope == ryo_values::domain::plan_parts::types::StepScope::PerFile
                 && matches!(kind, Some(CellKind::Symbol | CellKind::File))
             {
