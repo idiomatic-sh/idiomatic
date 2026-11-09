@@ -8,7 +8,6 @@ use super::types::{
 };
 use crate::domain::render::types::Rendered;
 use crate::domain::workers::types::RunDecisions;
-use ryo_execution::inbound::use_cases::execution::interface::RowsFed;
 use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::metadata::interface::{Governing, Mask};
 use ryo_language::domain::elements::types::Elements;
@@ -17,14 +16,13 @@ use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{Words, WorkerNumber};
 use ryo_values::domain::files::types::{CorpusInput, FileBytes, FileSize, Hits};
 use ryo_values::domain::records::types::Record;
-use ryo_values::domain::run_metadata::types::RuleRunMetadata;
 use ryo_values::domain::stored_facts::types::PackedWords;
 use ryo_values::domain::stored_facts::types::{ArenaBytes, FileNotes};
 use {crate::domain::finish::types::LineStarts, ryo_values::domain::runs::types::RuleNumber};
 
 /// What a worker owns before it reads a file: empty tables, and a pool big enough for any of the plans.
 #[must_use]
-pub(crate) fn tables_for(number: WorkerNumber, metadata: &[RuleRunMetadata]) -> Tables {
+pub(crate) fn tables_for(number: WorkerNumber) -> Tables {
     Tables {
         current_observations: None,
         observations: Vec::new(),
@@ -37,10 +35,6 @@ pub(crate) fn tables_for(number: WorkerNumber, metadata: &[RuleRunMetadata]) -> 
         hits: Hits::default(),
         words: Words::default(),
         packed: PackedWords::default(),
-        fed: metadata
-            .iter()
-            .map(|rule| vec![RowsFed::default(); rule.steps.len()])
-            .collect(),
         starts: LineStarts(Vec::new()),
         arena: ArenaBytes::default(),
         places: Vec::new(),
@@ -95,32 +89,8 @@ pub(crate) fn checking(place: FileOrder) -> Checking {
     }
 }
 
-/// Adds the rows `more` fed a step to `total`.
-pub(crate) fn add_fed(total: &mut RowsFed, more: &RowsFed) {
-    for (slot, each) in total.0.iter_mut().zip(more.0) {
-        *slot = slot.saturating_add(each);
-    }
-}
-
-/// Nothing met yet, with room for the rows each step of each plan is fed.
-#[must_use]
-pub(crate) fn gathering(metadata: &[RuleRunMetadata]) -> WorkersMet {
-    WorkersMet {
-        fed: metadata
-            .iter()
-            .map(|rule| vec![RowsFed::default(); rule.steps.len()])
-            .collect(),
-        ..WorkersMet::default()
-    }
-}
-
 /// Takes what one worker made into what the workers made together.
 pub(crate) fn absorb(met: &mut WorkersMet, tables: Tables) {
-    for (slots, fed) in met.fed.iter_mut().zip(&tables.fed) {
-        for (slot, more) in slots.iter_mut().zip(fed) {
-            add_fed(slot, more);
-        }
-    }
     met.read.0 += tables.reads.0;
     met.observations.extend(tables.observations);
     met.covered.extend(tables.covered);

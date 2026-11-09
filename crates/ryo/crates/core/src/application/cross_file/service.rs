@@ -160,7 +160,7 @@ impl CrossFile {
             },
             |occurrence, result| {
                 let todo = todo(occurrence)?;
-                deliver(todo, result.map_err(|stop| stopped(todo, stop))?, answered)
+                deliver(result.map_err(|stop| stopped(todo, stop))?, answered)
             },
         )
     }
@@ -168,15 +168,12 @@ impl CrossFile {
 
 /// Settle one delivered occurrence into the answers; what it publishes, the stage installs.
 fn deliver(
-    todo: &Todo,
     result: CrossedWithPublications,
     answered: &mut Answered,
 ) -> Result<Option<Install>, CrossFileError> {
     let Some(transfer) = settle(
-        todo,
         result.crossed,
         &mut answered.later,
-        &mut answered.fed,
         &mut answered.unknowns,
     ) else {
         return Ok(None);

@@ -33,7 +33,7 @@ fn frontier_and_callback_share_the_same_atomic_semantic_failure() {
         crate::boundary_fixture::plans(&mut authored)[0].frontier = vec![Input::Step(StepId(0))];
         let program = engine.prepare(authored).unwrap();
         let corpus = corpus();
-        let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
+        let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
         let (elements, mut symbols) = tree(FileId(0), b"ab(");
         let intents = [FileRuleIntent::Run {
             diagnostic: DiagnosticDelivery::Forwarded,
@@ -96,7 +96,7 @@ fn identical_join_diagnostics_have_equal_errors_for_both_delivery_orders() {
         .prepare(authored)
         .expect("identical authored Join plans");
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
     let intents = [
         FileRuleIntent::Run {
             diagnostic: DiagnosticDelivery::Forwarded,
@@ -193,7 +193,7 @@ fn callback_and_frontier_use_one_dependency_contract_in_both_orders() {
     crate::boundary_fixture::plans(&mut authored)[0].frontier = vec![Input::Step(StepId(2))];
     let program = engine.prepare(authored).unwrap();
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
     let intents = [FileRuleIntent::Run {
         diagnostic: DiagnosticDelivery::Forwarded,
         observations: ObservationDemand::NotRequired,

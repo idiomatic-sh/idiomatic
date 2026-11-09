@@ -59,7 +59,7 @@ fn declared_empty_observation_defers_in_file_and_publishes_typed_empty_in_projec
         .prepare(declared())
         .expect("closed empty declaration");
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
     let reads = Cell::new(0);
     let read = |_| {
         reads.set(reads.get() + 1);
@@ -204,7 +204,7 @@ fn project_refuses(input: PrepareRequest, expected: &str, ready: InputReadiness)
         .prepare(input)
         .expect("valid declaration with deferred admission refusal");
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
     let stored = CapturedFacts {
         captures: vec![],
         reads: AtomicUsize::new(0),

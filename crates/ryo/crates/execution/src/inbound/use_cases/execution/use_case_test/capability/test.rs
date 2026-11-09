@@ -167,7 +167,7 @@ fn subject(refusal: Input) -> Result<Value, Failure> {
         size: FileSize(0),
         modified: Nanoseconds(0),
     })];
-    let request = fixtures::requests::execution().execution(&prepared, &corpus);
+    let request = fixtures::requests::execution().execution(&prepared, &corpus, None);
     let elements = Elements::default();
     let mut symbols = Symbols::default();
     let no_provider = |_| Err(OperatingError::NotRead);

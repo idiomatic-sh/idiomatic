@@ -90,7 +90,7 @@ fn ordered_hosted_inputs_are_scheduled_once_before_collected_or_forwarded_delive
         let engine = engine();
         let program = engine.prepare(ordered()).unwrap();
         let corpus = corpus();
-        let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
+        let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
         let elements = Elements::default();
         let read = |_| panic!("hosted inputs are immutable request data, never provider relations");
         let mut symbols = Symbols::default();

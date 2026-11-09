@@ -94,7 +94,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 done.rendered
                     .as_ref()
                     .map_or(0, |rendered| rendered.order.len()),
-                done.fed.len(),
+                0,
                 done.rendered
                     .as_ref()
                     .map_or(0, |rendered| rendered.cells.len()),
@@ -109,7 +109,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 done.rendered
                     .as_ref()
                     .map_or(0, |rendered| rendered.order.len()),
-                done.fed.len(),
+                0,
                 0,
             ])
         }
@@ -173,7 +173,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         ),
         word: Word::Succeeds,
         input: || Scenario::CrossCounts,
-        expect: Expect::Value([2, 2, 10]),
+        expect: Expect::Value([2, 0, 10]),
     },
     Case {
         name: CaseName("an_unprepared_rule_refuses_the_project_scope"),

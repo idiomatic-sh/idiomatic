@@ -106,7 +106,7 @@ pub(super) fn observations_need_a_named_program() {
     let engine = engine();
     let corpus = corpus();
     let unnamed = prepared_rules(&engine, 2);
-    let request = ExecutionUseCaseImpl::new().execution(&unnamed, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&unnamed, &corpus, None);
     let mut arenas = Vec::new();
     assert!(matches!(
         request.observations(&mut arenas),
@@ -114,7 +114,7 @@ pub(super) fn observations_need_a_named_program() {
     ));
     request.finish();
     let named = engine.prepare(named_request()).expect("named request");
-    let request = ExecutionUseCaseImpl::new().execution(&named, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&named, &corpus, None);
     let mut arenas = Vec::new();
     request
         .observations(&mut arenas)
@@ -195,7 +195,7 @@ pub(super) fn file_session_undeclared_rule() {
     let engine = engine();
     let program = prepared_rules(&engine, 2);
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
     let elements = ryo_language::domain::elements::types::Elements::default();
     let read = |_| Err(OperatingError::NotRead);
     let intent = every_intent()

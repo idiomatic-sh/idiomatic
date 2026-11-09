@@ -200,6 +200,7 @@ pub fn compile(
         graph.observations.as_ref(),
         &representative,
         &logical_regions,
+        &regions,
         &faults,
     );
     #[cfg(any(test, feature = "fixtures"))]

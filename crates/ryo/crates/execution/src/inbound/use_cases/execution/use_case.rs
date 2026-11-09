@@ -1,5 +1,6 @@
 //! Thin public orchestration over the one private execution owner.
 use super::interface::ExecutionUseCase;
+use ryo_execution_runtime::outbound::observer::interface::ExecutionObserver;
 use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
 use ryo_execution_runtime::application::file_dag::program::request_execution::service::begin;
 use ryo_execution_runtime::application::file_dag::program::request_execution::types::RequestExecution;
@@ -22,7 +23,8 @@ impl ExecutionUseCase for ExecutionUseCaseImpl {
         &self,
         program: &PreparedExecutionProgram,
         corpus: &[CorpusInput],
+        observer: Option<std::sync::Arc<dyn ExecutionObserver>>,
     ) -> RequestExecution {
-        begin(program, corpus)
+        begin(program, corpus, observer)
     }
 }

@@ -98,12 +98,10 @@ pub enum FileStop {
 }
 /// What a rule's run came to after its emitted root.
 pub enum RuleAfter {
-    /// Its frontiers were captured, the kept ones kept and committed, and its steps counted.
+    /// Its frontiers were captured, and the kept ones kept and committed.
     Ran {
         /// The frontier captures of the file.
         captures: Vec<ryo_execution_domain::domain::frontier_capture::types::FrontierCapture>,
-        /// The rows fed to each operator.
-        fed: Box<[ryo_execution_domain::domain::operator::types::RowsFed]>,
     },
     /// The emitted root failed, so the file stops at it.
     Unreached,

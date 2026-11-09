@@ -175,7 +175,7 @@ fn execute(stored: bool, projected: bool) -> Result<Vec<Table>, OperatingError> 
         size: FileSize(0),
         modified: Nanoseconds(0),
     })];
-    let request = fixtures::requests::execution().execution(&prepared, &corpus);
+    let request = fixtures::requests::execution().execution(&prepared, &corpus, None);
     let mut symbols = Symbols::default();
     let elements = Elements::default();
     let intents = vec![

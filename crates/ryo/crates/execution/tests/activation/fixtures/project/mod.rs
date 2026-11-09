@@ -84,7 +84,7 @@ pub(crate) fn measure_project(
             total
         ];
     for _ in 0..2 {
-        let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
+        let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
         let partials = Partials::default();
         let mut symbols = Symbols::default();
         tracing::dispatcher::with_default(&dispatch, || {

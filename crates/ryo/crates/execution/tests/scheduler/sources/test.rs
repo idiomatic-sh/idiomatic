@@ -161,7 +161,7 @@ fn direct_bound_root_and_union_share_the_actual_member_before_producer_delivery(
             FrontierPurpose::Observation
         );
         let corpus = corpus();
-        let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
+        let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
         let table = source();
         let reads = Cell::new(0);
         let read = |relation| {
@@ -294,7 +294,7 @@ fn a_refused_named_member_cannot_be_replaced_with_a_typed_empty_or_provider_retr
         FrontierPurpose::Observation
     );
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
     let read = |_| panic!("refused member cannot acquire a relation");
     let elements = Elements::default();
     let mut symbols = Symbols::default();

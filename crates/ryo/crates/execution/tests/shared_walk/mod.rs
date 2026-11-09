@@ -33,7 +33,7 @@ fn two_distinct_singleton_selectors_share_one_actual_native_walk() {
     let (engine, semantics) = engine();
     let program = prepared(&engine, &[Selector::Kind("word"), Selector::Kind("other")]);
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
     let (elements, mut symbols) = tree(FileId(0), b"abc");
     let mut file = request
         .open_file(
@@ -78,7 +78,7 @@ fn inactive_file_has_zero_shared_walk_work() {
     let (engine, semantics) = engine();
     let program = prepared(&engine, &[Selector::Kind("word"), Selector::BadRegex]);
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
     let (elements, mut symbols) = tree(FileId(0), b"abc");
     let file = request
         .open_file(
@@ -102,7 +102,7 @@ fn skipping_all_demanded_rules_does_not_start_the_walk() {
     let (engine, semantics) = engine();
     let program = prepared(&engine, &[Selector::BadRegex, Selector::Kind("other")]);
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
     let (elements, mut symbols) = tree(FileId(0), b"abc");
     let mut file = request
         .open_file(
@@ -129,7 +129,7 @@ fn equal_predicates_with_different_parameters_have_independent_native_results() 
         &[Selector::Parameter("a"), Selector::Parameter("c")],
     );
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
     let (elements, mut symbols) = tree(FileId(0), b"abc");
     let mut file = request
         .open_file(
@@ -172,7 +172,7 @@ fn a_fault_in_another_active_class_is_delayed_until_that_rule_is_requested() {
     let (engine, semantics) = engine();
     let program = prepared(&engine, &[Selector::BadRegex, Selector::Kind("other")]);
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
     let (elements, mut symbols) = tree(FileId(0), b"abc");
     let mut file = request
         .open_file(
@@ -229,7 +229,7 @@ fn the_second_file_starts_with_fresh_walk_state_and_its_own_source_rows() {
     };
     entry.path = ryo_language::domain::files::types::FilePath("second.py".into());
     corpus.push(second);
-    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
     for (file_id, source, first, last) in [
         (FileId(0), b"abc".as_slice(), 1, 3),
         (FileId(1), b"cba".as_slice(), 3, 1),

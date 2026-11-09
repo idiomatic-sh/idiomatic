@@ -163,7 +163,7 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
         [Input::BoundObservation(ObservationBindingId(0))]
     );
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
     let covered = [Covered {
         file: FileId(0),
         rules: vec![RuleIndex(0), RuleIndex(1)],

@@ -147,10 +147,22 @@ impl ProjectRun<'_> {
                 });
             }
         }
+        let observer = self.services.observer();
+        let counts = self.execution.logical_counts(
+            state,
+            rule,
+            if observer.is_some() {
+                crate::application::file_dag::program::runtime::types::FedRead::Collect
+            } else {
+                crate::application::file_dag::program::runtime::types::FedRead::CheckOnly
+            },
+        )?;
+        if let Some(observer) = observer {
+            observer.fed(rule, counts);
+        }
         Ok(RuleOutcome {
             emit,
             observations,
-            counts: self.execution.logical_counts(state, rule)?,
         })
     }
 }

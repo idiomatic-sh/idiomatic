@@ -308,7 +308,10 @@ fn run(
             symbols,
         );
         fed.push(
-            file.counts(RuleIndex(rule))
+            file.counts(
+                RuleIndex(rule),
+                crate::application::file_dag::program::runtime::types::FedRead::Collect,
+            )
                 .map(|counts| counts.fed.iter().map(|each| each.0.iter().sum()).collect())
                 .unwrap_or_default(),
         );

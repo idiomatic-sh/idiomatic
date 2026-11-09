@@ -9,24 +9,13 @@ use crate::application::file_dag::program::rule_outcome::types::RuleOutcome;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::frontier_capture::types::FrontierCapture;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_domain::domain::operator::types::LogicalCounts;
-use ryo_execution_domain::domain::readiness::types::ReadinessCounts;
 use ryo_execution_domain::domain::row_emission::types::RowEmission;
 use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
-use ryo_execution_domain::domain::shared_walk::types::WalkCounts;
 #[cfg(any(test, feature = "fixtures"))]
 use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::stored_facts::types::Bucket;
 impl FileExecution for FileSession<'_, '_> {
-    fn readiness_counts(&self) -> ReadinessCounts {
-        self.parts.inner.readiness_counts()
-    }
-
-    fn walk_counts(&self) -> WalkCounts {
-        self.parts.inner.walk_counts()
-    }
-
     fn emit_rows(
         &mut self,
         rule: RuleIndex,
@@ -106,9 +95,6 @@ impl FileExecution for FileSession<'_, '_> {
     ) -> Result<(), OperatingError> {
         self.parts.inner.commit_frontier(rule, input)
     }
-    fn counts(&self, rule: RuleIndex) -> Result<LogicalCounts, OperatingError> {
-        self.parts.inner.counts(rule)
-    }
 }
 pub(crate) fn source_rows<'a, 'facts: 'a>(
     read: &dyn Fn(
@@ -158,5 +144,54 @@ impl FileSession<'_, '_> {
     ) -> ryo_execution_store::application::file_dag::derived::owner::fixtures::resources::Snapshot
     {
         self.parts.inner.resource_fixture_counts()
+    }
+    /// The interpreter's readiness counters of this file, for its own tests.
+    #[must_use]
+    pub fn fixture_readiness_counts(
+        &self,
+    ) -> ryo_execution_domain::domain::readiness::types::ReadinessCounts {
+        self.parts.inner.readiness_counts()
+    }
+    /// The interpreter's shared-walk counters of this file, for its own tests.
+    #[must_use]
+    pub fn fixture_walk_counts(&self) -> ryo_execution_domain::domain::shared_walk::types::WalkCounts {
+        self.parts.inner.walk_counts()
+    }
+    /// The rows each step of `rule` was fed in this file, for the interpreter's own tests.
+    ///
+    /// # Errors
+    ///
+    /// A stale generation, a rule out of range, or a step that was not placed or has not run.
+    pub fn fixture_counts(
+        &self,
+        rule: RuleIndex,
+    ) -> Result<ryo_execution_domain::domain::operator::types::LogicalCounts, OperatingError> {
+        self.parts.inner.counts(
+            rule,
+            crate::application::file_dag::program::runtime::types::FedRead::Collect,
+        )
+    }
+}
+impl FileSession<'_, '_> {
+    /// Reports the rows each step of `rule` was fed to `observer`, after the checks every count read makes; without an observer
+    /// only the checks are made.
+    pub(crate) fn observe(
+        &self,
+        rule: RuleIndex,
+        observer: Option<&dyn crate::outbound::observer::interface::ExecutionObserver>,
+    ) -> Result<(), OperatingError> {
+        use crate::application::file_dag::program::runtime::types::FedRead;
+        let counts = self.parts.inner.counts(
+            rule,
+            if observer.is_some() {
+                FedRead::Collect
+            } else {
+                FedRead::CheckOnly
+            },
+        )?;
+        if let Some(observer) = observer {
+            observer.fed(rule, counts);
+        }
+        Ok(())
     }
 }

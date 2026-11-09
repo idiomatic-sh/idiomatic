@@ -253,9 +253,13 @@ impl FileRun<'_> {
     ) -> ryo_execution_domain::domain::shared_walk::types::WalkCounts {
         self.walk.counts()
     }
-    pub(crate) fn counts(&self, rule: RuleIndex) -> Result<LogicalCounts, OperatingError> {
+    pub(crate) fn counts(
+        &self,
+        rule: RuleIndex,
+        read: crate::application::file_dag::program::runtime::types::FedRead,
+    ) -> Result<LogicalCounts, OperatingError> {
         self.execution
-            .logical_counts(self.execution.file_state(), rule)
+            .logical_counts(self.execution.file_state(), rule, read)
     }
     pub(crate) fn observation_snapshot(
         &self,

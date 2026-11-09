@@ -52,10 +52,8 @@ pub(crate) struct ObservationRun<'a> {
     pub todo: &'a [Todo],
 }
 
-/// Each delivered occurrence retains the immutable declaration it accounts for.
+/// What one occurrence of the ordinary phase came to.
 pub(crate) struct ProjectOutcome {
-    /// The declaration the outcome accounts for.
-    pub todo: Todo,
     /// What the occurrence delivered, or why it failed.
     pub result: Result<CrossedWithPublications, CrossFileError>,
 }

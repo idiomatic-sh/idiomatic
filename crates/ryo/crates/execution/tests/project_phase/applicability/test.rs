@@ -104,7 +104,7 @@ fn exercise(case: Case) {
         };
     }
     corpus.push(second);
-    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
     let table = source();
     let read = |_| Ok(SourceRows::Computed(&table));
     let elements = ryo_language::domain::elements::types::Elements::default();
@@ -317,7 +317,7 @@ fn wholly_skipped_frontier_is_unavailable_without_fabricating_a_schema_or_rows()
     crate::boundary_fixture::plans(&mut authored)[0].frontier = vec![Input::Step(StepId(0))];
     let prepared = engine.prepare(authored).unwrap();
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
     let mut symbols = Symbols::default();
     let elements = ryo_language::domain::elements::types::Elements::default();
     let read = |_| -> Result<SourceRows<'_>, OperatingError> {

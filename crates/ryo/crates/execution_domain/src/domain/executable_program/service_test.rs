@@ -26,6 +26,7 @@ enum Check {
     MergeCostIsLinear,
     UnresolvedRegionKeepsItsOperators,
     NameWithoutTextFailsTheReplaceGate,
+    StepOriginPlaceEqualsTheLogicalLookup,
 }
 type Input = Check;
 type Value = ();
@@ -86,6 +87,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(()),
     },
     Case {
+        name: CaseName("step_origin_place_equals_the_logical_lookup"),
+        word: Word::Succeeds,
+        input: || Check::StepOriginPlaceEqualsTheLogicalLookup,
+        expect: Expect::Value(()),
+    },
+    Case {
         name: CaseName("an_unresolved_region_keeps_its_registered_operators"),
         word: Word::Succeeds,
         input: || Check::UnresolvedRegionKeepsItsOperators,
@@ -106,6 +113,7 @@ fn subject(check: Input) -> Result<Value, Failure> {
         Check::NameWithoutTextFailsTheReplaceGate => {
             a_name_without_text_is_refused_by_the_replace_text_gate()
         }
+        Check::StepOriginPlaceEqualsTheLogicalLookup => step_origin_place_equals_the_logical_lookup(),
         Check::UnresolvedRegionKeepsItsOperators => {
             let route = Route::default();
             assert!(matches!(route, Route::Generic));
@@ -232,5 +240,118 @@ fn a_name_without_text_is_refused_by_the_replace_text_gate() -> Result<Value, Fa
         crate::domain::executable_program::kernel::row_admissible(&contract, &row, &texts),
         Err(crate::domain::operating::errors::OperatingError::ShapeMismatch)
     );
+    Ok(())
+}
+
+/// Each original step's place, filled when the rule programs are built, still names the instruction today's lookup finds on the
+/// finished program: its logical instruction's region, and the instruction's place there.
+fn step_origin_place_equals_the_logical_lookup() -> Result<Value, Failure> {
+    use crate::domain::source_partitions::types::source_partitions::value::SourcePartitions;
+    use ryo_values::domain::{
+        plan_parts::types::{Input, StepId},
+        plans::types::{Emit, Plan, PlanStep},
+        query_tokens::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
+        rule_requests::types::{RuleParameters, RuleSpec},
+        runs::types::{RuleApplicability, RuleId},
+    };
+    let step = |operation| PlanStep {
+        operation,
+        scope: StepScope::PerFile,
+    };
+    let select = |from| {
+        step(Operation::Select {
+            from,
+            comparisons: vec![],
+            kept: vec![],
+        })
+    };
+    let plan = |steps: Vec<PlanStep>| Plan {
+        observation_inputs: vec![],
+        observations: vec![],
+        parameters: vec![],
+        comparison_origins: vec![],
+        frontier: vec![],
+        emit: Emit {
+            step: StepId(u32::try_from(steps.len() - 1).unwrap_or(0)),
+            subject: ColumnIndex(0),
+            key: vec![],
+            headings: vec![],
+        },
+        steps,
+    };
+    let plans = [
+        plan(vec![
+            select(PlanInput::Relation(Relation::Function)),
+            select(Input::Step(StepId(0))),
+        ]),
+        plan(vec![
+            select(PlanInput::Relation(Relation::Function)),
+            select(Input::Step(StepId(0))),
+            select(Input::Step(StepId(1))),
+        ]),
+        plan(vec![select(PlanInput::Relation(Relation::Comment))]),
+    ];
+    let rules = (0..plans.len())
+        .map(|rule| RuleSpec {
+            id: RuleId(format!("rule-{rule}").into()),
+            query: QueryBundle {
+                root: QueryDocumentSource {
+                    id: QuerySourceId(format!("rule-{rule}").into()),
+                    text: "".into(),
+                },
+                modules: Default::default(),
+            },
+            applicability: RuleApplicability::Always,
+            given: vec![],
+            observations: vec![],
+            spelled: RuleParameters("".into()),
+            include: vec![],
+            exclude: vec![],
+        })
+        .collect::<Vec<_>>();
+    let bindings = vec![vec![]; plans.len()];
+    let operators = crate::domain::file_program::service::operators::prepare(
+        &plans,
+        &bindings,
+        &[],
+        &ryo_relations::domain::relations::service::kinds,
+        &mut |_| Ok(()),
+    )?;
+    let borrowed = plans.iter().map(Ok).collect::<Vec<_>>();
+    let partitions =
+        SourcePartitions::new(&rules, &borrowed, &bindings, &[], &vec![vec![]; plans.len()])?;
+    let graph = crate::domain::file_program::service::compile_prepared(&plans, &operators);
+    let program = super::service::compile(
+        &plans,
+        graph,
+        &partitions,
+        &operators,
+        crate::domain::matching::types::PatternMatcher(
+            &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
+        ),
+    )?;
+    let mut checked = 0;
+    for rule in program.rules() {
+        for origin in rule.original_steps.iter().flatten() {
+            let lookup = program
+                .logical_regions()
+                .get(origin.logical.0)
+                .and_then(|region| {
+                    program.regions().get(region.0).and_then(|code| {
+                        code.instructions()
+                            .iter()
+                            .position(|instruction| instruction.logical() == origin.logical)
+                            .map(|at| super::types::StepSite {
+                                region: *region,
+                                instruction: super::types::InstructionPlace(at),
+                            })
+                    })
+                });
+            assert_eq!(origin.place, lookup, "{origin:?}");
+            assert!(origin.place.is_some(), "{origin:?}");
+            checked += 1;
+        }
+    }
+    assert_eq!(checked, 6, "every step of every rule is placed");
     Ok(())
 }

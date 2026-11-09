@@ -68,7 +68,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
     })?;
     match input {
         Scenario::Empty => {
-            let request = ExecutionUseCaseImpl::new().execution(&prepared, &[]);
+            let request = ExecutionUseCaseImpl::new().execution(&prepared, &[], None);
             ExecutionRequest::finish(request);
             Ok(Outcome::Finished)
         }
@@ -79,7 +79,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
                 size: FileSize(0),
                 modified: Nanoseconds(0),
             })];
-            let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
+            let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
             let elements = ryo_language::domain::elements::types::Elements::default();
             let read = |_| Err(OperatingError::NotRead);
             let mut symbols = ryo_language::domain::symbols::types::Symbols::default();

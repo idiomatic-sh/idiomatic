@@ -65,7 +65,7 @@ fn input_waits_after_the_ones_before_it() -> Value {
 }
 
 fn file_is_counted_and_text_begins_where_the_worker_left_off() -> Value {
-    let mut tables = tables_for(WorkerNumber(0), &[]);
+    let mut tables = tables_for(WorkerNumber(0));
     tables.arena = ArenaBytes(vec![0; 6]);
     tables.captured.push(Kept {
         bucket: Bucket(1),
@@ -90,7 +90,7 @@ fn line_count_asks_for_the_engine_rows() -> Value {
 }
 
 fn recovery_from_syntax_errors_is_partial_in_the_relations_of_code() -> Value {
-    let mut tables = tables_for(WorkerNumber(0), &[]);
+    let mut tables = tables_for(WorkerNumber(0));
     start_partials(
         &MetadataUseCaseImpl,
         &mut tables,
@@ -103,7 +103,7 @@ fn recovery_from_syntax_errors_is_partial_in_the_relations_of_code() -> Value {
 }
 
 fn findings_are_put_in_the_order_of_their_keys() -> Value {
-    let mut tables = tables_for(WorkerNumber(0), &[]);
+    let mut tables = tables_for(WorkerNumber(0));
     for path in ["z", "a"] {
         let rendered = &mut tables.rendered;
         let id = keep(&mut rendered.text, Typed::Text(CellText("r")));

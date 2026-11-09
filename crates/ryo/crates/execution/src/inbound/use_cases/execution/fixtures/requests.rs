@@ -209,7 +209,7 @@ pub(crate) fn run_prepared_context<'facts>(
         size: FileSize(source.len() as u64),
         modified: Nanoseconds(0),
     })];
-    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
     let mut file = request.open_file(
         FileInput {
             language: SourceLanguage::Recognized,

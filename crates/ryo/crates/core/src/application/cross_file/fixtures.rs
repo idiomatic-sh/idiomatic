@@ -203,7 +203,7 @@ pub(super) fn world_with_applicability(
             })
             .expect("prepared cross rule"),
     );
-    let request = ExecutionUseCaseImpl::new().execution(&program, &files);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &files, None);
     World {
         placed: ryo_execution::inbound::use_cases::metadata::interface::PlacedScopes {
             placement,

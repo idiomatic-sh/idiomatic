@@ -190,12 +190,15 @@ impl FileRun<'_> {
             self.roots.get_mut(&rule).ok_or(OperatingError::NotRun)?[output.0 as usize].readiness =
                 readiness_of(outcome);
         }
+        // The counts' checks stay at the rule's end; nothing is collected.
+        let _checked = self.execution.logical_counts(
+            self.execution.file_state(),
+            rule,
+            crate::application::file_dag::program::runtime::types::FedRead::CheckOnly,
+        )?;
         Ok(RuleOutcome {
             emit,
             observations,
-            counts: self
-                .execution
-                .logical_counts(self.execution.file_state(), rule)?,
         })
     }
 }

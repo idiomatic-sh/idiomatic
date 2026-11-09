@@ -51,7 +51,7 @@ pub(super) fn exercise_with(
     };
     entry.path = FilePath("second.py".into());
     corpus.push(second);
-    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
     let elements = ryo_language::domain::elements::types::Elements::default();
     let mut table = source();
     if empty {

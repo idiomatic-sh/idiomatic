@@ -1,7 +1,6 @@
 //! What became of the rules of a request: the outcome of each root, output and project observation.
 use crate::application::file_dag::program::observed_publication::types::ObservedPublication;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_domain::domain::operator::types::LogicalCounts;
 use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::records::types::ObservationIndex;
 use ryo_values::domain::rows::types::Table;
@@ -31,12 +30,11 @@ pub struct ProjectOutputOutcome {
     pub output: ObservationIndex,
     pub outcome: ProjectObservation,
 }
-/// What became of one rule: its emitted root, each declared output and its counts. The observation type names the kind of
+/// What became of one rule: its emitted root and each declared output. The observation type names the kind of
 /// output: a file rule yields `OutputOutcome`, a project rule `ProjectOutputOutcome`.
 pub struct RuleOutcome<O = OutputOutcome> {
     pub emit: RootOutcome,
     pub observations: Vec<O>,
-    pub counts: LogicalCounts,
 }
 /// A project named root can be Complete only with the admitted owner proof.
 pub enum ProjectObservation {

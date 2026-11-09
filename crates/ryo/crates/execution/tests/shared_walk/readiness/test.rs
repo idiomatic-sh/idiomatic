@@ -143,7 +143,7 @@ fn exercise_readiness_chain(empty: bool) {
     let (nodes, edges) = readiness_budget(&authored);
     let prepared = engine.prepare(authored).unwrap();
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
     let (elements, mut symbols) = tree(FileId(0), b"abc");
     let intents = [readiness_intent(), readiness_intent(), readiness_intent()];
     let mut file = request
@@ -234,7 +234,7 @@ fn failed_producers_wake_their_roots_without_erasing_independent_output() {
     let (nodes, edges) = readiness_budget(&authored);
     let prepared = engine.prepare(authored).unwrap();
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
     let (elements, mut symbols) = tree(FileId(0), b"abc");
     let calls = std::cell::RefCell::new(Vec::new());
     let read = |relation| {

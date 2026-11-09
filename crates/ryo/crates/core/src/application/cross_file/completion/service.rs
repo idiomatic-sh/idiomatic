@@ -206,7 +206,6 @@ impl ProjectCompletion {
                 unknowns,
                 rendered,
                 observations,
-                fed: evaluated.fed,
             },
             publications,
         })
@@ -281,7 +280,6 @@ pub(crate) fn collected(
     }
     Ok(ProgramEvaluated {
         roots,
-        fed: outcome.counts.fed.into_vec(),
         publications,
     })
 }

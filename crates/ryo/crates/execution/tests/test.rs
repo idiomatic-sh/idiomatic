@@ -107,7 +107,7 @@ fn public_group_reduction_and_emission_use_the_admitted_semantic_path() {
     crate::boundary_fixture::plans(&mut input)[0].emit.step = StepId(1);
     let program = engine.prepare(input).expect("prepare real count");
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
     let table = source();
     let read = |relation| {
         if relation == Relation::Function {

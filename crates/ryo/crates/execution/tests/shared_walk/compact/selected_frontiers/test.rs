@@ -113,7 +113,7 @@ fn selected_join_shares_work_preserves_counts_and_exports_owned_frontiers() {
             *crate::boundary_fixture::plans(&mut authored) = vec![selected_join(distinct); 2];
             let program = engine.prepare(authored).unwrap();
             let corpus = corpus();
-            let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
+            let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
             let mut symbols = Symbols::default();
             let source = functions(&mut symbols);
             let columns: Vec<FactColumn> = (0..source.kinds.len())

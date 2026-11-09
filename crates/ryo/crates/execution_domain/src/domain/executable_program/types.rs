@@ -139,7 +139,21 @@ pub struct StepOrigin {
     pub step: StepId,
     /// The instruction the step was compiled to.
     pub logical: LogicalInstruction,
+    /// Where that instruction is: its region and its place among the region's instructions; `None` when the program has no
+    /// such instruction, which reads as a step that has not run.
+    pub place: Option<StepSite>,
 }
+/// Where one compiled instruction is: its region and its place among that region's instructions.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct StepSite {
+    /// The region the instruction is in.
+    pub region: RegionId,
+    /// The instruction's place among the region's instructions.
+    pub instruction: InstructionPlace,
+}
+/// An instruction of a region, by its place among the region's instructions.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct InstructionPlace(pub usize);
 /// One rule's part of the executable program: its root readers and where each of its original steps is.
 #[derive(Debug)]
 pub struct RuleProgram {

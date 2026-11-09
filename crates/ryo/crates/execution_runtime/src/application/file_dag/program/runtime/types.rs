@@ -5,6 +5,14 @@ use ryo_execution_domain::domain::executable_program::types::RegionId;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_relations::domain::relations::types::Value;
 
+/// Whether a read of a rule's counts collects the rows each step was fed, or only makes its checks.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum FedRead {
+    /// The rows each step was fed are collected.
+    Collect,
+    /// Only the checks are made; nothing is collected.
+    CheckOnly,
+}
 pub(crate) enum InvocationFailure {
     Semantic(OperatingError),
 }

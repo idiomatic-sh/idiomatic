@@ -73,7 +73,7 @@ fn count(number: usize) -> u64 {
 }
 
 fn tables() -> Tables {
-    tables_for(WorkerNumber(2), &[])
+    tables_for(WorkerNumber(2))
 }
 
 fn placed() -> Result<PlacedScopes, Failure> {

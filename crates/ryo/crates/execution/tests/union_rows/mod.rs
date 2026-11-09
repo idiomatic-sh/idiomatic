@@ -65,7 +65,7 @@ fn union_consumes_both_populations_in_order_with_one_distinct_scope() {
         let engine = engine();
         let prepared = program(&engine, left, right);
         let corpus = corpus();
-        let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
+        let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
         let elements = ryo_language::domain::elements::types::Elements::default();
         let read = |_| Err::<SourceRows<'_>, _>(OperatingError::NotRead);
         for forwarded in [false, true] {
@@ -134,7 +134,7 @@ fn union_stops_on_right_delivery_refusal_and_retries_with_a_new_distinct_scope()
     let engine = engine();
     let prepared = program(&engine, &[3], &[2, 1, 2]);
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
     let elements = ryo_language::domain::elements::types::Elements::default();
     let read = |_| Err::<SourceRows<'_>, _>(OperatingError::NotRead);
     let mut symbols = Symbols::default();
@@ -220,7 +220,7 @@ fn union_preserves_left_source_refusal_and_demands_right_after_empty_left() {
         crate::boundary_fixture::plans(&mut input)[0].emit.step = StepId(2);
         let prepared = engine.prepare(input).expect("source-bound Union");
         let corpus = corpus();
-        let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
+        let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
         let elements = ryo_language::domain::elements::types::Elements::default();
         let empty = Table {
             kinds: kinds(Relation::Function).to_vec(),

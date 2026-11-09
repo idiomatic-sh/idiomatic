@@ -101,7 +101,7 @@ pub(super) fn prepared_test_program(
             })
             .expect("valid prepared test request"),
     );
-    let request = ExecutionUseCaseImpl::new().execution(&program, corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, corpus, None);
     (program, request)
 }
 
@@ -242,7 +242,7 @@ pub(super) fn replay_under_capture(
         },
     };
     let mut worker = Worker {
-        tables: tables_for(WorkerNumber(0), &[]),
+        tables: tables_for(WorkerNumber(0)),
         facts: FactsFake::default().worker().expect("worker"),
         old_rows: None,
         failure: None,
@@ -256,7 +256,7 @@ pub(super) fn assert_gated_acceptance(
     acceptance: SyntaxAcceptance,
     expected_reason: &str,
 ) {
-    let mut tables = tables_for(WorkerNumber(0), setting.metadata);
+    let mut tables = tables_for(WorkerNumber(0));
     tables.mask = Mask(vec![0b11]);
     let skipped = FileAnalysis::gate_rules(
         &mut tables,
@@ -291,7 +291,7 @@ pub(super) fn assert_gated_acceptance(
 
 /// Accepted syntax keeps enabled rules; absent applicability metadata still records unknowns.
 pub(super) fn assert_accepted_and_missing_applicability(setting: &RequestVisitSetting<'_>) {
-    let mut tables = tables_for(WorkerNumber(0), setting.metadata);
+    let mut tables = tables_for(WorkerNumber(0));
     tables.mask = Mask(vec![0b11]);
     assert_eq!(
         FileAnalysis::gate_rules(
@@ -345,7 +345,7 @@ pub(super) fn assert_accepted_and_missing_applicability(setting: &RequestVisitSe
         FileAnalysis::may_gate_rules(&missing_policy, SyntaxAcceptance::Accepted),
         Gating::MayGate
     );
-    let mut missing_tables = tables_for(WorkerNumber(0), setting.metadata);
+    let mut missing_tables = tables_for(WorkerNumber(0));
     missing_tables.mask = Mask(vec![0b11]);
     assert_eq!(
         FileAnalysis::gate_rules(

@@ -92,7 +92,7 @@ fn project_step_without_a_declared_handover_cannot_read_a_per_file_source() -> R
         size: FileSize(0),
         modified: Nanoseconds(0),
     })];
-    let request = fixtures::requests::execution().execution(&program, &corpus);
+    let request = fixtures::requests::execution().execution(&program, &corpus, None);
     let covered = [Covered {
         file: FileId(0),
         rules: vec![RuleIndex(0)],

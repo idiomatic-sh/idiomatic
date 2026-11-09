@@ -13,13 +13,12 @@ use ryo_values::domain::stored_facts::types::{ArenaBytes, Digest};
 
 use crate::domain::visit::types::{Noting, RoleRead};
 use crate::domain::workers::service::{
-    absorb, add_fed, checking, file_at, gathering, govern, governs_rule, order, size_at, tables_for,
+    absorb, checking, file_at, govern, governs_rule, order, size_at, tables_for,
 };
 use crate::domain::workers::types::VisitSetting;
 use crate::domain::workers::types::{
     Checking, FileOrder, FilesRead, FreshRecord, Tables, WorkersMet,
 };
-use ryo_execution::inbound::use_cases::execution::interface::RowsFed;
 use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::metadata::interface::{
     Governing, Mask, PlacedScopes, RuleScope,
@@ -57,10 +56,6 @@ enum Scenario {
     Govern(&'static str),
     /// Whether the visit of this place reads the memory.
     Checking(usize),
-    /// Adds rows fed to a total that is nearly full.
-    AddFed,
-    /// Makes room for the plans of one and two steps.
-    Gathering,
     /// Takes what a worker made into what the workers made.
     Absorb,
     /// Puts the unread files and the records in the order of the files.
@@ -136,28 +131,16 @@ fn record(path: &str) -> Record {
     }
 }
 
-fn tables(plans: &[Plan]) -> Tables {
-    tables_for(WorkerNumber(0), &from_plans(plans))
+fn tables() -> Tables {
+    tables_for(WorkerNumber(0))
 }
 
 fn subject(scenario: Input) -> Result<Value, Failure> {
     let files = [entry("a.rs", 10), entry("b.rs", 20)].map(CorpusInput::Available);
     Ok(match scenario {
         Scenario::TablesFor => {
-            let worker = tables(&[plan(2), plan(3)]);
-            assert_eq!(
-                worker.fed.iter().map(Vec::len).collect::<Vec<_>>(),
-                [2, 3],
-                "worker counts are prepared for each actual plan step"
-            );
-            u64::from(
-                worker
-                    .fed
-                    .iter()
-                    .flatten()
-                    .all(|fed| *fed == RowsFed::default())
-                    && worker.partials.is_empty(),
-            )
+            let worker = tables();
+            u64::from(worker.partials.is_empty())
         }
         Scenario::FileAt => count(file_at(&files, FileOrder(1)).map_or(0, |each| {
             ryo_values::domain::files::service::input_path(each).0.len()
@@ -198,7 +181,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 answering: &crate::domain::render::types::Answering::Findings,
                 keeping: crate::domain::visit::types::Keeping::Keeps,
             };
-            let mut tables = tables(&[]);
+            let mut tables = tables();
             tables.hits = Hits::default();
             yes(govern(
                 &MetadataUseCaseImpl,
@@ -208,24 +191,13 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             ))
         }
         Scenario::Checking(place) => u64::from(checking(FileOrder(place)) == Checking::Now),
-        Scenario::AddFed => {
-            let mut total = RowsFed([1, u64::MAX, 3]);
-            add_fed(&mut total, &RowsFed([1, 1, 1]));
-            total.0[0] * 1000 + total.0[2] + u64::from(total.0[1] == u64::MAX)
-        }
-        Scenario::Gathering => {
-            let met = gathering(&from_plans(&[plan(1), plan(2)]));
-            count(met.fed.iter().map(Vec::len).sum())
-        }
         Scenario::Absorb => {
-            let plans = [plan(1)];
-            let mut worker = tables(&plans);
-            worker.fed = vec![vec![RowsFed([1, 2, 3])]];
+            let mut worker = tables();
             worker.reads = FilesRead(2);
             worker.arena = ArenaBytes(vec![7]);
-            let mut met = gathering(&from_plans(&plans));
+            let mut met = WorkersMet::default();
             absorb(&mut met, worker);
-            met.fed[0][0].0[2] * 100 + u64::from(met.read.0) * 10 + count(met.arenas.len())
+            u64::from(met.read.0) * 10 + count(met.arenas.len())
         }
         Scenario::Order => {
             let mut met = WorkersMet::default();
@@ -246,7 +218,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             first * 100 + count(fresh.places[0].0) * 10 + count(fresh.places[1].0)
         }
         Scenario::GovernsRule(rule) => {
-            let mut worker = tables(&[]);
+            let mut worker = tables();
             worker.mask = Mask(vec![0b10]);
             yes(governs_rule(&MetadataUseCaseImpl, &worker, RuleIndex(rule)))
         }
@@ -315,22 +287,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(1),
     },
     Case {
-        name: CaseName("rows_fed_are_added_and_stop_at_the_most_a_count_holds"),
-        word: Word::Succeeds,
-        input: || Scenario::AddFed,
-        expect: Expect::Value(2000 + 4 + 1),
-    },
-    Case {
-        name: CaseName("room_is_made_for_each_step_of_each_plan"),
-        word: Word::Succeeds,
-        input: || Scenario::Gathering,
-        expect: Expect::Value(3),
-    },
-    Case {
         name: CaseName("what_a_worker_made_is_taken_into_what_the_workers_made"),
         word: Word::Succeeds,
         input: || Scenario::Absorb,
-        expect: Expect::Value(321),
+        expect: Expect::Value(21),
     },
     Case {
         name: CaseName("unread_files_and_records_are_put_in_the_order_of_the_files"),
@@ -364,7 +324,6 @@ use ryo_matching::inbound::use_cases::matching::types::{GlobHits, GlobPattern};
 use ryo_matching::inbound::use_cases::matching::{
     interface::MatchingUseCase, use_case::MatchingUseCaseImpl,
 };
-use ryo_values::domain::run_metadata::service::from_plans;
 
 fn matcher(
     globs: &[ryo_values::domain::files::types::Glob],

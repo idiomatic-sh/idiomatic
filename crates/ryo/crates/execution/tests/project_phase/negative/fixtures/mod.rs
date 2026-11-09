@@ -136,7 +136,7 @@ pub(crate) fn with_held<T>(
 ) -> T {
     let prepared = program(engine, entry, rule_count);
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
     let covered = [Covered {
         file: FileId(0),
         rules: (0..rule_count).map(RuleIndex).collect(),

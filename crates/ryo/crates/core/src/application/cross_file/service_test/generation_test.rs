@@ -46,7 +46,6 @@ pub(super) fn ordinary_project_rules_share_one_preparation_and_reject_another_ge
             )
             .unwrap();
             let rendered = result.rendered.expect("actual core project rendering");
-            assert_eq!(result.fed.len(), 2);
             let payload = assert_count_findings(
                 &rendered,
                 RuleIndex(rule),
@@ -108,7 +107,7 @@ pub(super) fn ordinary_project_rules_share_one_preparation_and_reject_another_ge
             ryo_execution::derived(),
             Arc::new(ryo_execution_runtime::outbound::digest::factory::blake3()),
         );
-        rules.request = ExecutionUseCaseImpl::new().execution(&rules.program, &rules.files);
+        rules.request = ExecutionUseCaseImpl::new().execution(&rules.program, &rules.files, None);
         let phase = rules.request.project_phase().unwrap();
         let result = evaluate_fixture(
             &rules,

@@ -67,7 +67,7 @@ fn subject(_: Input) -> Result<Value, Failure> {
             executable: ExecutablePermission::Unknown,
         })
     });
-    let request = fixtures::requests::execution().execution(&prepared, &corpus);
+    let request = fixtures::requests::execution().execution(&prepared, &corpus, None);
     let elements = Elements::default();
     let mut symbols = Symbols::default();
     // Hosted File data never invokes a catalog provider: were it called, the run would fail with the read refusal.

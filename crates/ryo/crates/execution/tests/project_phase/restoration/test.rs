@@ -31,7 +31,7 @@ fn restored_named_frontier_keeps_skipped_partition_provenance_despite_complete_r
         };
         entry.path = FilePath("second.py".into());
         corpus.push(second);
-        let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
+        let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
         let elements = ryo_language::domain::elements::types::Elements::default();
         let mut captures = vec![];
         let mut readiness = vec![];

@@ -56,7 +56,7 @@ pub(super) fn file_route() {
     };
     for program in &programs {
         for intent in every_intent() {
-            let request = ExecutionUseCaseImpl::new().execution(program, &corpus);
+            let request = ExecutionUseCaseImpl::new().execution(program, &corpus, None);
             for length in [0, 1, 3] {
                 assert!(
                     matches!(
@@ -67,7 +67,7 @@ pub(super) fn file_route() {
                 );
             }
             request.finish();
-            let request = ExecutionUseCaseImpl::new().execution(program, &corpus);
+            let request = ExecutionUseCaseImpl::new().execution(program, &corpus, None);
             assert!(
                 !matches!(
                     open(&request, &[intent, intent]),
@@ -123,7 +123,7 @@ pub(super) fn run_file_route() {
     };
     for program in &programs {
         for intent in every_intent() {
-            let request = ExecutionUseCaseImpl::new().execution(program, &corpus);
+            let request = ExecutionUseCaseImpl::new().execution(program, &corpus, None);
             for length in [0, 1, 3] {
                 assert!(
                     matches!(

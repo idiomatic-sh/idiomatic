@@ -64,9 +64,11 @@ fn frontiers_from_another_request_are_refused() {
     let covered = covered(1);
     let first = crate::application::file_dag::program::request_execution::service::begin(
         &prepared, &corpus,
+        None,
     );
     let second = crate::application::file_dag::program::request_execution::service::begin(
         &prepared, &corpus,
+        None,
     );
     let (owner, other) = (
         first
@@ -119,6 +121,7 @@ fn frontiers_over_another_coverage_are_refused() {
     let corpus = corpus();
     let request = crate::application::file_dag::program::request_execution::service::begin(
         &prepared, &corpus,
+        None,
     );
     let phase = request.project_phase().expect("the phase opens");
     let old = phase
@@ -168,6 +171,7 @@ fn a_root_whose_emit_is_not_demanded_answers_no_query() {
     let corpus = corpus();
     let request = crate::application::file_dag::program::request_execution::service::begin(
         &prepared, &corpus,
+        None,
     );
     let phase = request.project_phase().expect("the phase opens");
     let scope = phase
@@ -203,6 +207,7 @@ fn a_root_whose_observations_are_not_required_invokes_no_observation_root() {
     let corpus = corpus();
     let request = crate::application::file_dag::program::request_execution::service::begin(
         &prepared, &corpus,
+        None,
     );
     let phase = request.project_phase().expect("the phase opens");
     let scope = phase
@@ -256,7 +261,7 @@ fn a_root_whose_observations_are_not_required_invokes_no_observation_root() {
 fn finish_refuses_while_a_scope_of_its_own_phase_shares_the_publication() {
     let prepared = program(Entry::Phase, 3);
     let corpus = corpus();
-    let request = begin(&prepared, &corpus);
+    let request = begin(&prepared, &corpus, None);
     let (held, other) = (
         request.project_phase().expect("a phase opens"),
         request.project_phase().expect("a phase opens"),

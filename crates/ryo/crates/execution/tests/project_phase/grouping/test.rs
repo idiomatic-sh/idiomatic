@@ -42,7 +42,7 @@ fn project_grouping_reads_only_actual_captured_function_names() {
         entry.path = ryo_language::domain::files::types::FilePath("second.py".into());
     }
     corpus.push(second);
-    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
     let mut arena = vec![];
     let mut places = vec![];
     let mut words = Words::default();

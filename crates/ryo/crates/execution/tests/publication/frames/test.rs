@@ -39,7 +39,7 @@ fn captured_name_frames_do_not_inherit_previous_frame_place_numbers() {
         crate::boundary_fixture::plans(&mut input)[0].frontier = vec![Input::Step(StepId(1))];
         let program = engine.prepare(input).expect("valid symbol frontier");
         let corpus = corpus();
-        let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
+        let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
         let mut symbols = Symbols::default();
         let symbol = if representation == "cross_name" {
             ryo_language::domain::symbols::fixtures::intern_derived(

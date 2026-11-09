@@ -73,6 +73,7 @@ pub(crate) fn submit(
     let corpus = corpus();
     let request = crate::application::file_dag::program::request_execution::service::begin(
         &prepared, &corpus,
+        None,
     );
     let covered = covered(rule_count);
     let mut arenas = Vec::new();
@@ -135,6 +136,7 @@ pub(crate) fn foreign_phase_outcome() -> Result<RuleOutcome<ProjectOutputOutcome
     let corpus = corpus();
     let request = crate::application::file_dag::program::request_execution::service::begin(
         &prepared, &corpus,
+        None,
     );
     let covered = covered(1);
     let (owner, other) = (

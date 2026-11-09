@@ -201,7 +201,7 @@ fn frontiers_and_scopes_of_an_undeclared_rule_are_refused() {
     for entry in [Entry::Phase, Entry::Stage] {
         let prepared = program(entry, 3);
         let corpus = corpus();
-        let request = begin(&prepared, &corpus);
+        let request = begin(&prepared, &corpus, None);
         let mut arenas = Vec::new();
         let check = |phase: &ProjectPhase<'_>| {
             let scope = |rule| {

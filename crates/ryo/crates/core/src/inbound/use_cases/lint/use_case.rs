@@ -38,6 +38,8 @@ use ryo_execution::inbound::use_cases::compile_rules::interface::{
 };
 use ryo_execution::inbound::use_cases::compile_rules::types::CompileRequest;
 use ryo_execution::inbound::use_cases::execution::interface::Counting;
+use ryo_execution_runtime::outbound::observer::factory::counting;
+use ryo_execution_runtime::outbound::observer::interface::ExecutionObserver;
 use ryo_execution::inbound::use_cases::execution::interface::PreparedReporting as _;
 use ryo_execution::inbound::use_cases::execution::interface::ReplayClosure;
 use ryo_execution::inbound::use_cases::metadata::interface::{MetadataUseCase as _, Needs};
@@ -263,8 +265,24 @@ impl LintUseCase for LintUseCaseImpl {
                 })
                 .map_err(|error| request_failed(&error))?,
         );
-        let services = execution.begin(&program, &listing.files);
         let metadata = program.metadata();
+        let counted = match self.counting {
+            Counting::Counts => Some(Arc::new(counting(
+                &metadata
+                    .iter()
+                    .map(|rule| rule.steps.len())
+                    .collect::<Vec<_>>(),
+            ))),
+            Counting::DoesNotCount => None,
+        };
+        let services = execution.begin(
+            &program,
+            &listing.files,
+            counted.clone().map(|counted| {
+                let observer: Arc<dyn ExecutionObserver> = counted;
+                observer
+            }),
+        );
         let mut setting = RequestVisitSetting {
             program: Arc::clone(&program),
             source_language: named_provider(&request.source_language),
@@ -368,7 +386,7 @@ impl LintUseCase for LintUseCaseImpl {
             ports,
             self.rows.as_ref(),
             self.store.keeps(),
-            self.counting,
+            counted.as_deref(),
             &run,
             &visit,
             &mut project,

@@ -93,7 +93,6 @@ impl CrossFile {
             .zip(run.todo)
             .map(|(result, todo)| ProjectOutcome {
                 result: result.map_err(|stop| stopped(todo, stop)),
-                todo: todo.clone(),
             })
             .collect();
         // Every scope and outcome of the phase is released above, so the phase owns its publication alone again.

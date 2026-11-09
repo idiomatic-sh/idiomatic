@@ -41,6 +41,7 @@ pub use ryo_execution_runtime::application::file_dag::program::rule_outcome::typ
 pub use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome;
 pub use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
 pub use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RuleOutcome;
+use ryo_execution_runtime::outbound::observer::interface::ExecutionObserver;
 // Canonical inbound signature vocabulary from private pure concepts.
 pub use ryo_execution_domain::domain::coverage::types::Covered;
 pub use ryo_execution_domain::domain::coverage::types::FileObservationReadiness;
@@ -55,7 +56,6 @@ pub use ryo_execution_domain::domain::finish::types::Arena;
 pub use ryo_execution_domain::domain::operating::errors::OperatingError;
 pub use ryo_execution_domain::domain::operating::types::SemanticLookup;
 pub use ryo_execution_domain::domain::operator::types::Counting;
-pub use ryo_execution_domain::domain::operator::types::RowsFed;
 pub use ryo_execution_domain::domain::rule_intent::errors::RuleIntentError;
 pub use ryo_execution_domain::domain::rule_intent::types::ApplicabilityReason;
 pub use ryo_execution_domain::domain::rule_intent::types::CaptureIntent;
@@ -66,10 +66,12 @@ pub use ryo_execution_domain::domain::trust::types::RelationRead;
 
 /// What `execution` offers its callers.
 pub trait ExecutionUseCase {
-    /// Begins a request execution over a prepared program and the corpus it runs on.
+    /// Begins a request execution over a prepared program and the corpus it runs on, telling `observer` of the engine's work
+    /// when the caller asks for it.
     fn execution(
         &self,
         program: &PreparedExecutionProgram,
         corpus: &[CorpusInput],
+        observer: Option<std::sync::Arc<dyn ExecutionObserver>>,
     ) -> RequestExecution;
 }

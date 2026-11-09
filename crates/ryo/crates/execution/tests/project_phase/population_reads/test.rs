@@ -14,7 +14,7 @@ fn two_declared_roots_of_one_population_read_the_provider_once() {
         let engine = engine();
         let prepared = mixed_program(&engine, relation);
         let corpus = corpus();
-        let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
+        let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
         let table = source();
         let file_reads = Cell::new(0);
         let read = |actual| {

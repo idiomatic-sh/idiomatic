@@ -84,8 +84,8 @@ impl FileAnalysis {
             if let EmittedRoot::Delivered(outcome) = emit {
                 Self::delivered(tables, visit, file, semantic, rule, outcome)?;
             }
-            let (captures, fed) = match after {
-                RuleAfter::Ran { captures, fed } => (captures, fed),
+            let captures = match after {
+                RuleAfter::Ran { captures } => captures,
                 RuleAfter::Stopped(stop) => return Err(stopped(stop)),
                 RuleAfter::Unreached => return Err(OperatingError::NotRun.into()),
             };
@@ -117,15 +117,6 @@ impl FileAnalysis {
                                 capture.words,
                             ),
                         });
-                }
-            }
-            let counted = tables.fed.get_mut(rule.0).ok_or(OperatingError::NotRun)?;
-            if counted.len() != fed.len() {
-                return Err(OperatingError::ShapeMismatch.into());
-            }
-            for (total, current) in counted.iter_mut().zip(fed.iter()) {
-                for (total, current) in total.0.iter_mut().zip(current.0) {
-                    *total += current;
                 }
             }
         }
