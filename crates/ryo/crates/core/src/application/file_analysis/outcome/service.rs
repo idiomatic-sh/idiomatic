@@ -102,7 +102,9 @@ impl FileAnalysis {
                 digest
             })
             .collect();
-        let noted = self.digest.digest(DigestBytes(&interface_bytes(tables).0));
+        let noted = self
+            .digest
+            .digest(DigestBytes(&interface_bytes(tables, number).0));
         let mut shown = vec![noted];
         shown.extend(frontier.iter().copied());
         let mut ran = made_ran(tables, number, self.digest.combine(&shown), moved, base);

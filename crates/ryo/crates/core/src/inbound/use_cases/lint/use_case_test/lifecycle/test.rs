@@ -102,6 +102,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value((1, 0)),
     },
     Case {
+        name: CaseName("a_reused_file_read_in_part_keeps_its_part_when_a_file_is_listed_before_it"),
+        word: Word::Succeeds,
+        input: || Scenario::PartialOfAReusedFileAfterAFileIsListedBeforeIt,
+        expect: Expect::Value((1, 0)),
+    },
+    Case {
         name: CaseName("interleaved_runs_naming_different_rules_compile_each_rule_once"),
         word: Word::Succeeds,
         input: || Scenario::InterleavedRuns,

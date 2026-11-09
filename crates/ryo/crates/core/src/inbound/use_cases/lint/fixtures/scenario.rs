@@ -20,6 +20,7 @@ use super::lookups::compiles_per_session;
 use super::lookups::consulted;
 use super::lookups::edited_beside_an_excluded_file;
 use super::lookups::interleaved_runs;
+use super::lookups::partial_of_a_reused_file_after_a_file_is_listed_before_it;
 use super::lookups::unreadable_again;
 use super::skips::a_syntax_rejected_file_is_skipped_with_its_reason_and_never_undecided_or_complete;
 use super::skips::a_syntax_skipped_file_does_not_poison_unrelated_partitions_cold_or_warm;
@@ -72,6 +73,8 @@ pub(crate) enum Scenario {
     /// Edits a source listed after a file the rules' scope excludes: the edit run answers what a cold run answers, and no row names the
     /// excluded file.
     EditedBesideAnExcludedFile,
+    /// Lists a file before one used again whose relation is read in part: the part stays that file's, as a cold run keeps it.
+    PartialOfAReusedFileAfterAFileIsListedBeforeIt,
     /// Two runs naming different rules, one after the other twice over plans one session shares, as concurrent `tm validate` calls do.
     InterleavedRuns,
     /// Lints with the host's relation, counting how many times the language was asked to read the manifests.
@@ -203,6 +206,9 @@ pub(crate) fn scenario(scenario: Scenario) -> Result<(usize, usize), LintError> 
         Scenario::ChangedFragmentPlan => changed_fragment_plan(),
         Scenario::ChangedNestedModule => changed_nested_module(),
         Scenario::EditedBesideAnExcludedFile => edited_beside_an_excluded_file(),
+        Scenario::PartialOfAReusedFileAfterAFileIsListedBeforeIt => {
+            partial_of_a_reused_file_after_a_file_is_listed_before_it()
+        }
         Scenario::InterleavedRuns => interleaved_runs(),
         Scenario::ManyRuns => many_runs(),
         Scenario::CompilesPerRule => {
