@@ -24,7 +24,7 @@ pub enum MarkSpace<'a> {
 
 /// What a membership build retains.
 #[derive(Debug)]
-pub enum DerivedMembership {
+pub(crate) enum DerivedMembership {
     /// The member values.
     Values(hashbrown::HashSet<Value>),
     /// Shared marks over a dense element space.

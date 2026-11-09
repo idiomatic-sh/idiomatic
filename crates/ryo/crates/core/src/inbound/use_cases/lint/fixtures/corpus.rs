@@ -46,14 +46,14 @@ pub struct Corpus {
     /// The language that reads the inputs.
     pub language: Arc<dyn LanguagePort>,
     /// The input of each relation item, by the item's name.
-    pub inputs: CorpusInputs,
+    pub(crate) inputs: CorpusInputs,
     /// The query and the glob of the files it governs, by the rule's id, `relation:<name>` or `operator:<name>`: a relation's rule
     /// governs its own input, an operator's the input of the `function` relation, which the operators are run over.
     pub rules: BTreeMap<String, (String, String)>,
     /// The rows each rule gives over its files, one copy of each, by the rule's id.
     pub expected: Stated,
     /// How the files of the language end, without the dot.
-    pub extension: Extension,
+    pub(crate) extension: Extension,
 }
 
 impl std::fmt::Debug for Corpus {

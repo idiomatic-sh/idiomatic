@@ -1,7 +1,7 @@
 //! The `rule_requests` service's cases, on values alone.
 
 use super::errors::RuleRequestsError;
-use super::service::{bind, check_ids, failed, observation_incomplete, semantic_incomplete};
+use super::service::{bind, check_ids, failed};
 use super::types::{Given, RuleParameters, RuleSpec};
 use crate::cases::{Case, CaseName, Expect, Selection, Word, run};
 use crate::domain::files::types::Glob;
@@ -23,8 +23,6 @@ enum Scenario {
     Bound,
     Unbound,
     Failed,
-    ObservationIncomplete,
-    SemanticIncomplete,
 }
 
 /// What a row of the cases does with the rules of a run.
@@ -131,16 +129,12 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             [i64::try_from(bound.len()).unwrap_or(i64::MAX), 0, 0]
         }
         Scenario::Failed => return Err(failed(&id, &"boom")),
-        Scenario::ObservationIncomplete => return Err(observation_incomplete(&id, &"not ready")),
-        Scenario::SemanticIncomplete => return Err(semantic_incomplete(&id, &"no answer")),
     })
 }
 
 fn matches_id_and_reason(error: &RuleRequestsError, want: &str) -> bool {
     match error {
-        RuleRequestsError::Failed { id, reason }
-        | RuleRequestsError::ObservationIncomplete { id, reason }
-        | RuleRequestsError::SemanticIncomplete { id, reason } => &*id.0 == "a" && reason == want,
+        RuleRequestsError::Failed { id, reason } => &*id.0 == "a" && reason == want,
         RuleRequestsError::BlankRuleId
         | RuleRequestsError::DuplicateRuleId { .. }
         | RuleRequestsError::MissingParameter { .. } => false,
@@ -197,34 +191,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Refusal(|error| {
             if matches!(error, RuleRequestsError::Failed { .. })
                 && matches_id_and_reason(error, "boom")
-            {
-                Selection::Matches
-            } else {
-                Selection::Differs
-            }
-        }),
-    },
-    Case {
-        name: CaseName("an_unavailable_observation_fails_the_consuming_rule_with_the_reason"),
-        word: Word::Fails,
-        input: || Scenario::ObservationIncomplete,
-        expect: Expect::Refusal(|error| {
-            if matches!(error, RuleRequestsError::ObservationIncomplete { .. })
-                && matches_id_and_reason(error, "not ready")
-            {
-                Selection::Matches
-            } else {
-                Selection::Differs
-            }
-        }),
-    },
-    Case {
-        name: CaseName("an_unsupplied_semantic_answer_fails_the_consuming_rule_with_the_reason"),
-        word: Word::Fails,
-        input: || Scenario::SemanticIncomplete,
-        expect: Expect::Refusal(|error| {
-            if matches!(error, RuleRequestsError::SemanticIncomplete { .. })
-                && matches_id_and_reason(error, "no answer")
             {
                 Selection::Matches
             } else {

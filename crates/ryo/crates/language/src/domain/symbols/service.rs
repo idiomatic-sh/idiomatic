@@ -155,20 +155,10 @@ fn find_or_add(
     find_or_add_hashed(symbols, source, text, hash_of(text), storage, add)
 }
 
-/// Finds an already-interned file or derived symbol by hash and exact bytes, without adding a name.
-/// Closed-set terms are not in this index; callers comparing by text must check their aliases too.
+/// Finds an already-interned file or derived symbol by hash and exact bytes, without adding a name: the read-only lookup
+/// behind interning. Closed-set terms are not in this index; callers comparing by text must check their aliases too.
 #[must_use]
-pub fn find_hashed(
-    symbols: &Symbols,
-    source: ByteSlice<'_>,
-    text: ByteSlice<'_>,
-    hash: TextHash,
-) -> Option<Symbol> {
-    find_hashed_in(symbols.as_ref(), source, text, hash)
-}
-
-/// The shared read-only lookup behind `find_hashed` and interning.
-fn find_hashed_in(
+pub(crate) fn find_hashed_in(
     symbols: &SymbolsEngine,
     source: ByteSlice<'_>,
     text: ByteSlice<'_>,

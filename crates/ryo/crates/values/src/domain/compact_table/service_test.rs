@@ -50,10 +50,7 @@ pub(super) fn packed(frames: &[Table]) -> Arc<KeptWords> {
 pub(super) fn same(actual: &types::CompactTable, expected: &Table) {
     assert_eq!(compact::compact_kinds(actual), expected.kinds);
     assert_eq!(compact::compact_rows(actual), expected.count);
-    assert_eq!(
-        compact::compact_cells(actual),
-        CellCount(expected.cells.len())
-    );
+    assert_eq!(actual.cells, CellCount(expected.cells.len()));
     let width = expected.kinds.len();
     let mut scratch = vec![Cell::Number(Integer(0)); width];
     for row in 0..expected.count.0 {
@@ -89,7 +86,7 @@ pub(super) fn differential(input: Arc<KeptWords>, mode: DecodeMode) {
     if let (Ok(old), Ok(Admitted { table: meta, .. })) = (old, new) {
         assert_eq!(compact::compact_kinds(&meta), old.kinds);
         assert_eq!(compact::compact_rows(&meta), old.count);
-        assert_eq!(compact::compact_cells(&meta), CellCount(old.cells.len()));
+        assert_eq!(meta.cells, CellCount(old.cells.len()));
         same(&meta, &old);
         let expected_rectangular = old
             .count
@@ -143,7 +140,7 @@ fn multiple_frames_repeated_columns_and_name_rebase_match_production_decoder() {
     )
     .unwrap();
     assert_eq!(compact::compact_rows(&meta), RowCount(4));
-    assert_eq!(compact::compact_cells(&meta), CellCount(12));
+    assert_eq!(meta.cells, CellCount(12));
     assert_eq!(
         compact::compact_rectangular(&meta),
         crate::domain::table_words::types::TableShape::Rectangular
@@ -206,9 +203,7 @@ fn declared_cell_overflow_does_not_admit_current_frame_names() {
 }
 fn empty_bucket_schema_is_metadata_not_unloaded_rows() {
     let mut places = vec![];
-    let Admitted {
-        table: mut meta, ..
-    } = compact::admit_compact(
+    let Admitted { table: meta, .. } = compact::admit_compact(
         crate::domain::table_words::types::CompactBacking(Arc::new(KeptWords(
             PackedWords::default(),
         ))),
@@ -216,10 +211,9 @@ fn empty_bucket_schema_is_metadata_not_unloaded_rows() {
         DecodeMode::Complete,
     )
     .unwrap();
-    compact::shape_compact(&mut meta, &[CellKind::Number]).unwrap();
     assert_eq!(compact::compact_rows(&meta), RowCount(0));
-    assert_eq!(compact::compact_cells(&meta), CellCount(0));
-    assert_eq!(compact::compact_kinds(&meta), &[CellKind::Number]);
+    assert_eq!(meta.cells, CellCount(0));
+    assert!(compact::compact_kinds(&meta).is_empty());
     assert!(compact::compact_read(&meta, RowIndex(0), &mut [Cell::Number(Integer(0))]).is_none());
 }
 type Input = fn() -> Result<(), Failure>;

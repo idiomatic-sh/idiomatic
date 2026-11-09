@@ -20,7 +20,6 @@ use crate::domain::terms::types::ChildOrdinal;
 use crate::domain::terms::types::NameText;
 use crate::domain::terms::types::Symbol;
 use crate::domain::value_kind::types::ValueKind;
-use strum::IntoEnumIterator;
 
 /// The first number of a block.
 const fn start_of(block: WordBlock) -> Symbol {
@@ -70,26 +69,6 @@ where
     T: Term,
 {
     Symbol(start_of(T::BLOCK).0 + term.number().0)
-}
-
-/// Visit every closed-set symbol that spells `text`. Several vocabularies may
-/// give different IDs to the same word, so callers must not assume one hit.
-pub fn symbols_with_text(text: NameText<'_>, mut visit: impl FnMut(Symbol)) {
-    macro_rules! visit_set {
-        ($kind:ty) => {
-            for term in <$kind>::iter() {
-                if term.text() == text {
-                    visit(term_symbol(term));
-                }
-            }
-        };
-    }
-    visit_set!(DeclarationKind);
-    visit_set!(ParameterKind);
-    visit_set!(ValueKind);
-    visit_set!(MappingKind);
-    visit_set!(DependencyKind);
-    visit_set!(DependencyOrigin);
 }
 
 /// The value a column holds when the language cannot resolve it statically, with the reason it declares for that: the same in every file.

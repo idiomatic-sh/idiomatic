@@ -14,7 +14,7 @@ pub enum Parent {
 
 /// Where the next element goes: its parent and its place among the parent's children.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct ElementPlacement {
+pub(crate) struct ElementPlacement {
     /// The parent.
     pub parent: Parent,
     /// The element's place among its parent's children.

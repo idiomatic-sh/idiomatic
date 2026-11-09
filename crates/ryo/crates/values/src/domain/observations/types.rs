@@ -115,7 +115,7 @@ pub enum ObservationOutputLayout {
 
 /// What one slot of a readiness bit set holds.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ReadinessBit {
+pub(crate) enum ReadinessBit {
     /// The slot is marked.
     Set,
     /// The slot is not marked.
@@ -124,4 +124,4 @@ pub enum ReadinessBit {
 
 /// Text bytes written into an identity, length first.
 #[derive(Clone, Copy, Debug)]
-pub struct ObservationText<'a>(pub &'a [u8]);
+pub(crate) struct ObservationText<'a>(pub &'a [u8]);

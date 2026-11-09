@@ -18,22 +18,22 @@ pub fn kind_name(kind: CellKind) -> &'static str {
 }
 
 /// The name of the `package-dependency` relation, whose kinds and origins the terms name their words by.
-pub const PACKAGE_DEPENDENCY: &str = crate::domain::terms::constants::DEPENDENCY_OWNER.0;
+pub(crate) const PACKAGE_DEPENDENCY: &str = crate::domain::terms::constants::DEPENDENCY_OWNER.0;
 
 /// The name of the column of a relation that says what kind of thing a row is, when it has one.
 pub const KIND: &str = "kind";
 
 /// A column of every relation that has it, named the same in each: The node a row is about, where it occurs.
-pub const OCCURRENCE: &str = "occurrence";
+pub(crate) const OCCURRENCE: &str = "occurrence";
 
 /// A column of every relation that has it, named the same in each: What a row points at.
 pub const TARGET: &str = "target";
 
 /// A column of every relation that has it, named the same in each: Where a row stands among its siblings, from zero.
-pub const ORDINAL: &str = "ordinal";
+pub(crate) const ORDINAL: &str = "ordinal";
 
 /// A column of every relation that has it, named the same in each: The name a row binds.
-pub const BINDING: &str = "binding";
+pub(crate) const BINDING: &str = "binding";
 
 /// A column of every relation that has it, named the same in each: The package a row names.
 pub const PACKAGE: &str = "package";
@@ -42,7 +42,7 @@ pub const PACKAGE: &str = "package";
 pub const SOURCE: &str = "source";
 
 /// A column of every relation that has it, named the same in each: The declaration a row is about.
-pub const DECLARATION: &str = "declaration";
+pub(crate) const DECLARATION: &str = "declaration";
 
 /// A column of every relation that has it, named the same in each: The node that holds a row's node.
 pub const PARENT: &str = "parent";
@@ -54,22 +54,22 @@ pub const REFERENCE: &str = "reference";
 pub const CONTEXT: &str = "context";
 
 /// A column of every relation that has it, named the same in each: The major version a row holds since.
-pub const SINCE_MAJOR: &str = "since-major";
+pub(crate) const SINCE_MAJOR: &str = "since-major";
 
 /// A column of every relation that has it, named the same in each: The minor version a row holds since.
-pub const SINCE_MINOR: &str = "since-minor";
+pub(crate) const SINCE_MINOR: &str = "since-minor";
 
 /// A column of every relation that has it, named the same in each: How a parse or evaluation ended.
-pub const OUTCOME: &str = "outcome";
+pub(crate) const OUTCOME: &str = "outcome";
 
 /// A column of every relation that has it, named the same in each: The category of the error an outcome names.
-pub const ERROR_CATEGORY: &str = "error-category";
+pub(crate) const ERROR_CATEGORY: &str = "error-category";
 
 /// A column of every relation that has it, named the same in each: The dialect a text was read in.
-pub const DIALECT: &str = "dialect";
+pub(crate) const DIALECT: &str = "dialect";
 
 /// A column of every relation that has it, named the same in each: The conversion a format field applies.
-pub const CONVERSION: &str = "conversion";
+pub(crate) const CONVERSION: &str = "conversion";
 
 /// A column of every relation that has it, named the same in each: The name of the number kind of a column.
 pub const NUMBER: &str = "number";
@@ -116,7 +116,7 @@ pub const BOOLEAN: &str = "boolean";
 /// A column of every relation of a data document's values, named the same in each (`entry`, `sequence-element`): the value decoded
 /// as a whole number when it is an integer (`0x1F` is 31, `1_000` is 1000); zero for a value of every other kind, which `kind` tells
 /// apart, and for an integer the engine's numbers cannot hold, whose `text` keeps it.
-pub const INTEGER: &str = "integer";
+pub(crate) const INTEGER: &str = "integer";
 
 /// A column of every relation of a data document's values, named the same in each (`entry`, `sequence-element`): the value decoded
 /// as a number when it is a float, written in the shortest decimal form that reads back as the same number (`1e3` is `1000.0`,
@@ -127,15 +127,15 @@ pub const FLOAT: &str = "float";
 /// A column of every relation of a data document's values, named the same in each (`entry`, `sequence-element`): the value decoded
 /// when it is a date, a time or both, written as RFC 3339 writes it (`1979-05-27 07:32:00Z` is `1979-05-27T07:32:00Z`), a local
 /// date, time or date-time without the parts it leaves out; empty for a value of every other kind, which `kind` tells apart.
-pub const DATETIME: &str = "datetime";
+pub(crate) const DATETIME: &str = "datetime";
 
 /// A column of every relation of a data document's values, named the same in each (`entry`, `sequence-element`): the base an
 /// integer is written in, 16 for `0xFF`, 8 for `0o17`, 2 for `0b101` and 10 for a decimal; zero for a value of every other kind.
-pub const RADIX: &str = "radix";
+pub(crate) const RADIX: &str = "radix";
 
 /// A column of `package-dependency`: the branch of a git repository the dependency follows, as the manifest writes it (Cargo's,
 /// Poetry's and uv's `branch`); empty when it names none.
-pub const BRANCH: &str = "branch";
+pub(crate) const BRANCH: &str = "branch";
 
 /// A column of `package-dependency`: the tag of a git repository the dependency is taken at, as the manifest writes it (Cargo's,
 /// Poetry's and uv's `tag`); empty when it names none.
@@ -144,7 +144,7 @@ pub const TAG: &str = "tag";
 /// A column of `package-dependency`: a revision of a git repository the dependency is taken at, named without saying whether it
 /// is a branch, a tag or a commit, as the manifest writes it (Cargo's, Poetry's and uv's `rev`, Pipenv's `ref`, the `@` of a PEP
 /// 508 git URL, the `#` of a package.json git spec); empty when it names none.
-pub const REVISION: &str = "revision";
+pub(crate) const REVISION: &str = "revision";
 
 /// A column of `package-dependency`: the versions of the language's interpreter the dependency applies under, as the manifest
 /// writes them on the dependency itself, as a requirement on the interpreter; empty when it writes none. A platform expression is the
@@ -184,7 +184,8 @@ pub const IMPLIED: Flags = Flags(2);
 pub const UNLOCATED: &str = "unlocated";
 
 /// The closed set of optional semantic promises; every other relation is baseline.
-pub const OPTIONAL_CAPABILITIES: &[crate::domain::capabilities::types::OptionalCapability] = &[
+pub(crate) const OPTIONAL_CAPABILITIES:
+    &[crate::domain::capabilities::types::OptionalCapability] = &[
     crate::domain::capabilities::types::OptionalCapability::ModuleIdentity,
     crate::domain::capabilities::types::OptionalCapability::ProjectNamespaceMembership,
     crate::domain::capabilities::types::OptionalCapability::Identifier,

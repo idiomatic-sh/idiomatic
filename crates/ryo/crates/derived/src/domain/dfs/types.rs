@@ -18,7 +18,7 @@ pub struct EdgeRun {
 
 /// The columns an ordered DFS lookup reads from its roots and its edges.
 #[derive(Clone, Copy, Debug)]
-pub struct DfsColumns<'a> {
+pub(crate) struct DfsColumns<'a> {
     /// The root column.
     pub root: ColumnIndex,
     /// The root key columns.

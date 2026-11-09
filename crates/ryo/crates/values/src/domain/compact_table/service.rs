@@ -156,23 +156,6 @@ pub fn compact_kinds(input: &CompactTable) -> &[ryo_relations::domain::relations
 pub fn compact_rows(input: &CompactTable) -> RowCount {
     input.rows
 }
-pub fn compact_cells(input: &CompactTable) -> CellCount {
-    input.cells
-}
-
-/// Only an actually empty admitted source may receive its declared schema.
-pub fn shape_compact(
-    input: &mut CompactTable,
-    kinds: &[ryo_relations::domain::relations::types::CellKind],
-) -> Result<(), crate::domain::table_words::errors::TableWordsError> {
-    if input.kinds.is_empty() {
-        if input.cells.0 != 0 {
-            return Err(crate::domain::table_words::errors::TableWordsError::Incomplete);
-        }
-        input.kinds.extend_from_slice(kinds);
-    }
-    Ok(())
-}
 
 /// Read one admitted physical row without allocating a whole decoded population.
 /// Permissive decoding historically concatenates self-tagged cells even across

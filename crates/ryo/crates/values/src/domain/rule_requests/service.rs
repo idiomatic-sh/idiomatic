@@ -58,21 +58,3 @@ pub fn failed(id: &RuleId, reason: &dyn std::fmt::Display) -> RuleRequestsError 
         reason: reason.to_string(),
     }
 }
-
-/// That a bound producer's observation is unavailable in this generation, for the rule that consumes it.
-#[must_use]
-pub fn observation_incomplete(id: &RuleId, reason: &dyn std::fmt::Display) -> RuleRequestsError {
-    RuleRequestsError::ObservationIncomplete {
-        id: id.clone(),
-        reason: reason.to_string(),
-    }
-}
-
-/// That the provider cannot supply the semantic answer the rule asked for, for the consuming rule.
-#[must_use]
-pub fn semantic_incomplete(id: &RuleId, reason: &dyn std::fmt::Display) -> RuleRequestsError {
-    RuleRequestsError::SemanticIncomplete {
-        id: id.clone(),
-        reason: reason.to_string(),
-    }
-}
