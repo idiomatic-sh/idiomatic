@@ -12,7 +12,8 @@ The public surface, for comparison.
 
 | importing crate | execution concept | imports |
 |---|---|---|
-| core | execution:inbound/use_cases/execution | 102 |
-| core | execution:inbound/use_cases/metadata | 99 |
-| core | execution:inbound/use_cases/prepare | 18 |
+| core | execution:inbound/use_cases/compile_rules | 9 |
+| core | execution:inbound/use_cases/execution | 99 |
+| core | execution:inbound/use_cases/metadata | 107 |
+| core | execution:inbound/use_cases/prepare | 8 |
 | core | execution:inbound/use_cases/publication | 4 |

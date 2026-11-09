@@ -4,7 +4,7 @@ One row per concept directory (a directory holding service.rs, types.rs, interfa
 
 | layer | concept | production lines | files | marker files |
 |---|---|---|---|---|
-| domain | answers | 58 | 3 | service, types |
+| domain | answers | 60 | 3 | service, types |
 | domain | capabilities | 66 | 1 | types |
 | domain | catalog | 150 | 1 | service |
 | domain | declaration_kind | 67 | 1 | types |
@@ -15,9 +15,9 @@ One row per concept directory (a directory holding service.rs, types.rs, interfa
 | domain | labels | 61 | 1 | types |
 | domain | mapping_kind | 31 | 1 | types |
 | domain | parameter_kind | 35 | 1 | types |
-| domain | relations | 1081 | 5 | service, types |
+| domain | relations | 1089 | 5 | service, types |
 | domain | relations/collections/relations | 5663 | 208 | interface |
-| domain | terms | 283 | 3 | service, types |
+| domain | terms | 262 | 3 | service, types |
 | domain | value_kind | 41 | 1 | types |
 
 Production lines in directories with no concept ancestor:

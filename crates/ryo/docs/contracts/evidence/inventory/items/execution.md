@@ -5,7 +5,8 @@ One row per concept: every struct, enum, trait, function and type alias written 
 | concept | items | items defined |
 |---|---|---|
 | application/publication | 3 | pub enum PublicationError; pub function publication; pub struct PublicationInput |
-| application/rule_compilation | 13 | pub enum RuleCompilationError; pub(super) function compiled; pub(crate) function observed; pub(crate) function with_producers; pub(crate) struct CachedPlan; pub struct CompiledPlans; pub struct CompiledQueries; pub(crate) struct PlanCache; pub struct PreparedRuleIdentities; pub struct QueryCompilation; pub(crate) struct RuleCompilation; pub trait ExecutionCompilation; pub trait PreparedQueries |
+| application/rule_compilation | 11 | pub enum RuleCompilationError; pub(super) function compiled; pub(crate) function named; pub(crate) function observed; pub(crate) function with_producers; pub(crate) struct CachedPlan; pub struct CompiledPlans; pub struct CompiledRules; pub(crate) struct PlanCache; pub struct PreparedRuleIdentities; pub(crate) struct RuleCompilation |
+| inbound/use_cases/compile_rules | 3 | pub struct CompileRequest; pub struct CompileRulesUseCaseImpl; pub trait CompileRulesUseCase |
 | inbound/use_cases/execution | 2 | pub struct ExecutionUseCaseImpl; pub trait ExecutionUseCase |
 | inbound/use_cases/metadata | 5 | pub struct AffectedFiles; pub struct CoverageFileCount; pub struct FileOrdinals; pub struct MetadataUseCaseImpl; pub trait MetadataUseCase |
 | inbound/use_cases/prepare | 4 | pub enum PlanSource; pub struct PrepareRequest; pub struct PrepareUseCaseImpl; pub trait PrepareUseCase |

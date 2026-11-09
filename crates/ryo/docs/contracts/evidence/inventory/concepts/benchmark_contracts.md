@@ -6,11 +6,11 @@ One row per concept directory (a directory holding service.rs, types.rs, interfa
 |---|---|---|---|---|
 | domain | artifacts | 138 | 7 | types |
 | domain | context | 233 | 6 | types |
-| domain | documents | 855 | 13 | types |
-| domain | measurements | 173 | 1 | types |
+| domain | documents | 857 | 13 | types |
+| domain | measurements | 177 | 2 | types |
 | domain | process | 72 | 1 | types |
 | domain | receipts | 84 | 2 | types |
-| domain | reports | 236 | 4 | service, types |
+| domain | reports | 381 | 4 | service, types |
 | domain | requests | 364 | 4 | types |
 | domain | workloads | 818 | 27 | types |
 

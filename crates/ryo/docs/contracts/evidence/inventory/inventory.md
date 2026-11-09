@@ -47,7 +47,7 @@ Kinds come from RyoQL rows; the two macro-declared lists are read by grep. An im
 
 ### Operator kinds (OperationKind, grep: macro list)
 
-26 kinds, 11 with more than one implementation.
+26 kinds, 10 with more than one implementation.
 
 | kind | implementations | locations | port |
 |---|---|---|---|
@@ -57,7 +57,6 @@ Kinds come from RyoQL rows; the two macro-declared lists are read by grep. An im
 | Select | 3 | execution_domain:domain/completion; execution_domain:domain/operation_schema; operators:domain/select | direct |
 | Axis | 2 | execution_domain:domain/operation_schema; execution_runtime:application/file_dag | direct |
 | Capture | 2 | execution_domain:domain/operator/contract; execution_store:application/file_dag/route_counts | RowDriver, TextRowsEvaluation |
-| Hosted | 2 | execution_domain:domain/lineage; operators:domain/evaluation | direct |
 | Join | 2 | execution_domain:domain/operation_schema; operators:domain/equality_join | direct |
 | SourceMatches | 2 | execution_domain:domain/describing; execution_domain:domain/operation_schema | direct |
 | SpanBounds | 2 | execution_domain:domain/describing; execution_domain:domain/operation_schema | direct |
@@ -65,6 +64,7 @@ Kinds come from RyoQL rows; the two macro-declared lists are read by grep. An im
 | Closure | 1 | operators:domain/equality_join | direct |
 | Cycles | 1 | operators:domain/cycles | direct |
 | FitsRendered | 1 | execution_domain:domain/describing | direct |
+| Hosted | 1 | operators:domain/evaluation | direct |
 | OrderedDfs | 1 | execution_domain:domain/describing | direct |
 | OrderedMatch | 1 | execution_domain:domain/describing | direct |
 | Rank | 1 | operators:domain/rank | direct |
@@ -96,12 +96,12 @@ Kinds come from RyoQL rows; the two macro-declared lists are read by grep. An im
 
 ### Relation members (relations catalog, RyoQL: member directories)
 
-69 kinds, 1 with more than one implementation.
+69 kinds, 2 with more than one implementation.
 
 | kind | implementations | locations | port |
 |---|---|---|---|
 | Function | 2 | core:inbound/use_cases/lint; execution_runtime:application/file_dag/program/facade_runtime | RowSink |
-| Scope | 1 | execution_store:application/file_dag/route_counts | direct |
+| Scope | 2 | execution_domain:domain/operator/contract; execution_store:application/file_dag/route_counts | direct |
 | SemanticChild | 1 | language:domain/answers | direct |
 | SemanticSyntax | 1 | language:domain/answers | direct |
 
@@ -154,7 +154,6 @@ Free functions whose name starts with decode, finish, render, fits, gate, escape
 ### Kinds with more than one implementation and no port
 
 - Operator kinds: `Axis` (2 implementations)
-- Operator kinds: `Hosted` (2 implementations)
 - Operator kinds: `Join` (2 implementations)
 - Operator kinds: `Project` (5 implementations)
 - Operator kinds: `Replace` (3 implementations)
@@ -162,8 +161,9 @@ Free functions whose name starts with decode, finish, render, fits, gate, escape
 - Operator kinds: `SourceMatches` (2 implementations)
 - Operator kinds: `SpanBounds` (2 implementations)
 - Operator kinds: `Union` (2 implementations)
+- Relation members: `Scope` (2 implementations)
 - Walk and build routes: `Observation` (3 implementations)
 
-Ports found (workspace traits with two or more impls): `AxisEvaluation` (2), `CaptureOutput` (2), `ClosureEvaluation` (2), `ComparisonsItem` (7), `CorpusPort` (2), `CyclesEvaluation` (2), `DfsEvaluation` (2), `Emit` (4), `Encode` (18), `ExecutionCompilation` (2), `ExecutionPort` (3), `FactsFinish` (4), `FactsPort` (2), `FactsWorker` (2), `JoinEvaluation` (2), `LintStorePort` (3), `MatchingPort` (2), `OrderedMatchEvaluation` (2), `PrepareUseCase` (2), `ProgressObserver` (2), `ProjectRootExecution` (3), `ReadItem` (3), `ReadStore` (3), `RenderedOutput` (2), `RepresentationsItem` (4), `RowCells` (3), `RowDriver` (8), `RowSink` (2), `SchedulerPort` (2), `Sealed` (70), `SetRowsEvaluation` (2), `Syntax` (4), `TableRowOutput` (2), `TextRowsEvaluation` (2), `ValueTexts` (3), `Visiting` (3), `WordOutput` (2).
+Ports found (workspace traits with two or more impls): `AxisEvaluation` (2), `CaptureOutput` (2), `ClosureEvaluation` (2), `ComparisonsItem` (7), `CompileRulesUseCase` (2), `CorpusPort` (2), `CyclesEvaluation` (2), `DfsEvaluation` (2), `Emit` (4), `Encode` (18), `ExecutionPort` (3), `FactsFinish` (4), `FactsPort` (2), `FactsWorker` (2), `JoinEvaluation` (2), `LintStorePort` (3), `MatchingPort` (2), `OrderedMatchEvaluation` (2), `PrepareUseCase` (2), `ProgressObserver` (2), `ProjectRootExecution` (3), `ReadItem` (3), `ReadStore` (3), `RenderedOutput` (2), `RepresentationsItem` (4), `RowCells` (3), `RowDriver` (8), `RowSink` (2), `SchedulerPort` (2), `Sealed` (72), `SetRowsEvaluation` (2), `Syntax` (4), `TableRowOutput` (2), `TextRowsEvaluation` (2), `ValueTexts` (3), `Visiting` (3), `WordOutput` (2).
 
 <!-- implementations:end -->
