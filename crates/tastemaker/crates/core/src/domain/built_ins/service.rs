@@ -142,6 +142,7 @@ pub fn imports(plan: &mut Plan, workspace: &LoadedWorkspace, placement: &Placeme
         Relation::Names,
         Relation::Packages,
         Relation::Owners,
+        Relation::Scopes,
     ] {
         let id = LintRuleId(
             format!("{}-{relation:?}", crate::domain::imports::constants::RULE)

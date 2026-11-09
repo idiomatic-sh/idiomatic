@@ -102,6 +102,7 @@ fn rows() -> ImportRows {
             path: path("src/a.txt"),
             package: path("Cargo.toml"),
         }],
+        scopes: Vec::new(),
     }
 }
 
