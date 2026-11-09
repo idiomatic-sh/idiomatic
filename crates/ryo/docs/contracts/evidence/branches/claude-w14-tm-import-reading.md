@@ -1,71 +1,58 @@
-# Leak review: claude/w14-tm-import-reading (re-review)
+# Leak review: claude/w14-tm-import-reading (re-review 2)
 
-Source `f1c9e1c968d443ca0334182c40eacd0eb96a9d8d`, base `f67311c99057245e20ae4ed0da490bf4ee39e885`. The previous review, of `e196dbe503`, was FAIL: 2, 3.
-
-## The fix
-`import_rows/service.rs` `in_scope` (`:144-169`) drops a use-site path only when two conditions hold:
-- the innermost block (`stmt-list`) or inline module (`item-list`) holding the binding `use` also holds the path;
-- no inline module lies between them.
-
-The scope rows are read from `syntax-tree`.
-
-## Check 1 Proof where the contract lives: PASS
-The proofs are the core unit cases plus three new spec scenarios (`spec.toml:350, :396, :442`), one per plant.
+Source `96b5545cb86ce05ed792810006665bd024c03a4f`, base `f67311c99057245e20ae4ed0da490bf4ee39e885`. The previous review, of `f1c9e1c968`, was PASS. This one covers `db77cdd326` and `96b5545cb8`, the responses to the Rust gate items F5, F6, F8, C1, C2 and C3.
 
 ## Check 2 Every enforcement claim fires: PASS
 
-**Plants re-run** with `tm012b` on a full archive of `f1c9e1c968`:
+### The narrowed scopes query, run for real
+I used `tm012c`, which carries the new query (checked in the binary), on a full archive of `96b5545cb8` with the spec-scenario workspace (crate `engine` denied):
 
-| Plant | provider-imports |
+| Probe | provider-imports |
 | --- | --- |
 | control `engine::run()` | line 1 |
-| `use … as engine` at top, `engine::run()` inside `mod inner` | line 4 |
-| `use … as engine` in `fn a`, `engine::run()` in `fn b` | line 2 |
-| `use … as engine` in a `cfg(test)` mod, `engine::run()` outside it | line 1 |
-| in scope: file-level `use`, path in the file | 0 (correct) |
-| in scope: `use` and path in the same block | 0 (correct) |
+| top-level alias, path in `mod inner` | line 4 |
+| alias in one fn, path in a sibling fn | line 2 |
+| alias in a `cfg(test)` mod, path outside | line 1 |
+| alias in a closure body, path after it in the fn | line 4 |
+| alias in a nested block, path after it | line 3 |
+| alias in one `impl` method, path in a sibling method, all in `mod m` | line 5 |
+| alias in `mod m`, path in nested `mod n` (with an empty `mod o` inside `n`) | line 5 |
+| alias in a `const _` block, path in a sibling fn | line 2 |
+| in scope: file top / same block / path two blocks below / after an empty sibling module | none |
 
-**Real tree** (`languages/rust/src/.../annotates/item.rs`):
-- the control `ryo::query::ValidateRequest` reports `provider-imports`;
-- the sibling-function plant reports 0. The cause is the provider leak below, not tm's reading.
+**Why nothing is missed.** The query keeps the `stmt-list` that is the direct parent of a `use`, plus every `item-list`:
+- every block a `use` can stand in holds its statements in one `StmtList`: fn bodies, nested blocks, closures, const, async and unsafe blocks;
+- every inline module is present for the shut test.
 
-## The provider leak (separate bead; does not block this branch)
-`crates/ryo/languages/rust/src/domain/links/service.rs:232-249`: `through_uses` resolves a path's first name through any `use` with `each.enclosing == written.enclosing` (`:238`). That compares modules and ignores blocks, so a function-local alias rewrites same-named paths in sibling functions.
+A block with no `use` is never an import's innermost scope, and the edge's module test reads item-lists only, so dropping those blocks changes nothing.
 
-I verified it with this tree's provider (ryo 0.1.2) on a two-crate fixture. `source-dependency` targets:
+### Bisect
+`innermost` takes the latest-starting span that starts at or before the target and ends at or after it. Blocks and item-lists are either nested or disjoint, so that span is the innermost holder. The module-nesting and sibling-module probes confirm it.
 
-| Path in `fn b` | Target |
-| --- | --- |
-| `ryo::query::ValidateRequest`, with `use crate::shared as ryo;` in `fn a` | `demo/src/shared.rs` (wrong) |
-| the same path, no alias | `ryo/src/query.rs` |
+### Memory guard: no longer vacuous
+The test now requires exit 1 and at least one reported finding before it reads the peak (`cli/tests/replay/check.rs`). A refused run (exit 2) or a run that checks nothing cannot pass. It is not ignored, and it stays red at 4.37 GB until the engine-retention bead lands.
 
-The installed ryo 0.1.1 binary gives no use-site edge even for the control, so it could not show this.
+## Rows that bind no name: no change from base, for any provider
+At the base (`f67311c990`), `keep(Relation::Names)` kept every `static-import` row with a target (`import_rows/service.rs:74-75`). The keep condition is again "target present", with `binding` optional. So the name rows match the base's for every language:
+- Rust globs;
+- JS side-effect and dynamic imports;
+- Python star imports;
+- Go blank imports.
 
-Why it does not block this branch:
-- tm's in-scope rule is correct and proven by the plants above.
-- The fault is in the provider, which tm links from the registry at 0.1.1.
+Only a present binding can drop a use-site path, so a row without one never hides a path.
 
-Required fix: `through_uses` scopes a binding to the block or inline module that holds the `use` (the rule tm now applies). Then release the provider and bump tm's pin.
+The intermediate states (`e196dbe503`, `f1c9e1c968`) dropped binding-less rows. That was a regression my earlier reviews missed; this commit closes it, and the `Unbound` case pins it.
 
-## Check 3 Boundaries hold across crates: PASS
-For tm's reading, the boundary now holds by scope. `ryo::link` and `ryo::reads` stay narrow: exact names, and both are `#[macro_export]` macros.
-
-## Check 4 One implementation and one representation per concept: PASS
-There is still one import reader; scopes are a new relation read, not a copy.
-
-## Check 5 Layer direction: PASS
-The change stays in tastemaker core's domain.
-
-## Check 6 Test seams stay out of production: PASS
-None.
-
-## Ignore advisory: the reason holds; closed
-A path tm drops is now one that the binding `use` is in scope for, so it names the same imported module. An ignore on that `use` exempts that one dependency; reporting each in-scope use of it would only repeat the same dependency. The scope fix also removes the over-reach flagged in the first review: an ignored `use` in one block no longer covers a same-named path elsewhere.
+## Checks 1, 3, 4, 5, 6: PASS
+- **1:** the proofs are core cases and spec scenarios on fixtures.
+- **3:** the boundary holds by scope in every probe.
+- **4:** scopes are kept once per file, and each import's scope is found once.
+- **5:** the change stays in tastemaker core's domain.
+- **6:** no test seams in production.
 
 ## Enforcement candidates
-| Candidate | Instance |
-| --- | --- |
-| `use-site-binding-matched-file-wide-f7738c58` | fixed |
-| `provider-alias-resolved-across-blocks-3c609ce6` | open |
+Both are fixed:
+- `use-site-binding-matched-file-wide-f7738c58`
+- `provider-alias-resolved-across-blocks-3c609ce6`
 
 VERDICT: PASS
