@@ -1,6 +1,7 @@
 //! A measured run executes only a request without declared observations and covers exactly its files.
-use super::fixtures::{Empty, history_len, request, succeeding};
-use super::service::run as measure;
+use super::fixtures::{Empty, Pinned, history_len, last_environment_len, request, succeeding};
+use super::service::{run as measure, run_with};
+use super::types::Pinning;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::linter::fixtures::fake::LinterFake;
 use ryo_benchmark_contracts::domain::artifacts::types::FileExecutable;
@@ -13,6 +14,7 @@ enum Scenario {
     Plain,
     ObservationBearing,
     OmittedInput,
+    Pinned(Pinning),
 }
 
 /// What a refused run states.
@@ -46,6 +48,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Scenario::OmittedInput,
         expect: Expect::Error(Refusal::InputCoverage),
     },
+    Case {
+        name: CaseName("a timed run keeps the linter's one-worker pin"),
+        word: Word::Succeeds,
+        input: || Scenario::Pinned(Pinning::Timed),
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("an untimed run gives the child the caller's environment, at default threads"),
+        word: Word::Succeeds,
+        input: || Scenario::Pinned(Pinning::Untimed),
+        expect: Expect::Value(0),
+    },
 ];
 
 fn category(error: &Error) -> Refusal {
@@ -64,6 +78,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::Plain => plain(),
         Scenario::ObservationBearing => observation_bearing(),
         Scenario::OmittedInput => omitted_input(),
+        Scenario::Pinned(pinning) => pinned(pinning),
     }
     .map_err(|error| category(&error))
 }
@@ -120,4 +135,18 @@ fn omitted_input() -> Result<Value, Error> {
         &request(),
     )
     .map(|_| 0)
+}
+
+fn pinned(pinning: Pinning) -> Result<Value, Error> {
+    let execution = succeeding();
+    let mut request = request();
+    request.files = vec![ryo::linter::RelativePath("case.py".into())];
+    run_with(
+        &crate::outbound::context::factory::local(),
+        &Pinned,
+        &execution,
+        &request,
+        pinning,
+    )?;
+    Ok(last_environment_len(&execution).unwrap_or(usize::MAX))
 }

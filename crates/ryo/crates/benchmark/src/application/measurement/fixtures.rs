@@ -102,3 +102,43 @@ impl crate::outbound::execution::interface::ExecutionPort for Empty {
         })
     }
 }
+
+/// The fake linter pinning its child to one worker thread, as the real linters pin a timed run.
+pub(super) struct Pinned;
+impl crate::outbound::linter::interface::LinterPort for Pinned {
+    fn rule_configuration(
+        &self,
+    ) -> ryo_benchmark_contracts::domain::workloads::types::RuleConfigurationSupport {
+        crate::outbound::linter::fixtures::fake::LinterFake::default().rule_configuration()
+    }
+    fn prepare(&self, request: &RunRequest) -> Result<Invocation, Error> {
+        let mut invocation =
+            crate::outbound::linter::fixtures::fake::LinterFake::default().prepare(request)?;
+        let _absent = invocation.environment.insert("RAYON_NUM_THREADS".into(), "1".into());
+        Ok(invocation)
+    }
+    fn decode(&self, request: &RunRequest, output: ProcessOutput) -> Result<RunReport, Error> {
+        crate::outbound::linter::fixtures::fake::LinterFake::default().decode(request, output)
+    }
+    fn settings_text(
+        &self,
+        normalized: &Invocation,
+        case: &ryo_benchmark_contracts::domain::workloads::types::PreparedCase,
+        profile: &ryo_benchmark_contracts::domain::workloads::types::Tool,
+    ) -> Result<crate::outbound::linter::types::CanonicalText, Error> {
+        crate::outbound::linter::fixtures::fake::LinterFake::default()
+            .settings_text(normalized, case, profile)
+    }
+    fn rule_context_text(&self, prepared: &ryo_benchmark_contracts::domain::context::types::PreparedRuleContext) -> crate::outbound::linter::types::CanonicalText {
+        crate::outbound::linter::fixtures::fake::LinterFake::default().rule_context_text(prepared)
+    }
+}
+
+/// How many environment entries the last launch an execution fake recorded carried.
+pub(super) fn last_environment_len(execution: &ExecutionFake) -> Option<usize> {
+    execution
+        .history
+        .lock()
+        .ok()
+        .and_then(|history| history.last().map(|invocation| invocation.environment.len()))
+}

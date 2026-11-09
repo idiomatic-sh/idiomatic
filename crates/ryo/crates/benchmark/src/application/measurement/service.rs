@@ -20,6 +20,21 @@ pub fn run(
     execution: &dyn ExecutionPort,
     request: &RunRequest,
 ) -> Result<Measurement, Error> {
+    run_with(context, linter, execution, request, super::types::Pinning::Timed)
+}
+
+/// Run as `run` does, keeping the environment the linter pins for comparable timing (its one worker
+/// thread) only for a timed run; an untimed run gives the child the caller's environment.
+///
+/// # Errors
+/// As `run`.
+pub fn run_with(
+    context: &dyn ContextPort,
+    linter: &dyn LinterPort,
+    execution: &dyn ExecutionPort,
+    request: &RunRequest,
+    pinning: super::types::Pinning,
+) -> Result<Measurement, Error> {
     if request.file_metadata != FileMetadataDeclaration::Undeclared {
         return Err(Error::Invalid(
             constants::DECLARED_FILE_OBSERVATIONS_REQUIRE_VERIFICAT.into(),
@@ -29,7 +44,10 @@ pub fn run(
         context.validate(manifest, &request.root)?;
     }
     admit_configuration(request, linter.rule_configuration())?;
-    let invocation = linter.prepare(request)?;
+    let mut invocation = linter.prepare(request)?;
+    if pinning == super::types::Pinning::Untimed {
+        invocation.environment.clear();
+    }
     let output = execution.run(invocation)?;
     let wall = output.wall;
     let resources = output.resources;

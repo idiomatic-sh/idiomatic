@@ -1,7 +1,7 @@
 //! Both contestants run once through the shared measurement; each configured rule is compared and judged.
 use super::constants::{SELECTION_DIFFERS, UNACCEPTED};
 use super::types::{CorpusParity, ParityBoundaries, SourceTexts};
-use crate::application::measurement::service::run;
+use crate::application::measurement::{service::run_with, types::Pinning};
 use crate::domain::corpus_discrepancy::types::ObservedDifferences;
 use crate::outbound::suite::types::ArtifactPath;
 use ryo_benchmark_contracts::domain::reports::constants::CANDIDATE_NAME;
@@ -32,17 +32,20 @@ pub(super) fn compare_corpus(
             .accepted_differences(ArtifactPath(parity.accepted))?,
         &corpus,
     )?;
-    let reference = run(
+    // Findings do not depend on thread count, so both contestants run at default threads.
+    let reference = run_with(
         boundaries.context,
         boundaries.reference,
         boundaries.execution,
         request,
+        Pinning::Untimed,
     )?;
-    let candidate = run(
+    let candidate = run_with(
         boundaries.context,
         boundaries.candidate,
         boundaries.execution,
         request,
+        Pinning::Untimed,
     )?;
     let mut texts = SourceTexts::default();
     let mut rules = Vec::new();
