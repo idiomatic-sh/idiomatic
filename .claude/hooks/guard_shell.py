@@ -53,7 +53,23 @@ def segments(text):
     return out
 
 
-WRAPPERS = {"env", "time", "exec", "nohup", "command", "nice"}
+WRAPPERS = {"env", "time", "exec", "nohup", "command", "nice", "timeout", "stdbuf", "xargs"}
+WRAPPER_VALUES = {"env": {"-u", "-n", "-C", "-S", "--unset", "--chdir"}, "nice": {"-n", "--adjustment"},
+                  "timeout": {"-s", "--signal", "-k", "--kill-after"}, "stdbuf": {"-i", "-o", "-e"},
+                  "xargs": {"-n", "-I", "-P", "-L", "-s", "-d", "-E", "-a", "--max-args", "--max-procs", "--delimiter",
+                            "--max-lines", "--max-chars", "--arg-file", "--eof"}}
+
+
+def after_wrapper(words):
+    """words minus the leading wrapper command word, its options with their values, assignments and, for timeout,
+    its duration."""
+    wrapper, words = words[0], words[1:]
+    values = WRAPPER_VALUES.get(wrapper, set())
+    while words and (words[0].startswith("-") or re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*=.*", words[0])):
+        words = words[2:] if words[0] in values else words[1:]
+    if wrapper == "timeout" and words:
+        words = words[1:]
+    return words
 
 
 def shell_command(words):
@@ -71,7 +87,7 @@ def runs_cargo_verb(words):
     while words and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*=.*", words[0]):
         words = words[1:]
     while words and words[0] in WRAPPERS:
-        words = words[1:]
+        words = after_wrapper(words)
     if not words:
         return False
     if words[0] == "flock":
@@ -100,7 +116,7 @@ def without_redirections(words):
     out, i = [], 0
     while i < len(words):
         if REDIRECT.match(words[i]):
-            bare = re.fullmatch(r"(\d*|&)(>>|>|<)", words[i]) is not None
+            bare = re.fullmatch(r"(\d*|&)(>>|>|<<<|<<-|<<|<)", words[i]) is not None
             i += 2 if bare else 1
         else:
             out.append(words[i])
@@ -276,9 +292,19 @@ def current_branch(tree):
     return git_out(tree, "symbolic-ref", "--short", "HEAD")[1].strip()
 
 
+PUSH_OPTION_VALUES = {"-o", "--push-option", "--receive-pack", "--exec", "--repo"}
+
+
 def push_targets(tree, push):
     """(remote, source, destination) for each refspec a push names; no refspec pushes HEAD to the current branch."""
-    operands = [a for a in push[1] if not a.startswith("-")]
+    operands, skip = [], False
+    for a in push[1]:
+        if skip:
+            skip = False
+        elif a in PUSH_OPTION_VALUES:
+            skip = True
+        elif not a.startswith("-"):
+            operands.append(a)
     remote = operands[0] if operands else "origin"
     current = current_branch(tree)
     if len(operands) < 2:
@@ -723,7 +749,6 @@ def branch_review(words, here):
     return None
 
 
-OPTION_VALUES = {"-u", "-n", "-C", "-S", "--unset", "--chdir"}
 
 
 def unwrapped(words, depth=0):
@@ -732,9 +757,7 @@ def unwrapped(words, depth=0):
         while words and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*=.*", words[0]):
             words = words[1:]
         if words and words[0] in WRAPPERS:
-            words = words[1:]
-            while words and (words[0].startswith("-") or re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*=.*", words[0])):
-                words = words[2:] if words[0] in OPTION_VALUES else words[1:]
+            words = after_wrapper(words)
         elif words and words[0] == "flock":
             rest = words[1:]
             while rest and rest[0].startswith("-"):

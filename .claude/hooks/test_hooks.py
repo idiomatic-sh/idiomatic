@@ -715,6 +715,24 @@ class PerfGate(unittest.TestCase):
                 self.assertEqual(done.returncode, 2)
                 self.assertIn("push of claude/p6-speed refused", done.stderr)
 
+    def test_stray_tokens_do_not_become_push_operands(self):
+        git(self.tree, "update-ref", "refs/remotes/origin/claude/ryo-consolidation", self.base)
+        git(self.tree, "branch", "-q", "-m", "claude/ryo-consolidation", "claude/elsewhere")
+        self.perf()
+        rows = {"here-string": "git push <<< word", "here-string unspaced": "git push <<<word",
+                "heredoc spaced": "git push << EOF\nEOF", "heredoc unspaced": "git push <<EOF\nEOF",
+                "-o value": "git push -o ci.skip", "--push-option value": "git push --push-option ci.skip",
+                "--receive-pack value": "git push --receive-pack /bin/x", "--exec value": "git push --exec /bin/x",
+                "--repo value": "git push --repo origin2", "timeout": "timeout 5 git push",
+                "timeout with options": "timeout -s KILL 5 git push", "stdbuf": "stdbuf -oL git push",
+                "stdbuf separate": "stdbuf -o L -e0 git push", "xargs": "xargs git push",
+                "xargs with options": "xargs -n 1 git push"}
+        for label, command in rows.items():
+            with self.subTest(label):
+                done = run_hook("guard_shell.py", {"tool_input": {"command": command}, "cwd": self.tree})
+                self.assertEqual(done.returncode, 2)
+                self.assertIn("push of claude/p6-speed refused", done.stderr)
+
     def test_remote_consolidation_perf_commits_are_not_pushed(self):
         git(self.tree, "checkout", "-q", "-b", "claude/other", self.base)
         git(self.tree, "commit", "-q", "--allow-empty", "-m", "perf(engine): remote only 3s")
