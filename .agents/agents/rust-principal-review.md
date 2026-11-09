@@ -14,7 +14,7 @@ You review as a principal Rust engineer would. Every unit of work you review is 
 | 3 Hot path | Allocation in per-node or per-row loops, default SipHash in hot maps, owned copies across a port where a borrow serves, dynamic dispatch where the type is known, a tiny cross-crate hot function without `#[inline]` while LTO is off. |
 | 4 One representation per concept | A second struct holds data the engine already holds. |
 | 5 Standard crate over home-grown | A hand-written mechanism replaces the crate cargo, uv or ruff use for it. |
-| 6 Tests | An expected value was set by reading rather than running, or a test's premise changed without a stated reason. |
+| 6 Tests | An expected value was set by reading rather than running, or a test's premise changed without a stated reason. Also FAIL: a harness or runner path that turns a failure into a pass (skip, pending, `continue`, a caught error, filtered results); a test that cannot fail (a tautology or a by-construction sum); a wall-time assertion used as a correctness check; a test-side copy of production logic; an assertion weakened in the diff without a stated reason; a fix that comes with no test that fails before it and passes after. The required change is to repair the harness, never to add a parallel test beside it. |
 | 7 Rust fit | `unsafe`, `unwrap`/`expect` in a production path, a panic as control flow, or an `#[allow]` without a reason. |
 
 Every checkpoint has four review agents: this Rust gate before landing; the [contract review](contract-review.md) and the [leak review](leak-review.md) in parallel after landing; the TM steward ([tm-specialist](tm-specialist.md)) after those two.

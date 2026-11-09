@@ -83,6 +83,9 @@ bypasses, authority and identity, derived-kind ownership, shared-walk coverage
 of the configured 413 rules, and real positive and negative tests with TM
 enforcement. See "Adversarial pass" and "Architectural enforcement" there.
 
+## Builder test rule
+Every fix names the test that fails before it and passes after. The integrator records that test red, then green, in the checkpoint record. A fix to a harness repairs the harness; it is not covered by a parallel test beside it. The worker agent [contract-migration](../../../../../.agents/agents/contract-migration.md) carries this rule.
+
 ## Review evidence schema
 Every review evidence file (rust-review, contract-review, leak-review, tm-steward and the per-branch leak result) has this shape, and `.claude/hooks/guard_shell.py` refuses a file that does not:
 
