@@ -141,7 +141,7 @@ impl PublicationScope {
                 Ok(members) => {
                     for member in members {
                         bindings.push(match member {
-                        crate::application::file_dag::frontiers::types::BoundMember::Current(publication) => BoundKey::Current(publication.admitted().population(owner)?, publication.admitted().coverage().clone()),
+                        crate::application::file_dag::frontiers::types::BoundMember::Current(publication) => BoundKey::Current(publication.population(), publication.coverage().clone()),
                         crate::application::file_dag::frontiers::types::BoundMember::Restored(token) => BoundKey::Restored(token.clone()),
                     });
                     }

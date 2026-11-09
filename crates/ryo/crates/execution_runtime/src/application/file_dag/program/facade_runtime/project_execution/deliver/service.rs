@@ -128,7 +128,7 @@ impl ProjectRun<'_> {
                                 ryo_execution_domain::domain::completion::types::CoverageState::Complete,
                             )) => ProjectObservation::Complete {
                                 table,
-                                publication: ObservedPublication::from_admitted(input),
+                                publication: ObservedPublication::from_parts(input),
                             },
                             Ok((
                                 table,
@@ -138,7 +138,7 @@ impl ProjectRun<'_> {
                                 },
                             )) => ProjectObservation::Partial {
                                 table,
-                                publication: ObservedPublication::from_admitted(input),
+                                publication: ObservedPublication::from_parts(input),
                             },
                             Err(error) => ProjectObservation::Other(classify(error)),
                         },

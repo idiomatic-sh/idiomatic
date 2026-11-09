@@ -11,7 +11,7 @@ use ryo_execution_store::application::file_dag::relations::{
     RelationOwner, handle::service::Publication,
 };
 use ryo_execution_domain::domain::completion::types::CoverageState;
-use std::{rc::Rc, sync::Arc};
+use std::rc::Rc;
 
 impl ReadProof {
     /// A whole physical read of `partition`.
@@ -31,6 +31,10 @@ impl ReadProof {
             readiness: coverage,
         }
     }
+    /// How completely the read covered its partition.
+    pub(crate) fn coverage(&self) -> &CoverageState {
+        &self.readiness
+    }
     pub(crate) fn observation(&self) -> ObservationReadiness {
         match self.readiness {
             CoverageState::Complete => ObservationReadiness::Ready,
@@ -42,6 +46,27 @@ impl ReadProof {
 }
 
 impl AdmittedInput {
+    /// What an observation hands over of this input: its read proof, root, publication, population and generation.
+    pub(crate) fn into_parts(
+        self,
+    ) -> (
+        ReadProof,
+        ProducerRoot,
+        Publication,
+        ryo_execution_store::application::file_dag::derived::population::types::PopulationId,
+        ryo_execution_store::application::file_dag::relations::types::Generation,
+    ) {
+        (
+            ReadProof {
+                partition: self.partition,
+                readiness: self.readiness,
+            },
+            self.root,
+            self.publication,
+            self.proof.population,
+            self.proof.generation,
+        )
+    }
     pub(crate) fn population(
         &self,
         owner: &Rc<RelationOwner>,

@@ -215,7 +215,7 @@ impl<'a> CrossPublications<'a> {
             }
             seen[output] = true;
             if let Some(publication) = admitted.get(&root.output.0) {
-                publication.validate_transfer_readiness(&self.owner, &root.readiness)?;
+                publication.validate_transfer_readiness(&root.readiness)?;
             } else if root.readiness == ProducerReadiness::Complete {
                 return Err(incomplete());
             }

@@ -182,6 +182,6 @@ impl ValidatedFrontier {
             places.truncate(before);
         }
         let admitted = result?;
-        Ok(ObservedPublication::from_admitted(admitted))
+        Ok(ObservedPublication::from_parts(admitted))
     }
 }
