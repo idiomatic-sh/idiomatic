@@ -99,7 +99,7 @@ impl LinterPort for LinterRyoAdapter {
         Ok(Invocation {
             executable: self.executable.clone(),
             arguments,
-            environment: [(constants::WORKERS_ENV.into(), constants::ONE_WORKER.into())]
+            environment: [(ryo_benchmark_contracts::domain::measurements::constants::THREAD_PIN.into(), constants::ONE_WORKER.into())]
                 .into_iter()
                 .collect(),
             directory: request.root.clone(),

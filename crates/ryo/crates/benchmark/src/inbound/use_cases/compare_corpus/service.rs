@@ -50,12 +50,17 @@ pub(super) fn compare_corpus(
     let mut texts = SourceTexts::default();
     let mut rules = Vec::new();
     let mut observed = Vec::new();
+    let mut outside = Vec::new();
     for comparison in crate::domain::diagnostics::service::compare_rules(
         selected,
         &reference.report,
         &candidate.report,
     ) {
         let located = locate(boundaries, &request.root, &mut texts, &comparison)?;
+        if rules.len() == selected.len() {
+            outside.push(located);
+            continue;
+        }
         observed.push(ObservedDifferences {
             rule: located.rule.clone(),
             differences: differences(DifferenceSide::Missing, &located.missing)
@@ -65,8 +70,16 @@ pub(super) fn compare_corpus(
         });
         rules.push(located);
     }
-    let problems =
+    let mut problems =
         crate::domain::corpus_discrepancy::service::corpus_problems(&observed, &accepted);
+    problems.extend(
+        crate::domain::corpus_discrepancy::service::outside_problems(&outside, parity.syntax),
+    );
+    problems.extend(crate::domain::corpus_discrepancy::service::skip_problems(
+        &reference.report,
+        &candidate.report,
+        parity.syntax,
+    ));
     let identical = rules
         .iter()
         .filter(|rule| rule.missing.is_empty() && rule.extra.is_empty())

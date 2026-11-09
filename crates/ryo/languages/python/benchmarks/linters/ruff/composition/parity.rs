@@ -83,6 +83,8 @@ pub(super) fn parity(
         ryo_benchmark_contracts::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations::default(),
     ));
     let reference = Arc::new(commands::reference(ruff, tool)?);
+    let syntax = ryo::linter::RuleId::try_from(constants::INVALID_SYNTAX)
+        .map_err(|error| Error::Invalid(error.to_string()))?;
     let result = CompareCorpusUseCaseImpl::new(
         reference,
         candidate,
@@ -100,6 +102,7 @@ pub(super) fn parity(
             configured: &configured,
             accepted: &accepted,
             reference: ContestantName(constants::REFERENCE_NAME),
+            syntax: &syntax,
         },
         observations,
     );

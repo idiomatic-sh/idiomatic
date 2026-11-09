@@ -1,7 +1,7 @@
 //! The steps of the `compare_corpus` feature: each a cucumber expression over the world, one to six lines, asserting the part's own results.
 use cucumber::then;
 use ryo_benchmark::inbound::use_cases::compare_corpus::{
-    fixtures::{Scenario, configured, corpus, use_case},
+    fixtures::{Scenario, configured, corpus, syntax, use_case},
     interface::CompareCorpusUseCase as _,
     types::CorpusParity,
 };
@@ -35,6 +35,7 @@ fn compare(configured_rule: bool) -> (Result<(), ReportsError>, Vec<u8>) {
             configured: &configured(),
             accepted: &corpus.accepted,
             reference: ContestantName("fixture"),
+            syntax: &syntax(),
         },
         &mut observations,
     );

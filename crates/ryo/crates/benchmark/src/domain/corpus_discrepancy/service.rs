@@ -175,3 +175,104 @@ pub(crate) fn corpus_problems(
     );
     problems
 }
+
+/// The problems of the rules outside the selection: every finding of such a rule, except where both
+/// contestants report the language's rejected-syntax rule at the same place.
+#[must_use]
+pub(crate) fn outside_problems(
+    outside: &[ryo_benchmark_contracts::domain::reports::types::RuleComparison<
+        ryo_benchmark_contracts::domain::reports::types::LocatedFinding,
+    >],
+    syntax: &ryo::linter::RuleId,
+) -> Vec<ParityProblem> {
+    let mut problems = Vec::new();
+    for comparison in outside {
+        let rule = &comparison.rule;
+        if rule != syntax {
+            problems.push(ParityProblem(format!(
+                "{rule}: outside the selected rules, the candidate reports {} and the reference {}",
+                comparison.matched.0 + comparison.extra.len(),
+                comparison.matched.0 + comparison.missing.len()
+            )));
+            continue;
+        }
+        let located =
+            |finding: &ryo_benchmark_contracts::domain::reports::types::LocatedFinding| {
+                format!(
+                    "{}:{}:{}",
+                    finding.file.0, finding.start.line.0, finding.start.column.0
+                )
+            };
+        problems.extend(comparison.missing.iter().map(|finding| {
+            ParityProblem(format!(
+                "{rule}: only the reference rejects {}",
+                located(finding)
+            ))
+        }));
+        problems.extend(comparison.extra.iter().map(|finding| {
+            ParityProblem(format!(
+                "{rule}: only the candidate rejects {}",
+                located(finding)
+            ))
+        }));
+        if !comparison.end_differences.is_empty() {
+            problems.push(ParityProblem(format!(
+                "{rule}: {} end positions differ",
+                comparison.end_differences.len()
+            )));
+        }
+    }
+    problems
+}
+
+/// The problems of skipped rule and file pairs: a pair one contestant skipped agrees only when the other
+/// skipped it too, or, reporting no execution accounting of its own, rejected that file's syntax.
+#[must_use]
+pub(crate) fn skip_problems(
+    reference: &ryo_benchmark_contracts::domain::reports::types::RunReport,
+    candidate: &ryo_benchmark_contracts::domain::reports::types::RunReport,
+    syntax: &ryo::linter::RuleId,
+) -> Vec<ParityProblem> {
+    use ryo_benchmark_contracts::domain::reports::types::{ExecutionMetadata, RunReport};
+    let unexplained = |side: &RunReport, other: &RunReport| {
+        let rejected: std::collections::BTreeSet<_> = other
+            .diagnostics
+            .iter()
+            .filter(|finding| &finding.rule == syntax)
+            .map(|finding| &finding.file)
+            .collect();
+        side.skipped
+            .iter()
+            .filter(|skip| {
+                !other.skipped.contains(skip)
+                    && !(other.execution_metadata != ExecutionMetadata::Complete
+                        && rejected.contains(&skip.path))
+            })
+            .cloned()
+            .collect::<Vec<_>>()
+    };
+    let mut problems = Vec::new();
+    for (side, skips) in [
+        (
+            ryo_benchmark_contracts::domain::receipts::constants::REFERENCE,
+            unexplained(reference, candidate),
+        ),
+        (
+            ryo_benchmark_contracts::domain::receipts::constants::CANDIDATE,
+            unexplained(candidate, reference),
+        ),
+    ] {
+        problems.extend(skips.into_iter().map(|skip| {
+            let reason = match skip.reason {
+                ryo::linter::SkipReason::SyntaxRejected => {
+                    ryo_values::domain::runs::constants::SYNTAX_REJECTED
+                }
+            };
+            ParityProblem(format!(
+                "{}: only the {side} skipped {} ({reason})",
+                skip.rule, skip.path.0
+            ))
+        }));
+    }
+    problems
+}

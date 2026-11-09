@@ -2,9 +2,9 @@
 
 /// Whether a run keeps the environment a linter pins for comparable timing.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Pinning {
+pub(crate) enum Pinning {
     /// A timing measurement: the linter's pins (one worker thread) stand, so contestants compare.
     Timed,
-    /// A correctness comparison: the child runs in the caller's environment, at default threads.
+    /// A correctness comparison: the thread pin is dropped, so the child runs at its default threads.
     Untimed,
 }

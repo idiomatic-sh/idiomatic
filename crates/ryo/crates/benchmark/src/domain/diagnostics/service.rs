@@ -139,12 +139,13 @@ pub fn validate_coverage(
     Ok(())
 }
 
-/// Compare the findings of each selected rule, in selection order, as a multiset on file and start.
+/// Compare the findings of each rule as a multiset on file and start: the selected rules first, in
+/// selection order, then every other rule either report holds, in rule order, so no finding is left out.
 ///
-/// Findings of a rule that is not selected are left out. At one file and start, findings pair in report
-/// order; the reference's unpaired findings are missing and the candidate's are extra.
+/// At one file and start, findings pair in report order; the reference's unpaired findings are missing
+/// and the candidate's are extra.
 #[must_use]
-pub fn compare_rules(
+pub(crate) fn compare_rules(
     selected: &[ryo::linter::RuleId],
     reference: &RunReport,
     candidate: &RunReport,
@@ -153,8 +154,16 @@ pub fn compare_rules(
     let theirs = sites(reference);
     let ours = sites(candidate);
     let empty = Sites::new();
+    let chosen: std::collections::BTreeSet<_> = selected.iter().collect();
+    let outside: std::collections::BTreeSet<_> = theirs
+        .keys()
+        .chain(ours.keys())
+        .copied()
+        .filter(|rule| !chosen.contains(rule))
+        .collect();
     selected
         .iter()
+        .chain(outside)
         .map(|rule| {
             let reference_sites = theirs.get(rule).unwrap_or(&empty);
             let candidate_sites = ours.get(rule).unwrap_or(&empty);
@@ -216,7 +225,7 @@ fn sites(report: &RunReport) -> std::collections::BTreeMap<&ryo::linter::RuleId,
 ///
 /// # Errors
 /// Refuses an offset past the end of the source or inside a character.
-pub fn position(
+pub(crate) fn position(
     source: &ryo::linter::SourceText,
     offset: SourceByteOffset,
 ) -> Result<

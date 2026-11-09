@@ -29,6 +29,19 @@ pub struct Scenario {
     pub accepted_column: usize,
 }
 
+/// The findings outside the selected rule a comparison adds, at byte 4 (line 1, column 5).
+#[derive(Clone, Copy, Debug)]
+pub enum Outside {
+    /// None.
+    Nothing,
+    /// The candidate reports the unselected rule `Z`.
+    Unselected,
+    /// Only the reference rejects the source's syntax.
+    SyntaxOnReference,
+    /// Both contestants reject the source's syntax at the same place.
+    SyntaxOnBoth,
+}
+
 /// One corpus of one source and the accepted differences written for it.
 #[derive(Debug)]
 pub struct Corpus {
@@ -47,10 +60,21 @@ fn rule() -> RuleId {
     RuleId::try_from("A").expect("fixture rule")
 }
 
+/// The rule both contestants report for a source their parser rejects.
+#[must_use]
+pub fn syntax() -> RuleId {
+    RuleId::try_from("invalid-syntax").expect("fixture rule")
+}
+
 /// A one-byte finding of `A` in `case.py` at `start`.
 fn finding(start: usize) -> BenchmarkFinding {
+    finding_of(rule(), start)
+}
+
+/// A one-byte finding of `rule` in `case.py` at `start`.
+fn finding_of(rule: RuleId, start: usize) -> BenchmarkFinding {
     BenchmarkFinding {
-        rule: rule(),
+        rule,
         file: RelativePath("case.py".into()),
         start: SourceByteOffset(start),
         end: SourceByteOffset(start + 1),
@@ -115,13 +139,32 @@ pub fn corpus(scenario: Scenario) -> Corpus {
 /// The use case over fakes: the reference finds `A` at byte 0, the candidate at bytes 0 and 2 (line 1, column 3).
 #[must_use]
 pub fn use_case() -> CompareCorpusUseCaseImpl {
+    use_case_with(Outside::Nothing)
+}
+
+/// The use case of `use_case`, with the findings outside the selected rule that `outside` adds.
+#[must_use]
+pub fn use_case_with(outside: Outside) -> CompareCorpusUseCaseImpl {
+    let mut reference = vec![finding(0)];
+    let mut candidate = vec![finding(0), finding(2)];
+    match outside {
+        Outside::Nothing => {}
+        Outside::Unselected => {
+            candidate.push(finding_of(RuleId::try_from("Z").expect("fixture rule"), 4));
+        }
+        Outside::SyntaxOnReference => reference.push(finding_of(syntax(), 4)),
+        Outside::SyntaxOnBoth => {
+            reference.push(finding_of(syntax(), 4));
+            candidate.push(finding_of(syntax(), 4));
+        }
+    }
     CompareCorpusUseCaseImpl::new(
         Arc::new(LinterFake {
-            diagnostics: vec![finding(0)],
+            diagnostics: reference,
             arguments: Vec::new(),
         }),
         Arc::new(LinterFake {
-            diagnostics: vec![finding(0), finding(2)],
+            diagnostics: candidate,
             arguments: Vec::new(),
         }),
         Arc::new(ExecutionFake::default()),

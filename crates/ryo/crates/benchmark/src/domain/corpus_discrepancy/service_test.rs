@@ -1,6 +1,6 @@
 //! Corpus-level accepted differences: pinned by finding, for one corpus digest, and stale ones fail.
 use super::errors::CorpusDiscrepancyError;
-use super::service::{admit_accepted, corpus_digest, corpus_problems};
+use super::service::{admit_accepted, corpus_digest, corpus_problems, skip_problems};
 use super::types::ObservedDifferences;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo::linter::{RelativePath, RuleId};
@@ -24,6 +24,21 @@ enum Check {
         accepted: Vec<AcceptedRule>,
         corpus: ArtifactDigest,
     },
+    /// The problems of the candidate's one skipped row against a reference.
+    Skips(Reference),
+}
+
+/// What the reference says about the file the candidate skipped a rule on.
+#[derive(Clone, Copy)]
+enum Reference {
+    /// It skipped the same rule there.
+    Skipped,
+    /// It accounts no execution and rejects the file's syntax.
+    Rejects,
+    /// It accounts no execution and reports nothing there.
+    Silent,
+    /// It accounts its execution completely and rejects the file, but skipped nothing.
+    CompleteRejects,
 }
 
 type Input = Check;
@@ -91,6 +106,32 @@ fn judge(observed: Vec<ObservedDifferences>, accepted: Vec<AcceptedRule>) -> Che
 }
 
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("a row both contestants skipped agrees"),
+        word: Word::Succeeds,
+        input: || Check::Skips(Reference::Skipped),
+        expect: Expect::Value(&[]),
+    },
+    Case {
+        name: CaseName(
+            "a skip agrees with a reference that has no execution accounting and rejects the file",
+        ),
+        word: Word::Succeeds,
+        input: || Check::Skips(Reference::Rejects),
+        expect: Expect::Value(&[]),
+    },
+    Case {
+        name: CaseName("a skip the reference does not explain is a problem"),
+        word: Word::Succeeds,
+        input: || Check::Skips(Reference::Silent),
+        expect: Expect::Value(&["F401: only the candidate skipped bad.py (syntax-rejected)"]),
+    },
+    Case {
+        name: CaseName("a reference that accounts its execution must skip the row itself"),
+        word: Word::Succeeds,
+        input: || Check::Skips(Reference::CompleteRejects),
+        expect: Expect::Value(&["F401: only the candidate skipped bad.py (syntax-rejected)"]),
+    },
     Case {
         name: CaseName("a sealed corpus digest is its files and context entries, not its location"),
         word: Word::Succeeds,
@@ -216,6 +257,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 fn subject(input: Input) -> Result<Value, Failure> {
     match input {
+        Check::Skips(reference) => Ok(skips(reference)),
         Check::Digest(context) => {
             assert_eq!(
                 corpus_digest(&files(), &context).0,
@@ -270,4 +312,51 @@ fn succeeds() {
 #[test]
 fn refuses() {
     run(CASES, Word::Refuses, subject);
+}
+
+/// The problems of a candidate that skipped F401 on `bad.py`, against the reference `reference` describes.
+fn skips(reference: Reference) -> Value {
+    use ryo_benchmark_contracts::domain::reports::types::{
+        BenchmarkFinding, CoverageAccounting, ExecutionMetadata, ProjectContext, RunReport,
+        SourceByteOffset, UnavailableReason,
+    };
+    let syntax = rule("invalid-syntax");
+    let skip = ryo::linter::Skipped {
+        rule: rule("F401"),
+        path: RelativePath("bad.py".into()),
+        reason: ryo::linter::SkipReason::SyntaxRejected,
+    };
+    let report = |skipped: Vec<ryo::linter::Skipped>, diagnostics, execution_metadata| RunReport {
+        execution_metadata,
+        project_context: ProjectContext::NotRequested,
+        diagnostics,
+        skipped,
+        coverage: CoverageAccounting::Unaccounted,
+        files: vec![RelativePath("bad.py".into())],
+    };
+    let rejects = vec![BenchmarkFinding {
+        rule: syntax.clone(),
+        file: RelativePath("bad.py".into()),
+        start: SourceByteOffset(0),
+        end: SourceByteOffset(1),
+    }];
+    let unavailable = || ExecutionMetadata::Unavailable {
+        reason: UnavailableReason("findings only".into()),
+    };
+    let candidate = report(
+        vec![skip.clone()],
+        rejects.clone(),
+        ExecutionMetadata::Complete,
+    );
+    let reference = match reference {
+        Reference::Skipped => report(vec![skip], Vec::new(), ExecutionMetadata::Complete),
+        Reference::Rejects => report(Vec::new(), rejects, unavailable()),
+        Reference::Silent => report(Vec::new(), Vec::new(), unavailable()),
+        Reference::CompleteRejects => report(Vec::new(), rejects, ExecutionMetadata::Complete),
+    };
+    let problems: Vec<&'static str> = skip_problems(&reference, &candidate, &syntax)
+        .into_iter()
+        .map(|problem| &*Box::leak(problem.0.into_boxed_str()))
+        .collect();
+    Box::leak(problems.into_boxed_slice())
 }

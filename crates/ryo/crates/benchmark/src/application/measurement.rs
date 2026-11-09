@@ -4,6 +4,6 @@ mod constants;
 mod fixtures;
 pub mod service;
 /// Whether a run keeps the timing pins of its linter.
-pub mod types;
+pub(crate) mod types;
 #[cfg(test)]
 mod service_test;

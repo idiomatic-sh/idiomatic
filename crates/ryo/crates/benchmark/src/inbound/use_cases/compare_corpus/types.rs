@@ -13,6 +13,9 @@ pub struct CorpusParity<'a> {
     pub accepted: &'a std::path::Path,
     /// The reference's name in the published evidence.
     pub reference: ContestantName<'a>,
+    /// The rule both contestants report for a source their parser rejects; outside the selection, only
+    /// its findings may appear, and only where both contestants report them.
+    pub syntax: &'a ryo::linter::RuleId,
 }
 
 /// The boundaries one corpus comparison calls, borrowed from the use case.

@@ -13,10 +13,10 @@ enum Check {
     Position(&'static str, usize),
 }
 
-/// Counts of each selected rule as (matched, end differences, missing, extra), or a line and column.
+/// Counts of each selected rule, then each other reported rule, as (matched, end differences, missing, extra), or a line and column.
 #[derive(Debug, PartialEq, Eq)]
 enum Answer {
-    Rules([(usize, usize, usize, usize); 2]),
+    Rules([(usize, usize, usize, usize); 3]),
     Position(usize, usize),
 }
 
@@ -47,7 +47,7 @@ fn report(diagnostics: Vec<BenchmarkFinding>) -> RunReport {
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName(
-            "findings pair by file and start; unpaired ones are missing or extra, an unselected rule is left out",
+            "findings pair by file and start; unpaired ones are missing or extra, and an unselected rule is compared after the selected ones",
         ),
         word: Word::Succeeds,
         input: || {
@@ -64,7 +64,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 ]),
             )
         },
-        expect: Expect::Value(Answer::Rules([(1, 1, 1, 2), (0, 0, 0, 0)])),
+        expect: Expect::Value(Answer::Rules([(1, 1, 1, 2), (0, 0, 0, 0), (0, 0, 1, 0)])),
     },
     Case {
         name: CaseName("a position counts \\r\\n as one break and columns in characters"),

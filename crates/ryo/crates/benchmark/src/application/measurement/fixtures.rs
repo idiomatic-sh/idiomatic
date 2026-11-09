@@ -103,7 +103,8 @@ impl crate::outbound::execution::interface::ExecutionPort for Empty {
     }
 }
 
-/// The fake linter pinning its child to one worker thread, as the real linters pin a timed run.
+/// The fake linter pinning its child to one worker thread, as the real linters pin a timed run, and
+/// setting one variable of its own.
 pub(super) struct Pinned;
 impl crate::outbound::linter::interface::LinterPort for Pinned {
     fn rule_configuration(
@@ -114,7 +115,11 @@ impl crate::outbound::linter::interface::LinterPort for Pinned {
     fn prepare(&self, request: &RunRequest) -> Result<Invocation, Error> {
         let mut invocation =
             crate::outbound::linter::fixtures::fake::LinterFake::default().prepare(request)?;
-        let _absent = invocation.environment.insert("RAYON_NUM_THREADS".into(), "1".into());
+        let _absent = invocation.environment.insert(
+            ryo_benchmark_contracts::domain::measurements::constants::THREAD_PIN.into(),
+            "1".into(),
+        );
+        let _other = invocation.environment.insert("LINTER_HOME".into(), "fixture".into());
         Ok(invocation)
     }
     fn decode(&self, request: &RunRequest, output: ProcessOutput) -> Result<RunReport, Error> {
@@ -134,11 +139,16 @@ impl crate::outbound::linter::interface::LinterPort for Pinned {
     }
 }
 
-/// How many environment entries the last launch an execution fake recorded carried.
-pub(super) fn last_environment_len(execution: &ExecutionFake) -> Option<usize> {
-    execution
-        .history
-        .lock()
-        .ok()
-        .and_then(|history| history.last().map(|invocation| invocation.environment.len()))
+/// The environment variable names the last launch an execution fake recorded carried, sorted and joined.
+pub(super) fn last_environment(execution: &ExecutionFake) -> Option<String> {
+    execution.history.lock().ok().and_then(|history| {
+        history.last().map(|invocation| {
+            invocation
+                .environment
+                .keys()
+                .map(|name| name.to_string_lossy().into_owned())
+                .collect::<Vec<_>>()
+                .join(",")
+        })
+    })
 }

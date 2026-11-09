@@ -23,12 +23,12 @@ pub fn run(
     run_with(context, linter, execution, request, super::types::Pinning::Timed)
 }
 
-/// Run as `run` does, keeping the environment the linter pins for comparable timing (its one worker
-/// thread) only for a timed run; an untimed run gives the child the caller's environment.
+/// Run as `run` does, keeping the thread pin the linter sets for comparable timing only for a timed
+/// run; an untimed run drops that one variable, so the child runs at its default threads.
 ///
 /// # Errors
 /// As `run`.
-pub fn run_with(
+pub(crate) fn run_with(
     context: &dyn ContextPort,
     linter: &dyn LinterPort,
     execution: &dyn ExecutionPort,
@@ -46,7 +46,9 @@ pub fn run_with(
     admit_configuration(request, linter.rule_configuration())?;
     let mut invocation = linter.prepare(request)?;
     if pinning == super::types::Pinning::Untimed {
-        invocation.environment.clear();
+        let _pin = invocation
+            .environment
+            .remove(std::ffi::OsStr::new(ryo_benchmark_contracts::domain::measurements::constants::THREAD_PIN));
     }
     let output = execution.run(invocation)?;
     let wall = output.wall;

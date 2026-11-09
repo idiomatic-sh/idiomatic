@@ -1,5 +1,5 @@
 //! A measured run executes only a request without declared observations and covers exactly its files.
-use super::fixtures::{Empty, Pinned, history_len, last_environment_len, request, succeeding};
+use super::fixtures::{Empty, Pinned, history_len, last_environment, request, succeeding};
 use super::service::{run as measure, run_with};
 use super::types::Pinning;
 use crate::cases::{Case, CaseName, Expect, Word, run};
@@ -49,16 +49,16 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Error(Refusal::InputCoverage),
     },
     Case {
-        name: CaseName("a timed run keeps the linter's one-worker pin"),
+        name: CaseName("a timed run keeps the linter's one-worker pin and its own variable"),
         word: Word::Succeeds,
         input: || Scenario::Pinned(Pinning::Timed),
-        expect: Expect::Value(1),
+        expect: Expect::Value(2),
     },
     Case {
-        name: CaseName("an untimed run gives the child the caller's environment, at default threads"),
+        name: CaseName("an untimed run drops only the thread pin; the linter's own variable survives"),
         word: Word::Succeeds,
         input: || Scenario::Pinned(Pinning::Untimed),
-        expect: Expect::Value(0),
+        expect: Expect::Value(1),
     },
 ];
 
@@ -148,5 +148,9 @@ fn pinned(pinning: Pinning) -> Result<Value, Error> {
         &request,
         pinning,
     )?;
-    Ok(last_environment_len(&execution).unwrap_or(usize::MAX))
+    let names = last_environment(&execution).unwrap_or_default();
+    let thread_pin = names.contains(ryo_benchmark_contracts::domain::measurements::constants::THREAD_PIN);
+    assert_eq!(thread_pin, pinning == Pinning::Timed, "the thread pin stands only in a timed run");
+    assert!(names.contains("LINTER_HOME"), "a variable that is not the thread pin survives: {names}");
+    Ok(names.split(',').filter(|name| !name.is_empty()).count())
 }
