@@ -213,6 +213,7 @@ fn empty_bucket_schema_is_metadata_not_unloaded_rows() {
     .unwrap();
     assert_eq!(compact::compact_rows(&meta), RowCount(0));
     assert_eq!(meta.cells, CellCount(0));
+    assert!(compact::compact_kinds(&meta).is_empty());
     assert!(compact::compact_read(&meta, RowIndex(0), &mut [Cell::Number(Integer(0))]).is_none());
 }
 type Input = fn() -> Result<(), Failure>;
