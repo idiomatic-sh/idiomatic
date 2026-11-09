@@ -22,7 +22,6 @@ CONSOLIDATION = "claude/ryo-consolidation"
 EVIDENCE_ROOT = "crates/ryo/docs/contracts/evidence/"
 EVIDENCE = EVIDENCE_ROOT + "checkpoint/"
 RUST_REVIEW = EVIDENCE + "rust-review.json"
-ASYMPTOTE = EVIDENCE + "asymptote.json"
 BOOTSTRAP_HEAD = "171789169e"  # checkpoint 329: landed before the leak and TM agents existed
 PREVIOUS_REVIEWS = (("contract-review.json", "contract-review"), ("leak-review.json", "leak-review"),
                     ("tm-steward.json", "tm-steward"))
@@ -576,15 +575,6 @@ def previous_reviews(words, here):
             if problem:
                 return (refused + problem + "; the tm-steward must decide every enforcement candidate of " + head +
                         " (decision compiler|strengthen|new with plant counts of at least 1, or none with a reason)")
-        code, text = git_out(tree, "show", sha + ":" + ASYMPTOTE)
-        if code == 0:
-            run = "rerun the integrator's quick checks on " + head
-            try:
-                shape = review_shape(json.loads(text), "integrator")
-            except ValueError:
-                shape = "is not JSON"
-            if shape:
-                return refused + ASYMPTOTE + " at " + source + " " + shape + "; " + run
     return None
 
 
@@ -851,7 +841,7 @@ def gated_text(command):
 GATES = (gated_wrapper, bulk_push, rust_review, previous_reviews, perf_gate, branch_review)
 
 
-EVIDENCE_NAME = re.compile(r"(rust-review|contract-review|leak-review|tm-steward)[^/]*\.json|asymptote\.json")
+EVIDENCE_NAME = re.compile(r"(rust-review|contract-review|leak-review|tm-steward)[^/]*\.json")
 EVIDENCE_TAIL = "/crates/ryo/docs/contracts/evidence/"
 CHECKPOINT_BRANCH = re.compile(r"claude/checkpoint-\d+")
 WRITE_REDIRECT = re.compile(r"(?<![<&0-9])\d?>>?\s*(?!&)(\"[^\"]+\"|'[^']+'|[^\s;&|<>()]+)")

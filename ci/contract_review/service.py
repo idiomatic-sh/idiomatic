@@ -13,7 +13,6 @@ PROTECTED = ("crates/ryo/", "ci/", "tools/", ".github/", ".cargo/", ".agents/age
 EXACT = {"rust-toolchain.toml", "Cargo.toml", "Cargo.lock", "asymptote.toml"}
 RECEIPTS = "crates/ryo/docs/contracts/evidence"
 REVIEW = RECEIPTS + "/checkpoint/contract-review.json"
-ASYMPTOTE = RECEIPTS + "/checkpoint/asymptote.json"
 VERDICTS = ("PASS", "FAIL", "NOTE", "BLOCKING")
 
 
@@ -101,12 +100,6 @@ def validate(root: Path, head: str = "HEAD") -> str:
     if not any(protected(path) for path in changed):
         return "No protected changes since activation; historical work is not certified."
     try:
-        try:
-            recorded = json.loads(git(root, "show", f"{head}:{ASYMPTOTE}"))
-        except subprocess.CalledProcessError:
-            recorded = None
-        if recorded is not None:
-            shape(recorded, "integrator")
         review = json.loads(git(root, "show", f"{head}:{REVIEW}"))
         shape(review)
         if review["verdict"] != "PASS":

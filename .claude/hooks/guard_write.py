@@ -10,7 +10,7 @@ import os
 import re
 import sys
 
-NAMED = re.compile(r"(rust-review|contract-review|leak-review|tm-steward)[^/]*\.json$|asymptote\.json$|evidence/branches/")
+NAMED = re.compile(r"(rust-review|contract-review|leak-review|tm-steward)[^/]*\.json$|evidence/branches/")
 
 
 def main():

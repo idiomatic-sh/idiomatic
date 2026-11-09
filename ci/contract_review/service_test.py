@@ -177,11 +177,3 @@ def test_the_ci_and_hook_validators_agree_on_every_variant(reviewer, document, v
     assert hook_ok == ci_ok == valid
 
 
-def test_a_malformed_asymptote_record_is_refused(repository):
-    path, source, commit, review = repository
-    bad = {"source": source, "verdict": "PASS", "reviewer": "someone", "checks": GOOD}
-    head = commit(source, {service.REVIEW: review(source), service.ASYMPTOTE: bad})
-    assert run(path, head).returncode == 1
-    good = {**bad, "reviewer": "integrator"}
-    head = commit(source, {service.REVIEW: review(source), service.ASYMPTOTE: good})
-    assert run(path, head).returncode == 0

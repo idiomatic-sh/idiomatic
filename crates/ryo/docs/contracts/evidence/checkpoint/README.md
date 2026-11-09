@@ -2,7 +2,7 @@
 
 ## Validation set
 
-`asymptote.json` is the integrator's record of the quick checks for the landed sha, in the [review evidence schema](../../review/README.md#review-evidence-schema) with `reviewer` `integrator` and one check per group (`lint`, `check`, `clippy`); the TM steward reads only this file.
+The quick checks (`asymptote check --groups lint,check` in `crates/ryo`) have no record here: the TM steward runs them at the landed head, and Asymptote's committed lock (`.asymptote/`) is the record of their findings.
 
 `commands.json` is the list of `[name, argv]` validation commands the matrix's
 numbers rest on: library tests, `boundary_contract`, `project_boundary`,
