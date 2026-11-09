@@ -168,6 +168,8 @@ class GuardShell(unittest.TestCase):
                         LOCK + "cargo-nextest nextest run -p x" + own, LOCK + "/usr/local/cargo/bin/cargo test -px" + own,
                         "flock -w 600 /workspaces/.cargo-build.lock cargo test -p x" + own,
                         "flock --timeout 600 /workspaces/.cargo-build.lock cargo test -p x" + own,
+                        "flock --wait 600 /workspaces/.cargo-build.lock cargo test -p x" + own,
+                        "flock --wait=600 /workspaces/.cargo-build.lock cargo test -p x" + own,
                         "flock -xw 600 /workspaces/.cargo-build.lock cargo nextest run -p x" + own,
                         LOCK + "cargo --config net.offline=true test -p x" + own]:
             with self.subTest(command=command):
@@ -185,6 +187,8 @@ class GuardShell(unittest.TestCase):
                 "flock -sw 5 /workspaces/.cargo-build.lock cargo test -p x" + own,
                 "flock -sw 5 /workspaces/.cargo-build.lock cargo test --workspace" + own,
                 "flock --shared /workspaces/.cargo-build.lock cargo test -p x" + own,
+                "flock --wait 5 -s /workspaces/.cargo-build.lock cargo test -p x" + own,
+                "flock --wait 5 /workspaces/.cargo-build.lock sh -c 'cargo test --workspace'" + own,
                 # a --config value read as the verb
                 LOCK + "cargo --config check test --workspace" + CHECK,
                 "cargo --config check test -p x" + CHECK,
@@ -1378,7 +1382,7 @@ class ReviewerStop(unittest.TestCase):
     def test_the_tree_token_drops_trailing_punctuation(self):
         self.write("checkpoint/rust-review.json", self.review("rust-review"))
         for brief in ["INTEGRATION_TREE=" + self.tree + ": SOURCE=" + SHA,
-                      "The last pass: INTEGRATION_TREE=/elsewhere SOURCE=" + "b" * 40 + ". Now INTEGRATION_TREE=" + self.tree + " SOURCE=" + SHA, "(INTEGRATION_TREE=" + self.tree + "), SOURCE=" + SHA + ".",
+                      "INTEGRATION_TREE=" + self.tree + " SOURCE=" + SHA + ", as before: SOURCE=" + SHA + ".", "(INTEGRATION_TREE=" + self.tree + "), SOURCE=" + SHA + ".",
                       "INTEGRATION_TREE=" + self.tree + "; SOURCE=" + SHA + ";"]:
             with self.subTest(brief=brief):
                 self.assertEqual(self.stop("rust-review", brief=brief).returncode, 0)
@@ -1393,6 +1397,14 @@ class ReviewerStop(unittest.TestCase):
                 ("another source", "checkpoint/rust-review.json", self.review("rust-review", source="b" * 40), 0, None, True),
                 ("the quoted earlier source", "checkpoint/rust-review.json", self.review("rust-review", source="b" * 40), 0,
                  "The last pass reviewed SOURCE=" + "b" * 40 + ". Now INTEGRATION_TREE=" + self.tree + " SOURCE=" + SHA + ".", True),
+                ("two sources, the verdict for the second", "checkpoint/rust-review.json", self.review("rust-review"), 0,
+                 "The last pass reviewed SOURCE=" + "b" * 40 + ". Now INTEGRATION_TREE=" + self.tree + " SOURCE=" + SHA + ".", True),
+                ("two sources, the verdict for the first", "checkpoint/rust-review.json", self.review("rust-review"), 0,
+                 "INTEGRATION_TREE=" + self.tree + " SOURCE=" + SHA + ". Then SOURCE=" + "b" * 40 + ".", True),
+                ("two trees", "checkpoint/rust-review.json", self.review("rust-review"), 0,
+                 "INTEGRATION_TREE=/elsewhere SOURCE=" + SHA + " INTEGRATION_TREE=" + self.tree, True),
+                ("two branches", "branches/claude-w15-loop.json", self.review("leak-review"), 0,
+                 "INTEGRATION_TREE=" + self.tree + " SOURCE=" + SHA + " BRANCH=claude/old BRANCH=claude/w15-loop", True),
                 ("not json", "checkpoint/rust-review.json", "{x", 0, None, True),
                 ("no timestamp", "checkpoint/rust-review.json", self.review("rust-review"), 0, None, False),
                 ("no SOURCE", "checkpoint/rust-review.json", self.review("rust-review"), 0, "INTEGRATION_TREE=" + self.tree, True),

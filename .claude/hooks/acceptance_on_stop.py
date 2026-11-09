@@ -58,10 +58,10 @@ def started_at(path):
 
 
 def token(text, name):
-    """The value of the last `NAME=<value>` token in text (a prompt may quote an earlier review's first), trailing
-    punctuation stripped, or None."""
-    found = re.findall(r"(?<![A-Za-z0-9_])" + name + r"=(\S+)", text)
-    return found[-1].rstrip(TRAILING) if found else None
+    """The value of the `NAME=<value>` token in text, trailing punctuation stripped; None when it is absent or
+    appears with two different values (a prompt quoting an earlier review's token is ambiguous, so it holds)."""
+    found = {v.rstrip(TRAILING) for v in re.findall(r"(?<![A-Za-z0-9_])" + name + r"=(\S+)", text)}
+    return found.pop() if len(found) == 1 else None
 
 
 def shape_problem(review, agent):
@@ -110,9 +110,11 @@ def reviewer_stop(data, agent):
     if last.strip().startswith("BLOCKED:"):
         return 0
     tree, source, branch = token(first, "INTEGRATION_TREE"), token(first, "SOURCE"), token(first, "BRANCH")
+    if "BRANCH=" in first and branch is None:
+        return hold("the prompt names BRANCH= with two different values")
     if not tree or not source or not re.fullmatch(r"[0-9a-f]{40}", source):
         return hold("the prompt must name INTEGRATION_TREE=<path> and SOURCE=<40-hex sha> (and BRANCH=<name> for a "
-                    "branch review)")
+                    "branch review), each once or with one value")
     since = started_at(path)
     if since is None:
         return hold("its transcript has no timestamp, so the run's start is unknown")
