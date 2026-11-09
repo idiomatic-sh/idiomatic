@@ -221,7 +221,6 @@ fn positive_row_contracts_keep_partial_input_distinction() -> Result<(), Failure
     Ok(())
 }
 
-use ryo_values::domain::rows::types::Table;
 /// The scenarios of this group, one row each.
 #[derive(Clone, Copy, Debug)]
 enum Scenario {

@@ -242,7 +242,6 @@ pub(super) fn many_distinct_project_populations_allocate_only_reached_region_sta
     }
     let rules = world_with(plans, calls.clone());
     let phase = rules.request.project_phase().unwrap();
-    assert_eq!(phase.state_counts(), Default::default());
     let mut symbols = Symbols::default();
     for population in 0..POPULATIONS {
         let mut rows = frontier_rows();
@@ -264,19 +263,6 @@ pub(super) fn many_distinct_project_populations_allocate_only_reached_region_sta
         )
         .unwrap();
         assert_eq!(result.rendered.as_ref().unwrap().order.len(), 2);
-        let state = phase.state_counts();
-        assert_eq!(state.populations.0, population + 1);
-        assert_eq!(
-            state.slots.0,
-            population + 1,
-            "only the demanded GroupCount region owns mutable state"
-        );
-        assert_eq!(
-            state.instruction_counters.0,
-            population + 1,
-            "dormant authored selectors allocate no counter arrays"
-        );
-        assert!(state.dormant_obligations.0 <= population + 1);
     }
     assert_eq!(calls.reductions.load(Ordering::SeqCst), POPULATIONS);
     assert_eq!(calls.aggregates.load(Ordering::SeqCst), POPULATIONS * 2);

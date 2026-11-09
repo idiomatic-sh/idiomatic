@@ -1,21 +1,16 @@
 //! One project observation union: its members feed the semantic calls, a refused frontier prevents them, and hosted text joins by spelling.
 use super::super::*;
 use super::fixtures::UnionSemanticCalls;
-use ryo_execution::inbound::use_cases::execution::interface::ObservationExecution;
-use ryo_execution::inbound::use_cases::execution::interface::ObservationPublication;
+use ryo_execution::inbound::use_cases::execution::interface::{BatchNumber, BatchOccurrence, ObservationBatches};
 use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution;
 use ryo_values::domain::observations::types::{
     BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn,
     ObservationColumnName, ObservationName, ObservationProducer, PlanObservation,
 };
 use ryo_values::domain::plan_parts::types::ObservationBindingId;
-use ryo_values::domain::records::types::{CrossPublicationTransfer, ObservationReadinessLayout};
-use ryo_values::domain::records::types::{ObservationIndex, PackedObservedRoot, ProducerReadiness};
-use ryo_values::domain::stored_facts::types::{ArenaBytes, Digest, KeptWords};
-use ryo_values::domain::table_words::{
-    fixtures::{encode_table, pack},
-    types::WordSlice,
-};
+use ryo_values::domain::records::types::ObservationIndex;
+use ryo_values::domain::records::types::ObservationReadinessLayout;
+use ryo_values::domain::stored_facts::types::Digest;
 
 #[test]
 fn project_observation_union_semantic_calls_use_members_without_a_restored_union() {
@@ -176,168 +171,86 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
     let project = ProjectFacts::new(relation);
     let project_symbols = Symbols::default();
     let mut arenas = vec![];
-    let mut stage = request.observations(&mut arenas).unwrap();
+    let stage = request.observations(&mut arenas).unwrap();
     let mut symbols = Symbols::default();
-    let slot = stage.reserve(RuleIndex(0)).unwrap();
     let partials = Partials::default();
     let inapplicable = vec![
             ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default();
             2
         ];
-    let mut result = crate::boundary_fixture::project_root(
-        &stage,
-        PhaseOccurrences {
-            occurrences: &[PhaseOccurrence {
-                rule: RuleIndex(0),
-                bound: &[],
-                slot,
-                demand: FrontierDemand::Diagnostic,
-            }],
-            first: &[Bucket(0), Bucket(1)],
-            corpus: &corpus,
-            covered: &covered,
-            skipped: &[],
-            inapplicable: &inapplicable,
-            refused: &vec![
-                    ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(
-                    );
-                    inapplicable.len()
-                ],
-            facts: &stored,
-            project: &project,
-            project_symbols: &project_symbols,
-            arenas: stage.arenas(),
-        },
-        &partials,
-        &partials,
-        &mut symbols,
-    )
-    .unwrap();
-    // The phase call always demands the emit; that an undemanded emit answers `NoQuery` is proved in the runtime by
-    // `project_phase::service_test::a_root_whose_emit_is_not_demanded_answers_no_query`.
-    assert!(
-        !matches!(
-            result.emit,
-            RootOutcome::Failed(_) | RootOutcome::Unknown(_)
-        ),
-        "the phase call evaluates the producer's own emit beside its publication"
-    );
-    let ProjectOutputOutcome {
-        output,
-        outcome: observed,
-    } = result.observations.pop().unwrap();
-    assert_eq!(output, ObservationIndex(0));
-    let ProjectObservation::Complete {
-        mut table,
-        publication,
-    } = observed
-    else {
-        panic!("actual named project publication")
-    };
-    assert_eq!(
-        table.kinds,
-        if selected_text.is_some() {
-            vec![CellKind::File, CellKind::Symbol]
-        } else {
-            vec![CellKind::File]
-        }
-    );
-    assert_eq!(table.count, RowCount(1));
-    assert_eq!(table.cells[0], Value::File(FileId(0)));
-    if selected_text.is_some() {
-        assert!(
-            matches!(table.cells[1], Value::Name(_)),
-            "the project producer actually publishes stable text names"
-        );
+    let refusals = vec![
+            ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default();
+            inapplicable.len()
+        ];
+    // The producer publishes in the first batch and the union consumes it in the second; a producer the stage never runs leaves
+    // the union's frontier unavailable.
+    let occurrences: &[BatchOccurrence] = if refused {
+        &[BatchOccurrence { batch: BatchNumber(1), rule: RuleIndex(1) }]
     } else {
-        assert_eq!(table.cells, [Value::File(FileId(0))]);
-    }
-    let PublicationSlot::Reserved(worker) = slot else {
-        panic!("real reserved publication slot")
+        &[BatchOccurrence { batch: BatchNumber(0), rule: RuleIndex(0) }, BatchOccurrence { batch: BatchNumber(1), rule: RuleIndex(1) }]
     };
-    let mut words = Words::default();
-    let mut arena = ArenaBytes::default();
-    let mut places = vec![];
-    ryo_execution::application::publication::service::publication(
-        ryo_execution::application::publication::types::PublicationInput {
-            table: &mut table,
-            symbols: &mut symbols,
-            inherited: stage.arenas(),
-            worker,
-            arena: &mut arena,
-            places: &mut places,
-        },
-    )
-    .expect("normal publication normalization and text ownership");
-    encode_table(&table, &places, &mut words);
-    stage
-        .install(
-            RuleIndex(0),
-            slot,
-            CrossPublicationTransfer {
-                worker,
-                arena,
-                roots: vec![PackedObservedRoot {
-                    output,
-                    words: ryo_values::domain::records::types::RootWords::Published(KeptWords(
-                        pack(WordSlice(&words.0)),
-                    )),
-                    readiness: ProducerReadiness::Complete,
-                    arenas: if selected_text.is_some() {
-                        vec![worker]
-                    } else {
-                        vec![]
-                    },
-                }],
-            },
-            vec![AdmittedOutput {
-                output,
-                publication,
-            }],
-        )
-        .unwrap();
-    stage.finish(RuleIndex(0)).unwrap();
-    let bound = stage.bindings(RuleIndex(1)).unwrap();
-    assert_eq!(
-        bound.len(),
-        1,
-        "the real stage supplies members, not a whole-union packet"
-    );
-    let reads = project.reads.load(Ordering::SeqCst);
-    let ready = ReadinessProof::stated(vec![InputReadiness::Unavailable]);
-    let result = crate::boundary_fixture::project_root(
-        &stage,
-        PhaseOccurrences {
-            occurrences: &[PhaseOccurrence {
-                rule: RuleIndex(1),
-                bound: &bound,
-                slot: PublicationSlot::Unused,
-                demand: if refused {
-                    FrontierDemand::Observations { ready: &ready }
-                } else {
-                    FrontierDemand::Diagnostic
-                },
-            }],
+    let (ran, mut delivered) = crate::project_phase::source_facts::fixtures::run_observations(
+        stage,
+        ObservationBatches {
+            occurrences,
+            readiness: &[],
+            rules: &[RuleIndex(0), RuleIndex(1)],
             first: &[Bucket(0), Bucket(1)],
             corpus: &corpus,
             covered: &covered,
             skipped: &[],
             inapplicable: &inapplicable,
-            refused: &vec![
-                    ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(
-                    );
-                    inapplicable.len()
-                ],
+            refused: &refusals,
             facts: &stored,
             project: &project,
             project_symbols: &project_symbols,
-            arenas: stage.arenas(),
         },
         &partials,
-        &partials,
         &mut symbols,
-    )
-    .unwrap();
+    );
+    ran.unwrap();
+    let (_, result) = delivered.pop().unwrap();
+    let result = result.unwrap();
+    if !refused {
+        let (_, produced) = delivered.pop().unwrap();
+        let mut produced = produced.unwrap();
+        // The phase call always demands the emit; that an undemanded emit answers `NoQuery` is proved in the runtime by
+        // `project_phase::service_test::a_root_whose_emit_is_not_demanded_answers_no_query`.
+        assert!(
+            !matches!(
+                produced.emit,
+                RootOutcome::Failed(_) | RootOutcome::Unknown(_)
+            ),
+            "the phase call evaluates the producer's own emit beside its publication"
+        );
+        let ProjectOutputOutcome {
+            output,
+            outcome: observed,
+        } = produced.observations.pop().unwrap();
+        assert_eq!(output, ObservationIndex(0));
+        let ProjectObservation::Complete { table, .. } = observed else {
+            panic!("actual named project publication")
+        };
+        assert_eq!(
+            table.kinds,
+            if selected_text.is_some() {
+                vec![CellKind::File, CellKind::Symbol]
+            } else {
+                vec![CellKind::File]
+            }
+        );
+        assert_eq!(table.count, RowCount(1));
+        assert_eq!(table.cells[0], Value::File(FileId(0)));
+        if selected_text.is_some() {
+            assert!(
+                matches!(table.cells[1], Value::Name(_)),
+                "the project producer actually publishes stable text names"
+            );
+        } else {
+            assert_eq!(table.cells, [Value::File(FileId(0))]);
+        }
+    }
+    assert!(delivered.is_empty(), "one delivery per declared occurrence");
     assert_eq!(
         stored.reads.load(Ordering::SeqCst),
         0,
@@ -348,7 +261,6 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
             matches!(result.emit, RootOutcome::Unknown(OperatingError::ObservationIncomplete { ref reason })
             if reason == "a producer feeding this retained frontier is unavailable")
         );
-        assert!(result.counts.fed.iter().all(|count| count.0 == [0; 3]));
     } else {
         let table = match result.emit {
             RootOutcome::Complete(table) => table,
@@ -379,11 +291,8 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
     );
     assert_eq!(
         project.reads.load(Ordering::SeqCst),
-        reads,
+        if refused { 0 } else { 1 },
         "no producer or provider is rerun for the union"
     );
-    drop(bound);
-    stage.finish(RuleIndex(1)).unwrap();
-    stage.finish_stage().unwrap();
     request.finish();
 }

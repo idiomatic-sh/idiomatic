@@ -15,7 +15,7 @@ use ryo_relations::domain::relations::types::{
 use ryo_relations::domain::terms::types::NameText;
 
 use ryo_execution_domain::domain::kind_sets::service::{names_a_kind, satisfies};
-use ryo_execution_domain::domain::operating::errors::OperatingError;
+use crate::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution_domain::domain::operating::types::KindNaming;
 use ryo_execution_domain::domain::table_model::types::Verdict;
 use ryo_execution_domain::domain::table_texts::types::TextView;
@@ -332,4 +332,3 @@ fn succeeds() {
     run(CASES, Word::Succeeds, subject);
 }
 
-use ryo_values::domain::rows::types::Table;

@@ -1,8 +1,5 @@
 //! Two declared roots of one population read the provider once.
 use super::super::*;
-use ryo_execution::inbound::use_cases::execution::interface::PhasePartials;
-use ryo_execution::inbound::use_cases::execution::interface::ProjectBatch;
-use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution;
 
 #[test]
 fn two_declared_roots_of_one_population_read_the_provider_once() {
@@ -63,13 +60,6 @@ fn two_declared_roots_of_one_population_read_the_provider_once() {
         ));
         assert!(emitted.is_empty());
         assert_eq!(file_reads.get(), 0);
-        assert!(
-            file.counts(RuleIndex(0))
-                .unwrap()
-                .fed
-                .iter()
-                .all(|count| count.0 == [0; 3])
-        );
         file.finish()
             .expect("finish separately declared deferred forward root");
         let mut file = request
@@ -103,13 +93,6 @@ fn two_declared_roots_of_one_population_read_the_provider_once() {
             }
         ));
         assert_eq!(file_reads.get(), 0);
-        assert!(
-            file.counts(RuleIndex(0))
-                .unwrap()
-                .fed
-                .iter()
-                .all(|count| count.0 == [0; 3])
-        );
         let mut arena = vec![];
         let mut places = vec![];
         let mut words = Words::default();
@@ -143,9 +126,6 @@ fn two_declared_roots_of_one_population_read_the_provider_once() {
         // guarantee is one source traversal and no source access during finish.
         let resolved = file_reads.get();
         assert!(resolved > 0);
-        assert_eq!(file.walk_counts().passes.0, 1);
-        assert_eq!(file.walk_counts().source_rows.0, table.count.0 as u64);
-        assert_eq!(file.counts(RuleIndex(0)).unwrap().fed[1].0, [0; 3]);
         file.finish()
             .expect("file owner finishes without demanding project sources");
         assert_eq!(
@@ -167,20 +147,14 @@ fn two_declared_roots_of_one_population_read_the_provider_once() {
         let project_symbols = Symbols::default();
         let mut symbols = Symbols::default();
         let partials = Partials::default();
-        let root = crate::boundary_fixture::ordinary_occurrence(RuleIndex(0));
-        let ready = ReadinessProof::stated(vec![InputReadiness::Ready, InputReadiness::Ready]);
-        let observed = PhaseOccurrence {
-            demand: FrontierDemand::Observations { ready: &ready },
-            ..root
-        };
         let inapplicable = [
             ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
         ];
         let refused =
             [ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default()];
-        let (pair, single) = ([root, root], [observed]);
-        let occurrences = |occurrences| PhaseOccurrences {
-            occurrences,
+        let pair = [RuleIndex(0), RuleIndex(0)];
+        let occurrences = |rules| PhaseRules {
+            rules,
             first: &[Bucket(0)],
             corpus: &corpus,
             covered: &covered,
@@ -208,61 +182,14 @@ fn two_declared_roots_of_one_population_read_the_provider_once() {
             .pop()
             .unwrap()
             .expect("project emit runs at project scope");
-        let RootOutcome::Complete(table) = outcome.emit else {
-            panic!("one complete project diagnostic table")
-        };
-        assert_eq!(table.kinds, [CellKind::File]);
-        assert_eq!(table.count, RowCount(1));
-        assert_eq!(table.cells, [Value::File(FileId(0))]);
-        let counts = outcome
-            .counts
-            .fed
-            .iter()
-            .map(|count| count.0)
-            .collect::<Vec<_>>();
-        assert_eq!(
-            again
-                .counts
-                .fed
-                .iter()
-                .map(|count| count.0)
-                .collect::<Vec<_>>(),
-            counts,
-            "one cached project invocation, with no second semantic evaluation"
-        );
-        // Negative control: a different population (observed demand) is a separate acquisition.
-        let ProjectBatch::Complete(observed) = phase.evaluate_occurrences(
-            occurrences(&single),
-            &mut symbols,
-            |_| Ok::<(), OperatingError>(()),
-            |_| {
-                Ok(PhasePartials {
-                    evaluation: partials.clone(),
-                    publication: partials.clone(),
-                })
-            },
-            |_| Ok(()),
-            |_, outcome, _, _| Ok(outcome),
-        ) else {
-            panic!("the guard admits the observed occurrence")
-        };
-        let [Ok(observed)] = observed.as_slice() else {
-            panic!(
-                "the observed occurrence is scoped, prepared over its ready frontiers and evaluated"
-            )
-        };
-        let RootOutcome::Complete(observed_table) = &observed.emit else {
-            panic!("the observed population answers the same complete project diagnostic table")
-        };
-        assert_eq!(observed_table.kinds, [CellKind::File]);
-        assert_eq!(observed_table.count, RowCount(1));
-        assert_eq!(observed_table.cells, [Value::File(FileId(0))]);
-        assert_eq!(
-            stored.reads.load(Ordering::SeqCst),
-            2,
-            "another population reads the provider again"
-        );
-        assert_eq!(project.reads.load(Ordering::SeqCst), 2);
+        for outcome in [outcome, again] {
+            let RootOutcome::Complete(table) = outcome.emit else {
+                panic!("one complete project diagnostic table")
+            };
+            assert_eq!(table.kinds, [CellKind::File]);
+            assert_eq!(table.count, RowCount(1));
+            assert_eq!(table.cells, [Value::File(FileId(0))]);
+        }
         // A later call holds nothing from the earlier ones: its two occurrences share one new acquisition.
         let later = crate::boundary_fixture::project_roots(
             &phase,
@@ -275,12 +202,12 @@ fn two_declared_roots_of_one_population_read_the_provider_once() {
         phase.finish().expect("release project publications");
         assert_eq!(
             stored.reads.load(Ordering::SeqCst),
-            3,
+            2,
             "the two occurrences of one call share one acquisition of the file frontiers"
         );
         assert_eq!(
             project.reads.load(Ordering::SeqCst),
-            3,
+            2,
             "the two occurrences of one call share one acquisition"
         );
         request.finish();

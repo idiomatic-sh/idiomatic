@@ -6,29 +6,18 @@ use super::fixtures::authored;
 use crate::boundary_fixture::Observed as _;
 use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityReason;
 use ryo_execution::inbound::use_cases::execution::interface::FileObservationReadiness;
-use ryo_execution::inbound::use_cases::execution::interface::ObservationExecution as _;
-use ryo_execution::inbound::use_cases::execution::interface::ObservationPublication as _;
+use ryo_execution::inbound::use_cases::execution::interface::{
+    BatchNumber, BatchOccurrence, ObservationBatches, OccurrenceNumber, PhasePartials,
+};
 use ryo_execution::inbound::use_cases::execution::interface::Partial;
-use ryo_execution::inbound::use_cases::execution::interface::{InapplicableFiles, RefusedFiles};
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
-use ryo_execution_runtime::application::file_dag::frontiers::types::InputReadiness;
-use ryo_execution_runtime::application::file_dag::program::observation_stage::types::AdmittedOutput;
-use ryo_execution_runtime::application::file_dag::observations::types::RuleSelection;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_language::domain::files::types::FilePath;
 use ryo_relations::domain::relations::types::Integer;
 use ryo_values::domain::files::types::CorpusInput;
-use ryo_values::domain::plan_parts::types::ObservationBindingId;
-use ryo_values::domain::records::types::CrossPublicationTransfer;
-use ryo_values::domain::records::types::PackedObservedRoot;
 use ryo_values::domain::records::types::ProducerReadiness;
 use ryo_values::domain::runs::types::SkipReason;
 use ryo_values::domain::runs::types::Skipped;
-use ryo_values::domain::stored_facts::types::ArenaBytes;
-use ryo_values::domain::stored_facts::types::KeptWords;
-use ryo_values::domain::table_words::fixtures::encode_table;
-use ryo_values::domain::table_words::fixtures::pack;
-use ryo_values::domain::table_words::types::WordSlice;
 
 pub(super) fn exercise(empty: bool, project_away_file: bool, stale_complete: bool, mode: Mode) {
     exercise_with(empty, project_away_file, stale_complete, mode, &[]);
@@ -168,61 +157,84 @@ pub(super) fn exercise_with(
     } else {
         Partials::default()
     };
-    let partials = Partials::default();
-    let mut arenas = vec![];
-    let mut stage = request.observations(&mut arenas).unwrap();
-    stage.finish(RuleIndex(0)).unwrap();
-    stage
-        .restore_frontiers(
-            &stored,
-            &corpus,
-            &[],
-            &skipped,
-            &[],
-            &[],
-            &readiness,
-            &[Bucket(0), Bucket(10), Bucket(20)],
-            &[
-                RuleSelection::Unselected,
-                RuleSelection::Selected,
-                RuleSelection::Selected,
-            ],
-        )
-        .unwrap();
-    let mut symbols = Symbols::default();
-    let slot = stage.reserve(RuleIndex(1)).unwrap();
+    let consumer_inapplicable = [
+        ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
+        ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
+        ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles(
+            inapplicable.to_vec(),
+        ),
+    ];
+    let refusals = vec![
+        ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default();
+        consumer_inapplicable.len()
+    ];
     let first = [Bucket(0), Bucket(10), Bucket(20)];
-    let mut outcome = crate::boundary_fixture::project_root(
-        &stage,
-        PhaseOccurrences {
-            occurrences: &[PhaseOccurrence {
-                slot,
-                ..crate::boundary_fixture::ordinary_occurrence(RuleIndex(1))
-            }],
-            first: &first,
-            corpus: &corpus,
-            covered: &[],
-            skipped: &skipped,
-            inapplicable: &vec![ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(); 3],
-            refused: &vec![ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(); 3],
-            facts: &stored,
-            project: &project_facts,
-            project_symbols: &project_symbols,
-            arenas: stage.arenas(),
-        },
-        &partials,
-        &publication_partials,
-        &mut symbols,
-    )
-    .unwrap();
+    // The producer is restored, not selected; rule 1 publishes in the first batch, and rule 2 reads its population in the second.
+    // `forge` relabels rule 1's publication Complete before the stage installs it.
+    let run = |forge: bool, project: &ProjectFacts| {
+        let mut arenas = vec![];
+        let stage = request.observations(&mut arenas).unwrap();
+        let mut symbols = Symbols::default();
+        crate::project_phase::source_facts::fixtures::run_observations_with(
+            stage,
+            ObservationBatches {
+                occurrences: &[BatchOccurrence { batch: BatchNumber(0), rule: RuleIndex(1) }, BatchOccurrence { batch: BatchNumber(1), rule: RuleIndex(2) }],
+                readiness: &readiness,
+                rules: &[RuleIndex(0), RuleIndex(1), RuleIndex(2)],
+                first: &first,
+                corpus: &corpus,
+                covered: &[],
+                skipped: &skipped,
+                inapplicable: &consumer_inapplicable,
+                refused: &refusals,
+                facts: &stored,
+                project,
+                project_symbols: &project_symbols,
+            },
+            &|number| PhasePartials {
+                evaluation: Partials::default(),
+                publication: if number == OccurrenceNumber(0) {
+                    publication_partials.clone()
+                } else {
+                    Partials::default()
+                },
+            },
+            &|_, install| {
+                install.map(|mut install| {
+                    if forge {
+                        for root in &mut install.transfer.roots {
+                            root.readiness = ProducerReadiness::Complete;
+                        }
+                    }
+                    install
+                })
+            },
+            &mut symbols,
+        )
+    };
+    if matches!(mode, Mode::Current | Mode::CurrentRekey { .. }) {
+        let forged = run(true, &project_facts);
+        assert!(
+            forged.0.is_err(),
+            "a Partial owner proof cannot be relabeled Complete"
+        );
+    }
+    let project_facts = if matches!(mode, Mode::CurrentRekey { .. }) {
+        ProjectFacts::empty(Relation::ModuleIdentity)
+    } else {
+        ProjectFacts::new(Relation::ModuleIdentity)
+    };
+    let (ran, delivered) = run(false, &project_facts);
+    ran.unwrap();
+    let mut delivered = delivered.into_iter().map(|(_, outcome)| outcome.unwrap());
+    let mut outcome = delivered.next().unwrap();
     let ProjectOutputOutcome {
-        output,
-        outcome: observed,
+        outcome: observed, ..
     } = outcome.observations.pop().unwrap();
-    let (table, publication, readiness) = match (mode, observed) {
+    match (mode, observed) {
         (
             Mode::Current | Mode::CurrentRekey { .. },
-            ProjectObservation::Partial { table, publication },
+            ProjectObservation::Partial { table, .. },
         ) => {
             if matches!(mode, Mode::CurrentRekey { .. }) {
                 assert_eq!(
@@ -236,112 +248,16 @@ pub(super) fn exercise_with(
                     vec![Value::File(FileId(0)), Value::Number(Integer(7))]
                 );
             }
-            (
-                table,
-                publication,
-                ProducerReadiness::Unknown(ryo_values::domain::records::types::ObservationReason(
-                    "physical source facts are incomplete".into(),
-                )),
-            )
         }
-        (_, ProjectObservation::Complete { table, publication }) => {
+        (_, ProjectObservation::Complete { table, .. }) => {
             assert_eq!(table.count, RowCount(0));
-            (table, publication, ProducerReadiness::Complete)
         }
         _ => panic!("the actual project population keeps its exact completeness"),
-    };
-    let PublicationSlot::Reserved(worker) = slot else {
-        panic!("demanded publication arena")
-    };
-    let mut words = Words::default();
-    encode_table(&table, &[], &mut words);
-    let transfer = CrossPublicationTransfer {
-        worker,
-        arena: ArenaBytes::default(),
-        roots: vec![PackedObservedRoot {
-            output,
-            words: ryo_values::domain::records::types::RootWords::Published(KeptWords(pack(
-                WordSlice(&words.0),
-            ))),
-            readiness,
-            arenas: vec![],
-        }],
-    };
-    if matches!(mode, Mode::Current | Mode::CurrentRekey { .. }) {
-        let mut forged = transfer.clone();
-        forged.roots[0].readiness = ProducerReadiness::Complete;
-        assert!(
-            stage
-                .install(
-                    RuleIndex(1),
-                    slot,
-                    forged,
-                    vec![AdmittedOutput {
-                        output,
-                        publication: publication.clone()
-                    }]
-                )
-                .is_err(),
-            "a Partial owner proof cannot be relabeled Complete"
-        );
     }
-    stage
-        .install(
-            RuleIndex(1),
-            slot,
-            transfer,
-            vec![AdmittedOutput {
-                output,
-                publication,
-            }],
-        )
-        .unwrap();
-    stage.finish(RuleIndex(1)).unwrap();
-    let bound = stage.bindings(RuleIndex(2)).unwrap();
-    assert_eq!(
-        stage
-            .binding_readiness(RuleIndex(2))
-            .unwrap()
-            .get(&ObservationBindingId(0)),
-        Some(&InputReadiness::Ready)
-    );
-    // One acquisition of the frontier sources serves both declared occurrences of the one population.
-    let consumer = PhaseOccurrence {
-        bound: &bound,
-        ..crate::boundary_fixture::ordinary_occurrence(RuleIndex(2))
-    };
-    let consumer_inapplicable = [
-        ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
-        ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
-        ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles(
-            inapplicable.to_vec(),
-        ),
-    ];
-    let outcomes = crate::boundary_fixture::project_roots(
-        &stage,
-        PhaseOccurrences {
-            occurrences: &[consumer, consumer],
-            first: &first,
-            corpus: &corpus,
-            covered: &[],
-            skipped: &skipped,
-            inapplicable: &consumer_inapplicable,
-            refused: &vec![
-                    ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(
-                    );
-                    consumer_inapplicable.len()
-                ],
-            facts: &stored,
-            project: &project_facts,
-            project_symbols: &project_symbols,
-            arenas: stage.arenas(),
-        },
-        &partials,
-        &partials,
-        &mut symbols,
-    );
+    let outcomes = delivered.collect::<Vec<_>>();
+    assert_eq!(outcomes.len(), 1);
     for outcome in outcomes {
-        let RootOutcome::Partial { table, affected } = outcome.unwrap().emit else {
+        let RootOutcome::Partial { table, affected } = outcome.emit else {
             panic!("only the bad physical partition must remain explicitly unknown")
         };
         if matches!(mode, Mode::CurrentRekey { file_key: false }) {
@@ -388,10 +304,7 @@ pub(super) fn exercise_with(
     assert_eq!(
         project_facts.reads.load(Ordering::SeqCst),
         usize::from(matches!(mode, Mode::Current | Mode::CurrentRekey { .. })),
-        "two declared roots of one population read the provider once"
+        "the consumer's population reads the provider once"
     );
-    drop(bound);
-    stage.finish(RuleIndex(2)).unwrap();
-    stage.finish_stage().unwrap();
     request.finish();
 }

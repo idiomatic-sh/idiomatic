@@ -2,7 +2,7 @@
 use super::{interface::PublicationUseCase, use_case::PublicationUseCaseImpl};
 use crate::application::publication::{errors::PublicationError, types::PublicationInput};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_execution_domain::domain::finish::types::PublicationReason;
+use crate::inbound::use_cases::publication::interface::PublicationReason;
 use ryo_language::domain::symbols::{
     service::intern_derived,
     types::{ByteSlice, Symbols},

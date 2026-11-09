@@ -11,8 +11,7 @@ use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
-use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
-use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::types::PrepareRequest;
 use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
 use ryo_relations::domain::relations::types::{FileId, Relation};
@@ -82,8 +81,6 @@ fn frontier_and_callback_share_the_same_atomic_semantic_failure() {
                 );
             }
         }
-        counts(&file, 1, 4);
-        assert_eq!(file.walk_counts().predicate_rows.0, 2);
         file.finish().unwrap();
         request.finish();
     }

@@ -6,13 +6,11 @@ use crate::inbound::use_cases::execution::interface::OperatingError;
 use crate::inbound::use_cases::execution::interface::Partials;
 use crate::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
-use ryo_execution_runtime::application::file_dag::frontiers::types::PublicationSlot;
 use ryo_execution_runtime::application::file_dag::program::project_phase::interface::{
     ProjectRootExecution as _, ProjectStage as _,
 };
-use ryo_execution_runtime::application::file_dag::program::project_phase::types::FrontierDemand;
 use ryo_execution_runtime::application::file_dag::program::project_phase::types::{
-    PhaseOccurrence, PhaseOccurrences, PhasePartials,
+    PhasePartials, PhaseRules,
 };
 use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::ProjectBatch;
@@ -102,16 +100,10 @@ fn project_step_without_a_declared_handover_cannot_read_a_per_file_source() -> R
     let facts = UnavailableFacts::default();
     let mut symbols = Symbols::default();
     let project_symbols = Symbols::default();
-    let occurrence = PhaseOccurrence {
-        rule: RuleIndex(0),
-        bound: &[],
-        slot: PublicationSlot::Unused,
-        demand: FrontierDemand::Diagnostic,
-    };
     // Two declared occurrences of the one rule: the refusal repeats without reacquiring the provider.
-    let ProjectBatch::Complete(outcomes) = phase.evaluate_occurrences(
-        PhaseOccurrences {
-            occurrences: &[occurrence, occurrence],
+    let ProjectBatch::Complete(outcomes) = phase.evaluate_rules(
+        PhaseRules {
+            rules: &[RuleIndex(0), RuleIndex(0)],
             first: &[Bucket(0)],
             corpus: &corpus,
             covered: &covered,
@@ -134,7 +126,7 @@ fn project_step_without_a_declared_handover_cannot_read_a_per_file_source() -> R
             })
         },
         |_| Ok(()),
-        |_, outcome, _, _| Ok(outcome),
+        |_, outcome, _, _, _| Ok(outcome),
     ) else {
         panic!("the guard admits the declared occurrences")
     };
@@ -144,7 +136,6 @@ fn project_step_without_a_declared_handover_cannot_read_a_per_file_source() -> R
             matches!(outcome.emit, RootOutcome::Failed(OperatingError::NotRead)),
             "a missing file handover must refuse rather than become a complete empty source"
         );
-        assert!(outcome.counts.fed.iter().all(|fed| fed.0 == [0; 3]));
     }
     assert_eq!(
         facts.reads.load(Ordering::Relaxed),

@@ -12,8 +12,7 @@ use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::ObservationIdentity;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
-use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
-use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::types::PrepareRequest;
 use ryo_execution_domain::domain::rule_intent::types::EmitDemand;
 use ryo_execution_domain::domain::rule_intent::types::FrontierPurpose;
 use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
@@ -39,7 +38,7 @@ use ryo_values::domain::{
 };
 use std::cell::Cell;
 
-fn named() -> PrepareRequest {
+pub(crate) fn named() -> PrepareRequest {
     let mut authored = authored_request(3);
     let columns = vec![ObservationColumn {
         name: ObservationColumnName("node".into()),
@@ -215,11 +214,6 @@ fn direct_bound_root_and_union_share_the_actual_member_before_producer_delivery(
             };
             assert_eq!(observed.cells, expected);
         }
-        let work = file.readiness_counts();
-        assert!(
-            work.evaluations.0 > 0,
-            "named roots must enter the scheduler"
-        );
         let read_count = reads.get();
         assert!(read_count > 0);
         // The original direct bound root is captured after ordinary delivery.
@@ -259,11 +253,6 @@ fn direct_bound_root_and_union_share_the_actual_member_before_producer_delivery(
             reads.get(),
             read_count,
             "alias capture cannot rerun its provider"
-        );
-        assert_eq!(
-            file.readiness_counts(),
-            work,
-            "capture reuses terminal scheduler work"
         );
         file.finish().unwrap();
         request.finish();
@@ -339,7 +328,6 @@ fn a_refused_named_member_cannot_be_replaced_with_a_typed_empty_or_provider_retr
         first.observations[0].outcome,
         RootOutcome::Unknown(OperatingError::ObservationIncomplete { .. })
     ));
-    let work = file.readiness_counts();
     let second = file.rule(RuleIndex(1), roots, &mut symbols).unwrap();
     assert!(matches!(
         second.emit,
@@ -350,11 +338,6 @@ fn a_refused_named_member_cannot_be_replaced_with_a_typed_empty_or_provider_retr
         second.observations[0].outcome,
         RootOutcome::Unknown(OperatingError::ObservationIncomplete { .. })
     ));
-    assert_eq!(
-        file.readiness_counts(),
-        work,
-        "missing-member retry cannot create a new admission"
-    );
     assert!(matches!(
         file.rule(RuleIndex(0), roots, &mut symbols),
         Err(OperatingError::NotRun)

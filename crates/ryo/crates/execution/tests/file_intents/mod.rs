@@ -4,15 +4,14 @@ use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
-use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
-use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::types::PrepareRequest;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
-use ryo_execution_runtime::application::file_dag::program::preparation::types::Demand;
+use ryo_execution::inbound::use_cases::execution::interface::Demand;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_relations::domain::relations::types::{Words, WorkerNumber};
 use ryo_values::domain::runs::types::ApplicabilityRefusal;
 
-fn input<'a, 'facts>(
+pub(crate) fn input<'a, 'facts>(
     intents: &'a [FileRuleIntent],
     elements: &'a ryo_language::domain::elements::types::Elements,
     read: &'a dyn Fn(Relation) -> Result<SourceRows<'facts>, OperatingError>,

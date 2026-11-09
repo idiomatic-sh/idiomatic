@@ -9,8 +9,6 @@ use crate::inbound::use_cases::execution::interface::ObservationDemand;
 use crate::inbound::use_cases::execution::interface::OperatingError;
 use crate::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution_domain::domain::prepared_request::types::ObservationIdentity;
-use ryo_execution_domain::domain::rule_intent::types::EmitDemand;
-use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
 use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
 use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution as _;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
@@ -191,10 +189,7 @@ fn subject(refusal: Input) -> Result<Value, Failure> {
         },
         &mut symbols,
     )?;
-    let demand = RuleDemand {
-        emit: EmitDemand::Enabled,
-        observations: ObservationDemand::NotRequired,
-    };
+    let demand = crate::inbound::use_cases::execution::fixtures::requests::emitted();
     for _ in 0..2 {
         let outcome = file.rule(RuleIndex(0), demand, &mut symbols)?;
         match refusal {

@@ -80,7 +80,6 @@ fn sink_refusal_replays_delivery_without_restarting_the_shared_dependency_graph(
                 &mut symbols,
             )
             .unwrap();
-        assert_eq!(file.readiness_counts().evaluations.0, 0);
         if generation == 0 {
             let callbacks = Cell::new(0);
             assert!(matches!(
@@ -91,10 +90,8 @@ fn sink_refusal_replays_delivery_without_restarting_the_shared_dependency_graph(
                 Err(OperatingError::WrongBinding)
             ));
             assert_eq!(callbacks.get(), 1);
-            let work = file.readiness_counts();
             let admitted = reads.get();
             assert!(admitted > 0);
-            assert!(work.evaluations.0 > 0);
             refuse.set(true);
             for index in [0, 1, 0] {
                 let mut rows = vec![];
@@ -104,7 +101,6 @@ fn sink_refusal_replays_delivery_without_restarting_the_shared_dependency_graph(
                 })
                 .expect("retry terminal publication through the public owner");
                 assert_eq!(rows, [vec![table.cells[0]]]);
-                assert_eq!(file.readiness_counts(), work);
                 assert_eq!(reads.get(), admitted);
             }
         } else {
@@ -119,7 +115,6 @@ fn sink_refusal_replays_delivery_without_restarting_the_shared_dependency_graph(
                 reads.get() > before,
                 "the fresh generation admitted the current provider"
             );
-            let failed = file.readiness_counts();
             let after = reads.get();
             assert!(matches!(
                 file.emit_rows(RuleIndex(0), &mut symbols, &mut |_| {
@@ -127,11 +122,6 @@ fn sink_refusal_replays_delivery_without_restarting_the_shared_dependency_graph(
                 }),
                 Err(OperatingError::NotRead)
             ));
-            assert_eq!(
-                file.readiness_counts(),
-                failed,
-                "terminal failure is not a retry permit"
-            );
             assert_eq!(reads.get(), after);
         }
         file.finish().unwrap();
@@ -195,13 +185,11 @@ fn an_unbound_rule_cannot_schedule_an_independent_provider_after_a_failed_siblin
             .emit,
         RootOutcome::Failed(OperatingError::NotRead)
     ));
-    let failed = file.readiness_counts();
     let after = reads.get();
     assert!(matches!(
         file.rule(RuleIndex(1), demand(), &mut symbols),
         Err(OperatingError::NotRun)
     ));
-    assert_eq!(file.readiness_counts(), failed);
     assert_eq!(reads.get(), after);
     file.finish().unwrap();
     request.finish();

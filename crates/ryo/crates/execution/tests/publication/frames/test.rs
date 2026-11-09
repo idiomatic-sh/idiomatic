@@ -152,7 +152,7 @@ fn captured_name_frames_do_not_inherit_previous_frame_place_numbers() {
                 .expect("capture actual frontier");
             assert_eq!(captures.len(), 1);
             let outcome = captures.into_iter().next().unwrap().outcome;
-            use ryo_execution_domain::domain::finish::types::PublicationReason;
+            use ryo_execution::inbound::use_cases::publication::interface::PublicationReason;
             let refusal = match representation {
                 "missing_range" => Some(PublicationReason::InheritedRangeMissing),
                 "wrong_hash" => Some(PublicationReason::InheritedTextMismatch),

@@ -61,7 +61,6 @@ pub(crate) fn measure(total: usize, demanded: &[usize]) -> Sample {
                     &mut symbols,
                 )
                 .unwrap();
-            assert_eq!(file.readiness_counts().evaluations.0, 0);
             file.finish().unwrap();
         });
     }

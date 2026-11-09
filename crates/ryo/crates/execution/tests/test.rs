@@ -23,7 +23,6 @@ use ryo_execution_runtime::application::file_dag::program::file_session::types::
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
-use ryo_execution_runtime::outbound::operators::interface::OperatorsPort as _;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::{
     fixtures::{kinds, node_id},
@@ -179,10 +178,11 @@ mod shared_walk;
 mod file_intents;
 
 #[cfg(test)]
-mod scheduler;
+pub(crate) mod scheduler;
 
 mod submission;
 
 mod file_run;
 
 mod compiled_rules;
+mod interpreter;

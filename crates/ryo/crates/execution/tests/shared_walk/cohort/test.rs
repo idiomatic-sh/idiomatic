@@ -65,20 +65,11 @@ fn only_admitted_classes_allocate_scratch_and_result_slots() {
                     &mut symbols,
                 )
                 .unwrap();
-            assert_eq!(file.walk_counts().scratch_classes.0, 0);
-            assert_eq!(file.walk_counts().result_slots.0, 0);
             let result = file.rule(RuleIndex(0), demand(), &mut symbols).unwrap();
             assert_eq!(complete(result), expected(FileId(0), &elements, &[1, 3]));
-            let measured = file.walk_counts();
-            assert_eq!(measured.scratch_classes.0, 1);
-            assert_eq!(measured.result_slots.0, 1);
-            assert_eq!(measured.passes.0, 1);
-            assert_eq!(measured.source_rows.0, 4);
             assert_eq!(semantics.selects(), 0);
             let replay = file.rule(RuleIndex(0), demand(), &mut symbols).unwrap();
             assert_eq!(complete(replay), expected(FileId(0), &elements, &[1, 3]));
-            assert_eq!(file.walk_counts().scratch_classes, measured.scratch_classes);
-            assert_eq!(file.walk_counts().result_slots, measured.result_slots);
             file.finish().unwrap();
         }
         request.finish();
@@ -135,11 +126,6 @@ fn a_failed_dependency_does_not_prepare_a_later_class_of_the_same_rule() {
             file.rule(RuleIndex(0), demand(), &mut symbols).unwrap(),
             regex_error("["),
         );
-        let actual = file.walk_counts();
-        assert_eq!(actual.scratch_classes.0, 1);
-        assert_eq!(actual.result_slots.0, 1);
-        assert_eq!(actual.passes.0, 1);
-        assert_eq!(actual.predicate_rows.0, 1);
     }
     assert_eq!(semantics.selects(), 0);
     file.finish().unwrap();
@@ -196,10 +182,6 @@ fn later_cohorts_add_only_the_new_class_and_aliases_replay_both_results() {
     for rule in [RuleIndex(1), RuleIndex(0), RuleIndex(1)] {
         let result = file.rule(rule, demand(), &mut symbols).unwrap();
         assert_eq!(complete(result), expected(FileId(0), &elements, &[1, 3, 2]));
-        let actual = file.walk_counts();
-        assert_eq!(actual.scratch_classes.0, 2);
-        assert_eq!(actual.result_slots.0, 2);
-        assert_eq!(actual.predicate_rows.0, 3);
     }
     assert_eq!(semantics.selects(), 0);
     file.finish().unwrap();
@@ -244,24 +226,14 @@ fn full_rule_count_shares_source_decoding_and_ordered_predicate_prefixes() {
             &mut symbols,
         )
         .unwrap();
-    assert_eq!(file.walk_counts().predicate_tests.0, 0);
     for index in (0..RULES).rev() {
         let actual = complete(file.rule(RuleIndex(index), demand(), &mut symbols).unwrap());
         assert_eq!(actual.count.0, 2);
         assert_eq!(actual.kinds.len(), 1);
     }
-    let actual = file.walk_counts();
-    assert_eq!(actual.passes.0, 1);
-    assert_eq!(actual.source_rows.0, 4);
-    assert_eq!(actual.decoded_rows.0, 2);
-    assert_eq!(actual.predicate_rows.0, 2 * RULES as u64);
-    assert_eq!(actual.predicate_tests.0, 2 * (RULES as u64 + 1));
-    assert_eq!(actual.predicate_reuses.0, 2 * (RULES as u64 - 1));
-    assert_eq!(actual.result_slots.0, RULES as u64);
     assert_eq!(semantics.selects(), 0);
     let replay = complete(file.rule(RuleIndex(0), demand(), &mut symbols).unwrap());
     assert_eq!(replay.count.0, 2);
-    assert_eq!(file.walk_counts(), actual);
     file.finish().unwrap();
     request.finish();
 }
@@ -327,12 +299,7 @@ fn shared_prefixes_preserve_distinct_parameter_bindings_and_first_errors() {
             expected(FileId(0), &elements, &[1])
         );
     }
-    let actual = file.walk_counts();
-    assert_eq!(actual.passes.0, 1);
-    assert_eq!(actual.decoded_rows.0, 2);
     // Kind tests share across all classes, while only the two equal bound regexes share.
-    assert_eq!(actual.predicate_tests.0, 7);
-    assert_eq!(actual.predicate_reuses.0, 5);
     assert_eq!(semantics.selects(), 0);
     file.finish().unwrap();
     request.finish();

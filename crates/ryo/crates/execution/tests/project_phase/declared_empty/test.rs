@@ -1,12 +1,11 @@
 //! Closed empty declarations remain typed populations; absent declarations remain refusals.
 use super::super::*;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution::inbound::use_cases::execution::interface::ObservationExecution;
+use ryo_execution::inbound::use_cases::execution::interface::{BatchNumber, BatchOccurrence, ObservationBatches};
 use ryo_execution::inbound::use_cases::execution::interface::RuleIntentError;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
-use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
-use ryo_execution_runtime::application::file_dag::frontiers::types::InputReadiness;
+use ryo_execution::inbound::use_cases::prepare::types::PrepareRequest;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_values::domain::{
     observations::types::{
@@ -132,47 +131,34 @@ fn declared_empty_observation_defers_in_file_and_publishes_typed_empty_in_projec
         partial: vec![],
     }];
     let mut arenas = vec![];
-    let mut stage = request.observations(&mut arenas).unwrap();
-    assert_eq!(
-        stage
-            .binding_readiness(RuleIndex(0))
-            .unwrap()
-            .get(&ObservationBindingId(0)),
-        Some(&InputReadiness::Ready)
-    );
-    let bound = stage.bindings(RuleIndex(0)).unwrap();
+    let stage = request.observations(&mut arenas).unwrap();
     let project_symbols = Symbols::default();
     let partials = Partials::default();
     let inapplicable =
         [ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default()];
-    // Two declared occurrences of the one rule share the invocation; each prepares its own frontiers.
-    let occurrence = PhaseOccurrence {
-        bound: &bound,
-        ..crate::boundary_fixture::ordinary_occurrence(RuleIndex(0))
-    };
-    for outcome in crate::boundary_fixture::project_roots(
-        &stage,
-        PhaseOccurrences {
-            occurrences: &[occurrence, occurrence],
+    let refusals = [ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default()];
+    let (ran, delivered) = crate::project_phase::source_facts::fixtures::run_observations(
+        stage,
+        ObservationBatches {
+            occurrences: &[BatchOccurrence { batch: BatchNumber(0), rule: RuleIndex(0) }],
+            readiness: &[],
+            rules: &[RuleIndex(0)],
             first: &[Bucket(0)],
             corpus: &corpus,
             covered: &covered,
             skipped: &[],
             inapplicable: &inapplicable,
-            refused: &vec![
-                    ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(
-                    );
-                    inapplicable.len()
-                ],
+            refused: &refusals,
             facts: &stored,
             project: &project,
             project_symbols: &project_symbols,
-            arenas: stage.arenas(),
         },
         &partials,
-        &partials,
         &mut symbols,
-    ) {
+    );
+    ran.unwrap();
+    assert_eq!(delivered.len(), 1);
+    for (_, outcome) in delivered {
         let RootOutcome::Complete(table) = outcome.unwrap().emit else {
             panic!("authoritatively empty union must complete in its declared phase")
         };
@@ -182,7 +168,6 @@ fn declared_empty_observation_defers_in_file_and_publishes_typed_empty_in_projec
     }
     assert_eq!(stored.reads.load(Ordering::SeqCst), 0);
     assert_eq!(project.reads.load(Ordering::SeqCst), 0);
-    stage.finish(RuleIndex(0)).unwrap();
 }
 
 #[test]
@@ -191,14 +176,14 @@ fn no_query_is_unavailable_rather_than_an_empty_population() {
     input.rules[0].observations[0].producers = vec![ObservationProducer::NoQuery {
         rule: RuleId("not-executable".into()),
     }];
+    // The producer has no query, so it never publishes: the consumer's frontier is unavailable before its schema is compared.
     project_refuses(
         input,
-        "observation producer has no executable query",
-        InputReadiness::Unavailable,
+        "a producer feeding this retained frontier is unavailable",
     );
 }
 
-fn project_refuses(input: PrepareRequest, expected: &str, ready: InputReadiness) {
+fn project_refuses(input: PrepareRequest, expected: &str) {
     let engine = engine();
     let prepared = engine
         .prepare(input)
@@ -217,24 +202,15 @@ fn project_refuses(input: PrepareRequest, expected: &str, ready: InputReadiness)
     }];
     let mut arenas = vec![];
     let stage = request.observations(&mut arenas).unwrap();
-    assert_eq!(
-        stage
-            .binding_readiness(RuleIndex(0))
-            .unwrap()
-            .get(&ObservationBindingId(0)),
-        Some(&ready)
-    );
-    let bound = stage.bindings(RuleIndex(0)).unwrap();
     let mut symbols = Symbols::default();
     let project_symbols = Symbols::default();
     let partials = Partials::default();
-    let outcome = crate::boundary_fixture::project_root(
-        &stage,
-        PhaseOccurrences {
-            occurrences: &[PhaseOccurrence {
-                bound: &bound,
-                ..crate::boundary_fixture::ordinary_occurrence(RuleIndex(0))
-            }],
+    let (ran, mut delivered) = crate::project_phase::source_facts::fixtures::run_observations(
+        stage,
+        ObservationBatches {
+            occurrences: &[BatchOccurrence { batch: BatchNumber(0), rule: RuleIndex(0) }],
+            readiness: &[],
+            rules: &[RuleIndex(0)],
             first: &[Bucket(0)],
             corpus: &corpus,
             covered: &covered,
@@ -249,12 +225,12 @@ fn project_refuses(input: PrepareRequest, expected: &str, ready: InputReadiness)
             facts: &stored,
             project: &project,
             project_symbols: &project_symbols,
-            arenas: stage.arenas(),
         },
-        &partials,
         &partials,
         &mut symbols,
     );
+    ran.unwrap();
+    let (_, outcome) = delivered.pop().unwrap();
     assert!(matches!(outcome.unwrap().emit,
         RootOutcome::Unknown(OperatingError::ObservationIncomplete { ref reason })
         if reason == expected));
@@ -289,7 +265,6 @@ fn missing_declarations_outputs_and_mismatched_schemas_are_not_closed_empty() {
     project_refuses(
         mismatch,
         "observation does not match its actual consumer declaration",
-        InputReadiness::Ready,
     );
 
     let mut unknown = declared();

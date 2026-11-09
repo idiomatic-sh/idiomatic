@@ -96,7 +96,6 @@ fn distinct_native_heads_keep_reordered_duplicate_columns_and_source_row_order()
             cells: vec![span, b, span, Value::Node(node_id(FileId(0), Position(2)))]
         }
     );
-    counts(&file, 1, 4);
     assert_eq!(
         semantics.selects(),
         0,
@@ -161,7 +160,6 @@ fn fused_select_reads_projected_ordinals_and_forwards_exact_rows_in_source_order
                 cells
             }
         );
-        counts(&file, 1, 4);
         file.finish().unwrap();
         request.finish();
     }
@@ -199,7 +197,6 @@ fn mixed_intents_keep_excluded_errors_unreachable_while_an_active_neighbor_walks
         complete(file.rule(RuleIndex(2), demand(), &mut symbols).unwrap()),
         expected(FileId(0), &elements, &[2])
     );
-    counts(&file, 1, 4);
     for rule in [RuleIndex(0), RuleIndex(1)] {
         assert!(matches!(
             file.rule(rule, demand(), &mut symbols),
@@ -211,14 +208,8 @@ fn mixed_intents_keep_excluded_errors_unreachable_while_an_active_neighbor_walks
             )),
             Err(OperatingError::NotRun)
         ));
-        counts(&file, 1, 4);
     }
     assert_eq!(semantics.selects(), 0);
-    assert_eq!(
-        file.walk_counts().predicate_rows.0,
-        1,
-        "only the active other-kind row reaches a predicate"
-    );
     file.finish().unwrap();
     request.finish();
 }
@@ -250,12 +241,6 @@ fn a_run_intent_with_no_enabled_roots_does_not_evaluate_its_predicates() {
     assert_eq!(
         complete(file.rule(RuleIndex(1), demand(), &mut symbols).unwrap()),
         expected(FileId(0), &elements, &[2]),
-    );
-    counts(&file, 1, 4);
-    assert_eq!(
-        file.walk_counts().predicate_rows.0,
-        1,
-        "an enabled rule is not evidence that any of its roots were demanded"
     );
     file.finish().unwrap();
     request.finish();

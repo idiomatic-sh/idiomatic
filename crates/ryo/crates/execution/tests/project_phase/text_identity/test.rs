@@ -112,8 +112,8 @@ fn project_text_identity_does_not_depend_on_inherited_arenas() {
                 let partials = Partials::default();
                 let result = crate::boundary_fixture::project_root(
                     &phase,
-                    PhaseOccurrences {
-                        occurrences: &[crate::boundary_fixture::ordinary_occurrence(RuleIndex(0))],
+                    PhaseRules {
+                        rules: &[RuleIndex(0)],
                         first: &[Bucket(0)],
                         corpus: &corpus,
                         covered: &covered,

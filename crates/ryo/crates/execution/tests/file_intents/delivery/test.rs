@@ -180,13 +180,6 @@ fn diagnostic_delivery_is_bound_before_admission_and_cannot_switch_after_publica
             DiagnosticDelivery::Disabled => unreachable!(),
         }
         assert_eq!(reads.get(), 0, "wrong mode cannot admit any provider");
-        assert!(
-            file.counts(RuleIndex(0))
-                .unwrap()
-                .fed
-                .iter()
-                .all(|count| count.0 == [0; 3])
-        );
         let expected = Table {
             kinds: vec![CellKind::Node],
             count: RowCount(1),

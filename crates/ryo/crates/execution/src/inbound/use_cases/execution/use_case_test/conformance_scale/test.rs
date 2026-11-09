@@ -1,6 +1,6 @@
 //! Actual engine visit bounds over increasing authored input populations; the runtime proves the row scratch bound.
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
-use ryo_execution_domain::domain::operating::errors::OperatingError;
+use crate::inbound::use_cases::execution::interface::OperatingError;
 use super::super::conformance::test::{compare_delivery, repeated};
 use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::*;
 use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::values::numbers;

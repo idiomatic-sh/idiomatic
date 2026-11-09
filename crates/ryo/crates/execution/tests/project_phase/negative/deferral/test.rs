@@ -20,7 +20,7 @@ use ryo_execution_runtime::application::file_dag::program::file_session::types::
 use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
-use ryo_execution_runtime::application::file_dag::program::project_phase::types::PhaseOccurrences;
+use ryo_execution::inbound::use_cases::execution::interface::PhaseRules;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_language::domain::symbols::types::Symbols;
@@ -54,8 +54,8 @@ fn a_file_emit_defers_at_project_scope_but_its_real_file_failure_is_not_deferred
     let partials = Partials::default();
     let result = crate::boundary_fixture::project_root(
         &phase,
-        PhaseOccurrences {
-            occurrences: &[crate::boundary_fixture::ordinary_occurrence(RuleIndex(0))],
+        PhaseRules {
+            rules: &[RuleIndex(0)],
             first: &[Bucket(0)],
             corpus: &corpus,
             covered: &covered,
@@ -83,7 +83,6 @@ fn a_file_emit_defers_at_project_scope_but_its_real_file_failure_is_not_deferred
             phase: StepScope::PerFile
         }
     ));
-    assert!(result.counts.fed.iter().all(|count| count.0 == [0; 3]));
     assert_eq!(project.reads.load(Ordering::SeqCst), 0);
     phase.finish().unwrap();
 

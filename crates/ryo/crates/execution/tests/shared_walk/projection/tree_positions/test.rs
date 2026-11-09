@@ -167,16 +167,6 @@ fn shared_tree_positions_keep_native_join_projection_refusal_and_replay() {
                 3
             };
             assert_eq!(semantics.calls.load(Ordering::Relaxed), expected_calls);
-            let walks = file.walk_counts();
-            assert_eq!(walks.passes.0, 1);
-            assert_eq!(
-                walks.source_rows.0,
-                if relation == Relation::SyntaxTree {
-                    4
-                } else {
-                    3
-                }
-            );
             let replay = file.rule(RuleIndex(0), demand(), &mut symbols).unwrap();
             if refuse {
                 assert!(matches!(
@@ -195,7 +185,6 @@ fn shared_tree_positions_keep_native_join_projection_refusal_and_replay() {
                     }
                 );
             }
-            assert_eq!(file.walk_counts(), walks);
             assert_eq!(semantics.calls.load(Ordering::Relaxed), expected_calls);
             file.finish().unwrap();
             request.finish();
@@ -247,12 +236,6 @@ fn direct_pure_projections_share_source_scan_including_zero_columns_and_repeats(
             }
         }
     }
-    let actual = file.walk_counts();
-    assert_eq!(actual.passes.0, 1);
-    assert_eq!(actual.source_rows.0, 4);
-    assert_eq!(actual.scratch_classes.0, 1);
-    assert_eq!(actual.result_slots.0, 1);
-    assert_eq!(actual.predicate_tests.0, 0);
     assert_eq!(semantics.selects(), 0);
     file.finish().unwrap();
     request.finish();

@@ -1,3 +1,3 @@
 //! source facts proof roles.
 #[cfg(test)]
-pub(super) mod fixtures;
+pub(crate) mod fixtures;

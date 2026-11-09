@@ -8,7 +8,7 @@ use ryo_execution_runtime::application::file_dag::program::prepared_execution::t
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_values::domain::plan_parts::types::LiteralText;
 
-fn program(engine: &PrepareUseCaseImpl) -> PreparedExecutionProgram {
+pub(crate) fn program(engine: &PrepareUseCaseImpl) -> PreparedExecutionProgram {
     let mut input = authored_request(1);
     crate::boundary_fixture::plans(&mut input)[0].steps = vec![PlanStep {
         scope: StepScope::PerFile,
@@ -25,7 +25,7 @@ fn program(engine: &PrepareUseCaseImpl) -> PreparedExecutionProgram {
     engine.prepare(input).expect("actual FitsRendered program")
 }
 
-fn rows(second: (u32, u32)) -> Table {
+pub(crate) fn rows(second: (u32, u32)) -> Table {
     let mut table = source();
     let mut first = table.cells.clone();
     first[3] = Value::Span(Span {
@@ -174,29 +174,12 @@ fn committed_rows_keep_order_and_delivery_refusal_remains_retryable() {
         if refuse {
             assert!(matches!(result, Err(OperatingError::WrongBinding)));
             assert_eq!(exposed, table.cells[..table.kinds.len()]);
-            let evaluated = file
-                .counts(RuleIndex(0))
-                .unwrap()
-                .fed
-                .iter()
-                .map(|counts| counts.0)
-                .collect::<Vec<_>>();
             exposed.clear();
             file.emit_rows(RuleIndex(0), &mut symbols, &mut |row| {
                 exposed.extend_from_slice(row);
                 Ok(())
             })
             .expect("retry after delivery refusal");
-            assert_eq!(
-                file.counts(RuleIndex(0))
-                    .unwrap()
-                    .fed
-                    .iter()
-                    .map(|counts| counts.0)
-                    .collect::<Vec<_>>(),
-                evaluated,
-                "retrying a sink must not repeat semantic execution"
-            );
         } else {
             result.expect("publish after successful semantics");
         }

@@ -1,7 +1,5 @@
 //! A compiled project emit defers at file scope while real file frontiers remain available.
-use crate::boundary_fixture::{
-    authored_request, corpus, demand, engine, ordinary_occurrence, source,
-};
+use crate::boundary_fixture::{authored_request, corpus, demand, engine, source};
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::Covered;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
@@ -11,6 +9,7 @@ use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution::inbound::use_cases::execution::interface::Partials;
+use ryo_execution::inbound::use_cases::execution::interface::PhaseRules;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
@@ -18,20 +17,12 @@ use ryo_execution::inbound::use_cases::prepare::interface::ObservationIdentity;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
 use ryo_execution_domain::domain::row_emission::types::RowEmission;
-use ryo_execution_runtime::application::file_dag::frontiers::types::InputReadiness;
-use ryo_execution_runtime::application::file_dag::frontiers::types::PublicationSlot;
-use ryo_execution_runtime::application::file_dag::frontiers::types::ReadinessProof;
-use ryo_execution_runtime::application::file_dag::program::observation_stage::types::AdmittedOutput;
 use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
 use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
-use ryo_execution_runtime::application::file_dag::program::project_phase::types::FrontierDemand;
-use ryo_execution_runtime::application::file_dag::program::project_phase::types::{
-    PhaseOccurrence, PhaseOccurrences,
-};
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::ProjectObservation;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
@@ -56,14 +47,14 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 mod applicability;
 #[cfg(test)]
-mod consumers;
+pub(crate) mod consumers;
 #[cfg(test)]
 mod declared_empty;
 mod restoration;
-mod source_facts;
+pub(crate) mod source_facts;
 use self::source_facts::fixtures::{CapturedFacts, ProjectFacts};
 
-fn mixed_program(engine: &PrepareUseCaseImpl, relation: Relation) -> PreparedExecutionProgram {
+pub(crate) fn mixed_program(engine: &PrepareUseCaseImpl, relation: Relation) -> PreparedExecutionProgram {
     let mut input = authored_request(1);
     let file_column = kinds(Relation::Function)
         .iter()

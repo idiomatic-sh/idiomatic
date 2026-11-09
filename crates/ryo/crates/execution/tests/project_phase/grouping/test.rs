@@ -140,8 +140,8 @@ fn project_grouping_reads_only_actual_captured_function_names() {
     let arenas = [ArenaBytes(arena)];
     let outcome = crate::boundary_fixture::project_root(
         &phase,
-        PhaseOccurrences {
-            occurrences: &[crate::boundary_fixture::ordinary_occurrence(RuleIndex(0))],
+        PhaseRules {
+            rules: &[RuleIndex(0)],
             first: &[Bucket(0)],
             corpus: &corpus,
             covered: &covered,

@@ -3,8 +3,6 @@ use crate::boundary_fixture::corpus;
 use ryo_execution::inbound::use_cases::execution::interface::Covered;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution::inbound::use_cases::execution::interface::ObservationExecution;
-use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::ObservationIdentity;
@@ -77,14 +75,6 @@ pub(crate) enum Held<'a> {
     Phase(ProjectPhase<'a>),
     Stage(ObservationStage<'a>),
 }
-impl Held<'_> {
-    fn finish(self) {
-        match self {
-            Held::Phase(phase) => phase.finish().unwrap(),
-            Held::Stage(stage) => stage.finish_stage().unwrap(),
-        }
-    }
-}
 
 /// The prepared program of `rule_count` rules; the stage entry declares one closed named binding.
 fn program(
@@ -126,13 +116,13 @@ fn program(
     }
     engine.prepare(authored).expect("valid public request")
 }
-/// Open the request and its phase (or observation stage) for `entry`, hand them to `check`,
-/// and release everything once `check` has dropped every scope it made.
+/// Open the request and its phase (or observation stage) for `entry`, hand them to `check`, which releases what it was handed,
+/// and release the request once `check` returns.
 pub(crate) fn with_held<T>(
     engine: &PrepareUseCaseImpl,
     entry: Entry,
     rule_count: usize,
-    check: impl FnOnce(&RequestExecution, &mut Held<'_>, &[CorpusInput], &[Covered]) -> T,
+    check: impl FnOnce(&RequestExecution, Held<'_>, &[CorpusInput], &[Covered]) -> T,
 ) -> T {
     let prepared = program(engine, entry, rule_count);
     let corpus = corpus();
@@ -143,12 +133,11 @@ pub(crate) fn with_held<T>(
         partial: vec![],
     }];
     let mut arenas = Vec::new();
-    let mut held = match entry {
+    let held = match entry {
         Entry::Phase => Held::Phase(request.project_phase().unwrap()),
         Entry::Stage => Held::Stage(request.observations(&mut arenas).unwrap()),
     };
-    let found = check(&request, &mut held, &corpus, &covered);
-    held.finish();
+    let found = check(&request, held, &corpus, &covered);
     request.finish();
     found
 }

@@ -205,8 +205,8 @@ pub(super) fn rows(
         let arenas = [ArenaBytes(arena)];
         let outcome = crate::boundary_fixture::project_root(
             &phase,
-            PhaseOccurrences {
-                occurrences: &[ordinary_occurrence(RuleIndex(0))],
+            PhaseRules {
+                rules: &[RuleIndex(0)],
                 first: &[Bucket(0)],
                 corpus: &corpus,
                 covered: &covered,

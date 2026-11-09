@@ -14,6 +14,8 @@ mod budget_test;
 #[cfg(test)]
 mod generation_test;
 #[cfg(test)]
+mod interpreter;
+#[cfg(test)]
 mod partials_test;
 #[cfg(test)]
 mod population_test;

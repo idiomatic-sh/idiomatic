@@ -1,0 +1,12 @@
+file 0 rule 0: complete Table { kinds: [Node], cells: [Node(NodeId(1)), Node(NodeId(2))], count: RowCount(2) }; ran, 0 captures
+file 0 rule 1: complete Table { kinds: [Number], cells: [Number(Integer(2))], count: RowCount(1) }; ran, 0 captures
+file 0 rule 2: complete Table { kinds: [File, Node], cells: [File(FileId(0)), Node(NodeId(1)), File(FileId(0)), Node(NodeId(2))], count: RowCount(2) }; ran, 0 captures
+file 0: finished
+file 1 rule 0: complete Table { kinds: [Node], cells: [], count: RowCount(0) }; ran, 0 captures
+file 1 rule 1: complete Table { kinds: [Number], cells: [], count: RowCount(0) }; ran, 0 captures
+file 1 rule 2: complete Table { kinds: [File, Node], cells: [], count: RowCount(0) }; ran, 0 captures
+file 1: finished
+file 2 rule 0: complete Table { kinds: [Node], cells: [Node(NodeId(7)), Node(NodeId(8)), Node(NodeId(9))], count: RowCount(3) }; ran, 0 captures
+file 2 rule 1: complete Table { kinds: [Number], cells: [Number(Integer(3))], count: RowCount(1) }; ran, 0 captures
+file 2 rule 2: complete Table { kinds: [File, Node], cells: [File(FileId(2)), Node(NodeId(7)), File(FileId(2)), Node(NodeId(8)), File(FileId(2)), Node(NodeId(9))], count: RowCount(3) }; ran, 0 captures
+file 2: finished

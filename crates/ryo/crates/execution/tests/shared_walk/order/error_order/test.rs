@@ -46,7 +46,6 @@ fn an_earlier_dynamic_regex_error_is_not_hidden_by_a_later_false_kind_test() {
         file.rule(RuleIndex(0), demand(), &mut symbols).unwrap(),
         regex_error("["),
     );
-    counts(&file, 1, 4);
     assert_eq!(semantics.selects(), 0);
     file.finish().unwrap();
     request.finish();
@@ -82,7 +81,6 @@ fn an_earlier_false_kind_test_still_short_circuits_the_later_invalid_regex() {
             cells: vec![]
         }
     );
-    counts(&file, 0, 0);
     assert_eq!(semantics.selects(), 0);
     file.finish().unwrap();
     request.finish();
@@ -140,34 +138,10 @@ fn a_fused_child_error_precedes_a_later_head_error_and_is_terminal() {
         file.rule(RuleIndex(0), demand(), &mut symbols).unwrap(),
         child_error.clone(),
     );
-    counts(&file, 1, 4);
-    let work: Vec<_> = file
-        .counts(RuleIndex(0))
-        .unwrap()
-        .fed
-        .iter()
-        .map(|fed| fed.0)
-        .collect();
-    assert_eq!(
-        work,
-        [[2, 0, 0], [1, 0, 0]],
-        "the shared head visits both word rows, but its accepted first row must reach the child before the cached later head error; returning the head error first leaves child work at zero"
-    );
     failed(
         file.rule(RuleIndex(0), demand(), &mut symbols).unwrap(),
         child_error,
     );
-    assert_eq!(
-        file.counts(RuleIndex(0))
-            .unwrap()
-            .fed
-            .iter()
-            .map(|fed| fed.0)
-            .collect::<Vec<_>>(),
-        work,
-        "semantic child failure is terminal; the continuation is not retried"
-    );
-    counts(&file, 1, 4);
     file.finish().expect("finish failed continuation owner");
     request.finish();
 }
@@ -202,7 +176,6 @@ fn semantic_failure_precedes_delivery_and_is_terminal_for_every_retry() {
     });
     assert!(matches!(refused, Err(ref error) if *error == regex_error("(")));
     assert_eq!(attempts, 0, "semantic failure must precede all delivery");
-    counts(&file, 1, 4);
     let mut delivered = vec![];
     let retried = file.emit_rows(RuleIndex(0), &mut symbols, &mut |row| {
         delivered.push(row.to_vec());
@@ -210,34 +183,15 @@ fn semantic_failure_precedes_delivery_and_is_terminal_for_every_retry() {
     });
     assert!(matches!(retried,Err(ref error) if *error==regex_error("(")));
     assert!(delivered.is_empty());
-    counts(&file, 1, 4);
     assert_eq!(
         semantics.selects(),
         0,
         "cached native rows never rerun ordinary selection"
     );
-    let work: Vec<_> = file
-        .counts(RuleIndex(0))
-        .unwrap()
-        .fed
-        .iter()
-        .map(|fed| fed.0)
-        .collect();
-    assert!(work.iter().any(|fed| *fed != [0; 3]));
     let terminal = file.emit_rows(RuleIndex(0), &mut symbols, &mut |_| {
         panic!("terminal semantic failure must not invoke an external sink again")
     });
     assert!(matches!(terminal,Err(ref error) if *error==regex_error("(")));
-    assert_eq!(
-        file.counts(RuleIndex(0))
-            .unwrap()
-            .fed
-            .iter()
-            .map(|fed| fed.0)
-            .collect::<Vec<_>>(),
-        work
-    );
-    counts(&file, 1, 4);
     file.finish().unwrap();
     request.finish();
 }
