@@ -22,6 +22,9 @@ pub struct ExecutableProgram {
     >,
     /// What a file must hold for each region to have a row or a row error there.
     presence: crate::domain::executable_program::presence::types::PresenceTable,
+    /// The request's literal pattern slots, declared from the program's operations; the presence fold compiled its source
+    /// searches' patterns into them.
+    matchers: std::sync::Arc<crate::domain::matching::types::prepared::value::PreparedMatchers>,
     /// The fusion classification of every instruction, indexed by its logical number.
     #[cfg(any(test, feature = "fixtures"))]
     fusibility: Box<[crate::domain::executable_program::fusion::types::Fusibility]>,
@@ -64,6 +67,7 @@ impl ExecutableProgram {
                 reads: vec![Box::default(); region_count].into_boxed_slice(),
                 ..Default::default()
             },
+            matchers: std::sync::Arc::default(),
             #[cfg(any(test, feature = "fixtures"))]
             fusibility: Box::new([]),
         }
@@ -75,6 +79,20 @@ impl ExecutableProgram {
     ) -> Self {
         self.presence = presence;
         self
+    }
+    /// The same program with the literal pattern slots its presence fold compiled into.
+    pub(in crate::domain::executable_program) fn with_matchers(
+        mut self,
+        matchers: std::sync::Arc<crate::domain::matching::types::prepared::value::PreparedMatchers>,
+    ) -> Self {
+        self.matchers = matchers;
+        self
+    }
+    /// The request's literal pattern slots: one per authored pattern of the program, each compiled at most once per run.
+    pub fn matchers(
+        &self,
+    ) -> &std::sync::Arc<crate::domain::matching::types::prepared::value::PreparedMatchers> {
+        &self.matchers
     }
     /// What a file must hold for each region to have a row or a row error there.
     pub fn presence(&self) -> &crate::domain::executable_program::presence::types::PresenceTable {

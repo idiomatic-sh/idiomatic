@@ -5,7 +5,7 @@ pub mod prepared;
 use ryo_matching::inbound::use_cases::matching::compiled::{CompiledRegex, CompiledTextGlobs};
 use ryo_matching::inbound::use_cases::matching::errors::MatchingError;
 use ryo_matching::inbound::use_cases::matching::types::{
-    GlobPattern, MatchOutcome, RegexSource, SearchText,
+    GlobPattern, GroupName, MatchOutcome, RegexSource, SearchText, TextSpan,
 };
 
 /// Seals [`PatternSemantics`]: the trait is public so the engine crates can lend it, and its one implementation is the blanket
@@ -42,6 +42,14 @@ pub trait PatternSemantics: sealed::Sealed {
     fn compile_regex(&self, pattern: RegexSource<'_>) -> Result<CompiledRegex, MatchingError>;
     /// Searches text with a compiled regex.
     fn matches_regex(&self, regex: &CompiledRegex, text: SearchText<'_>) -> MatchOutcome;
+    /// Visits the matches of a named capture in source order, refusing a name the regex lacks before reading any text.
+    fn visit_regex_captures(
+        &self,
+        regex: &CompiledRegex,
+        text: SearchText<'_>,
+        name: GroupName<'_>,
+        each: &mut dyn FnMut(TextSpan, TextSpan) -> std::ops::ControlFlow<()>,
+    ) -> Result<std::ops::ControlFlow<()>, MatchingError>;
     /// Compiles text globs together.
     fn compile_text_globs(&self, patterns: &[GlobPattern<'_>]) -> CompiledTextGlobs;
     /// Whether any compiled text glob matches the text.

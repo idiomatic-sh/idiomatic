@@ -195,26 +195,33 @@ fn presence(kind: OperationKind) -> PresenceMask {
 /// left its file, held under `CellKind::Symbol`) may have none. Names reach a region only through paths that never
 /// skip: cross-file steps, steps downstream of a bound observation, project relations and frontiers. So a per-file
 /// Replace over a resolved Symbol or File column cannot fail on its rows; any other Replace can. Its literal pattern is
-/// checked by the presence fold, which makes the input fallible when the pattern does not compile.
+/// checked by the presence fold, which makes the input fallible when the pattern does not compile. A per-file
+/// SourceMatches over a span column, with no base line and no row error, fails only on its span or its pattern: it declares
+/// `UnlessLocated`, which the fold drops for a located span and a pattern and capture that compiled.
 fn failure(
     operation: &ryo_values::domain::plans::types::Operation,
     inputs: &[crate::domain::operation_schema::types::InputShape<'_>],
     scope: ryo_values::domain::plan_parts::types::StepScope,
+    row_error: Option<&OperatingError>,
 ) -> RowFailure {
     use ryo_relations::domain::relations::types::CellKind;
     use ryo_values::domain::plans::types::Operation;
+    let per_file = scope == ryo_values::domain::plan_parts::types::StepScope::PerFile;
+    let kinds = inputs.first().map_or(&[][..], |input| input.kinds);
     match operation {
-        Operation::Replace { text, .. } => {
-            let kind = inputs
-                .first()
-                .and_then(|input| input.kinds.get(text.0 as usize));
-            if scope == ryo_values::domain::plan_parts::types::StepScope::PerFile
-                && matches!(kind, Some(CellKind::Symbol | CellKind::File))
-            {
-                RowFailure::Never
-            } else {
-                RowFailure::OnRows(InputMask(1))
-            }
+        Operation::Replace { text, .. } => match kinds.get(text.0 as usize) {
+            Some(CellKind::Symbol | CellKind::File) if per_file => RowFailure::Never,
+            _ => RowFailure::OnRows(InputMask(1)),
+        },
+        Operation::SourceMatches {
+            span,
+            base_line: None,
+            ..
+        } if per_file
+            && row_error.is_none()
+            && kinds.get(span.0 as usize) == Some(&CellKind::Span) =>
+        {
+            RowFailure::UnlessLocated(*span)
         }
         Operation::RenderSyntax { .. }
         | Operation::FitsRendered { .. }
@@ -367,7 +374,7 @@ pub(crate) fn prepare_for(
         resources,
         empty_results: super::preflight::empty_results(operation, inputs),
         source_gate,
-        failure: failure(operation, inputs, scope),
+        failure: failure(operation, inputs, scope, row_error.as_ref()),
         row_error,
         literal_pattern,
         predicates,

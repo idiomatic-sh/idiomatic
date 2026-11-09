@@ -7,7 +7,7 @@ use ryo_matching::inbound::use_cases::matching::compiled::{CompiledRegex, Compil
 use ryo_matching::inbound::use_cases::matching::errors::MatchingError;
 use ryo_matching::inbound::use_cases::matching::interface::MatchingUseCase;
 use ryo_matching::inbound::use_cases::matching::types::{
-    GlobPattern, MatchOutcome, RegexSource, SearchText,
+    GlobPattern, GroupName, MatchOutcome, RegexSource, SearchText, TextSpan,
 };
 
 impl<Matching: MatchingUseCase + ?Sized> Sealed for Matching {}
@@ -18,6 +18,15 @@ impl<Matching: MatchingUseCase + ?Sized> PatternSemantics for Matching {
     }
     fn matches_regex(&self, regex: &CompiledRegex, text: SearchText<'_>) -> MatchOutcome {
         MatchingUseCase::matches_regex(self, regex, text)
+    }
+    fn visit_regex_captures(
+        &self,
+        regex: &CompiledRegex,
+        text: SearchText<'_>,
+        name: GroupName<'_>,
+        each: &mut dyn FnMut(TextSpan, TextSpan) -> std::ops::ControlFlow<()>,
+    ) -> Result<std::ops::ControlFlow<()>, MatchingError> {
+        MatchingUseCase::visit_regex_captures(self, regex, text, name, each)
     }
     fn compile_text_globs(&self, patterns: &[GlobPattern<'_>]) -> CompiledTextGlobs {
         MatchingUseCase::compile_text_globs(self, patterns)

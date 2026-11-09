@@ -179,6 +179,32 @@ pub fn validate<'a>(
     Ok(Some(ValidatedSource { base, text, line }))
 }
 
+/// Admits a file's population of a provider relation for the source searches that rely on its spans: every cell of the
+/// named span columns must pass the occurrence search's own span gate, so a search over them cannot fail on its span.
+///
+/// # Errors
+///
+/// The first refusal the gate meets: [`OperatingError::InvalidSourceMatchSpan`] for a span out of order, outside the
+/// source or off a character boundary, [`OperatingError::ShapeMismatch`] for a cell that is no span, and
+/// [`OperatingError::NotRead`] for a row the population cannot read.
+pub fn validate_spans(
+    rows: &crate::domain::table_model::types::Rows<'_>,
+    columns: &[ColumnIndex],
+    source: ryo_values::domain::files::types::SourceView<'_>,
+) -> Result<(), OperatingError> {
+    let mut cells = Vec::new();
+    for index in ryo_values::domain::rows::service::positions(
+        crate::domain::table_model::service::count_of(rows),
+    ) {
+        let row = crate::domain::table_model::service::read_row(rows, index, &mut cells)
+            .ok_or(OperatingError::NotRead)?;
+        for column in columns {
+            let _source = source_slice(row, *column, source)?;
+        }
+    }
+    Ok(())
+}
+
 /// A native lookup bound to a join: the tree it finds candidates in, and how it finds them.
 #[derive(Clone, Copy, Debug)]
 pub struct NativeJoin<'a> {

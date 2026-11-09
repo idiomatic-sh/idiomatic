@@ -1,4 +1,5 @@
-//! Finite authored pattern slots with demand-driven thread-safe compilation.
+//! Finite authored pattern slots, each compiled at most once, thread-safe: a source search's slot when the program is
+//! compiled (the presence fold), every other slot when its operator first uses it.
 
 use crate::domain::matching::types::PatternMatcher;
 use crate::domain::operating::errors::OperatingError;
@@ -24,10 +25,11 @@ pub struct PreparedMatchers {
     pub builds: std::sync::atomic::AtomicUsize,
 }
 
-/// Compilation is deferred until the owning operator reaches an applicable input row.
+/// Compiled once: a source search's pattern by the presence fold, when the program is compiled; any other pattern when
+/// the owning operator first reaches an applicable input row.
 #[derive(Debug)]
 enum PreparedPattern {
-    /// Invalid expressions retain the same refusal, raised only at an actual match/replacement.
+    /// Invalid expressions retain the same refusal, raised only at an actual match, replacement or search.
     Regex(OnceLock<Result<CompiledRegex, OperatingError>>),
     /// Unsupported glob compilation retains the interpreter outcome for subsequent invocations.
     Glob(OnceLock<CompiledTextGlobs>),
