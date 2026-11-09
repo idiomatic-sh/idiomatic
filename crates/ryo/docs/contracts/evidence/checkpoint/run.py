@@ -246,7 +246,7 @@ OWNERS={
  'core_library':REPAIR,
  'benchmark_library':CLOSE,
  'core_allocation':RUST_REGRESSIONS,
- 'cli_cost':'Acceptance: 413/413 on the current engine, full Django (2,875 files, all 413 rules) with unknown 0 and unread 0, sub-second cold wall with low peak RSS, warm and edit faster, Rust regression guards within bounds.',
+ 'cli_cost':'Acceptance: 413/413 on the current engine, full Django (2,875 files, all 413 rules) with unknown 0 and unread 0, Rust regression guards within bounds.',
  'behavior::ruff_rules_feed_every_catalog_feature_a_thousand_rows':'Consolidate the kernels: run the all-413 parity run against Ruff with and without each of the five join/select kernels and delete every kernel the evidence shows superseded.',
  'behavior::ruff_findings_equal_the_expected_findings':CLOSE,
  'behavior::every_recorded_rule_gives_the_recorded_rows':CLOSE,
