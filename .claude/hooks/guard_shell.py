@@ -304,37 +304,22 @@ def full_sha(value):
     return isinstance(value, str) and re.fullmatch(r"[0-9a-f]{40}", value) is not None
 
 
-REVIEW_VERDICTS = ("PASS", "FAIL", "NOTE", "BLOCKING")
-
-
 def review_shape(review, reviewer):
     """The problem with a review evidence file against the shared schema, or None.
 
-    The schema is crates/ryo/docs/contracts/review/README.md#review-evidence-schema. ci/contract_review/service.py
-    holds a copy (CI runs it in isolation); ci/contract_review/service_test.py drives both through one variant table.
+    The one definition is shape() in ci/contract_review/service.py, loaded by path (stdlib only), so this hook,
+    run with python3 -I, and the contract-review CI job cannot drift. The schema is
+    crates/ryo/docs/contracts/review/README.md#review-evidence-schema.
     """
-    if not isinstance(review, dict):
-        return "is not a JSON object"
-    if "verdict" not in review:
-        return 'has no "verdict"'
-    if review["verdict"] not in REVIEW_VERDICTS:
-        return "has verdict " + repr(review["verdict"]) + ", not one of " + "/".join(REVIEW_VERDICTS)
-    if not full_sha(review.get("source")):
-        return 'names no "source" as a full 40-character sha'
-    if review.get("reviewer") != reviewer:
-        return 'has "reviewer" ' + repr(review.get("reviewer")) + ', not "' + reviewer + '"'
-    checks = review.get("checks")
-    if not isinstance(checks, list) or not checks:
-        return 'has no non-empty "checks" list'
-    for check in checks:
-        if not isinstance(check, dict) or not isinstance(check.get("id"), str) or not check["id"].strip():
-            return 'has a check that is not an object with a string "id"'
-        if check.get("verdict") not in REVIEW_VERDICTS:
-            return "has check " + repr(check["id"]) + " with an unknown verdict"
-        if not isinstance(check.get("evidence"), str) or not check["evidence"].strip():
-            return "has check " + repr(check["id"]) + " with no evidence"
-        if review["verdict"] == "PASS" and check["verdict"] in ("FAIL", "BLOCKING"):
-            return "is PASS though check " + repr(check["id"]) + " is " + check["verdict"]
+    import importlib.util
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "ci", "contract_review", "service.py")
+    spec = importlib.util.spec_from_file_location("contract_review_service", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    try:
+        module.shape(review, reviewer)
+    except ValueError as error:
+        return str(error)
     return None
 
 

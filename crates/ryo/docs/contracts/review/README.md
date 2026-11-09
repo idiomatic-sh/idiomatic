@@ -95,7 +95,7 @@ Evidence JSON carries no tracker ids (the no-tracker-text-shipped check flags th
 
 `source` is the full sha reviewed, never a ref name. `reviewer` is the agent's frontmatter name (`rust-review`, `contract-review`, `leak-review`, `tm-steward`); `evidence/checkpoint/asymptote.json`, the integrator's quick-check record, is the one file whose `reviewer` is `integrator`. `checks` is a list (the items, criteria or gate results of that agent); further fields (`checkpoint`, `date`, `plants`, `gate`, `classes`) may sit beside them.
 
-Two callers validate this shape: `review_shape` in `.claude/hooks/guard_shell.py` (every push and merge that reads evidence, including `evidence/checkpoint/asymptote.json` when present) and `shape` in `ci/contract_review/service.py` (the `contract-review` CI job). CI runs its copy in isolation from the trusted base, so the two are separate functions kept equal by one variant table, `VARIANTS` in `ci/contract_review/service_test.py`, which drives both.
+One definition validates this shape: `shape` in `ci/contract_review/service.py`. Its two callers are `review_shape` in `.claude/hooks/guard_shell.py` (which loads it by path and returns its message; it checks every push and merge that reads evidence, including `evidence/checkpoint/asymptote.json` when present) and the `contract-review` CI job. `VARIANTS` in `ci/contract_review/service_test.py` is the behaviour table; the `ci-tests` tool reruns it when either file changes.
 
 ## Known red
 

@@ -96,7 +96,7 @@ def hook():
 
 
 SHA = "a" * 40
-VARIANTS = [  # (reviewer, document, valid): the one table both validators are driven through
+VARIANTS = [  # (reviewer, document, valid): the behaviour table; the hook calls service.shape, and one test ties the two
     ("contract-review", {"source": SHA, "verdict": "PASS", "reviewer": "contract-review", "checks": GOOD}, True),
     ("integrator", {"source": SHA, "verdict": "PASS", "reviewer": "integrator", "checks": GOOD}, True),
     ("contract-review", {"source": SHA, "verdict": "BLOCKING", "reviewer": "contract-review", "checks": GOOD}, True),
@@ -115,6 +115,24 @@ VARIANTS = [  # (reviewer, document, valid): the one table both validators are d
     ("contract-review", {"source": SHA, "verdict": "PASS", "reviewer": "contract-review",
                          "checks": [{"id": "1", "verdict": "FAIL", "evidence": "e"}]}, False),
     ("contract-review", ["not", "an", "object"], False),
+    ("contract-review", {"source": SHA, "verdict": "PASS", "reviewer": "contract-review", "checks": [{"id": 1, "verdict": "PASS", "evidence": "e"}]}, False),
+    ("contract-review", {"source": SHA, "verdict": "PASS", "reviewer": "contract-review", "checks": [{"id": " ", "verdict": "PASS", "evidence": "e"}]}, False),
+    ("contract-review", {"source": SHA, "verdict": "PASS", "reviewer": "contract-review", "checks": [{"id": "1", "verdict": "PASS"}]}, False),
+    ("contract-review", {"source": SHA, "verdict": "PASS", "reviewer": "contract-review", "checks": [{"id": "1", "verdict": "PASS", "evidence": 5}]}, False),
+    ("contract-review", {"source": SHA, "verdict": "PASS", "reviewer": "contract-review", "checks": [{"id": "1", "verdict": None, "evidence": "e"}]}, False),
+    ("contract-review", {"source": SHA, "verdict": "PASS", "reviewer": "contract-review", "checks": [{"id": "1", "verdict": "BLOCKING", "evidence": "e"}]}, False),
+    ("contract-review", {"source": SHA.upper(), "verdict": "PASS", "reviewer": "contract-review", "checks": GOOD}, False),
+    ("contract-review", {"source": "claude/checkpoint-9", "verdict": "PASS", "reviewer": "contract-review", "checks": GOOD}, False),
+    ("contract-review", {"verdict": "PASS", "reviewer": "contract-review", "checks": GOOD}, False),
+    ("contract-review", {"source": SHA, "reviewer": "contract-review", "checks": GOOD}, False),
+    ("contract-review", {"source": SHA, "verdict": ["PASS"], "reviewer": "contract-review", "checks": GOOD}, False),
+    ("contract-review", {"source": SHA, "verdict": "PASS", "reviewer": "contract-review", "checks": {"id": "1", "verdict": "PASS", "evidence": "e"}}, False),
+    ("contract-review", {"source": SHA, "verdict": "PASS", "reviewer": "contract-review", "checks": [{}]}, False),
+    ("contract-review", {"source": SHA, "verdict": "PASS", "reviewer": "contract-review", "checks": [{"id": "1", "verdict": "PASS", "evidence": "e"}, {}]}, False),
+    ("contract-review", {"source": SHA, "verdict": "PASS", "reviewer": "contract-review", "checks": [{"id": "1"}]}, False),
+    ("contract-review", {"source": SHA, "verdict": "PASS", "reviewer": "contract-review", "checks": [{"id": "1", "verdict": "NOPE", "evidence": "e"}]}, False),
+    ("contract-review", {"source": SHA, "verdict": "PASS", "reviewer": "contract-review", "checks": "none"}, False),
+    ("contract-review", {"source": SHA, "verdict": "PASS", "reviewer": None, "checks": GOOD}, False),
 ]
 
 

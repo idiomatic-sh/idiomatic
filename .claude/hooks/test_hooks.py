@@ -336,7 +336,7 @@ class PreviousReviewsPush(unittest.TestCase):
     def test_missing_verdict_is_refused(self):
         self.all_reviews()
         self.write("leak-review.json", {"source": self.previous, "reviewer": "leak-review", "checks": GOOD_CHECKS})
-        self.assertIn('no "verdict"', self.push().stderr)
+        self.assertIn("no known verdict", self.push().stderr)
 
     def test_malformed_review_evidence_is_refused(self):
         good = self.body("PASS", "leak-review", self.previous)
