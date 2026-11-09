@@ -7,7 +7,8 @@
 `commands.json` is the list of `[name, argv]` validation commands the matrix's
 numbers rest on: `checkout_tools` (this checkout's `tm` and `ryo`, built into the run's target directory, which the commands over
 `crates/ryo`, pinned to the unreleased Tastemaker 0.1.2, and `ownership_edges` run; the root and `crates/tastemaker`, pinned to
-0.1.0, keep the installed `tm`), library tests, `boundary_contract`, `project_boundary`,
+0.1.0, keep the installed `tm`: `tm_validate_all`'s root half and `tm_validate_no_heap_accounting` move to the checkout's `tm` when
+the Tastemaker 0.1.2 release lets the root pin follow), library tests, `boundary_contract`, `project_boundary`,
 `activation`, `bdd`, `core_bdd`, `core_allocation`, the execution program
 authority targets, the doctests (execution, its domain, store and runtime, values, core, sdk, derived),
 `ruff` (the python target), the ten language `conformance`

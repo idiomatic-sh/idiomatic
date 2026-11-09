@@ -1,5 +1,6 @@
-"""The root `gitleaks` tool: the allowlist lets only a recorded digest line in a record folder through, and a branch's own commits
-are scanned in a full-history clone of the pushed branch, as CI checks it out."""
+"""The root gitleaks tools: the allowlist lets only a recorded digest line in a record folder through; `gitleaks` scans the staged
+change in the pre-commit hook's lint group, and `gitleaks-history` the branch's own commits, in a full-history clone of the pushed
+branch as CI checks it out, in a group the hook does not run."""
 
 from __future__ import annotations
 
@@ -19,10 +20,9 @@ RECORD = "crates/ryo/languages/python/benchmarks/linters/ruff/results/run/summar
 PLANTED = ["jwt.secret", "api.token", "aws/secret_access_key", "stripe/api_key", "wallet.key"]
 
 
-def run_tool() -> list[str]:
-    tools = tomllib.loads((ROOT / "asymptote.toml").read_text())["tools"]
-    (argv,) = [tool["run"] for tool in tools if tool["id"] == "gitleaks"]
-    return argv
+def tool(identity: str) -> dict:
+    (found,) = [each for each in tomllib.loads((ROOT / "asymptote.toml").read_text())["tools"] if each["id"] == identity]
+    return found
 
 
 def git(path: Path, *arguments: str) -> None:
@@ -52,8 +52,8 @@ def pushed_branch(tmp_path: Path, files: dict[str, str]) -> Path:
     return clone
 
 
-def exit_of(path: Path) -> int:
-    return subprocess.run(run_tool(), cwd=path, capture_output=True, check=False).returncode
+def exit_of(path: Path, identity: str = "gitleaks-history") -> int:
+    return subprocess.run(tool(identity)["run"], cwd=path, capture_output=True, check=False).returncode
 
 
 @pytest.mark.parametrize("key", PLANTED)
@@ -72,3 +72,16 @@ def test_a_secret_committed_on_the_branch_and_deleted_is_found_after_the_push(tm
     (clone / "config/settings.json").unlink()
     git(clone, "commit", "-q", "-am", "fix: drop it")
     assert exit_of(clone) == 1
+
+
+def test_the_pre_commit_hook_scans_the_staged_change_alone_and_the_history_scan_runs_outside_it() -> None:
+    hooked = tomllib.loads((ROOT / "asymptote.toml").read_text())["hooks"]["pre-commit"]
+    assert tool("gitleaks")["group"] in hooked and "--staged" in tool("gitleaks")["run"]
+    assert tool("gitleaks-history")["group"] not in hooked
+
+
+def test_a_staged_secret_fails_the_pre_commit_scan(tmp_path) -> None:
+    clone = pushed_branch(tmp_path, {"notes.txt": "fine\n"})
+    (clone / "config.json").write_text(f'{{\n  "jwt.secret": "{DIGEST}"\n}}\n')
+    git(clone, "add", "config.json")
+    assert exit_of(clone, "gitleaks") == 1

@@ -294,6 +294,7 @@ RED_OWNERS={
  ('cli_cost','replay','cost::a_cold_run_over_ruff_holds_the_peak_ratchet'):OWNERS['cli_cost'],
  ('cli_cost','replay','cost::a_warm_run_and_an_edit_run_over_ruff_hold_their_ratchets'):OWNERS['cli_cost'],
  ('cli_cost','replay','cost::every_live_rule_together_holds_the_cold_ratchet_of_ruff'):OWNERS['cli_cost'],
+ ('core_allocation','allocation','per_file_path::allocates_as_the_parser_library_does'):OWNERS['core_allocation'],
 }
 # A command that cannot run on this machine says so on its first output line (`not available: <why>`) and exits non-zero; the row
 # named here owns that refusal, and only that refusal. Every run prints it as not run (`ruff_parity`: parity not run).
