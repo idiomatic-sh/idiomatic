@@ -520,13 +520,14 @@ def literal_end(text,i):
  m=CHAR.match(text,i) if text[i]=="'" else None
  return m.end() if m else None
 def item_end(text,start):
- """The end of the item that starts at start: its body's closing brace, matched; its first `;`, or, for a struct field or enum variant, its `,` or the enclosing `}`. Angle brackets count only in the header, before the body; comments, strings and char literals are skipped."""
+ """The end of the item that starts at start: its body's closing brace, matched; its first `;`, or, for a struct field or enum variant, its `,` or the enclosing `}`. Angle brackets count only in the header, before the body or a top-level `=` (an initializer or discriminant); comments, strings and char literals are skipped."""
  depth=0; header=True; i=start
  while i<len(text):
   skip=literal_end(text,i) if text[i] in '/"\'r' else None
   if skip is not None: i=skip; continue
   c=text[i]
   if depth==0 and c in ';,': return i+1
+  if header and depth==0 and c=='=' and text[i+1:i+2] not in ('=','>') and text[i-1:i] not in ('=','!','<','>'): header=False
   if c=='{': depth+=1; header=False
   elif c in '([' or header and c=='<' and text[i+1:i+2]!='=': depth+=1
   elif c in ')]' or header and c=='>' and text[i-1:i] not in ('-','='): depth-=1

@@ -258,6 +258,13 @@ class Census(unittest.TestCase):
     self.assertIn('pub fn after() {}',production); self.assertNotIn('pub fn after',tests); self.assertIn(body,tests)
   production,tests=run.split_tests("#[cfg(test)]\nfn life<'a>(x: &'a str) -> &'a str { x }\npub fn after() {}\n")
   self.assertIn('pub fn after',production)
+ def test_a_cfg_test_initializer_is_no_header(self):
+  for item in ('const LIMIT: usize = 1 << 10;','const B: bool = 3 < 4;','static S: [u8; 2] = [1 << 2, 0];'):
+   with self.subTest(item=item):
+    production,tests=run.split_tests('#[cfg(test)]\n'+item+'\npub fn after() {}\n')
+    self.assertIn('pub fn after',production); self.assertIn(item,tests)
+  production,tests=run.split_tests('enum E {\n    #[cfg(test)]\n    A = 1 << 3,\n    B,\n}\npub fn after() {}\nconst Q: Option<Vec<u8>> = None;\n')
+  self.assertIn('B,',production); self.assertIn('pub fn after',production); self.assertNotIn('B,',tests)
  def test_a_cfg_test_item_counts_alone(self):
   body='#[cfg(test)]\nmod early_tests { }\n'+' '.join('Operation::V'+str(n) for n in range(8))
   self.assertEqual(self.census(crates__values__src__m_DOT_rs=body)['operation_exhaustive_matches']['files'],1)
