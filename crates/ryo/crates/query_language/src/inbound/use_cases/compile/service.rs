@@ -77,6 +77,7 @@ pub(super) fn unresolved(error: LoweringError) -> CompileError {
         | LoweringError::SourceMatchesLinePair { span }
         | LoweringError::CrossFileSpan { span }
         | LoweringError::CrossFileSpanKey { span }
+        | LoweringError::MixedVertices { span }
         | LoweringError::SpanArgument { span, .. }
         | LoweringError::UnknownStep { span, .. }
         | LoweringError::DuplicateOutput { span, .. }

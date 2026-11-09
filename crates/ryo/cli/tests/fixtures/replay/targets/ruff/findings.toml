@@ -1,8 +1,5 @@
-# The findings the command prints over this target: the sha256 of the whole
-# findings document in canonical form and their count per rule; the total is the sum of the counts, never stored beside them.
-# Every decided recorded rule has its count, 0 when ruff gives none, and an undecided one its `#unknown` count: the replay fails a
-# rule without one.
-digest = "517ebb63aed67583b55f1175a3447f7304e0daaf08097244bc28b19368f28f72"
+# The findings the command prints over this target: their count per rule. Every decided recorded rule has its count, 0 when ruff
+# gives none, and an undecided one its `#unknown` count: the replay fails a rule without one, and a key that names no recorded rule.
 
 [rules]
 "idiomatic.arch/adapter-at-root" = 0

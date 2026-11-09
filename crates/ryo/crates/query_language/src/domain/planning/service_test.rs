@@ -452,7 +452,47 @@ fn distinct_on_a_span_and_a_file_after_the_files_is_kept() {
     kept_with_a_file_key_after_the_files(Compared::Distinct);
 }
 
+/// A closure or cycles step over the functions (id, name, file, span) from the node to the column at `destination`.
+fn walked(cycles: bool, destination: u32) -> Result<(), LoweringError> {
+    let mut builder = lowering_builder();
+    let (source, destination) = (parts::ColumnIndex(0), parts::ColumnIndex(destination));
+    let edges = parts::Input::Relation(Relation::Function);
+    let operation = if cycles {
+        plans::Operation::Cycles {
+            edges,
+            source,
+            destination,
+        }
+    } else {
+        plans::Operation::Closure {
+            edges,
+            keys: vec![],
+            source,
+            destination,
+        }
+    };
+    super::service::push(&mut builder, None, operation, vec![column(CellKind::Node), column(CellKind::Node)]);
+    super::service::refuse_mixed_vertices(&builder, 0)
+}
+
+/// A closure or cycles step from a node to a file is refused when the statement is lowered; from a node to a node it is kept.
+fn a_walk_between_two_kinds_is_refused() {
+    for cycles in [true, false] {
+        assert!(
+            matches!(walked(cycles, 2), Err(LoweringError::MixedVertices { .. })),
+            "a walk from a node to a file is kept (cycles: {cycles})"
+        );
+        assert_eq!(walked(cycles, 0), Ok(()), "a walk from a node to a node is refused (cycles: {cycles})");
+    }
+}
+
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("a_closure_or_cycles_between_two_kinds_is_refused_when_lowered"),
+        word: Word::Succeeds,
+        input: || a_walk_between_two_kinds_is_refused,
+        expect: Expect::Value(()),
+    },
     Case {
         name: CaseName("antijoin_on_a_span_and_a_file_after_the_files_is_kept"),
         word: Word::Succeeds,

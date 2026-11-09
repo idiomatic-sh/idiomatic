@@ -118,7 +118,8 @@ pub(crate) fn lower_with_observations(
                 lower_call(&mut builder, &step.name, call)
             }
         }
-        .and_then(|()| crate::domain::planning::service::refuse_spans_alone(&builder, from));
+        .and_then(|()| crate::domain::planning::service::refuse_spans_alone(&builder, from))
+        .and_then(|()| crate::domain::planning::service::refuse_mixed_vertices(&builder, from));
         lowered.map_err(|error| {
             locate_step_error(
                 program,

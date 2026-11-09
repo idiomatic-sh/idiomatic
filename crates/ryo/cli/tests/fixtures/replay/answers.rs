@@ -507,8 +507,8 @@ fn features(outcome: &Replayed) -> String {
 
 /// Whether every name in the files that say why something differs is a recorded rule or a feature of the language.
 fn names(all: &[Recording], outcome: &Replayed) -> String {
-    // Every name in the files that say why something differs is a rule that is recorded or a feature the language has, so a typo
-    // fails at once and not when it happens to be the one that mattered.
+    // Every name in the files that say why something differs, and every rule of the golden findings, is a rule that is recorded or a
+    // feature the language has, so a typo, a deleted or a renamed recording fails at once and not when it happens to matter.
     let table = |file: &str, key: &str| -> Vec<String> {
         let path = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("tests/fixtures")
@@ -530,6 +530,7 @@ fn names(all: &[Recording], outcome: &Replayed) -> String {
                 .filter(|name| !rules.contains(&name.as_str()))
                 .map(move |name| format!("`{name}` in {file} is not a recorded rule"))
         })
+        .chain(golden_strays(&golden(), &rules))
         .chain(
             table("unfed.toml", "feature")
                 .into_iter()
@@ -538,6 +539,20 @@ fn names(all: &[Recording], outcome: &Replayed) -> String {
         )
         .next();
     unknown.unwrap_or_else(|| "every name is a recorded rule or a feature".to_owned())
+}
+
+/// The keys of the golden `rules` that name no recorded rule, each as the failure it is: a key is `idiomatic.arch/<rule>` or
+/// `idiomatic.arch/<rule>#unknown`, for a rule that is recorded, so a recording deleted or renamed fails the replay.
+pub(crate) fn golden_strays(rules: &toml::Table, recorded: &[&str]) -> Vec<String> {
+    rules
+        .keys()
+        .filter(|key| {
+            !key.strip_prefix("idiomatic.arch/")
+                .map(|rule| rule.strip_suffix("#unknown").unwrap_or(rule))
+                .is_some_and(|rule| recorded.contains(&rule))
+        })
+        .map(|key| format!("`{key}` in replay/targets/ruff/findings.toml is not a recorded rule"))
+        .collect()
 }
 
 /// The features `fixtures/unfed.toml` says ruff does not feed 1,000 rows, each with the reason.

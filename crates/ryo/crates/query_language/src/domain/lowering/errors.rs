@@ -53,6 +53,12 @@ pub(crate) enum LoweringError {
         /// The statement whose step compares on spans alone.
         span: QuerySpan,
     },
+    /// A closure or cycles step walks from a source to a destination of another kind.
+    #[error("a closure or cycles step needs a source and a destination of one kind")]
+    MixedVertices {
+        /// The statement whose step walks between two kinds.
+        span: QuerySpan,
+    },
     /// The diagnostic-only comparison origin table cannot represent another entry.
     #[error("too many comparison source origins")]
     TooManyComparisonOrigins {

@@ -274,6 +274,33 @@ pub(crate) fn refuse_spans_alone(builder: &Builder<'_>, from: usize) -> Result<(
     Ok(())
 }
 
+/// Refuses a closure or cycles step from `from` on of the plan under construction whose source and destination are of two kinds:
+/// a walk goes from a source to a destination that is the next source, so both are of one kind, and where the step runs is decided
+/// on its source alone.
+pub(crate) fn refuse_mixed_vertices(builder: &Builder<'_>, from: usize) -> Result<(), LoweringError> {
+    for step in builder.steps.iter().skip(from) {
+        let (plans::Operation::Closure {
+            edges,
+            source,
+            destination,
+            ..
+        }
+        | plans::Operation::Cycles {
+            edges,
+            source,
+            destination,
+        }) = &step.operation
+        else {
+            continue;
+        };
+        let fields = scoped(builder, *edges).fields;
+        if column_of(&fields, *source).kind != column_of(&fields, *destination).kind {
+            return Err(LoweringError::MixedVertices { span: builder.span });
+        }
+    }
+    Ok(())
+}
+
 /// What the per-file steps hand over: every relation and every per-file step that a cross-file step reads.
 pub(crate) fn frontier_of(steps: &[plans::PlanStep]) -> Vec<parts::Input> {
     let mut frontier = Vec::new();

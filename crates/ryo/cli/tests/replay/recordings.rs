@@ -7,7 +7,8 @@
 //! scope (F5), and an unfed feature with no reason. Each fails.
 
 use super::answers::{
-    by_rule, expectation_at, extra_rows_in, golden_count, golden_rules, unchecked_rows, unfed_in, unknowns_in,
+    by_rule, expectation_at, extra_rows_in, golden_count, golden_rules, golden_strays, unchecked_rows, unfed_in,
+    unknowns_in,
 };
 use super::base::{ABSENT, Pending, Recording, does_not_run_in, finding_texts, recording_at};
 use std::path::Path;
@@ -300,4 +301,14 @@ fn rows_nothing_compares_fail() {
         ("checked.toml", "rows = [{ path = \"a.rs\", key = \"1..2\" }]\n"),
     ]);
     assert!(unexpected(checked_without_undecided.path()), "checked.toml of a decided recording is ignored");
+}
+
+#[test]
+fn a_golden_rule_that_is_not_recorded_fails() {
+    let rules = table(
+        "\"idiomatic.arch/kept\" = 1\n\"idiomatic.arch/kept#unknown\" = 2\n\"idiomatic.arch/renamed\" = 3\n\"idiomatic.arch/gone#unknown\" = 4\n\"other/kept\" = 5\n",
+    );
+    let strays = golden_strays(&rules, &["kept"]);
+    assert_eq!(strays.len(), 3, "a golden rule no recording holds passes: {strays:?}");
+    assert!(golden_strays(&table("\"idiomatic.arch/kept\" = 1\n"), &["kept"]).is_empty());
 }
