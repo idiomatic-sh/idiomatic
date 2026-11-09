@@ -1,142 +1,39 @@
 {
- "source": "b1e81f724206237fad67a42bfe1557fdb838b9e2",
- "verdict": "BLOCKING",
- "reviewer": "contract-review",
- "checkpoint": 331,
- "date": "2026-11-09",
- "base": "1086daee4b3a4435e60438d2df6ec7a7128dd883",
- "validated": "340808449fa966f5a51f9eeb809d4e2b43c7c59f",
- "checks": [
-  {
-   "id": "Enforced boundaries",
-   "verdict": "FAIL",
-   "evidence": "Rust privacy closes the 330 phase-call bypass: ProjectRootExecution offers only evaluate_occurrences (execution_runtime project_phase/interface.rs:34-49), root evaluate is pub(crate) (project_phase/service.rs:178), compile_fail E0603 on ProjectTask (interface.rs:31), project-batch-owner deleted. TM enforcement evidence is missing: shared-walk-owner 0.2.0 held back (a0515aba32), tm rebuild blocked, planted-violation after-counts pending. Enforcement is the leak review's lens; missing evidence is FAIL."
-  },
-  {
-   "id": "Clear ownership and flow",
-   "verdict": "PASS",
-   "evidence": "Reviewed scope: one phase call through evaluate_occurrences (core cross_file/service.rs:174, ordinary/service.rs:61); engine-owned sharing tests ok in libraries.log (producer_lifetime::project::sharing 8 rows, walk_routes::sharing); plan identity owned by core storing (storing/service.rs:161-200, repository/service.rs:114). Standing: the 18-finding domain concept ring (ring row, crates.md:15)."
-  },
-  {
-   "id": "Proof",
-   "verdict": "FAIL",
-   "evidence": "Receipts recount exactly from validation331 raw logs (libraries 1099/1, boundary 97/0, activation 11/0, ruff 13/0, core_bdd 18/7 summaries, tm validate 241/224, cycles 0/4,741/745 files, cli replay 75/3, cli_cost 4/3, Django rc 0 sha 53b163f4 worker 0670974a). Unproven: two new replay reds (import-fan-in 67 vs 32, cli_tests.log:8844, :8865) called real findings with no row checked; the store and peak rise attributed to the lineage span-key rule from one run, no A/B or census."
-  }
- ],
- "receipts": [
-  {
-   "id": "tm",
-   "verdict": "PASS",
-   "evidence": "tm --root crates/ryo check --format json on an archive of the source: rc 1, 18 findings (all idiomatic-rust/no-domain-concept-cycles in crates/execution_domain/src/domain, the ring row) / 6 suppressed (in-source file-length ignores with reasons). Raw tm_whole_tree.json on 340808449f is 36 (adds 18 no-tracker-text-shipped)."
-  },
-  {
-   "id": "run.py --check",
-   "verdict": "PASS",
-   "evidence": "exit 0"
-  },
-  {
-   "id": "validation.json",
-   "verdict": "PASS",
-   "evidence": "no_print.json exit 0, 0 error lines; SCC recount over ownership_edges.log 0 over 4,741 occurrences, matching ownership_graph source 340808449f"
-  }
- ],
- "phases": [
-  {
-   "id": "1",
-   "verdict": "NOTE",
-   "evidence": "Django verified, singleton; span row-equality control rewrites/test.rs:124-147 ok (boundary.log:9574-9583)"
-  },
-  {
-   "id": "2",
-   "verdict": "NOTE",
-   "evidence": "330 BLOCKING closed; seed checks pending the tm rebuild; no E0624 probe on evaluate itself"
-  },
-  {
-   "id": "3",
-   "verdict": "NOTE",
-   "evidence": "engine-owned sharing tests ok; ruff_sharing deleted"
-  },
-  {
-   "id": "4",
-   "verdict": "BLOCKING",
-   "evidence": "docs/contracts/review/README.md:86-103 known red, :13-32 branch table and :105- limits are validation319's; docs/contracts/README.md:234-250 has 11 rows reading Unverified at validation328"
-  },
-  {
-   "id": "5",
-   "verdict": "NOTE",
-   "evidence": "untouched apart from the census tautology removal"
-  },
-  {
-   "id": "6",
-   "verdict": "NOTE",
-   "evidence": "330 BLOCKING closed: plan identity in the rule digest, rebuilt/reused controls ok (libraries.log:20510-20516); store and peak attribution and the 330 drop cause lack a census"
-  },
-  {
-   "id": "7",
-   "verdict": "BLOCKING",
-   "evidence": "two new import-fan-in replay reds rest on an unverified claim"
-  }
- ],
- "findings": [
-  {
-   "id": "P7.1",
-   "verdict": "BLOCKING",
-   "where": "crates/ryo/cli/tests/fixtures/recordings/import-fan-in/expected.toml; validation.json cli_replay_note",
-   "failure": "behavior::ruff_findings_equal_the_expected_findings and behavior::every_recorded_rule_gives_the_recorded_rows red: import-fan-in 67 rows vs 32 recorded (35 extra, 0 missing); called the new real findings of the cross-crate source-dependency edges with no row checked",
-   "required": "check the 35 rows against the ruff source and rebind expected.toml with that proof, or repair the relation; add a cross-crate source-dependency case fixing the intended count"
-  },
-  {
-   "id": "P4.1",
-   "verdict": "BLOCKING",
-   "where": "crates/ryo/docs/contracts/review/README.md:13-32, :86-103, :105-",
-   "failure": "known-red list, branch table and verification limits are validation319's; process_capture and the two new reds are not listed",
-   "required": "rebind to validation331"
-  },
-  {
-   "id": "P4.2",
-   "verdict": "BLOCKING",
-   "where": "crates/ryo/docs/contracts/README.md:234-250",
-   "failure": "11 rows read Unverified at validation328 though validation331 ran their tests",
-   "required": "each row cites validation331 or states why it stays unverified"
-  },
-  {
-   "id": "P6.1",
-   "verdict": "NOTE",
-   "where": "crates/ryo/docs/contracts/README.md:56",
-   "failure": "store 62,022,326 to 164,712,192 bytes and peak 3.33 to 3.54 GB attributed to the lineage span-key rule from one run; the 330 drop from 1,757,210,648 bytes still has no cause",
-   "required": "frontier-bucket census of 330 and 331 stores or an A/B worker; until then a hypothesis"
-  },
-  {
-   "id": "P2.1",
-   "verdict": "NOTE",
-   "where": "crates/ryo/tastemaker.toml:69",
-   "failure": "shared-walk-owner 0.2.0 held back; planted-violation after-counts pending",
-   "required": "open item: tm rebuild and seed checks of shared-walk-owner, derived-view-acquisition, program-implementation-boundary (leak review)"
-  },
-  {
-   "id": "P7.2",
-   "verdict": "NOTE",
-   "where": "crates/ryo/docs/contracts/evidence/checkpoint/validation.json tm_whole_tree.status",
-   "failure": "says on the validated source; the validated source measured 36, the 18 is after the evidence-only commit and has no raw file",
-   "required": "state the source of the 18 and keep its raw file"
-  },
-  {
-   "id": "P7.3",
-   "verdict": "NOTE",
-   "where": "doctest_values_gate.log and doctest_execution_domain_gate.log in the validation331 raw directory",
-   "failure": "gate doctest logs carry no source sha",
-   "required": "record the source beside each rc"
-  },
-  {
-   "id": "P7.4",
-   "verdict": "NOTE",
-   "where": "validation331",
-   "failure": "standing reds: process_capture, core_allocation 1,698-1,700 blocks, cli_cost x3 (576 MB, 687 ms, 10,257 ms), warm peak 117,547,008; lint group FAIL (fmt 3,370 files, machete) by owner decision",
-   "required": "open item: owned by their rows; fmt-only commit at the end of 332"
-  }
- ],
- "manual_judgment": [
-  "two-reviewer binding not met (single reviewer)",
-  "Django run is a singleton (diagnostic)"
- ]
+  "source": "dcea2ee7df7c02711f42c332cbc403ff7b84a034",
+  "verdict": "BLOCKING",
+  "reviewer": "contract-review",
+  "checkpoint": 332,
+  "date": "2026-11-09",
+  "base": "b1e81f724206237fad67a42bfe1557fdb838b9e2",
+  "tree": "052d3bcc93ca20c6461976b4e10310a11914fb1a",
+  "validated": "7fd2dbf1f5b313ca157c384916fb962f0d8444f6",
+  "criteria_source": "3d1e6d91a4:.agents/agents/contract-review.md (four criteria, Change isolation included)",
+  "receipts": [
+    {"id": "tm", "verdict": "PASS", "evidence": "Command: tm --root crates/ryo check --format json, run on a git archive of dcea2ee7df. The archive's content equals the landed tree; it leaves 243 gitignored results files out of its index only. tm 0.1.2 release, sha256 f335d4ab, built from 781653e221, before the tastemaker refactor beb55b206a. Exit 0 in 208 s: 0 findings, 13 suppressed. All 13 are idiomatic.arch/file-length in-source ignores with reasons, 7 of them accepted by the owner decision recorded in 7d7888247c."},
+    {"id": "run.py --check", "verdict": "PASS", "evidence": "Command: python3 -I crates/ryo/docs/contracts/evidence/checkpoint/run.py --check on the archive. Exit 0. Output: 17 'newly scoped ... (0 findings)' lines. The archive was unchanged afterwards."},
+    {"id": "validation.json", "verdict": "PASS", "evidence": "no_print.json: exit 0, and no_print.log has 0 lines starting 'error' (source 7fd2dbf1f5). A Tarjan SCC recount over validation332's ownership_edges.log (source 7fd2dbf1f5) gives 0 cycles over 4,797 occurrences and 756 files. validation.json still records 340808449f, 4,741 occurrences and 745 files, from validation331 (finding P3)."}
+  ],
+  "checks": [
+    {"id": "Enforced boundaries", "verdict": "PASS", "evidence": "The scope is the 332 claims. The 331 FAIL cause is closed: tastemaker.lock moves shared-walk-owner 0.1.0 to 0.2.0, program-implementation-boundary 0.1.0 to 0.2.0 and idiomatic-rust 0.1.11 to 0.1.13, with tm 0.1.2. tm validate passes: 241/0 for crates/ryo and 224/0 for the repository root (tm_validate_69caa24a4e.log). The whole-tree check gives 0 findings. Rustc privacy closes the phase side doors: prepare_frontiers and project_scope are pub(crate), and evaluate_occurrences is the one phase call (07f1ac4cc5). PatternSemantics is sealed (10c561ef6a). Domain-concept cycle findings fall from 18 to 0. Limits: idiomatic-rust 0.1.13 does not cover the alias form of ryo::languages (CHANGELOG f957c0632e; the steward decided none, pending the provider-alias branch). idiomatic-rust's internal-crates check exempts tests (finding E1). Whether each cited enforcement fires is the leak review's lens."},
+    {"id": "Clear ownership and flow", "verdict": "PASS", "evidence": "Applicability and population_reads go through the one phase call, evaluate_occurrences (07f1ac4cc5). The domain-concept ring is broken (9a130bb449: 18 to 0). Ruff parity has one owner, the shared benchmark, and the Python mode is deleted (8e91823e1d, ede06f3bb3). Python visibility reuses the engine's carrier lookup (crates/language domain/elements/service.rs, holding). Core numbers a changed file by its place in the run's listing (c2ba5669a6, bec665436a). Not closed here: the evaluator's internals are a crate API (census-trend section 8)."},
+    {"id": "Proof", "verdict": "FAIL", "evidence": "Recounted from validation332's raw logs; every count matches the record. Libraries 1123/3 in libraries.log; with the benchmark rerun (229/1, gatefix_benchmark_lib.log) that is 1125/1. Boundary 99/0, activation 11, bdd 9 scenarios, core_bdd 18, ruff 12/0, cli replay 96/3, cli_cost 4/3, python 140/0, language 43/0, harness_hooks 136, checkpoint_check 16, parity 412 identical plus FURB122 = 413. It fails on two blockers: P1 (the landed production code after the validated source has no full-suite run) and P2 (matrix row 1 is stale)."},
+    {"id": "Change isolation", "verdict": "FAIL", "evidence": "(a) FAIL. 7062b9f535 deleted execution's forwards, and execution's own tests now import domain internals: tests/test.rs, tests/boundary_fixture/mod.rs, tests/publication/frames/test.rs and use_case_test/{dispatch,errored_rule}/test.rs name ryo_execution_domain::domain::rule_intent::types::{EmitDemand,RuleDemand} and domain::finish::types::PublicationReason. 51e528fb5c adds execution/tests/project_phase/axis, which names ryo_execution_runtime::application::file_dag::program::file_session::types and ryo_execution_domain::domain::frontier_capture::types. Runtime tests consume domain fixtures. Test files outside execution_domain that name it rose from 143 to 154. (b) FAIL. The domain-cycle merge 9a130bb449 changed 95 files: 50 in domain, and 36 in runtime plus 8 in store that only rewrite paths (186 changed lines). The concept needed none of those 44. The other merges stay in their concept or give a reason (see the .md table). (c) FAIL against scratchpad census-trend.md, because no census is committed at 331 or 332; it commits with 333. Its 332 column (781653e221) has the same engine code as dcea2ee7df. From 331 to 332: exhaustive Operation matches 23 to 24, GroupCount 42 to 43 and Operation::X 67 to 68 (query_language domain/refusing/service.rs, dd7c0befdf); tests naming ryo_execution_domain 143 to 154 (7062b9f535: 5, 51e528fb5c: 2, e0ad1b1895 splits: 4); ryo_operators:: 25 to 26 (domain-cycle moves); store concrete types 51 to 52 (store setup.rs, in its home); execution/tests files 104 to 105; engine production lines 123,873 to 124,960. Not worse: evaluator replacement 180 to 179; semantic analysis flat at 23/13 and 84/18."}
+  ],
+  "findings": [
+    {"id": "P1", "verdict": "BLOCKING", "where": "validation.json source 7fd2dbf1f5; commits c2ba5669a6, bec665436a (core), 10c561ef6a (execution_domain matching/types.rs, execution_store derived/owner/setup.rs), 5b9555b1a0", "failure": "The receipts are at 7fd2dbf1f5, but the landed head changes core and execution_domain production code after it. The only reruns are core lib 120/0, groups 11, lifecycle 2, samples 2, the doctests and the benchmark library. Libraries, boundary, cli replay, cli_cost, sdk, python and ruff were not rerun, and no rerun log records its sha.", "required": "Rerun those suites on 781653e221 or dcea2ee7df (engine-identical), with the sha in each raw json and log."},
+    {"id": "P2", "verdict": "BLOCKING", "where": "crates/ryo/docs/contracts/README.md:52 (matrix row 1)", "failure": "The row reads 'ruff target is 13/0 at validation328'. validation332 records 12/0.", "required": "The integrator rebinds row 1 to validation332, with the reason."},
+    {"id": "C1", "verdict": "BLOCKING", "where": "crates/ryo/crates/execution/tests/test.rs:20,24; tests/boundary_fixture/mod.rs; tests/publication/frames/test.rs; src/inbound/use_cases/execution/use_case_test/{dispatch,errored_rule}/test.rs; tests/project_phase/axis/{fixtures,test}.rs", "failure": "Change isolation (a): execution's tests name execution_domain and execution_runtime internals by deep module path, not through execution's inbound API.", "required": "Each assertion moves to the crate that owns its subject, or goes through execution's use cases. The count of test files outside execution_domain that name it comes back to 143 or fewer."},
+    {"id": "C2", "verdict": "BLOCKING", "where": "merge 9a130bb449: 36 execution_runtime and 8 execution_store files", "failure": "Change isolation (b): a restructure inside the domain forced path-only edits in 44 files in two other crates, because consumers import domain::<concept>::<role> paths.", "required": "A stable cross-crate surface for execution_domain's vocabulary, and a TM rule that refuses deep-path imports from other crates (route to the tm-specialist). Proof: a planted move inside the domain edits 0 files outside it."},
+    {"id": "C3", "verdict": "BLOCKING", "where": "census-trend.md sections 1, 5 and 7, the 332 column against 331 (uncommitted; commits with 333)", "failure": "Change isolation (c): change-amplification rows rise from 331 to 332. Exhaustive Operation matches 23 to 24; tests naming ryo_execution_domain 143 to 154; ryo_operators:: 25 to 26; execution/tests files 104 to 105.", "required": "Remove each rise or record an owner-accepted reason for each row, and commit the census as the baseline."},
+    {"id": "P3", "verdict": "NOTE", "where": "validation.json ownership_graph; validation.json scope", "failure": "ownership_graph cites validation331 (340808449f, 4,741 occurrences, 745 files) although validation332's log exists. That log recounts to 0 cycles over 4,797 occurrences and 756 files. scope still reads 'checkpoint 330'.", "required": "Rebind both fields to validation332."},
+    {"id": "P4", "verdict": "NOTE", "where": "validation.json red_green F9 entry; f9_green_memory_guard.log:7333", "failure": "The 'green' log ends 'FAILED. 0 passed; 1 failed' (4,452,912 KiB against the 1,331,200 KiB guard). The entry is a harness repair that now reaches its peak assertion.", "required": "Label it as a harness repair, and list the memory guard under the review README's Known red."},
+    {"id": "P5", "verdict": "NOTE", "where": "crates/ryo/docs/contracts/evidence/parity/django-413/summary.json", "failure": "summary.json names source 1086daee4b, but per-rule.json is the 332 run.", "required": "summary.json names the 332 run's source, or says it belongs to the earlier run."},
+    {"id": "E1", "verdict": "NOTE", "where": "crates/ryo/tastemaker.toml:195 idiomatic-rust allowed-paths", "failure": "The internal-crates check exempts tests and fixtures, which is why C1 passes TM.", "required": "open item: the tm-specialist decides whether tests in a foreign crate may name only test-contracts paths"}
+  ],
+  "manual_judgment": [
+    "TM receipt: 13 suppressed in-source file-length ignores, where the agent file reads '0 suppressed'. Accepted as in 331 (6 there); 7 of them are covered by the recorded owner decision.",
+    "The census is a static grep proxy written outside this review. I recounted its deltas at b1e81f7242 and dcea2ee7df. The Relation::X row (24 to 25) was not reproduced (25 = 25 under my filter).",
+    "The leak-repairs-b footprint (64 files in 11 areas) is judged per repair class, not per concept.",
+    "Single reviewer."
+  ]
 }
