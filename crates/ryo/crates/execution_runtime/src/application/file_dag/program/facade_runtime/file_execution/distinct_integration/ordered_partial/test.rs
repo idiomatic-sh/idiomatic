@@ -106,31 +106,48 @@ fn a_recognised_ordered_existence_read_in_part_answers_as_its_declined_twin() {
         lacking: Lacking::Any,
         at: ryo_execution_domain::domain::coverage::types::PartialPlace::File(FileId(0)),
     }];
-    let answer = |kept: Vec<ColumnIndex>, publication: &[Partial]| match run_read(
-        first_of_each_line(kept),
-        &[(Relation::SourceLocation, source.clone())],
-        (&[], publication),
-        Supplied::Computed,
-        Arc::new(MeaningCalls::default()),
-    ) {
-        RootOutcome::Partial { table, affected } => format!("partial {table:?} {affected:?}"),
-        RootOutcome::Complete(table) => format!("complete {table:?}"),
-        RootOutcome::Failed(error) => format!("failed {error:?}"),
-        RootOutcome::Unknown(error) => format!("unknown {error:?}"),
-        _ => "other".to_owned(),
+    // Each answer, and how many times the ordered meaning was entered for it.
+    let answer = |kept: Vec<ColumnIndex>, publication: &[Partial]| {
+        let calls = Arc::new(MeaningCalls::default());
+        let shown = match run_read(
+            first_of_each_line(kept),
+            &[(Relation::SourceLocation, source.clone())],
+            (&[], publication),
+            Supplied::Computed,
+            Arc::clone(&calls),
+        ) {
+            RootOutcome::Partial { table, affected } => format!("partial {table:?} {affected:?}"),
+            RootOutcome::Complete(table) => format!("complete {table:?}"),
+            RootOutcome::Failed(error) => format!("failed {error:?}"),
+            RootOutcome::Unknown(error) => format!("unknown {error:?}"),
+            _ => "other".to_owned(),
+        };
+        (
+            shown,
+            calls.ordered.load(std::sync::atomic::Ordering::Relaxed),
+        )
     };
     for publication in [&[][..], &partials[..]] {
-        assert_eq!(
-            answer(vec![], publication),
-            answer(vec![ColumnIndex(0), ColumnIndex(1)], publication),
-            "read in part: {}",
-            !publication.is_empty()
+        let (recognised, ordered) = answer(vec![], publication);
+        let (twin, declined) = answer(vec![ColumnIndex(0), ColumnIndex(1)], publication);
+        let read_in_part = !publication.is_empty();
+        assert_eq!(recognised, twin, "read in part: {read_in_part}");
+        assert!(
+            ordered > 0,
+            "the plan is recognised and its ordered meaning entered"
         );
+        assert_eq!(
+            declined, 0,
+            "the twin is declined and never enters the ordered meaning"
+        );
+        if read_in_part {
+            assert!(recognised.starts_with("partial"), "{recognised}");
+            assert!(
+                recognised.ends_with("[None, Some(FileId(0))]"),
+                "{recognised}"
+            );
+        } else {
+            assert!(recognised.starts_with("complete"), "{recognised}");
+        }
     }
-    let read_in_part = answer(vec![], &partials);
-    assert!(read_in_part.starts_with("partial"), "{read_in_part}");
-    assert!(
-        read_in_part.ends_with("[None, Some(FileId(0))]"),
-        "{read_in_part}"
-    );
 }

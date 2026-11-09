@@ -276,3 +276,66 @@ fn qualified_producers_release_only_their_actual_population() {
     owner.release_population();
     assert_eq!(owner.derived.working_bytes(), 0);
 }
+
+/// A computed numeric source is admitted when its cells fill its rows, and refused when they do not.
+#[test]
+fn number_witness_admits_a_rectangular_computed_source_and_refuses_a_ragged_one() {
+    let relation = Relation::SourceLocation;
+    let schema = kinds(relation);
+    let number = ColumnIndex(
+        schema
+            .iter()
+            .position(|kind| *kind == CellKind::Number)
+            .unwrap() as u32,
+    );
+    let required = NumberRequirement {
+        source: StepId(0),
+        column: number,
+        width: SchemaWidth(schema.len()),
+        origins: vec![StoredNumberOrigin {
+            relation,
+            column: number,
+        }],
+    };
+    let admitted = |cells: usize| {
+        let table = ryo_values::domain::rows::types::Table {
+            kinds: schema.to_vec(),
+            count: ryo_values::domain::rows::types::RowCount(1),
+            cells: vec![
+                ryo_relations::domain::relations::types::Value::Number(
+                    ryo_relations::domain::relations::types::Integer(0),
+                );
+                cells
+            ],
+        };
+        let rows = RepresentationInput::Computed(&table);
+        let owner = RelationOwner::for_request(
+            crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
+            crate::application::file_dag::relations::types::PinnedViewCount(64),
+            (std::sync::Arc::new(crate::application::file_dag::fixtures::derived())
+                as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
+        );
+        let publication = owner.source_borrowed(relation, rows).unwrap();
+        owner
+            .bind_producer(
+                ProducerScope::File,
+                crate::application::file_dag::relations::types::ProducerId(7),
+                publication.as_ref(),
+            )
+            .unwrap();
+        owner
+            .admit_number(
+                &publication,
+                crate::application::file_dag::relations::types::ProducerId(7),
+                &required,
+                rows,
+            )
+            .map(|number| number.is_some())
+    };
+    assert_eq!(admitted(schema.len()), Ok(true), "the cells fill the row");
+    assert_eq!(
+        admitted(schema.len() - 1),
+        Ok(false),
+        "a ragged table is refused"
+    );
+}

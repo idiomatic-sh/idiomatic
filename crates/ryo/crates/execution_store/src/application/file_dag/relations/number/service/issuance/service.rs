@@ -31,8 +31,9 @@ impl RelationOwner {
             return Ok(None);
         }
         // Original-plan lineage permits only copying operators. Every leaf must
-        // already have been read and admitted by THIS owner, with total Stored
-        // Number decoding and rectangular backing. No additional source read.
+        // already have been read and admitted by THIS owner with a Number column
+        // and rectangular backing: stored columns of equal length, or a computed
+        // table whose cells fill its rows. No additional source read.
         let sources = self.sources.borrow();
         if required.origins.is_empty()
             || required.origins.iter().any(|origin| {
@@ -40,7 +41,6 @@ impl RelationOwner {
                     return true;
                 };
                 let source = &source.population;
-                // A stored source decodes its numbers from rectangular columns; a computed one holds them typed.
                 source.kinds.get(origin.column.0 as usize) != Some(&CellKind::Number)
                     || match source.kind {
                         RepresentationKind::Stored => {
@@ -50,7 +50,10 @@ impl RelationOwner {
                                     .iter()
                                     .any(|span| span.length.0 != source.rows.0)
                         }
-                        RepresentationKind::Computed => false,
+                        RepresentationKind::Computed => {
+                            let cells = source.rows.0.checked_mul(source.kinds.len());
+                            source.storage.get(1).map(|span| Some(span.length.0)) != Some(cells)
+                        }
                         _ => true,
                     }
             })
