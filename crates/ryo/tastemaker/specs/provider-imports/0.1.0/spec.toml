@@ -163,3 +163,185 @@ templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/taste
 given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/src/domain/new_concept/service.rs' = 'use demo_parser::Parser as LocalParser;'
 then.findings = [{ rule = "idiomatic.arch/client-at-adapter", path = "demo/src/domain/new_concept/service.rs", line = 1 }]
+
+[[scenarios]]
+id = "use-site-path-through-a-crate-import-is-that-import"
+scenario = "A path at a use site that starts at a name the file imports from an allowed crate is judged as that import."
+given.files.'tastemaker.toml' = '''
+workspace = { name = "provider-policy", members = ["demo", "demo/src"], dependencies = [{ package = "idiomatic.ryo", path = "../../.." }, { package = "idiomatic.arch", path = "../../../../../../tastemaker" }] }
+specs = [{ spec = "idiomatic.ryo/provider-imports", include = ["demo/src/domain"], count = { min = 0 }, imports = { default = "deny", allow = ["crate::shared::*", "ryo_language::*"] } }]
+'''
+given.files.'Cargo.toml' = '''
+[workspace]
+members = ["demo", "engine", "ryo_language"]
+resolver = "3"
+'''
+given.files.'demo/Cargo.toml' = '''
+[package]
+name = "demo"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+engine = { path = "../engine" }
+ryo_language = { path = "../ryo_language" }
+'''
+given.files.'engine/Cargo.toml' = '''
+[package]
+name = "engine"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'engine/src/lib.rs' = 'pub fn run() {}'
+given.files.'ryo_language/Cargo.toml' = '''
+[package]
+name = "ryo_language"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'ryo_language/src/lib.rs' = 'pub mod files;'
+given.files.'ryo_language/src/files.rs' = 'pub struct FilePath;'
+given.files.'demo/tastemaker.toml' = 'closed = false'
+given.files.'demo/src/lib.rs' = "pub mod domain;\npub mod outbound;\npub mod shared;"
+given.files.'demo/src/domain.rs' = 'pub mod model;'
+given.files.'demo/src/shared.rs' = 'pub mod contract;'
+given.files.'demo/src/shared/contract.rs' = 'pub struct Collect;'
+given.files.'demo/src/outbound.rs' = 'pub fn open() {}'
+given.files.'demo/src/domain/model.rs' = "use ryo_language::files;\npub fn take(_: files::FilePath) {}"
+
+[[scenarios]]
+id = "use-site-path-from-a-crate-name-is-refused"
+scenario = "A path at a use site that starts at a crate the boundary does not allow is refused."
+given.files.'tastemaker.toml' = '''
+workspace = { name = "provider-policy", members = ["demo", "demo/src"], dependencies = [{ package = "idiomatic.ryo", path = "../../.." }, { package = "idiomatic.arch", path = "../../../../../../tastemaker" }] }
+specs = [{ spec = "idiomatic.ryo/provider-imports", include = ["demo/src/domain"], count = { min = 0 }, imports = { default = "deny", allow = ["crate::shared::*", "ryo_language::*"] } }]
+'''
+given.files.'Cargo.toml' = '''
+[workspace]
+members = ["demo", "engine", "ryo_language"]
+resolver = "3"
+'''
+given.files.'demo/Cargo.toml' = '''
+[package]
+name = "demo"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+engine = { path = "../engine" }
+ryo_language = { path = "../ryo_language" }
+'''
+given.files.'engine/Cargo.toml' = '''
+[package]
+name = "engine"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'engine/src/lib.rs' = 'pub fn run() {}'
+given.files.'ryo_language/Cargo.toml' = '''
+[package]
+name = "ryo_language"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'ryo_language/src/lib.rs' = 'pub mod files;'
+given.files.'ryo_language/src/files.rs' = 'pub struct FilePath;'
+given.files.'demo/tastemaker.toml' = 'closed = false'
+given.files.'demo/src/lib.rs' = "pub mod domain;\npub mod outbound;\npub mod shared;"
+given.files.'demo/src/domain.rs' = 'pub mod model;'
+given.files.'demo/src/shared.rs' = 'pub mod contract;'
+given.files.'demo/src/shared/contract.rs' = 'pub struct Collect;'
+given.files.'demo/src/outbound.rs' = 'pub fn open() {}'
+given.files.'demo/src/domain/model.rs' = "pub fn work() { engine::run(); }"
+then.findings = [{ rule = "idiomatic.ryo/provider-imports#imports", path = "demo/src/domain/model.rs", line = 1 }]
+
+[[scenarios]]
+id = "use-site-path-through-a-crate-root-import-is-that-import"
+scenario = "A path at a use site that starts at a name the file imports from an allowed module of its crate is judged as that import."
+given.files.'tastemaker.toml' = '''
+workspace = { name = "provider-policy", members = ["demo", "demo/src"], dependencies = [{ package = "idiomatic.ryo", path = "../../.." }, { package = "idiomatic.arch", path = "../../../../../../tastemaker" }] }
+specs = [{ spec = "idiomatic.ryo/provider-imports", include = ["demo/src/domain"], count = { min = 0 }, imports = { default = "deny", allow = ["crate::shared::*", "ryo_language::*"] } }]
+'''
+given.files.'Cargo.toml' = '''
+[workspace]
+members = ["demo", "engine", "ryo_language"]
+resolver = "3"
+'''
+given.files.'demo/Cargo.toml' = '''
+[package]
+name = "demo"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+engine = { path = "../engine" }
+ryo_language = { path = "../ryo_language" }
+'''
+given.files.'engine/Cargo.toml' = '''
+[package]
+name = "engine"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'engine/src/lib.rs' = 'pub fn run() {}'
+given.files.'ryo_language/Cargo.toml' = '''
+[package]
+name = "ryo_language"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'ryo_language/src/lib.rs' = 'pub mod files;'
+given.files.'ryo_language/src/files.rs' = 'pub struct FilePath;'
+given.files.'demo/tastemaker.toml' = 'closed = false'
+given.files.'demo/src/lib.rs' = "pub mod domain;\npub mod outbound;\npub mod shared;"
+given.files.'demo/src/domain.rs' = 'pub mod model;'
+given.files.'demo/src/shared.rs' = 'pub mod contract;'
+given.files.'demo/src/shared/contract.rs' = 'pub struct Collect;'
+given.files.'demo/src/outbound.rs' = 'pub fn open() {}'
+given.files.'demo/src/domain/model.rs' = "use crate::shared::contract;\npub fn take(_: contract::Collect) {}"
+
+[[scenarios]]
+id = "use-site-path-from-the-crate-root-is-refused"
+scenario = "A path at a use site that starts at the crate root and reaches a module the boundary does not allow is refused."
+given.files.'tastemaker.toml' = '''
+workspace = { name = "provider-policy", members = ["demo", "demo/src"], dependencies = [{ package = "idiomatic.ryo", path = "../../.." }, { package = "idiomatic.arch", path = "../../../../../../tastemaker" }] }
+specs = [{ spec = "idiomatic.ryo/provider-imports", include = ["demo/src/domain"], count = { min = 0 }, imports = { default = "deny", allow = ["crate::shared::*", "ryo_language::*"] } }]
+'''
+given.files.'Cargo.toml' = '''
+[workspace]
+members = ["demo", "engine", "ryo_language"]
+resolver = "3"
+'''
+given.files.'demo/Cargo.toml' = '''
+[package]
+name = "demo"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+engine = { path = "../engine" }
+ryo_language = { path = "../ryo_language" }
+'''
+given.files.'engine/Cargo.toml' = '''
+[package]
+name = "engine"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'engine/src/lib.rs' = 'pub fn run() {}'
+given.files.'ryo_language/Cargo.toml' = '''
+[package]
+name = "ryo_language"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'ryo_language/src/lib.rs' = 'pub mod files;'
+given.files.'ryo_language/src/files.rs' = 'pub struct FilePath;'
+given.files.'demo/tastemaker.toml' = 'closed = false'
+given.files.'demo/src/lib.rs' = "pub mod domain;\npub mod outbound;\npub mod shared;"
+given.files.'demo/src/domain.rs' = 'pub mod model;'
+given.files.'demo/src/shared.rs' = 'pub mod contract;'
+given.files.'demo/src/shared/contract.rs' = 'pub struct Collect;'
+given.files.'demo/src/outbound.rs' = 'pub fn open() {}'
+given.files.'demo/src/domain/model.rs' = "pub fn work() { crate::outbound::open(); }"
+then.findings = [{ rule = "idiomatic.ryo/provider-imports#imports", path = "demo/src/domain/model.rs", line = 1 }]
