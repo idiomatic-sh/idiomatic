@@ -11,12 +11,14 @@ LOCK = "/workspaces/.cargo-build.lock"
 TARGET_ROOT = "/workspaces/idiomatic-target"
 CHECK_TARGET = "/workspaces/idiomatic-check-target"
 FIXTURE_FIX = "cli/tests/replay/imports.rs"
-CARGO_BUILDS = {"build", "test", "bench", "clippy", "run", "check", "doc"}
+CARGO_BUILDS = {"build", "test", "nextest", "bench", "clippy", "run", "check", "doc"}
 INTEGRATION = re.compile(r"claude/(checkpoint-\d+|ryo-consolidation)")
 MEASUREMENT = "/workspaces/ryo-perf-"
 CHECK_FORM = ("cargo check -p <crate> --target-dir " + CHECK_TARGET + " or --target-dir " + CHECK_TARGET + "/<worktree name>")
+TEST_FORM = ("flock " + LOCK + " cargo nextest run -p <crate> (or cargo test -p <crate>) --target-dir " + TARGET_ROOT +
+             "/<worktree name>")
 BUILDERS_AUTHOR = ("Builders author; the integrator compiles. cargo builds only in an integration worktree "
-                   "(branch claude/checkpoint-N); builders may run " + CHECK_FORM)
+                   "(branch claude/checkpoint-N); builders may run " + CHECK_FORM + ", and " + TEST_FORM)
 COMMENT = re.compile(r"(^|\s)#.*$", re.MULTILINE)
 CONSOLIDATION = "claude/ryo-consolidation"
 EVIDENCE_ROOT = "crates/ryo/docs/contracts/evidence/"
@@ -243,23 +245,38 @@ def one_crate_manifest(path):
         return False
 
 
-def builder_check(words, here):
-    """Outside an integration tree only a package-scoped cargo check into the check-only target dir runs."""
-    at = cargo_index(words)
-    if at is None:
-        return BUILDERS_AUTHOR
-    rest = [w for w in words[at + 1:] if not w.startswith("+")]
-    if next((w for w in rest if not w.startswith("-")), "") != "check":
-        return BUILDERS_AUTHOR
-    if not is_check_target(target_dir(rest)):
-        return "cargo check outside an integration tree must run as: " + CHECK_FORM
+def package_scoped(rest, here):
+    """True when the cargo arguments name packages (-p or one-crate manifests) and never the whole workspace."""
     if any(w in ("--workspace", "--all") for w in rest):
-        return "a workspace-wide cargo check is the integrator's; run: " + CHECK_FORM
+        return False
     packaged = any(w in ("-p", "--package") or w.startswith("--package=") or (w.startswith("-p") and len(w) > 2)
                    for w in rest)
     manifests = [rest[i + 1] if w == "--manifest-path" and i + 1 < len(rest) else w.split("=", 1)[1]
                  for i, w in enumerate(rest) if w == "--manifest-path" or w.startswith("--manifest-path=")]
-    if not packaged and not (manifests and all(one_crate_manifest(os.path.join(here, m)) for m in manifests)):
+    return packaged or bool(manifests and all(one_crate_manifest(os.path.join(here, m)) for m in manifests))
+
+
+def builder_check(words, here):
+    """Outside an integration tree a package-scoped cargo check into the check-only target dir runs, and a
+    package-scoped cargo test or nextest run into this worktree's own target (flock and target by cargo_rules)."""
+    at = cargo_index(words)
+    if at is None:
+        return BUILDERS_AUTHOR
+    rest = [w for w in words[at + 1:] if not w.startswith("+")]
+    verbs = [w for w in rest if not w.startswith("-")]
+    sub = verbs[0] if verbs else ""
+    if sub == "test" or verbs[:2] == ["nextest", "run"]:
+        target = target_dir(rest)
+        if target is None or os.path.normpath(target) != TARGET_ROOT + "/" + tree_name(here):
+            return "a builder's tests run as: " + TEST_FORM
+        if not package_scoped(rest, here):
+            return "workspace-wide tests are the integrator's; run: " + TEST_FORM
+        return None
+    if sub != "check":
+        return BUILDERS_AUTHOR
+    if not is_check_target(target_dir(rest)):
+        return "cargo check outside an integration tree must run as: " + CHECK_FORM
+    if not package_scoped(rest, here):
         return "a workspace-wide cargo check is the integrator's; run: " + CHECK_FORM
     return None
 

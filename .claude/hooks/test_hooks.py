@@ -11,6 +11,7 @@ import unittest
 HERE = os.path.dirname(os.path.abspath(__file__))
 LOCK = "flock /workspaces/.cargo-build.lock "
 CHECK = " --target-dir /workspaces/idiomatic-check-target"
+OWN = " --target-dir /workspaces/idiomatic-target/builder"
 
 
 def run_hook(name, payload, env=None):
@@ -137,9 +138,31 @@ class GuardShell(unittest.TestCase):
 
     def test_builder_test_build_clippy_with_a_package_are_refused(self):
         for command in ["cargo test -p x" + CHECK, "cargo build -p x" + CHECK, "cargo clippy -p x" + CHECK,
-                        LOCK + "cargo test -p x", "bash -c 'cargo check -p x" + CHECK + "'"]:
+                        LOCK + "cargo test -p x", "bash -c 'cargo check -p x" + CHECK + "'",
+                        LOCK + "cargo build -p x" + OWN, LOCK + "cargo clippy -p x" + OWN,
+                        LOCK + "cargo nextest list -p x" + OWN]:
             with self.subTest(command=command):
                 self.assertEqual(shell(command, self.builder), 2)
+
+    def test_builder_runs_one_packages_tests_into_its_own_target_under_the_lock(self):
+        for command in [LOCK + "cargo nextest run -p x" + OWN, LOCK + "cargo test -p x" + OWN,
+                        LOCK + "cargo test -p x --lib some::test" + OWN, "timeout 600 " + LOCK + "cargo nextest run -p x -p y" + OWN,
+                        LOCK + "cargo +nightly test --package=x" + OWN + "/"]:
+            with self.subTest(command=command):
+                self.assertEqual(shell(command, self.builder), 0)
+
+    def test_builder_tests_without_the_lock_their_own_target_or_a_package_are_refused(self):
+        for command in ["cargo nextest run -p x" + OWN, "cargo test -p x" + OWN,
+                        LOCK + "cargo nextest run -p x", LOCK + "cargo nextest run -p x" + CHECK + "/builder",
+                        LOCK + "cargo test -p x --target-dir /workspaces/idiomatic-target/other",
+                        LOCK + "cargo nextest run" + OWN, LOCK + "cargo test --workspace" + OWN,
+                        LOCK + "cargo nextest run --workspace -p x" + OWN, LOCK + "cargo test --all" + OWN]:
+            with self.subTest(command=command):
+                self.assertEqual(shell(command, self.builder), 2)
+
+    def test_integration_tree_nextest_needs_the_lock(self):
+        self.assertEqual(shell(LOCK + "cargo nextest run --workspace", self.integration), 0)
+        self.assertEqual(shell("cargo nextest run --workspace", self.integration), 2)
 
     def test_integration_tree_forms_are_unchanged(self):
         for command, code in [(LOCK + "cargo check --workspace --all-features --message-format=json", 0),
@@ -1227,6 +1250,63 @@ class Acceptance(unittest.TestCase):
         self.fake_bd("false")
         codes = [self.stop(self.brief(), "DONE: x").returncode for _ in range(5)]
         self.assertEqual(codes, [2, 2, 2, 2, 0])
+
+
+class ReviewerStop(unittest.TestCase):
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.dir.cleanup)
+        self.tree = os.path.join(self.dir.name, "ryo-333")
+        os.makedirs(os.path.join(self.tree, "crates/ryo/docs/contracts/evidence/checkpoint"))
+        os.makedirs(os.path.join(self.tree, "crates/ryo/docs/contracts/evidence/branches"))
+
+    def write(self, rel, review, age=0):
+        path = os.path.join(self.tree, "crates/ryo/docs/contracts/evidence", rel)
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write(review if isinstance(review, str) else json.dumps(review))
+        if age:
+            stamp = os.path.getmtime(path) - age
+            os.utime(path, (stamp, stamp))
+
+    def stop(self, agent, report="Report.", brief=None):
+        transcript = os.path.join(self.dir.name, "agent.jsonl")
+        clock = __import__("datetime")
+        now = clock.datetime.now(clock.timezone.utc) - clock.timedelta(seconds=60)
+        rows = [{"type": "user", "timestamp": now.isoformat(), "message": {"role": "user", "content": brief or
+                 "INTEGRATION_TREE: " + self.tree + "\nReview 333 at abc."}},
+                {"type": "assistant", "message": {"role": "assistant", "content": [{"type": "text", "text": report}]}}]
+        with open(transcript, "w", encoding="utf-8") as handle:
+            handle.write("\n".join(json.dumps(r) for r in rows))
+        env = dict(os.environ, CLAUDE_HOOKS_STATE=os.path.join(self.dir.name, "state"))
+        return run_hook("acceptance_on_stop.py", {"agent_type": agent, "agent_transcript_path": transcript,
+                                                  "transcript_path": "/nonexistent", "stop_hook_active": False}, env)
+
+    def test_each_reviewer_without_its_verdict_file_is_held(self):
+        for agent in ["rust-review", "contract-review", "leak-review", "tm-steward"]:
+            with self.subTest(agent=agent):
+                result = self.stop(agent)
+                self.assertEqual(result.returncode, 2)
+                self.assertIn("write the verdict file", result.stderr)
+
+    def test_each_reviewer_with_its_verdict_written_this_run_stops(self):
+        for agent, rel in [("rust-review", "checkpoint/rust-review.json"), ("contract-review", "checkpoint/contract-review.json"),
+                           ("leak-review", "checkpoint/leak-review.json"), ("leak-review", "branches/claude-w15-loop.json"),
+                           ("tm-steward", "checkpoint/tm-steward.json")]:
+            with self.subTest(rel=rel):
+                self.write(rel, {"reviewer": agent, "verdict": "FAIL"})
+                self.assertEqual(self.stop(agent).returncode, 0)
+
+    def test_a_stale_another_reviewers_or_unparsable_file_does_not_count(self):
+        for review, age in [({"reviewer": "rust-review", "verdict": "PASS"}, 3600), ({"reviewer": "leak-review", "verdict": "PASS"}, 0),
+                            ({"reviewer": "rust-review"}, 0), ("{not json", 0)]:
+            with self.subTest(review=review, age=age):
+                self.write("checkpoint/rust-review.json", review, age)
+                self.assertEqual(self.stop("rust-review").returncode, 2)
+
+    def test_blocked_no_tree_and_other_agents_stop(self):
+        self.assertEqual(self.stop("rust-review", report="BLOCKED: which base sha?").returncode, 0)
+        self.assertEqual(self.stop("rust-review", brief="Review this diff.").returncode, 0)
+        self.assertEqual(self.stop("perf-diagnosis").returncode, 0)
 
 
 class NoSubagentBuilders(unittest.TestCase):

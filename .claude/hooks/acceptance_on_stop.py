@@ -1,4 +1,5 @@
-"""SubagentStop hook: a builder may stop only on a passing acceptance script (DONE) or one question (BLOCKED)."""
+"""SubagentStop hook: a builder may stop only on a passing acceptance script (DONE) or one question (BLOCKED); a review
+agent may stop only once its verdict file is written into the INTEGRATION_TREE its prompt names (or on BLOCKED)."""
 
 import json
 import os
@@ -6,10 +7,15 @@ import re
 import subprocess
 import sys
 import textwrap
+from datetime import datetime
 
 LIMIT = 5
 STATE = os.environ.get("CLAUDE_HOOKS_STATE", "/tmp/claude-hooks")
 BD_HOME = "/workspaces/idiomatic"
+EVIDENCE = "crates/ryo/docs/contracts/evidence/"
+# The verdict files each review agent writes (agent name -> evidence paths, a trailing / meaning any .json inside).
+REVIEWERS = {"rust-review": ["checkpoint/rust-review.json"], "contract-review": ["checkpoint/contract-review.json"],
+             "leak-review": ["checkpoint/leak-review.json", "branches/"], "tm-steward": ["checkpoint/tm-steward.json"]}
 
 
 def text_of(message):
@@ -36,6 +42,63 @@ def read_transcript(path):
             elif role == "assistant" and text:
                 last_assistant = text
     return first_user, last_assistant
+
+
+def started_at(path):
+    """The time of the transcript's first timestamped row, as a POSIX time, or None."""
+    with open(path, encoding="utf-8") as handle:
+        for line in handle:
+            try:
+                stamp = json.loads(line).get("timestamp")
+                return datetime.fromisoformat(stamp.replace("Z", "+00:00")).timestamp()
+            except (ValueError, AttributeError, TypeError):
+                continue
+    return None
+
+
+def verdict_files(tree, agent):
+    found = []
+    for rel in REVIEWERS[agent]:
+        path = os.path.join(tree, EVIDENCE, rel)
+        if rel.endswith("/"):
+            found += [os.path.join(path, n) for n in sorted(os.listdir(path)) if n.endswith(".json")] \
+                if os.path.isdir(path) else []
+        else:
+            found.append(path)
+    return found
+
+
+def written_verdict(path, agent, since):
+    """True when path holds this agent's verdict, written during this run."""
+    try:
+        if since is not None and os.path.getmtime(path) < since:
+            return False
+        with open(path, encoding="utf-8") as handle:
+            review = json.load(handle)
+    except (OSError, ValueError):
+        return False
+    return isinstance(review, dict) and review.get("reviewer") == agent and isinstance(review.get("verdict"), str) \
+        and bool(review["verdict"])
+
+
+def reviewer_stop(data, agent):
+    """A review agent stops only after writing its verdict file into the tree its prompt names as INTEGRATION_TREE."""
+    path = data.get("agent_transcript_path") or data.get("transcript_path")
+    if not path or not os.path.exists(path):
+        return 0
+    first, last = read_transcript(path)
+    last = data.get("last_assistant_message") or last
+    tree = re.search(r"INTEGRATION_TREE\W{0,3}\s*(/[^\s`'\"]+)", first)
+    if not tree or last.strip().startswith("BLOCKED:"):
+        return 0
+    tree = tree.group(1).rstrip(".,;")
+    if any(written_verdict(f, agent, started_at(path)) for f in verdict_files(tree, agent)):
+        return success("review-" + agent)
+    wanted = " or ".join(os.path.join(tree, EVIDENCE, r) + ("<branch>.json" if r.endswith("/") else "")
+                         for r in REVIEWERS[agent])
+    return failure("review-" + agent, "Review not finished: write the verdict file " + wanted + " (reviewer " +
+                   repr(agent) + ", a verdict) the moment the verdict is decided, then the write-up; or reply "
+                   "BLOCKED: <one question>.")
 
 
 def acceptance_script(bead):
@@ -95,6 +158,8 @@ def success(bead):
 
 def main():
     data = json.load(sys.stdin)
+    if data.get("agent_type") in REVIEWERS:
+        return reviewer_stop(data, data["agent_type"])
     path = data.get("transcript_path")
     if not path or not os.path.exists(path):
         return 0
