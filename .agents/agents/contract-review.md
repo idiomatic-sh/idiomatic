@@ -58,6 +58,7 @@ Refuse a request that lacks the three receipts of the [review README](../../crat
 - Keep use cases and application services slim through meaningful ownership; reject arbitrary line caps, pass-through wrappers, and omnibus state.
 ## Output and enforcement
 Report short numbered blockers with file:line, failure, and required proof.
+Write `contract-review.json` and `contract-review.md` for landed N into checkpoint N+1's tree, `<INTEGRATION_TREE>/crates/ryo/docs/contracts/evidence/checkpoint/` (the PM names `INTEGRATION_TREE` in the prompt), never to a scratchpad. The reviewer writes files only: it never commits, and it stays read-only on the code it reviews (an archive copy or another sha). The integrator commits the files with its next commit, and the hooks validate the committed copies.
 Retain findings and dispositions. Only a final PASS verdict approves exact source; author dispositions cannot overrule blockers.
 Bind source, raw results, and proof in an artifact.
 This file is not enforcement. The `contract-review` CI job (`ci/contract_review/command.py`, which loads its policy from the trusted base) checks only that `crates/ryo/docs/contracts/evidence/checkpoint/contract-review.json` has the shared schema, a PASS verdict, and a source that covers the protected source of the head. It does not judge the review.

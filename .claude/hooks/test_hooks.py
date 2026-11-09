@@ -1,6 +1,7 @@
 """Tests for the guard_shell, acceptance_on_stop, no_subagent_builders and check_in_on_stop hooks, run with `python3 -I -m unittest`."""
 
 import json
+import re
 import os
 import shutil
 import subprocess
@@ -463,6 +464,68 @@ class PreviousReviewsPush(unittest.TestCase):
         self.assertIn("contract-review.json", module.previous_reviews(words, self.tree))
         self.write("contract-review.json", self.body("PASS", "contract-review", self.previous))
         self.assertIsNone(module.previous_reviews(words, self.tree))
+
+    def candidate(self, klass="pub leak", signature="pub fn"):
+        import hashlib
+        slug = re.sub(r"[^a-z0-9]+", "-", klass.lower()).strip("-")
+        return {"id": slug + "-" + hashlib.sha256(signature.encode()).hexdigest()[:8], "class": klass,
+                "signature": signature, "scope": ["crates/a"], "suggested_mechanism": "new rule", "plants": []}
+
+    def with_candidates(self, leak=(), branch=(), decisions=()):
+        self.all_reviews(skip=("leak-review.json", "tm-steward.json"))
+        self.write("leak-review.json", dict(self.body("PASS", "leak-review", self.previous),
+                                            enforcement_candidates=list(leak)))
+        if branch:
+            path = os.path.join(self.tree, "crates/ryo/docs/contracts/evidence/branches/claude-w1-x.json")
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, "w", encoding="utf-8") as handle:
+                json.dump(dict(self.body("PASS", "leak-review", self.previous), enforcement_candidates=list(branch)), handle)
+            git(self.tree, "add", path)
+            git(self.tree, "commit", "-q", "-m", "branch evidence")
+        self.write("tm-steward.json", dict(self.body("PASS", "tm-steward", self.previous),
+                                           candidate_decisions=list(decisions)))
+
+    @staticmethod
+    def decision(candidate, **fields):
+        return dict({"id": candidate["id"], "decision": "new", "mechanism": "rule@1", "plant_counts": [1], "reason": "x"},
+                    **fields)
+
+    def test_no_candidates_is_allowed(self):
+        self.with_candidates()
+        self.assertEqual(self.push().returncode, 0)
+
+    def test_every_candidate_decided_is_allowed(self):
+        one, two = self.candidate(), self.candidate("other", "let x")
+        self.with_candidates(leak=[one], branch=[two], decisions=[
+            self.decision(one), self.decision(two, decision="none", plant_counts=[], reason="one-off")])
+        self.assertEqual(self.push().returncode, 0)
+
+    def test_a_missing_decision_is_refused(self):
+        one, two = self.candidate(), self.candidate("other", "let x")
+        self.with_candidates(leak=[one], branch=[two], decisions=[self.decision(one)])
+        result = self.push()
+        self.assertEqual(result.returncode, 2)
+        self.assertIn(two["id"], result.stderr)
+        self.assertIn("claude-w1-x.json", result.stderr)
+
+    def test_a_strengthen_decision_with_a_zero_plant_is_refused(self):
+        one = self.candidate()
+        self.with_candidates(leak=[one], decisions=[self.decision(one, decision="strengthen", plant_counts=[1, 0])])
+        result = self.push()
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("plant counts of at least 1", result.stderr)
+
+    def test_a_none_decision_without_a_reason_is_refused(self):
+        one = self.candidate()
+        self.with_candidates(leak=[one], decisions=[self.decision(one, decision="none", plant_counts=[], reason="")])
+        result = self.push()
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("without a reason", result.stderr)
+
+    def test_a_candidate_whose_id_does_not_match_its_signature_is_refused(self):
+        one = dict(self.candidate(), id="pub-leak-00000000")
+        self.with_candidates(leak=[one], decisions=[self.decision(one)])
+        self.assertEqual(self.push().returncode, 2)
 
 
 class PerfGate(unittest.TestCase):

@@ -96,6 +96,7 @@ def hook():
 
 
 SHA = "a" * 40
+candidate_id = service.candidate_id
 VARIANTS = [  # (reviewer, document, valid): the behaviour table; the hook calls service.shape, and one test ties the two
     ("contract-review", {"source": SHA, "verdict": "PASS", "reviewer": "contract-review", "checks": GOOD}, True),
     ("integrator", {"source": SHA, "verdict": "PASS", "reviewer": "integrator", "checks": GOOD}, True),
@@ -133,6 +134,28 @@ VARIANTS = [  # (reviewer, document, valid): the behaviour table; the hook calls
     ("contract-review", {"source": SHA, "verdict": "PASS", "reviewer": "contract-review", "checks": [{"id": "1", "verdict": "NOPE", "evidence": "e"}]}, False),
     ("contract-review", {"source": SHA, "verdict": "PASS", "reviewer": "contract-review", "checks": "none"}, False),
     ("contract-review", {"source": SHA, "verdict": "PASS", "reviewer": None, "checks": GOOD}, False),
+    ("leak-review", {"source": SHA, "verdict": "PASS", "reviewer": "leak-review", "checks": GOOD, "enforcement_candidates": []}, True),
+    ("leak-review", {"source": SHA, "verdict": "PASS", "reviewer": "leak-review", "checks": GOOD, "enforcement_candidates": [{"id": candidate_id("c", "pub fn"), "class": "c", "signature": "pub fn", "scope": ["crates/a"], "suggested_mechanism": "compiler", "plants": []}]}, True),
+    ("leak-review", {"source": SHA, "verdict": "PASS", "reviewer": "leak-review", "checks": GOOD, "enforcement_candidates": [{"id": candidate_id("c", "pub fn"), "class": "c", "signature": "pub fn", "scope": ["crates/a"], "suggested_mechanism": "strengthen no-pub-leak", "plants": [{"file": "a.rs", "line": 3, "text": "pub fn x() {}"}]}]}, True),
+    ("leak-review", {"source": SHA, "verdict": "PASS", "reviewer": "leak-review", "checks": GOOD, "enforcement_candidates": [{"id": candidate_id("c", "pub fn"), "class": "c", "signature": "pub fn", "scope": ["crates/a"], "suggested_mechanism": "new rule", "plants": []}]}, True),
+    ("leak-review", {"source": SHA, "verdict": "PASS", "reviewer": "leak-review", "checks": GOOD, "enforcement_candidates": "x"}, False),
+    ("leak-review", {"source": SHA, "verdict": "PASS", "reviewer": "leak-review", "checks": GOOD, "enforcement_candidates": ["x"]}, False),
+    ("leak-review", {"source": SHA, "verdict": "PASS", "reviewer": "leak-review", "checks": GOOD, "enforcement_candidates": [{"id": candidate_id("c", "pub fn"), "class": "c", "signature": "pub fn", "scope": ["crates/a"], "suggested_mechanism": "tool", "plants": []}]}, False),
+    ("leak-review", {"source": SHA, "verdict": "PASS", "reviewer": "leak-review", "checks": GOOD, "enforcement_candidates": [{"id": candidate_id("c", "pub fn"), "class": "c", "signature": "pub fn", "scope": ["crates/a"], "suggested_mechanism": "new rule", "plants": "none"}]}, False),
+    ("leak-review", {"source": SHA, "verdict": "PASS", "reviewer": "leak-review", "checks": GOOD, "enforcement_candidates": [{"id": candidate_id("c", "pub fn"), "class": "c", "signature": "pub fn", "scope": ["crates/a"], "suggested_mechanism": "new rule", "plants": [{"file": "a.rs", "line": "3", "text": "t"}]}]}, False),
+    ("leak-review", {"source": SHA, "verdict": "PASS", "reviewer": "leak-review", "checks": GOOD, "enforcement_candidates": [{"id": candidate_id("c", "pub fn"), "class": "c", "signature": "pub fn", "scope": [], "suggested_mechanism": "new rule", "plants": []}]}, False),
+    ("leak-review", {"source": SHA, "verdict": "PASS", "reviewer": "leak-review", "checks": GOOD, "enforcement_candidates": [{"id": candidate_id("see ryo-ab12.3", "pub fn"), "class": "see ryo-ab12.3", "signature": "pub fn", "scope": ["crates/a"], "suggested_mechanism": "new rule", "plants": []}]}, False),
+    ("leak-review", {"source": SHA, "verdict": "PASS", "reviewer": "leak-review", "checks": GOOD, "enforcement_candidates": [{"id": candidate_id("c", "pub fn"), "class": "c", "signature": "pub fn", "scope": ["crates/a"], "suggested_mechanism": "new rule", "plants": [{"file": "a.rs", "line": 3, "text": "t"}, 5]}]}, False),
+    ("leak-review", {"source": SHA, "verdict": "PASS", "reviewer": "leak-review", "checks": GOOD, "enforcement_candidates": [{"id": "c-00000000", "class": "c", "signature": "pub fn", "scope": ["crates/a"], "suggested_mechanism": "new rule", "plants": []}]}, False),
+    ("leak-review", {"source": SHA, "verdict": "PASS", "reviewer": "leak-review", "checks": GOOD, "enforcement_candidates": [{"class": "c", "signature": "pub fn", "scope": ["crates/a"], "suggested_mechanism": "new rule", "plants": []}]}, False),
+    ("tm-steward", {"source": SHA, "verdict": "PASS", "reviewer": "tm-steward", "checks": GOOD, "candidate_decisions": []}, True),
+    ("tm-steward", {"source": SHA, "verdict": "PASS", "reviewer": "tm-steward", "checks": GOOD, "candidate_decisions": [{"id": "c-1", "decision": "new", "mechanism": "rule@1", "plant_counts": [1]}]}, True),
+    ("tm-steward", {"source": SHA, "verdict": "PASS", "reviewer": "tm-steward", "checks": GOOD, "candidate_decisions": [{"id": "c-1", "decision": "none", "mechanism": "", "plant_counts": [], "reason": "one-off"}]}, True),
+    ("tm-steward", {"source": SHA, "verdict": "PASS", "reviewer": "tm-steward", "checks": GOOD, "candidate_decisions": [{"id": "c-1", "decision": "strengthen", "mechanism": "rule@1", "plant_counts": [1, 0]}]}, False),
+    ("tm-steward", {"source": SHA, "verdict": "PASS", "reviewer": "tm-steward", "checks": GOOD, "candidate_decisions": [{"id": "c-1", "decision": "new", "mechanism": "rule@1", "plant_counts": []}]}, False),
+    ("tm-steward", {"source": SHA, "verdict": "PASS", "reviewer": "tm-steward", "checks": GOOD, "candidate_decisions": [{"id": "c-1", "decision": "none", "mechanism": "rule@1", "plant_counts": [], "reason": " "}]}, False),
+    ("tm-steward", {"source": SHA, "verdict": "PASS", "reviewer": "tm-steward", "checks": GOOD, "candidate_decisions": [{"id": "c-1", "decision": "maybe", "mechanism": "rule@1", "plant_counts": [1]}]}, False),
+    ("tm-steward", {"source": SHA, "verdict": "PASS", "reviewer": "tm-steward", "checks": GOOD, "candidate_decisions": "x"}, False),
 ]
 
 

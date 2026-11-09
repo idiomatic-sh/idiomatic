@@ -304,6 +304,28 @@ def full_sha(value):
     return isinstance(value, str) and re.fullmatch(r"[0-9a-f]{40}", value) is not None
 
 
+def service_module():
+    """ci/contract_review/service.py, loaded by path (stdlib only): the one validator of review evidence."""
+    import importlib.util
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "ci", "contract_review", "service.py")
+    spec = importlib.util.spec_from_file_location("contract_review_service", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def validated(call):
+    """None when call(service module) passes, else the problem text; a missing or old service.py refuses."""
+    try:
+        call(service_module())
+    except ValueError as error:
+        return str(error)
+    except Exception as error:  # a missing or old service.py must refuse, never pass
+        return "cannot be validated: ci/contract_review/service.py failed to load or lacks the validator (" + \
+            type(error).__name__ + ": " + str(error) + ")"
+    return None
+
+
 def review_shape(review, reviewer):
     """The problem with a review evidence file against the shared schema, or None.
 
@@ -311,19 +333,46 @@ def review_shape(review, reviewer):
     run with python3 -I, and the contract-review CI job cannot drift. The schema is
     crates/ryo/docs/contracts/review/README.md#review-evidence-schema.
     """
-    import importlib.util
-    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "ci", "contract_review", "service.py")
-    try:
-        spec = importlib.util.spec_from_file_location("contract_review_service", path)
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        module.shape(review, reviewer)
-    except ValueError as error:
-        return str(error)
-    except Exception as error:  # a missing or old service.py must refuse, never pass
-        return "cannot be validated: ci/contract_review/service.py failed to load or lacks shape (" + \
-            type(error).__name__ + ": " + str(error) + ")"
+    return validated(lambda module: module.shape(review, reviewer))
+
+
+def candidate_problem(tree, sha, leak):
+    """The refusal text when the leak-review.json (parsed) or a branch result carries candidates the previous
+    checkpoint's tm-steward.json did not decide, else None. Candidates come from leak and evidence/branches/*.json."""
+    reviews = [(EVIDENCE + "leak-review.json", leak)]
+    code, listing = git_out(tree, "ls-tree", "--name-only", sha, MERGE_BRANCHES)
+    for name in (listing.split("\n") if code == 0 else []):
+        if not name.endswith(".json"):
+            continue
+        code, text = git_out(tree, "show", sha + ":" + name)
+        try:
+            reviews.append((name, json.loads(text)))
+        except ValueError:
+            return name + " at " + sha[:10] + " is not JSON"
+    ids = []
+    for name, review in reviews:
+        if isinstance(review, dict) and "enforcement_candidates" in review:
+            problem = validated(lambda module: module.candidates(review["enforcement_candidates"]))
+            if problem:
+                return name + " " + problem
+            ids += [(name, i) for i in service_ids(review)]
+    code, text = git_out(tree, "show", sha + ":" + EVIDENCE + "tm-steward.json")
+    steward = json.loads(text) if code == 0 else {}
+    left = []
+    problem = validated(lambda module: left.extend(module.undecided(steward, [i for _, i in ids])))
+    if problem:
+        return problem
+    if left:
+        where = {i: n for n, i in ids}
+        return ("tm-steward.json decides no candidate_decisions entry for " +
+                ", ".join(i + " (from " + where[i] + ")" for i in left))
     return None
+
+
+def service_ids(review):
+    out = []
+    validated(lambda module: out.extend(module.candidate_ids(review)))
+    return out
 
 
 def bulk_push(words, here):
@@ -431,6 +480,13 @@ def previous_reviews(words, here):
                 return (refused + "the source " + repr(reviewed) + " in " + EVIDENCE + name +
                         " is not the previous landed head " + head +
                         " (or an ancestor with only evidence changed since); " + run)
+            if name == "leak-review.json":
+                leak = review
+        if len(needed) == len(PREVIOUS_REVIEWS):
+            problem = candidate_problem(tree, sha, leak)
+            if problem:
+                return (refused + problem + "; the tm-steward must decide every enforcement candidate of " + head +
+                        " (decision compiler|strengthen|new with plant counts of at least 1, or none with a reason)")
         code, text = git_out(tree, "show", sha + ":" + ASYMPTOTE)
         if code == 0:
             run = "rerun the integrator's quick checks on " + head
