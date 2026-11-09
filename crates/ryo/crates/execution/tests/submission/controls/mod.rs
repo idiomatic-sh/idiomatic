@@ -5,7 +5,7 @@ use super::inventory::{
 };
 use super::routes::{file_route, run_file_route};
 use super::witness::{ALL, Method, Witness, implements_every_entry_trait};
-use crate::boundary_fixture::{corpus, demand, engine, prepared_rules};
+use crate::boundary_fixture::{authored_request, corpus, demand, engine, prepared_rules};
 use crate::file_intents::named_request;
 use crate::project_phase::negative::fixtures::{Entry, Held, NoFacts, with_held};
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
@@ -46,12 +46,12 @@ pub(super) enum Control {
 }
 pub(super) fn control(method: Method) -> Control {
     match method {
-        Method::UseCasePrepare => Control::Refuses(observations_need_a_named_program),
+        Method::UseCasePrepare => Control::Refuses(prepare_refuses_an_incomplete_or_extra_rule_set),
         Method::UseCaseExecution => Control::Refuses(file_session_undeclared_rule),
         Method::RequestOpenFile => Control::Refuses(file_route),
         Method::RequestRunFile => Control::Refuses(run_file_route),
         Method::RequestObservations => Control::Refuses(observations_need_a_named_program),
-        Method::RequestProjectPhase => Control::Refuses(occurrence_of_an_undeclared_rule),
+        Method::RequestProjectPhase => Control::AcceptsNoRoot("opens the phase; its roots are declared through evaluate_occurrences"),
         Method::RootsEvaluateOccurrences => Control::Refuses(occurrence_of_an_undeclared_rule),
         Method::ObservedReserve
         | Method::ObservedBindings
@@ -75,6 +75,18 @@ pub(super) fn control(method: Method) -> Control {
         Method::ObservedArenas => Control::AcceptsNoRoot("reads published arenas"),
         Method::ObservedFinishStage => Control::AcceptsNoRoot("releases the stage"),
     }
+}
+/// A program is prepared from a plan for each declared rule and no other: a rule set missing a planned rule, or with a rule no
+/// plan answers, is refused.
+pub(super) fn prepare_refuses_an_incomplete_or_extra_rule_set() {
+    let engine = engine();
+    assert!(engine.prepare(authored_request(2)).is_ok(), "a complete declared set prepares");
+    let mut incomplete = authored_request(2);
+    incomplete.rules.truncate(1);
+    assert!(engine.prepare(incomplete).is_err(), "a planned rule missing from the set is refused");
+    let mut extra = authored_request(2);
+    extra.rules.push(authored_request(3).rules.remove(2));
+    assert!(engine.prepare(extra).is_err(), "a rule no plan answers is refused");
 }
 pub(super) fn observations_need_a_named_program() {
     let engine = engine();

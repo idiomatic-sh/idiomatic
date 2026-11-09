@@ -1,6 +1,7 @@
 //! Two declared roots of one population read the provider once.
 use super::super::*;
 use ryo_execution::inbound::use_cases::execution::interface::PhasePartials;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectBatch;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution;
 
 #[test]
@@ -227,7 +228,7 @@ fn two_declared_roots_of_one_population_read_the_provider_once() {
             "one cached project invocation, with no second semantic evaluation"
         );
         // Negative control: a different population (observed demand) is a separate acquisition.
-        let _other = phase.evaluate_occurrences(
+        let ProjectBatch::Complete(observed) = phase.evaluate_occurrences(
             occurrences(&single),
             &mut symbols,
             |_| Ok::<(), OperatingError>(()),
@@ -238,8 +239,19 @@ fn two_declared_roots_of_one_population_read_the_provider_once() {
                 })
             },
             |_| Ok(()),
-            |_, _, _, _| Ok(()),
-        );
+            |_, outcome, _, _| Ok(outcome),
+        ) else {
+            panic!("the guard admits the observed occurrence")
+        };
+        let [Ok(observed)] = observed.as_slice() else {
+            panic!("the observed occurrence is scoped, prepared over its ready frontiers and evaluated")
+        };
+        let RootOutcome::Complete(observed_table) = &observed.emit else {
+            panic!("the observed population answers the same complete project diagnostic table")
+        };
+        assert_eq!(observed_table.kinds, [CellKind::File]);
+        assert_eq!(observed_table.count, RowCount(1));
+        assert_eq!(observed_table.cells, [Value::File(FileId(0))]);
         assert_eq!(
             stored.reads.load(Ordering::SeqCst),
             2,
@@ -256,6 +268,11 @@ fn two_declared_roots_of_one_population_read_the_provider_once() {
         );
         assert!(later.iter().all(Result::is_ok));
         phase.finish().expect("release project publications");
+        assert_eq!(
+            stored.reads.load(Ordering::SeqCst),
+            3,
+            "the two occurrences of one call share one acquisition of the file frontiers"
+        );
         assert_eq!(
             project.reads.load(Ordering::SeqCst),
             3,

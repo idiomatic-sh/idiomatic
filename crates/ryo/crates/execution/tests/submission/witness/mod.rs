@@ -51,8 +51,7 @@ use ryo_values::domain::{
 };
 
 /// One variant per method of every entry trait, generated with its inventory so a variant cannot
-/// be missing from `ALL`; `TRAIT_METHODS` counts the methods of each trait in the same list, and
-/// `controls::every_trait_method_has_its_own_variant` compares them to the trait sources. `witness` below maps each trait method here, and the exhaustive `match`
+/// be missing from `ALL`. `witness` below maps each trait method here, and the exhaustive `match`
 /// in `controls::control` refuses to compile for a variant without a control.
 macro_rules! methods {
     ($($method:ident),+ $(,)?) => {

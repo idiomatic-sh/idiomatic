@@ -24,7 +24,8 @@ pub struct ProjectPhase<'a> {
     pub(crate) publication:
         std::rc::Rc<crate::application::file_dag::program::facade_runtime::types::PublicationScope>,
 }
-pub struct PhaseScope {
+/// The files one occurrence's rule reads in its phase, sharing the phase's publication: crate-private, as the scoping is.
+pub(crate) struct PhaseScope {
     pub(crate) required: crate::application::file_dag::program::admission::RequiredPartitions,
     pub(crate) publication:
         std::rc::Rc<crate::application::file_dag::program::facade_runtime::types::PublicationScope>,
@@ -50,14 +51,15 @@ pub enum FrontierDemand<'a> {
     Diagnostic,
     Observations { ready: &'a ReadinessProof },
 }
-pub struct FrontierRequest<'a> {
-    pub demand: FrontierDemand<'a>,
-    pub scope: &'a PhaseScope,
-    pub rule: RuleIndex,
-    pub first: ryo_values::domain::stored_facts::types::Bucket,
-    pub facts: &'a dyn FactsFinish,
-    pub project: &'a dyn FactsWorker,
-    pub project_symbols: &'a ryo_language::domain::symbols::types::Symbols,
+/// What one occurrence's frontiers are prepared from: crate-private, as the preparation is.
+pub(crate) struct FrontierRequest<'a> {
+    pub(crate) demand: FrontierDemand<'a>,
+    pub(crate) scope: &'a PhaseScope,
+    pub(crate) rule: RuleIndex,
+    pub(crate) first: ryo_values::domain::stored_facts::types::Bucket,
+    pub(crate) facts: &'a dyn FactsFinish,
+    pub(crate) project: &'a dyn FactsWorker,
+    pub(crate) project_symbols: &'a ryo_language::domain::symbols::types::Symbols,
 }
 /// The place of one declared occurrence among the occurrences of its phase, counted from zero in declaration order.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
