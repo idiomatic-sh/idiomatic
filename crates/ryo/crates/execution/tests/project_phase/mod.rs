@@ -55,7 +55,18 @@ pub(crate) mod source_facts;
 use self::source_facts::fixtures::{CapturedFacts, ProjectFacts};
 
 pub(crate) fn mixed_program(engine: &PrepareUseCaseImpl, relation: Relation) -> PreparedExecutionProgram {
-    let mut input = authored_request(1);
+    mixed_program_with(engine, relation, ObservationIdentity::Independent)
+}
+
+/// [`mixed_program`] under the observation identity `observations`.
+pub(crate) fn mixed_program_with(
+    engine: &PrepareUseCaseImpl,
+    relation: Relation,
+    observations: ObservationIdentity,
+) -> PreparedExecutionProgram {
+    let named = matches!(observations, ObservationIdentity::Named(_));
+    let mut input = authored_request(if named { 2 } else { 1 });
+    input.observations = observations;
     let file_column = kinds(Relation::Function)
         .iter()
         .position(|kind| *kind == CellKind::File)
@@ -97,9 +108,107 @@ pub(crate) fn mixed_program(engine: &PrepareUseCaseImpl, relation: Relation) -> 
     crate::boundary_fixture::plans(&mut input)[0].frontier =
         vec![Input::Step(StepId(0)), Input::Relation(relation)];
     crate::boundary_fixture::plans(&mut input)[0].emit.step = StepId(2);
+    if named {
+        use ryo_values::domain::observations::types::{
+            BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn,
+            ObservationColumnName, ObservationName, ObservationProducer, PlanObservation,
+        };
+        use ryo_values::domain::plan_parts::types::ObservationBindingId;
+        // A named program is a schedule: rule 0 publishes its answer as `files`, which rule 1 binds.
+        let columns = vec![ObservationColumn {
+            name: ObservationColumnName("file".into()),
+            kind: CellKind::File,
+        }];
+        crate::boundary_fixture::plans(&mut input)[0]
+            .observations
+            .push(PlanObservation {
+                name: ObservationName("files".into()),
+                source: Input::Step(StepId(2)),
+                columns: columns.clone(),
+                scope: StepScope::CrossFile,
+            });
+        let consumer = &mut crate::boundary_fixture::plans(&mut input)[1];
+        consumer.steps = vec![PlanStep {
+            scope: StepScope::CrossFile,
+            operation: Operation::Select {
+                from: Input::BoundObservation(ObservationBindingId(0)),
+                comparisons: vec![],
+                kept: vec![],
+            },
+        }];
+        consumer.frontier = vec![Input::BoundObservation(ObservationBindingId(0))];
+        consumer.observation_inputs.push(BoundObservationInput {
+            name: ObservationBindingName("files".into()),
+            columns: columns.clone(),
+            scope: StepScope::CrossFile,
+        });
+        let producer = input.rules[0].id.clone();
+        input.rules[1].observations.push(ObservationBinding {
+            name: ObservationBindingName("files".into()),
+            columns,
+            producers: vec![ObservationProducer::Output {
+                rule: producer,
+                output: ObservationName("files".into()),
+            }],
+        });
+    }
     engine
         .prepare(input)
         .expect("compile actual mixed-phase request")
+}
+
+/// The kept frontier of rule 0 in file 0, captured as [`captured_in_file_0`] captures it, over `read`, keyed by its file, every
+/// other rule undemanded.
+pub(crate) fn captured_in_file_0_of<'facts>(
+    request: &ryo_execution::inbound::use_cases::execution::interface::RequestExecution,
+    read: &dyn Fn(Relation) -> Result<SourceRows<'facts>, OperatingError>,
+    symbols: &mut Symbols,
+) -> Vec<(FileId, ryo_execution_domain::domain::frontier_capture::types::CapturedFrontier)> {
+    let elements = ryo_language::domain::elements::types::Elements::default();
+    let mut file = request
+        .open_file(
+            FileInput {
+                language: SourceLanguage::Recognized,
+                resident_stability: ResidentStability::Stable,
+                file: FileId(0),
+                evaluation: &[],
+                publication: &[],
+                intents: &[
+                    FileRuleIntent::Run {
+                        diagnostic: DiagnosticDelivery::Forwarded,
+                        observations: ObservationDemand::NotRequired,
+                        capture: CaptureIntent::DiagnosticAndObservations,
+                    },
+                    FileRuleIntent::Undemanded,
+                ],
+                source: ryo_values::domain::files::types::SourceView(b"abc"),
+                elements: &elements,
+                read,
+                semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+                kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
+            },
+            symbols,
+        )
+        .expect("open file 0");
+    let (mut arena, mut places, mut words) = (vec![], vec![], Words::default());
+    let captures = file
+        .capture_frontiers(
+            RuleIndex(0),
+            Bucket(0),
+            symbols,
+            CaptureContext {
+                worker: WorkerNumber(0),
+                arena: ryo_execution::inbound::use_cases::execution::interface::Arena(&mut arena),
+                places: &mut places,
+                words: &mut words,
+            },
+        )
+        .expect("capture the frontiers of rule 0");
+    let _finished = file.finish();
+    captures
+        .into_iter()
+        .filter_map(|capture| capture.outcome.ok().map(|kept| (FileId(0), kept)))
+        .collect()
 }
 
 /// The kept frontier of each input of rule 0, captured in file 0 opened with its diagnostic collected and its frontiers captured,

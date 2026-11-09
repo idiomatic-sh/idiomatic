@@ -218,3 +218,106 @@ fn two_declared_roots_of_one_population_read_the_provider_once() {
         );
     }
 }
+
+/// Negative control: a second population of the same rule, observed through the observation stage, is a separate acquisition of
+/// the file frontier and of the provider, and answers the same table.
+#[test]
+fn an_observed_population_is_a_separate_acquisition_with_the_same_answer() {
+    use ryo_execution::inbound::use_cases::execution::interface::{
+        BatchNumber, BatchOccurrence, ObservationBatches,
+    };
+    let relation = Relation::ModuleIdentity;
+    let engine = engine();
+    let prepared = mixed_program_with(
+        &engine,
+        relation,
+        ObservationIdentity::Named(ryo_values::domain::records::types::ObservationReadinessLayout(
+            ryo_values::domain::stored_facts::types::Digest([33; 16]),
+        )),
+    );
+    let corpus = corpus();
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
+    let table = source();
+    let read = |_| Ok(SourceRows::Computed(&table));
+    let mut symbols = Symbols::default();
+    let stored = CapturedFacts {
+        captures: captured_in_file_0_of(&request, &read, &mut symbols),
+        reads: AtomicUsize::new(0),
+    };
+    let project = ProjectFacts::new(relation);
+    let covered = [Covered {
+        file: FileId(0),
+        rules: vec![RuleIndex(0)],
+        partial: vec![],
+    }];
+    let project_symbols = Symbols::default();
+    let inapplicable = [Default::default(), Default::default()];
+    let refused = [Default::default(), Default::default()];
+    let first = [Bucket(0), Bucket(1)];
+    let partials = Partials::default();
+    let phase = request.project_phase().unwrap();
+    let ordinary = crate::boundary_fixture::project_root(
+        &phase,
+        PhaseRules {
+            rules: &[RuleIndex(0)],
+            first: &first,
+            corpus: &corpus,
+            covered: &covered,
+            skipped: &[],
+            inapplicable: &inapplicable,
+            refused: &refused,
+            facts: &stored,
+            project: &project,
+            project_symbols: &project_symbols,
+            arenas: &[],
+        },
+        &partials,
+        &partials,
+        &mut symbols,
+    )
+    .expect("the ordinary population answers");
+    phase.finish().unwrap();
+    let after_ordinary = (stored.reads.load(Ordering::SeqCst), project.reads.load(Ordering::SeqCst));
+    let mut arenas = vec![];
+    let stage = request.observations(&mut arenas).expect("a named program opens its stage");
+    let (ran, mut delivered) = crate::project_phase::source_facts::fixtures::run_observations(
+        stage,
+        ObservationBatches {
+            occurrences: &[BatchOccurrence {
+                batch: BatchNumber(0),
+                rule: RuleIndex(0),
+            }],
+            readiness: &[],
+            rules: &[RuleIndex(0), RuleIndex(1)],
+            first: &first,
+            corpus: &corpus,
+            covered: &covered,
+            skipped: &[],
+            inapplicable: &inapplicable,
+            refused: &refused,
+            facts: &stored,
+            project: &project,
+            project_symbols: &project_symbols,
+        },
+        &partials,
+        &mut symbols,
+    );
+    ran.expect("the stage runs the observed population");
+    let (_, observed) = delivered.pop().unwrap();
+    let after_observed = (stored.reads.load(Ordering::SeqCst), project.reads.load(Ordering::SeqCst));
+    assert_eq!(after_ordinary, (1, 1), "the ordinary population acquires the frontier and the provider once");
+    assert_eq!(
+        after_observed,
+        (2, 2),
+        "the observed population is a separate acquisition of both"
+    );
+    let RootOutcome::Complete(ordinary) = ordinary.emit else {
+        panic!("the ordinary population completes")
+    };
+    let Ok(RootOutcome::Complete(observed)) = observed.map(|outcome| outcome.emit) else {
+        panic!("the observed population completes")
+    };
+    assert_eq!(observed, ordinary, "both populations answer the same table");
+    assert_eq!(ordinary.cells, [Value::File(FileId(0))]);
+    request.finish();
+}
