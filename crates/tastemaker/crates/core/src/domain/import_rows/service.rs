@@ -4,7 +4,7 @@
 use std::collections::BTreeMap;
 
 use super::constants::{
-    BINDING, EDGE_KEY, EDGES_RELATION, FILE_COLUMN, NAME_KEY, NAMES_RELATION, OWNER_KEY,
+    BINDING, BLOCK_KIND, FILE_COLUMN, KIND, MODULE_KIND, NAME_KEY, NAMES_RELATION, OWNER_KEY,
     OWNERS_RELATION, PACKAGE, PACKAGE_KEY, PACKAGES_RELATION, PATH_COLUMN, SOURCE_COLUMN, TARGET,
     WRITTEN,
 };
@@ -14,7 +14,7 @@ use crate::domain::definitions::types::QueryText;
 use crate::domain::imports::constants::JOINERS;
 use crate::domain::imports::types::{
     Import, ImportColumn, ImportPlace, ImportRows, ModuleName, Name, Owner, Package,
-    PackageBinding, Relation, Target, WrittenPath,
+    PackageBinding, Relation, Scope, ScopeKind, Target, WrittenPath,
 };
 use crate::domain::module_paths::service::segments;
 use crate::domain::paths::types::RepoPath;
@@ -22,11 +22,9 @@ use crate::domain::paths::types::RepoPath;
 /// The query of the built-in rule that reads `relation`, every column of each row.
 #[must_use]
 pub fn query(relation: Relation) -> QueryText {
-    if relation == Relation::Edges {
-        return QueryText(super::constants::SEMANTIC_EDGES.into());
-    }
     let (name, subject, key) = match relation {
-        Relation::Edges => (EDGES_RELATION, SOURCE_COLUMN, EDGE_KEY),
+        Relation::Edges => return QueryText(super::constants::SEMANTIC_EDGES.into()),
+        Relation::Scopes => return QueryText(super::constants::SCOPES.into()),
         Relation::Names => (NAMES_RELATION, FILE_COLUMN, NAME_KEY),
         Relation::Packages => (PACKAGES_RELATION, SOURCE_COLUMN, PACKAGE_KEY),
         Relation::Owners => (OWNERS_RELATION, PATH_COLUMN, OWNER_KEY),
@@ -72,10 +70,13 @@ pub fn keep(
             }
         }
         Relation::Names => {
-            if let Some(written) = column(ImportColumn(TARGET)) {
+            if let (Some(written), Some(binding)) =
+                (column(ImportColumn(TARGET)), column(ImportColumn(BINDING)))
+            {
                 rows.names.push(Name {
                     source: path,
                     written: WrittenPath(written.0),
+                    binding: ModuleName(binding.0),
                     span: place,
                 });
             }
@@ -97,6 +98,18 @@ pub fn keep(
             if let Some(package) = file(PACKAGE) {
                 rows.owners.push(Owner { path, package });
             }
+        }
+        Relation::Scopes => {
+            let kind = match column(ImportColumn(KIND)).as_ref().map(|cell| &*cell.0) {
+                Some(BLOCK_KIND) => ScopeKind::Block,
+                Some(MODULE_KIND) => ScopeKind::Module,
+                _ => return,
+            };
+            rows.scopes.push(Scope {
+                source: path,
+                span: place,
+                kind,
+            });
         }
     }
 }
@@ -128,9 +141,36 @@ fn holds(outer: ImportPlace, inner: ImportPlace) -> Holding {
     }
 }
 
+/// Whether the `use` that wrote `name` binds where `edge` is written: the innermost block or inline module of
+/// `scopes` that holds the `use`, or the whole file when none does, holds the edge, and no inline module between them
+/// does, for a module sees no `use` written outside it.
+fn in_scope(name: &Name, edge: &Import, scopes: &[&Scope]) -> Holding {
+    let size = |place: ImportPlace| match place {
+        ImportPlace::At(span) => span.end.0.saturating_sub(span.start.0),
+        ImportPlace::Unplaced => usize::MAX,
+    };
+    let around = scopes
+        .iter()
+        .filter(|scope| holds(scope.span, name.span) == Holding::Holds)
+        .min_by_key(|scope| size(scope.span))
+        .map(|scope| scope.span);
+    let within = |place: ImportPlace| around.map_or(Holding::Holds, |outer| holds(outer, place));
+    let shut = scopes.iter().any(|scope| {
+        scope.kind == ScopeKind::Module
+            && Some(scope.span) != around
+            && within(scope.span) == Holding::Holds
+            && holds(scope.span, edge.span) == Holding::Holds
+    });
+    if shut {
+        Holding::Apart
+    } else {
+        within(edge.span)
+    }
+}
+
 /// Every import the files make, read from the rows of the import relations: each path that names another file of the
-/// repository, written as the `use` that holds it writes it, or as the edge's `written` column says the file writes it, and
-/// each other name an import brings in, which reaches the manifest of a package of the repository the file's own package
+/// repository, written as the `use` that holds it writes it, or as the edge's `written` column says the file writes it
+/// when no import of the file binds the name it starts at (a path through an import is that import's), and each other name an import brings in, which reaches the manifest of a package of the repository the file's own package
 /// depends on by a binding its first names are written with, or a module outside it. A file's package is the one
 /// `file-package` says, whatever language's manifest it is.
 #[must_use]
@@ -159,13 +199,32 @@ pub fn imports(rows: &ImportRows) -> Vec<Import> {
             &package.target,
         ));
     }
+    let mut scopes: BTreeMap<&RepoPath, Vec<&Scope>> = BTreeMap::new();
+    for scope in &rows.scopes {
+        scopes.entry(&scope.source).or_default().push(scope);
+    }
     let mut found = Vec::new();
     for (source, paths) in &edges {
         let brought = names.get(source).map(Vec::as_slice).unwrap_or_default();
+        let within = scopes.get(source).map(Vec::as_slice).unwrap_or_default();
         for edge in paths {
-            let text = brought
+            let held = brought
                 .iter()
-                .find(|name| holds(name.span, edge.span) == Holding::Holds)
+                .find(|name| holds(name.span, edge.span) == Holding::Holds);
+            // A path written at a use site that starts at a name an import binds where the path is written reaches
+            // through that import, which is judged where it is written: the path is no import of its own. An ignore of
+            // that import therefore covers the path too: the path is the import, used, and an import judged once is
+            // exempted once.
+            if held.is_none()
+                && segments(&edge.written).first().is_some_and(|first| {
+                    brought.iter().any(|name| {
+                        name.binding == *first && in_scope(name, edge, within) == Holding::Holds
+                    })
+                })
+            {
+                continue;
+            }
+            let text = held
                 .map(|name| name.written.clone())
                 .or_else(|| match edge.span {
                     ImportPlace::At(_) => Some(edge.written.clone()),

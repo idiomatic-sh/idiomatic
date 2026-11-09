@@ -72,8 +72,30 @@ pub struct Name {
     pub source: RepoPath,
     /// The path as written.
     pub written: WrittenPath,
+    /// The name it binds in the file: a path written at a use site that starts at it is this import's.
+    pub binding: ModuleName,
     /// Where.
     pub span: ImportPlace,
+}
+
+/// A block or an inline module of a file: what a `use` written in it binds within.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Scope {
+    /// The file.
+    pub source: RepoPath,
+    /// Where.
+    pub span: ImportPlace,
+    /// Which.
+    pub kind: ScopeKind,
+}
+
+/// Which scope a [`Scope`] is.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum ScopeKind {
+    /// A block: what is written within it sees the `use`s of the scopes around it.
+    Block,
+    /// An inline module: what is written within it sees none of the `use`s written outside it.
+    Module,
 }
 
 /// A package a manifest depends on: the `package-dependency` relation.
@@ -98,6 +120,8 @@ pub enum Relation {
     Packages,
     /// `file-package`: the package each file belongs to.
     Owners,
+    /// `syntax-tree`: the blocks and inline modules a `use` binds within.
+    Scopes,
 }
 
 /// The rows the imports are read from.
@@ -112,6 +136,8 @@ pub struct ImportRows {
     pub packages: Vec<Package>,
     /// Every `file-package` row.
     pub owners: Vec<Owner>,
+    /// Every block and inline module.
+    pub scopes: Vec<Scope>,
 }
 
 /// The package a file belongs to: the `file-package` relation.
