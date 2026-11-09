@@ -22,7 +22,6 @@ pub use ryo_execution_runtime::application::file_dag::program::observation_stage
 pub use ryo_execution_runtime::application::file_dag::program::observation_stage::types::Install;
 pub use ryo_execution_runtime::application::file_dag::program::observation_stage::types::ObservationBatches;
 pub use ryo_execution_runtime::application::file_dag::program::observed_publication::types::ObservedPublication;
-pub use ryo_execution_runtime::application::file_dag::program::preparation::types::SemanticNeed;
 pub use ryo_execution_runtime::application::file_dag::program::prepared_execution::interface::PreparedExecution;
 pub use ryo_execution_runtime::application::file_dag::program::prepared_execution::interface::PreparedReporting;
 pub use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::Demand;
@@ -64,6 +63,7 @@ pub use ryo_execution_domain::domain::rule_intent::types::CaptureIntent;
 pub use ryo_execution_domain::domain::rule_intent::types::DiagnosticDelivery;
 pub use ryo_execution_domain::domain::rule_intent::types::FileRuleIntent;
 pub use ryo_execution_domain::domain::rule_intent::types::ObservationDemand;
+pub use ryo_execution_domain::domain::rule_intent::types::SemanticNeed;
 pub use ryo_execution_domain::domain::trust::types::RelationRead;
 
 /// What `execution` offers its callers.

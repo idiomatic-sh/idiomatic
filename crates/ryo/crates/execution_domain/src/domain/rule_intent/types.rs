@@ -82,3 +82,12 @@ pub enum FrontierPurpose {
     /// A named observation.
     Observation,
 }
+
+/// Whether a rule renders syntax and so needs the semantic session.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SemanticNeed {
+    /// It renders syntax, so it needs the semantic session.
+    Required,
+    /// It renders none.
+    NotRequired,
+}

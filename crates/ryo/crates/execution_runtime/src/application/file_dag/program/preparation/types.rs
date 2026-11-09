@@ -9,6 +9,7 @@ use ryo_execution_domain::domain::observation_schedule::types::ResolvedObservati
 use ryo_execution_domain::domain::observation_schedule::types::RuleSchedule;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::rule_intent::types::FrontierPurpose;
+use ryo_execution_domain::domain::rule_intent::types::SemanticNeed;
 use ryo_execution_domain::domain::trust::types::RelationRead;
 use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::plan_parts::types::Input;
@@ -22,13 +23,6 @@ use std::sync::Arc;
 /// How many rules the request holds.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RuleTotal(pub usize);
-/// Whether a rule renders syntax and so needs the semantic session.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum SemanticNeed {
-    Required,
-    NotRequired,
-}
-
 pub(crate) struct RootMetadata {
     pub source: Result<InputSource, OperatingError>,
     pub phase: StepScope,

@@ -1,5 +1,4 @@
 //! Per-rule root, read and frontier metadata taken from the compiled plans.
-use crate::application::file_dag::program::preparation::types::SemanticNeed;
 use crate::application::file_dag::program::preparation::types::{
     ObservationMetadata, RootMetadata, RuleMetadata,
 };
@@ -9,6 +8,7 @@ use ryo_execution_domain::domain::executable_program::types::{
 };
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::rule_intent::types::FrontierPurpose;
+use ryo_execution_domain::domain::rule_intent::types::SemanticNeed;
 use ryo_execution_domain::domain::trust::types::RelationRead;
 use ryo_values::domain::plan_parts::types::{Input, StepId};
 use ryo_values::domain::plans::types::{Operation, Plan};

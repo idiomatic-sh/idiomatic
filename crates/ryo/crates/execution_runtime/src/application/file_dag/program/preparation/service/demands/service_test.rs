@@ -6,7 +6,9 @@ use ryo_execution_store::application::file_dag::derived::owner::cache::types::Gr
 use ryo_execution_store::application::file_dag::derived::prepared::RuleDerivedNeeds;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
-use ryo_values::domain::plan_parts::types::{ColumnIndex, Direction, Input as PlanInput, StepId, StepScope};
+use ryo_values::domain::plan_parts::types::{
+    ColumnIndex, Direction, Input as PlanInput, StepId, StepScope,
+};
 use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
 
 /// The plans of a request, one per rule.

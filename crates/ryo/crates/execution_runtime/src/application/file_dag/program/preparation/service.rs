@@ -9,6 +9,7 @@ use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::prepared_request::types::Compiled;
 use ryo_execution_domain::domain::prepared_request::types::ObservationIdentity;
 use ryo_execution_domain::domain::rule_intent::types::FrontierPurpose;
+use ryo_execution_domain::domain::rule_intent::types::SemanticNeed;
 use ryo_execution_domain::domain::source_partitions::types::source_partitions::value::SourcePartitions;
 use ryo_execution_domain::domain::trust::types::RelationRead;
 
