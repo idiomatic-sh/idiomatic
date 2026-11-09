@@ -102,9 +102,12 @@ fn subject(shape: Input) -> Result<Value, Failure> {
             scratch
                 .ordered
                 .iter()
-                .map(|value| match value {
-                    Cell::Number(Integer(number)) => *number,
-                    _ => i64::MIN,
+                .map(|value| {
+                    if let Cell::Number(Integer(number)) = value {
+                        *number
+                    } else {
+                        i64::MIN
+                    }
                 })
                 .collect(),
         ),

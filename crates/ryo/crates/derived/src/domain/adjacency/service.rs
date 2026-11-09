@@ -31,7 +31,7 @@ pub(crate) fn build_borrowed(
 ) -> Result<Option<CompactGraph>, DerivedFault> {
     check_columns(rows.kinds(), &endpoints)?;
     check_columns(rows.kinds(), keys)?;
-    if rows.count().0 > (u32::MAX - 2) as usize {
+    if !u32::try_from(rows.count().0).is_ok_and(|count| count <= u32::MAX - 2) {
         return Ok(None);
     }
     let mut graph = CompactGraph {
@@ -81,10 +81,13 @@ pub(crate) fn build_borrowed(
             *slot = if let Some(vertex) = graph.vertex_ids.get(&VertexKey { partition, value }) {
                 *vertex
             } else {
-                if graph.vertices.len() >= (u32::MAX - 2) as usize {
+                let Ok(id) = u32::try_from(graph.vertices.len()) else {
+                    return Ok(None);
+                };
+                if id >= u32::MAX - 2 {
                     return Ok(None);
                 }
-                let id = VertexId(u32::try_from(graph.vertices.len()).unwrap_or(u32::MAX));
+                let id = VertexId(id);
                 graph.vertices.push(value);
                 graph.vertex_partitions.0.push(partition.0);
                 let _ = graph.vertex_ids.insert(VertexKey { partition, value }, id);
@@ -98,7 +101,7 @@ pub(crate) fn build_borrowed(
     for orientation in 0..2 {
         let mut offsets = vec![0_u32; graph.vertices.len() + 1];
         for pair in &pairs {
-            offsets[pair[orientation].0 as usize + 1] += 1;
+            offsets[usize::try_from(pair[orientation].0 + 1).unwrap_or(usize::MAX)] += 1;
         }
         for vertex in 1..offsets.len() {
             offsets[vertex] += offsets[vertex - 1];
@@ -106,8 +109,9 @@ pub(crate) fn build_borrowed(
         let mut written = offsets.clone();
         let mut neighbors = vec![0_u32; pairs.len()];
         for pair in &pairs {
-            let source = pair[orientation].0 as usize;
-            neighbors[written[source] as usize] = pair[1 - orientation].0;
+            let source = usize::try_from(pair[orientation].0).unwrap_or(usize::MAX);
+            neighbors[usize::try_from(written[source]).unwrap_or(usize::MAX)] =
+                pair[1 - orientation].0;
             written[source] += 1;
         }
         let offsets = OffsetList(offsets);
@@ -124,7 +128,8 @@ fn forest(offsets: &OffsetList, neighbors: &NeighborList) -> Option<ParentList> 
     let (offsets, neighbors) = (&offsets.0, &neighbors.0);
     let mut parents = vec![FOREST_ROOT; offsets.len().saturating_sub(1)];
     for vertex in 0..parents.len() {
-        let outgoing = &neighbors[offsets[vertex] as usize..offsets[vertex + 1] as usize];
+        let outgoing = &neighbors[usize::try_from(offsets[vertex]).unwrap_or(usize::MAX)
+            ..usize::try_from(offsets[vertex + 1]).unwrap_or(usize::MAX)];
         if let Some(parent) = outgoing.first() {
             if outgoing.iter().any(|other| other != parent) {
                 return None;
@@ -152,7 +157,7 @@ fn forest(offsets: &OffsetList, neighbors: &NeighborList) -> Option<ParentList> 
             if parents[current] == FOREST_ROOT {
                 break;
             }
-            current = parents[current] as usize;
+            current = usize::try_from(parents[current]).unwrap_or(usize::MAX);
         }
         for vertex in &path {
             state[*vertex] = 2;

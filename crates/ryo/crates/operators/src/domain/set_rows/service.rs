@@ -60,7 +60,7 @@ pub(crate) fn values(
     }
     let first = match kind {
         SetKind::Antijoin => true,
-        _ => {
+        SetKind::Union | SetKind::Intersection | SetKind::Difference => {
             driver
                 .first_time(row)
                 .map_err(|_| PortableOperatorFault::Interrupted)?
@@ -115,7 +115,7 @@ pub(crate) fn positions(
         }
         let first = match kind {
             SetKind::Antijoin => true,
-            _ => {
+            SetKind::Union | SetKind::Intersection | SetKind::Difference => {
                 driver
                     .first_time()
                     .map_err(|_| PortableOperatorFault::Interrupted)?

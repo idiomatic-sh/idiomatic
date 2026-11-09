@@ -2,7 +2,7 @@
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 macro_rules! kinds {
-    ($($kind:ident),+ $(,)?) => {
+    ($($kind:ident = $ordinal:literal),+ $(,)?) => {
         /// Adding a kind changes the authoritative inventory and exhaustive dispatch.
         #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
         pub enum DerivedKind { $($kind),+ }
@@ -12,21 +12,29 @@ macro_rules! kinds {
             /// The place of the kind in declaration order.
             #[must_use]
             pub const fn ordinal(self) -> usize {
-                match self { $(Self::$kind => Self::$kind as usize),+ }
+                match self { $(Self::$kind => $ordinal),+ }
             }
         }
+        // Each written ordinal is the kind's place in `ALL`: a kind added out of order does not compile.
+        const _: () = {
+            let mut at = 0;
+            while at < DerivedKind::ALL.len() {
+                assert!(DerivedKind::ALL[at].ordinal() == at);
+                at += 1;
+            }
+        };
     };
 }
 kinds!(
-    Equality,
-    Adjacency,
-    Membership,
-    PartitionOrder,
-    ClosureAdjacency,
-    CycleAdjacency,
-    OrderedKeys,
-    OrderedDfs,
-    NativeLookup
+    Equality = 0,
+    Adjacency = 1,
+    Membership = 2,
+    PartitionOrder = 3,
+    ClosureAdjacency = 4,
+    CycleAdjacency = 5,
+    OrderedKeys = 6,
+    OrderedDfs = 7,
+    NativeLookup = 8,
 );
 
 /// Static requirements contain semantics only; population/generation and binding identities stay in the engine.

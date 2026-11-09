@@ -85,7 +85,9 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::Duplicate => vec![label("A"), label("A")],
         Scenario::Empty => Vec::new(),
         Scenario::Unsafe => vec![label("../A")],
-        _ => vec![label("A"), label("B")],
+        Scenario::Untouched | Scenario::OnePasses | Scenario::BothPass | Scenario::PassThenFail => {
+            vec![label("A"), label("B")]
+        }
     };
     let mut inventory = Inventory::new(&rules).map_err(|_| ())?;
     match scenario {
@@ -98,7 +100,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             inventory.pass(&label("A"), evidence());
             inventory.fail_all(&FailureReason("again".into()));
         }
-        _ => {}
+        Scenario::Untouched | Scenario::Duplicate | Scenario::Empty | Scenario::Unsafe => {}
     }
     Ok(inventory.verdict())
 }

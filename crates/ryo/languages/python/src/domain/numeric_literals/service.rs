@@ -30,6 +30,10 @@ pub(crate) fn intern_value(
 }
 
 /// Write a round-trip binary64 spelling into bounded stack storage and borrow its text.
+#[expect(
+    clippy::expect_used,
+    reason = "f64's Display and the `.0` suffix write only ASCII, so the written bytes are always UTF-8"
+)]
 pub(super) fn write_float(bits: FloatBits, buffer: &mut FloatBuffer) -> NameText<'_> {
     let value = f64::from_bits(bits.0);
     let mut rest: &mut [u8] = &mut buffer.0[..];

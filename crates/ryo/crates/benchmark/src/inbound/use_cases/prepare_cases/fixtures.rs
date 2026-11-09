@@ -25,6 +25,13 @@ pub enum Refusal {
     Unexpected,
 }
 /// Run one public operation over independently authored source facts.
+///
+/// # Errors
+/// [`Refusal::MissingSource`] when the operation refuses the missing rules directory, and [`Refusal::Unexpected`] for
+/// any other refusal.
+///
+/// # Panics
+/// When a fixture source cannot be written, or when preparation launches the contestant.
 pub fn exercise(
     scenario: Scenario,
     operate: fn(&dyn SuitePort, &Path, &Path) -> Result<usize, ReportsError>,
@@ -39,11 +46,16 @@ pub fn exercise(
             match scenario {
                 Scenario::Complete => {
                     let actual = std::fs::read_to_string(launches);
-                    assert_eq!(actual.unwrap_err().kind(), std::io::ErrorKind::NotFound);
+                    assert_eq!(
+                        actual.err().map(|error| error.kind()),
+                        Some(std::io::ErrorKind::NotFound)
+                    );
                 }
                 Scenario::Missing => assert_eq!(
-                    std::fs::symlink_metadata(launches).unwrap_err().kind(),
-                    std::io::ErrorKind::NotFound
+                    std::fs::symlink_metadata(launches)
+                        .err()
+                        .map(|error| error.kind()),
+                    Some(std::io::ErrorKind::NotFound)
                 ),
             }
             result.map_err(|error| match error {
@@ -52,7 +64,12 @@ pub fn exercise(
                 {
                     Refusal::MissingSource
                 }
-                _ => Refusal::Unexpected,
+                ryo_benchmark_contracts::domain::reports::errors::ReportsError::Invalid(_)
+                | ryo_benchmark_contracts::domain::reports::errors::ReportsError::Io(_)
+                | ryo_benchmark_contracts::domain::reports::errors::ReportsError::Json(_)
+                | ryo_benchmark_contracts::domain::reports::errors::ReportsError::Toml(_) => {
+                    Refusal::Unexpected
+                }
             })
         },
     )
@@ -139,6 +156,9 @@ impl LinterPort for Contestant {
 }
 /// Assemble the existing independent source cases and real process port for a public suite operation.
 /// This helper supplies inputs and ports only; the caller invokes the actual use case.
+///
+/// # Panics
+/// When the fixture's directory, contestant script, profile or cases cannot be written.
 pub fn with_verification_sources<R>(
     operation: impl FnOnce(
         &dyn crate::outbound::suite::interface::SuitePort,
@@ -268,6 +288,9 @@ pub fn case_document() -> toml::Value {
 }
 
 /// Mark the fixed Unix fixture script executable before native tool verification.
+///
+/// # Panics
+/// When the script's permissions cannot be set.
 #[cfg(unix)]
 pub fn executable_permissions(path: &std::path::Path) {
     use std::os::unix::fs::PermissionsExt as _;
@@ -279,22 +302,26 @@ pub fn executable_permissions(path: &std::path::Path) {
 pub fn executable_permissions(_path: &std::path::Path) {}
 
 /// The frozen workload snapshot keeps the exact patch bytes even when its source or itself is edited.
-pub fn workload_snapshot_preserves_exact_patch() {
+///
+/// # Errors
+/// The first failure to write the shared workload, or to freeze, seal or read it back.
+///
+/// # Panics
+/// When an edit of the source reaches the frozen snapshot, or an edit of the snapshot keeps its seal.
+pub fn workload_snapshot_preserves_exact_patch() -> Result<(), Box<dyn std::error::Error>> {
     use crate::outbound::suite::{
         factory::local,
         interface::SuitePort as _,
         types::{ArtifactPath, ArtifactSet},
     };
     let seal = |path: &std::path::Path| {
-        local()
-            .fingerprint(ArtifactSet(std::slice::from_ref(&path.to_path_buf())))
-            .expect("seal")
+        local().fingerprint(ArtifactSet(std::slice::from_ref(&path.to_path_buf())))
     };
-    let directory_guard = tempfile::tempdir().unwrap();
-    let destination_guard = tempfile::tempdir().unwrap();
+    let directory_guard = tempfile::tempdir()?;
+    let destination_guard = tempfile::tempdir()?;
     let (directory, destination) = (directory_guard.path(), destination_guard.path());
     let shared = directory.join("shared");
-    std::fs::create_dir_all(shared.join("patches")).expect("patch directory");
+    std::fs::create_dir_all(shared.join("patches"))?;
     std::fs::write(
         shared.join("benchmark.toml"),
         r#"language = "fixture"
@@ -304,21 +331,18 @@ repository = "https://example.invalid/project.git"
 revision = "revision"
 patch = "patches/project.patch"
 "#,
-    )
-    .expect("shared manifest");
-    std::fs::write(shared.join("patches/project.patch"), "original patch").expect("patch");
+    )?;
+    std::fs::write(shared.join("patches/project.patch"), "original patch")?;
     let frozen = destination.join("workload");
-    local()
-        .stage_projects(ArtifactPath(&shared), ArtifactPath(&frozen))
-        .expect("freeze workload");
-    let sealed = seal(&frozen);
-    std::fs::write(shared.join("patches/project.patch"), "concurrent edit").expect("source edit");
+    local().stage_projects(ArtifactPath(&shared), ArtifactPath(&frozen))?;
+    let sealed = seal(&frozen)?;
+    std::fs::write(shared.join("patches/project.patch"), "concurrent edit")?;
     assert_eq!(
-        std::fs::read_to_string(frozen.join("patches/project.patch")).unwrap(),
+        std::fs::read_to_string(frozen.join("patches/project.patch"))?,
         "original patch"
     );
-    assert_eq!(sealed, seal(&frozen));
-    std::fs::write(frozen.join("patches/project.patch"), "tampered snapshot")
-        .expect("snapshot edit");
-    assert_ne!(sealed, seal(&frozen));
+    assert_eq!(sealed, seal(&frozen)?);
+    std::fs::write(frozen.join("patches/project.patch"), "tampered snapshot")?;
+    assert_ne!(sealed, seal(&frozen)?);
+    Ok(())
 }

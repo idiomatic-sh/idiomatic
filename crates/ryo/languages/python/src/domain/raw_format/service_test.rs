@@ -320,37 +320,37 @@ const CASES: &[Case<Scenario, (), Failure>] = &[
     Case {
         name: CaseName("raw_format_envelopes_borrow_exact_bodies"),
         word: Word::Succeeds,
-        input: || raw_format_envelopes_borrow_exact_bodies as fn(),
+        input: || raw_format_envelopes_borrow_exact_bodies,
         expect: Expect::Value(()),
     },
     Case {
         name: CaseName("raw_format_cache_is_lazy_shared_and_reset_independently"),
         word: Word::Succeeds,
-        input: || raw_format_cache_is_lazy_shared_and_reset_independently as fn(),
+        input: || raw_format_cache_is_lazy_shared_and_reset_independently,
         expect: Expect::Value(()),
     },
     Case {
         name: CaseName("raw_format_is_not_demanded_by_decoded_or_brace_readers"),
         word: Word::Succeeds,
-        input: || raw_format_is_not_demanded_by_decoded_or_brace_readers as fn(),
+        input: || raw_format_is_not_demanded_by_decoded_or_brace_readers,
         expect: Expect::Value(()),
     },
     Case {
         name: CaseName("raw_format_malformed_segments_are_atomic_and_success_order_is_flattened"),
         word: Word::Succeeds,
-        input: || raw_format_malformed_segments_are_atomic_and_success_order_is_flattened as fn(),
+        input: || raw_format_malformed_segments_are_atomic_and_success_order_is_flattened,
         expect: Expect::Value(()),
     },
     Case {
         name: CaseName("raw_format_unavailable_segment_withholds_precise_global_order"),
         word: Word::Succeeds,
-        input: || raw_format_unavailable_segment_withholds_precise_global_order as fn(),
+        input: || raw_format_unavailable_segment_withholds_precise_global_order,
         expect: Expect::Value(()),
     },
     Case {
         name: CaseName("raw_format_missing_token_text_is_not_an_empty_valid_body"),
         word: Word::Succeeds,
-        input: || raw_format_missing_token_text_is_not_an_empty_valid_body as fn(),
+        input: || raw_format_missing_token_text_is_not_an_empty_valid_body,
         expect: Expect::Value(()),
     },
 ];

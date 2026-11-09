@@ -50,8 +50,14 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
 ];
 
 /// Exercise actual receipt appends; the rows' content is proved by the application tests.
-pub fn check(adapter: &impl ReceiptsPort, destination: &CaseReceipts) {
-    let temporary = tempfile::tempdir().expect("receipts fixture");
+///
+/// # Errors
+/// The error of creating the fixture's directory.
+///
+/// # Panics
+/// When the adapter breaks the contract.
+pub fn check(adapter: &impl ReceiptsPort, destination: &CaseReceipts) -> std::io::Result<()> {
+    let temporary = tempfile::tempdir()?;
     let subject = |operation| match operation {
         Operation::Destination => Ok(usize::from(&adapter.case_receipts() == destination)),
         Operation::RecordTwice => {
@@ -89,4 +95,5 @@ pub fn check(adapter: &impl ReceiptsPort, destination: &CaseReceipts) {
     };
     run(CASES, Word::Succeeds, subject);
     run(CASES, Word::Refuses, subject);
+    Ok(())
 }

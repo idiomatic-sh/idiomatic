@@ -74,7 +74,7 @@ fn shared_model<T>(
 ) -> Result<SharedBacking, DerivedFault> {
     Ok(SharedBacking {
         tag,
-        allocation_key: AllocationKey(std::sync::Arc::as_ptr(value) as usize),
+        allocation_key: AllocationKey(std::sync::Arc::as_ptr(value).addr()),
         bytes: sum([
             AllocationBytes(size_of::<T>()),
             AllocationBytes(2 * size_of::<usize>()),

@@ -6,7 +6,7 @@ use ryo_relations::domain::relations::types::{CellKind, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::types::RowIndex;
 fn cell(row: &[Value], column: ColumnIndex) -> Result<Value, DerivedFault> {
-    row.get(column.0 as usize)
+    row.get(usize::try_from(column.0).unwrap_or(usize::MAX))
         .copied()
         .ok_or(DerivedFault::NoSuchColumn { column })
 }
@@ -44,7 +44,11 @@ fn ordered_rows(
                         };
                         OwnedOrderedKey::Text(OrderedText(text.0.to_owned()))
                     }
-                    _ => OwnedOrderedKey::Value(value),
+                    Value::Node(_)
+                    | Value::File(_)
+                    | Value::Span(_)
+                    | Value::Number(_)
+                    | Value::Flag(_) => OwnedOrderedKey::Value(value),
                 })
             })
             .collect::<Result<Vec<_>, DerivedFault>>()?;
@@ -71,8 +75,12 @@ pub(crate) fn build(
     texts: &dyn ValueTexts,
     buffer: &mut Vec<Value>,
 ) -> Result<OrderedMatching, DerivedFault> {
-    let kind =
-        |input: &dyn RowCells, column: ColumnIndex| input.kinds().get(column.0 as usize).copied();
+    let kind = |input: &dyn RowCells, column: ColumnIndex| {
+        input
+            .kinds()
+            .get(usize::try_from(column.0).unwrap_or(usize::MAX))
+            .copied()
+    };
     if left_on.len() != right_on.len()
         || kind(left, left_order) != Some(CellKind::Number)
         || kind(right, right_order) != Some(CellKind::Number)

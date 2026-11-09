@@ -73,10 +73,10 @@ fn subject(input: Input) -> Result<Value, Failure> {
     let BuildOutcome::Built(payload) = built else {
         return Err(DerivedFault::NotRun);
     };
-    match ViewUseCaseImpl::new().view(&equality, &payload)? {
-        DerivedView::Equality(index) => Ok(index.rows.len()),
-        _ => Err(DerivedFault::WrongOperation),
-    }
+    let DerivedView::Equality(index) = ViewUseCaseImpl::new().view(&equality, &payload)? else {
+        return Err(DerivedFault::WrongOperation);
+    };
+    Ok(index.rows.len())
 }
 
 #[test]

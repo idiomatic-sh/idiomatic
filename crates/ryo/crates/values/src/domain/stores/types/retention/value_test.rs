@@ -17,32 +17,33 @@ enum Scenario {
     Payloads,
 }
 type Input = Scenario;
-type Value = [u64; 4];
+/// The retained objects, rows, live payload bytes and staged payload bytes.
+pub(in crate::domain::stores) type Value = (usize, usize, usize, u64);
 type Failure = std::convert::Infallible;
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("input_metadata_comes_from_actual_owner_capacity_and_embedded_tables"),
         word: Word::Succeeds,
         input: || Scenario::Inputs,
-        expect: Expect::Value([2, 3, 4 * size_of::<Cell>() as u64, 0]),
+        expect: Expect::Value((2, 3, 4 * size_of::<Cell>(), 0)),
     },
     Case {
         name: CaseName("worker_note_metadata_uses_owner_layout_and_preserves_note_capacities"),
         word: Word::Succeeds,
         input: || Scenario::WorkerNotes,
-        expect: Expect::Value([2, 0, 7, 0]),
+        expect: Expect::Value((2, 0, 7, 0)),
     },
     Case {
         name: CaseName("empty_owners_still_report_reserved_metadata_allocations"),
         word: Word::Succeeds,
         input: || Scenario::ReservedEmpty,
-        expect: Expect::Value([0, 0, 0, 0]),
+        expect: Expect::Value((0, 0, 0, 0)),
     },
     Case {
         name: CaseName("packed_arena_and_table_payloads_keep_live_and_capacity_separate"),
         word: Word::Succeeds,
         input: || Scenario::Payloads,
-        expect: Expect::Value([1, 2, 4 * size_of::<Cell>() as u64, 0]),
+        expect: Expect::Value((1, 2, 4 * size_of::<Cell>(), 0)),
     },
 ];
 struct InputOwner {
@@ -89,15 +90,12 @@ pub(in crate::domain::stores) fn proof() -> FrontierProof {
     }
 }
 pub(in crate::domain::stores) fn observed(bytes: RetainedBytes) -> Value {
-    [
-        u64::try_from(bytes.objects.0).unwrap(),
-        u64::try_from(bytes.rows.0).unwrap(),
-        u64::try_from(
-            bytes.cells_live.0 + bytes.packed_live.0 + bytes.text_live.0 + bytes.notes_live.0,
-        )
-        .unwrap(),
+    (
+        bytes.objects.0,
+        bytes.rows.0,
+        bytes.cells_live.0 + bytes.packed_live.0 + bytes.text_live.0 + bytes.notes_live.0,
         bytes.staged_payload_bytes.0,
-    ]
+    )
 }
 fn inputs() -> RetainedBytes {
     let mut owner = Vec::with_capacity(5);

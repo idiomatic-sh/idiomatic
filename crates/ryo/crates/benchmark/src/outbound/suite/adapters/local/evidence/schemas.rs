@@ -17,7 +17,10 @@ pub(in super::super) fn verify_requirement(
     let fail = || SuiteError::Invalid(constants::TOOL_CONTRACT_EVIDENCE_DOES_NOT_ESTABLISH.into());
     let value = match requirement {
         EvidenceRequirement::Language => return Ok(()),
-        _ => serde_json::from_slice::<Value>(bytes).map_err(|_| fail())?,
+        EvidenceRequirement::PublicToolContract { .. }
+        | EvidenceRequirement::PriorWorkerRun { .. } => {
+            serde_json::from_slice::<Value>(bytes).map_err(|_| fail())?
+        }
     };
     let field = |name: &str| value.get(name).and_then(Value::as_str).ok_or_else(fail);
     match requirement {

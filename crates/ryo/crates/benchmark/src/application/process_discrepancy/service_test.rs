@@ -178,7 +178,11 @@ fn words_dropped(error: Failure) -> Failure {
         ProcessDiscrepancyError::Refused(_) => {
             ProcessDiscrepancyError::Refused(RefusalText(String::new()))
         }
-        other => other,
+        other @ (ProcessDiscrepancyError::NoProcessExpectation { .. }
+        | ProcessDiscrepancyError::IdentityNotValidatedGroup { .. }
+        | ProcessDiscrepancyError::TerminationDiffers { .. }
+        | ProcessDiscrepancyError::BytesDiffer { .. }
+        | ProcessDiscrepancyError::MissingProfileBoundary { .. }) => other,
     }
 }
 

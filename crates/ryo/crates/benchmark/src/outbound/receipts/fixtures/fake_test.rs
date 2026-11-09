@@ -5,5 +5,5 @@ use super::ReceiptsFake;
 #[test]
 fn succeeds() {
     let fake = ReceiptsFake::default();
-    check(&fake, &fake.case_receipts);
+    check(&fake, &fake.case_receipts).unwrap();
 }

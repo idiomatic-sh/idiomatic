@@ -159,7 +159,13 @@ fn words_dropped(error: Failure) -> Failure {
         DiscrepancyValidationError::Refused(_) => {
             DiscrepancyValidationError::Refused(RefusalText(String::new()))
         }
-        other => other,
+        other @ (DiscrepancyValidationError::MissingProfileRoot { .. }
+        | DiscrepancyValidationError::StaleIdentity { .. }
+        | DiscrepancyValidationError::ArchivedBytesDiffer { .. }
+        | DiscrepancyValidationError::ArchivedSettingsNotEstablished { .. }
+        | DiscrepancyValidationError::Discrepancy { .. }
+        | DiscrepancyValidationError::Archive { .. }
+        | DiscrepancyValidationError::Invocation { .. }) => other,
     }
 }
 

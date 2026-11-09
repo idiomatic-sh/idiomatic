@@ -243,13 +243,13 @@ const CASES: &[Case<Scenario, (), Failure>] = &[
     Case {
         name: CaseName("duplicate_inputs_are_parsed_once_and_retained_until_source_reset"),
         word: Word::Succeeds,
-        input: || duplicate_inputs_are_parsed_once_and_retained_until_source_reset as fn(),
+        input: || duplicate_inputs_are_parsed_once_and_retained_until_source_reset,
         expect: Expect::Value(()),
     },
     Case {
         name: CaseName("malformed_results_are_cached_and_unavailable_results_mark_partial"),
         word: Word::Succeeds,
-        input: || malformed_results_are_cached_and_unavailable_results_mark_partial as fn(),
+        input: || malformed_results_are_cached_and_unavailable_results_mark_partial,
         expect: Expect::Value(()),
     },
 ];

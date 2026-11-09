@@ -133,7 +133,8 @@ fn subject((identity, inputs): Input) -> Result<Value, Failure> {
         RegisteredInputsError::Refused(_) => {
             RegisteredInputsError::Refused(RefusalText(String::new()))
         }
-        other => other,
+        other @ (RegisteredInputsError::UndeclaredMetadataSource { .. }
+        | RegisteredInputsError::InputObservationsMissing { .. }) => other,
     })
 }
 

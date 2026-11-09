@@ -65,10 +65,10 @@ fn subject(input: Input) -> Result<Value, Failure> {
             else {
                 return Err(DerivedFault::NotRun);
             };
-            match view(&equality, &payload)? {
-                DerivedView::Equality(index) => Ok(index.rows.len()),
-                _ => Err(DerivedFault::WrongOperation),
-            }
+            let DerivedView::Equality(index) = view(&equality, &payload)? else {
+                return Err(DerivedFault::WrongOperation);
+            };
+            Ok(index.rows.len())
         }
         Scenario::NativeShapeDeclinesWhenUnsupported => {
             let native = prepare(

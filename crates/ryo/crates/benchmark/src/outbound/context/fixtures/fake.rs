@@ -173,7 +173,8 @@ impl ContextPort for ContextFake {
                     }
                     None
                 }
-                _ => {
+                ryo::linter::ProjectDependencyState::Present(_)
+                | ryo::linter::ProjectDependencyState::Missing => {
                     return Err(Error::Invalid(format!(
                         "context dependency contradicts the seal: {}",
                         path.display()

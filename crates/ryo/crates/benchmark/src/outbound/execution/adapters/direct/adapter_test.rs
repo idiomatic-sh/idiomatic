@@ -61,14 +61,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("resource mode honors its declared platform contract"),
         word: Word::Succeeds,
-        input: || resource_mode_honors_its_declared_platform_contract as fn(),
+        input: || resource_mode_honors_its_declared_platform_contract,
         expect: Expect::Value(()),
     },
     #[cfg(target_os = "linux")]
     Case {
         name: CaseName("signaled child retains native resources"),
         word: Word::Succeeds,
-        input: || signaled_child_retains_native_resources as fn(),
+        input: || signaled_child_retains_native_resources,
         expect: Expect::Value(()),
     },
 ];

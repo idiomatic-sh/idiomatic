@@ -71,7 +71,11 @@ pub(crate) fn library_name(manifest: &Manifest, package: &PackageSection) -> Tar
             name: Section::Present(name),
             ..
         }) => name.clone(),
-        _ => crate_name(&package.name),
+        Section::Absent
+        | Section::Present(LibrarySection {
+            name: Section::Absent,
+            ..
+        }) => crate_name(&package.name),
     }
 }
 

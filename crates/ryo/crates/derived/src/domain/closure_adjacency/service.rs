@@ -25,11 +25,11 @@ pub(crate) fn build(
     let kinds = vec![
         *input
             .kinds()
-            .get(source.0 as usize)
+            .get(usize::try_from(source.0).unwrap_or(usize::MAX))
             .ok_or(DerivedFault::ShapeMismatch)?,
         *input
             .kinds()
-            .get(destination.0 as usize)
+            .get(usize::try_from(destination.0).unwrap_or(usize::MAX))
             .ok_or(DerivedFault::ShapeMismatch)?,
     ];
     let mut part = recycled.unwrap_or_default();
@@ -48,10 +48,10 @@ pub(crate) fn build(
             )
             .ok_or(DerivedFault::ShapeMismatch)?;
         let from = *row
-            .get(source.0 as usize)
+            .get(usize::try_from(source.0).unwrap_or(usize::MAX))
             .ok_or(DerivedFault::ShapeMismatch)?;
         let to = *row
-            .get(destination.0 as usize)
+            .get(usize::try_from(destination.0).unwrap_or(usize::MAX))
             .ok_or(DerivedFault::ShapeMismatch)?;
         part.table.cells.extend_from_slice(&[from, to]);
         part.table.count.0 += 1;

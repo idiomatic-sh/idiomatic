@@ -58,7 +58,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn subject(input: Input) -> Result<Value, Failure> {
     match input {
         Operation::Fixture(scenario) => {
-            exercise(scenario);
+            exercise(scenario).unwrap();
             Ok(())
         }
         Operation::Missing => stage_missing(stage),

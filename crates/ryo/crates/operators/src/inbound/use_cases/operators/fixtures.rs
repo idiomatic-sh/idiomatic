@@ -21,15 +21,16 @@ pub fn operators() -> impl OperatorsUseCase {
     ))
 }
 
-/// A compiled regex of an authored pattern the tests know to be valid.
+/// A compiled regex of an authored pattern.
 ///
-/// # Panics
-/// Panics when the pattern is not valid regex syntax.
-#[must_use]
-pub fn regex(pattern: &str) -> CompiledRegex {
-    MatchingUseCaseImpl::new()
-        .compile_regex(RegexSource(pattern))
-        .expect("valid fixture pattern")
+/// # Errors
+///
+/// [`MatchingError::InvalidRegex`](ryo_matching::inbound::use_cases::matching::errors::MatchingError::InvalidRegex) when
+/// the pattern is not valid regex syntax.
+pub fn regex(
+    pattern: &str,
+) -> Result<CompiledRegex, ryo_matching::inbound::use_cases::matching::errors::MatchingError> {
+    MatchingUseCaseImpl::new().compile_regex(RegexSource(pattern))
 }
 
 /// A number cell.
@@ -67,7 +68,7 @@ pub struct SourceDelivery {
     /// How many deliveries were attempted.
     pub attempts: usize,
     /// How many texts were interned.
-    pub interns: usize,
+    pub interns: u32,
     /// The interned texts in order.
     pub names: Vec<String>,
     /// Whether the second delivery is refused.
@@ -82,7 +83,7 @@ impl TextRowDriver for SourceDelivery {
             "capture resolves the original physical text"
         );
         self.names.push(text.0.to_owned());
-        Cell::Symbol(Symbol(u32::try_from(self.interns).unwrap()))
+        Cell::Symbol(Symbol(self.interns))
     }
     fn emit(&mut self, row: &[Cell]) -> Result<(), ContractError> {
         self.attempts += 1;

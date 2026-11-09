@@ -1,4 +1,5 @@
 //! Scalar columns, byte offsets and line-ending boundaries.
+#![cfg(test)]
 use super::schemas::offset;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 

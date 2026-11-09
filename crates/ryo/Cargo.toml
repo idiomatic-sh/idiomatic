@@ -92,6 +92,8 @@ unnameable_types = "deny"
 # unstable_features. linker_info is diagnostic noise; unused_crate_dependencies is cargo-machete's.
 # variant_size_differences is off: a variant's size against an allocation is the performance pass's trade.
 unused = { level = "warn", priority = -1 }
+# A dropped Result or other must_use value hides a failure (a fixture check that returns its setup error passes with no cases).
+unused_must_use = "deny"
 nonstandard_style = { level = "warn", priority = -1 }
 let_underscore = { level = "warn", priority = -1 }
 rust_2018_idioms = { level = "warn", priority = -1 }

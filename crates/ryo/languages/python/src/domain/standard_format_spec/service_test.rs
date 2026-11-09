@@ -82,25 +82,25 @@ const CASES: &[Case<Scenario, (), Failure>] = &[
     Case {
         name: CaseName("static_clauses_and_unicode_fill_are_recognized"),
         word: Word::Succeeds,
-        input: || static_clauses_and_unicode_fill_are_recognized as fn(),
+        input: || static_clauses_and_unicode_fill_are_recognized,
         expect: Expect::Value(()),
     },
     Case {
         name: CaseName("unsupported_type_is_distinct_from_other_structural_error"),
         word: Word::Succeeds,
-        input: || unsupported_type_is_distinct_from_other_structural_error as fn(),
+        input: || unsupported_type_is_distinct_from_other_structural_error,
         expect: Expect::Value(()),
     },
     Case {
         name: CaseName("dynamic_outer_is_deferred_but_nested_specs_can_be_observed_separately"),
         word: Word::Succeeds,
-        input: || dynamic_outer_is_deferred_but_nested_specs_can_be_observed_separately as fn(),
+        input: || dynamic_outer_is_deferred_but_nested_specs_can_be_observed_separately,
         expect: Expect::Value(()),
     },
     Case {
         name: CaseName("zero_coercion_is_version_bound"),
         word: Word::Succeeds,
-        input: || zero_coercion_is_version_bound as fn(),
+        input: || zero_coercion_is_version_bound,
         expect: Expect::Value(()),
     },
 ];

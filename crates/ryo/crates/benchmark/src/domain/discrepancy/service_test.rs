@@ -306,7 +306,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                         version_rationale,
                         target_configuration: ParserTarget("python3.8".into()),
                     },
-                    other => other,
+                    other @ (DiscrepancyEvidence::PublicToolContract { .. }
+                    | DiscrepancyEvidence::PriorWorkerRun { .. }) => other,
                 });
             })
         },

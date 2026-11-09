@@ -267,8 +267,11 @@ pub(crate) fn scoped(builder: &Builder<'_>, input: parts::Input) -> ScopedInput 
             fields: relation_fields(relation),
         },
         parts::Input::BoundObservation(id) => {
-            let bound = &builder.observation_inputs
-                [usize::try_from(id.0).expect(super::constants::VALID_BINDING_INDEX)];
+            #[expect(
+                clippy::indexing_slicing,
+                reason = "resolving issues a bound observation's id from its index in this builder's observation_inputs, so it is in bounds by construction"
+            )]
+            let bound = &builder.observation_inputs[usize::try_from(id.0).unwrap_or(usize::MAX)];
             ScopedInput {
                 scope: bound.scope,
                 fields: bound

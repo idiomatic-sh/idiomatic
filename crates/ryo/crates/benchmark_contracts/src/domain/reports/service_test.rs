@@ -126,7 +126,10 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             {
                 Ok(())
             }
-            other => Err(other.to_string().into()),
+            other @ (ReportsError::Invalid(_)
+            | ReportsError::Io(_)
+            | ReportsError::Json(_)
+            | ReportsError::Toml(_)) => Err(other.to_string().into()),
         };
     }
     let file = RelativePath("input.txt".into());

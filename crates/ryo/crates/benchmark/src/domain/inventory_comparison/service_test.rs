@@ -314,7 +314,14 @@ fn words_dropped(error: Failure) -> Failure {
         InventoryComparisonError::CandidateExecutionIncomplete(_) => {
             InventoryComparisonError::CandidateExecutionIncomplete(RefusalText(String::new()))
         }
-        other => other,
+        other @ (InventoryComparisonError::MissingExecutionCapability { .. }
+        | InventoryComparisonError::UndeclaredExecutionCapability { .. }
+        | InventoryComparisonError::InvalidExecutionFile { .. }
+        | InventoryComparisonError::MissingExecutionSkips { .. }
+        | InventoryComparisonError::InvalidSkippedRule { .. }
+        | InventoryComparisonError::UnavailableCapabilityAsserted { .. }
+        | InventoryComparisonError::ProcessFailureHasNoCompleteReport { .. }
+        | InventoryComparisonError::ExecutionEvidenceUnsatisfied { .. }) => other,
     }
 }
 

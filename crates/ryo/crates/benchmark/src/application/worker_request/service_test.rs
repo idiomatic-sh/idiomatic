@@ -160,7 +160,12 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             {
                 "worker context mode requires a matching explicit manifest"
             }
-            _ => "unexpected failure",
+            ryo_benchmark_contracts::domain::reports::errors::ReportsError::Invalid(_)
+            | ryo_benchmark_contracts::domain::reports::errors::ReportsError::Io(_)
+            | ryo_benchmark_contracts::domain::reports::errors::ReportsError::Json(_)
+            | ryo_benchmark_contracts::domain::reports::errors::ReportsError::Toml(_) => {
+                "unexpected failure"
+            }
         })
 }
 #[test]

@@ -55,5 +55,10 @@ use crate::domain::contract::types::PortableOperatorFault;
 /// Pure row semantics without scheduling, retained storage or publication authority.
 pub trait OperatorsUseCase: Sync {
     /// Evaluate one borrowed request into caller-owned scratch.
+    ///
+    /// # Errors
+    ///
+    /// A [`PortableOperatorFault`] when the call names an absent column, a cell of the wrong shape, an invalid span or an unbound
+    /// resource, or when the engine interrupts acquisition or delivery.
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault>;
 }

@@ -3,7 +3,14 @@ use ryo_benchmark_contracts::domain::reports::types::BenchmarkFinding;
 use ryo_benchmark_contracts::domain::reports::types::RunReport;
 use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
 /// The request fixture both concrete transports and doubles receive.
+///
+/// # Panics
+/// Never: the rule identifier is a valid literal.
 #[must_use]
+#[expect(
+    clippy::expect_used,
+    reason = "the rule identifier is a valid literal, so its parse cannot fail"
+)]
 pub fn request() -> WorkerRequest {
     WorkerRequest {
         performance: Default::default(),

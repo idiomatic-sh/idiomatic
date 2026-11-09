@@ -61,6 +61,9 @@ fn rule() -> RuleId {
 }
 
 /// The rule both contestants report for a source their parser rejects.
+///
+/// # Panics
+/// Never: the rule identifier is a valid literal.
 #[must_use]
 pub fn syntax() -> RuleId {
     RuleId::try_from("invalid-syntax").expect("fixture rule")
@@ -88,6 +91,9 @@ pub fn configured() -> Vec<RuleId> {
 }
 
 /// A corpus whose one source is `a b c`, selecting `A` (or `B`) and accepting an extra `A` on line 1.
+///
+/// # Panics
+/// When the corpus directory, its source or its accepted differences cannot be written.
 #[must_use]
 pub fn corpus(scenario: Scenario) -> Corpus {
     let directory = tempfile::tempdir().expect("fixture corpus");
@@ -143,6 +149,9 @@ pub fn use_case() -> CompareCorpusUseCaseImpl {
 }
 
 /// The use case of `use_case`, with the findings outside the selected rule that `outside` adds.
+///
+/// # Panics
+/// Never: the rule identifiers are valid literals.
 #[must_use]
 pub fn use_case_with(outside: Outside) -> CompareCorpusUseCaseImpl {
     let mut reference = vec![finding(0)];

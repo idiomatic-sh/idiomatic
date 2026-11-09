@@ -38,6 +38,10 @@ pub fn hash_key<'a>(cells: impl Iterator<Item = Option<&'a Value>>) -> KeyCellsH
 pub fn hash_row(row: &[Value], on: On<'_>) -> KeyCellsHash {
     match on {
         On::Whole => hash_key(row.iter().map(Some)),
-        On::Columns(columns) => hash_key(columns.iter().map(|column| row.get(column.0 as usize))),
+        On::Columns(columns) => hash_key(
+            columns
+                .iter()
+                .map(|column| row.get(usize::try_from(column.0).unwrap_or(usize::MAX))),
+        ),
     }
 }

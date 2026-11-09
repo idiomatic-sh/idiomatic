@@ -237,6 +237,10 @@ fn complete_relation_rows_do_not_depend_on_demand_order() {
             assert!(out.partials_at.is_empty());
             // These are the Symbol columns of the three actual typed row schemas.
             // Normalize only symbol handles; retain every node/file/span/number cell.
+            #[expect(
+                clippy::wildcard_enum_match_arm,
+                reason = "this fixture demands exactly three relations; any other is the failure the test reports"
+            )]
             let symbol_columns: &[usize] = match relation {
                 languages::Relation::SemanticSyntax
                 | languages::Relation::LiteralExpressionParse => &[1, 2],

@@ -148,86 +148,86 @@ fn written(call: OperatorCall<'_>) -> Result<(), Failure> {
     );
     Ok(())
 }
+/// The Select answer over `ROW` with its first cell already in the target: kept or not, and the target.
+fn selected(kept: &[ColumnIndex], holds: PredicateOutcome) -> Result<Value, Failure> {
+    let mut target = Vec::with_capacity(8);
+    let original = target.as_ptr();
+    target.push(ROW[0]);
+    let answer = OperatorsUseCaseImpl::new(std::sync::Arc::new(
+        crate::outbound::matching::factory::use_case(),
+    ))
+    .operators(OperatorCall::Select {
+        row: &ROW,
+        kept,
+        holds,
+        target: &mut target,
+    })?;
+    let OperatorAnswer::Selected(accepted) = answer else {
+        panic!("Select must return its acceptance outcome")
+    };
+    assert_eq!(
+        target.as_ptr(),
+        original,
+        "selection borrows caller-owned scratch"
+    );
+    Ok(Observation::Selected(
+        accepted == RowSelection::Kept,
+        Cow::Owned(target),
+    ))
+}
 fn subject(input: Input) -> Result<Value, Failure> {
     let mut target = Vec::with_capacity(8);
     let original = target.as_ptr();
     match input {
-        Scenario::Project | Scenario::Append | Scenario::MissingProjectColumn => {
-            let call = match input {
-                Scenario::Project => OperatorCall::Project {
-                    row: &ROW,
-                    columns: &[ColumnIndex(1), ColumnIndex(0), ColumnIndex(1)],
-                    target: &mut target,
-                },
-                Scenario::Append => OperatorCall::Append {
-                    row: &ROW,
-                    appended: &[ROW[0]],
-                    target: &mut target,
-                },
-                Scenario::MissingProjectColumn => OperatorCall::Project {
-                    row: &ROW,
-                    columns: &[ColumnIndex(2)],
-                    target: &mut target,
-                },
-                _ => unreachable!(),
-            };
-            written(call)?;
-        }
-        Scenario::SelectRepeated
-        | Scenario::SelectRejected
-        | Scenario::SelectOriginal
-        | Scenario::SelectMissing => {
-            target.push(ROW[0]);
-            let kept: &[ColumnIndex] = match input {
-                Scenario::SelectRepeated => &[ColumnIndex(1), ColumnIndex(0), ColumnIndex(1)],
-                Scenario::SelectOriginal => &[],
-                _ => &[ColumnIndex(9), ColumnIndex(8)],
-            };
-            let answer = OperatorsUseCaseImpl::new(std::sync::Arc::new(
-                crate::outbound::matching::factory::use_case(),
-            ))
-            .operators(OperatorCall::Select {
-                row: &ROW,
-                kept,
-                holds: if matches!(input, Scenario::SelectRejected) {
-                    PredicateOutcome::Fails
-                } else {
-                    PredicateOutcome::Holds
-                },
-                target: &mut target,
-            })?;
-            let OperatorAnswer::Selected(accepted) = answer else {
-                panic!("Select must return its acceptance outcome")
-            };
-            assert_eq!(
-                target.as_ptr(),
-                original,
-                "selection borrows caller-owned scratch"
+        Scenario::Project => written(OperatorCall::Project {
+            row: &ROW,
+            columns: &[ColumnIndex(1), ColumnIndex(0), ColumnIndex(1)],
+            target: &mut target,
+        })?,
+        Scenario::Append => written(OperatorCall::Append {
+            row: &ROW,
+            appended: &[ROW[0]],
+            target: &mut target,
+        })?,
+        Scenario::MissingProjectColumn => written(OperatorCall::Project {
+            row: &ROW,
+            columns: &[ColumnIndex(2)],
+            target: &mut target,
+        })?,
+        Scenario::SelectRepeated => {
+            return selected(
+                &[ColumnIndex(1), ColumnIndex(0), ColumnIndex(1)],
+                PredicateOutcome::Holds,
             );
-            return Ok(Observation::Selected(
-                accepted == RowSelection::Kept,
-                Cow::Owned(target),
-            ));
         }
-        Scenario::CountOutput | Scenario::DigestOutput | Scenario::AggregateMissing => {
-            let (keys, count, digest): (&[ColumnIndex], _, _) = match input {
-                Scenario::CountOutput => (
-                    &[ColumnIndex(1), ColumnIndex(0), ColumnIndex(1)],
-                    Count(4),
-                    None,
-                ),
-                Scenario::DigestOutput => (&[], Count(3), Some(Integer(-5))),
-                _ => (&[ColumnIndex(4), ColumnIndex(3)], Count(0), None),
-            };
-            written(OperatorCall::Aggregate {
-                row: &ROW,
-                keys,
-                count,
-                digest,
-                target: &mut target,
-            })?;
+        Scenario::SelectRejected => {
+            return selected(&[ColumnIndex(9), ColumnIndex(8)], PredicateOutcome::Fails);
         }
-        _ => unreachable!("row fixture receives only row scenarios"),
+        Scenario::SelectOriginal => return selected(&[], PredicateOutcome::Holds),
+        Scenario::SelectMissing => {
+            return selected(&[ColumnIndex(9), ColumnIndex(8)], PredicateOutcome::Holds);
+        }
+        Scenario::CountOutput => written(OperatorCall::Aggregate {
+            row: &ROW,
+            keys: &[ColumnIndex(1), ColumnIndex(0), ColumnIndex(1)],
+            count: Count(4),
+            digest: None,
+            target: &mut target,
+        })?,
+        Scenario::DigestOutput => written(OperatorCall::Aggregate {
+            row: &ROW,
+            keys: &[],
+            count: Count(3),
+            digest: Some(Integer(-5)),
+            target: &mut target,
+        })?,
+        Scenario::AggregateMissing => written(OperatorCall::Aggregate {
+            row: &ROW,
+            keys: &[ColumnIndex(4), ColumnIndex(3)],
+            count: Count(0),
+            digest: None,
+            target: &mut target,
+        })?,
     }
     assert_eq!(
         target.as_ptr(),

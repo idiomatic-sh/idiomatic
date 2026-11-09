@@ -246,6 +246,10 @@ fn many_or_alternatives_keep_each_filter_and_bound_union_depth() {
     let mut selects = 0;
     let mut unions = 0;
     for step in &builder.steps {
+        #[expect(
+            clippy::wildcard_enum_match_arm,
+            reason = "an OR reduction lowers to selects and unions only; any other operation is the failure this test reports"
+        )]
         let depth = match &step.operation {
             Operation::Select { .. } => {
                 selects += 1;
@@ -254,7 +258,9 @@ fn many_or_alternatives_keep_each_filter_and_bound_union_depth() {
             Operation::Union { left, right } => {
                 unions += 1;
                 let depth_of = |input: &ryo_values::domain::plan_parts::types::Input| match input {
-                    ryo_values::domain::plan_parts::types::Input::Step(id) => depths[id.0 as usize],
+                    ryo_values::domain::plan_parts::types::Input::Step(id) => {
+                        depths[usize::try_from(id.0).unwrap_or(usize::MAX)]
+                    }
                     ryo_values::domain::plan_parts::types::Input::Relation(_)
                     | ryo_values::domain::plan_parts::types::Input::BoundObservation(_) => 0,
                 };

@@ -18,18 +18,34 @@ pub enum SetKind {
 /// The semantic capability cannot select an index, retain a row or publish independently.
 pub trait SetRowDriver {
     /// Whether the acquired right population has no rows.
+    ///
+    /// # Errors
+    ///
+    /// [`SetRowsError::Interrupted`](super::errors::SetRowsError::Interrupted) when the engine interrupts the set operation.
     fn right_empty(&mut self) -> Result<RightPopulation, SetRowsError>;
     /// Test a full row or projected left key against the acquired right index.
+    ///
+    /// # Errors
+    ///
+    /// [`SetRowsError::Interrupted`](super::errors::SetRowsError::Interrupted) when the engine interrupts the set operation.
     fn contains_right(
         &mut self,
         key: &[ryo_relations::domain::relations::types::Value],
     ) -> Result<RightMembership, SetRowsError>;
     /// Record an invocation-scoped first occurrence of a full row.
+    ///
+    /// # Errors
+    ///
+    /// [`SetRowsError::Interrupted`](super::errors::SetRowsError::Interrupted) when the engine interrupts the set operation.
     fn first_time(
         &mut self,
         row: &[ryo_relations::domain::relations::types::Value],
     ) -> Result<FirstOccurrence, SetRowsError>;
     /// Deliver one retained row in original encounter order.
+    ///
+    /// # Errors
+    ///
+    /// [`SetRowsError::Interrupted`](super::errors::SetRowsError::Interrupted) when the engine interrupts the set operation.
     fn emit(
         &mut self,
         row: &[ryo_relations::domain::relations::types::Value],
@@ -63,14 +79,34 @@ pub enum SetInput<'a> {
 /// Finite deferred rows; the engine owns raw ordering, decoding and output slots.
 pub trait SetPositionsDriver {
     /// Advance to the next candidate in encounter order.
+    ///
+    /// # Errors
+    ///
+    /// [`SetRowsError::Interrupted`](super::errors::SetRowsError::Interrupted) when the engine interrupts the set operation.
     fn next(&mut self) -> Result<Advance, SetRowsError>;
     /// Whether the acquired right population has no rows.
+    ///
+    /// # Errors
+    ///
+    /// [`SetRowsError::Interrupted`](super::errors::SetRowsError::Interrupted) when the engine interrupts the set operation.
     fn right_empty(&mut self) -> Result<RightPopulation, SetRowsError>;
     /// Probe the current left row's key only when semantic policy asks.
+    ///
+    /// # Errors
+    ///
+    /// [`SetRowsError::Interrupted`](super::errors::SetRowsError::Interrupted) when the engine interrupts the set operation.
     fn contains_right(&mut self) -> Result<RightMembership, SetRowsError>;
     /// Whether the current row is the first occurrence in this invocation.
+    ///
+    /// # Errors
+    ///
+    /// [`SetRowsError::Interrupted`](super::errors::SetRowsError::Interrupted) when the engine interrupts the set operation.
     fn first_time(&mut self) -> Result<FirstOccurrence, SetRowsError>;
     /// Deliver current positions without decoding unused cells.
+    ///
+    /// # Errors
+    ///
+    /// [`SetRowsError::Interrupted`](super::errors::SetRowsError::Interrupted) when the engine interrupts the set operation.
     fn emit(&mut self) -> Result<(), SetRowsError>;
 }
 

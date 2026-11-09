@@ -116,7 +116,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::MissingCapture => (0, Some(1), Some("absent")),
         Scenario::Overflow => (usize::MAX, None, Some("cap")),
         Scenario::MissingOptions => (0, Some(1), None),
-        _ => (0, Some(1), Some("cap")),
+        Scenario::Lines | Scenario::Interrupted => (0, Some(1), Some("cap")),
     };
     let mut output = Vec::new();
     let result = occurrences(
@@ -170,7 +170,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 "an interrupted delivery keeps refusing"
             );
         }
-        _ => {
+        Scenario::MissingCapture | Scenario::Overflow | Scenario::MissingOptions => {
             assert_eq!(driver.interns, 0);
             assert_eq!(driver.deliveries, 0);
         }

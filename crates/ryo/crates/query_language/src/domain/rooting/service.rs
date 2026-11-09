@@ -228,7 +228,13 @@ pub(crate) fn bind_declared_sources(
                         {
                             Some(name.0.0.clone())
                         }
-                        _ => None,
+                        ArgumentValue::Word(_)
+                        | ArgumentValue::Step(_)
+                        | ArgumentValue::Text(_)
+                        | ArgumentValue::Number(_)
+                        | ArgumentValue::Parameter(_)
+                        | ArgumentValue::List(_)
+                        | ArgumentValue::Map(_) => None,
                     };
                     if let Some(name) = external {
                         argument.value = ArgumentValue::Text(

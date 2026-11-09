@@ -34,6 +34,10 @@ pub trait RowCells {
         Some(buffer.as_slice())
     }
     /// Checks that the rows are well formed.
+    ///
+    /// # Errors
+    ///
+    /// [`DerivedFault::ShapeMismatch`] when the cells are not one per column of every row.
     fn validate(&self) -> Result<(), DerivedFault>;
     /// The kind of each column.
     fn kinds(&self) -> &[CellKind];
@@ -52,6 +56,10 @@ pub trait ValueTexts {
 /// Source text access and query-symbol storage are finite data services, not acquisition policy.
 pub trait CanonicalTexts: ValueTexts {
     /// Interns a text and answers the cell standing for it.
+    ///
+    /// # Errors
+    ///
+    /// A [`DerivedFault`] when the symbol storage cannot hold the text.
     fn intern(&mut self, text: CellText<'_>) -> Result<Value, DerivedFault>;
 }
 
@@ -75,7 +83,7 @@ impl RowCells for Table {
         if row.0 >= self.count.0 {
             return None;
         }
-        let column = column.0 as usize;
+        let column = usize::try_from(column.0).unwrap_or(usize::MAX);
         if column >= self.kinds.len() {
             return None;
         }

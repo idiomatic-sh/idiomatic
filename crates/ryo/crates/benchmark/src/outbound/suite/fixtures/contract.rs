@@ -216,10 +216,14 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 
-/// Exercise actual physical observations; policy expectations are proved by the application tests.
-pub fn check(adapter: &impl SuitePort) {
-    let temporary = tempfile::tempdir().expect("suite fixture");
-    std::fs::create_dir_all(temporary.path().join("rules")).expect("rules fixture");
+/// Exercise actual physical observations, panicking where the adapter breaks the contract; policy expectations are
+/// proved by the application tests.
+///
+/// # Errors
+/// The error of creating the fixture's directories.
+pub fn check(adapter: &impl SuitePort) -> std::io::Result<()> {
+    let temporary = tempfile::tempdir()?;
+    std::fs::create_dir_all(temporary.path().join("rules"))?;
     let tool = tool();
     let subject = |operation| {
         let missing = temporary.path().join("missing");
@@ -229,7 +233,9 @@ pub fn check(adapter: &impl SuitePort) {
             Error::Io(error) if error.kind() == std::io::ErrorKind::NotFound => {
                 Failure::MissingArtifact
             }
-            _ => Failure::Unexpected,
+            Error::Invalid(_) | Error::Io(_) | Error::Json(_) | Error::Toml(_) => {
+                Failure::Unexpected
+            }
         };
         let refused = |_error: &dyn std::fmt::Debug| Failure::Refused;
         match operation {
@@ -364,7 +370,7 @@ pub fn check(adapter: &impl SuitePort) {
                 .map_err(classify),
             Operation::TotalSize => {
                 let file = temporary.path().join("size.bin");
-                std::fs::write(&file, b"abc").expect("size fixture");
+                std::fs::write(&file, b"abc").map_err(|_| Failure::Unexpected)?;
                 adapter
                     .total_size(ArtifactSet(&[file]))
                     .map(|size| usize::try_from(size.0).unwrap_or_default())
@@ -390,4 +396,5 @@ pub fn check(adapter: &impl SuitePort) {
     };
     run(CASES, Word::Succeeds, subject);
     run(CASES, Word::Refuses, subject);
+    Ok(())
 }

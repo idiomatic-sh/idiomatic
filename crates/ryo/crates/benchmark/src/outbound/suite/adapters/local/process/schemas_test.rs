@@ -156,32 +156,25 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             "tagged_process_certificate_and_declared_json_path_survive_real_case_toml_decoding",
         ),
         word: Word::Succeeds,
-        input: || {
-            tagged_process_certificate_and_declared_json_path_survive_real_case_toml_decoding
-                as fn()
-        },
+        input: || tagged_process_certificate_and_declared_json_path_survive_real_case_toml_decoding,
         expect: Expect::Value(()),
     },
     Case {
         name: CaseName("unknown_process_variants_and_unknown_byte_normalizations_are_not_decoded"),
         word: Word::Succeeds,
-        input: || {
-            unknown_process_variants_and_unknown_byte_normalizations_are_not_decoded as fn()
-        },
+        input: || unknown_process_variants_and_unknown_byte_normalizations_are_not_decoded,
         expect: Expect::Value(()),
     },
     Case {
         name: CaseName("one_case_cannot_declare_two_discrepancy_authorities"),
         word: Word::Succeeds,
-        input: || one_case_cannot_declare_two_discrepancy_authorities as fn(),
+        input: || one_case_cannot_declare_two_discrepancy_authorities,
         expect: Expect::Value(()),
     },
     Case {
         name: CaseName("authored_toml_decodes_each_evidence_kind_with_its_documented_field_names"),
         word: Word::Succeeds,
-        input: || {
-            authored_toml_decodes_each_evidence_kind_with_its_documented_field_names as fn()
-        },
+        input: || authored_toml_decodes_each_evidence_kind_with_its_documented_field_names,
         expect: Expect::Value(()),
     },
 ];

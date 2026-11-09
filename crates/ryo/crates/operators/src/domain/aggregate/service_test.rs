@@ -33,11 +33,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || (&[], usize::MAX, None),
         expect: Expect::Value(std::borrow::Cow::Borrowed(&[Cell::Number(Integer(
-            if usize::BITS < 64 {
-                usize::MAX as i64
-            } else {
-                i64::MAX
-            },
+            // `usize::MAX` where it fits in an i64, else `i64::MAX`.
+            i64::MAX >> 63_u32.saturating_sub(usize::BITS),
         ))])),
     },
     Case {

@@ -17,6 +17,10 @@ use std::borrow::Cow;
 /// a synthetic zero-width lexer error there, after all source tokens were read.
 /// Other lexer failures can lose string, interpolation or continuation state and
 /// remain incomplete even when their token ranges happen to cover every byte.
+#[expect(
+    clippy::wildcard_enum_match_arm,
+    reason = "only lexical and f-string or t-string errors bear on lexing; every other parse error is syntax over tokens the lexer completed"
+)]
 pub(super) fn complete(
     parsed: &Parsed<Mod>,
     source: languages::ByteSlice<'_>,
@@ -44,6 +48,10 @@ pub(super) fn complete(
 
 /// A delimiter witness distinguishes the EOF marker from failed continuations.
 /// Mismatched delimiters do not certify the lexer's nesting state.
+#[expect(
+    clippy::wildcard_enum_match_arm,
+    reason = "only brackets open or close a delimiter; every other token leaves the nesting as it is"
+)]
 fn has_unclosed_delimiter(tokens: &[Token]) -> UnclosedDelimiter {
     let mut expected = Vec::new();
     for token in tokens {

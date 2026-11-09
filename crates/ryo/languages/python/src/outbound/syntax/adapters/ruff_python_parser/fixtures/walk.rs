@@ -206,6 +206,10 @@ impl<'a> SourceOrderVisitor<'a> for Gather {
         };
         // Ruff represents these pairs with one constructor and an explicit flag.
         // The language vocabulary preserves the distinct Python statement kinds.
+        #[expect(
+            clippy::wildcard_enum_match_arm,
+            reason = "only the three async statements share a ruff node with their sync form; every other node has its own kind"
+        )]
         let kind = match node {
             AnyNodeRef::StmtFunctionDef(statement) if statement.is_async => {
                 Kind::Node(Node::AsyncFunctionDef)

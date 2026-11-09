@@ -9,6 +9,10 @@ use ryo_benchmark_contracts::domain::requests::types::{ParserSelection, Provider
 
 #[divan::bench]
 /// Measure preparation and decoding with the isolated default construction.
+#[expect(
+    clippy::expect_used,
+    reason = "the rule identifier is a valid literal, so its parse cannot fail"
+)]
 fn isolated(bencher: divan::Bencher<'_, '_>) {
     let adapter = ryo(
         "worker".into(),
@@ -23,6 +27,10 @@ fn isolated(bencher: divan::Bencher<'_, '_>) {
 }
 #[divan::bench]
 /// Measure preparation and decoding with an explicit project context mode and selection policy.
+#[expect(
+    clippy::expect_used,
+    reason = "the rule identifier is a valid literal, so its parse cannot fail"
+)]
 fn contextual(bencher: divan::Bencher<'_, '_>) {
     let adapter = ryo_context(
         "worker".into(),

@@ -11,12 +11,21 @@ pub enum PartitionExtremum {
 /// No provider, owner, scheduler or cache is visible to the semantic kernel.
 pub trait OrderedExistenceDriver {
     fn len(&self) -> ryo_values::domain::rows::types::RowCount;
+    /// The cell at `column` of `row`, a partition key.
+    ///
+    /// # Errors
+    ///
+    /// [`EqualityJoinError::Interrupted`] when the engine interrupts the read or the delivery.
     fn key_cell(
         &mut self,
         row: ryo_values::domain::rows::types::RowIndex,
         column: ryo_values::domain::plan_parts::types::ColumnIndex,
     ) -> Result<ryo_relations::domain::relations::types::Value, EqualityJoinError>;
     /// Total non-null whole-number evidence is required before this driver is constructed.
+    ///
+    /// # Errors
+    ///
+    /// [`EqualityJoinError::Interrupted`] when the engine interrupts the read or the delivery.
     fn number(
         &mut self,
         row: ryo_values::domain::rows::types::RowIndex,
@@ -25,6 +34,10 @@ pub trait OrderedExistenceDriver {
     /// Deliver a dominated source row and an actual same-partition dominating witness.
     /// The engine can reconstruct the original logical Join coordinates for the unchanged Project.
     /// First interruption is sticky, including every subsequent callback.
+    ///
+    /// # Errors
+    ///
+    /// [`EqualityJoinError::Interrupted`] when the engine interrupts the read or the delivery.
     fn emit_dominated(
         &mut self,
         row: ryo_values::domain::rows::types::RowIndex,

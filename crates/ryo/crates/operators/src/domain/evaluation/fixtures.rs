@@ -30,9 +30,12 @@ pub(crate) fn written(rows: &[Vec<Value>]) -> String {
     rows.iter()
         .map(|row| {
             row.iter()
-                .map(|cell| match cell {
-                    Value::Number(Integer(value)) => value.to_string(),
-                    _ => "?".to_owned(),
+                .map(|cell| {
+                    if let Value::Number(Integer(value)) = cell {
+                        value.to_string()
+                    } else {
+                        "?".to_owned()
+                    }
                 })
                 .collect::<Vec<_>>()
                 .join(" ")

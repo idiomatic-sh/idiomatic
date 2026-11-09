@@ -23,6 +23,10 @@ pub trait OrderedMatchDriver {
         right: ryo_values::domain::rows::types::RowIndex,
     ) -> KeyOrder;
     /// Read both admitted rows before calling the projection; the original read order is observable.
+    ///
+    /// # Errors
+    ///
+    /// The [`PortableOperatorFault`] `project` returns, or one the engine raises reading either row.
     fn visit_pair(
         &mut self,
         left: ryo_values::domain::rows::types::RowIndex,
@@ -32,6 +36,9 @@ pub trait OrderedMatchDriver {
             &[ryo_relations::domain::relations::types::Value],
         ) -> Result<(), PortableOperatorFault>,
     ) -> Result<(), PortableOperatorFault>;
+    /// # Errors
+    ///
+    /// [`ContractError::Interrupted`] when an engine-retained error interrupts the delivery.
     fn emit(
         &mut self,
         row: &[ryo_relations::domain::relations::types::Value],

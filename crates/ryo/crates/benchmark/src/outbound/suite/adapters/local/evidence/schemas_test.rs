@@ -160,15 +160,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             "prior_control_requires_exact_execution_identity_and_completed_positive_witness",
         ),
         word: Word::Succeeds,
-        input: || {
-            prior_control_requires_exact_execution_identity_and_completed_positive_witness as fn()
-        },
+        input: || prior_control_requires_exact_execution_identity_and_completed_positive_witness,
         expect: Expect::Value(()),
     },
     Case {
         name: CaseName("public_contract_requires_pinned_source_and_declared_assertion"),
         word: Word::Succeeds,
-        input: || public_contract_requires_pinned_source_and_declared_assertion as fn(),
+        input: || public_contract_requires_pinned_source_and_declared_assertion,
         expect: Expect::Value(()),
     },
 ];

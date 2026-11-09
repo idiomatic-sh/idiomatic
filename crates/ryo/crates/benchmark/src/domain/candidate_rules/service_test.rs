@@ -106,7 +106,10 @@ fn missing_producers_refuse_before_retaining_or_excluding_rules() -> Result<Valu
         {
             Err(Failure::MissingProducer)
         }
-        _ => Err(Failure::Unexpected),
+        ReportsError::Invalid(_)
+        | ReportsError::Io(_)
+        | ReportsError::Json(_)
+        | ReportsError::Toml(_) => Err(Failure::Unexpected),
     }
 }
 fn configuration_projects_exact_declared_tables_and_disabled_pairs() -> Result<Value, Failure> {

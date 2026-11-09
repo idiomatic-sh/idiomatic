@@ -141,11 +141,14 @@ fn legacy(words: &[u64]) -> Vec<u8> {
     let mut bytes = Vec::new();
     for word in words {
         let mut value = *word;
+        let [low, ..] = value.to_le_bytes();
+        let mut low = low;
         while value >= 128 {
-            bytes.push((value & 127) as u8 | 128);
+            bytes.push(low & 127 | 128);
             value >>= 7;
+            [low, ..] = value.to_le_bytes();
         }
-        bytes.push(value as u8);
+        bytes.push(low);
     }
     bytes
 }

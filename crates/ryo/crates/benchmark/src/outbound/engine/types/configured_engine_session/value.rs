@@ -32,6 +32,9 @@ impl<'a> ConfiguredEngineSession<'a> {
         Self { session, context }
     }
     /// Consume the same configured session and flush its diagnostics on completion.
+    ///
+    /// # Errors
+    /// What the session's engine refuses the run with.
     pub fn execute(
         self,
     ) -> Result<

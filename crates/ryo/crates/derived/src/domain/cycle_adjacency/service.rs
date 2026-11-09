@@ -19,7 +19,7 @@ fn check_columns(
 }
 
 fn cell(row: &[Value], column: ColumnIndex) -> Result<Value, DerivedFault> {
-    row.get(column.0 as usize)
+    row.get(usize::try_from(column.0).unwrap_or(usize::MAX))
         .copied()
         .ok_or(DerivedFault::NoSuchColumn { column })
 }

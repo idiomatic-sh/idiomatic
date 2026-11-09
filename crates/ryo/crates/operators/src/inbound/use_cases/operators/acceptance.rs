@@ -33,9 +33,13 @@ fn runs(world: &mut Behavior) {
     }) {
         Ok(OperatorAnswer::Written) => output
             .iter()
-            .map(|value| match value {
-                Value::Number(number) => number.0.to_string(),
-                _ => unreachable!(),
+            // A cell that is not a number is written as its debug form, so the expected text reports it.
+            .map(|value| {
+                if let Value::Number(number) = value {
+                    number.0.to_string()
+                } else {
+                    format!("{value:?}")
+                }
             })
             .collect::<Vec<_>>()
             .join(" "),
