@@ -20,6 +20,7 @@ pub(crate) mod narrowing;
 pub(crate) mod planning;
 pub(crate) mod pruning;
 pub(crate) mod pushing;
+pub(crate) mod refusing;
 pub(crate) mod regrouping;
 pub(crate) mod remapping;
 pub(crate) mod rendering;

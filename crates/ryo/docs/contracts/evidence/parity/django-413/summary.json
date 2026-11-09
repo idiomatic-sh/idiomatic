@@ -1,5 +1,4 @@
 {
- "bead": "ryo-682p",
  "question": "all-413 Phase 1 parity: ryo run-ryo vs Ruff on full Django, finding by finding",
  "source": "1086daee4b3a4435e60438d2df6ec7a7128dd883",
  "staged_source_commit": "4df6abaca2fb9b8e24bf35261477ceae87bb60ab",
@@ -212,6 +211,6 @@
     "accepted": true
    }
   },
-  "per_rule": "per-rule.json is this run's output; the fields above it describe the 330 baseline run"
+  "per_rule": "per-rule.json is this run's output, in the parity tool's form from 332: each rule whose findings and ends agree as its count under `identical`, every other rule's row under `rules`; the fields above describe the 330 baseline run"
  }
 }

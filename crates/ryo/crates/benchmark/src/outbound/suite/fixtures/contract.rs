@@ -1,5 +1,5 @@
 //! Physical artifact observations shared by suite adapters; audit policy stays in application.
-use super::samples::{escaping_case, given_file, request};
+use super::samples::{escaping_case, given_file, request, tool};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::suite::{
     interface::SuitePort,
@@ -9,9 +9,7 @@ use crate::outbound::suite::{
     },
 };
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::{
-    reports::errors::ReportsError as Error, workloads::types::Tool,
-};
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 
 #[derive(Clone, Copy, Debug)]
 pub enum Operation {
@@ -222,31 +220,7 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
 pub fn check(adapter: &impl SuitePort) {
     let temporary = tempfile::tempdir().expect("suite fixture");
     std::fs::create_dir_all(temporary.path().join("rules")).expect("rules fixture");
-    let tool = Tool {
-        rule_observation_selection:
-            ryo_benchmark_contracts::domain::context::types::ObservationSelectionPolicy::Declared,
-        supporting_rules: Vec::new(),
-        rule_observations: Default::default(),
-        rule_context:
-            ryo_benchmark_contracts::domain::workloads::types::RuleContextProfile::Undeclared,
-        file_observation:
-            ryo_benchmark_contracts::domain::workloads::types::FileObservation::Undeclared,
-        project_context_mode: Default::default(),
-        tool: "fixture".into(),
-        version: "1".into(),
-        sha256: vec![String::new().into()],
-        deferred: Default::default(),
-        pending: Default::default(),
-        query_modules: Default::default(),
-        rule_applicability: Default::default(),
-        parser_configuration:
-            ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
-        source_language:
-            ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
-        project_search_roots:
-            ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
-        defaults: vec!["fixture".try_into().expect("rule identifier")],
-    };
+    let tool = tool();
     let subject = |operation| {
         let missing = temporary.path().join("missing");
         let destination = temporary.path().join("destination");

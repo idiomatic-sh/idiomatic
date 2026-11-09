@@ -65,3 +65,32 @@ pub fn given_file() -> ryo::linter::GivenProjectInventory {
         ..Default::default()
     }
 }
+
+/// The tool a suite adapter is exercised with: one default rule, everything else undeclared.
+pub fn tool() -> ryo_benchmark_contracts::domain::workloads::types::Tool {
+    ryo_benchmark_contracts::domain::workloads::types::Tool {
+        rule_observation_selection:
+            ryo_benchmark_contracts::domain::context::types::ObservationSelectionPolicy::Declared,
+        supporting_rules: Vec::new(),
+        rule_observations: Default::default(),
+        rule_context:
+            ryo_benchmark_contracts::domain::workloads::types::RuleContextProfile::Undeclared,
+        file_observation:
+            ryo_benchmark_contracts::domain::workloads::types::FileObservation::Undeclared,
+        project_context_mode: Default::default(),
+        tool: "fixture".into(),
+        version: "1".into(),
+        sha256: vec![String::new().into()],
+        deferred: Default::default(),
+        pending: Default::default(),
+        query_modules: Default::default(),
+        rule_applicability: Default::default(),
+        parser_configuration:
+            ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
+        source_language:
+            ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
+        project_search_roots:
+            ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
+        defaults: vec!["fixture".try_into().expect("rule identifier")],
+    }
+}

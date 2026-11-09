@@ -3,7 +3,6 @@
 //! for.
 
 use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
 
 use super::contract::ProjectContract;
 use super::fixtures;
@@ -12,7 +11,6 @@ use crate::domain::language::service::reads;
 use crate::fixtures::projects::notes_of;
 use crate::outbound::manifest_reading::fixtures::fake::ManifestReadingFake;
 use crate::outbound::manifest_reading::interface::ManifestReadingPort;
-use crate::outbound::module_context::interface::ModuleContextPort;
 use crate::outbound::notes::factory::postcard;
 use ryo::languages::{self, Project as _};
 
@@ -155,45 +153,6 @@ fn subject((files, asked): Input) -> Result<Value, Failure> {
         resolved.refused.len(),
         resolved.derived.analyzed.len(),
     ))
-}
-
-/// A module context that counts the lookups it answers and checks the request it is given.
-pub(super) struct ContextProbe {
-    inner: Arc<dyn ModuleContextPort>,
-    seen: Arc<AtomicUsize>,
-}
-/// How many lookups a probe has answered.
-pub(super) struct Lookups(Arc<AtomicUsize>);
-impl Lookups {
-    pub(super) fn count(&self) -> usize {
-        self.0.load(Ordering::Relaxed)
-    }
-}
-impl ContextProbe {
-    pub(super) fn around(inner: Arc<dyn ModuleContextPort>) -> (Self, Lookups) {
-        let seen = Arc::new(AtomicUsize::new(0));
-        (
-            Self {
-                inner,
-                seen: Arc::clone(&seen),
-            },
-            Lookups(seen),
-        )
-    }
-}
-impl ModuleContextPort for ContextProbe {
-    fn resolve(
-        &self,
-        request: &languages::ProjectRequest,
-    ) -> Result<crate::domain::module_context::types::ModuleContexts, languages::ProjectError> {
-        assert_eq!(request.manifests.len(), 1);
-        assert_eq!(
-            request.manifests[0].text.0.as_ref(),
-            "not TOML: projection must not be attempted"
-        );
-        self.seen.fetch_add(1, Ordering::Relaxed);
-        self.inner.resolve(request)
-    }
 }
 
 #[test]

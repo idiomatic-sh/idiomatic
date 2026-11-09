@@ -250,6 +250,9 @@ mod selecting;
 mod substituting;
 
 #[cfg(test)]
+mod span_keys;
+
+#[cfg(test)]
 mod spans;
 
 #[cfg(test)]

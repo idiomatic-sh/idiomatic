@@ -1,14 +1,6 @@
 //! The span, source and projection calls over fragment scopes, from the compile inbound API.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::outbound::syntax::fixtures::winnow::winnow;
-use crate::outbound::syntax::interface::SyntaxPort as _;
-use ryo_relations::domain::relations::types::CellKind;
-use ryo_relations::domain::relations::types::Relation;
-use ryo_values::domain::hosted::types::ColumnLabel;
-use ryo_values::domain::hosted::types::HostedColumn;
-use ryo_values::domain::hosted::types::HostedName;
-use ryo_values::domain::hosted::types::HostedRelation;
 use ryo_values::domain::plans::types::Operation;
 
 type Input = fn();
@@ -46,12 +38,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || span_bounds_types_outputs_and_file_scope,
         expect: Expect::Value(()),
     },
-    Case {
-        name: CaseName("a_step_on_spans_alone_needs_per_file_input"),
-        word: Word::Succeeds,
-        input: || a_step_on_spans_alone_needs_per_file_input,
-        expect: Expect::Value(()),
-    },
 ];
 
 fn subject(check: Input) -> Result<Value, Failure> {
@@ -62,52 +48,6 @@ fn subject(check: Input) -> Result<Value, Failure> {
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
-}
-
-/// Compile real syntax through validation, linking, scope resolution and optimization.
-fn span_plan(
-    root: &str,
-    module: Option<&str>,
-    hosted: &[ryo_values::domain::hosted::types::HostedRelation],
-) -> Result<ryo_values::domain::plans::types::Plan, String> {
-    use ryo_values::domain::query_tokens::types::{
-        QueryBundle, QueryDocumentSource, QuerySourceId,
-    };
-    let mut bundle = QueryBundle {
-        root: QueryDocumentSource {
-            id: QuerySourceId("root".into()),
-            text: root.into(),
-        },
-        modules: Default::default(),
-    };
-    if let Some(text) = module {
-        let previous = std::sync::Arc::make_mut(&mut bundle.modules).insert(
-            QuerySourceId("span-fragment".into()),
-            QueryDocumentSource {
-                id: QuerySourceId("span-fragment".into()),
-                text: text.into(),
-            },
-        );
-        assert!(previous.is_none());
-    }
-    let parsed = winnow()
-        .read_bundle(&bundle)
-        .map_err(|error| error.to_string())?;
-    let program = crate::domain::expanding::service::link(&bundle, parsed.root, &parsed.fragments)
-        .map_err(|error| error.to_string())?;
-    let names = hosted
-        .iter()
-        .map(|relation| relation.name.clone())
-        .collect::<Vec<_>>();
-    crate::domain::validation::service::validate_with_observations(
-        &program,
-        &[Relation::Function],
-        &names,
-        &[],
-    )
-    .map_err(|error| error.to_string())?;
-    crate::domain::assembling::service::lower(&program, &[Relation::Function], hosted)
-        .map_err(|error| error.to_string())
 }
 
 fn span_between_types_and_arguments() {
@@ -368,43 +308,54 @@ fn span_bounds_types_outputs_and_file_scope() {
     );
 }
 
-/// A span states no file, so a step that compares rows on spans alone is kept only when every input is per-file and it runs inside
-/// one file. Over the rows of a hosted relation, made after the files, it is refused with a request for a file key; a file key
-/// beside the span is kept.
-fn a_step_on_spans_alone_needs_per_file_input() {
-    use ryo_values::domain::plan_parts::types::StepScope;
-    let global = [HostedRelation {
-        name: HostedName("global".into()),
-        columns: vec![
-            HostedColumn {
-                name: ColumnLabel("file".into()),
-                kind: CellKind::File,
+/// Compile real syntax through validation, linking, scope resolution and optimization.
+pub(in crate::inbound::use_cases::compile::use_case_test) fn span_plan(
+    root: &str,
+    module: Option<&str>,
+    hosted: &[ryo_values::domain::hosted::types::HostedRelation],
+) -> Result<ryo_values::domain::plans::types::Plan, String> {
+    use ryo_values::domain::query_tokens::types::{
+        QueryBundle, QueryDocumentSource, QuerySourceId,
+    };
+    let mut bundle = QueryBundle {
+        root: QueryDocumentSource {
+            id: QuerySourceId("root".into()),
+            text: root.into(),
+        },
+        modules: Default::default(),
+    };
+    if let Some(text) = module {
+        let previous = std::sync::Arc::make_mut(&mut bundle.modules).insert(
+            QuerySourceId("span-fragment".into()),
+            QueryDocumentSource {
+                id: QuerySourceId("span-fragment".into()),
+                text: text.into(),
             },
-            HostedColumn {
-                name: ColumnLabel("span".into()),
-                kind: CellKind::Span,
-            },
-        ],
-    }];
-    let per_file = r#"let rows = select l.id as left, r.id as right, l.file as file, l.span as span from "function" as l join "function" as r on l.span = r.span; emit rows subject file key(left,right,span);"#;
-    let plan = span_plan(per_file, None, &[]).expect("a join on spans of per-file inputs is kept");
-    assert!(
-        plan.steps
-            .iter()
-            .any(|step| matches!(step.operation, Operation::Join { .. })
-                && step.scope == StepScope::PerFile),
-        "the join on spans runs inside one file: {:?}",
-        plan.steps
-    );
-    let refusal = "a step keyed on spans alone needs per-file input";
-    let cross = r#"let rows = select l.id as left, l.file as file, l.span as span, r.file as other from "function" as l join "global" as r on l.span = r.span; emit rows subject file key(left,other);"#;
-    let error = span_plan(cross, None, &global)
-        .expect_err("a join on spans alone over rows after the files is refused");
-    assert!(error.contains(refusal), "{error}");
-    let keyed = r#"let rows = select l.id as left, l.file as file, l.span as span, r.file as other from "function" as l join "global" as r on l.file = r.file and l.span = r.span; emit rows subject file key(left,other);"#;
-    let _plan = span_plan(keyed, None, &global).expect("a file key beside the span is kept");
-    let count = r#"let c = group-count(from="global", keys=["span"], count="n"); emit c subject span key(n);"#;
-    let error = span_plan(count, None, &global)
-        .expect_err("a count on spans alone over rows after the files is refused");
-    assert!(error.contains(refusal), "{error}");
+        );
+        assert!(previous.is_none());
+    }
+    let parsed = crate::outbound::syntax::interface::SyntaxPort::read_bundle(
+        &crate::outbound::syntax::fixtures::winnow::winnow(),
+        &bundle,
+    )
+    .map_err(|error| error.to_string())?;
+    let program = crate::domain::expanding::service::link(&bundle, parsed.root, &parsed.fragments)
+        .map_err(|error| error.to_string())?;
+    let names = hosted
+        .iter()
+        .map(|relation| relation.name.clone())
+        .collect::<Vec<_>>();
+    crate::domain::validation::service::validate_with_observations(
+        &program,
+        &[ryo_relations::domain::relations::types::Relation::Function],
+        &names,
+        &[],
+    )
+    .map_err(|error| error.to_string())?;
+    crate::domain::assembling::service::lower(
+        &program,
+        &[ryo_relations::domain::relations::types::Relation::Function],
+        hosted,
+    )
+    .map_err(|error| error.to_string())
 }

@@ -38,7 +38,7 @@ use ryo_values::domain::{
     runs::types::{RuleApplicability, RuleId},
     stored_facts::types::Digest,
 };
-use std::{collections::BTreeMap, sync::Arc};
+use std::sync::Arc;
 
 /// The one parameter every generation plan binds.
 const MAJOR: &str = "major";
@@ -53,30 +53,31 @@ const FIRST_ROOT_READS: &str = "the actual file generation consults its provider
 /// Why the second prepared root reads nothing.
 const SECOND_ROOT_REPLAYS: &str = "the prepared second root replays its own bound result";
 /// Why a fresh generation reads its provider.
-const FRESH_GENERATION_READS: &str = "a fresh file generation consults its provider";
+pub(super) const FRESH_GENERATION_READS: &str = "a fresh file generation consults its provider";
 /// Why the transferred output is independent.
-const TRANSFERRED_INDEPENDENT: &str = "transferred first output remains independent";
+pub(super) const TRANSFERRED_INDEPENDENT: &str = "transferred first output remains independent";
 /// Why a compiled file rule must complete.
 const MUST_COMPLETE: &str = "compiled file rule must complete";
 
 /// A prepared program and the services its files run on.
-struct Prepared {
+pub(super) struct Prepared {
     /// The program every file generation opens.
-    prepared: Arc<crate::application::file_dag::program::preparation::types::PreparedProgram>,
+    pub(super) prepared:
+        Arc<crate::application::file_dag::program::preparation::types::PreparedProgram>,
     /// The services shared by the generations.
-    services: Arc<ProgramServices>,
+    pub(super) services: Arc<ProgramServices>,
 }
 
 /// How many times a rule consulted its provider.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-struct Reads(usize);
+pub(super) struct Reads(pub(super) usize);
 
 /// What a rule answered, and what it read to answer.
-struct RuleRun {
+pub(super) struct RuleRun {
     /// The rule's emitted table.
-    table: Table,
+    pub(super) table: Table,
     /// The provider reads it took.
-    reads: Reads,
+    pub(super) reads: Reads,
 }
 fn binding_plan() -> Plan {
     Plan {
@@ -145,7 +146,7 @@ fn rule(id: &str) -> RuleSpec {
         exclude: vec![],
     }
 }
-fn prepare(bindings: Vec<Vec<ParameterBinding>>) -> Prepared {
+pub(super) fn prepare(bindings: Vec<Vec<ParameterBinding>>) -> Prepared {
     let count = bindings.len();
     let derived = ryo_execution_store::application::file_dag::fixtures::program_derived_port();
     let prepared = crate::application::file_dag::program::preparation::service::prepare(
@@ -179,7 +180,7 @@ fn prepare(bindings: Vec<Vec<ParameterBinding>>) -> Prepared {
     ));
     Prepared { prepared, services }
 }
-fn language_columns(file: FileId, major: Integer) -> Vec<FactColumn> {
+pub(super) fn language_columns(file: FileId, major: Integer) -> Vec<FactColumn> {
     [
         Value::File(file),
         Value::Number(major),
@@ -189,7 +190,7 @@ fn language_columns(file: FileId, major: Integer) -> Vec<FactColumn> {
     .map(|cell| FactColumn(vec![to_bits(cell).0]))
     .collect()
 }
-fn run_rule(
+pub(super) fn run_rule(
     file: &mut FileRun<'_>,
     rule: RuleIndex,
     storage: &[FactColumn],
@@ -291,107 +292,23 @@ fn identical_binding_dependent_operations_do_not_share_rule_graph_results()
     file.finish().unwrap();
     Ok(1)
 }
-fn two_file_generation_owners_cannot_reuse_the_other_files_results() -> Result<Answer, Failure> {
-    let Prepared { prepared, services } =
-        prepare(vec![vec![ParameterBinding::Number(WholeNumber(3))]]);
-    let mut first_symbols = Symbols::default();
-    let mut first = open_file(
-        &prepared,
-        FileId(0),
-        ScopePartials::File {
-            evaluation: &[],
-            publication: &[],
-        },
-        &[FileRuleIntent::Run {
-            diagnostic: DiagnosticDelivery::Collected,
-            observations: ObservationDemand::NotRequired,
-            capture: CaptureIntent::Disabled,
-        }],
-        Arc::clone(&services),
-        ryo_values::domain::files::types::SourceView(b""),
-        ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible,
-        &mut first_symbols,
-        None,
-        None,
-    )
-    .unwrap();
-    let RuleRun {
-        table: left,
-        reads: first_reads,
-    } = run_rule(
-        &mut first,
-        RuleIndex(0),
-        &language_columns(FileId(1), Integer(3)),
-        &mut first_symbols,
-    );
-    let mut second_symbols = Symbols::default();
-    let mut second = open_file(
-        &prepared,
-        FileId(0),
-        ScopePartials::File {
-            evaluation: &[],
-            publication: &[],
-        },
-        &[FileRuleIntent::Run {
-            diagnostic: DiagnosticDelivery::Collected,
-            observations: ObservationDemand::NotRequired,
-            capture: CaptureIntent::Disabled,
-        }],
-        services,
-        ryo_values::domain::files::types::SourceView(b""),
-        ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible,
-        &mut second_symbols,
-        None,
-        None,
-    )
-    .unwrap();
-    let RuleRun {
-        table: right,
-        reads: second_reads,
-    } = run_rule(
-        &mut second,
-        RuleIndex(0),
-        &language_columns(FileId(9), Integer(3)),
-        &mut second_symbols,
-    );
-    assert!(first_reads.0 > 0);
-    assert!(second_reads.0 > 0, "{FRESH_GENERATION_READS}");
-    assert_eq!(left.cells, vec![Value::File(FileId(1))]);
-    assert_eq!(right.cells, vec![Value::File(FileId(9))]);
-    first.finish().unwrap();
-    second.finish().unwrap();
-    assert_eq!(
-        left.cells,
-        vec![Value::File(FileId(1))],
-        "{TRANSFERRED_INDEPENDENT}"
-    );
-    Ok(1)
-}
 
 /// A scenario: what a row asks of the generation owner.
-type Scenario = fn() -> Result<Answer, Failure>;
+pub(super) type Scenario = fn() -> Result<Answer, Failure>;
 /// What a scenario answers: a yes as one.
-type Answer = usize;
+pub(super) type Answer = usize;
 /// This part has no failure of its own.
-type Failure = ();
+pub(super) type Failure = ();
 
 /// The rows of this part's cases.
-const CASES: &[Case<Scenario, Answer, Failure>] = &[
-    Case {
-        name: CaseName("identical_binding_dependent_operations_do_not_share_rule_graph_results"),
-        word: Word::Succeeds,
-        input: || identical_binding_dependent_operations_do_not_share_rule_graph_results,
-        expect: Expect::Value(1),
-    },
-    Case {
-        name: CaseName("two_file_generation_owners_cannot_reuse_the_other_files_results"),
-        word: Word::Succeeds,
-        input: || two_file_generation_owners_cannot_reuse_the_other_files_results,
-        expect: Expect::Value(1),
-    },
-];
+const CASES: &[Case<Scenario, Answer, Failure>] = &[Case {
+    name: CaseName("identical_binding_dependent_operations_do_not_share_rule_graph_results"),
+    word: Word::Succeeds,
+    input: || identical_binding_dependent_operations_do_not_share_rule_graph_results,
+    expect: Expect::Value(1),
+}];
 
-fn subject(scenario: Scenario) -> Result<Answer, Failure> {
+pub(super) fn subject(scenario: Scenario) -> Result<Answer, Failure> {
     scenario()
 }
 
@@ -399,3 +316,6 @@ fn subject(scenario: Scenario) -> Result<Answer, Failure> {
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
 }
+
+#[cfg(test)]
+mod generations_test;

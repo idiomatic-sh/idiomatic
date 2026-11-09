@@ -210,11 +210,7 @@
   "results": {
     "execution_library": {"passed": 73, "failed": 0, "note": "execution 73 + runtime 216 = 289 (286 at validation331)"},
     "execution_domain_library": {"passed": 135, "failed": 0, "note": "as at validation331"},
-    "execution_store_library": {
-      "passed": 83,
-      "failed": 0,
-      "note": "81 at validation331; tm-rebuild added the project owner graph-cache cases"
-    },
+    "execution_store_library": {"passed": 83, "failed": 0, "note": "81 at validation331; tm-rebuild added the project owner graph-cache cases"},
     "core_library": {"passed": 120, "failed": 0, "note": "as at validation331"},
     "benchmark_library": {
       "passed": 227,
@@ -223,33 +219,14 @@
     },
     "sdk_passed": 29,
     "other_libraries_passed": 191,
-    "libraries_total": {
-      "passed": 1110,
-      "failed": 3,
-      "note": "1099/1 at validation331; counted from libraries.log (tests.json): benchmark 227/3, core 120, derived 35, execution 73, domain 135, runtime 216, store 83, matching 5, operators 61, query_language 97, sdk 29, values 29"
-    },
-    "execution_boundary": {
-      "passed": 99,
-      "failed": 0,
-      "note": "97 at validation331; tm-rebuild added the two project_phase::axis engine contracts (a walk after the files, a join with reach after the files)"
-    },
+    "libraries_total": {"passed": 1110, "failed": 3, "note": "1099/1 at validation331; counted from libraries.log (tests.json): benchmark 227/3, core 120, derived 35, execution 73, domain 135, runtime 216, store 83, matching 5, operators 61, query_language 97, sdk 29, values 29"},
+    "execution_boundary": {"passed": 99, "failed": 0, "note": "97 at validation331; tm-rebuild added the two project_phase::axis engine contracts (a walk after the files, a join with reach after the files)"},
     "activation": {"passed": 11, "failed": 0, "note": "11 actual cases, the facts-finish dhat control among them"},
     "bdd": {"scenarios": 9, "failed": 0},
     "core_bdd": {"scenarios": 18, "failed": 0},
-    "ruff_canary": {
-      "passed": 1,
-      "failed": 0,
-      "note": "112 = 110 N999 + 2 invalid-syntax, the split asserted, the answer of validation323; now on the benchmark worker pool at rayon default size (10 threads here; one worker at validation325): the same answer"
-    },
-    "ruff": {
-      "passed": 13,
-      "failed": 0,
-      "note": "as at validation326 (13/0), on rayon default size (10 threads here)"
-    },
-    "ruff_rule_phases": {
-      "exit": 0,
-      "note": "the staging guard self-test exits 0 (red from 321 to 325); both causes were in the harness (the guard expected the command without the case-receipt argument added on 2026-11-04, and rebuilt frozen moved candidates from the live queries), repaired by Review repairs X"
-    },
+    "ruff_canary": {"passed": 1, "failed": 0, "note": "112 = 110 N999 + 2 invalid-syntax, the split asserted, the answer of validation323; now on the benchmark worker pool at rayon default size (10 threads here; one worker at validation325): the same answer"},
+    "ruff": {"passed": 13, "failed": 0, "note": "as at validation326 (13/0), on rayon default size (10 threads here)"},
+    "ruff_rule_phases": {"exit": 0, "note": "the staging guard self-test exits 0 (red from 321 to 325); both causes were in the harness (the guard expected the command without the case-receipt argument added on 2026-11-04, and rebuilt frozen moved candidates from the live queries), repaired by Review repairs X"},
     "doctests": {
       "execution": 0,
       "execution_domain": 1,
@@ -267,16 +244,8 @@
     },
     "tm_cli_source_findings": 0,
     "tm_guards": "pass",
-    "core_allocation": {
-      "exit": 101,
-      "phase": 7,
-      "note": "the 327 erratum's owed run, on the tree's own target: a file allocates 1,698 to 1,700 blocks beyond the parser library; owned by \"Measure full-Django cold/warm/edit and Rust regressions; meet final objective.\""
-    },
-    "cli_replay": {
-      "passed": 78,
-      "failed": 23,
-      "note": "rerun at 4b9580619f (cli_tests_4b9580619f.log), after the harness fixes for causes (B) and (C); 69 / 32 in the batch at a4cc608275 (cli_tests.log)"
-    },
+    "core_allocation": {"exit": 101, "phase": 7, "note": "the 327 erratum's owed run, on the tree's own target: a file allocates 1,698 to 1,700 blocks beyond the parser library; owned by \"Measure full-Django cold/warm/edit and Rust regressions; meet final objective.\""},
+    "cli_replay": {"passed": 78, "failed": 23, "note": "rerun at 4b9580619f (cli_tests_4b9580619f.log), after the harness fixes for causes (B) and (C); 69 / 32 in the batch at a4cc608275 (cli_tests.log)"},
     "cli_replay_reds": ["behavior::every_recorded_rule_gives_the_recorded_rows", "behavior::recorded_recognition_gives_the_recorded_unread_files", "behavior::row_that_differs_is_reported_with_its_plan_id", "behavior::ruff_findings_equal_the_expected_findings", "behavior::ruff_rules_feed_every_catalog_feature_a_thousand_rows", "behavior::the_files_that_say_why_something_differs_name_only_recorded_rules_and_real_features", "behavior::what_ryo_could_not_decide_over_ruff_is_the_golden_or_a_recorded_difference", "cache::a_run_whose_store_keeps_nothing_answers_what_one_that_keeps_does", "cache::a_store_is_not_used_for_other_rules_and_is_kept_apart_by_root", "cache::a_warm_run_leaves_the_store_as_it_was_and_a_removed_file_does_not", "cache::a_warm_run_reads_nothing_and_an_edit_reads_what_it_must", "cache::an_edit_hands_the_store_the_words_of_the_file_read_alone", "cache::every_recorded_rule_gives_over_ruff_the_rows_a_warm_run_gives_again_from_a_small_store", "cache::files_added_and_removed_before_others_move_what_the_others_handed_with_them", "damage::a_store_cut_short_damaged_or_removed_is_empty_and_the_run_answers_as_with_none", "damage::a_store_whose_table_of_contents_gives_a_section_longer_than_the_file_is_no_store", "damage::a_store_with_one_section_damaged_gives_the_findings_of_a_run_that_keeps_nothing", "finish::an_edit_that_leaves_what_a_file_shows_the_others_as_it_was_keeps_the_cross_file_findings", "frontier::no_rule_is_handed_words_in_proportion_to_the_elements_of_a_file", "frontier::the_finish_is_handed_a_row_for_each_function_and_none_for_a_token", "interface::an_edit_inside_a_body_reads_one_file_and_an_edit_of_what_a_file_declares_or_imports_makes_the_cross_file_steps_again", "lowering::every_rule_gives_the_same_rows_on_two_runs_over_ruff", "peak::a_warm_unchanged_run_over_ruff_peaks_within_its_bound"],
     "cli_replay_note": "23 reds of one cause, (A): the replay harness of claude/w13-span-semantics (H1) fails a pending.txt naming a relation the Rust language provides; crate-dependency-cycles, crate-dependency-depth and layer-order wait for package-dependency, now provided, but also filter syntax-tree on kind \"toml\", a TOML kind the replay (Rust only) cannot run, so they stay pending and the harness has no form for it; regression introduced in 332, a harness design choice, not fixed here. (B) 8 manifests tests and (C) the recordings pending test, also introduced by the 332 harness, are fixed in 4b9580619f. import-fan-in: 34 of the 35 rows repairs XIV added are real and recorded (66); the false derive_message_formats.rs row .; behavior owned by \"Close full TM, contracts, independent review and normal CI.\"; behavior owned by \"Close full TM, contracts, independent review and normal CI.\"; behavior owned by \"Close full TM, contracts, independent review and normal CI.\"; behavior owned by \"Close full TM, contracts, independent review and normal CI.\"; behavior owned by \"Consolidate the kernels: run the all-413 parity run against Ruff with and without each of the five join/select kernels and delete every kernel the evidence shows superseded.\"; behavior owned by \"Close full TM, contracts, independent review and normal CI.\"; behavior owned by \"Close full TM, contracts, independent review and normal CI.\"; cache owned by \"Close full TM, contracts, independent review and normal CI.\"; cache owned by \"Close full TM, contracts, independent review and normal CI.\"; cache owned by \"Close full TM, contracts, independent review and normal CI.\"; cache owned by \"Close full TM, contracts, independent review and normal CI.\"; cache owned by \"Close full TM, contracts, independent review and normal CI.\"; cache owned by \"Repair every deferred output failure; rerun all 413 and full corpus.\"; cache owned by \"Close full TM, contracts, independent review and normal CI.\"; damage owned by \"Close full TM, contracts, independent review and normal CI.\"; damage owned by \"Close full TM, contracts, independent review and normal CI.\"; damage owned by \"Close full TM, contracts, independent review and normal CI.\"; finish owned by \"Close full TM, contracts, independent review and normal CI.\"; frontier owned by \"Close full TM, contracts, independent review and normal CI.\"; frontier owned by \"Close full TM, contracts, independent review and normal CI.\"; interface owned by \"Close full TM, contracts, independent review and normal CI.\"; lowering owned by \"Close full TM, contracts, independent review and normal CI.\"; peak owned by \"Decode lazy packed frontiers once per population, not once per root, and compile ordered existence without the eager request-level pass.\"",
     "cli_cost": {
@@ -287,27 +256,15 @@
     },
     "cli_other_targets": "blocks red (cause (A)), call_count 1/1, command_line 7/7, command_tree 11/11, readme 1/1",
     "conformance": {"targets": 10, "exit": 0},
-    "harness_hooks": {
-      "passed": 136,
-      "failed": 0,
-      "note": "48 at validation331; claude/w13-test-practices and claude/w13-hooks-append-only added the evidence-shape, fail-closed and append-only cases"
-    },
+    "harness_hooks": {"passed": 136, "failed": 0, "note": "48 at validation331; claude/w13-test-practices and claude/w13-hooks-append-only added the evidence-shape, fail-closed and append-only cases"},
     "checkpoint_check": {"passed": 16, "failed": 0},
     "derived_library": {"passed": 35, "failed": 0},
-    "python_and_language_libraries": {
-      "passed": 183,
-      "failed": 0,
-      "note": "python 140/0 (138 at the earlier runs; claude/w13-visibility added the comparisons and nested cases) and language 43/0"
-    },
+    "python_and_language_libraries": {"passed": 183, "failed": 0, "note": "python 140/0 (138 at the earlier runs; claude/w13-visibility added the comparisons and nested cases) and language 43/0"},
     "tm_validate_all": {
       "crates_ryo": {"passed": 241, "failed": 0},
       "repository_root": {"passed": 224, "failed": 0}
     },
-    "execution_runtime_library": {
-      "passed": 216,
-      "failed": 0,
-      "note": "213 at validation331; tm-rebuild added the file_session catalog agreement and self-join recogniser cases"
-    },
+    "execution_runtime_library": {"passed": 216, "failed": 0, "note": "213 at validation331; tm-rebuild added the file_session catalog agreement and self-join recogniser cases"},
     "values_library": {"passed": 29, "failed": 0},
     "ruff_parity": {
       "exit": 0,
@@ -360,19 +317,6 @@
     "no_domain_concept_cycles_findings": 0,
     "tm_validate": "crates/ryo: 241 versions hold, 0 do not (tm 0.1.1); repository root: 224 hold, 0 do not (tm 0.1.0)",
     "unknown_findings": 0,
-    "per_rule": {
-      "idiomatic.ryo/provider-imports#imports": 1379,
-      "idiomatic.ryo/benchmark-linter/source(composition-support)#imports": 66,
-      "idiomatic.arch/file-length": 24,
-      "idiomatic.arch/command/command#imports": 16,
-      "idiomatic.arch/no-machine-paths-shipped": 4,
-      "idiomatic.arch/no-tracker-text-shipped": 3,
-      "idiomatic.arch/crate/crate-readme#template": 2,
-      "idiomatic.arch/idiomatic-rust/no-bare-integers": 2,
-      "idiomatic.arch/idiomatic-rust/module-cycles": 2,
-      "idiomatic.arch/application-service#closed": 1,
-      "idiomatic.arch/entry/entry#imports": 1
-    },
     "note": "18 at validation331 under tm 0.1.0: the domain-concept ring (18) is 0 (claude/w13-domain-cycle). 1462 are #imports findings the rebuilt tm reads where 0.1.0 read none, each naming a qualified path or variant use (Outcome::Failure, contract::Collect); owned by \"tm 0.1.1 reads qualified uses as imports\". The rest: query_language from claude/w13-span-semantics (crate-readme#template 2, file-length 3, no-bare-integers 2; owned by \"span-semantics left 7 TM findings in query_language\"); application-service#closed 1 (execution_runtime file_session/service_test.rs, claude/w13-tm-rebuild, also the one tm_source finding); module-cycles 2 (python project contract_test and fixtures/module_identity_only); file-length on files cargo fmt pushed past 400 lines (open item: 332 quick-check groups), on validation.json (the red_green list) and on parity/django-413/per-rule.json (claude/w13-bench-parity, 6,081 lines as merged); no-tracker-text-shipped 2 in parity/django-413/summary.json (its \"bead\" key, as merged); review/README.md:111 a machine path (claude/w13-hooks-append-only); and findings in untracked reviewer drafts under evidence/branches/, which are not in the validated source"
   },
   "tm_targets": {
@@ -409,125 +353,29 @@
     }
   },
   "red_green": [
-    {
-      "test": "execution boundary_contract project_phase::axis::test::an_axis_after_the_files_answers_the_parents_it_answers_in_each_file",
-      "base_sha": "4faa55e27d428cc347c1b154c1671763b460973b",
-      "merge_sha": "4f44f32704b45c4cedce7432266a3017739ba9f3"
-    },
-    {
-      "test": "execution boundary_contract project_phase::axis::test::a_join_with_reach_after_the_files_answers_what_it_reaches_in_each_file",
-      "base_sha": "4faa55e27d428cc347c1b154c1671763b460973b",
-      "merge_sha": "4f44f32704b45c4cedce7432266a3017739ba9f3"
-    },
-    {
-      "test": "execution_store lib application::file_dag::derived::owner::cached_graph::test::a_project_owner_declines_the_graph_so_its_axis_walks_its_tables",
-      "base_sha": "4faa55e27d428cc347c1b154c1671763b460973b",
-      "merge_sha": "4f44f32704b45c4cedce7432266a3017739ba9f3"
-    },
-    {
-      "test": "execution boundary_contract project_phase::axis::test::an_anti_join_over_the_self_join_of_syntax_child_ordinals_answers_the_first_token",
-      "base_sha": "1048e4e2b27ee3df42da2942df44f3a0eca9d998",
-      "merge_sha": "4f44f32704b45c4cedce7432266a3017739ba9f3"
-    },
-    {
-      "test": "execution_runtime lib application::file_dag::program::file_session::service_test::the_recogniser_proves_a_number_exactly_when_the_session_hands_it_over_stored",
-      "base_sha": "1048e4e2b27ee3df42da2942df44f3a0eca9d998",
-      "merge_sha": "4f44f32704b45c4cedce7432266a3017739ba9f3"
-    },
-    {
-      "test": "query_language lib domain::planning::service_test::succeeds",
-      "base_sha": "55ad6b619bd5efd01e1f2dcdf275dccec24bcbe2",
-      "merge_sha": "4f44f32704b45c4cedce7432266a3017739ba9f3"
-    },
-    {
-      "test": "query_language lib inbound::use_cases::compile::use_case_test::spans::test::succeeds",
-      "base_sha": "55ad6b619bd5efd01e1f2dcdf275dccec24bcbe2",
-      "merge_sha": "4f44f32704b45c4cedce7432266a3017739ba9f3"
-    },
-    {
-      "test": "cli replay recordings::a_golden_rule_that_is_not_recorded_fails",
-      "base_sha": "09718aee5188d5ba1207124f063f1cfe0a6c415d",
-      "merge_sha": "4f44f32704b45c4cedce7432266a3017739ba9f3"
-    },
-    {
-      "test": "ci/contract_review/service_test.py::test_malformed_or_failing_review_is_refused",
-      "base_sha": "e9a7f3811e7f21a6289cc81c9c994c6fb5951cce",
-      "merge_sha": "4f44f32704b45c4cedce7432266a3017739ba9f3"
-    },
-    {
-      "test": "ci/contract_review/service_test.py::test_the_ci_and_hook_validators_agree_on_every_variant",
-      "base_sha": "17377d25499c8a7a502b864abd754b03afbcdde9",
-      "merge_sha": "4f44f32704b45c4cedce7432266a3017739ba9f3"
-    },
-    {
-      "test": "ci/contract_review/service_test.py::test_a_malformed_asymptote_record_is_refused",
-      "base_sha": "17377d25499c8a7a502b864abd754b03afbcdde9",
-      "merge_sha": "4f44f32704b45c4cedce7432266a3017739ba9f3"
-    },
-    {
-      "test": ".claude/hooks test_hooks.FailsClosed.test_a_missing_service_refuses_the_push",
-      "base_sha": "bd643fd55ec7e8d9a66a380d3b6ba376e34bdb46",
-      "merge_sha": "4f44f32704b45c4cedce7432266a3017739ba9f3"
-    },
-    {
-      "test": ".claude/hooks test_hooks.FailsClosed.test_a_service_without_shape_refuses_the_push",
-      "base_sha": "bd643fd55ec7e8d9a66a380d3b6ba376e34bdb46",
-      "merge_sha": "4f44f32704b45c4cedce7432266a3017739ba9f3"
-    },
-    {
-      "test": ".claude/hooks test_hooks.FailsClosed.test_an_exception_in_any_stage_refuses_a_push_and_a_merge_but_not_other_commands",
-      "base_sha": "61cb67a0749f1629cbfbd5b4f7370f5398146fe1",
-      "merge_sha": "4f44f32704b45c4cedce7432266a3017739ba9f3"
-    },
-    {
-      "test": ".claude/hooks test_hooks.FailsClosed.test_quoted_or_escaped_spellings_of_the_verb_are_still_refused_when_the_guard_breaks",
-      "base_sha": "2f3c17e780fb8806d6dd0e99db866119f80edc99",
-      "merge_sha": "4f44f32704b45c4cedce7432266a3017739ba9f3"
-    },
-    {
-      "test": "cli replay manifests::a_package_the_scope_does_not_list_is_found_by_the_recorded_workspace_completeness_query",
-      "base_sha": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
-      "merge_sha": "4b9580619f531fd4db4791958e8eecddf1e0e35b"
-    },
-    {
-      "test": "cli replay manifests::a_member_the_listing_does_not_hold_is_found_as_a_file_after_the_listed_ones",
-      "base_sha": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
-      "merge_sha": "4b9580619f531fd4db4791958e8eecddf1e0e35b"
-    },
-    {
-      "test": "cli replay manifests_bun::ryo_says_what_bun_says_of_the_manifests_of_a_workspace",
-      "base_sha": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
-      "merge_sha": "4b9580619f531fd4db4791958e8eecddf1e0e35b"
-    },
-    {
-      "test": "cli replay manifests_cargo::ryo_says_what_cargo_says_of_the_manifests_of_every_target",
-      "base_sha": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
-      "merge_sha": "4b9580619f531fd4db4791958e8eecddf1e0e35b"
-    },
-    {
-      "test": "cli replay manifests_go::ryo_says_what_go_says_of_the_manifests_of_a_workspace",
-      "base_sha": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
-      "merge_sha": "4b9580619f531fd4db4791958e8eecddf1e0e35b"
-    },
-    {
-      "test": "cli replay manifests_npm::ryo_says_what_npm_says_of_the_manifests_of_a_workspace",
-      "base_sha": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
-      "merge_sha": "4b9580619f531fd4db4791958e8eecddf1e0e35b"
-    },
-    {
-      "test": "cli replay manifests_pnpm::ryo_says_what_pnpm_says_of_the_manifests_of_a_workspace",
-      "base_sha": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
-      "merge_sha": "4b9580619f531fd4db4791958e8eecddf1e0e35b"
-    },
-    {
-      "test": "cli replay manifests_uv::ryo_says_what_uv_says_of_the_manifests_of_a_workspace",
-      "base_sha": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
-      "merge_sha": "4b9580619f531fd4db4791958e8eecddf1e0e35b"
-    },
-    {
-      "test": "cli replay recordings::a_pending_txt_naming_exactly_the_refused_relation_waits",
-      "base_sha": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
-      "merge_sha": "4b9580619f531fd4db4791958e8eecddf1e0e35b"
-    }
+    {"test": "execution boundary_contract project_phase::axis::test::an_axis_after_the_files_answers_the_parents_it_answers_in_each_file", "base_sha": "4faa55e27d428cc347c1b154c1671763b460973b", "merge_sha": "4f44f32704b45c4cedce7432266a3017739ba9f3"},
+    {"test": "execution boundary_contract project_phase::axis::test::a_join_with_reach_after_the_files_answers_what_it_reaches_in_each_file", "base_sha": "4faa55e27d428cc347c1b154c1671763b460973b", "merge_sha": "4f44f32704b45c4cedce7432266a3017739ba9f3"},
+    {"test": "execution_store lib application::file_dag::derived::owner::cached_graph::test::a_project_owner_declines_the_graph_so_its_axis_walks_its_tables", "base_sha": "4faa55e27d428cc347c1b154c1671763b460973b", "merge_sha": "4f44f32704b45c4cedce7432266a3017739ba9f3"},
+    {"test": "execution boundary_contract project_phase::axis::test::an_anti_join_over_the_self_join_of_syntax_child_ordinals_answers_the_first_token", "base_sha": "1048e4e2b27ee3df42da2942df44f3a0eca9d998", "merge_sha": "4f44f32704b45c4cedce7432266a3017739ba9f3"},
+    {"test": "execution_runtime lib application::file_dag::program::file_session::service_test::the_recogniser_proves_a_number_exactly_when_the_session_hands_it_over_stored", "base_sha": "1048e4e2b27ee3df42da2942df44f3a0eca9d998", "merge_sha": "4f44f32704b45c4cedce7432266a3017739ba9f3"},
+    {"test": "query_language lib domain::planning::service_test::succeeds", "base_sha": "55ad6b619bd5efd01e1f2dcdf275dccec24bcbe2", "merge_sha": "4f44f32704b45c4cedce7432266a3017739ba9f3"},
+    {"test": "query_language lib inbound::use_cases::compile::use_case_test::spans::test::succeeds", "base_sha": "55ad6b619bd5efd01e1f2dcdf275dccec24bcbe2", "merge_sha": "4f44f32704b45c4cedce7432266a3017739ba9f3"},
+    {"test": "cli replay goldens::a_golden_rule_that_is_not_recorded_fails", "base_sha": "09718aee5188d5ba1207124f063f1cfe0a6c415d", "merge_sha": "4f44f32704b45c4cedce7432266a3017739ba9f3"},
+    {"test": "ci/contract_review/service_test.py::test_malformed_or_failing_review_is_refused", "base_sha": "e9a7f3811e7f21a6289cc81c9c994c6fb5951cce", "merge_sha": "4f44f32704b45c4cedce7432266a3017739ba9f3"},
+    {"test": "ci/contract_review/service_test.py::test_the_ci_and_hook_validators_agree_on_every_variant", "base_sha": "17377d25499c8a7a502b864abd754b03afbcdde9", "merge_sha": "4f44f32704b45c4cedce7432266a3017739ba9f3"},
+    {"test": "ci/contract_review/service_test.py::test_a_malformed_asymptote_record_is_refused", "base_sha": "17377d25499c8a7a502b864abd754b03afbcdde9", "merge_sha": "4f44f32704b45c4cedce7432266a3017739ba9f3"},
+    {"test": ".claude/hooks test_hooks.FailsClosed.test_a_missing_service_refuses_the_push", "base_sha": "bd643fd55ec7e8d9a66a380d3b6ba376e34bdb46", "merge_sha": "4f44f32704b45c4cedce7432266a3017739ba9f3"},
+    {"test": ".claude/hooks test_hooks.FailsClosed.test_a_service_without_shape_refuses_the_push", "base_sha": "bd643fd55ec7e8d9a66a380d3b6ba376e34bdb46", "merge_sha": "4f44f32704b45c4cedce7432266a3017739ba9f3"},
+    {"test": ".claude/hooks test_hooks.FailsClosed.test_an_exception_in_any_stage_refuses_a_push_and_a_merge_but_not_other_commands", "base_sha": "61cb67a0749f1629cbfbd5b4f7370f5398146fe1", "merge_sha": "4f44f32704b45c4cedce7432266a3017739ba9f3"},
+    {"test": ".claude/hooks test_hooks.FailsClosed.test_quoted_or_escaped_spellings_of_the_verb_are_still_refused_when_the_guard_breaks", "base_sha": "2f3c17e780fb8806d6dd0e99db866119f80edc99", "merge_sha": "4f44f32704b45c4cedce7432266a3017739ba9f3"},
+    {"test": "cli replay manifests::a_package_the_scope_does_not_list_is_found_by_the_recorded_workspace_completeness_query", "base_sha": "a4cc608275ada8b3fef840ef7c36729cf122b06a", "merge_sha": "4b9580619f531fd4db4791958e8eecddf1e0e35b"},
+    {"test": "cli replay manifests::a_member_the_listing_does_not_hold_is_found_as_a_file_after_the_listed_ones", "base_sha": "a4cc608275ada8b3fef840ef7c36729cf122b06a", "merge_sha": "4b9580619f531fd4db4791958e8eecddf1e0e35b"},
+    {"test": "cli replay manifests_bun::ryo_says_what_bun_says_of_the_manifests_of_a_workspace", "base_sha": "a4cc608275ada8b3fef840ef7c36729cf122b06a", "merge_sha": "4b9580619f531fd4db4791958e8eecddf1e0e35b"},
+    {"test": "cli replay manifests_cargo::ryo_says_what_cargo_says_of_the_manifests_of_every_target", "base_sha": "a4cc608275ada8b3fef840ef7c36729cf122b06a", "merge_sha": "4b9580619f531fd4db4791958e8eecddf1e0e35b"},
+    {"test": "cli replay manifests_go::ryo_says_what_go_says_of_the_manifests_of_a_workspace", "base_sha": "a4cc608275ada8b3fef840ef7c36729cf122b06a", "merge_sha": "4b9580619f531fd4db4791958e8eecddf1e0e35b"},
+    {"test": "cli replay manifests_npm::ryo_says_what_npm_says_of_the_manifests_of_a_workspace", "base_sha": "a4cc608275ada8b3fef840ef7c36729cf122b06a", "merge_sha": "4b9580619f531fd4db4791958e8eecddf1e0e35b"},
+    {"test": "cli replay manifests_pnpm::ryo_says_what_pnpm_says_of_the_manifests_of_a_workspace", "base_sha": "a4cc608275ada8b3fef840ef7c36729cf122b06a", "merge_sha": "4b9580619f531fd4db4791958e8eecddf1e0e35b"},
+    {"test": "cli replay manifests_uv::ryo_says_what_uv_says_of_the_manifests_of_a_workspace", "base_sha": "a4cc608275ada8b3fef840ef7c36729cf122b06a", "merge_sha": "4b9580619f531fd4db4791958e8eecddf1e0e35b"},
+    {"test": "cli replay recordings::a_pending_txt_naming_exactly_the_refused_relation_waits", "base_sha": "a4cc608275ada8b3fef840ef7c36729cf122b06a", "merge_sha": "4b9580619f531fd4db4791958e8eecddf1e0e35b"}
   ]
 }

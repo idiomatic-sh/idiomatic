@@ -18,6 +18,8 @@ use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::borrow::Cow;
 
 #[cfg(test)]
+mod aggregation_checks;
+#[cfg(test)]
 mod groups;
 #[cfg(test)]
 mod ordered;
@@ -29,6 +31,7 @@ mod positions;
 mod source;
 #[cfg(test)]
 mod source_optional;
+
 #[cfg(test)]
 mod streaming;
 #[cfg(test)]

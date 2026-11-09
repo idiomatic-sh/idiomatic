@@ -45,7 +45,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Error(Failure::Absent),
     },
     Case {
-        name: CaseName("the per-rule document names each contestant and is indented by one space"),
+        name: CaseName(
+            "the per-rule document names each contestant, says an agreeing rule by its count and is indented by one space",
+        ),
         word: Word::Succeeds,
         input: || Scenario::ParityRules,
         expect: Expect::Value(serde_json::Value::Null),
@@ -166,61 +168,50 @@ impl SampleInput {
     }
 }
 
-/// The per-rule document of a fixture parity, as `json.dumps(rows, indent=1)` spells it.
-const PER_RULE: &str = r#"[
- {
-  "rule": "A",
-  "ryo": 2,
-  "ruff": 1,
-  "matched": 1,
-  "missing": 0,
-  "extra": 1,
-  "end_differs": 1,
-  "missing_samples": [],
-  "extra_samples": [
-   {
-    "file": "a.py",
-    "line": 1,
-    "column": 1,
-    "end": [
-     1,
-     3
-    ]
-   }
-  ],
-  "end_differs_samples": [
-   {
-    "file": "a.py",
-    "line": 2,
-    "column": 5,
-    "ryo_end": [
-     2,
-     7
-    ],
-    "ruff_end": [
-     2,
-     9
-    ]
-   }
-  ],
-  "class": "ryo-extra",
-  "differences": 1
- },
- {
-  "rule": "B",
-  "ryo": 0,
-  "ruff": 0,
-  "matched": 0,
-  "missing": 0,
-  "extra": 0,
-  "end_differs": 0,
-  "missing_samples": [],
-  "extra_samples": [],
-  "end_differs_samples": [],
-  "class": "identical",
-  "differences": 0
- }
-]"#;
+/// The per-rule document of a fixture parity: `B` agrees, so it is its count in `identical`; `A` keeps its row under `rules`.
+const PER_RULE: &str = r#"{
+ "identical": {"B":0},
+ "rules": [
+  {
+   "rule": "A",
+   "ryo": 2,
+   "ruff": 1,
+   "matched": 1,
+   "missing": 0,
+   "extra": 1,
+   "end_differs": 1,
+   "missing_samples": [],
+   "extra_samples": [
+    {
+     "file": "a.py",
+     "line": 1,
+     "column": 1,
+     "end": [
+      1,
+      3
+     ]
+    }
+   ],
+   "end_differs_samples": [
+    {
+     "file": "a.py",
+     "line": 2,
+     "column": 5,
+     "ryo_end": [
+      2,
+      7
+     ],
+     "ruff_end": [
+      2,
+      9
+     ]
+    }
+   ],
+   "class": "ryo-extra",
+   "differences": 1
+  }
+ ]
+}"#;
 
 /// The parity metrics of the fixture parity.
 const PARITY_METRICS: &str =

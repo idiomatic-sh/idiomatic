@@ -1,19 +1,13 @@
-//! Public streaming and metadata calls borrow engine-owned reduction state and keep fault order.
+//! Public streaming and finishing calls borrow engine-owned reduction state and keep fault order; the metadata checks are in
+//! `aggregation_checks`.
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::capture::types::*;
 use crate::domain::contract::errors::ContractError;
 use crate::domain::contract::types::FirstOccurrence;
 use crate::domain::contract::types::*;
-use crate::domain::equality_join::types::*;
-use crate::domain::ordered_existence::types::*;
-use crate::domain::ordered_match::types::*;
 use crate::domain::reduction::types::*;
-use crate::domain::set_rows::types::*;
-use crate::domain::source_matches::types::*;
-use crate::domain::words::types::*;
 use crate::inbound::use_cases::operators::types::*;
 use crate::inbound::use_cases::operators::{fixtures, interface::OperatorsUseCase};
-use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
+use ryo_relations::domain::relations::types::{Integer, Value as Cell};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::WholeNumber;
 use ryo_values::domain::rows::types::{RowCount, RowIndex};
@@ -21,11 +15,6 @@ use std::borrow::Cow;
 
 #[derive(Clone, Copy)]
 enum Scenario {
-    CheckCount,
-    CheckDigest,
-    CheckStreamCountOrder,
-    CheckCollectedCountOrder,
-    CheckStreamDigestOrder,
     StreamCount,
     StreamDigest,
     StreamEarlyFault,
@@ -35,51 +24,11 @@ enum Scenario {
 #[derive(Debug, PartialEq)]
 enum Observation {
     Groups(Cow<'static, [(usize, usize)]>),
-    Kinds(Cow<'static, [CellKind]>),
 }
 type Input = Scenario;
 type Value = Observation;
 type Failure = PortableOperatorFault;
 const CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: CaseName("count_metadata_keeps_repeated_key_kinds"),
-        word: Word::Succeeds,
-        input: || Scenario::CheckCount,
-        expect: Expect::Value(Observation::Kinds(Cow::Borrowed(&[
-            CellKind::Number,
-            CellKind::Number,
-        ]))),
-    },
-    Case {
-        name: CaseName("digest_metadata_keeps_key_kinds"),
-        word: Word::Succeeds,
-        input: || Scenario::CheckDigest,
-        expect: Expect::Value(Observation::Kinds(Cow::Borrowed(&[CellKind::Number]))),
-    },
-    Case {
-        name: CaseName("streamed_count_metadata_checks_keys_first"),
-        word: Word::Refuses,
-        input: || Scenario::CheckStreamCountOrder,
-        expect: Expect::Error(Failure::NoSuchColumn {
-            index: ryo_values::domain::plan_parts::types::ColumnIndex(99),
-        }),
-    },
-    Case {
-        name: CaseName("collected_count_metadata_checks_operand_first"),
-        word: Word::Refuses,
-        input: || Scenario::CheckCollectedCountOrder,
-        expect: Expect::Error(Failure::NoSuchColumn {
-            index: ryo_values::domain::plan_parts::types::ColumnIndex(98),
-        }),
-    },
-    Case {
-        name: CaseName("streamed_digest_metadata_checks_operand_first"),
-        word: Word::Refuses,
-        input: || Scenario::CheckStreamDigestOrder,
-        expect: Expect::Error(Failure::NoSuchColumn {
-            index: ryo_values::domain::plan_parts::types::ColumnIndex(98),
-        }),
-    },
     Case {
         name: CaseName("stream_count_and_finish_keep_original_representatives"),
         word: Word::Succeeds,
@@ -290,62 +239,8 @@ fn stream(input: Input) -> Result<Value, Failure> {
     })?;
     Ok(observation(output))
 }
-fn check(input: Input) -> Result<Value, Failure> {
-    let mut kinds = Vec::with_capacity(4);
-    let original = kinds.as_ptr();
-    let (program, order) = match input {
-        Scenario::CheckCount => (
-            AggregationPlan::Count {
-                keys: &[ColumnIndex(1), ColumnIndex(1)],
-                distinct: Some(ColumnIndex(0)),
-            },
-            AggregationCheckOrder::Streaming,
-        ),
-        Scenario::CheckDigest => (
-            AggregationPlan::Digest {
-                keys: &[ColumnIndex(1)],
-                over: ColumnIndex(0),
-            },
-            AggregationCheckOrder::Streaming,
-        ),
-        Scenario::CheckStreamDigestOrder => (
-            AggregationPlan::Digest {
-                keys: &[ColumnIndex(99)],
-                over: ColumnIndex(98),
-            },
-            AggregationCheckOrder::Streaming,
-        ),
-        Scenario::CheckCollectedCountOrder => (
-            AggregationPlan::Count {
-                keys: &[ColumnIndex(99)],
-                distinct: Some(ColumnIndex(98)),
-            },
-            AggregationCheckOrder::Collected,
-        ),
-        _ => (
-            AggregationPlan::Count {
-                keys: &[ColumnIndex(99)],
-                distinct: Some(ColumnIndex(98)),
-            },
-            AggregationCheckOrder::Streaming,
-        ),
-    };
-    written(OperatorCall::CheckAggregation {
-        program,
-        kinds: &[CellKind::Number; 2],
-        order,
-        target: &mut kinds,
-    })?;
-    assert_eq!(kinds.as_ptr(), original);
-    Ok(Observation::Kinds(Cow::Owned(kinds)))
-}
 fn subject(input: Input) -> Result<Value, Failure> {
     match input {
-        Scenario::CheckCount
-        | Scenario::CheckDigest
-        | Scenario::CheckStreamCountOrder
-        | Scenario::CheckCollectedCountOrder
-        | Scenario::CheckStreamDigestOrder => check(input),
         Scenario::StreamCount
         | Scenario::StreamDigest
         | Scenario::StreamEarlyFault

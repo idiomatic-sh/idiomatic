@@ -15,15 +15,15 @@ use crate::domain::paths::types::Section;
 use ryo::languages::{FilePath, Offset};
 
 /// A scenario: a repository of files with their facts, and what to link.
-type Input = fn() -> Repository;
+pub(super) type Input = fn() -> Repository;
 /// The links as `source -> target`, then the files analyzed, all by path.
-type Value = &'static str;
-type Failure = ();
+pub(super) type Value = &'static str;
+pub(super) type Failure = ();
 
 /// The files of a repository, the crate roots Cargo declares by package directory, the outputs, and the facts of each source file.
 /// `externs` are the libraries each package depends on, as `(package directory, name its code writes, library's package directory,
 /// library root)`.
-struct Repository {
+pub(super) struct Repository {
     files: Vec<&'static str>,
     roots: Vec<(&'static str, &'static str)>,
     outputs: Vec<&'static str>,
@@ -31,7 +31,7 @@ struct Repository {
     externs: Vec<(&'static str, &'static str, &'static str, &'static str)>,
 }
 
-fn declares(names: &[&str]) -> Vec<ModDeclaration> {
+pub(super) fn declares(names: &[&str]) -> Vec<ModDeclaration> {
     names
         .iter()
         .map(|name| ModDeclaration {
@@ -44,7 +44,7 @@ fn declares(names: &[&str]) -> Vec<ModDeclaration> {
         .collect()
 }
 
-fn writes(segments: &[&str]) -> Written {
+pub(super) fn writes(segments: &[&str]) -> Written {
     Written {
         segments: segments
             .iter()
@@ -58,7 +58,7 @@ fn writes(segments: &[&str]) -> Written {
     }
 }
 
-fn facts(declared: Vec<ModDeclaration>, written: Vec<Written>) -> Facts {
+pub(super) fn facts(declared: Vec<ModDeclaration>, written: Vec<Written>) -> Facts {
     Facts {
         clean: Cleanliness::Clean,
         declared,
@@ -67,7 +67,7 @@ fn facts(declared: Vec<ModDeclaration>, written: Vec<Written>) -> Facts {
 }
 
 /// A package `p` rooted at `p/src/lib.rs`.
-fn package(files: Vec<&'static str>, facts: Vec<(&'static str, Facts)>) -> Repository {
+pub(super) fn package(files: Vec<&'static str>, facts: Vec<(&'static str, Facts)>) -> Repository {
     Repository {
         files,
         roots: vec![("p", "p/src/lib.rs")],
@@ -174,73 +174,8 @@ fn files_in_an_output_directory_belong_to_no_package() -> Repository {
     made
 }
 
-fn a_path_to_an_external_crate_names_nothing_of_the_repository() -> Repository {
-    package(
-        vec!["p/Cargo.toml", "p/src/lib.rs"],
-        vec![(
-            "p/src/lib.rs",
-            facts(
-                Vec::new(),
-                vec![writes(&["std", "mem", "swap"]), writes(&["Self", "new"])],
-            ),
-        )],
-    )
-}
-
-/// Cargo retains parent segments in a target path; source discovery normalizes them.
-fn an_external_target_with_parent_segments() -> Repository {
-    Repository {
-        files: vec![
-            "distribution/child.rs",
-            "distribution/main.rs",
-            "p/Cargo.toml",
-        ],
-        roots: vec![("p", "p/../distribution/main.rs")],
-        outputs: Vec::new(),
-        facts: vec![
-            (
-                "distribution/main.rs",
-                facts(declares(&["child"]), vec![writes(&["child"])]),
-            ),
-            ("distribution/child.rs", facts(Vec::new(), Vec::new())),
-        ],
-        externs: Vec::new(),
-    }
-}
-
-/// Two crates: `a` depends on `b` and writes `bee` for it. Its path resolves from `b`'s crate root; `b` depends on nothing, so the
-/// same path written in `b` names nothing.
-fn a_path_into_a_library_the_package_depends_on() -> Repository {
-    let path = || writes(&["bee", "inner", "f"]);
-    Repository {
-        files: vec![
-            "a/Cargo.toml",
-            "a/src/lib.rs",
-            "b/Cargo.toml",
-            "b/src/inner.rs",
-            "b/src/lib.rs",
-        ],
-        roots: vec![("a", "a/src/lib.rs"), ("b", "b/src/lib.rs")],
-        outputs: Vec::new(),
-        facts: vec![
-            ("a/src/lib.rs", facts(Vec::new(), vec![path()])),
-            ("b/src/inner.rs", facts(Vec::new(), Vec::new())),
-            ("b/src/lib.rs", facts(declares(&["inner"]), vec![path()])),
-        ],
-        externs: vec![("a", "bee", "b", "b/src/lib.rs")],
-    }
-}
-
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: CaseName("a_declared_external_target_and_its_modules_are_analyzed"),
-        word: Word::Succeeds,
-        input: || an_external_target_with_parent_segments,
-        expect: Expect::Value(
-            "distribution/main.rs -> distribution/child.rs | distribution/child.rs distribution/main.rs",
-        ),
-    },
     Case {
         name: CaseName("a_path_from_the_crate_root_names_the_file_of_the_module"),
         word: Word::Succeeds,
@@ -285,23 +220,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || files_in_an_output_directory_belong_to_no_package,
         expect: Expect::Value("p/src/b.rs -> p/src/c.rs | p/src/b.rs p/src/c.rs p/src/lib.rs"),
     },
-    Case {
-        name: CaseName("a_path_into_a_library_the_package_depends_on_names_the_file_in_that_crate"),
-        word: Word::Succeeds,
-        input: || a_path_into_a_library_the_package_depends_on,
-        expect: Expect::Value(
-            "a/src/lib.rs -> b/src/inner.rs | a/src/lib.rs b/src/inner.rs b/src/lib.rs",
-        ),
-    },
-    Case {
-        name: CaseName("a_path_to_an_external_crate_names_nothing_of_the_repository"),
-        word: Word::Succeeds,
-        input: || a_path_to_an_external_crate_names_nothing_of_the_repository,
-        expect: Expect::Value(" | p/src/lib.rs"),
-    },
 ];
 
-fn subject(made: Input) -> Value {
+pub(super) fn subject(made: Input) -> Value {
     let made = made();
     let files: Vec<FilePath> = made
         .files
@@ -405,3 +326,6 @@ fn link(
         .collect();
     merged(run, gaps_in(&trees), examined)
 }
+
+#[cfg(test)]
+mod external_test;

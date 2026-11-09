@@ -347,19 +347,64 @@ impl Serialize for RuleRowSchema<'_> {
     }
 }
 
-/// The per-rule document: every selected rule's row in selection order, indented by one space.
+/// The finding count of each rule whose findings and ends agree, in selection order: such a rule's row is that count and zeros, so the
+/// map says it in full.
+struct IdenticalSchema<'a>(Vec<(&'a str, usize)>);
+
+impl Serialize for IdenticalSchema<'_> {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::SerializeMap as _;
+        let mut map = serializer.serialize_map(Some(self.0.len()))?;
+        for (rule, count) in &self.0 {
+            map.serialize_entry(rule, count)?;
+        }
+        map.end()
+    }
+}
+
+/// The per-rule document: under `identical`, on one line, the finding count of each rule whose findings and ends agree; under `rules`,
+/// every other selected rule's row; both in selection order, indented by one space.
 pub(super) fn parity_rules(parity: &ParityReport<'_>) -> Result<Vec<u8>, Error> {
+    let agrees = |rule: &RuleComparison<LocatedFinding>| {
+        rule.missing.is_empty() && rule.extra.is_empty() && rule.end_differences.is_empty()
+    };
+    let identical = IdenticalSchema(
+        parity
+            .rules
+            .iter()
+            .filter(|rule| agrees(rule))
+            .map(|rule| (rule.rule.as_ref(), rule.matched.0))
+            .collect(),
+    );
     let rows: Vec<_> = parity
         .rules
         .iter()
+        .filter(|rule| !agrees(rule))
         .map(|rule| RuleRowSchema { parity, rule })
         .collect();
-    let mut bytes = Vec::new();
+    let mut pretty = Vec::new();
     let mut serializer = serde_json::Serializer::with_formatter(
-        &mut bytes,
+        &mut pretty,
         serde_json::ser::PrettyFormatter::with_indent(constants::PER_RULE_INDENT),
     );
     rows.serialize(&mut serializer)
         .map_err(|error| Error::Json(Box::new(error)))?;
+    let compact = serde_json::to_vec(&identical).map_err(|error| Error::Json(Box::new(error)))?;
+    let indent = constants::PER_RULE_INDENT;
+    let mut bytes = Vec::new();
+    bytes.extend_from_slice(b"{\n");
+    bytes.extend_from_slice(indent);
+    bytes.extend_from_slice(b"\"identical\": ");
+    bytes.extend_from_slice(&compact);
+    bytes.extend_from_slice(b",\n");
+    bytes.extend_from_slice(indent);
+    bytes.extend_from_slice(b"\"rules\": ");
+    for byte in pretty {
+        bytes.push(byte);
+        if byte == b'\n' {
+            bytes.extend_from_slice(indent);
+        }
+    }
+    bytes.extend_from_slice(b"\n}");
     Ok(bytes)
 }

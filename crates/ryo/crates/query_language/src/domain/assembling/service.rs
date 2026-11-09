@@ -109,7 +109,7 @@ pub(crate) fn lower_with_observations(
         builder.span = step.span;
         builder.origin = ryo_values::domain::program::service::identity_of(step.name.1)
             .and_then(|identity| program.step_origins.get(&identity).cloned());
-        let from = builder.steps.len();
+        let from = crate::domain::planning::service::next_step(&builder.steps);
         let lowered = match &step.expression {
             ryo_values::domain::query_syntax::types::Expression::Select(select) => {
                 lower_select(&mut builder, &step.name, select)
@@ -118,8 +118,8 @@ pub(crate) fn lower_with_observations(
                 lower_call(&mut builder, &step.name, call)
             }
         }
-        .and_then(|()| crate::domain::planning::service::refuse_spans_alone(&builder, from))
-        .and_then(|()| crate::domain::planning::service::refuse_mixed_vertices(&builder, from));
+        .and_then(|()| crate::domain::refusing::service::refuse_spans_alone(&builder, from))
+        .and_then(|()| crate::domain::refusing::service::refuse_mixed_vertices(&builder, from));
         lowered.map_err(|error| {
             locate_step_error(
                 program,

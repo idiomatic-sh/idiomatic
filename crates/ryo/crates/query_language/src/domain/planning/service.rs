@@ -7,7 +7,6 @@ use ryo_relations::domain::relations::types::Provenance;
 use ryo_values::domain::lineage::service::anchor_of;
 use ryo_values::domain::lineage::types::ColumnAnchor;
 
-use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::types::{
     Builder, FileOrigin, LoweredStep, PlannedColumn, ScopedInput, StepLabel,
 };
@@ -60,7 +59,7 @@ pub(crate) fn inputs_of(operation: &plans::Operation) -> Vec<parts::Input> {
 }
 
 /// Whether a row holding these fields is kept in its file: one of them is held in its file by `held`.
-fn keyed(fields: &[PlannedColumn], held: fn(CellKind) -> FileOrigin) -> FileOrigin {
+pub(crate) fn keyed(fields: &[PlannedColumn], held: fn(CellKind) -> FileOrigin) -> FileOrigin {
     if fields
         .iter()
         .any(|field| held(field.kind) == FileOrigin::Held)
@@ -73,7 +72,7 @@ fn keyed(fields: &[PlannedColumn], held: fn(CellKind) -> FileOrigin) -> FileOrig
 
 /// Whether a value of this kind keeps the rows a step combines on it in one file: a value that states its row's file by the one
 /// lineage rule (`anchor_of`). A span states no file.
-fn held_in_file(kind: CellKind) -> FileOrigin {
+pub(crate) fn held_in_file(kind: CellKind) -> FileOrigin {
     if anchor_of(kind) == ColumnAnchor::InFile {
         FileOrigin::Held
     } else {
@@ -83,7 +82,7 @@ fn held_in_file(kind: CellKind) -> FileOrigin {
 
 /// Whether a value of this kind keeps the rows a step combines on it in one file when the step runs inside one file: a value held
 /// in its file, or a span, a place in the file the step runs in.
-fn held_inside_one_file(kind: CellKind) -> FileOrigin {
+pub(crate) fn held_inside_one_file(kind: CellKind) -> FileOrigin {
     if kind == CellKind::Span {
         FileOrigin::Held
     } else {
@@ -139,7 +138,7 @@ pub(crate) fn scope_of(
 /// Whether a step whose inputs are all per-file keeps the rows it combines in one file, so it may run in each file, when the values
 /// `held` says are held in their file are: what it combines rows on says which file they are of. A step that does not combine rows
 /// is always per-file, except a projection that drops the file from every column, whose repeated rows may come from two files.
-fn placed(
+pub(crate) fn placed(
     operation: &plans::Operation,
     first: &[PlannedColumn],
     second: &[PlannedColumn],
@@ -209,106 +208,6 @@ fn placed(
     } else {
         FileOrigin::Loose
     }
-}
-
-/// Refuses a step from `from` on of the plan under construction that compares rows on spans alone, with no file or node key,
-/// over rows made after the files: a span states no file, so equal spans of two files would meet, merge or cancel. Such a step is
-/// kept only when every input is per-file, so it runs inside one file. This covers a join, an antijoin, an ordered match, a group
-/// count or digest, a closure, an ordered depth-first visit, the cycles of a graph, a union, an intersection, a difference, and
-/// the distinct rows of a projection whose rows hold a span and no file or node.
-pub(crate) fn refuse_spans_alone(builder: &Builder<'_>, from: usize) -> Result<(), LoweringError> {
-    for (step, lowered) in builder.steps.iter().zip(&builder.lowered).skip(from) {
-        let inputs: Vec<ScopedInput> = inputs_of(&step.operation)
-            .into_iter()
-            .map(|input| scoped(builder, input))
-            .collect();
-        if !inputs
-            .iter()
-            .any(|input| input.scope == ryo_values::domain::plan_parts::types::StepScope::CrossFile)
-        {
-            continue;
-        }
-        let first = inputs
-            .first()
-            .map_or(&[][..], |input| input.fields.as_slice());
-        let second = inputs
-            .get(1)
-            .map_or(&[][..], |input| input.fields.as_slice());
-        let on_spans_alone = |held: fn(CellKind) -> FileOrigin| match &step.operation {
-            // The distinct rows compare every column they keep, whatever their input held.
-            plans::Operation::Project {
-                distinct: parts::RepeatedRows::Dropped,
-                ..
-            } => keyed(&lowered.fields, held),
-            plans::Operation::Join { .. }
-            | plans::Operation::Antijoin { .. }
-            | plans::Operation::OrderedMatch { .. }
-            | plans::Operation::GroupCount { .. }
-            | plans::Operation::GroupDigest { .. }
-            | plans::Operation::Closure { .. }
-            | plans::Operation::OrderedDfs { .. }
-            | plans::Operation::Cycles { .. }
-            | plans::Operation::Union { .. }
-            | plans::Operation::Intersection { .. }
-            | plans::Operation::Difference { .. } => {
-                placed(&step.operation, first, second, &lowered.fields, held)
-            }
-            plans::Operation::Project {
-                distinct: parts::RepeatedRows::Kept,
-                ..
-            }
-            | plans::Operation::SpanBetween { .. }
-            | plans::Operation::SpanBounds { .. }
-            | plans::Operation::SourceMatches { .. }
-            | plans::Operation::RenderSyntax { .. }
-            | plans::Operation::FitsRendered { .. }
-            | plans::Operation::Replace { .. }
-            | plans::Operation::Select { .. }
-            | plans::Operation::Extend { .. }
-            | plans::Operation::Capture { .. }
-            | plans::Operation::Rank { .. }
-            | plans::Operation::Words { .. }
-            | plans::Operation::Axis { .. }
-            | plans::Operation::Rows { .. }
-            | plans::Operation::Hosted { .. } => FileOrigin::Loose,
-        };
-        if on_spans_alone(held_in_file) == FileOrigin::Loose
-            && on_spans_alone(held_inside_one_file) == FileOrigin::Held
-        {
-            return Err(LoweringError::CrossFileSpanKey { span: builder.span });
-        }
-    }
-    Ok(())
-}
-
-/// Refuses a closure or cycles step from `from` on of the plan under construction whose source and destination are of two kinds:
-/// a walk goes from a source to a destination that is the next source, so both are of one kind, and where the step runs is decided
-/// on its source alone.
-pub(crate) fn refuse_mixed_vertices(
-    builder: &Builder<'_>,
-    from: usize,
-) -> Result<(), LoweringError> {
-    for step in builder.steps.iter().skip(from) {
-        let (plans::Operation::Closure {
-            edges,
-            source,
-            destination,
-            ..
-        }
-        | plans::Operation::Cycles {
-            edges,
-            source,
-            destination,
-        }) = &step.operation
-        else {
-            continue;
-        };
-        let fields = scoped(builder, *edges).fields;
-        if column_of(&fields, *source).kind != column_of(&fields, *destination).kind {
-            return Err(LoweringError::MixedVertices { span: builder.span });
-        }
-    }
-    Ok(())
 }
 
 /// What the per-file steps hand over: every relation and every per-file step that a cross-file step reads.

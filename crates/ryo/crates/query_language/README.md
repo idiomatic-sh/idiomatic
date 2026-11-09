@@ -79,7 +79,6 @@ Validates bound input names and columns against the admitted catalog and hosted 
 ### planning
 
 The `query_language` domain's `planning` concept: the steps added to the plan under construction, and where each one runs.
-A span states no file, and span equality is value equality: a step that compares rows on spans alone, with no file or node key, runs inside one file when every input is per-file, and is otherwise refused at compile time (`CrossFileSpanKey`) with a request for a file key. The `ruff_parity` validation row compiles and runs every configured Ruff rule on Django at every checkpoint, so a refusal of any Ruff rule fails it.
 
 ### pruning
 
@@ -88,6 +87,10 @@ The `query_language` domain's `pruning` concept: the steps nothing reads, droppe
 ### pushing
 
 The `query_language` domain's `pushing` concept: the lookups into a join of edges and elements made before the join.
+
+### refusing
+
+The `query_language` domain's `refusing` concept: the steps a statement lowered to, refused when they cannot run where they are placed; a span states no file, so a step comparing rows on spans alone runs only inside one file, and a walk keeps its vertices of one kind.
 
 ### regrouping
 

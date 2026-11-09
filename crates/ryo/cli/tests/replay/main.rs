@@ -63,6 +63,7 @@ mod damage;
 mod filesystem;
 mod finish;
 mod frontier;
+mod goldens;
 mod governing;
 mod interface;
 mod linear;

@@ -11,13 +11,12 @@ use crate::outbound::linter::interface::LinterPort;
 use ryo_benchmark_contracts::domain::measurements::types::CollectorDigest;
 use ryo_benchmark_contracts::domain::measurements::types::CollectorProfile;
 use ryo_benchmark_contracts::domain::measurements::types::ExecutionProfile;
-use ryo_benchmark_contracts::domain::measurements::types::Invocation;
-use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
 use ryo_benchmark_contracts::domain::measurements::types::RunOrder;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::requests::types::BenchmarkCoverage;
 use ryo_benchmark_contracts::domain::requests::types::RunRequest;
 use sha2::{Digest as _, Sha256};
+mod observations;
+use observations::Observations;
 #[derive(Clone, Copy, Debug)]
 /// The independently controlled mutation applied after case certification.
 pub enum Change {
@@ -45,34 +44,6 @@ pub enum Change {
     Executable,
     /// Change the prepared command profile.
     Command,
-}
-#[derive(Debug)]
-/// Records launches while allowing independent collection-profile mutation.
-struct Observations(
-    crate::outbound::execution::fixtures::fake::ExecutionFake,
-    std::sync::Mutex<ExecutionProfile>,
-);
-impl crate::outbound::execution::interface::ExecutionPort for Observations {
-    fn profile(&self) -> ExecutionProfile {
-        self.1
-            .lock()
-            .expect(constants::FIXTURE_PRECONDITION)
-            .clone()
-    }
-    fn run(&self, mut invocation: Invocation) -> Result<ProcessOutput, Error> {
-        invocation.executable = constants::FIXTURE_FAKE_PROGRAM.into();
-        let mut output =
-            crate::outbound::execution::interface::ExecutionPort::run(&self.0, invocation)?;
-        output.resources =
-            ryo_benchmark_contracts::domain::measurements::types::ResourceObservation::Collected(
-                ryo_benchmark_contracts::domain::measurements::types::Resources {
-                    cpu: std::time::Duration::from_millis(1),
-                    peak_rss_bytes:
-                        ryo_benchmark_contracts::domain::measurements::types::ResidentBytes(4096),
-                },
-            );
-        Ok(output)
-    }
 }
 /// Execute the public certificate and measurement operations with a controlled mutation.
 ///

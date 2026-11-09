@@ -366,6 +366,8 @@ mod closure_abort;
 
 mod measured_work;
 
+mod local_caches;
+
 mod join;
 
 #[cfg(test)]

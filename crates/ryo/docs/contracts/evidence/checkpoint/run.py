@@ -8,10 +8,10 @@ validation_json=p/'validation.json'
 tests_json=p/'tests.json'
 TM_TARGETS=('tm_source','tm_cli_source')
 def dumps(v,pad=''):
- """JSON with two-space indent where a list of scalars or a short dict of scalars stays on one line, so a command line is one line."""
+ """JSON with two-space indent where a list of scalars or a short dict of scalars (four keys, 300 characters) stays on one line, so a command line or a red-then-green entry is one line."""
  if isinstance(v,list) and all(not isinstance(x,(list,dict)) for x in v): return json.dumps(v)
  if isinstance(v,list): return '[\n'+',\n'.join(pad+'  '+dumps(x,pad+'  ') for x in v)+'\n'+pad+']'
- if isinstance(v,dict) and len(v)<=4 and all(not isinstance(x,(list,dict)) for x in v.values()) and len(json.dumps(v))<=100: return json.dumps(v)
+ if isinstance(v,dict) and len(v)<=4 and all(not isinstance(x,(list,dict)) for x in v.values()) and len(json.dumps(v))<=300: return json.dumps(v)
  if isinstance(v,dict): return '{\n'+',\n'.join(pad+'  '+json.dumps(k)+': '+dumps(x,pad+'  ') for k,x in v.items())+'\n'+pad+'}'
  return json.dumps(v)
 def is_test_path(path): return '/test' in path or '_test.rs' in path
