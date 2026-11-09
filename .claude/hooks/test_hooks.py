@@ -530,6 +530,25 @@ class PreviousReviewsPush(unittest.TestCase):
         self.assertEqual(result.returncode, 2)
         self.assertIn("one for one", result.stderr)
 
+    def test_a_branch_file_modified_in_the_checkpoint_with_a_new_candidate_is_refused(self):
+        old, new = self.candidate(), self.candidate("later", "let y")
+        path = os.path.join(self.tree, "crates/ryo/docs/contracts/evidence/branches/claude-old.json")
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump(dict(self.body("PASS", "leak-review", self.previous), enforcement_candidates=[old]), handle)
+        git(self.tree, "add", path)
+        git(self.tree, "commit", "-q", "-m", "old branch evidence")
+        git(self.tree, "push", "-q", "origin", "HEAD:claude/ryo-consolidation")
+        self.setUp_after_landing()
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump(dict(self.body("PASS", "leak-review", self.previous), enforcement_candidates=[old, new]), handle)
+        git(self.tree, "add", path)
+        git(self.tree, "commit", "-q", "-m", "re-reviewed branch evidence")
+        self.with_candidates(decisions=[self.decision(old)])
+        result = self.push()
+        self.assertEqual(result.returncode, 2)
+        self.assertIn(new["id"], result.stderr)
+
     def test_a_candidate_without_plants_is_refused(self):
         one = dict(self.candidate(), plants=[])
         self.with_candidates(leak=[one], decisions=[self.decision(one)])
@@ -620,6 +639,10 @@ class EvidenceWrites(unittest.TestCase):
     def test_a_committed_copy_of_evidence_may_be_written_to_the_scratchpad(self):
         self.assertEqual(shell("git show HEAD:x > /tmp/claude-scratch/leak-review-committed-copy.json"), 0)
         self.assertEqual(self.write("/tmp/claude-scratch/leak-review-committed-copy.json"), 0)
+
+    def test_a_git_show_of_a_committed_path_redirected_to_the_scratchpad_is_allowed(self):
+        self.assertEqual(shell("git show abc123:" + self.TAIL + "checkpoint/rust-review.json > /tmp/claude-scratch/rust-review.json"), 0)
+        self.assertEqual(shell("cat x > /tmp/claude-scratch/rust-review.json"), 2)
 
     def test_the_committed_settings_run_the_write_hook_for_every_editing_tool(self):
         with open(os.path.join(HERE, "..", "settings.json"), encoding="utf-8") as handle:

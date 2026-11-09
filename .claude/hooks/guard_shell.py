@@ -339,12 +339,12 @@ def review_shape(review, reviewer):
 def candidate_problem(tree, sha, head, leak):
     """The refusal text when the leak-review.json (parsed) or a branch result carries candidates the previous
     checkpoint's tm-steward.json did not decide, else None. Candidates come from that checkpoint's leak-review.json
-    and the evidence/branches/*.json files added since the previous landed head; decisions never carry forward."""
+    and the evidence/branches/*.json files added or modified since the previous landed head; decisions never carry forward."""
     reviews = [(EVIDENCE + "leak-review.json", leak)]
     code, listing = git_out(tree, "diff", "--name-status", "--no-renames", head + ".." + sha, "--", MERGE_BRANCHES)
     for line in (listing.split("\n") if code == 0 else []):
         status, _, name = line.partition("\t")
-        if status != "A" or not name.endswith(".json"):
+        if status not in ("A", "M") or not name.endswith(".json"):
             continue
         code, text = git_out(tree, "show", sha + ":" + name)
         try:
@@ -823,6 +823,8 @@ def written_paths(segment, words):
     """The files a shell segment writes by > , >>, tee, cp, mv or install (a copy into a directory counts the
     source's file name under that directory)."""
     found = [m.group(1).strip("'\"") for m in REDIRECT.finditer(segment)]
+    if len(words) > 2 and words[0] == "git" and "show" in words[1:3] and any(re.match(r"[^\s:]+:\S", w) for w in words[2:]):
+        found = []  # git show <rev>:<committed path> > file is a read copy of committed content
     for inner in unwrapped(words):
         if not inner:
             continue
