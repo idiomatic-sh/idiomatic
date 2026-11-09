@@ -119,12 +119,12 @@ checkpoint 332 integration record in [the records](../records.md).
 
 - `core_allocation` (core `allocation` test, exit 101): a Phase 7 measurement.
 - Benchmark library 227 / 3: `verify_cases` `process_capture::test::succeeds`, one red row, and the parity tool's `compare_corpus` `use_case_test::{refuses,succeeds}` (each answers an operational failure over the fakes).
-- Cli `replay` target: 69 passed / 32 failed (`results.cli_replay_reds`), from three causes the fixed replay harness exposes:
-  (A) 23 tests, the `blocks` target and the three `cli_cost` ruff rows stop at `fixtures/replay/base.rs:251` because
-  `crate-dependency-cycles`' `pending.txt` names `package-dependency`, which the Rust language now provides; (B) 8 manifests
-  tests expect empty text where ryo answers an absent cell; (C) the harness test
-  `recordings::a_pending_txt_naming_exactly_the_refused_relation_waits`. The import-fan-in recording holds the 34 verified
-  cross-crate rows (66); the false `derive_message_formats.rs` row keeps the behaviour rows red once (A) is repaired.
+- Cli `replay` target: 78 passed / 23 failed at `4b9580619f` (69 / 32 in the batch at `a4cc608275`), one cause from
+  332's stricter harness: `crate-dependency-cycles`, `crate-dependency-depth` and `layer-order` are pending on
+  `package-dependency`, which the Rust language now provides, but they also need a TOML syntax kind the Rust-only replay
+  cannot run, and the harness has no pending form for that. The same cause stops the `blocks` target. Its other two
+  regressions (8 manifests tests, the recordings pending test) are fixed in `4b9580619f`. The import-fan-in recording
+  holds the 34 verified cross-crate rows (66), and the false `derive_message_formats.rs` row stays owned.
 - Cli `cli_cost`: 4 / 3, the three ruff ratchet rows (cause (A) above); the Django rows answer not available without a preflight worker.
 - `tm_import_cli`: Tastemaker's ryo adapter now fills the local SDK's request fields, so it does not compile against the published
   SDK 0.1.1 the replay resolves.

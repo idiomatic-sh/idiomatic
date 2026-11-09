@@ -1,6 +1,6 @@
 # Integration records from checkpoint 326
 
-The integration records of checkpoints 326 to 329 and the branch records they merged, newest checkpoint last; [records.md](records.md) holds checkpoints 319 to 325 (at its `file-length` limit), and the current checkpoint's record is in [the matrix](README.md).
+The integration records of checkpoints 326 to 330 and the branch records they merged, newest checkpoint last; [records.md](records.md) holds checkpoints 319 to 325 (at its `file-length` limit), and the current checkpoint's record is in [the matrix](README.md).
 
 ## Checkpoint 326 integration record
 
@@ -301,3 +301,28 @@ Branch `claude/w11-review-repairs-xiii` from checkpoint 328 `90a0a472b2`, for th
 - **R2, the crate map:** `crates.md` rows 14-20 and the summary name the four engine crates as they are: execution composes the request over the runtime's two entries; the runtime owns scheduling, admission and lifetime, the store the derived views, publications and leases; the store row names the runtime as a dependant; the runtime row is compiled and validated (198 / 0, 16,662 production lines) and states why `admission` and `service` are `pub`; the core, SDK and command line rows name the runtime's ports edge, the SDK and command line rows execution too. The step 3 row carries the landing 2 result, the `core_allocation` count is validation328's, and `execution_store` takes its place in the `crate-layers` order between the runtime and the domain.
 - **R3, the removed file (`lint/fixtures/skips.rs`):** under `Always`, the cold run must hold a row naming `b.rs` (the fake language names each function by its file's path) and the oracle none, in place of `cold.rows != oracle.rows`.
 - **R4, the inventory:** regenerated on this tree with `ryo 0.1.1`; `render.py` maps `ryo_execution_domain`, `ryo_execution_store` and `ryo_execution_runtime` to their crates and `registries.py` reads the runtime's kinds and routes, so the runtime has its concepts, imports and items pages and no runtime path is filed under execution. Still 10 flagged kinds. `visualization/evidence.json` is not regenerated here.
+
+## Checkpoint 330 integration record
+
+Checkpoint 330 merges perf iteration 4 (`claude/p4-memory`, merge `8d9239677d`) and perf iteration 5 (`claude/p5-plan-rewrites`, merge `2a0bec2965`) into checkpoint 329 (`74a799c116` and its Rust gate commits), plus the engine edits `f472801258` (unknown rule index refused, project-batch-owner 0.1.1, the two-reviewer charter, the heap profile interval and peak loop) and `4df6abaca2` (project-batch-owner 0.1.0 deleted, the 329 contract review evidence). validation330 ran on `4df6abaca2` (raw logs in `ryo-contract-validation330-20261108`) on the tree's own target.
+
+- **Checks:** the workspace check (all features, all targets) ran once, 0 errors, 4,630 warnings (4,646 at 329); one check pass.
+- **Validation:** libraries 1085 PASS / 1 failed (execution 73, core 119, runtime 200; 1080/1 at 329), `core_bdd` 18 scenarios / 0 failed, `ruff` 13 / 0, execution boundary 97 / 0, whole-tree TM 18 findings with 6 suppressed, file-level ownership cycles 0. Known reds, as at 329: `process_capture` succeeds, `core_allocation` (exit 101), `cli_tests` warm peak, and the three `cli_cost` ruff ratchet rows.
+- **Rust gate 330 repairs:** `UnknownRuleIndex` maps to core `LintError::Execution` (no fabricated `RuleId`), `FrameOffset` carries a doctest, validation.json rebound to the raw logs; error path and docs only, no Django rerun (core lib 119/0, values doctests 4/0, `cargo check --all-targets` on core and values clean).
+- **Django receipt (full Django 413 cold, 2,875 files x 413 rules, fresh store, under the measure and build locks, default threads):** the `ruff` bench worker built from `4df6abaca2` into the tree's own target (`cargo bench --no-run -p idiomatic-sh-ryo-python --bench ruff`) and copied under the same lock to a new directory as `worker-4df6abaca2`, sha256 `f1ba077013da3df5da94439a2468ff2379f7583ec87bc566a5549b365e6a59e5`, no `DBG ` string (`strings | grep -c` 0); `build.json` beside it ends with the provenance line (commit, sha256, build time 20:36:32Z after the commit time 19:24:10Z). The request was staged by `verify_profiles.py --stage-request <the pinned 329 cold request> --source 4df6abaca2` (staged digest `0132c274d68dc22252b09d0551a36617652fd7ffecaff02a246e5bf0448027df`, 1,088 files, the same as 328 and 329), request sha256 `314aa80c2475fd30d8330e015a4594ff4d12e07f73f84dd576b1558bbf6591e8`.
+
+  | Run | Exit | Output bytes | Wall s | CPU s (user + sys) | Peak RSS | Load at start |
+  |---|---|---|---|---|---|---|
+  | 1 | 0 | 992,711, sha256 `53b163f4bda83afaac6c5b7ff7c11bba65532c1de6f664bc75fabc52cbb547b4` (identical to 329) | 428.0 | 2,752.2 (2,702.4 + 49.8) | 3.33 GB (3,334,596 KB) | 2.56 |
+
+  Peak RSS 6.78 GB at 329 to 3.33 GB (perf 5 measured 3.63 GB). The wall is not a speed claim: other trees' work raised the load to about 12 during the run (12.54 at its end), so 428.0 s against 327.5 s at 329 carries that noise; the CPU rose 4% (2,752 against 2,648 s). The store after the run was 62,022,326 bytes against 1,757,210,648 at 329, a difference not investigated here.
+
+**Cycle metrics:**
+
+| Metric | Checkpoint 330 |
+|---|---|
+| Builders | perf 4, perf 5 (merged), plus the engine edits |
+| Compile passes | 1 check pass (errors 0) and the validation's test build |
+| Full Django 413 cold | exit 0, output identical; default threads 428.0 s (loaded machine), 3.33 GB peak (6.78 GB at 329) |
+| Contract review | 329's evidence merged; 330 pending |
+| Rust gate review | PASS on the second pass (first FAIL item 1: F1.1, F1.2), at `055b130c25` ([rust-review.json](evidence/checkpoint/rust-review.json)) |
