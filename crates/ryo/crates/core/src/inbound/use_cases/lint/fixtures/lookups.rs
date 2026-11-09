@@ -8,6 +8,7 @@ use super::given::request;
 use super::given::violations;
 use super::lifecycle::counted_lint;
 use super::lifecycle::reading_the_project;
+use super::stores::compiled_lint;
 use super::worlds::again;
 use super::worlds::scheduled_world_with_query;
 use super::worlds::world;
@@ -270,108 +271,6 @@ pub(crate) fn edited_beside_an_excluded_file() -> Result<(usize, usize), LintErr
         usize::from(edit == cold && !edit.iter().any(|path| path.starts_with(".excluded/"))),
         0,
     ))
-}
-
-/// Lints [`a.rs`, `b.rs`] with a cross-file rule that trusts the absence of `filesystem.executable` rows, which every file of the
-/// fake corpus has read in part (its permission is unknown); lists `a2.rs` before `b.rs`; and lints again over the same store with
-/// `b.rs` unchanged, so `b.rs` is used again at another number. Answers 1 when the edit run answers and keeps what a cold run of the
-/// three files answers and keeps: the part of `b.rs` read in part is `b.rs`'s, never the file now at its old number.
-pub(crate) fn partial_of_a_reused_file_after_a_file_is_listed_before_it()
--> Result<(usize, usize), LintError> {
-    const PLAIN: &str = "let executables = capture(from=\"filesystem.executable\", path=\"path\", pattern=\"{name}.rs\", captures=[\"name\"]);\nlet named = project(from=executables, columns=[\"name\"]);\nlet files = capture(from=\"filesystem.file\", path=\"path\", pattern=\"{name}.rs\", captures=[\"name\"]);\nlet plain = antijoin(left=files, right=named, left-on=[\"name\"], right-on=[\"name\"]);\nemit plain subject \"path\" key(\"path\");";
-    let given = |files: Vec<(&'static str, &'static str)>, store: Arc<LintStoreFake>| Given {
-        files,
-        rules: vec![PLAIN],
-        ids: vec!["plain"],
-        store,
-        ..violations()
-    };
-    let linted = |given: Given| -> Result<
-        (Vec<crate::outbound::row_sink::types::KeptRow>, String),
-        LintError,
-    > {
-        let (world, report) = compiled_lint(given)?;
-        let rows = std::mem::take(
-            &mut world
-                .collected
-                .0
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner)
-                .rows,
-        );
-        Ok((rows, format!("{:?}", report.unknowns)))
-    };
-    let kept = |store: &LintStoreFake| {
-        let kept = store
-            .kept
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let b = kept
-            .files
-            .iter()
-            .position(|file| &*file.path.0 == "b.rs")
-            .and_then(|place| u32::try_from(place).ok());
-        (b, kept.handed.covered.clone())
-    };
-    let (a, b, a2) = (
-        ("a.rs", "fn a() {}"),
-        ("b.rs", "fn b() {}"),
-        ("a2.rs", "fn a2() {}"),
-    );
-    let store = Arc::new(LintStoreFake::default());
-    let _cold = linted(given(vec![a, b], Arc::clone(&store)))?;
-    let edit = linted(given(vec![a, a2, b], Arc::clone(&store)))?;
-    let fresh = Arc::new(LintStoreFake::default());
-    let oracle = linted(given(vec![a, a2, b], Arc::clone(&fresh)))?;
-    assert_eq!(
-        edit, oracle,
-        "the edit run answers what a cold run of the three files answers"
-    );
-    let (b_now, covered) = kept(&store);
-    let (b_fresh, fresh_covered) = kept(&fresh);
-    assert!(
-        b_fresh.is_some_and(|b| fresh_covered
-            .iter()
-            .any(|row| row.file.0 == b && !row.partials.is_empty())),
-        "the cold run keeps `b.rs` read in part: the case has a part to place"
-    );
-    assert_eq!(b_now, b_fresh, "both stores number `b.rs` alike");
-    assert_eq!(
-        covered, fresh_covered,
-        "the part of `b.rs` the edit run keeps is the one a cold run keeps"
-    );
-    Ok((usize::from(covered == fresh_covered), 0))
-}
-
-/// One lint of `given` with the real query compiler: the world, for its collected rows, and the report.
-fn compiled_lint(
-    given: Given,
-) -> Result<(World, crate::inbound::use_cases::lint::types::LintReport), LintError> {
-    use ryo_execution::outbound::query_language::factory;
-    let syntax = || Arc::new(ryo_query_language::outbound::syntax::factory::winnow());
-    let catalog = || Arc::new(ryo_query_language::outbound::catalog::factory::language());
-    let compile = Arc::new(
-        ryo_query_language::inbound::use_cases::compile::use_case::CompileUseCaseImpl::new(
-            syntax(),
-            catalog(),
-        ),
-    );
-    let typecheck = Arc::new(
-        ryo_query_language::inbound::use_cases::typecheck::use_case::TypecheckUseCaseImpl::new(
-            syntax(),
-            catalog(),
-        ),
-    );
-    let asked = request(&given);
-    let scheduler: Arc<dyn SchedulerPort> = Arc::new(SchedulerFake::default());
-    let world = scheduled_world_with_query(
-        given,
-        scheduler,
-        WorkerCount(1),
-        Arc::new(factory::use_case(compile, typecheck)),
-    );
-    let report = world.use_case.lint(asked)?;
-    Ok((world, report))
 }
 
 /// Takes the file subjects written by one lint run and clears the shared collector.
