@@ -253,6 +253,7 @@ OWNERS={
  'cache::the_store_every_recorded_rule_keeps_over_ruff_stays_within_its_bound':REPAIR,
  'peak::a_warm_unchanged_run_over_ruff_peaks_within_its_bound':'Decode lazy packed frontiers once per population, not once per root, and compile ordered existence without the eager request-level pass.',
  'tm_import_cli':CLOSE,
+ 'tastemaker_workspace':CLOSE,
  'cache::a_store_is_not_used_for_other_rules_and_is_kept_apart_by_root':CLOSE,
  'behavior::the_files_that_say_why_something_differs_name_only_recorded_rules_and_real_features':CLOSE,
  'behavior::recorded_recognition_gives_the_recorded_unread_files':CLOSE,

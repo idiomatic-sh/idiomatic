@@ -271,6 +271,11 @@
     "ruff_parity": {
       "exit": 0,
       "note": "new at 332 (claude/w13-bench-parity): full Django, all 413 rules, ryo against ruff 0.16.5: 412 identical of 413, 0 unaccepted (FURB122: 3 extra findings, accepted); staged digest 1a9cf788; evidence/parity/django-413/per-rule.json is this run's output, in the tool's form (each agreeing rule as its count under identical)"
+    },
+    "tastemaker_workspace": {
+      "passed": 261,
+      "failed": 7,
+      "note": "Rust gate B6, new at 332: cargo test --workspace --all-features in crates/tastemaker at 0f2fa35a12 (gatefix_tastemaker_workspace.log; the bdd scenarios all pass). Attributed by rerunning the failures with the tm-import-reading branch's core changes reversed (gatefix_tastemaker_without_tm_branch.log) and with crates/tastemaker and tastemaker/ at 331 (gatefix_tastemaker_at_331.log). From the tm-import-reading branch, red only with its core changes: core reporting service_test succeeds (0 findings where 1 is expected) and replay check::checking_crates_ryo_cold_stays_under_its_memory_guard (4,491,136 KiB against 1,331,200). From the local ryo crates the patch links, green at 331: replay samples each_row_of_each_sample_is_fixed_and_restored inside_a_repository and as_a_repository_of_its_own (go/api, the Naming convention fix also clears two top-level-directories findings). Red at 331 too: replay scaffold a_captured_nested_item_is_written_and_held, scaffold a_fresh_language_compiles_and_lacks_no_part, validate validating_the_repository_s_definitions_stays_within_its_bounds; owned by \"Close full TM, contracts, independent review and normal CI.\""
     }
   },
   "ownership_graph": {
@@ -287,32 +292,18 @@
   "validation": 332,
   "raw_identity": "/tmp/ryo-contract-validation332",
   "tm_whole_tree": {
-    "command": "tm --root crates/ryo check --format json with tm 0.1.1 rebuilt from d5ff1b0d2e (sha256 159f9c1a), the version crates/ryo pins at 332 (no --fix), run on 7fd2dbf1f5 (the committed tree of the final validation)",
-    "total": 1467,
+    "command": "tm --root crates/ryo check --format json with tm 0.1.2 built from 0f2fa35a12 (the merge of claude/w14-tm-import-reading; sha256 4f65931a), the version crates/ryo pins after that merge (no --fix), run on 883f0d6dd6",
+    "total": 2,
     "suppressed": 13,
     "at_checkpoint_318": 3676,
     "at_checkpoint_331": 18,
-    "status": "measured whole-tree state at checkpoint 332 on the validated source under tm 0.1.1; not comparable with 331 (tm 0.1.0); not a baseline and not a waiver",
-    "per_crate": {
-      "languages/python": 351,
-      "languages/rust": 159,
-      "languages/go": 154,
-      "languages/toml": 135,
-      "languages/typescript": 123,
-      "languages/javascript": 121,
-      "languages/markdown": 111,
-      "languages/json": 107,
-      "languages/css": 97,
-      "languages/html": 89,
-      "cli/src": 16,
-      "docs/contracts": 3,
-      "crates/sdk": 1
-    },
+    "status": "measured whole-tree state at checkpoint 332 under tm 0.1.2; not comparable with 331 (tm 0.1.0); not a baseline and not a waiver",
+    "per_crate": {"docs/contracts": 2},
     "module_cycles_findings": 0,
     "no_domain_concept_cycles_findings": 0,
-    "tm_validate": "crates/ryo: 241 versions hold, 0 do not (tm 0.1.1); repository root: 224 hold, 0 do not (tm 0.1.0)",
+    "tm_validate": "crates/ryo: 241 versions hold, 0 do not (tm 0.1.2); repository root: 224 hold, 0 do not (tm 0.1.0); rerun at 883f0d6dd6, gatefix_tm_validate_all.log",
     "unknown_findings": 0,
-    "note": "18 at validation331 under tm 0.1.0 (the domain-concept ring, now 0). 1,464 are #imports findings, every one a path at a use site and none a use declaration: false positives of tm 0.1.1's import reading (1,455 start at a name the file's own unflagged use brings in, 9 are ryo::link! in provider lib.rs); owned by \"tm 0.1.1 reads qualified uses as imports\", which the tm 0.1.2 branch fixes. The other 3 are in untracked reviewer drafts under evidence/branches/, not in the validated source. The 38 findings 332 had introduced are fixed: files split along their seams (or, for 7 one-operation or one-document files, kept whole with a reasoned file-length ignore), the query_language README and integers, the file_session placement, the parity evidence, the review README path, and the python module cycle (ContextProbe moved into its only fixture)."
+    "note": "1,467 under tm 0.1.1 at 7fd2dbf1f5, 1,464 of them false #imports findings of its import reading; tm 0.1.2 reads a use-site path through the import that binds it in scope, and they are gone. At the merge tm 0.1.2 gave 4: 2 provider-imports findings on a real use of std::sync::atomic in the python fixture module_identity_only/mod.rs, which 332 split out; the providers already count with std::sync::atomic, so the allow list admits it (883f0d6dd6). The 2 left are in untracked reviewer drafts under evidence/branches/, not in the validated source."
   },
   "tm_targets": {
     "tm_cli_source": {

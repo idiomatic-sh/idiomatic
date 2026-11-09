@@ -1,25 +1,25 @@
 {
   "checkpoint": "332",
-  "source": "6406f3698f8c13bdbf7573d62e0640c276f8829b",
+  "source": "883f0d6dd6bfc3a1021b0e06f8d1dda2a0f0b7a2",
   "verdict": "FAIL",
   "reviewer": "integrator",
   "date": "2026-11-09",
-  "command": "asymptote check --groups lint (at the source) and --groups lint,check,clippy (at 02c5b50880, the same ryo code but for the python sha2 dev-dependency) in crates/ryo, tm on PATH at each root's pin (crates/ryo 0.1.1 rebuilt from d5ff1b0d2e, sha256 159f9c1a; other roots 0.1.0) and python 3 on PATH as python",
+  "command": "asymptote check --groups lint,check,clippy in crates/ryo at the source, tm on PATH at each root's pin (crates/ryo 0.1.2 built from 0f2fa35a12, sha256 4f65931a; other roots 0.1.0) and python 3 on PATH as python; log asymptote-883f0d6dd6.log in the validation332 directory",
   "checks": [
     {
       "id": "lint",
       "verdict": "FAIL",
-      "evidence": "failed tools: none (cargo-fmt, cargo-machete and cargo-deny pass); tastemaker 1475 new and 174 resolved against the lock: 1464 #imports findings, every one a use-site path and none a use declaration, false positives of tm 0.1.1's import reading (open item: tm 0.1.1 reads qualified uses as imports; the tm 0.1.2 branch fixes it and had no leak result at this record); 9 file-length entries, each a file kept whole with a reasoned in-source ignore, which asymptote lists against the lock; 2 in untracked reviewer drafts under evidence/branches/, not committed. The 174 resolved entries are not recorded: asymptote down refuses while a tool fails."
+      "evidence": "failed tools: none (cargo-fmt, cargo-machete and cargo-deny pass); tastemaker 11 new and 174 resolved against the lock: 9 file-length entries, each a file kept whole with a reasoned in-source ignore, which asymptote lists against the lock; 2 in untracked reviewer drafts under evidence/branches/, not committed. The 1,464 #imports false positives of tm 0.1.1 are gone under tm 0.1.2. The 174 resolved entries are not recorded: asymptote down refuses while a tool fails."
     },
     {
       "id": "check",
       "verdict": "FAIL",
-      "evidence": "test-doc and cargo-doc pass. test-core: listing fails because core allocation panics (a file allocates 1,699 to 1,701 blocks beyond the parser library), as core_allocation. test-cli: the replay's three owned reds (import-fan-in's false derive_message_formats.rs edge, error-variant-never-constructed's #[from] row, the warm peak); blocks passes. test-bdd: compare_corpus \"An accepted difference passes\" fails (operational failure over the fakes, bench-parity). test-language: javascript and typescript manifest_diagnostic item_test answers line 0 where 1 is expected for a manifest that is not JSON; python listing fails because tests allocation panics (40 blocks beyond the library's 1,500). correctness-python-ruff: verify_profiles.py refuses: prepared input paths do not match the candidate acceptance cohorts. Open items: 332 quick-check groups, and the replay and benchmark items named in validation.json."
+      "evidence": "test-doc, cargo-doc and test-bdd pass (compare_corpus is green since the Rust gate F2 repair). test-core: listing fails because core allocation panics (a file allocates 1,699 to 1,701 blocks beyond the parser library), as core_allocation. test-cli: the replay reds named in validation.json (ruff_findings_equal_the_expected_findings, every_recorded_rule_gives_the_recorded_rows) and the cost rows whose ratchets are not seeded (cold, peak, warm and edit hold best 1), as cli_cost. test-language: javascript and typescript manifest_diagnostic item_test answers line 0 where 1 is expected for a manifest that is not JSON; python listing fails because tests allocation panics. correctness-python-ruff: verify_profiles.py refuses its arguments (usage). Open items: the replay and benchmark items named in validation.json."
     },
     {
       "id": "clippy",
       "verdict": "FAIL",
-      "evidence": "cargo clippy --workspace --all-targets --all-features stops on 3 clippy::expect_used denials in crates/language parse fixtures (row_checks.rs:189 and samples.rs), present before 332 (bbc7869f6c, f2dc7afa81), reported now that the pipe runs with python on PATH; open item: clippy expect_used denials in crates/language parse fixtures (pre-332)."
+      "evidence": "cargo clippy --workspace --all-targets --all-features stops on 3 clippy::expect_used denials in crates/language parse fixtures (row_checks.rs and project_context), present before 332, so clippy does not reach the 332 diff; open item: clippy expect_used denials in crates/language parse fixtures (pre-332)."
     }
   ],
   "findings": []
