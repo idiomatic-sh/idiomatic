@@ -65,7 +65,7 @@ WRAPPER_VALUES = {"env": {"-u", "-n", "-C", "--unset", "--chdir"}, "nice": {"-n"
                   "timeout": {"-s", "--signal", "-k", "--kill-after"}, "stdbuf": {"-i", "-o", "-e"},
                   "xargs": {"-n", "-I", "-P", "-L", "-s", "-d", "-E", "-a", "--max-args", "--max-procs", "--delimiter",
                             "--max-lines", "--max-chars", "--arg-file", "--eof"},
-                  "flock": {"-w", "-E", "--timeout", "--conflict-exit-code"}, "exec": {"-a"},
+                  "flock": {"-w", "-E", "--timeout", "--wait", "--conflict-exit-code"}, "exec": {"-a"},
                   "ionice": {"-c", "-n", "-p", "-P", "-u"}, "watch": {"-n", "--interval"}, "script": {"-I", "-O", "-B", "-T", "-m"}}
 SHELL_KEYWORDS = {"if", "then", "elif", "else", "do", "while", "until", "for", "!", "{", "(", "time"}
 ASSIGNMENT = r"[A-Za-z_][A-Za-z0-9_]*=.*"
@@ -180,8 +180,10 @@ def exclusive_build_lock(before):
     i = 0
     while i < len(options) and options[i].startswith("-"):
         o = options[i]
-        if o in ("--timeout", "--conflict-exit-code"):
+        if o in ("--timeout", "--wait", "--conflict-exit-code"):
             i += 1
+        elif o.startswith(("--timeout=", "--wait=", "--conflict-exit-code=")):
+            pass
         elif o in ("--shared", "--command", "--unlock") or o.startswith(("--shared", "--command")):
             return False
         elif not o.startswith("--"):
