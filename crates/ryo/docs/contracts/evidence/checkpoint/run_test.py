@@ -160,7 +160,15 @@ class Diff(unittest.TestCase):
   self.assertIn('identical_output true',self.fixes([])[0])
   commit(self.repo,{'crates/ryo/docs/contracts/evidence/perf/one/after.json':'{"identical_output": false}'},'docs: perf evidence')
   self.assertEqual(len(self.fixes([])),1)
-  commit(self.repo,{'crates/ryo/docs/contracts/evidence/perf/one/after.json':'{"identical_output": true}'},'docs: perf evidence')
+  for source in ('"'+self.base+'"','"'+'0'*40+'"','null'):  # a commit before the perf commit, an unknown one, none
+   with self.subTest(source=source):
+    commit(self.repo,{'crates/ryo/docs/contracts/evidence/perf/one/after.json':'{"identical_output": true, "source": '+source+'}'},'docs: perf evidence')
+    self.assertEqual(len(self.fixes([])),1)
+  perf=subprocess.run(['git','-C',self.repo,'rev-list','-1','--grep=^perf','HEAD'],capture_output=True,text=True).stdout.strip()
+  commit(self.repo,{'crates/ryo/docs/contracts/evidence/perf/one/after.json':'{"identical_output": true, "source": "'+perf+'"}'},'docs: perf evidence')
+  self.assertEqual(self.fixes([]),[])
+  later=commit(self.repo,{'a/README.md':'later\n'},'docs: later')
+  commit(self.repo,{'crates/ryo/docs/contracts/evidence/perf/one/after.json':'{"identical_output": true, "source": "'+later+'"}'},'docs: perf evidence')
   self.assertEqual(self.fixes([]),[])
  def test_a_merges_own_production_change_is_a_fix_and_a_clean_merge_is_not(self):
   subprocess.run(['git','-C',self.repo,'checkout','-q','-b','side'],check=True)
@@ -187,8 +195,12 @@ class Diff(unittest.TestCase):
   found=run.doc_problems(repo=self.repo,base=self.base)
   self.assertFalse(any('pub fn kept:' in x for x in found)); self.assertTrue(any('a/src/y.rs:1 pub fn parse:' in x for x in found),found)
  def test_an_examples_heading_without_a_code_block_is_no_example(self):
-  commit(self.repo,{'a/src/z.rs':'/// Zed.\n///\n/// # Examples\npub fn zed() {}\n'},'feat(a): zed')
-  self.assertEqual(run.doc_problems(repo=self.repo,base=self.base),['a/src/z.rs:4 pub fn zed: no `# Examples` section with a code block'])
+  commit(self.repo,{'a/src/z.rs':'/// Zed.\n///\n/// # Examples\npub fn zed() {}\n','a/src/w.rs':'/// Wye.\n///\n/// # Examples\n///\n/// # Panics\n/// ```\n/// ```\npub fn wye() {}\n'},'feat(a): zed')
+  self.assertEqual(run.doc_problems(repo=self.repo,base=self.base),['a/src/w.rs:8 pub fn wye: no `# Examples` section with a code block','a/src/z.rs:4 pub fn zed: no `# Examples` section with a code block'])
+ def test_a_test_named_directory_holds_tests(self):
+  for path in ('a/src/service_test/cases.rs','crates/x/src/a/unit_test/mod.rs'):
+   with self.subTest(path=path): self.assertTrue(run.is_test_file(path))
+  self.assertFalse(run.is_test_file('a/src/testing/mod.rs'))
  def test_new_items_that_share_a_name_or_hide_in_a_rename_or_a_test_named_file_are_new(self):
   commit(self.repo,{'a/src/kind.rs':'pub struct Kind;\nimpl Kind {\n    pub fn one() -> Result<(), E> {}\n}\n',      # one is pub at the base, on no type
                     'a/src/shadow.rs':'pub fn shadow() {}\n',                                                   # pub at the base only in a test file
@@ -230,6 +242,15 @@ class Census(unittest.TestCase):
   for path,body in (('crates__other__src__own_DOT_rs','pub struct FileSession;\nFileSession\n'),('crates__other__src__imp_DOT_rs','use ryo_sdk::FileSession;\nFileSession\n'),
                     ('crates__other__src__var_DOT_rs','Error::FileSession\n')):
    with self.subTest(path=path): self.assertEqual(self.census(**{path:body})['replace_the_evaluator']['production']['files'],2)
+ def test_a_cfg_test_field_ends_at_its_comma_or_the_closing_brace(self):
+  value=(Path(__file__).resolve().parents[4]/'crates/execution_domain/src/domain/kind_sets/types/vocabulary/value.rs').read_text()
+  elements=(Path(__file__).resolve().parents[4]/'crates/language/src/domain/elements/types.rs').read_text()
+  for name,text,kept in (('value.rs',value,'pub(crate) struct PreparedKindTest'),('elements/types.rs',elements,'pub decoded_text: Bytes')):
+   with self.subTest(name=name):
+    production,tests=run.split_tests(text)
+    self.assertIn(kept,production); self.assertLess(len(tests),200,tests[:300])
+  production,tests=run.split_tests('struct S {\n    #[cfg(test)]\n    a: HashMap<A, B>,\n    b: C,\n}\nstruct T {\n    #[cfg(test)]\n    z: u8\n}\nfn after() {}\n')
+  self.assertEqual(tests,'    #[cfg(test)]\n    a: HashMap<A, B>,    #[cfg(test)]\n    z: u8\n'); self.assertIn('b: C',production); self.assertIn('fn after',production)
  def test_a_cfg_test_item_counts_alone(self):
   body='#[cfg(test)]\nmod early_tests { }\n'+' '.join('Operation::V'+str(n) for n in range(8))
   self.assertEqual(self.census(crates__values__src__m_DOT_rs=body)['operation_exhaustive_matches']['files'],1)

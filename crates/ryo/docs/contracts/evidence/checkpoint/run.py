@@ -326,9 +326,9 @@ def checkpoint_base(repo):
  base=git(repo,'merge-base','HEAD',CONSOLIDATION)
  return base.strip() if base else None
 def is_test_file(path):
- """The one test-file classifier (tm finding splits, FIX, DOC and the census): a test, fixture, bench, example or acceptance file, in such a directory (a fixtures* or *acceptance* one included), or named test.rs, tests.rs, fixtures.rs, *_test.rs or *_tests.rs; a Python test is test_*.py, *_test.py or run_test.py."""
+ """The one test-file classifier (tm finding splits, FIX, DOC and the census): a test, fixture, bench, example or acceptance file, in such a directory (a fixtures*, *_test or *acceptance* one included), or named test.rs, tests.rs, fixtures.rs, *_test.rs or *_tests.rs; a Python test is test_*.py, *_test.py or run_test.py."""
  parts=path.split('/'); name=parts[-1]
- return any(x in ('tests','test','benches','benchmarks','examples') or x.startswith('fixtures') or 'acceptance' in x for x in parts[:-1]) or name in ('test.rs','tests.rs','fixtures.rs','run_test.py') or name.endswith(('_test.rs','_tests.rs','_test.py')) or name.endswith('.py') and name.startswith('test_')
+ return any(x in ('tests','test','benches','benchmarks','examples') or x.startswith('fixtures') or x.endswith('_test') or 'acceptance' in x for x in parts[:-1]) or name in ('test.rs','tests.rs','fixtures.rs','run_test.py') or name.endswith(('_test.rs','_tests.rs','_test.py')) or name.endswith('.py') and name.startswith('test_')
 HARNESS=('.claude/hooks/','ci/','crates/ryo/docs/contracts/evidence/checkpoint/')
 def is_production(path):
  """A Rust source, or the Python of the harness (the hooks, ci/ and this validation script), that is no test, fixture or bench: a change to it can change behaviour."""
@@ -374,13 +374,13 @@ def proves(entry,test,raw):
  red,green=re.search(r'\bred ([\w.-]+\.log)\b',text),re.search(r'\bgreen ([\w.-]+\.log)\b',text)
  if not red or not green or red.group(1)==green.group(1) or not (raw/red.group(1)).is_file() or not (raw/green.group(1)).is_file(): return False
  return log_status(raw/red.group(1),test)=='failed' and log_status(raw/green.group(1),test)=='passed'
-def perf_identical(repo,base,head):
- """A perf commit's proof: an after.json under evidence/perf/ added or changed in the checkpoint, with identical_output true."""
+def perf_identical(repo,base,head,sha):
+ """A perf commit's proof: an after.json under evidence/perf/ added or changed in the checkpoint, with identical_output true and a source that is the perf commit or a commit built on it."""
  for path in (git(repo,'diff','--name-only','--diff-filter=AM',base,head,'--',':(top)'+PERF_EVIDENCE) or '').split():
   if path.endswith('/after.json'):
    try: record=json.loads(git(repo,'show',head+':'+path) or '')
    except ValueError: continue
-   if isinstance(record,dict) and record.get('identical_output') is True: return True
+   if isinstance(record,dict) and record.get('identical_output') is True and isinstance(record.get('source'),str) and re.fullmatch('[0-9a-f]{40}',record['source']) and subprocess.run(['git','-C',str(repo),'merge-base','--is-ancestor',sha,record['source']],capture_output=True).returncode==0: return True
  return False
 NO_BASE='no checkpoint base: the merge base of HEAD and '+CONSOLIDATION+' is unknown; fetch it'
 def fix_problems(v,repo=None,base=None,head='HEAD'):
@@ -396,7 +396,7 @@ def fix_problems(v,repo=None,base=None,head='HEAD'):
   if not any(is_production(f) for f in files): continue
   short=sha[:10]+' '+message.splitlines()[0][:70]
   if PERF.match(message):
-   if not perf_identical(repo,base,head): bad.append('perf '+short+': no evidence/perf/*/after.json added or changed in the checkpoint with identical_output true')
+   if not perf_identical(repo,base,head,sha): bad.append('perf '+short+': no evidence/perf/*/after.json added or changed in the checkpoint with identical_output true and a source built on it')
    continue
   tests=named_tests(message)
   if not tests: bad.append('fix '+short+': its message names no test that fails before it and passes after'); continue
@@ -453,9 +453,13 @@ def base_items(repo,base,crate):
  paths=[x for x in (git(repo,'ls-tree','-r','--name-only',base,'--',':(top)'+crate) or '').split() if x.endswith('.rs') and not is_test_file(x)]
  return {(module_path(crate,x),)+i[:3] for x in paths for i in items(git(repo,'show',base+':'+x) or '')}
 def has_example(doc):
- """The doc comment has an `# Examples` section holding a fenced code block."""
+ """The doc comment has an `# Examples` section holding a fenced code block before the next heading."""
  lines=[l.strip().removeprefix('///').strip() for l in reversed(doc.splitlines())]
- return '# Examples' in lines and any(l.startswith('```') for l in lines[lines.index('# Examples')+1:])
+ if '# Examples' not in lines: return False
+ for line in lines[lines.index('# Examples')+1:]:
+  if line.startswith('#') and not line.startswith('#['): return False
+  if line.startswith('```'): return True
+ return False
 def doc_problems(repo=None,base=None,head='HEAD'):
  """Each pub item a published crate gains in the checkpoint (no item of its module path, owner, kind and name in that crate's production files at the base) has an `# Examples` section, and `# Errors` when it returns a Result."""
  repo=repo or p; base=base or checkpoint_base(repo)
@@ -502,13 +506,15 @@ def census_production(path):
 def census_crate(path): return path.split('/')[0] if path.startswith('cli/') else '/'.join(path.split('/')[:2])
 CFG_TEST=re.compile(r'^\s*#\[cfg\(test\)\]',re.M)
 def item_end(text,start):
- """The end of the item that starts at start: its closing brace, matched, or its first `;` before any brace."""
+ """The end of the item that starts at start: its closing brace, matched; its first `;`, or, for a struct field or enum variant, its `,` or the enclosing `}`, outside brackets."""
  depth=0
  for i in range(start,len(text)):
   c=text[i]
-  if c==';' and depth==0: return i+1
-  if c=='{': depth+=1
+  if depth==0 and c in ';,': return i+1
+  if c in '{([' or c=='<' and text[i+1:i+2]!='=': depth+=1
+  elif c in ')]' or c=='>' and text[i-1:i] not in ('-','='): depth-=1
   elif c=='}':
+   if depth==0: return i
    depth-=1
    if depth==0: return i+1
  return len(text)
