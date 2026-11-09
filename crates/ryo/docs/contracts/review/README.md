@@ -114,7 +114,7 @@ One definition validates this shape: `shape` in `ci/contract_review/service.py`.
 
 ## Known red
 
-Each is named with its reason and owner in `validation.json` (`results`, validation332, validated source `95319943b3`) and in the
+Each is named with its reason and owner in `validation.json` (`results`, validation332, validated source `a4cc608275`) and in the
 checkpoint 332 integration record in [the records](../records.md).
 
 - `core_allocation` (core `allocation` test, exit 101): a Phase 7 measurement.
@@ -131,12 +131,12 @@ checkpoint 332 integration record in [the records](../records.md).
 
 ## Verification limits
 
-Not covered by the latest validation (`validation.json`, validated source `95319943b3`, checkpoint 332, validation332; "not full
+Not covered by the latest validation (`validation.json`, validated source `a4cc608275`, checkpoint 332, validation332; "not full
 product acceptance"):
 
-- Whole-tree TM is measured with the rebuilt tm 0.1.1, which reads qualified uses as imports: 1,482 findings, 6 suppressed, of which
-  1,462 are `#imports` findings tm 0.1.0 did not report (331 under 0.1.0: 18, the domain-concept ring, now 0). The other 20 are
-  named in `validation.json` (`tm_whole_tree`). The scoped `tm_source` run is 1 finding (a test file no template places).
+- Whole-tree TM is measured with the rebuilt tm 0.1.1, which reads qualified uses as imports: 1,500 findings, 6 suppressed, of which
+  1,462 are `#imports` findings tm 0.1.0 did not report (331 under 0.1.0: 18, the domain-concept ring, now 0). The other 38 are
+  named in `validation.json` (`tm_whole_tree`). The scoped `tm_source` run is 8 findings: 7 files the fmt commit pushed past 400 lines and a test file no template places.
 - The receipts for the root and Tastemaker workspaces use tm 0.1.0 (their pin); crates/ryo uses 0.1.1, unpublished.
 - No new performance claim: the Django receipt is a store/peak record for the span-semantics attribution, not a speed claim.
 - Language conformance targets print no pass count; exit 0 is the receipt.

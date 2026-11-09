@@ -1,155 +1,155 @@
 {
-  "source": "95319943b38cecf5d97685232c80a2ee350b7c8e",
+  "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
   "scope": "Ownership consolidation checkpoint 330 (perf iterations 4 and 5: the Django peak 6.78 to 3.33 GB; the engine edits after 329: unknown rule index refused, project-batch-owner 0.1.1, the two-reviewer charter; validated once on the tree's own target)",
   "checks": {
     "libraries": {
-      "source": "95319943b38cecf5d97685232c80a2ee350b7c8e",
+      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-execution", "-p", "idiomatic-sh-ryo-execution-domain", "-p", "idiomatic-sh-ryo-execution-store", "-p", "idiomatic-sh-ryo-execution-runtime", "-p", "idiomatic-sh-ryo-core", "-p", "idiomatic-sh-ryo-sdk", "-p", "idiomatic-sh-ryo-values", "-p", "idiomatic-sh-ryo-query_language", "-p", "idiomatic-sh-ryo-operators", "-p", "idiomatic-sh-ryo-matching", "-p", "idiomatic-sh-ryo-derived", "--lib", "--no-fail-fast", "-p", "idiomatic-sh-ryo-benchmark", "--", "--test-threads=6"],
       "exit": 101,
-      "elapsed_seconds": 74.10626339912415
+      "elapsed_seconds": 83.83877611160278
     },
     "boundary": {
-      "source": "95319943b38cecf5d97685232c80a2ee350b7c8e",
+      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-execution", "--test", "boundary_contract", "--", "--test-threads=6"],
       "exit": 0,
-      "elapsed_seconds": 8.288342475891113
+      "elapsed_seconds": 18.21967601776123
     },
     "activation": {
-      "source": "95319943b38cecf5d97685232c80a2ee350b7c8e",
+      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-execution", "--test", "activation"],
       "exit": 0,
-      "elapsed_seconds": 1.9365036487579346
+      "elapsed_seconds": 1.817223072052002
     },
     "bdd": {
-      "source": "95319943b38cecf5d97685232c80a2ee350b7c8e",
+      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-execution", "--test", "bdd"],
       "exit": 0,
-      "elapsed_seconds": 3.484405517578125
+      "elapsed_seconds": 3.4221725463867188
     },
     "doctest": {
-      "source": "95319943b38cecf5d97685232c80a2ee350b7c8e",
+      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-execution", "-p", "idiomatic-sh-ryo-execution-domain", "-p", "idiomatic-sh-ryo-execution-store", "-p", "idiomatic-sh-ryo-execution-runtime", "--doc"],
       "exit": 0,
-      "elapsed_seconds": 1.1562232971191406
+      "elapsed_seconds": 2.448460102081299
     },
     "ruff": {
-      "source": "95319943b38cecf5d97685232c80a2ee350b7c8e",
+      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-python", "--test", "ruff", "--no-fail-fast", "--", "--test-threads=6"],
       "exit": 0,
-      "elapsed_seconds": 50.357815742492676
+      "elapsed_seconds": 54.036070346832275
     },
     "ruff_rule_phases": {
-      "source": "95319943b38cecf5d97685232c80a2ee350b7c8e",
+      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
       "command": ["python3", "-I", "crates/ryo/languages/python/benchmarks/linters/ruff/verify_profiles.py", "--self-test"],
       "exit": 0,
-      "elapsed_seconds": 66.14370059967041
+      "elapsed_seconds": 67.66807436943054
     },
     "ruff_parity": {
-      "source": "95319943b38cecf5d97685232c80a2ee350b7c8e",
+      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
       "command": ["sh", "-c", "set -e; o=/tmp/ryo-ruff-parity-{worktree}; rm -rf \"$o\"; mkdir -p \"$o\"; w=$(cargo bench --no-run --manifest-path crates/ryo/Cargo.toml --target-dir /workspaces/idiomatic-target/{worktree} --locked --offline -j6 -p idiomatic-sh-ryo-python --bench ruff --message-format=json | python3 -I -c 'import sys; sys.path.insert(0, \"crates/ryo/languages/python/benchmarks/linters/ruff\"); from authoring.profile_worker import parse_worker_artifact; print(parse_worker_artifact(sys.stdin.buffer.read()))'); python3 -I crates/ryo/languages/python/benchmarks/linters/ruff/verify_profiles.py --stage-request /tmp/ryo-event-ready-django213-20261105/cold-request.json --output-dir \"$o/stage\"; \"$w\" parity \"$(command -v ruff)\" \"$w\" \"$o/stage/request.json\" crates/ryo/docs/contracts/evidence/parity/django-413/accepted-differences.json \"$o/per-rule.json\""],
       "exit": 0,
-      "elapsed_seconds": 420.3762366771698
+      "elapsed_seconds": 485.7477526664734
     },
     "core_bdd": {
-      "source": "95319943b38cecf5d97685232c80a2ee350b7c8e",
+      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-core", "--test", "bdd"],
       "exit": 0,
-      "elapsed_seconds": 19.350001096725464
+      "elapsed_seconds": 36.450011253356934
     },
     "core_allocation": {
-      "source": "95319943b38cecf5d97685232c80a2ee350b7c8e",
+      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-core", "--test", "allocation"],
       "exit": 101,
-      "elapsed_seconds": 2.2063565254211426
+      "elapsed_seconds": 1.773383617401123
     },
     "doctest_values": {
-      "source": "95319943b38cecf5d97685232c80a2ee350b7c8e",
+      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-values", "--doc"],
       "exit": 0,
-      "elapsed_seconds": 0.5922675132751465
+      "elapsed_seconds": 2.2631282806396484
     },
     "doctest_core": {
-      "source": "95319943b38cecf5d97685232c80a2ee350b7c8e",
+      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-core", "--doc"],
       "exit": 0,
-      "elapsed_seconds": 0.44262051582336426
+      "elapsed_seconds": 0.39866137504577637
     },
     "doctest_sdk": {
-      "source": "95319943b38cecf5d97685232c80a2ee350b7c8e",
+      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-sdk", "--doc"],
       "exit": 0,
-      "elapsed_seconds": 17.51298975944519
+      "elapsed_seconds": 19.821901082992554
     },
     "doctest_derived": {
-      "source": "95319943b38cecf5d97685232c80a2ee350b7c8e",
+      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-derived", "--doc"],
       "exit": 0,
-      "elapsed_seconds": 0.47777533531188965
+      "elapsed_seconds": 2.5871896743774414
     },
     "tm_import_cli": {
-      "source": "95319943b38cecf5d97685232c80a2ee350b7c8e",
+      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
       "command": ["cargo", "test", "--manifest-path", "crates/tastemaker/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "-p", "idiomatic-sh-tastemaker", "--no-default-features", "--features", "rust,toml", "--test", "replay", "imports::visibility_scopes_do_not_authorize_real_imports_types_or_calls", "--", "--exact"],
       "exit": 101,
-      "elapsed_seconds": 5.918177127838135
+      "elapsed_seconds": 2.8361172676086426
     },
     "tm_cli_source": {
-      "source": "95319943b38cecf5d97685232c80a2ee350b7c8e",
+      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
       "command": ["tm", "--root", "crates/tastemaker", "check", "--fix", "cli/tests/replay/imports.rs", "--format", "json"],
       "exit": 0,
-      "elapsed_seconds": 0.5034084320068359
+      "elapsed_seconds": 0.4589962959289551
     },
     "conformance": {
-      "source": "95319943b38cecf5d97685232c80a2ee350b7c8e",
+      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-css", "-p", "idiomatic-sh-ryo-go", "-p", "idiomatic-sh-ryo-html", "-p", "idiomatic-sh-ryo-javascript", "-p", "idiomatic-sh-ryo-json", "-p", "idiomatic-sh-ryo-markdown", "-p", "idiomatic-sh-ryo-python", "-p", "idiomatic-sh-ryo-rust", "-p", "idiomatic-sh-ryo-toml", "-p", "idiomatic-sh-ryo-typescript", "--test", "conformance", "--no-fail-fast"],
       "exit": 0,
-      "elapsed_seconds": 198.853093624115
+      "elapsed_seconds": 215.8395516872406
     },
     "cli_tests": {
-      "source": "95319943b38cecf5d97685232c80a2ee350b7c8e",
+      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo", "--test", "replay", "--test", "blocks", "--test", "call_count", "--test", "command_line", "--test", "command_tree", "--test", "readme", "--no-fail-fast", "--", "--skip", "cost::"],
       "exit": 101,
-      "elapsed_seconds": 15.475970268249512
+      "elapsed_seconds": 45.49668478965759
     },
     "cli_cost": {
-      "source": "95319943b38cecf5d97685232c80a2ee350b7c8e",
+      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo", "--test", "replay", "cost::", "--", "--test-threads=1", "--nocapture"],
       "exit": 101,
-      "elapsed_seconds": 1.3191807270050049
+      "elapsed_seconds": 9.92123556137085
     },
     "bench_build": {
-      "source": "95319943b38cecf5d97685232c80a2ee350b7c8e",
+      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
       "command": ["cargo", "bench", "--no-run", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo", "--bench", "lint", "-p", "idiomatic-sh-ryo-core", "--benches"],
       "exit": 0,
-      "elapsed_seconds": 109.8371114730835
+      "elapsed_seconds": 112.92402839660645
     },
     "no_print": {
-      "source": "95319943b38cecf5d97685232c80a2ee350b7c8e",
+      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
       "command": ["cargo", "clippy", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-execution", "-p", "idiomatic-sh-ryo-execution-domain", "-p", "idiomatic-sh-ryo-execution-store", "-p", "idiomatic-sh-ryo-execution-runtime", "-p", "idiomatic-sh-ryo-core", "--lib", "--no-deps", "--", "-A", "clippy::all", "-A", "clippy::pedantic", "-A", "clippy::nursery", "-A", "clippy::restriction", "-A", "clippy::cargo", "-A", "dead_code", "-A", "unused", "-D", "clippy::print_stderr", "-D", "clippy::print_stdout"],
       "exit": 0,
-      "elapsed_seconds": 5.026780605316162
+      "elapsed_seconds": 7.763320207595825
     },
     "tm_source": {
-      "source": "95319943b38cecf5d97685232c80a2ee350b7c8e",
+      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
       "command": ["tm", "--root", "crates/ryo", "check", "crates/execution_runtime/src/application/file_dag/program", "crates/execution_runtime/src/application/file_dag/invocation", "crates/execution_store/src/application/file_dag/derived", "crates/execution_domain/src/domain/shared_walk", "crates/execution/tests/shared_walk", "crates/execution_domain/src/domain/executable_program", "crates/execution_domain/src/domain/step_classes", "crates/execution_domain/src/domain/completion", "crates/execution_domain/src/domain/coverage", "crates/execution_domain/src/domain/frontiers", "crates/execution_runtime/src/application/file_dag/frontiers", "crates/core/src/application/file_analysis", "crates/core/src/inbound/use_cases/lint", "crates/core/src/domain/storing", "crates/core/src/outbound/lint_store", "crates/execution_domain/src/domain/trust", "--format", "json"],
       "exit": 1,
-      "elapsed_seconds": 161.88866639137268,
+      "elapsed_seconds": 174.400297164917,
       "findings": {
-        "total": 1,
+        "total": 8,
         "suppressed": 2,
-        "production": 0,
-        "test": 1,
+        "production": 3,
+        "test": 5,
         "by_directory": {
-          "crates/execution_runtime/src/application/file_dag/program": {"production": 0, "test": 1},
+          "crates/execution_runtime/src/application/file_dag/program": {"production": 1, "test": 3},
           "crates/execution_runtime/src/application/file_dag/invocation": {"production": 0, "test": 0},
           "crates/execution_store/src/application/file_dag/derived": {"production": 0, "test": 0},
-          "crates/execution_domain/src/domain/shared_walk": {"production": 0, "test": 0},
+          "crates/execution_domain/src/domain/shared_walk": {"production": 0, "test": 1},
           "crates/execution/tests/shared_walk": {"production": 0, "test": 0},
           "crates/execution_domain/src/domain/executable_program": {"production": 0, "test": 0},
-          "crates/execution_domain/src/domain/step_classes": {"production": 0, "test": 0},
+          "crates/execution_domain/src/domain/step_classes": {"production": 0, "test": 1},
           "crates/execution_domain/src/domain/completion": {"production": 0, "test": 0},
           "crates/execution_domain/src/domain/coverage": {"production": 0, "test": 0},
           "crates/execution_domain/src/domain/frontiers": {"production": 0, "test": 0},
-          "crates/execution_runtime/src/application/file_dag/frontiers": {"production": 0, "test": 0},
+          "crates/execution_runtime/src/application/file_dag/frontiers": {"production": 2, "test": 0},
           "crates/core/src/application/file_analysis": {"production": 0, "test": 0},
           "crates/core/src/inbound/use_cases/lint": {"production": 0, "test": 0},
           "crates/core/src/domain/storing": {"production": 0, "test": 0},
@@ -159,52 +159,52 @@
       }
     },
     "tm_guards": {
-      "source": "95319943b38cecf5d97685232c80a2ee350b7c8e",
+      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
       "command": ["tm", "--root", "crates/ryo", "validate", "rule/program-implementation-boundary", "rule/shared-walk-owner", "rule/collection-members", "rule/runtime-authority", "template/value", "template/value-module", "template/value-test", "--format", "json"],
       "exit": 0,
-      "elapsed_seconds": 0.1426525115966797
+      "elapsed_seconds": 11.987879991531372
     },
     "tm_validate_all": {
-      "source": "95319943b38cecf5d97685232c80a2ee350b7c8e",
+      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
       "command": ["sh", "-c", "echo workspace crates_ryo; tm --root crates/ryo validate --format json; a=$?; echo workspace repository_root; tm validate --format json; b=$?; exit $((a|b))"],
       "exit": 0,
-      "elapsed_seconds": 0.2986760139465332
+      "elapsed_seconds": 0.09379291534423828
     },
     "ownership_edges": {
-      "source": "95319943b38cecf5d97685232c80a2ee350b7c8e",
+      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
       "command": ["ryo", "query", "run", "--root", "crates/ryo", "--text", "let nodes = select id, kind, file, span from \"syntax-tree\" where text = \"\" and glob_any(file, \"crates/{execution,execution_domain,execution_runtime,execution_store}/src/**\");\nlet paths = select * from nodes where kind = \"path\";\nlet visibility = select * from nodes where kind = \"visibility\";\nlet nested = axis(from=visibility, relation=\"syntax-child\", direction=descendant, domain=paths);\nlet restricted = select r.file as source, r.span as span from nested as l join paths as r on l.related = r.id;\nlet declared = select source, target, written, span from \"source-dependency\" where glob_any(source, \"crates/{execution,execution_domain,execution_runtime,execution_store}/src/**\");\nlet dependencies = antijoin(left=declared, right=restricted, left-on=[\"source\",\"span\"], right-on=[\"source\",\"span\"]);\nemit dependencies subject source key(source,target,written,span);\n", "--limit", "100000", "--format", "json"],
       "exit": 0,
-      "elapsed_seconds": 3.3113675117492676
+      "elapsed_seconds": 1.076747179031372
     },
     "harness_hooks": {
-      "source": "95319943b38cecf5d97685232c80a2ee350b7c8e",
+      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
       "command": ["sh", "-c", "cd .claude/hooks && python3 -I -m unittest -v"],
       "exit": 0,
-      "elapsed_seconds": 42.3955762386322
+      "elapsed_seconds": 12.870811700820923
     },
     "tm_validate_no_heap_accounting": {
-      "source": "95319943b38cecf5d97685232c80a2ee350b7c8e",
+      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
       "command": ["tm", "validate", "rule/no-heap-accounting@0.2.0", "spec/idiomatic-rust@0.1.2", "--format", "json"],
       "exit": 0,
-      "elapsed_seconds": 0.15372705459594727
+      "elapsed_seconds": 20.221781730651855
     },
     "checkpoint_check": {
-      "source": "95319943b38cecf5d97685232c80a2ee350b7c8e",
+      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
       "command": ["python3", "-I", "crates/ryo/docs/contracts/evidence/checkpoint/run_test.py", "-v"],
       "exit": 0,
-      "elapsed_seconds": 0.1414179801940918
+      "elapsed_seconds": 0.04656553268432617
     },
     "python_lib": {
-      "source": "95319943b38cecf5d97685232c80a2ee350b7c8e",
+      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-python", "--lib"],
       "exit": 0,
-      "elapsed_seconds": 34.07469606399536
+      "elapsed_seconds": 13.157449960708618
     },
     "language_lib": {
-      "source": "95319943b38cecf5d97685232c80a2ee350b7c8e",
+      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-language", "--lib"],
       "exit": 0,
-      "elapsed_seconds": 0.7915787696838379
+      "elapsed_seconds": 6.649410247802734
     }
   },
   "results": {
@@ -290,11 +290,14 @@
     },
     "checkpoint_check": {"passed": 16, "failed": 0},
     "derived_library": {"passed": 35, "failed": 0},
-    "python_and_language_libraries": {"passed": 181, "failed": 0, "note": "python 138/0 and language 43/0"},
+    "python_and_language_libraries": {
+      "passed": 183,
+      "failed": 0,
+      "note": "python 140/0 (138 at the earlier runs; claude/w13-visibility added the comparisons and nested cases) and language 43/0"
+    },
     "tm_validate_all": {
       "crates_ryo": {"passed": 241, "failed": 0},
-      "repository_root": {"passed": 224, "failed": 0},
-      "note": "tm at each root's pin: crates/ryo 0.1.1 rebuilt from d5ff1b0d2e (sha256 159f9c1a), the root 0.1.0 installed"
+      "repository_root": {"passed": 224, "failed": 0}
     },
     "execution_runtime_library": {
       "passed": 216,
@@ -304,7 +307,7 @@
     "values_library": {"passed": 29, "failed": 0},
     "ruff_parity": {
       "exit": 0,
-      "note": "new at 332 (claude/w13-bench-parity): full Django, all 413 rules, ryo against ruff 0.16.5: 412 identical of 413, 0 unaccepted (FURB122: 3 extra findings, accepted); staged digest 1a9cf788; per-rule.json and summary.json under evidence/parity/django-413 are this run's output"
+      "note": "new at 332 (claude/w13-bench-parity): full Django, all 413 rules, ryo against ruff 0.16.5: 412 identical of 413, 0 unaccepted (FURB122: 3 extra findings, accepted); staged digest 1a9cf788; per-rule.json and summary.json under evidence/parity/django-413 are this run's output (equal to the committed file at the final source)"
     }
   },
   "ownership_graph": {
@@ -321,15 +324,15 @@
   "validation": 332,
   "raw_identity": "/tmp/ryo-contract-validation332",
   "tm_whole_tree": {
-    "command": "tm --root crates/ryo check --format json with tm 0.1.1 rebuilt from d5ff1b0d2e (sha256 159f9c1a), the version crates/ryo pins at 332 (no --fix; git status unchanged apart from the record being written), run on 95319943b3 (tm_whole_tree.log in the raw directory)",
-    "total": 1482,
+    "command": "tm --root crates/ryo check --format json with tm 0.1.1 rebuilt from d5ff1b0d2e (sha256 159f9c1a), the version crates/ryo pins at 332 (no --fix; git status unchanged apart from the record being written), run on a4cc608275 (tm_whole_tree.log in the raw directory)",
+    "total": 1500,
     "suppressed": 6,
     "at_checkpoint_318": 3676,
     "at_checkpoint_331": 18,
     "status": "measured whole-tree state at checkpoint 332 on the validated source under tm 0.1.1; not comparable with 331 (tm 0.1.0); not a baseline and not a waiver",
     "per_crate": {
-      "languages/python": 351,
-      "languages/rust": 159,
+      "languages/python": 353,
+      "languages/rust": 160,
       "languages/go": 154,
       "languages/toml": 135,
       "languages/typescript": 123,
@@ -339,9 +342,14 @@
       "languages/css": 97,
       "languages/html": 89,
       "cli/src": 16,
-      "docs/contracts": 10,
+      "docs/contracts": 9,
+      "crates/execution_runtime": 7,
       "crates/query_language": 7,
-      "crates/execution_runtime": 1,
+      "crates/benchmark": 4,
+      "crates/execution_domain": 3,
+      "cli/tests": 1,
+      "crates/language": 1,
+      "crates/operators": 1,
       "crates/sdk": 1
     },
     "module_cycles_findings": 2,
@@ -351,17 +359,17 @@
     "per_rule": {
       "idiomatic.ryo/provider-imports#imports": 1379,
       "idiomatic.ryo/benchmark-linter/source(composition-support)#imports": 66,
+      "idiomatic.arch/file-length": 24,
       "idiomatic.arch/command/command#imports": 16,
-      "idiomatic.arch/file-length": 5,
-      "idiomatic.arch/no-tracker-text-shipped": 4,
       "idiomatic.arch/no-machine-paths-shipped": 4,
+      "idiomatic.arch/no-tracker-text-shipped": 3,
       "idiomatic.arch/crate/crate-readme#template": 2,
       "idiomatic.arch/idiomatic-rust/no-bare-integers": 2,
       "idiomatic.arch/idiomatic-rust/module-cycles": 2,
       "idiomatic.arch/application-service#closed": 1,
       "idiomatic.arch/entry/entry#imports": 1
     },
-    "note": "18 at validation331 under tm 0.1.0: the domain-concept ring (18) is 0 (claude/w13-domain-cycle). 1462 are #imports findings the rebuilt tm reads where 0.1.0 read none, each naming a qualified path or variant use (Outcome::Failure, contract::Collect); owned by \"tm 0.1.1 reads qualified uses as imports\". The rest: query_language from claude/w13-span-semantics (crate-readme#template 2, file-length 3, no-bare-integers 2; owned by \"span-semantics left 7 TM findings in query_language\"); application-service#closed 1 (execution_runtime file_session/service_test.rs, claude/w13-tm-rebuild, also the one tm_source finding); module-cycles 2 (python project contract_test and fixtures/module_identity_only); file-length on validation.json (the red_green list) and on parity/django-413/per-rule.json (claude/w13-bench-parity, 6,081 lines as merged); no-tracker-text-shipped 2 in parity/django-413/summary.json (its \"bead\" key, as merged); review/README.md:111 a machine path (claude/w13-hooks-append-only); and findings in untracked reviewer drafts under evidence/branches/, which are not in the validated source"
+    "note": "18 at validation331 under tm 0.1.0: the domain-concept ring (18) is 0 (claude/w13-domain-cycle). 1462 are #imports findings the rebuilt tm reads where 0.1.0 read none, each naming a qualified path or variant use (Outcome::Failure, contract::Collect); owned by \"tm 0.1.1 reads qualified uses as imports\". The rest: query_language from claude/w13-span-semantics (crate-readme#template 2, file-length 3, no-bare-integers 2; owned by \"span-semantics left 7 TM findings in query_language\"); application-service#closed 1 (execution_runtime file_session/service_test.rs, claude/w13-tm-rebuild, also the one tm_source finding); module-cycles 2 (python project contract_test and fixtures/module_identity_only); file-length on files cargo fmt pushed past 400 lines (open item: 332 quick-check groups), on validation.json (the red_green list) and on parity/django-413/per-rule.json (claude/w13-bench-parity, 6,081 lines as merged); no-tracker-text-shipped 2 in parity/django-413/summary.json (its \"bead\" key, as merged); review/README.md:111 a machine path (claude/w13-hooks-append-only); and findings in untracked reviewer drafts under evidence/branches/, which are not in the validated source"
   },
   "tm_targets": {
     "tm_cli_source": {
@@ -372,22 +380,22 @@
       "scoped_directories": {"cli/tests/replay/imports.rs": 0}
     },
     "tm_source": {
-      "findings": 1,
+      "findings": 8,
       "suppressed": 2,
-      "production": 0,
-      "test": 1,
+      "production": 3,
+      "test": 5,
       "scoped_directories": {
-        "crates/execution_runtime/src/application/file_dag/program": 1,
+        "crates/execution_runtime/src/application/file_dag/program": 4,
         "crates/execution_runtime/src/application/file_dag/invocation": 0,
         "crates/execution_store/src/application/file_dag/derived": 0,
-        "crates/execution_domain/src/domain/shared_walk": 0,
+        "crates/execution_domain/src/domain/shared_walk": 1,
         "crates/execution/tests/shared_walk": 0,
         "crates/execution_domain/src/domain/executable_program": 0,
-        "crates/execution_domain/src/domain/step_classes": 0,
+        "crates/execution_domain/src/domain/step_classes": 1,
         "crates/execution_domain/src/domain/completion": 0,
         "crates/execution_domain/src/domain/coverage": 0,
         "crates/execution_domain/src/domain/frontiers": 0,
-        "crates/execution_runtime/src/application/file_dag/frontiers": 0,
+        "crates/execution_runtime/src/application/file_dag/frontiers": 2,
         "crates/core/src/application/file_analysis": 0,
         "crates/core/src/inbound/use_cases/lint": 0,
         "crates/core/src/domain/storing": 0,
