@@ -1,0 +1,36 @@
+{
+  "checkpoint": 334,
+  "source": "c8347684cd7229402f288a952155fa8734b81ec2",
+  "base": "279a19c614",
+  "verdict": "FAIL",
+  "reviewer": "leak-review",
+  "date": "2026-11-09T21:52:00+00:00",
+  "checks": [
+    {"id": "1", "verdict": "PASS", "evidence": "No engine, core or SDK contract is newly asserted from benchmarks/ or languages/: the only languages/python/benchmarks change is #![cfg(test)] at crates/ryo/languages/python/benchmarks/linters/ruff/schemas_test.rs:2 and #[cfg(test)] at tests.rs:6, inside the [[test]] ruff target (languages/python/Cargo.toml:89-91, default harness); crates/ryo/crates/benchmark is the bench abstraction, not benchmarks/."},
+    {"id": "2", "verdict": "FAIL", "evidence": "A harness path turns a failure into a pass: crates/ryo/crates/benchmark/src/outbound/suite/fixtures/contract.rs:279 now returns std::io::Result<()> and returns Err before any case runs when its tempdir or rules directory cannot be made (it panicked through expect before), and crates/ryo/crates/benchmark/src/outbound/suite/fixtures/fake_test.rs:8 calls `check(&SuiteFake::default());` and drops the Result, so SuiteFake's contract test passes with zero cases run (rustc reports only a warning, `unused std::result::Result that must be used`, fake_test.rs:8:5; unused is warn at crates/ryo/Cargo.toml workspace.lints.rust). The receipts twin was fixed (receipts/fixtures/fake_test.rs:4 unwraps). Every other changed fixture signature was checked: cargo check --all-targets of benchmark, operators, python, query_language, values, derived, sdk, cli, go, rust, benchmark_contracts reports no other dropped Result; cucumber steps returning Result fail on Err (stage_suite/acceptance.rs:23-45). Claims that do fire: the DerivedKind compile-time check (derived/src/domain/request/types.rs:19-25) failed the build with E0080 on two plants; the cfg(test) ruff modules compile into the ruff test target (two planted type errors both reported, E0308). The four deny lints fired on the real tree at base (/tmp/ryo-contract-validation334/clippy-at-0563dff6b3.log: as_conversions 48, wildcard_enum_match_arm 11, expect_used 5, unwrap_used 1, at the files this branch fixes, e.g. derived/src/domain/adjacency/service.rs:101 and query_language/src/domain/planning/service.rs:271); the reviewer cannot run clippy itself (guard_shell.py allows clippy only in an integration worktree)."},
+    {"id": "3", "verdict": "PASS", "evidence": "No new pub item in production code: the added pub signatures are fixtures under cfg(any(test, feature = \"fixtures\")) (operators/src/inbound/use_cases/operators.rs:8-9, fixtures.rs regex and SourceDelivery::interns) or test files (values/src/domain/stores/types/retention/value_test.rs pub(in crate::domain::stores) type Value); go's roles fixtures stay #[cfg(test)] (languages/go/src/domain/roles.rs:10-11)."},
+    {"id": "4", "verdict": "PASS", "evidence": "No concept gains a second implementation: assembling now uses the one step lookup crate::domain::resolving::service::step_of (query_language/src/domain/assembling/service.rs:201) in place of its own index; the operators test helper selected (operators/src/inbound/use_cases/operators/use_case_test.rs:152) is a test-side split with the same inputs as the arms it replaced. Advisory: planning/service.rs:270 still indexes observation_inputs inline with unwrap_or(usize::MAX) beside the reasoned parameter_of/step_of helpers (resolving/service.rs:81-92)."},
+    {"id": "5", "verdict": "PASS", "evidence": "No import crosses layer direction: the one new cross-module call is domain to domain (query_language/src/domain/assembling/service.rs:201 to domain/resolving); no inbound or application item is newly imported across crates (the diff adds no use of another crate's inbound/application path in production code)."},
+    {"id": "6", "verdict": "PASS", "evidence": "The cfg(test) marks are in the ruff [[test]] target, where cfg(test) is always on (languages/python/Cargo.toml:89-91, no harness = false), and bench.rs includes none of those modules; fixture signature changes stay behind cfg(any(test, feature = \"fixtures\")) or cfg(test); no production build reaches a new seam."}
+  ],
+  "findings": [
+    "check 2: SuiteFake contract test drops the contract fixture's Result (benchmark/src/outbound/suite/fixtures/fake_test.rs:8), passing with zero cases run when fixture setup fails",
+    "open item: planning/service.rs:270 indexes observation_inputs with unwrap_or(usize::MAX) and no reasoned indexing_slicing expect, unlike resolving::step_of/parameter_of"
+  ],
+  "plants": [
+    {"claim": "DerivedKind compile-time ordinal check: Adjacency and Membership ordinals swapped (2, 1)", "file": "crates/ryo/crates/derived/src/domain/request/types.rs:30", "count": 1, "reverted": true},
+    {"claim": "DerivedKind compile-time ordinal check: a new kind appended with a duplicate ordinal (Extra = 8)", "file": "crates/ryo/crates/derived/src/domain/request/types.rs:38", "count": 1, "reverted": true},
+    {"claim": "cfg(test) ruff module schemas_test compiles into the ruff test target: planted type error", "file": "crates/ryo/languages/python/benchmarks/linters/ruff/schemas_test.rs:271", "count": 1, "reverted": true},
+    {"claim": "cfg(test) ruff module engine_test compiles into the ruff test target: planted type error", "file": "crates/ryo/languages/python/benchmarks/linters/ruff/engine_test.rs:280", "count": 1, "reverted": true}
+  ],
+  "enforcement_candidates": [
+    {"id": "dropped-must-use-result-f839521b", "class": "dropped-must-use-result",
+     "signature": "a statement expression whose value is a std::result::Result (a fixture call such as `check(&SuiteFake::default());`) with the Result discarded, warned by rustc unused_must_use",
+     "scope": ["crates/ryo"], "suggested_mechanism": "compiler", "instance_status": "open",
+     "plants": [{"file": "crates/ryo/crates/benchmark/src/outbound/suite/fixtures/fake_test.rs", "line": 8, "text": "    check(&SuiteFake::default());"}]},
+    {"id": "sentinel-index-hides-panic-62cdc96e", "class": "sentinel-index-hides-panic",
+     "signature": "an index expression `[usize::try_from(<id>).unwrap_or(usize::MAX)]` outside a function carrying #[expect(clippy::indexing_slicing, reason = ...)]",
+     "scope": ["crates/ryo/crates/query_language/src/domain"], "suggested_mechanism": "new rule", "instance_status": "open",
+     "plants": [{"file": "crates/ryo/crates/query_language/src/domain/planning/service.rs", "line": 270, "text": "            let bound = &builder.observation_inputs[usize::try_from(id.0).unwrap_or(usize::MAX)];"}]}
+  ]
+}
