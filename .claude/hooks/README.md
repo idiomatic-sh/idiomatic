@@ -11,6 +11,10 @@ reviewer that stops before writing its verdict. They are not a defence against d
 shell command line cannot close every spelling, and chasing obfuscated spellings is a loop with no end. A leak review
 grades a hook escape only for a spelling an agent would plausibly write by accident.
 
+The census in `run.py --census` reads Rust source with a hand-written scanner until it is replaced by ryo queries over
+the source (after the checkpoint-loop PR). A further edge case of that scanner is owned by that
+replacement: a leak review reports it as an advisory, not a check 2 failure, unless the shape occurs in the real tree.
+
 ## Known non-goals
 These reach past the guards and are left out on purpose; none is a spelling an agent writes by accident:
 - option clusters that hide a wrapper's value from its parser beyond flock's own (`xargs -0n 1`, `timeout -vs KILL 5`,
