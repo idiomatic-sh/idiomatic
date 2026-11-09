@@ -18,6 +18,7 @@ use super::lookups::changed_fragment_plan;
 use super::lookups::changed_nested_module;
 use super::lookups::compiles_per_session;
 use super::lookups::consulted;
+use super::lookups::edited_beside_an_excluded_file;
 use super::lookups::interleaved_runs;
 use super::lookups::unreadable_again;
 use super::skips::a_syntax_rejected_file_is_skipped_with_its_reason_and_never_undecided_or_complete;
@@ -68,6 +69,9 @@ pub(crate) enum Scenario {
     ChangedFragmentPlan,
     /// Changes only a nested query module and checks both plan and persisted-result invalidation.
     ChangedNestedModule,
+    /// Edits a source listed after a file the rules' scope excludes: the edit run answers what a cold run answers, and no row names the
+    /// excluded file.
+    EditedBesideAnExcludedFile,
     /// Two runs naming different rules, one after the other twice over plans one session shares, as concurrent `tm validate` calls do.
     InterleavedRuns,
     /// Lints with the host's relation, counting how many times the language was asked to read the manifests.
@@ -198,6 +202,7 @@ pub(crate) fn scenario(scenario: Scenario) -> Result<(usize, usize), LintError> 
         }
         Scenario::ChangedFragmentPlan => changed_fragment_plan(),
         Scenario::ChangedNestedModule => changed_nested_module(),
+        Scenario::EditedBesideAnExcludedFile => edited_beside_an_excluded_file(),
         Scenario::InterleavedRuns => interleaved_runs(),
         Scenario::ManyRuns => many_runs(),
         Scenario::CompilesPerRule => {

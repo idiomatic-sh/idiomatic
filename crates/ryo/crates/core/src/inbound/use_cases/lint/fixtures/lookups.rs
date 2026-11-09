@@ -228,6 +228,73 @@ pub(crate) fn changed_fragment_plan() -> Result<(usize, usize), LintError> {
     ))
 }
 
+/// Lints a file the rules' scope excludes, listed first as Tastemaker's rendered contracts are, beside sources that a per-file rule
+/// and a cross-file rule read through `filesystem.file`; edits the last source; and lints again over the same store, so the edited
+/// file is read alone before the run. Answers 1 when the edit run answers what a cold run of the edited files answers and no row of
+/// either run names the excluded file: a file read alone names its own path, never the path at its place among the changed files.
+pub(crate) fn edited_beside_an_excluded_file() -> Result<(usize, usize), LintError> {
+    const OUTSIDE: &str = "let outside = select * from \"filesystem.file\" where not glob_any(path, \"src/**\");\nemit outside subject \"path\" key(\"path\");";
+    const MISSING_TESTS: &str = "let sources = select * from \"filesystem.file\" where not glob_any(path, \"**/*_test.rs\");\nlet named = capture(from=sources, path=\"path\", pattern=\"src/{name}.rs\", captures=[\"name\"]);\nlet tests = capture(from=\"filesystem.file\", path=\"path\", pattern=\"src/{name}_test.rs\", captures=[\"name\"]);\nlet tested = project(from=tests, columns=[\"name\"]);\nlet missing = antijoin(left=named, right=tested, left-on=[\"name\"], right-on=[\"name\"]);\nemit missing subject \"path\" key(\"path\");";
+    let given = |source: &'static str, store: Arc<LintStoreFake>| Given {
+        files: vec![
+            (".excluded/a.rs", "fn a() {}"),
+            ("notes.rs", "fn notes() {}"),
+            ("src/a.rs", "fn a() {}"),
+            ("src/a_test.rs", "fn a_test() {}"),
+            ("src/b.rs", source),
+        ],
+        rules: vec![OUTSIDE, MISSING_TESTS],
+        ids: vec!["outside", "missing-tests"],
+        exclude: vec![".excluded/**"],
+        store,
+        ..violations()
+    };
+    let linted = |given: Given| -> Result<std::collections::BTreeSet<String>, LintError> {
+        use ryo_execution::outbound::query_language::factory;
+        let syntax = || Arc::new(ryo_query_language::outbound::syntax::factory::winnow());
+        let catalog = || Arc::new(ryo_query_language::outbound::catalog::factory::language());
+        let compile = Arc::new(
+            ryo_query_language::inbound::use_cases::compile::use_case::CompileUseCaseImpl::new(
+                syntax(),
+                catalog(),
+            ),
+        );
+        let typecheck = Arc::new(
+            ryo_query_language::inbound::use_cases::typecheck::use_case::TypecheckUseCaseImpl::new(
+                syntax(),
+                catalog(),
+            ),
+        );
+        let asked = request(&given);
+        let scheduler: Arc<dyn SchedulerPort> = Arc::new(SchedulerFake::default());
+        let world = scheduled_world_with_query(
+            given,
+            scheduler,
+            WorkerCount(1),
+            Arc::new(factory::use_case(compile, typecheck)),
+        );
+        let _report = world.use_case.lint(asked)?;
+        Ok(collected_file_paths(&world))
+    };
+    let store = Arc::new(LintStoreFake::default());
+    let cold = linted(given("fn b() {}", Arc::clone(&store)))?;
+    assert_eq!(
+        cold,
+        std::collections::BTreeSet::from(["notes.rs".to_owned(), "src/b.rs".to_owned()]),
+        "a cold run reports the file outside `src` and the source with no test, and nothing of the excluded file"
+    );
+    let edit = linted(given("fn b() { 1 }", Arc::clone(&store)))?;
+    let oracle = linted(given("fn b() { 1 }", Arc::new(LintStoreFake::default())))?;
+    assert_eq!(
+        edit, oracle,
+        "the edit run answers what a cold run of the edited files answers"
+    );
+    Ok((
+        usize::from(edit == cold && !edit.iter().any(|path| path.starts_with(".excluded/"))),
+        0,
+    ))
+}
+
 /// Takes the file subjects written by one lint run and clears the shared collector.
 pub(crate) fn collected_file_paths(world: &World) -> std::collections::BTreeSet<String> {
     let rows = std::mem::take(

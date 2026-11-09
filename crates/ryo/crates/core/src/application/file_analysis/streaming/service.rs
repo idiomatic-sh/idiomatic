@@ -13,7 +13,6 @@ use crate::domain::render::service::{lent_row, row_cells};
 use crate::domain::render::types::{Answering, Rendered, RowLimit};
 use crate::domain::reporting::service::{room_left, totals};
 use crate::domain::reporting::types::RowCounts;
-use crate::domain::repository::service::paths_of;
 use crate::domain::storing::types::ReadAlone;
 use crate::domain::workers::service::{absorb, gathering, size_at, tables_for};
 use crate::domain::workers::types::{FileOrder, Visited};
@@ -285,17 +284,18 @@ impl FileVisits {
     }
 
     /// What the changed files show other files now, each read alone: the records the visit makes of them, which the findings of the
-    /// rules that read across files stand on or fall with.
+    /// rules that read across files stand on or fall with. Each changed file is visited at its place among the run's `files`, the
+    /// listing the run's paths and its execution services number: a file's number names one path for the whole run, so a row of a
+    /// file read alone names that file and no other.
     pub(crate) fn read_alone(
         &self,
         setting: &RequestVisitSetting<'_>,
         files: &[CorpusInput],
+        changed: &[FileOrder],
         store: Option<&dyn crate::outbound::lint_store::interface::ReadStore>,
     ) -> Result<ReadAlone, FileAnalysisError> {
-        let paths = paths_of(files);
         let setting = RequestVisitSetting {
             domain: crate::domain::workers::types::VisitSetting {
-                paths: &paths,
                 records: &[],
                 ..(setting.clone()).domain
             },
@@ -309,12 +309,12 @@ impl FileVisits {
             tables_for(WorkerNumber(0), setting.metadata),
             self.facts.worker()?,
         );
-        for place in 0..files.len() {
+        for place in changed {
             self.analysis.visit_file(
                 &mut worker,
                 &visit,
                 files,
-                JobNumber(u32::try_from(place).unwrap_or(u32::MAX)),
+                JobNumber(u32::try_from(place.0).unwrap_or(u32::MAX)),
             );
             worker.tables.rendered = Rendered::default();
         }
