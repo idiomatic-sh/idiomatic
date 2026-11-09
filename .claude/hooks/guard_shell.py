@@ -336,32 +336,41 @@ def review_shape(review, reviewer):
     return validated(lambda module: module.shape(review, reviewer))
 
 
-def candidate_problem(tree, sha, leak):
+def candidate_problem(tree, sha, head, leak):
     """The refusal text when the leak-review.json (parsed) or a branch result carries candidates the previous
-    checkpoint's tm-steward.json did not decide, else None. Candidates come from leak and evidence/branches/*.json."""
+    checkpoint's tm-steward.json did not decide, else None. Candidates come from that checkpoint's leak-review.json
+    and the evidence/branches/*.json files added since the previous landed head; decisions never carry forward."""
     reviews = [(EVIDENCE + "leak-review.json", leak)]
-    code, listing = git_out(tree, "ls-tree", "--name-only", sha, MERGE_BRANCHES)
-    for name in (listing.split("\n") if code == 0 else []):
-        if not name.endswith(".json"):
+    code, listing = git_out(tree, "diff", "--name-status", "--no-renames", head + ".." + sha, "--", MERGE_BRANCHES)
+    for line in (listing.split("\n") if code == 0 else []):
+        status, _, name = line.partition("\t")
+        if status != "A" or not name.endswith(".json"):
             continue
         code, text = git_out(tree, "show", sha + ":" + name)
         try:
             reviews.append((name, json.loads(text)))
         except ValueError:
             return name + " at " + sha[:10] + " is not JSON"
-    ids = []
+    ids, plants = [], {}
     for name, review in reviews:
         if isinstance(review, dict) and "enforcement_candidates" in review:
             problem = validated(lambda module: module.candidates(review["enforcement_candidates"]))
             if problem:
                 return name + " " + problem
             ids += [(name, i) for i in service_ids(review)]
+            plants.update(service_ids(review))
     code, text = git_out(tree, "show", sha + ":" + EVIDENCE + "tm-steward.json")
     steward = json.loads(text) if code == 0 else {}
     left = []
     problem = validated(lambda module: left.extend(module.undecided(steward, [i for _, i in ids])))
     if problem:
         return problem
+    wrong = []
+    problem = validated(lambda module: wrong.extend(module.plant_mismatch(steward, plants)))
+    if problem:
+        return problem
+    if wrong:
+        return "tm-steward.json plant_counts do not number the plants of " + ", ".join(wrong) + " one for one"
     if left:
         where = {i: n for n, i in ids}
         return ("tm-steward.json decides no candidate_decisions entry for " +
@@ -370,8 +379,8 @@ def candidate_problem(tree, sha, leak):
 
 
 def service_ids(review):
-    out = []
-    validated(lambda module: out.extend(module.candidate_ids(review)))
+    out = {}
+    validated(lambda module: out.update(module.candidate_ids(review)))
     return out
 
 
@@ -483,7 +492,7 @@ def previous_reviews(words, here):
             if name == "leak-review.json":
                 leak = review
         if len(needed) == len(PREVIOUS_REVIEWS):
-            problem = candidate_problem(tree, sha, leak)
+            problem = candidate_problem(tree, sha, head, leak)
             if problem:
                 return (refused + problem + "; the tm-steward must decide every enforcement candidate of " + head +
                         " (decision compiler|strengthen|new with plant counts of at least 1, or none with a reason)")
@@ -788,11 +797,17 @@ def evidence_write_problem(path, here):
     Evidence files are the reviewers' committed record, so they are written straight into the open checkpoint
     integration worktree; a scratchpad copy is never read by the push hooks. Shared by the Write/Edit hook.
     """
-    full = os.path.normpath(os.path.join(here, os.path.expanduser(path)))
+    expanded = os.path.expandvars(os.path.expanduser(path))
+    unresolved = re.search(r"\$[A-Za-z_{]", expanded) is not None
+    full = os.path.normpath(os.path.join(here, expanded))
     parts = full.split("/")
     in_branches = any(a == "evidence" and b == "branches" for a, b in zip(parts, parts[1:-1]))
+    if parts[-1].endswith("-committed-copy.json") and not in_branches:
+        return None  # a reviewer's read-only copy of committed evidence
     if not (EVIDENCE_NAME.fullmatch(parts[-1]) or in_branches):
         return None
+    if unresolved and re.match(r"\$\{?[A-Za-z_]\w*\}?/", expanded) and EVIDENCE_TAIL in full:
+        return None  # a variable-rooted path into an evidence directory; the root cannot be checked here
     at = full.find(EVIDENCE_TAIL)
     if at >= 0:
         root = full[:at] or "/"
@@ -814,7 +829,17 @@ def written_paths(segment, words):
         operands = [a for a in inner[1:] if not a.startswith("-")]
         if inner[0] == "tee":
             found += operands
-        elif inner[0] in ("cp", "mv", "install") and operands:
+        elif inner[0] in ("sed", "perl") and any(re.fullmatch(r"-[A-Za-z]*i\S*", a) for a in inner[1:]) or "--in-place" in inner:
+            found += operands
+        elif inner[0] == "sponge":
+            found += operands
+        elif inner[0] == "dd":
+            found += [a[3:] for a in inner[1:] if a.startswith("of=")]
+        elif inner[0] in ("python", "python3") and "-c" in inner:
+            code = inner[inner.index("-c") + 1] if inner.index("-c") + 1 < len(inner) else ""
+            if re.search(r"open\([^)]*['\"][wa]b?\+?['\"]|json\.dump|write_text|write_bytes", code):
+                found += [m.group(2) for m in re.finditer(r"(['\"])([^'\"]+)\1", code)]
+        elif inner[0] in ("cp", "mv", "install", "rsync", "ln") and operands:
             target = operands[-1]
             if "-t" in inner or any(a.startswith("--target-directory") for a in inner):
                 for i, a in enumerate(inner):

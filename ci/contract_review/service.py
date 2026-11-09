@@ -58,9 +58,9 @@ MECHANISMS = re.compile(r"compiler|new rule|strengthen \S.*")
 
 
 def candidate_id(klass: str, signature: str) -> str:
-    """The stable id of a candidate: the class as a slug, then the first 8 hex of the sha256 of the signature."""
+    """The stable id of a candidate: the class as a slug, then the first 8 hex of the sha256 of the signature with whitespace normalised."""
     slug = re.sub(r"[^a-z0-9]+", "-", klass.lower()).strip("-")
-    return slug + "-" + hashlib.sha256(signature.encode()).hexdigest()[:8]
+    return slug + "-" + hashlib.sha256(" ".join(signature.split()).encode()).hexdigest()[:8]
 
 
 def candidates(listing: object) -> None:
@@ -81,8 +81,8 @@ def candidates(listing: object) -> None:
         if not isinstance(scope, list) or not scope or not all(isinstance(p, str) and p.strip() for p in scope):
             raise ValueError("an enforcement candidate scope is not a non-empty list of paths")
         plants = entry.get("plants")
-        if not isinstance(plants, list):
-            raise ValueError("an enforcement candidate plants is not a list")
+        if not isinstance(plants, list) or not plants:
+            raise ValueError("an enforcement candidate plants is not a non-empty list")
         for plant in plants:
             if not (isinstance(plant, dict) and isinstance(plant.get("file"), str) and plant["file"].strip()
                     and isinstance(plant.get("line"), int) and not isinstance(plant["line"], bool)
@@ -135,8 +135,10 @@ def decided(listing: object) -> None:
         if not isinstance(counts, list) or not all(isinstance(c, int) and not isinstance(c, bool) for c in counts):
             raise ValueError(f"candidate {entry['id']} plant_counts is not a list of integers")
         if entry["decision"] == "none":
-            if not isinstance(entry.get("reason"), str) or not entry["reason"].strip():
-                raise ValueError(f"candidate {entry['id']} is decided none without a reason")
+            reason = entry.get("reason")
+            if not isinstance(reason, str) or len(reason.strip()) < 20 or len(reason.split()) < 3:
+                raise ValueError(f"candidate {entry['id']} is decided none without a real reason "
+                                 "(a sentence of at least 20 characters and 3 words)")
             continue
         if not isinstance(entry.get("mechanism"), str) or not entry["mechanism"].strip():
             raise ValueError(f"candidate {entry['id']} has no mechanism")
@@ -144,10 +146,10 @@ def decided(listing: object) -> None:
             raise ValueError(f"candidate {entry['id']} needs plant counts of at least 1 for decision {entry['decision']}")
 
 
-def candidate_ids(review: object) -> list:
-    """The ids of the enforcement candidates a leak-review evidence file carries (shape already validated)."""
+def candidate_ids(review: object) -> dict:
+    """The enforcement candidates a leak-review evidence file carries (shape already validated): id -> plant count."""
     listing = review.get("enforcement_candidates") if isinstance(review, dict) else None
-    return [entry["id"] for entry in listing] if isinstance(listing, list) else []
+    return {entry["id"]: len(entry["plants"]) for entry in listing} if isinstance(listing, list) else {}
 
 
 def undecided(steward: object, ids: list) -> list:
@@ -155,3 +157,13 @@ def undecided(steward: object, ids: list) -> list:
     listing = steward.get("candidate_decisions") if isinstance(steward, dict) else None
     have = {entry.get("id") for entry in listing} if isinstance(listing, list) else set()
     return [i for i in ids if i not in have]
+
+
+def plant_mismatch(steward: object, plants: dict) -> list:
+    """The ids decided other than none whose plant_counts do not number the candidate's plants one for one."""
+    listing = steward.get("candidate_decisions") if isinstance(steward, dict) else None
+    out = []
+    for entry in listing if isinstance(listing, list) else []:
+        if entry.get("id") in plants and entry.get("decision") != "none" and len(entry.get("plant_counts")) != plants[entry["id"]]:
+            out.append(entry["id"])
+    return out

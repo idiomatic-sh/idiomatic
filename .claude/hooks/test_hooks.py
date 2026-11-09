@@ -469,7 +469,8 @@ class PreviousReviewsPush(unittest.TestCase):
         import hashlib
         slug = re.sub(r"[^a-z0-9]+", "-", klass.lower()).strip("-")
         return {"id": slug + "-" + hashlib.sha256(signature.encode()).hexdigest()[:8], "class": klass,
-                "signature": signature, "scope": ["crates/a"], "suggested_mechanism": "new rule", "plants": []}
+                "signature": signature, "scope": ["crates/a"], "suggested_mechanism": "new rule",
+                "plants": [{"file": "a.rs", "line": 1, "text": "pub fn x() {}"}]}
 
     def with_candidates(self, leak=(), branch=(), decisions=()):
         self.all_reviews(skip=("leak-review.json", "tm-steward.json"))
@@ -497,7 +498,7 @@ class PreviousReviewsPush(unittest.TestCase):
     def test_every_candidate_decided_is_allowed(self):
         one, two = self.candidate(), self.candidate("other", "let x")
         self.with_candidates(leak=[one], branch=[two], decisions=[
-            self.decision(one), self.decision(two, decision="none", plant_counts=[], reason="one-off")])
+            self.decision(one), self.decision(two, decision="none", plant_counts=[], reason="a one-off class that costs more to enforce")])
         self.assertEqual(self.push().returncode, 0)
 
     def test_a_missing_decision_is_refused(self):
@@ -517,10 +518,41 @@ class PreviousReviewsPush(unittest.TestCase):
 
     def test_a_none_decision_without_a_reason_is_refused(self):
         one = self.candidate()
-        self.with_candidates(leak=[one], decisions=[self.decision(one, decision="none", plant_counts=[], reason="")])
+        self.with_candidates(leak=[one], decisions=[self.decision(one, decision="none", plant_counts=[], reason="too short")])
         result = self.push()
         self.assertEqual(result.returncode, 2)
-        self.assertIn("without a reason", result.stderr)
+        self.assertIn("without a real reason", result.stderr)
+
+    def test_a_decision_whose_plant_counts_do_not_match_the_plants_is_refused(self):
+        one = self.candidate()
+        self.with_candidates(leak=[one], decisions=[self.decision(one, plant_counts=[1, 1])])
+        result = self.push()
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("one for one", result.stderr)
+
+    def test_a_candidate_without_plants_is_refused(self):
+        one = dict(self.candidate(), plants=[])
+        self.with_candidates(leak=[one], decisions=[self.decision(one)])
+        self.assertEqual(self.push().returncode, 2)
+
+    def test_a_branch_file_older_than_the_previous_landed_head_needs_no_decision(self):
+        # a branch result already present at the previous landed head was decided then; decisions never carry forward
+        one = self.candidate()
+        path = os.path.join(self.tree, "crates/ryo/docs/contracts/evidence/branches/claude-old.json")
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump(dict(self.body("PASS", "leak-review", self.previous), enforcement_candidates=[one]), handle)
+        git(self.tree, "add", path)
+        git(self.tree, "commit", "-q", "-m", "old branch evidence")
+        git(self.tree, "push", "-q", "origin", "HEAD:claude/ryo-consolidation")
+        self.setUp_after_landing()
+        self.with_candidates()
+        self.assertEqual(self.push().returncode, 0)
+
+    def setUp_after_landing(self):
+        self.previous = git(self.tree, "rev-parse", "HEAD")
+        git(self.tree, "commit", "-q", "--allow-empty", "-m", "next checkpoint work")
+        self.write("rust-review.json", self.body("PASS", "rust-review", git(self.tree, "rev-parse", "HEAD")))
 
     def test_a_candidate_whose_id_does_not_match_its_signature_is_refused(self):
         one = dict(self.candidate(), id="pub-leak-00000000")
@@ -561,6 +593,39 @@ class EvidenceWrites(unittest.TestCase):
         self.assertEqual(self.write(self.tree + "/" + self.TAIL + "checkpoint/leak-review.json"), 0)
         self.assertEqual(shell("cat > " + self.tree + "/" + self.TAIL + "checkpoint/leak-review.json <<EOF\n{}\nEOF"), 0)
         self.assertEqual(shell("cp x.json " + self.tree + "/" + self.TAIL + "branches/x.json"), 0)
+
+    def test_in_place_editors_dd_rsync_ln_sponge_and_python_to_the_scratchpad_are_refused(self):
+        for command in ("sed -i s/a/b/ /tmp/claude-scratch/leak-review.json",
+                        "perl -pi -e 's/a/b/' /tmp/claude-scratch/rust-review.json",
+                        "echo {} | sponge /tmp/claude-scratch/tm-steward.json",
+                        "dd if=x of=/tmp/claude-scratch/contract-review.json",
+                        "rsync x.json /tmp/claude-scratch/leak-review.json",
+                        "ln -s x.json /tmp/claude-scratch/leak-review.json",
+                        "python3 -c \"open('/tmp/claude-scratch/leak-review.json', 'w').write('{}')\"",
+                        "python3 -c \"import json; json.dump({}, open('/tmp/claude-scratch/asymptote.json'))\""):
+            with self.subTest(command=command):
+                self.assertEqual(shell(command), 2)
+
+    def test_a_variable_rooted_path_into_an_evidence_directory_is_allowed_but_an_outside_one_is_refused(self):
+        tail = "crates/ryo/docs/contracts/evidence/checkpoint/leak-review.json"
+        self.assertEqual(shell('cat > "$INTEGRATION_TREE_UNSET/' + tail + '" <<EOF\n{}\nEOF'), 0)
+        self.assertEqual(shell('cat > "$UNSET_SCRATCH/leak-review.json" <<EOF\n{}\nEOF'), 2)
+        env = dict(os.environ, INTEGRATION_TREE=self.tree)
+        done = run_hook("guard_shell.py", {"tool_name": "Bash", "tool_input": {"command": 'cp x.json "$INTEGRATION_TREE/' + tail + '"'}}, env=env)
+        self.assertEqual(done.returncode, 0)
+        env = dict(os.environ, INTEGRATION_TREE=self.other)
+        done = run_hook("guard_shell.py", {"tool_name": "Bash", "tool_input": {"command": 'cp x.json "$INTEGRATION_TREE/' + tail + '"'}}, env=env)
+        self.assertEqual(done.returncode, 2)
+
+    def test_a_committed_copy_of_evidence_may_be_written_to_the_scratchpad(self):
+        self.assertEqual(shell("git show HEAD:x > /tmp/claude-scratch/leak-review-committed-copy.json"), 0)
+        self.assertEqual(self.write("/tmp/claude-scratch/leak-review-committed-copy.json"), 0)
+
+    def test_the_committed_settings_run_the_write_hook_for_every_editing_tool(self):
+        with open(os.path.join(HERE, "..", "settings.json"), encoding="utf-8") as handle:
+            entries = json.load(handle)["hooks"]["PreToolUse"]
+        found = [e for e in entries if "guard_write.py" in json.dumps(e)]
+        self.assertEqual([e["matcher"] for e in found], ["Write|Edit|MultiEdit|NotebookEdit"])
 
     def test_an_unrelated_scratchpad_file_is_allowed(self):
         self.assertEqual(self.write("/tmp/claude-scratch/notes.json"), 0)

@@ -1,4 +1,4 @@
-"""PreToolUse hook for Write and Edit: review evidence is written only into a claude/checkpoint-N worktree.
+"""PreToolUse hook for Write, Edit, MultiEdit and NotebookEdit: review evidence is written only into a claude/checkpoint-N worktree.
 
 Applies guard_shell.evidence_write_problem to tool_input.file_path. It fails closed on its own errors for
 evidence-named paths and lets every other path through.
@@ -18,7 +18,8 @@ def main():
         data = json.load(sys.stdin)
     except ValueError:
         return 0
-    path = (data.get("tool_input") or {}).get("file_path") if isinstance(data, dict) else None
+    given = (data.get("tool_input") or {}) if isinstance(data, dict) else {}
+    path = given.get("file_path") or given.get("notebook_path")
     if not isinstance(path, str):
         return 0
     try:
