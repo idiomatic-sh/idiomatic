@@ -1,7 +1,6 @@
 //! What a caller may read of a prepared program.
-use crate::application::file_dag::program::preparation::types::{
-    Demand, NamedLayout, ObservationContract, ReplayClosure, RuleTotal, SemanticNeed,
-};
+use crate::application::file_dag::program::preparation::types::{RuleTotal};
+use crate::application::file_dag::program::prepared_execution::types::{Demand, NamedLayout, ObservationContract, ReplayClosure, SemanticNeed};
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::rule_intent::types::FrontierPurpose;

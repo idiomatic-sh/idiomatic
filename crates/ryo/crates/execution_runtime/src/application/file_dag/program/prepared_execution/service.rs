@@ -1,8 +1,7 @@
 //! The read-only views of a prepared program.
 use crate::application::file_dag::execution::CommonOperatorEngine;
-use crate::application::file_dag::program::preparation::types::{
-    Demand, NamedLayout, ObservationContract, ReplayClosure, RuleTotal, SemanticNeed,
-};
+use crate::application::file_dag::program::preparation::types::{RuleTotal};
+use crate::application::file_dag::program::prepared_execution::types::{Demand, NamedLayout, ObservationContract, ReplayClosure, SemanticNeed};
 use crate::application::file_dag::program::prepared_execution::interface::PreparedExecution;
 use crate::application::file_dag::program::prepared_execution::interface::PreparedReporting;
 use crate::application::file_dag::program::prepared_execution::types::{

@@ -1,5 +1,8 @@
 //! Immutable request preparation, physical metadata and compilation ownership.
 use super::types::*;
+use crate::application::file_dag::program::prepared_execution::types::{
+    NamedLayout, ObservationContract, SemanticNeed,
+};
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram;
 use ryo_execution_domain::domain::operating::errors::OperatingError;

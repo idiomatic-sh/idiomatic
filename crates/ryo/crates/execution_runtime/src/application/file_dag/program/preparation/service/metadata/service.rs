@@ -1,7 +1,6 @@
 //! Per-rule root, read and frontier metadata taken from the compiled plans.
-use crate::application::file_dag::program::preparation::types::{
-    ObservationMetadata, RootMetadata, RuleMetadata, SemanticNeed,
-};
+use crate::application::file_dag::program::preparation::types::{ObservationMetadata, RootMetadata, RuleMetadata};
+use crate::application::file_dag::program::prepared_execution::types::{SemanticNeed};
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::executable_program::types::{
     InputSource, executable_program::value::ExecutableProgram,

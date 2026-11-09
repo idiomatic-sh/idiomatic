@@ -17,43 +17,12 @@ use ryo_values::domain::plans::types::Emit;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::records::types::ObservationIndex;
 use ryo_values::domain::records::types::ObservationReadinessLayout;
-use ryo_values::domain::stored_facts::types::Bucket;
-use ryo_values::domain::stores::types::Reuse;
 use std::sync::Arc;
+use crate::application::file_dag::program::prepared_execution::types::SemanticNeed;
 
-/// Whether a rule renders syntax and so needs the semantic session.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum SemanticNeed {
-    Required,
-    NotRequired,
-}
-/// Whether a rule is wanted by the request, directly or through a named observation.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Demand {
-    Demanded,
-    Undemanded,
-}
-/// Whether a rule declares or consumes named observations.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ObservationContract {
-    Declared,
-    Absent,
-}
 /// How many rules the request holds.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RuleTotal(pub usize);
-/// The readiness layout of the named observations and the frontiers that feed them.
-pub struct NamedLayout<'a> {
-    pub layout: ObservationReadinessLayout,
-    pub frontiers: &'a [ObservedFrontierRoot],
-}
-/// The rules a changed selection reaches and the producer frontiers they read.
-#[derive(Debug, PartialEq)]
-pub struct ReplayClosure {
-    pub reuse: Reuse,
-    pub buckets: Vec<Bucket>,
-}
-
 pub(crate) struct RootMetadata {
     pub source: Result<InputSource, OperatingError>,
     pub phase: StepScope,
