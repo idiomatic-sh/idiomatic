@@ -1,33 +1,34 @@
 {
-  "source": "8ff611fb8eb50ba0c62be432293e22b5a7c61cf4",
-  "base": "1086daee4b",
-  "scope": "331",
+  "checkpoint": 332,
+  "source": "c3639e10a62b7e89bc711d9c678dc018b6f59171",
+  "base": "b1e81f724206237fad67a42bfe1557fdb838b9e2",
+  "previous_source": "6402b7dd06cf9985a75bfe6d48f4b74015c7ef84",
+  "scope": "332",
   "verdict": "PASS",
   "reviewer": "rust-review",
-  "date": "2026-11-09",
+  "date": "2026-11-09T07:55:00Z",
   "checks": [
-    {"id": 1, "verdict": "PASS", "evidence": "F1 is repaired. Every new public item in a published crate now has docs and a runnable `# Examples` doctest: values lineage/service.rs:21,41,78,105,134,267 (anchor_of, one_file, anchor_at, anchor_through, pairing, of_step), values lineage/types.rs:5,24,41 (Lineage, ColumnAnchor, KeyPairing), values runs/types.rs:61,78 (ApplicabilityRefusal, UnknownCause) and execution_domain coverage/types.rs:144 (RefusedFiles). The examples assert behaviour: pairing on a span-only key is Unproven, and anchor_through reads through a view. The counts are consistent: values 5 + 11 = 16 and execution_domain 0 + 1 = 1. Ownership is unchanged from the first pass and clean: &[PlanStep] with a per-plan LineageMemo (query_language lineage/types.rs:20-31), plan_identity(&Plan) (core repository/service.rs:114), no Arc and no lifetime-escaping clone. sdk/api.txt is unchanged."},
-    {"id": 2, "verdict": "PASS", "evidence": "Visibility enforces the narrowed phase surface: ProjectTask and ProjectInput are pub(crate) (execution_runtime project_phase/types.rs:33-47). The compile_fail doctests name their error codes (project_phase/interface.rs:31, E0603; operators interface.rs:46, E0521) and pin what visibility enforces. CauseSchema is an exhaustive match in both directions (core postcard/unknowns/schemas.rs:39-48,60-69)."},
-    {"id": 3, "verdict": "PASS", "evidence": "Nothing new runs per node or per row. plan_identity runs once per rule per run (repository/service.rs:114-118). LineageMemo lives only at plan time. refusals() and refused_files() each build one index per run (core gating/service.rs:185; crossing/service.rs:141). The second-pass commit changes only docs and doctests."},
-    {"id": 4, "verdict": "PASS", "evidence": "The file-lineage rule now has one definition, values::domain::lineage::service::anchor_of (values lineage/service.rs:31). It replaces the copies in execution_domain::lineage and query_language stated_by/states_file/origins_state_file, and execution_domain coverage/service.rs:67 reads it. ApplicabilityRefusal moved; it was not copied."},
-    {"id": 5, "verdict": "PASS", "evidence": "No dependency was added. IdentityHasher (core repository/types.rs:32-85) is small glue that feeds derived-Hash bytes to the existing DigestPort, so the store key keeps one digest algorithm."},
-    {"id": 6, "verdict": "PASS", "evidence": "The rewrite tests take their expected rows from running the unrewritten plan (execution tests/project_phase/rewrites/test.rs:125-240). The PlanIdentity row asserts properties (repository/service_test.rs:202-215). The premise changes in 4dad7e48b2 state their reasons and ran green in validation331. The new doctests assert behaviour rather than restating values."},
-    {"id": 7, "verdict": "PASS", "evidence": "The diff adds no unsafe and no #[allow], and every added unwrap, expect or panic is in test or fixture code. index_among returns Option (query_language pushing/service.rs:163-176), so a missing column refuses the rewrite instead of reading column 0."}
+    {"id": "1", "verdict": "PASS", "evidence": "F1 is repaired. PatternSemantics (execution_domain domain/matching/types.rs:22-37) has a runnable # Examples doctest that refuses invalid regex syntax, matches and differs, and it is sealed: the supertrait sealed::Sealed (:13-20) is implemented only by the blanket bridge beside the PatternSemantics impl (application/matching/service.rs:13). DerivedOwner::serve_project (execution_store derived/owner/setup.rs:57-81) gains # Errors and a runnable example: a fresh owner answers Ok, an owner prepared for a file answers WrongOperation. gatefix_doctests.log: Doc-tests ryo_execution_domain 2 passed, ryo_execution_store 1 passed. The fixture prepared_sources is now pub (owner/fixtures/mod.rs:11) but stays behind cfg(any(test, feature = \"fixtures\")) (owner/mod.rs:253), and its return type RequestDerived is pub (prepared.rs:13), so private_interfaces (deny) holds. sdk/api.txt is unchanged."},
+    {"id": "2", "verdict": "PASS", "evidence": "The seal makes the compiler hold that no outside crate implements PatternSemantics directly; it is the standard sealed-supertrait pattern, and no test stands in for it. As at the first pass, PreparedFrontiers, PhaseScope and FrontierRequest are pub(crate), and the domain ports RunDecisions and PatternSemantics keep use-case traits out of domain signatures."},
+    {"id": "3", "verdict": "PASS", "evidence": "10c561ef6a adds no runtime code. The seal is a marker supertrait with no methods, so dispatch through &dyn PatternSemantics is unchanged. The first pass's findings stand: bisection in Python visibility, the lazy select scratch and no per-class context in the shared walk."},
+    {"id": "4", "verdict": "PASS", "evidence": "The repairs add no second representation. The tastemaker [patch.crates-io] (crates/tastemaker/Cargo.toml:238-253) resolves each ryo crate to its one source in this repository instead of a published copy. The 18 third-party crates the lock gains match crates/ryo/Cargo.lock version for version (pyproject-toml 0.13.7, pep440_rs 0.7.3, pep508_rs 0.9.1, thiserror 1.0.69, boxcar 0.2.14, among others)."},
+    {"id": "5", "verdict": "PASS", "evidence": "No new dependency. The lock change in 10c561ef6a only switches ryo crates from registry 0.1.1 to the path 0.1.2 crates and pulls in their existing dependencies at ryo's pinned versions. The seal and the doctests use std and existing crates."},
+    {"id": "6", "verdict": "PASS", "evidence": "F2 is repaired. compare_corpus/fixtures.rs:170-173 hands ExecutionFake { status: 0, .. }. gatefix_compare_corpus.log shows 2 passed, 0 failed; gatefix_benchmark_lib.log shows 229 passed, 1 failed, and the one failure is the verify_cases process_capture row red since 326; gatefix_benchmark_bdd.log shows the compare_corpus scenarios passing. F3 is repaired. gatefix_tm_import_cli.log shows imports::visibility_scopes_do_not_authorize_real_imports_types_or_calls ok, 1 passed, built through the patch. F4 is repaired with 6 new red_green entries (validation.json, entries 25-30). One is a behaviour red: gatefix_red_green_a_red.log has operation_schema refuses FAILED, both two-kinds rows 'expected ShapeMismatch, answered Ok(())', with base add03c25b3, the parent of 09718aee51; gatefix_red_green_a_green.log is green. The other five are compile reds: E0432 on holding (b_red_language), on ancestors and operand_place (b_red_python), and on enclosing and project (c_red_python), each green after restoring. The record states that these count tests can only go red by compile, the same proof form the 332 record already uses for serve_project and refuse_spans_alone. An advisory on this is in the report."},
+    {"id": "7", "verdict": "PASS", "evidence": "#[expect(unnameable_types, reason = ...)] on the seal (matching/types.rs:15-19) is the correct tool. crates/ryo/Cargo.toml:84 denies unnameable_types, and a sealed supertrait is unnameable by construction, so the lint must fire. An expect, unlike an allow, fails as unfulfilled if the trait ever becomes nameable, and no gatefix log reports an unfulfilled expectation. The diff adds no unsafe, no allow, and no unwrap or expect in production; the doctests use expect and ? as examples do. None of the warnings in the gatefix logs points at a line 10c561ef6a added."}
   ],
-  "findings": [],
+  "findings": [
+    "open item: tastemaker-core's manifest requires ryo SDK 0.1.1 while its adapter needs 0.1.2",
+    "open item: ryo warning debt now shows in the tastemaker build through the path patch",
+    "open item: serve_project example is built from feature-gated test fixtures",
+    "open item: Sealed doc claims more than the blanket bridge enforces",
+    "open item: count tests never shown failing against the replaced scan",
+    "open item: tastemaker workspace tests beyond tm_import_cli not run under the patch",
+    "open item: first-pass advisories carried as their own items"
+  ],
   "repaired": [
-    {"id": "F1", "check": 1, "where": "values lineage/service.rs:21-286, lineage/types.rs:5-52, runs/types.rs:61-86, execution_domain coverage/types.rs:144-154", "state": "repaired: an `# Examples` doctest on each of the 12 items"},
-    {"id": "F2", "check": "record", "where": "crates/ryo/docs/contracts/README.md:56", "state": "repaired: the store growth (62,022,326 to 164,712,192) and the peak (3.33 to 3.54 GB) are attributed to the lineage span-key rule (regrouping/service.rs:241-249, narrowing/service.rs:134-142), called required for soundness with rewrites/test.rs:125-135 cited, and the 62 MB ratchet is recorded as regressed pending the span-semantics decision; no tracker id"}
-  ],
-  "evidence_notes": [
-    "The 16/0 values and 1/0 execution_domain doctest counts come from the README record (README.md:45). Their raw log is not in the validation331 log directory, which predates 8ff611fb8e. The PM should keep that log beside validation331's logs, or rerun doctest_values and doctest_execution_domain before the push."
-  ],
-  "advisories": [
-    "open item: decide whether span equality pairs rows of one file only (query_language planning/service.rs:79-85 treats a span as within-file for placement, while regrouping and narrowing do not); the answer decides whether the 62 MB store can return",
-    "open item: population_reads proves sharing only while the test holds both prepared frontiers (execution tests/project_phase/population_reads/test.rs:232-233); add a control that drops them first and asserts exactly 3 project reads",
-    "open item: completion probes the path-keyed refusals map (core completion/service.rs:124-130) while the engine holds RefusedFiles by file number; keep one index",
-    "open item: IdentityHasher relies on std's derived-Hash byte stream, which is not promised stable across toolchains (a change only causes a cache miss); state this in the doc at core repository/types.rs:29-31",
-    "open item: decide #[non_exhaustive] for UnknownCause and ApplicabilityRefusal under the exhaustiveness policy before distribution",
-    "open item: the new public fields StoredUnknown.cause and Unknown.cause are semver-breaking; record them for cargo-semver-checks"
+    {"id": "F1", "check": "1", "where": "execution_domain domain/matching/types.rs:13-37; execution_store derived/owner/setup.rs:57-81", "state": "repaired: sealed, examples and # Errors; doctests 2 and 1 pass"},
+    {"id": "F2", "check": "6", "where": "benchmark compare_corpus/fixtures.rs:170-173", "state": "repaired: compare_corpus 2/0, benchmark library 229/1 (the 1 is pre-existing process_capture)"},
+    {"id": "F3", "check": "6", "where": "crates/tastemaker/Cargo.toml:238-253, Cargo.lock", "state": "repaired: tm_import_cli exit 0"},
+    {"id": "F4", "check": "6", "where": "validation.json red_green entries 25-30", "state": "repaired: 1 behaviour red, 5 compile reds, each green after restoring"}
   ]
 }
