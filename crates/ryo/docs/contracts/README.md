@@ -66,9 +66,12 @@ Earlier integration records (checkpoints 319 to 325 and their branch records): [
 
 ### Checkpoint 334 integration record
 
-Checkpoint 334 merges, into the 333 head `40e4902152` and each as a merge commit after its leak-review PASS was committed under `evidence/branches/`: `claude/w15-ci` (`fe4f6f4d1a`), `claude/w16-prune` (`b5b47621fa`) and `claude/audit-f2` (`0d6914eef0`).
+Checkpoint 334 merges, into the 333 head `40e4902152` and each as a merge commit after its leak-review PASS was committed under `evidence/branches/`: `claude/w15-ci` (`fe4f6f4d1a`), `claude/w16-prune` (`b5b47621fa`), `claude/audit-f2` (`0d6914eef0`), `claude/w15-loop` (`07bc701e6c`), `claude/lspan` (`0371fefcf8`) and `claude/audit-f1` (`ad2c8867f3`).
 
 - **Modularity audit fix batch F2 (goal exit 1), sealing outside execution:** 91 items sealed, 11 deleted (9 items and 2 enum variants nothing raises), 119 kept public and accepted: public APIs carry them, and the workspace's `private_interfaces` deny refuses sealing an item a public signature names. Row 17 is closed (its allowlist line; the leftover `std::sync::atomic::*` allowlist item is owned by its own tracker item); row 14's values, operators, relations, derived, core, sdk and language part is done.
+
+- **Modularity audit fix batch F1 (goal exit 1), the Ruff benchmark package:** the Ruff benchmark is its own unpublished package, `idiomatic-sh-ryo-python-ruff-benchmark`; the four engine, SDK and provider proofs it held moved to their owners; calls, candidate-locations and call-keywords are shared fragments, imported as suppress-matches is. Proof at the merged head `dabffbbfa3`: the ruff_parity command, now building the worker from the new package, gives 412 identical of 413 rules, 0 unaccepted, and `per-rule.json` byte-identical to the committed `evidence/parity/django-413/per-rule.json` (sha256 `bc01526e`). Rows 12, 16 and 18 are closed.
+- **Perf, L-span (goal exit 2):** `evidence/perf/lspan/after.json`: 1,065,152 of 1,187,375 (file, rule) pairs skipped on full Django (89.71%, gate 89.16%), parity 412 of 413 with `per-rule.json` byte-identical, Django output `f50bb571` identical. Its CPU-s is recorded only: the load was 16.41 when it ran.
 
 ### Checkpoint 333 integration record
 
