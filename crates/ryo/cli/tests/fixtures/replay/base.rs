@@ -180,7 +180,12 @@ fn innermost(
             error,
             ..
         } => innermost(error),
-        other => other,
+        ryo_query_language::inbound::use_cases::compile::errors::CompileError::ObservationInputs { .. }
+        | ryo_query_language::inbound::use_cases::compile::errors::CompileError::Syntax { .. }
+        | ryo_query_language::inbound::use_cases::compile::errors::CompileError::UnknownRelation { .. }
+        | ryo_query_language::inbound::use_cases::compile::errors::CompileError::Type { .. }
+        | ryo_query_language::inbound::use_cases::compile::errors::CompileError::Invalid { .. }
+        | ryo_query_language::inbound::use_cases::compile::errors::CompileError::Catalog { .. } => error,
     }
 }
 
