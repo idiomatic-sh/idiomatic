@@ -1,112 +1,65 @@
-# Contract review: landed checkpoint 332
+# Contract review: landed checkpoint 333
 
-- Source: `dcea2ee7df7c02711f42c332cbc403ff7b84a034` (claude/ryo-consolidation)
-- Tree: `052d3bcc93`
-- Base: `b1e81f7242`
-- Validated source of the receipts: `7fd2dbf1f5`
-- Criteria: `3d1e6d91a4:.agents/agents/contract-review.md`, four criteria, Change isolation included
-- Reviewer: contract-review, single reviewer
-- Date: 2026-11-09
-- Verdict: **BLOCKING**
-
-| Criterion | Verdict |
-|---|---|
-| Enforced boundaries | PASS (bounded) |
-| Clear ownership and flow | PASS |
-| Proof | **FAIL** |
-| Change isolation | **FAIL**: (a) FAIL, (b) FAIL, (c) FAIL |
-
-HEAD was dcea2ee7df before and after the review, with 6 untracked files both times (reviewer drafts under `evidence/branches/`). I made no edits, builds or test runs. I ran tm and `run.py --check` on a git archive of the source. The archive's content is equal to the landed tree; it leaves 243 gitignored `results/` files out of the archive's index only. After `run.py --check` the archive was unchanged.
+- Source: `40e49021520d4392d29df28ee5bd2fef739e5d37` (tree `b2e4a8c1f1`), base `dcea2ee7df` (landed 332); validated source `563c0bc69b`.
+- Criteria: the claude/checkpoint-334 copy of `.agents/agents/contract-review.md` (four criteria).
+- **Verdict: BLOCKING.** Enforced boundaries PASS, Clear ownership and flow PASS, Proof PASS, Change isolation FAIL ((a) and (b); (c) PASS).
+- HEAD of the reviewed tree before and after: `40e4902152`, status unchanged (two untracked w16-prune branch evidence files, not this review's). Nothing was built and no test was run; tm and `run.py --check` ran on a git archive copy.
 
 ## Receipts
 
-| Receipt | Command | Exit | Raw result | Verdict |
-|---|---|---|---|---|
-| tm | `tm --root crates/ryo check --format json` (tm 0.1.2 release, sha256 `f335d4ab`, built from `781653e221`, which predates the tastemaker refactor `beb55b206a`) | 0 (208 s) | 0 findings, 13 suppressed, all `idiomatic.arch/file-length` in-source ignores with reasons (7 accepted by the owner decision in `7d7888247c`) | PASS (manual judgment: the agent file says "0 suppressed") |
-| run.py | `python3 -I .../checkpoint/run.py --check` | 0 | 17 "newly scoped ... (0 findings)" lines | PASS |
-| no_print | `no_print.json` of validation332 | 0 | 0 lines starting `error` | PASS |
-| file-level cycles | Tarjan SCC recount over validation332 `ownership_edges.log` (source `7fd2dbf1f5`) | n/a | 0 cycles, 4,797 occurrences, 756 files | PASS (the record is stale, see P3) |
+| Receipt | Command | Exit | Raw result |
+|---|---|---|---|
+| tm whole tree | `tm --root crates/ryo check --format json` (tm 0.1.2 release, sha256 `33bba487`) on an archive of `40e4902152`, fresh store | 0 | 0 findings, 19 suppressed (15 file-length, 3 no-tracker-text-shipped, 1 no-unwrap-or-on-lookup); 176.6 s, 4,425,044 KiB |
+| tm scoped | `tm_source.json` of the final run | 0 | 0 findings, 5 suppressed |
+| run.py | `python3 -I crates/ryo/docs/contracts/evidence/checkpoint/run.py --check` on the archive | 0 | 17 "newly scoped ... (0 findings)" lines |
+| no_print | `no_print.json` / `no_print.log` | 0 | 0 lines starting `error` |
+| cycles | Tarjan SCC over `ownership_edges.log` | n/a | 0 cycles, 4,971 occurrences, 766 files |
 
-## Recounts against the record (validation332 raw logs)
+## Recounts (raw logs of the final run, all `<name>.json` at `563c0bc69b`)
 
-Every recount matches the record:
+libraries 1,142 / 1 (process_capture, owned); bdd 9 and core_bdd 18 scenarios; ruff 12 / 0; boundary 99 / 0; activation 11; harness hooks 135 OK; checkpoint_check 17 OK; python 140 / 0; language 43 / 0; replay 96 / 3; cli_cost 4 / 3; tm_import_cli 1 / 0; tm validate 241 / 224 hold; parity 412 identical of 413, 0 unaccepted. Every figure matches the record. From `563c0bc69b` to the source only docs, evidence and the `ci/contract_review` validator change (20 files).
 
-- libraries: 1123 / 3 in libraries.log. Adding the benchmark rerun (229 / 1 in gatefix_benchmark_lib.log) gives the recorded 1125 / 1.
-- boundary 99 / 0, activation 11, bdd 9 scenarios, core_bdd 18.
-- ruff 12 / 0, cli replay 96 / 3, cli_cost 4 / 3.
-- python 140 / 0, language 43 / 0, harness_hooks 136, checkpoint_check 16.
-- tm validate 241 / 0 and 224 / 0.
-- Ruff parity: 412 identical plus FURB122 = 413.
+## Change isolation
+
+**(a) Seam tests: FAIL (C1).** Test files outside `execution_domain` naming it: 154 → 157; outside `execution_runtime` naming it: 124 → 126 (same recount). Added at 333:
+
+| File | Names behind another seam |
+|---|---|
+| `execution/.../use_case_test/conformance_emptied/test.rs` (new) | domain `operator::contract::presence`, `::service::semantics`; runtime `acceptance::operator_contract_test::fixtures` |
+| `execution/.../use_case_test/conformance/fixtures.rs` (new, split) | runtime `file_session`, `request_execution`, `rule_outcome`; domain `rule_intent`, `prepared_request` |
+| `execution_runtime/.../acceptance/presence_service_test.rs` (new, 1,121 lines) | domain `executable_program::presence::service::of_graph`, `file_program::service::compile_prepared_observations`; store `fixtures::program_derived_port`, `outbound::derived::factory::semantics` |
+
+Skip rules also rewrote execution-crate assertions on the evaluator's internals: `tests/shared_walk/order/join_dependency/test.rs` walk cohorts `counts(&file, 2, 8)` → `(1, 4)`, and the read order in `use_case_test/provider/test.rs` and `conformance_driver/test.rs`.
+
+**(b) Footprint: FAIL (C2).** Per merge:
+
+| Change | Files | Outside the concept's hex | Justified |
+|---|---|---|---|
+| skip rules `a73aa2bee8` | 70 | store `derived/owner/fixtures/mod.rs`, runtime `walk_coverage/fixtures/{catalog,operations/corpus}`, runtime `lifecycle/inputs/fixtures.rs`, execution `tests/union_rows/mod.rs`: each only passes the new `PatternMatcher` argument of domain `compile()` | No: forced by deep-path calls (C2) |
+| skip rules | | execution tests asserting read order and cohort counts | No (C1) |
+| skip rules | | `cli/tests/fixtures/unfed.toml` (3 lines) | Yes: the feed check's list |
+| noqa rewrite `e8dade10ae` | 466 | none: languages/python rules and fragments, docs | Yes |
+| provider alias `cbdc70adad` | 20 | none: languages/rust | Yes |
+| isolation lens `226de88f02` | 1 | none | Yes |
+| integration | | crate versions 0.1.2 → 0.1.3 in every Cargo.toml (leak 332 check 3); cli replay `base.rs`/`counting.rs` one `replay_languages()` (leak 332 check 2b); `ci/contract_review` validator and its case | Yes: release versioning and owned repairs in their homes |
+
+**(c) No regression: PASS.** Census proxy rows (census.md lines 51 to 55), recounted from archives of `dcea2ee7df` and `40e4902152` with the census's production-file rule: binding_read 18 / 13, static_import 32 / 12, project_context 78 / 18 (32 benchmark), engine `Relation::X` 26 / 156 / 9, equal at both and equal under case and spelling variants. census.md's own 332 and 333 columns agree.
 
 ## Blockers
 
-1. **P1. Proof: the landed production code has no full-suite run.** All suite receipts are at `7fd2dbf1f5`. Production code changed after that source:
-   - `c2ba5669a6` and `bec665436a`: core handing, recording, streaming, outcome and the lint service.
-   - `10c561ef6a`: execution_domain `matching/types.rs` and execution_store `derived/owner/setup.rs`.
-
-   The reruns after those commits cover only core lib 120 / 0, core groups 11, lifecycle 2, samples 2, doctests and the benchmark library. Libraries, boundary, cli replay, cli_cost (its warm and edit rows read what t611 changed), sdk, python and ruff were not rerun, and no rerun log records its sha. **Required:** rerun those suites on `781653e221` or `dcea2ee7df` (the engine code is identical: the diff under crates/ryo/{crates,languages,cli} is empty), with the sha in each raw json and log.
-2. **P2. A matrix row is stale.** `crates/ryo/docs/contracts/README.md:52` (row 1) reads "Python ruff target is 13/0 at validation328". validation332 records 12 / 0, because leak-repairs-b moved engine_test's assertions to their owners. **Owner:** the integrator rebinds the row.
-3. **C1. Change isolation (a): tests reach behind the seams.**
-   - `7062b9f535` deleted execution's nine forwards, and execution's own tests now import the domain's internal paths: `crates/execution/tests/test.rs:20,24`, `tests/boundary_fixture/mod.rs`, `tests/publication/frames/test.rs` and `use_case_test/{dispatch,errored_rule}/test.rs` name `ryo_execution_domain::domain::rule_intent::types::{EmitDemand,RuleDemand}` and `domain::finish::types::PublicationReason`.
-   - `51e528fb5c` adds `execution/tests/project_phase/axis`, which names `ryo_execution_runtime::application::file_dag::program::file_session::types` and `ryo_execution_domain::domain::frontier_capture::types`.
-   - Runtime tests consume domain fixtures (`self_join_recogniser::fixtures`, `operating::fixtures`).
-   - Recount: test files outside execution_domain that name `ryo_execution_domain` went from 143 at b1e81f7242 to 154 at dcea2ee7df.
-
-   **Required:** move each assertion to the crate that owns its subject, or reach the subject through execution's use cases. The recount must come back at or below 143.
-4. **C2. Change isolation (b): the domain-cycle footprint.** Merge `9a130bb449` touched 95 files: 50 in execution_domain, 36 in execution_runtime and 8 in execution_store. The 44 runtime and store files only rewrite paths (186 changed lines, for example `operator::contract::views::ProgressObserver` to `operating::types::ProgressObserver`). The concept, breaking the ring, needed none of them. Consumers import `domain::<concept>::<role>` paths, so the domain's module layout is their API. **Required:** a stable cross-crate surface for execution_domain's vocabulary, plus a TM rule that refuses deep-path imports from other crates (route to the tm-specialist). Proof: a planted move inside the domain edits 0 files outside it.
-5. **C3. Change isolation (c): the census regresses.** Graded against the scratchpad `census-trend.md`, because no census is committed at 331 or 332; the baseline commits with 333. The census's 332 column (`781653e221`) has engine code equal to dcea2ee7df. I recounted each delta below at b1e81f7242 and dcea2ee7df.
-
-   | Row | 331 | 332 | Cause |
-   |---|---|---|---|
-   | Exhaustive `Operation` matches (8 or more variants) | 23 | 24 | `query_language/src/domain/refusing/service.rs` (span-semantics `dd7c0befdf`); there is no operator registry |
-   | Files naming GroupCount | 42 | 43 | the same file |
-   | Files naming `Operation::X` | 67 | 68 | the same file |
-   | Test files naming `ryo_execution_domain` | 143 | 154 | `7062b9f535`: 5; `51e528fb5c`: 2; `e0ad1b1895` splits: 4 |
-   | Engine files naming `ryo_operators::` | 25 | 26 | domain-cycle: `operating/{service,types}.rs` and `table_reach/borrowed.rs` replace `operator/contract/{primitive,service}.rs` |
-   | Files naming store concrete types | 51 | 52 | `execution_store/.../derived/owner/setup.rs`, inside its own home, so neutral for isolation |
-   | execution/tests files | 104 | 105 | the new axis tests |
-   | Engine production lines | 123,873 | 124,960 | n/a |
-   | Replace the evaluator (headline) | 180 | 179 | better |
-   | Add semantic analysis | 23/13, 84/18 | 23/13, 84/18 | flat |
-
-   **Required:** remove each rise, or record an owner-accepted reason per row. Commit the census so that 333 is graded against a committed baseline.
-
-## Footprint per merge, (b)
-
-| Merge | Files | Areas | Judgment |
-|---|---|---|---|
-| tm-import-reading (`0f2fa35a12`, `69caa24a4e`) | 12 + 7 | tastemaker, ryo provider-imports spec | inside its concept |
-| t611 (`2c94c8e3d5`) | 9 | core | inside its concept |
-| goal-rows | 4 | docs | n/a |
-| leak-repairs-b (`643fdbf422`) | 64 | 11 areas | a multi-class repair batch that moves assertions to their owners; judged per class (manual judgment) |
-| visibility (`c2a9bc8f9e`) | 9 | python 7, language 2 | justified: it reuses the engine's carrier lookup and keeps no second scan |
-| bench-parity (`95319943b3`) | 127 | benchmark 50, python 68, contracts 4 | justified: one parity owner, and the Python mode is deleted |
-| hooks-append-only, test-practices | 11, 17 | .claude, ci, .agents | n/a |
-| domain-cycle (`9a130bb449`) | 95 | domain 50, runtime 36, store 8 | **FAIL** (C2) |
-| side-doors (`310b0be96f`) | 32 | execution 21, runtime 9 | justified: it tightens the seam itself |
-| span-semantics (`165c2c793f`) | 19 | query_language 8, cli replay 8, domain operation_schema 2 | justified: span meaning lives on the operation schema |
-| tm-rebuild (`d5ff1b0d2e`) | 27 | 4 engine crates, tastemaker | several fixes; its new axis tests are C1 |
+1. **C1**, files above: tests outside the owning crate name domain, runtime and store internals; the class from 332 grew by 3 files. Required: move each assertion into its owning crate or through execution's use cases or the port; the count returns to 154 or fewer.
+2. **C2**, `execution_store/src/application/file_dag/derived/owner/fixtures/mod.rs:77` and four more: a domain signature change edited five files in three other crates. Required: one owned entry point for building compiled programs outside the domain, proved by a planted signature change that edits 0 files elsewhere; route the deep-path import class to the tm-specialist.
 
 ## Notes
 
-- **P3.** validation.json `ownership_graph` still cites `340808449f`, 4,741 occurrences and 745 files from validation331, although validation332's log exists. `scope` reads "checkpoint 330". Both should be rebound to validation332.
-- **P4.** The F9 entry in `red_green` calls `f9_green_memory_guard.log` green, but that log ends "FAILED. 0 passed; 1 failed" at 4,452,912 KiB against the guard. It is a harness repair that now reaches its peak assertion. The README discloses this, but the memory guard is missing from the review README's Known red list.
-- **P5.** `evidence/parity/django-413/summary.json` names source `1086daee4b`, while `per-rule.json` is the 332 run.
-- **E1.** idiomatic-rust's `internal-crates` check exempts tests and fixtures (`tastemaker.toml:195` allowed-paths), which is why C1 passes TM. This is an open item for the tm-specialist.
-- **Enforced boundaries limit.** The alias form of `ryo::languages` is not covered by idiomatic-rust 0.1.13. The CHANGELOG `f957c0632e` says so, and the steward decided none, pending the provider-alias branch. Whether each cited enforcement fires is the [leak review](leak-review.md)'s lens.
+- **N1** census.md: no census command exists (not in `run.py` at the source or in the 334 tree); the stated method does not reproduce the absolute figures (binding_read 18 / 25 / 27 files by variant against 23; `Relation::X` 26 / 156 against 25 / 155). Commit the command.
+- **N2** census rows outside (c) rose 332 → 333: exhaustive `Operation` matches 24 → 27 (presence `narrowing.rs`, `operation_schema/projection.rs`, `operator/contract/service.rs`), GroupCount 43 → 45, store concrete types 52 → 53, evaluator rewrite total 179 → 181. The owner decision covers the 23 → 24 rise only.
+- **P3** validation.json `scope` still reads checkpoint 330; `tm_whole_tree` binds `8568d6f1a2`; the only raw whole-tree result at `563c0bc69b` is the pre-scrub run (exit 1, 10 findings). This review's run gives 0 / 19 at the source.
+- **P4** README.md:73 reads 8 check passes, the metrics 9; README.md:84 reads 6 red-then-green entries, validation.json has 7.
+- **P5** the checkpoint table's Review link points at a 2026-11-07 verdict on `293ca1a9a2`.
 
-## Closed since 331
+Owner of C1, C2, N1 and P3 to P5: the checkpoint 334 integrator (C1 and C2 through the port landing's seam contract suite, as 332's C1 and C2 were assigned); N2: the PM.
 
-- The 331 Enforced-boundaries FAIL: tm 0.1.2 is rebuilt; shared-walk-owner, program-implementation-boundary and idiomatic-rust are active at 0.2.0, 0.2.0 and 0.1.13; tm validate is green; the whole tree has 0 findings.
-- 331 P4.1 and P4.2: the matrix rows and the known red list are rebound to validation332. Row 1 remains stale (P2).
+## Manual judgment
 
-## Remaining manual judgment
-
-- The TM receipt has 13 suppressed findings, where the agent file reads 0.
-- The census is a static grep proxy written outside the review. The Relation::X row (24 to 25) did not reproduce: my filter gives 25 at both.
-- The leak-repairs-b footprint is judged per class.
-- This is a single review.
-
-## Evidence JSON
-
-`contract-review.json` sits beside this file.
+Skip rules' production spread (domain presence fold, ten runtime services) has no strategy port; this review fails only its cross-crate ripples and leaves the spread to the port landing and the fused rewrite.
