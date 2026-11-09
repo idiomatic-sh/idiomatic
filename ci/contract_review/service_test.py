@@ -79,6 +79,23 @@ def test_a_protected_file_renamed_into_the_receipts_is_a_protected_change(reposi
     assert run(path, head).returncode == 1
 
 
+def test_a_protected_file_renamed_into_the_receipts_since_activation_needs_a_review(repository):
+    path, _, commit, _ = repository
+    moved = "crates/ryo/Cargo.toml"
+    head = commit(service.ACTIVATION, {moved: None, service.RECEIPTS + "/Cargo.toml": service.git(ROOT, "show", f"{service.ACTIVATION}:{moved}")})
+    assert run(path, head).returncode == 1
+
+
+def test_an_uncommitted_rename_of_a_protected_file_is_a_protected_working_tree_change(repository):
+    path, source, commit, review = repository
+    reviewed = commit(source, {service.REVIEW: review(source)})
+    subprocess.run(["git", "-C", str(path), "reset", "-q", "--hard", reviewed], check=True)
+    (path / service.RECEIPTS).mkdir(parents=True, exist_ok=True)
+    subprocess.run(["git", "-C", str(path), "mv", "crates/ryo/Cargo.toml", service.RECEIPTS + "/Cargo.toml"], check=True)
+    done = run(path, "HEAD")
+    assert done.returncode == 1 and "protected working tree changes" in done.stderr
+
+
 @pytest.mark.parametrize("mutation", [
     lambda r: {**r, "verdict": "BLOCKING"},
     lambda r: {**r, "verdict": "MAYBE"},
@@ -161,6 +178,9 @@ VARIANTS = [  # (reviewer, document, valid): the behaviour table; the hook calls
     ("leak-review", {"source": SHA, "verdict": "PASS", "reviewer": "leak-review", "checks": GOOD, "enforcement_candidates": [{"id": candidate_id("bead-ryo-ab12", "pub fn"), "class": "bead-ryo-ab12", "signature": "pub fn", "scope": ["crates/a"], "suggested_mechanism": "new rule", "plants": [{"file": "a.rs", "line": 3, "text": "pub fn x() {}"}]}]}, False),
     ("leak-review", {"source": SHA, "verdict": "PASS", "reviewer": "leak-review", "checks": GOOD, "enforcement_candidates": [{"id": candidate_id("fix-ryo-ab12", "pub fn"), "class": "fix-ryo-ab12", "signature": "pub fn", "scope": ["crates/a"], "suggested_mechanism": "new rule", "plants": [{"file": "a.rs", "line": 3, "text": "pub fn x() {}"}]}]}, False),
     ("leak-review", {"source": SHA, "verdict": "PASS", "reviewer": "leak-review", "checks": GOOD, "enforcement_candidates": [{"id": candidate_id("see bead_ryo-ab12", "pub fn"), "class": "see bead_ryo-ab12", "signature": "pub fn", "scope": ["crates/a"], "suggested_mechanism": "new rule", "plants": [{"file": "a.rs", "line": 3, "text": "pub fn x() {}"}]}]}, False),
+    ("leak-review", {"source": SHA, "verdict": "PASS", "reviewer": "leak-review", "checks": GOOD, "enforcement_candidates": [{"id": candidate_id("found it (ryo-abcd)", "pub fn"), "class": "found it (ryo-abcd)", "signature": "pub fn", "scope": ["crates/a"], "suggested_mechanism": "new rule", "plants": [{"file": "a.rs", "line": 3, "text": "pub fn x() {}"}]}]}, False),
+    ("leak-review", {"source": SHA, "verdict": "PASS", "reviewer": "leak-review", "checks": GOOD, "enforcement_candidates": [{"id": candidate_id("see bead ryo-abcd", "pub fn"), "class": "see bead ryo-abcd", "signature": "pub fn", "scope": ["crates/a"], "suggested_mechanism": "new rule", "plants": [{"file": "a.rs", "line": 3, "text": "pub fn x() {}"}]}]}, False),
+    ("leak-review", {"source": SHA, "verdict": "PASS", "reviewer": "leak-review", "checks": GOOD, "enforcement_candidates": [{"id": candidate_id("patch of (idiomatic-sh-ryo-core)", "pub fn"), "class": "patch of (idiomatic-sh-ryo-core)", "signature": "pub fn", "scope": ["crates/a"], "suggested_mechanism": "new rule", "plants": [{"file": "a.rs", "line": 3, "text": "pub fn x() {}"}]}]}, True),
     ("leak-review", {"source": SHA, "verdict": "PASS", "reviewer": "leak-review", "checks": GOOD, "enforcement_candidates": [{"id": candidate_id("c", "pub fn"), "class": "c", "signature": "pub fn", "scope": ["crates/a"], "suggested_mechanism": "new rule", "plants": [{"file": "a.rs", "line": 3, "text": "t"}, 5]}]}, False),
     ("leak-review", {"source": SHA, "verdict": "PASS", "reviewer": "leak-review", "checks": GOOD, "enforcement_candidates": [{"id": "c-00000000", "class": "c", "signature": "pub fn", "scope": ["crates/a"], "suggested_mechanism": "new rule", "plants": [{"file": "a.rs", "line": 3, "text": "pub fn x() {}"}]}]}, False),
     ("leak-review", {"source": SHA, "verdict": "PASS", "reviewer": "leak-review", "checks": GOOD, "enforcement_candidates": [{"class": "c", "signature": "pub fn", "scope": ["crates/a"], "suggested_mechanism": "new rule", "plants": [{"file": "a.rs", "line": 3, "text": "pub fn x() {}"}]}]}, False),

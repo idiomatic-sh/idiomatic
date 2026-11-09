@@ -15,7 +15,7 @@ def main() -> int:
     args = parser.parse_args()
     try:
         if args.head == "HEAD":
-            changed = git(args.root, "diff", "--name-only", "-z", "HEAD") + git(args.root, "ls-files", "--others", "--exclude-standard", "-z")
+            changed = git(args.root, "diff", "--name-only", "--no-renames", "-z", "HEAD") + git(args.root, "ls-files", "--others", "--exclude-standard", "-z")
             if any(protected(path.decode()) for path in changed.split(b"\0") if path):
                 raise ValueError("protected working tree changes must be committed before review")
         print(validate(args.root, args.head))
