@@ -85,7 +85,7 @@ impl ProgramExecution {
                     && !slot
                         .is_some_and(|slot| slot.dependencies_consumed == Dependencies::Consumed)
                     && state.absent.borrow().presence(id)
-                        == ryo_execution_domain::domain::presence::types::RegionPresence::Present
+                        == ryo_execution_domain::domain::executable_program::presence::types::RegionPresence::Present
                 {
                     work.pending
                         .extend(self.program.regions()[id.0].dependencies().iter().copied());

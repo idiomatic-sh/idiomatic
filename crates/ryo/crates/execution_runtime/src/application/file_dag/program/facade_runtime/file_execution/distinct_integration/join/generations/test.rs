@@ -84,8 +84,7 @@ fn one_prepared_request_reopens_same_file_after_delivery_failure_empty_skip_and_
             ReuseEligibility::Eligible,
             &mut symbols,
             None,
-            None,
-        &|_| Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead))
+            None)
         .unwrap();
         let weak = Rc::downgrade(&file.owner);
         let mut prefix = vec![];
@@ -184,7 +183,7 @@ fn one_prepared_request_reopens_same_file_after_delivery_failure_empty_skip_and_
         &mut symbols,
         None,
         None,
-        &|_| Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead))
+    )
     .unwrap();
     let mut rows = vec![];
     assert!(matches!(
@@ -194,7 +193,8 @@ fn one_prepared_request_reopens_same_file_after_delivery_failure_empty_skip_and_
         }),
         Err(OperatingError::NotRead)
     ));
-    assert_eq!(right_refusals.get(), 1);
+    // The file's presence read meets the refusal first and turns presence off; admission then meets it once.
+    assert_eq!(right_refusals.get(), 2);
     assert!(rows.is_empty());
     assert_eq!(file.owner.derived().counts().0, 0);
     assert_eq!(

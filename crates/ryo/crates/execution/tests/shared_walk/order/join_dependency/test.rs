@@ -125,10 +125,9 @@ fn shared_walk_uses_the_same_join_dependency_contract_for_callback_delivery() {
                         expected(FileId(0), &elements, &[2])
                     );
                 }
-                // The independent selector and LHS reach the first actual head
-                // cohort. Only LHS publication unlocks the Join's demanded RHS,
-                // which reaches a second cohort. A terminal retry adds no work.
-                counts(&file, 2, 8);
+                // The LHS cannot match the file ("absent-kind"), so it publishes empty without a walk: the independent
+                // selector and the Join's demanded RHS share the one head cohort. A terminal retry adds no work.
+                counts(&file, 1, 4);
                 assert_eq!(
                     file.walk_counts().predicate_rows.0,
                     2,

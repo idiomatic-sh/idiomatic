@@ -157,8 +157,7 @@ fn failed_emit_and_failed_observation_do_not_erase_the_independent_root() {
             ReuseEligibility::Eligible,
             &mut symbols,
             None,
-            None,
-        &|_| Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead))
+            None)
         .unwrap();
         let table = function_rows(&[0]);
         let read = |relation| {

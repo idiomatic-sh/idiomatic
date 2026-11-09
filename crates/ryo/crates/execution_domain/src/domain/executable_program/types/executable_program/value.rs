@@ -18,7 +18,7 @@ pub struct ExecutableProgram {
     /// The partition requirement of each relation source: the first region declaring it decides, found once per program.
     relation_partitions: rustc_hash::FxHashMap<ryo_relations::domain::relations::types::Relation, PartitionRequirement>,
     /// What a file must hold for each region to have a row or a row error there.
-    presence: crate::domain::presence::types::PresenceTable,
+    presence: crate::domain::executable_program::presence::types::PresenceTable,
     /// The fusion classification of every instruction, indexed by its logical number.
     #[cfg(any(test, feature = "fixtures"))]
     fusibility: Box<[crate::domain::executable_program::fusion::types::Fusibility]>,
@@ -41,6 +41,7 @@ impl ExecutableProgram {
                     .or_insert(declaration.requirement);
             }
         }
+        let region_count = regions.len();
         Self {
             regions,
             relation_partitions,
@@ -48,7 +49,11 @@ impl ExecutableProgram {
             rules,
             logical_regions,
             observation_regions,
-            presence: Default::default(),
+            presence: crate::domain::executable_program::presence::types::PresenceTable {
+                regions: vec![crate::domain::executable_program::presence::service::ALWAYS; region_count].into_boxed_slice(),
+                reads: vec![Box::default(); region_count].into_boxed_slice(),
+                ..Default::default()
+            },
             #[cfg(any(test, feature = "fixtures"))]
             fusibility: Box::new([]),
         }
@@ -56,14 +61,25 @@ impl ExecutableProgram {
     /// The same program with the presence formulas of its regions.
     pub(in crate::domain::executable_program) fn with_presence(
         mut self,
-        presence: crate::domain::presence::types::PresenceTable,
+        presence: crate::domain::executable_program::presence::types::PresenceTable,
     ) -> Self {
         self.presence = presence;
         self
     }
     /// What a file must hold for each region to have a row or a row error there.
-    pub fn presence(&self) -> &crate::domain::presence::types::PresenceTable {
+    pub fn presence(&self) -> &crate::domain::executable_program::presence::types::PresenceTable {
         &self.presence
+    }
+    /// The skip formula of a region; a program made without a presence table holds every region `Always`.
+    ///
+    /// # Errors
+    ///
+    /// [`OperatingError::NotRun`] for a region the program does not have.
+    pub fn presence_of(
+        &self,
+        region: RegionId,
+    ) -> Result<crate::domain::executable_program::presence::types::FormulaId, OperatingError> {
+        self.presence.regions.get(region.0).copied().ok_or(OperatingError::NotRun)
     }
     /// The same program with the fusion classification the compiler made, which only the controls read.
     #[cfg(any(test, feature = "fixtures"))]

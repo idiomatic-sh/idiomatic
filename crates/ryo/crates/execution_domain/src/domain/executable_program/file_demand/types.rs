@@ -1,6 +1,6 @@
 //! Immutable request-wide file root activation metadata.
 use super::super::types::{InputSource, RegionId};
-use crate::domain::presence::types::RegionPresence;
+use crate::domain::executable_program::presence::types::RegionPresence;
 use crate::domain::readiness::types::RegionCount;
 use crate::domain::operating::errors::OperatingError;
 use ryo_values::domain::{

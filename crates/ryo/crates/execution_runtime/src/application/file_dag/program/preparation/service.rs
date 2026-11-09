@@ -272,6 +272,7 @@ pub(crate) fn prepare(
         graph,
         &partitions,
         &operators,
+        ryo_execution_domain::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl),
     )?);
     walk.retain_program_consumers(&program)?;
     census::service::trace(rules, &walk, &program);

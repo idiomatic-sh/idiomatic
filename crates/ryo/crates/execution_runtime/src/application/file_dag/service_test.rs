@@ -269,7 +269,7 @@ fn identical_binding_dependent_operations_do_not_share_rule_graph_results() -> R
         &mut symbols,
         None,
         None,
-        &|_| Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead))
+    )
     .unwrap();
     let storage = language_columns(FileId(7), Integer(3));
     let RuleRun { table: first, reads: first_reads } = run_rule(&mut file, RuleIndex(0), &storage, &mut symbols);
@@ -311,7 +311,7 @@ fn two_file_generation_owners_cannot_reuse_the_other_files_results() -> Result<A
         &mut first_symbols,
         None,
         None,
-        &|_| Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead))
+    )
     .unwrap();
     let RuleRun { table: left, reads: first_reads } = run_rule(&mut first, RuleIndex(0), &language_columns(FileId(1), Integer(3)), &mut first_symbols);
     let mut second_symbols = Symbols::default();
@@ -333,7 +333,7 @@ fn two_file_generation_owners_cannot_reuse_the_other_files_results() -> Result<A
         &mut second_symbols,
         None,
         None,
-        &|_| Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead))
+    )
     .unwrap();
     let RuleRun { table: right, reads: second_reads } = run_rule(&mut second, RuleIndex(0), &language_columns(FileId(9), Integer(3)), &mut second_symbols);
     assert!(first_reads.0 > 0);

@@ -211,7 +211,7 @@ pub(crate) fn execute_bound_request(
         symbols,
         None,
         None,
-        &|_| Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead))?;
+    )?;
     let read = |relation| {
         providers
             .iter()

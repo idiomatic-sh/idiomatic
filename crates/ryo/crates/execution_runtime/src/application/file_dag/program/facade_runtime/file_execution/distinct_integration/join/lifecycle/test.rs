@@ -174,7 +174,7 @@ fn exercise_nested(single_result: bool) -> Result<(), OperatingError> {
         &mut symbols,
         Some(&lookup),
         None,
-        &|_| Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead))?;
+    )?;
     let owner = Rc::clone(&file.owner);
     let outer_root = file
         .program

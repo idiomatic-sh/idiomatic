@@ -28,6 +28,15 @@ pub(super) struct RunContext<'a> {
     scratch: OperatorScratch,
 }
 impl<'a> RunContext<'a> {
+    /// Whether the caller lends the original symbol pool again.
+    pub(super) fn validate(&self, symbols: &mut Symbols) -> Result<(), OperatingError> {
+        if same_transport_generation(&self.symbols, &transport_permit(symbols))
+            == ryo_language::domain::symbols::types::Generation::Different
+        {
+            return Err(OperatingError::NotRead);
+        }
+        Ok(())
+    }
     pub(super) fn file(
         services: &ProgramServices,
         source: SourceView<'a>,

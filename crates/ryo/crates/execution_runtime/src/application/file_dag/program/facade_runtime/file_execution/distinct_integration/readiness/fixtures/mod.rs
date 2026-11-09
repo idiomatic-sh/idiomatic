@@ -250,8 +250,7 @@ pub(crate) fn observe(omit: bool) -> Coverage {
             ReuseEligibility::Eligible,
             &mut symbols,
             None,
-            None,
-        &|_| Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead))
+            None)
         .unwrap();
         let function = function_rows(&[0, 2]);
         let read = |relation| match relation {

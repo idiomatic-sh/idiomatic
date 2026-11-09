@@ -103,7 +103,7 @@ fn large_tiny_and_empty_rule_outputs_are_owned_beyond_workspace_drop() {
         &mut symbols,
         None,
         None,
-        &|_| Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead))
+    )
     .unwrap();
     let read = |_| Err::<Rows<'_>, _>(OperatingError::NotRead);
     let mut outputs = Vec::new();
@@ -169,7 +169,7 @@ fn evaluation_errors_do_not_leave_mutable_state_in_the_next_rule() {
         &mut symbols,
         None,
         None,
-        &|_| Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead))
+    )
     .unwrap();
     let read = |_| Err::<Rows<'_>, _>(OperatingError::NotRead);
     let demand = || RuleDemand {

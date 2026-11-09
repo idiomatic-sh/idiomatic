@@ -1,7 +1,7 @@
 //! Exhaustive semantic declarations; strategy, cache admission and lifetimes are not kinds.
 use super::primitive::portable_fault;
 use super::types::*;
-use crate::domain::presence::types::{InputMask, PresenceMask, RowFailure};
+use crate::domain::operator::contract::presence::{InputMask, PresenceMask, RowFailure};
 use crate::domain::operating::errors::OperatingError;
 use ryo_values::domain::query_operators::types::OperationKind;
 
@@ -222,7 +222,28 @@ fn failure(
         Operation::OrderedMatch { .. } | Operation::OrderedDfs { .. } => {
             RowFailure::OnRows(InputMask(3))
         }
+        Operation::Select { comparisons, .. } => comparison_failure(comparisons, InputMask(1)),
+        Operation::Join { filter, .. } => comparison_failure(filter, InputMask(2)),
+        Operation::Axis { domain_filter, .. } => comparison_failure(domain_filter, InputMask(4)),
         _ => RowFailure::Never,
+    }
+}
+
+/// A regular expression read from the row is compiled when a row reaches its comparison, so it can fail on the rows of the
+/// input the comparisons filter. A literal pattern that does not compile is found by the presence fold.
+fn comparison_failure(
+    comparisons: &[ryo_values::domain::plan_parts::types::PlanComparison],
+    input: InputMask,
+) -> RowFailure {
+    use ryo_values::domain::plan_parts::types::{Operand, QueryLiteral, Test};
+    let fallible = comparisons.iter().any(|comparison| {
+        comparison.test == Test::Matches
+            && !matches!(&comparison.right, Operand::Literal(QueryLiteral::Text(_)))
+    });
+    if fallible {
+        RowFailure::OnRows(input)
+    } else {
+        RowFailure::Never
     }
 }
 

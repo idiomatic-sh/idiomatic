@@ -156,14 +156,6 @@ impl RequestExecution {
                 SemanticSupport::Absent => None,
             },
             vocabulary,
-            &|relation| {
-                crate::application::file_dag::program::file_session::service::source_rows(
-                    input.read,
-                    input.elements,
-                    input.file,
-                    relation,
-                )
-            },
         )?;
         Ok(FileSession {
             parts: SessionParts {

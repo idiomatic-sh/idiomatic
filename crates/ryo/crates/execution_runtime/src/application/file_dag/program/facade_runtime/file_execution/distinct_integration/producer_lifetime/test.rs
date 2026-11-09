@@ -91,7 +91,7 @@ fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
         &mut symbols,
         None,
         None,
-        &|_| Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead))?;
+    )?;
     // Required views still have to live until their published producer's last
     // consumer when optional retention is unavailable.
     file.owner.derived().set_optional_limit(

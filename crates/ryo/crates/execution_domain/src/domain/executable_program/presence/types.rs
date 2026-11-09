@@ -56,6 +56,9 @@ pub struct PresenceTable {
     pub relations: Box<[RelationTests]>,
     /// The formula of each region, by region: a region whose formula fails in a file publishes the empty table there.
     pub regions: Box<[FormulaId]>,
+    /// The per-file relations each region's inputs read, at any depth, by region: a region found absent never reads them,
+    /// so the file reads them once to meet any refusal its full run would have met.
+    pub reads: Box<[Box<[Relation]>]>,
 }
 
 /// The presence formulas of every node of a request graph, by node.
@@ -65,6 +68,8 @@ pub struct GraphPresence {
     pub table: PresenceTable,
     /// The skip formula of each node: its rows' condition, or a row error upstream.
     pub nodes: Box<[FormulaId]>,
+    /// The per-file relations each node's inputs read, at any depth, by node.
+    pub reads: Box<[Box<[Relation]>]>,
 }
 
 /// One relation read by one node input: reads of one relation by two inputs are two reads.
@@ -102,7 +107,7 @@ pub(crate) struct TestBucket(pub u64);
 
 /// A node of the request graph, by its place in the fold.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub(crate) struct FoldedNode(pub usize);
+pub struct FoldedNode(pub usize);
 
 /// The occurrence a side of a two-input node gives an upstream occurrence.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -176,28 +181,33 @@ pub(crate) struct NodeFacts {
     pub tree: Option<crate::domain::table_cells::types::TreeForm>,
     /// Whether it may have rows in any file.
     pub conditionality: Conditionality,
+    /// The per-file relations its inputs read, at any depth, sorted.
+    pub reads: Vec<Relation>,
 }
 
-/// Which inputs must have a row in a file for an operation to answer any row there.
+/// Whether an ordered-existence route certifies numbers from a region's rows.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum PresenceMask {
-    /// Every input the mask names must have a row.
-    AllOf(InputMask),
-    /// At least one input the mask names must have a row.
-    AnyOf(InputMask),
-    /// The answer can have rows whatever the inputs hold.
-    Always,
+pub enum Certification {
+    /// No route reads the region's lineage.
+    Free,
+    /// The region is upstream of a route source: it runs whenever it is reached.
+    Certifying,
 }
 
-/// Inputs by their place: the bit of an input is `1 << place`.
+/// The node a region's last instruction is, when it is a node of the graph, and whether a route certifies its rows.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct InputMask(pub u8);
+pub struct RegionNode {
+    /// The node, by its place in the graph.
+    pub node: Option<FoldedNode>,
+    /// Whether a route certifies its rows.
+    pub certified: Certification,
+}
 
-/// Which inputs' rows can make an operation fail on what the rows hold, not on their schema.
+/// Whether a relation's rows are the current file's own, so a test may read them.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum RowFailure {
-    /// No row of any input can make it fail.
-    Never,
-    /// A row of an input the mask names can make it fail.
-    OnRows(InputMask),
+pub enum RelationScope {
+    /// The current file's rows.
+    CurrentFile,
+    /// Rows of the project or the request.
+    Shared,
 }

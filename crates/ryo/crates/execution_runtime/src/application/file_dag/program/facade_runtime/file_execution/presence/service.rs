@@ -3,9 +3,9 @@
 use crate::application::file_dag::program::facade_runtime::file_execution::FileRun;
 use crate::application::file_dag::program::facade_runtime::types::{FilePresence, PresenceGate, RootCandidate, Truth};
 use ryo_execution_domain::domain::executable_program::file_demand::types::AbsentRegions;
+use ryo_execution_domain::domain::executable_program::types::RegionId;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_domain::domain::presence::service::of_region;
-use ryo_execution_domain::domain::presence::types::{FormulaId, RegionPresence, PresenceFormula, PresenceTable, TestId};
+use ryo_execution_domain::domain::executable_program::presence::types::{FormulaId, RegionPresence, PresenceFormula, PresenceTable, TestId};
 use ryo_execution_domain::domain::readiness::types::RegionCount;
 use ryo_execution_domain::domain::table_model::types::Rows;
 use ryo_relations::domain::relations::types::Relation;
@@ -47,9 +47,14 @@ impl FileRun<'_> {
         };
         for &RootCandidate { region: id, .. } in candidates {
             if absent.presence(id) == RegionPresence::Present
-                && self.presence.holds(table, of_region(table, id)?, &tested) == Truth::Fails
+                && self.presence.holds(table, program.presence_of(id)?, &tested) == Truth::Fails
+                && self.presence.probe(table, id, &tested) == Truth::Holds
             {
                 absent.insert(id);
+            }
+            if self.presence.gate == PresenceGate::Off {
+                // A refused source: every rule runs in full and meets the refusal as it would have.
+                return Ok(AbsentRegions::none(RegionCount(program.regions().len())));
             }
         }
         Ok(absent)
@@ -83,7 +88,8 @@ impl FileRun<'_> {
                 let region = program.regions().get(id.0).ok_or(OperatingError::NotRun)?;
                 if roots.presence(id) == RegionPresence::Present
                     && region.phase() == ryo_values::domain::plan_parts::types::StepScope::PerFile
-                    && self.presence.holds(table, of_region(table, id)?, &tested) == Truth::Fails
+                    && self.presence.holds(table, program.presence_of(id)?, &tested) == Truth::Fails
+                    && self.presence.probe(table, id, &tested) == Truth::Holds
                 {
                     interior.insert(id);
                 }
@@ -97,6 +103,14 @@ impl FileRun<'_> {
 impl FilePresence {
     /// Forgets the last file's answers, keeping the room.
     fn reset(&mut self, table: &PresenceTable) {
+        self.gate = PresenceGate::On;
+        // Every buffer is sized once per file, so presence allocates the same whatever the file holds.
+        self.read.clear();
+        self.read.reserve(table.relations.len());
+        self.cells.clear();
+        self.cells.reserve(table.tests.iter().map(|test| test.kinds.len()).max().unwrap_or(0));
+        self.open.clear();
+        self.open.reserve(table.relations.iter().map(|group| group.tests.len()).max().unwrap_or(0));
         self.tests.clear();
         self.tests.resize(table.tests.len(), Truth::Unknown);
         self.formulas.clear();
@@ -105,6 +119,9 @@ impl FilePresence {
     /// Whether a formula holds on the file. It cannot fail: a test whose rows cannot be read, or whose comparison errs on
     /// a row, holds, so the region runs in full and reports the error exactly as it would have.
     fn holds(&mut self, table: &PresenceTable, formula: FormulaId, tested: &PresenceRead<'_, '_>) -> Truth {
+        if self.gate == PresenceGate::Off {
+            return Truth::Holds;
+        }
         match self.formulas.get(formula.0).copied() {
             Some(Truth::Unknown) => {}
             Some(known @ (Truth::Holds | Truth::Fails)) => return known,
@@ -133,6 +150,24 @@ impl FilePresence {
         }
         truth
     }
+    /// Reads every per-file relation an absent region's inputs would have read, once per file, so a source its full run
+    /// would have met refused is met here too. It holds when every one reads; a refusal turns presence off.
+    fn probe(&mut self, table: &PresenceTable, region: RegionId, tested: &PresenceRead<'_, '_>) -> Truth {
+        let Some(reads) = table.reads.get(region.0) else {
+            return Truth::Fails;
+        };
+        for relation in reads.iter() {
+            if self.read.contains(relation) {
+                continue;
+            }
+            if (tested.read)(*relation).is_err() {
+                self.gate = PresenceGate::Off;
+                return Truth::Fails;
+            }
+            self.read.push(*relation);
+        }
+        Truth::Holds
+    }
     /// Whether a test holds, deciding every pending test of its relation in the same pass over the relation's rows.
     fn test(&mut self, table: &PresenceTable, test: TestId, tested: &PresenceRead<'_, '_>) -> Truth {
         match self.tests.get(test.0).copied() {
@@ -143,24 +178,24 @@ impl FilePresence {
         let Some(relation) = table.tests.get(test.0).map(|each| each.relation) else {
             return Truth::Holds;
         };
-        let mut open: Vec<TestId> = table
-            .relations
-            .iter()
-            .find(|group| group.relation == relation)
-            .map_or_else(
-                || vec![test],
-                |group| {
-                    group
-                        .tests
-                        .iter()
-                        .copied()
-                        .filter(|each| self.tests.get(each.0) == Some(&Truth::Unknown))
-                        .collect()
-                },
-            );
+        let mut open = std::mem::take(&mut self.open);
+        open.clear();
+        match table.relations.iter().find(|group| group.relation == relation) {
+            Some(group) => open.extend(
+                group
+                    .tests
+                    .iter()
+                    .copied()
+                    .filter(|each| self.tests.get(each.0) == Some(&Truth::Unknown)),
+            ),
+            None => open.push(test),
+        }
         if let Ok(rows) = (tested.read)(relation) {
-            let mut cells = Vec::new();
-            let mut memo = Vec::new();
+            if !self.read.contains(&relation) {
+                self.read.push(relation);
+            }
+            let mut cells = std::mem::take(&mut self.cells);
+            let mut memo = std::mem::take(&mut self.memo);
             for index in ryo_values::domain::rows::service::positions(
                 ryo_execution_domain::domain::table_model::service::count_of(&rows),
             ) {
@@ -169,7 +204,11 @@ impl FilePresence {
                 }
                 let Some(row) = ryo_execution_domain::domain::table_model::service::read_row(&rows, index, &mut cells)
                 else {
-                    continue;
+                    // A population whose rows cannot be read is admission's to refuse: every test holds.
+                    self.gate = PresenceGate::Off;
+                    self.open = open;
+                    self.memo = memo;
+                    return Truth::Holds;
                 };
                 let tests = &mut self.tests;
                 let scratch = &mut self.scratch;
@@ -206,18 +245,20 @@ impl FilePresence {
                     }
                 });
             }
-            for each in open {
+            for each in open.drain(..) {
                 if let Some(slot) = self.tests.get_mut(each.0) {
                     *slot = Truth::Fails;
                 }
             }
+            self.cells = cells;
+            self.memo = memo;
+            self.open = open;
         } else {
-            // Rows that cannot be read hold every pending test.
-            for each in open {
-                if let Some(slot) = self.tests.get_mut(each.0) {
-                    *slot = Truth::Holds;
-                }
-            }
+            self.open = open;
+            // Rows that cannot be read hold every test, and no further row is read: the rules report the refusal as
+            // their own reads meet it.
+            self.gate = PresenceGate::Off;
+            return Truth::Holds;
         }
         match self.tests.get(test.0) {
             Some(truth) => *truth,

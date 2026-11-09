@@ -27,7 +27,6 @@ pub mod table_texts;
 
 pub mod trust;
 
-pub mod presence;
 
 pub(crate) mod describing;
 pub mod finish;

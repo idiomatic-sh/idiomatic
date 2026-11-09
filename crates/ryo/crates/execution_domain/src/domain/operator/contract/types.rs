@@ -1,6 +1,6 @@
 //! Prepared metadata is request-owned; invocation capabilities borrow engine-owned data.
 use super::primitive::PrimitiveSemantics;
-use crate::domain::presence::types::{PresenceMask, RowFailure};
+use crate::domain::operator::contract::presence::{PresenceMask, RowFailure};
 use super::views::{IndexedRows, PredicateProgram, ValidatedSource};
 use crate::domain::operating::errors::OperatingError;
 use ryo_language::domain::symbols::types::QuerySymbols;

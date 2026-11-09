@@ -75,7 +75,7 @@ pub(crate) fn execute(
         symbols,
         None,
         None,
-        &|_| Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead))
+    )
     .unwrap();
     let read = |_| Err::<Rows<'_>, _>(OperatingError::NotRead);
     let outcome = file

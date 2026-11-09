@@ -7,7 +7,7 @@ use crate::application::file_dag::program::admission::Partition;
 use crate::application::file_dag::program::runtime::types::ReaderInitializations;
 #[cfg(test)]
 use crate::application::file_dag::program::runtime::types::CallCount;
-use crate::application::file_dag::program::runtime::types::{Dependencies, ReaderCount};
+use crate::application::file_dag::program::runtime::types::{Dependencies, ReaderCount, Touch};
 use ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram;
 use ryo_execution_domain::domain::executable_program::types::RegionId;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
@@ -33,7 +33,7 @@ impl Slot {
         };
         let cancelled = remaining.0 == 0;
         // An absent root owes no input: the walk never counted its edges, so nothing is released when it publishes.
-        let absent = state.absent.borrow().presence(id) == ryo_execution_domain::domain::presence::types::RegionPresence::Absent;
+        let absent = state.absent.borrow().presence(id) == ryo_execution_domain::domain::executable_program::presence::types::RegionPresence::Absent;
         // Compiled obligations include roots in other project populations. They
         // remain a conservative upper bound until phase finish; no bank may
         // retire another population's publication or claim exact last use.
@@ -94,7 +94,7 @@ impl RuntimeState {
     pub(crate) fn presence(
         &self,
         id: RegionId,
-    ) -> ryo_execution_domain::domain::presence::types::RegionPresence {
+    ) -> ryo_execution_domain::domain::executable_program::presence::types::RegionPresence {
         self.interior.borrow().presence(id)
     }
     pub(crate) fn initial_remaining(
@@ -168,11 +168,7 @@ impl ProgramExecution {
         readers: &[RegionId],
         absent: ryo_execution_domain::domain::executable_program::file_demand::types::AbsentRoots,
     ) -> Result<(), OperatingError> {
-        if !matches!(self.partition, Partition::File(_))
-            || !self.file_state.slots.borrow().is_empty()
-            || !self.file_state.dormant.borrow().is_empty()
-            || !matches!(*self.file_state.roots.borrow(), RootReaders::Declared)
-        {
+        if !matches!(self.partition, Partition::File(_)) || self.touched() == Touch::Touched {
             return Err(OperatingError::NotRun);
         }
         let mut counted = rustc_hash::FxHashMap::<RegionId, usize>::default();
@@ -200,16 +196,29 @@ impl ProgramExecution {
         *self.file_state.absent.borrow_mut() = absent;
         Ok(())
     }
+    /// Whether the file scope has touched a region: before it has, its reader counts may be bound again.
+    pub(crate) fn touched(&self) -> Touch {
+        if self.file_state.slots.borrow().is_empty() && self.file_state.dormant.borrow().is_empty() {
+            Touch::Untouched
+        } else {
+            Touch::Touched
+        }
+    }
     /// The regions the file's walk counted a reader for: what its admitted roots can reach, and its absent roots.
     pub(crate) fn reached(&self) -> Vec<RegionId> {
         match &*self.file_state.roots.borrow() {
-            RootReaders::Selected(table) => table
-                .counts
-                .iter()
-                .enumerate()
-                .filter(|(_, count)| count.0 > 0)
-                .map(|(at, _)| RegionId(at))
-                .collect(),
+            RootReaders::Selected(table) => {
+                let mut reached = Vec::with_capacity(table.counts.len());
+                reached.extend(
+                    table
+                        .counts
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, count)| count.0 > 0)
+                        .map(|(at, _)| RegionId(at)),
+                );
+                reached
+            }
             RootReaders::Declared => Vec::new(),
         }
     }

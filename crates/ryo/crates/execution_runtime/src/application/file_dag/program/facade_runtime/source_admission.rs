@@ -83,7 +83,7 @@ impl Inputs for SourceInputs<'_, '_> {
     fn presence(
         &mut self,
         region: ryo_execution_domain::domain::executable_program::types::RegionId,
-    ) -> ryo_execution_domain::domain::presence::types::RegionPresence {
+    ) -> ryo_execution_domain::domain::executable_program::presence::types::RegionPresence {
         self.state.presence(region)
     }
     fn dependency(

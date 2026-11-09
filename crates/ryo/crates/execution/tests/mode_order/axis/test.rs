@@ -83,7 +83,8 @@ fn axis_error_order_is_identical_for_both_delivery_apis_and_source_shapes() {
         };
         assert_eq!(error, OperatingError::WrongBinding);
         let collected_reads = reads.take();
-        assert_eq!(collected_reads, vec![Relation::Function]);
+        // Presence reads the rule's relation once before the first region; admission then reads it, and fails on it.
+        assert_eq!(collected_reads, vec![Relation::Function, Relation::Function]);
         let callback = deliver(authored(), &read);
         assert!(matches!(callback.result, Err(actual) if actual == error));
         assert_eq!(*reads.borrow(), collected_reads);

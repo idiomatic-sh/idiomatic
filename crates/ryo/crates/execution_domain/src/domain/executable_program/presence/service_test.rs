@@ -3,50 +3,23 @@
 //! test is grouped by, and a region table total over the compiled program.
 use super::service::{ALWAYS, for_regions, of_graph};
 use super::types::{FormulaId, GraphPresence, PresenceFormula, PresenceTable};
-use crate::domain::coverage::types::RuleIndex;
-use crate::domain::executable_program::types::{PartitionRequirement, ProducerPartitions};
 use crate::domain::file_program::types::RequestGraph;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operation_schema::types::InputShape;
 use crate::domain::operator::contract::service::{prepare_for, semantics};
 use crate::domain::operator::contract::types::EmptyRepresentation;
-use crate::domain::presence::types::{InputMask, PresenceMask, RowFailure};
+use crate::domain::operator::contract::presence::{InputMask, PresenceMask, RowFailure};
 use ryo_relations::domain::relations::service::kinds;
 use ryo_relations::domain::relations::types::{
-    CellKind, Name, PlaceNumber, Relation, TextHash, Value as Cell,
+    CellKind, Relation,
 };
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, ComparisonOrigin, Input as Source, JoinColumn, LiteralText, Operand, ParameterId,
+    ColumnIndex, ComparisonOrigin, Input as Source, JoinColumn, LiteralText, Operand,
     PlanComparison, QueryLiteral, ReachLookup, Side, StepId, StepScope, Test,
 };
 use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
 use ryo_values::domain::query_operators::types::OperationKind;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
-
-/// Every relation is the current file's own.
-struct FileRelations;
-impl ProducerPartitions for FileRelations {
-    fn hosted(
-        &self,
-        _: RuleIndex,
-        _: ryo_values::domain::plan_parts::types::HostedNumber,
-    ) -> Result<PartitionRequirement, OperatingError> {
-        Ok(PartitionRequirement::RequestInvariant)
-    }
-    fn parameter(&self, _: RuleIndex, _: ParameterId) -> Result<PartitionRequirement, OperatingError> {
-        Ok(PartitionRequirement::RequestInvariant)
-    }
-    fn relation(&self, _: Relation) -> PartitionRequirement {
-        PartitionRequirement::CurrentFile
-    }
-    fn observation(
-        &self,
-        _: RuleIndex,
-        _: ryo_values::domain::plan_parts::types::ObservationBindingId,
-    ) -> Result<PartitionRequirement, OperatingError> {
-        Ok(PartitionRequirement::CurrentFile)
-    }
-}
 
 fn equal(column: u32, text: &str) -> PlanComparison {
     PlanComparison {
@@ -101,7 +74,7 @@ fn graph(plans: &[Plan]) -> (RequestGraph, crate::domain::file_program::types::R
     (graph, operators)
 }
 fn fold(plans: &[Plan]) -> GraphPresence {
-    of_graph(&graph(plans).0, &FileRelations)
+    of_graph(&graph(plans).0, &|_| super::types::RelationScope::CurrentFile, crate::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl))
 }
 /// The skip formula of the last step of the first plan.
 fn last(presence: &GraphPresence, plans: &[Plan]) -> FormulaId {
@@ -208,41 +181,6 @@ fn the_row_fallible_operators_name_the_inputs_whose_rows_can_err() -> Result<(),
             }
         ),
         Ok(RowFailure::OnRows(InputMask(1)))
-    );
-    Ok(())
-}
-
-/// The boundary the Replace declaration rests on: a name that left its file and has no text fails the text gate, so only
-/// a path where no such name can arrive may declare Replace over a Symbol column infallible.
-fn a_name_without_text_is_refused_by_the_replace_text_gate() -> Result<(), OperatingError> {
-    let kinds = [CellKind::Symbol];
-    let contract = prepare_for(
-        OperationKind::Replace,
-        &Operation::Replace {
-            from: Source::Relation(Relation::Comment),
-            text: ColumnIndex(0),
-            pattern: LiteralText("a".into()),
-            replacement: LiteralText("b".into()),
-        },
-        &[InputShape { kinds: &kinds, tree: None }],
-        &[],
-        StepScope::PerFile,
-    )
-    .expect("the replace contract prepares");
-    let symbols = ryo_language::domain::symbols::types::Symbols::default();
-    let texts = crate::domain::table_texts::types::Texts {
-        symbols: &symbols,
-        source: ryo_values::domain::files::types::SourceView(&[]),
-        paths: &[],
-        arenas: &[],
-    };
-    let row = [Cell::Name(Name {
-        hash: TextHash(7),
-        place: PlaceNumber(0),
-    })];
-    assert_eq!(
-        crate::domain::executable_program::kernel::row_admissible(&contract, &row, &texts),
-        Err(OperatingError::ShapeMismatch)
     );
     Ok(())
 }
@@ -432,26 +370,32 @@ fn a_fallible_operator_upstream_holds_the_skip_formula_open() -> Result<(), Oper
     Ok(())
 }
 
-/// The region table has one formula for every region of the compiled program, synthesized ones included.
-fn the_region_table_is_total() -> Result<(), OperatingError> {
-    let plans = [
-        plan(vec![
-            select(Source::Relation(Relation::SyntaxTree), vec![equal(1, "x")]),
-            select(at(0), vec![equal(2, "y")]),
-        ]),
-        plan(vec![select(Source::Relation(Relation::SyntaxTree), vec![equal(1, "x")])]),
-    ];
-    let (graph, operators) = graph(&plans);
-    let program = crate::domain::executable_program::service::compile(
-        &plans,
-        graph,
-        &FileRelations,
-        &operators,
-    )
-    .expect("the program compiles");
-    assert_eq!(program.presence().regions.len(), program.regions().len());
-    let table = for_regions(GraphPresence::default(), [Some(crate::domain::file_program::types::ProgramNodeId(3)), None]);
-    assert_eq!(&*table.regions, &[ALWAYS, ALWAYS]);
+/// Each region takes its last node's formula; a synthesized region, which is no node, and a region upstream of an
+/// ordered-existence source are `Always`.
+fn the_region_table_takes_each_regions_node() -> Result<(), OperatingError> {
+    let plans = [plan(vec![select(Source::Relation(Relation::SyntaxTree), vec![equal(1, "x")])])];
+    let presence = fold(&plans);
+    let node = super::types::FoldedNode(0);
+    let table = for_regions(
+        presence.clone(),
+        [
+            super::types::RegionNode {
+                node: Some(node),
+                certified: super::types::Certification::Free,
+            },
+            super::types::RegionNode {
+                node: None,
+                certified: super::types::Certification::Free,
+            },
+            super::types::RegionNode {
+                node: Some(node),
+                certified: super::types::Certification::Certifying,
+            },
+        ],
+    );
+    assert_eq!(&*table.regions, &[presence.nodes[0], ALWAYS, ALWAYS]);
+    assert_ne!(presence.nodes[0], ALWAYS);
+    assert_eq!(&*table.reads[0], &[Relation::SyntaxTree]);
     Ok(())
 }
 
@@ -547,12 +491,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(()),
     },
     Case {
-        name: CaseName(stringify!(a_name_without_text_is_refused_by_the_replace_text_gate)),
-        word: Word::Succeeds,
-        input: || a_name_without_text_is_refused_by_the_replace_text_gate,
-        expect: Expect::Value(()),
-    },
-    Case {
         name: CaseName(stringify!(every_always_gated_empty_result_lies_inside_the_presence_mask)),
         word: Word::Succeeds,
         input: || every_always_gated_empty_result_lies_inside_the_presence_mask,
@@ -589,9 +527,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(()),
     },
     Case {
-        name: CaseName(stringify!(the_region_table_is_total)),
+        name: CaseName(stringify!(the_region_table_takes_each_regions_node)),
         word: Word::Succeeds,
-        input: || the_region_table_is_total,
+        input: || the_region_table_takes_each_regions_node,
         expect: Expect::Value(()),
     },
     Case {

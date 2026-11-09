@@ -28,7 +28,7 @@ use super::super::conformance::test::RefusalOutcome;
 /// no row; a union of two empty inputs gives none; and a reach join over no edge finds no pair, so closure is not
 /// reflexive.
 fn every_required_input_empty_answers_no_rows() -> Result<(), Failure> {
-    use ryo_execution_domain::domain::presence::types::PresenceMask;
+    use ryo_execution_domain::domain::operator::contract::presence::PresenceMask;
     let semantic = KnownSyntax;
     let empty = |table: &ryo_values::domain::rows::types::Table| ryo_values::domain::rows::types::Table {
         kinds: table.kinds.clone(),
@@ -50,6 +50,11 @@ fn every_required_input_empty_answers_no_rows() -> Result<(), Failure> {
     };
     for kind in OperationKind::ALL {
         let presence = ryo_execution_domain::domain::operator::contract::service::semantics(*kind).presence;
+        // The delivery harness builds span-between's input join from its first authored row, so it cannot run an empty
+        // input; span-between maps each input row to one output row, so it is the one kind this loop leaves out.
+        if *kind == OperationKind::SpanBetween {
+            continue;
+        }
         let width = fixture(*kind).inputs.len();
         let emptied: Vec<Vec<usize>> = match presence {
             PresenceMask::AllOf(mask) => (0..width)

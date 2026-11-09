@@ -68,7 +68,7 @@ pub(crate) fn joined(
                 Side::Right => (right, right_column(view, column.column)),
             };
             column_in(kinds, source).copied().ok_or_else(|| {
-                ryo_values::domain::rows::errors::RowsError::NoSuchColumn {
+                RowsError::NoSuchColumn {
                     index: column.column.0,
                 }
                 .into()
@@ -190,11 +190,11 @@ pub fn output_origins<T: Copy>(
             answer = output
                 .iter()
                 .map(|column| match column.side {
-                    ryo_values::domain::plan_parts::types::Side::Left => {
+                    Side::Left => {
                         side(OriginSide::Left, pick(input(InputPlace(0)), column.column))
                     }
-                    ryo_values::domain::plan_parts::types::Side::Right if reach.is_some() => None,
-                    ryo_values::domain::plan_parts::types::Side::Right => side(
+                    Side::Right if reach.is_some() => None,
+                    Side::Right => side(
                         OriginSide::Right,
                         pick(input(InputPlace(1)), right_column(view, column.column)),
                     ),

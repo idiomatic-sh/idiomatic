@@ -32,6 +32,7 @@ enum Check {
     MergeMatchesLinearScan,
     MergeCostIsLinear,
     UnresolvedRegionKeepsItsOperators,
+    NameWithoutTextFailsTheReplaceGate,
 }
 type Input = Check;
 type Value = ();
@@ -86,6 +87,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(()),
     },
     Case {
+        name: CaseName("a_name_without_text_is_refused_by_the_replace_text_gate"),
+        word: Word::Succeeds,
+        input: || Check::NameWithoutTextFailsTheReplaceGate,
+        expect: Expect::Value(()),
+    },
+    Case {
         name: CaseName("an_unresolved_region_keeps_its_registered_operators"),
         word: Word::Succeeds,
         input: || Check::UnresolvedRegionKeepsItsOperators,
@@ -103,6 +110,7 @@ fn subject(check: Input) -> Result<Value, Failure> {
             regions_merge_cost_is_linear_in_rule_count();
             Ok(())
         }
+        Check::NameWithoutTextFailsTheReplaceGate => a_name_without_text_is_refused_by_the_replace_text_gate(),
         Check::UnresolvedRegionKeepsItsOperators => {
             let route = Route::default();
             assert!(matches!(route, Route::Generic));
@@ -348,3 +356,38 @@ fn regions_merge_cost_is_linear_in_rule_count() {
     }
     assert!(counts[3] < 3 * counts[2] + 16, "comparisons grew faster than linearly: {counts:?}");
 }
+/// The boundary the Replace declaration rests on: a name that left its file and has no text fails the text gate, so only
+/// a path where no such name can arrive may declare Replace over a Symbol column infallible.
+fn a_name_without_text_is_refused_by_the_replace_text_gate() -> Result<Value, Failure> {
+    let kinds = [CellKind::Symbol];
+    let contract = prepare_for(
+        OperationKind::Replace,
+        &Operation::Replace {
+            from: PlanInput::Relation(Relation::Comment),
+            text: ColumnIndex(0),
+            pattern: ryo_values::domain::plan_parts::types::LiteralText("a".into()),
+            replacement: ryo_values::domain::plan_parts::types::LiteralText("b".into()),
+        },
+        &[InputShape { kinds: &kinds, tree: None }],
+        &[],
+        StepScope::PerFile,
+    )
+    .expect("the replace contract prepares");
+    let symbols = ryo_language::domain::symbols::types::Symbols::default();
+    let texts = crate::domain::table_texts::types::Texts {
+        symbols: &symbols,
+        source: ryo_values::domain::files::types::SourceView(&[]),
+        paths: &[],
+        arenas: &[],
+    };
+    let row = [ryo_relations::domain::relations::types::Value::Name(ryo_relations::domain::relations::types::Name {
+        hash: ryo_relations::domain::relations::types::TextHash(7),
+        place: ryo_relations::domain::relations::types::PlaceNumber(0),
+    })];
+    assert_eq!(
+        crate::domain::executable_program::kernel::row_admissible(&contract, &row, &texts),
+        Err(crate::domain::operating::errors::OperatingError::ShapeMismatch)
+    );
+    Ok(())
+}
+

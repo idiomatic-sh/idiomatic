@@ -180,7 +180,7 @@ fn opening_and_preparing_one_rule_uses_only_its_reached_metadata_and_preserves_a
         &mut symbols,
         None,
         None,
-        &|_| Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead))
+    )
     .unwrap();
     assert_eq!(
         file.roots.len(),

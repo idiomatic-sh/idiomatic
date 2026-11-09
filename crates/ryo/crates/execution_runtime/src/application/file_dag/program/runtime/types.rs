@@ -129,6 +129,12 @@ pub(crate) struct Instantiation {
     pub(crate) slot: SlotHolding,
     pub(crate) dormant: SlotHolding,
 }
+/// Whether a scope has touched any region yet.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Touch {
+    Untouched,
+    Touched,
+}
 /// Whether a region's dependencies were already released by its consumers.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Dependencies {

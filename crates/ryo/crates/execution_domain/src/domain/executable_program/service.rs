@@ -23,6 +23,7 @@ pub fn compile(
     graph: RequestGraph,
     partitions: &dyn ProducerPartitions,
     prepared: &crate::domain::file_program::types::RequestOperators,
+    matcher: crate::domain::matching::types::PatternMatcher<'_>,
 ) -> Result<ExecutableProgram, OperatingError> {
     let count = graph.nodes.len();
     let mut origins = vec![None; count];
@@ -42,7 +43,17 @@ pub fn compile(
         .map(|node| node.contract.schema.as_ref().err().cloned())
         .collect();
     // Each node's presence and skip formula, folded once before the analysis graph is consumed.
-    let presence = crate::domain::presence::service::of_graph(&graph, partitions);
+    let presence = crate::domain::executable_program::presence::service::of_graph(
+        &graph,
+        &|relation| {
+            if partitions.relation(relation) == PartitionRequirement::CurrentFile {
+                crate::domain::executable_program::presence::types::RelationScope::CurrentFile
+            } else {
+                crate::domain::executable_program::presence::types::RelationScope::Shared
+            }
+        },
+        matcher,
+    );
     for (logical, node) in graph.nodes.into_iter().enumerate() {
         let fuse = match (classification.fusibility[logical], node.inputs.first()) {
             (Fusibility::Fusable, Some(NodeInput::Node(child))) => {
@@ -250,15 +261,22 @@ pub fn compile(
             pending.extend(regions.get(id.0).map_or(&[][..], Region::dependencies).iter().copied());
         }
     }
-    let presence = crate::domain::presence::service::for_regions(
+    let presence = crate::domain::executable_program::presence::service::for_regions(
         presence,
         regions.iter().zip(&certified).map(|(region, certified)| {
-            region
-                .instructions()
-                .last()
-                .map(|instruction| instruction.logical().0)
-                .filter(|logical| *logical < count && !*certified)
-                .map(crate::domain::file_program::types::ProgramNodeId)
+            crate::domain::executable_program::presence::types::RegionNode {
+                node: region
+                    .instructions()
+                    .last()
+                    .map(|instruction| instruction.logical().0)
+                    .filter(|logical| *logical < count)
+                    .map(crate::domain::executable_program::presence::types::FoldedNode),
+                certified: if *certified {
+                    crate::domain::executable_program::presence::types::Certification::Certifying
+                } else {
+                    crate::domain::executable_program::presence::types::Certification::Free
+                },
+            }
         }),
     );
     let file_readers = super::file_demand::service::readers(&regions, &rules)?;

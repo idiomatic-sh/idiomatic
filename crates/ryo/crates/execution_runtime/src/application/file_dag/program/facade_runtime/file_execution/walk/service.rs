@@ -11,12 +11,12 @@ use crate::application::file_dag::program::facade_runtime::file_execution::class
 use crate::application::file_dag::program::facade_runtime::file_execution::readiness_of;
 use crate::application::file_dag::program::facade_runtime::source_admission::SourceInputs;
 use crate::application::file_dag::program::facade_runtime::types::{
-    DeclaredIntent, FileRoot, FrontierCommit, NamedReadiness, PreparedNamed, PresenceGate, RootCandidate,
-    WalkPreparation,
+    DeclaredIntent, FileRoot, FrontierCommit, NamedReadiness, PendingActivation, PreparedNamed, PresenceGate,
+    RootCandidate, WalkPreparation,
 };
 use crate::application::file_dag::program::constants::{EXECUTION_TARGET, PRESENCE_FILE};
 use ryo_execution_domain::domain::executable_program::file_demand::types::AbsentRoots;
-use ryo_execution_domain::domain::presence::types::RegionPresence;
+use ryo_execution_domain::domain::executable_program::presence::types::RegionPresence;
 use crate::application::file_dag::program::native_walk::Deliveries;
 use ryo_execution_domain::domain::rule_intent::types::ApplicabilityRefusal;
 use ryo_execution_domain::domain::rule_intent::types::CaptureIntent;
@@ -33,12 +33,7 @@ use std::rc::Rc;
 
 impl FileRun<'_> {
     /// Bind selected external readers before a source or native walk is admitted.
-    pub(crate) fn bind_intents<'facts>(
-        &mut self,
-        read: &dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
-        symbols: &ryo_language::domain::symbols::types::Symbols,
-        source: ryo_values::domain::files::types::SourceView<'_>,
-    ) -> Result<Vec<RuleIndex>, OperatingError> {
+    pub(crate) fn bind_intents(&mut self) -> Result<Vec<RuleIndex>, OperatingError> {
         use ryo_execution_domain::domain::executable_program::file_demand::types::{
             FileDemand, FileRootDemand as DemandRoot, FrontierSelection, RootSelection,
         };
@@ -197,12 +192,46 @@ impl FileRun<'_> {
                 _ => {}
             }
         }
+        self.execution
+            .activate_file_roots(&readers, AbsentRoots::default())?;
+        self.activation = Some(PendingActivation {
+            readers,
+            candidates,
+            gate,
+        });
+        Ok(demanded)
+    }
+    /// Binds the file's selected roots before its first region is touched: the roots presence finds absent on the file's
+    /// rows, the reader counts of one walk from the admitted roots, and the reached regions that are absent too.
+    pub(crate) fn activate<'facts>(
+        &mut self,
+        read: &dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
+        symbols: &ryo_language::domain::symbols::types::Symbols,
+    ) -> Result<(), OperatingError> {
+        let Some(PendingActivation {
+            readers,
+            candidates,
+            gate,
+        }) = self.activation.take()
+        else {
+            return Ok(());
+        };
+        // Presence reads the file's rows, so it binds when the first entry point reads the file; the counts bound at open
+        // stand until then, and stand for good once a region was touched.
+        if self.execution.touched()
+            == crate::application::file_dag::program::runtime::types::Touch::Touched
+        {
+            return Ok(());
+        }
+        let source = self.source;
         let started = tracing::enabled!(target: EXECUTION_TARGET, tracing::Level::TRACE)
             .then(std::time::Instant::now);
         let decided = self.decide_presence(read, symbols, source, gate, &candidates)?;
         let presence_elapsed = started.map(|started| started.elapsed());
-        self.execution
-            .activate_file_roots(&readers, AbsentRoots::decided(decided.clone()))?;
+        if decided.count().0 > 0 {
+            self.execution
+                .activate_file_roots(&readers, AbsentRoots::decided(decided.clone()))?;
+        }
         let walk_elapsed = started.map(|started| started.elapsed());
         let interior = self.decide_interior(read, symbols, source, gate, &decided)?;
         if let (Some(started), Some(presence_elapsed), Some(walk_elapsed)) =
@@ -228,8 +257,7 @@ impl FileRun<'_> {
                 walk_ns = walk_elapsed.saturating_sub(presence_elapsed).as_nanos() as u64,
                 interior_ns = started.elapsed().saturating_sub(walk_elapsed).as_nanos() as u64);
         }
-        self.execution.mark_interior(interior);
-        Ok(demanded)
+        Ok(())
     }
     pub(crate) fn declared(
         &self,
@@ -258,6 +286,8 @@ impl FileRun<'_> {
         if self.walk_prepared == WalkPreparation::Prepared {
             return Ok(());
         }
+        self.context.validate(symbols)?;
+        self.activate(read, symbols)?;
         let Some(first) = self.prepared_roots.first() else {
             self.walk_prepared = WalkPreparation::Prepared;
             return Ok(());

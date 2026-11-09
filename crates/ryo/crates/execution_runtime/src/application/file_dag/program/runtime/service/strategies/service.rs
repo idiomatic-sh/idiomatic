@@ -56,7 +56,7 @@ impl ProgramExecution {
         let id = call.id;
         let region = call.region;
         let root = call.state.absent.borrow().presence(id);
-        if root == ryo_execution_domain::domain::presence::types::RegionPresence::Present && call.inputs.presence(id) == ryo_execution_domain::domain::presence::types::RegionPresence::Present {
+        if root == ryo_execution_domain::domain::executable_program::presence::types::RegionPresence::Present && call.inputs.presence(id) == ryo_execution_domain::domain::executable_program::presence::types::RegionPresence::Present {
             return Ok(None);
         }
         let needs = region

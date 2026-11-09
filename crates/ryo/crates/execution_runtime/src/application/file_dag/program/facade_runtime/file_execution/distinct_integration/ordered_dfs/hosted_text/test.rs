@@ -229,7 +229,7 @@ fn one_file_owner_resets_dfs_across_closure_empty_and_different_graph() {
         &mut symbols,
         None,
         None,
-        &|_| Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead))
+    )
     .unwrap();
     let read = |_| Err::<Rows<'_>, _>(OperatingError::NotRead);
     let mut outputs = Vec::new();

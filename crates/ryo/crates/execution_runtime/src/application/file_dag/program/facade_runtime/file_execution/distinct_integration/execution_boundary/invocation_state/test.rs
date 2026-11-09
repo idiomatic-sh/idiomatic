@@ -101,7 +101,7 @@ fn chained_registered_evaluations_reuse_downstream_invocation_state() {
         &mut symbols,
         None,
         None,
-        &|_| Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead))
+    )
     .unwrap();
     let read = |_| Err::<Rows<'_>, _>(OperatingError::NotRead);
     let mut sink = MemoSink {

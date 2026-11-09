@@ -102,11 +102,25 @@ pub(crate) struct RegionProbe {
     pub(crate) instantiated: Instantiated,
     pub(crate) inputs: Option<InputRelease>,
 }
+/// What a file binds when its first entry point reads it: its selected readers and the roots presence may find absent.
+pub(crate) struct PendingActivation {
+    pub(super) readers: Vec<ryo_execution_domain::domain::executable_program::types::RegionId>,
+    pub(super) candidates: Vec<RootCandidate>,
+    pub(super) gate: PresenceGate,
+}
 /// One file's presence memo: what each test and formula of the program answered on the file, filled lazily, each
 /// relation's pending tests decided together in one pass over its rows.
 pub(crate) struct FilePresence {
+    /// Off once a read of the file's rows fails: no further row is read, and every formula holds.
+    pub(super) gate: PresenceGate,
     pub(super) tests: Vec<Truth>,
     pub(super) formulas: Vec<Truth>,
+    /// The relations the file has read, by presence or by a probe.
+    pub(super) read: Vec<ryo_relations::domain::relations::types::Relation>,
+    /// Room for one relation row, the tests still open on a relation, and a comparison memo, kept for the file.
+    pub(super) cells: Vec<ryo_relations::domain::relations::types::Value>,
+    pub(super) open: Vec<ryo_execution_domain::domain::executable_program::presence::types::TestId>,
+    pub(super) memo: Vec<ryo_execution_domain::domain::operating::types::Memo>,
     pub(super) scratch: ryo_execution_domain::domain::table_scratch::types::SelectScratch,
 }
 pub(super) struct FileRoot {

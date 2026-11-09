@@ -138,8 +138,12 @@ fn empty_or_failed_left_never_enters_the_join_capability_or_builds_a_rhs_index()
             }
             assert_eq!(witness.calls.load(Ordering::Relaxed), 0);
             if let Some(error) = &failure {
-                assert_eq!(actual.attempts, [SourceAttempt::Refused(0, error.clone())]);
-                assert_eq!(actual.reads, [1, 0]);
+                // The file's presence read meets the refused LHS first and stops there; admission then meets it once.
+                assert_eq!(
+                    actual.attempts,
+                    [SourceAttempt::Refused(0, error.clone()), SourceAttempt::Refused(0, error.clone())]
+                );
+                assert_eq!(actual.reads, [2, 0]);
             } else {
                 assert_eq!(actual.attempts.first(), Some(&SourceAttempt::Available(0)));
                 assert!(

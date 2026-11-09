@@ -79,8 +79,12 @@ pub(crate) struct FileRun<'a> {
     walk_prepared: WalkPreparation,
     routes: ryo_execution_store::application::file_dag::route_counts::types::FileScope,
     presence: super::types::FilePresence,
+    source: SourceView<'a>,
+    /// The file's selected roots, bound before any region is touched: presence reads the file's rows, so it runs when the
+    /// first entry point admits a source, never when the file opens.
+    activation: Option<super::types::PendingActivation>,
 }
-pub(crate) fn open_file<'a, 'facts>(
+pub(crate) fn open_file<'a>(
     program: &'a Arc<PreparedProgram>,
     file: FileId,
     partials: ScopePartials<'a>,
@@ -91,7 +95,6 @@ pub(crate) fn open_file<'a, 'facts>(
     symbols: &mut ryo_language::domain::symbols::types::Symbols,
     semantic: Option<&'a dyn ryo_execution_domain::domain::operating::types::SemanticLookup>,
     kinds: Option<Arc<ryo_execution_domain::domain::kind_sets::types::vocabulary::value::PreparedVocabulary>>,
-    read: &dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
 ) -> Result<FileRun<'a>, OperatingError> {
     if intents.len() != program.rule_count().0 {
         return Err(OperatingError::ShapeMismatch);
@@ -144,12 +147,19 @@ pub(crate) fn open_file<'a, 'facts>(
             &services, source, symbols, semantic, kinds,
         ),
         presence: super::types::FilePresence {
+            gate: super::types::PresenceGate::On,
             tests: Vec::new(),
             formulas: Vec::new(),
+            read: Vec::new(),
+            cells: Vec::new(),
+            open: Vec::new(),
+            memo: Vec::new(),
             scratch: Default::default(),
         },
+        source,
+        activation: None,
     };
-    let demanded = run.bind_intents(read, symbols, source)?;
+    let demanded = run.bind_intents()?;
     run.owner
         .derived()
         .prepare_program_file(program.derived(), &demanded, publication)?;

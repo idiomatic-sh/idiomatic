@@ -170,7 +170,7 @@ fn project_into(column: u32, sink: &mut dyn RowSink) -> Result<(), OperatingErro
         &mut symbols,
         None,
         None,
-        &|_| Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead))?;
+    )?;
     let table = Table {
         kinds: kinds(Relation::LanguageTarget).to_vec(),
         cells: vec![
@@ -329,7 +329,7 @@ fn indexed_join(key: i64, column: u32) -> Result<Table, OperatingError> {
         &mut symbols,
         None,
         None,
-        &|_| Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead))?;
+    )?;
     let read = |_| Err::<Rows<'_>, _>(OperatingError::NotRead);
     let outcome = file.rule(
         RuleIndex(0),

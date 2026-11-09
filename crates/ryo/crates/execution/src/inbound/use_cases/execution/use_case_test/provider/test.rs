@@ -182,9 +182,10 @@ fn subject((operator, missing, delivery): Input) -> Result<Value, Failure> {
         }
     };
     let history = reads.into_inner();
-    // Pinned successful LHS borrows may repeat, but refusal is terminal.
+    // Pinned successful LHS borrows may repeat, but refusal is terminal. The first read of a refused left provider is
+    // the file's presence read, which stops presence there; admission then meets the refusal once.
     match missing {
-        Missing::First => assert_eq!(history, [Relation::Function]),
+        Missing::First => assert_eq!(history, [Relation::Function, Relation::Function]),
         Missing::Neither => {
             assert!(history.contains(&Relation::Function), "the left provider is read");
             assert!(history.contains(&Relation::Comment), "the right provider is read");
@@ -196,8 +197,13 @@ fn subject((operator, missing, delivery): Input) -> Result<Value, Failure> {
                 !prefix.is_empty(),
                 "nonempty successful LHS is demanded first"
             );
+            // The file's presence read meets the refused RHS first and stops there; admission then meets it once.
+            let after_presence = prefix
+                .iter()
+                .position(|relation| *relation == Relation::Comment)
+                .map_or(prefix, |at| &prefix[at + 1..]);
             assert!(
-                prefix
+                after_presence
                     .iter()
                     .all(|relation| *relation == Relation::Function),
                 "RHS refusal occurs exactly once, with no subsequent producer read"
