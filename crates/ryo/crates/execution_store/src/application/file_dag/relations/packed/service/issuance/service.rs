@@ -8,7 +8,7 @@ use crate::application::file_dag::relations::*;
 impl RelationOwner {
     /// Retain the actual encoded words and every referenced existing arena backing.
     /// This adds no optional cache or admission policy; it is an ordinary required publication lease.
-    pub fn packed_publication(
+    pub(crate) fn packed_publication(
         &self,
         words: KeptWords,
         arenas: &[&ArenaBytes],

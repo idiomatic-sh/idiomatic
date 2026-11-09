@@ -10,7 +10,31 @@ use ryo_execution_domain::domain::self_join_recogniser::types::NumberRequirement
 use ryo_execution_domain::domain::table_model::types::{RepresentationInput, Rows};
 use ryo_relations::domain::relations::types::{CellKind, Relation};
 
-/// What the runtime needs from the store to hold, read and free published relations: the one pub route to them.
+/// What the runtime needs from the store to hold, read and free published relations: the one pub route to them. The owner's own
+/// workflows are not on it: a caller cannot publish a computed table, a compact source or retire a producer by hand,
+/// ```compile_fail,E0624
+/// use ryo_execution_store::application::file_dag::relations::RelationOwner;
+/// fn computed(owner: &RelationOwner, table: ryo_values::domain::rows::types::Table) {
+///     let _ = owner.computed(table);
+/// }
+/// ```
+/// ```compile_fail,E0624
+/// use ryo_execution_store::application::file_dag::relations::RelationOwner;
+/// fn compact(owner: &RelationOwner, table: std::sync::Arc<ryo_values::domain::table_words::types::CompactTable>) {
+///     let _ = owner.source_compact(table);
+/// }
+/// ```
+/// ```compile_fail,E0624
+/// use ryo_execution_store::application::file_dag::relations::{RelationOwner, publication::types::ProducerScope};
+/// use ryo_execution_domain::domain::executable_program::types::RegionId;
+/// fn retire(owner: &RelationOwner) {
+///     owner.release_derived_producer(ProducerScope::File, RegionId(0));
+/// }
+/// ```
+/// nor name the lease a generation is.
+/// ```compile_fail,E0603
+/// use ryo_execution_store::application::file_dag::relations::generation::service::GenerationLease;
+/// ```
 pub trait RelationStore {
     /// The resident population's generation.
     fn generation(&self) -> Generation;
@@ -93,4 +117,12 @@ pub trait RelationStore {
     fn retire_producer(&self, scope: ProducerScope, producer: ProducerId);
     /// Ends the resident population: every publication of its generation is refused from now on.
     fn release(&self);
+    /// A store over `derived` with the default pin limit and no route recording, for the proofs of the store and the engine.
+    #[cfg(any(test, feature = "fixtures"))]
+    fn fixture(
+        reuse: super::types::ReuseEligibility,
+        derived: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
+    ) -> Self
+    where
+        Self: Sized;
 }

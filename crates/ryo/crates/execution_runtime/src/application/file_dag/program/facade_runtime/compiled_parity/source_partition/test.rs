@@ -314,7 +314,7 @@ fn subject(case: Input) -> Result<Value, Failure> {
     }
     let admitted = result?;
     assert_eq!(reads.get(), 1);
-    match admitted.coverage()? {
+    match admitted.coverage().clone() {
         ryo_execution_domain::domain::completion::types::CoverageState::Complete => Ok("complete"),
         ryo_execution_domain::domain::completion::types::CoverageState::Partial {
             files, ..

@@ -1,4 +1,5 @@
 //! Data of one execution's shared services, its publication scope and its file roots.
+use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
 use crate::application::file_dag::executor::PrimitiveExecutor;
 use crate::application::file_dag::program::admission::AdmittedInput;
 use crate::application::file_dag::program::admission::ApplicabilityProof;
@@ -242,7 +243,7 @@ impl PublicationScope {
         match self.execution.into_inner() {
             Some(execution) => execution.finish(),
             None => {
-                self.owner.release_population();
+                self.owner.release();
                 Ok(())
             }
         }

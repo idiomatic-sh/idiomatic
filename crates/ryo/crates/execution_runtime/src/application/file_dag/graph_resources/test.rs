@@ -1,4 +1,5 @@
 //! Behavioral controls retained from the former application resource constructors.
+use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_relations::domain::relations::types::{CellKind, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -13,7 +14,7 @@ fn prepare_cycles(
     source: ColumnIndex,
     destination: ColumnIndex,
 ) -> Result<ryo_execution_store::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView, OperatingError>{
-    let owner = ryo_execution_store::application::file_dag::relations::RelationOwner::new(
+    let owner = ryo_execution_store::application::file_dag::relations::RelationOwner::fixture(
         ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible,
         (std::sync::Arc::new(ryo_execution_store::application::file_dag::fixtures::derived())
             as std::sync::Arc<dyn ryo_execution_store::outbound::derived::interface::DerivedPort>),
@@ -21,10 +22,10 @@ fn prepare_cycles(
     let RepresentationInput::Computed(table) = input else {
         panic!("computed fixture")
     };
-    let publication = owner.computed(table.clone())?;
-    let held = owner.resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))?;
+    let publication = owner.publish(ryo_execution_store::application::file_dag::relations::publication::types::Body::Computed(table.clone()))?;
+    let held = owner.rows(&publication, &|_| Err(OperatingError::NotRead))?;
     let input = RepresentationInput::from(&held);
-    let proof = owner.admit(publication.as_ref(), input)?;
+    let proof = owner.admit(&publication, input).and_then(|admitted| admitted)?;
     let plan = std::sync::Arc::new(owner.derived().prepare_view(
         &ViewRequest::CycleAdjacency {
             source,
@@ -51,7 +52,7 @@ fn prepare_closure(
     source: ColumnIndex,
     destination: ColumnIndex,
 ) -> Result<crate::application::file_dag::invocation::AcquiredPartitions, OperatingError> {
-    let owner = std::rc::Rc::new(ryo_execution_store::application::file_dag::relations::RelationOwner::new(
+    let owner = std::rc::Rc::new(ryo_execution_store::application::file_dag::relations::RelationOwner::fixture(
         ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible,
         (std::sync::Arc::new(
             ryo_execution_store::application::file_dag::fixtures::derived(),
@@ -60,8 +61,8 @@ fn prepare_closure(
     let RepresentationInput::Computed(table) = input else {
         return Err(OperatingError::WrongOperation);
     };
-    let publication = owner.computed(table.clone())?;
-    let rows = owner.resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))?;
+    let publication = owner.publish(ryo_execution_store::application::file_dag::relations::publication::types::Body::Computed(table.clone()))?;
+    let rows = owner.rows(&publication, &|_| Err(OperatingError::NotRead))?;
     let input = RepresentationInput::from(&rows);
     let mut cursor =
         ryo_execution_store::application::file_dag::closure_partitions::schemas::prepare(

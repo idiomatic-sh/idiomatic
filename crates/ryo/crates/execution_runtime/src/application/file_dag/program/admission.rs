@@ -1,7 +1,8 @@
 //! Population proofs, partition identity and readiness are minted by admission only.
+use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
 use ryo_execution_store::application::file_dag::{
     derived::population::types::PopulationId,
-    relations::{RelationOwner, handle::service::PublishedInput},
+    relations::{RelationOwner, handle::service::Publication},
 };
 
 mod admitted;
@@ -25,9 +26,7 @@ use std::{rc::Rc, sync::Arc};
 #[derive(Clone)]
 pub(crate) struct FileGeneration {
     file: FileId,
-    generation: Arc<
-        ryo_execution_store::application::file_dag::relations::generation::service::GenerationLease,
-    >,
+    generation: ryo_execution_store::application::file_dag::relations::types::Generation,
 }
 /// The project identity is the request and its files, coverage and skips. `inapplicable` and
 /// `refused` are one rule's own evidence beside that identity: equality never reads them, so every
@@ -69,17 +68,6 @@ pub(crate) enum Emptiness {
     Empty,
     Populated,
 }
-#[derive(Clone)]
-enum Readiness {
-    Complete,
-    Partial {
-        files: Vec<Option<FileId>>,
-        lacks: Vec<ryo_execution_domain::domain::completion::types::FileLacks>,
-    },
-    Inapplicable {
-        files: Vec<FileId>,
-    },
-}
 /// What admission knows of one read: the partition it sits in and how much of it was read. Only
 /// admission builds one: a whole physical read is `complete`, coverage lowers it, and a
 /// published result carries what its admitted contributors carried. Callers pass this proof to
@@ -87,7 +75,7 @@ enum Readiness {
 #[derive(Clone)]
 pub(crate) struct ReadProof {
     partition: Partition,
-    readiness: Readiness,
+    readiness: ryo_execution_domain::domain::completion::types::CoverageState,
 }
 /// Root provenance remains attached even when no rows can be supplied.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -99,17 +87,15 @@ pub(crate) enum ProducerRoot {
 struct PopulationProof {
     owner: Rc<RelationOwner>,
     population: PopulationId,
-    generation: Arc<
-        ryo_execution_store::application::file_dag::relations::generation::service::GenerationLease,
-    >,
+    generation: ryo_execution_store::application::file_dag::relations::types::Generation,
 }
 #[derive(Clone)]
 pub(crate) struct AdmittedInput {
     proof: PopulationProof,
     root: ProducerRoot,
     partition: Partition,
-    readiness: Readiness,
-    publication: PublishedInput,
+    readiness: ryo_execution_domain::domain::completion::types::CoverageState,
+    publication: Publication,
 }
 /// Source availability does not authorize a kernel or expose a deferred geometry refusal.
 /// Pure inspection uses the first borrow; its owned result is committed at the
@@ -123,7 +109,7 @@ enum AvailableBody {
     Published(AdmittedInput),
     Source {
         owner: Rc<RelationOwner>,
-        publication: PublishedInput,
+        publication: Publication,
         partition: Partition,
         admission: Result<AdmittedInput, OperatingError>,
     },
@@ -261,54 +247,16 @@ fn contributed_readiness(
     partition: &Partition,
     inputs: &[AdmittedInput],
     owner: &Rc<RelationOwner>,
-) -> Result<Readiness, OperatingError> {
-    let mut affected = Vec::new();
-    let mut inapplicable = Vec::new();
+) -> Result<ryo_execution_domain::domain::completion::types::CoverageState, OperatingError> {
     for input in inputs {
         input.publication(owner)?;
         if input.partition.supplies(partition) == PartitionSupply::Lacks {
             return Err(OperatingError::NotRead);
         }
-        match &input.readiness {
-            Readiness::Complete => {}
-            Readiness::Partial { files, lacks } => {
-                affected.extend(ryo_execution_domain::domain::completion::service::lacks_of(
-                    files, lacks,
-                ));
-            }
-            Readiness::Inapplicable { files } => {
-                for file in files {
-                    if !inapplicable.contains(file) {
-                        inapplicable.push(*file);
-                    }
-                }
-            }
-        }
     }
-    if inputs
-        .iter()
-        .any(|input| matches!(input.readiness, Readiness::Partial { .. }))
-    {
-        affected.extend(inapplicable.into_iter().map(|file| {
-            ryo_execution_domain::domain::completion::types::FileLacks {
-                file: Some(file),
-                missing: ryo_execution_domain::domain::completion::types::MissingRows::Any,
-            }
-        }));
-        match ryo_execution_domain::domain::completion::service::partial_of_lacks(affected) {
-            ryo_execution_domain::domain::completion::types::CoverageState::Partial {
-                files,
-                lacks,
-            } => Ok(Readiness::Partial { files, lacks }),
-            _ => Err(OperatingError::NotRun),
-        }
-    } else if inapplicable.is_empty() {
-        Ok(Readiness::Complete)
-    } else {
-        Ok(Readiness::Inapplicable {
-            files: inapplicable,
-        })
-    }
+    ryo_execution_domain::domain::completion::service::contributed(
+        inputs.iter().map(|input| &input.readiness),
+    )
 }
 
 /// Give a real producer publication its request-qualified member alias. The
@@ -356,7 +304,7 @@ pub(super) fn alias_member(
         return Err(OperatingError::NotRead);
     }
     let publication = input.publication(owner)?;
-    let kinds = owner.publication_kinds(publication)?;
+    let kinds = owner.kinds(publication)?;
     if kinds.len() != binding.schema.columns.len()
         || kinds
             .iter()

@@ -1,5 +1,6 @@
 //! Engine-issued lazy restored input: immutable bytes retain their validated
 //! root, coverage, partition set and owning generation until actual demand.
+use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
 use super::admission::AdmittedInput;
 use super::admission::Partition;
 use super::admission::ProducerRoot;
@@ -114,7 +115,7 @@ pub(crate) fn validate_restored_frontier(
     };
     Ok(ValidatedFrontier {
         program: Arc::clone(prepared.program()),
-        generation: scope.owner().current_generation(),
+        generation: scope.owner().generation(),
         root,
         partition: required.clone(),
         coverage,
@@ -138,8 +139,7 @@ impl ValidatedFrontier {
         context: &mut OperatorContext<'_>,
     ) -> Result<ObservedPublication, OperatingError> {
         if !Arc::ptr_eq(&self.program, scope.program())
-            || scope.owner().matches_generation(&self.generation)
-                == ryo_execution_store::application::file_dag::relations::types::Sameness::Different
+            || scope.owner().generation().same(&self.generation).is_err()
             || self.partition.same_request(required)
                 == crate::application::file_dag::program::admission::Agreement::Different
         {
@@ -163,12 +163,12 @@ impl ValidatedFrontier {
             if table.kinds.as_slice() != self.kinds.as_ref() {
                 return Err(OperatingError::ShapeMismatch);
             }
-            let publication = scope.owner().computed(table)?;
+            let publication = scope.owner().publish(ryo_execution_store::application::file_dag::relations::publication::types::Body::Computed(table))?;
             let unread = |_| Err(OperatingError::NotRead);
-            let rows = scope.owner().resolve(publication.as_ref(), &unread)?;
+            let rows = scope.owner().rows(&publication, &unread)?;
             let proof = scope
                 .owner()
-                .admit(publication.as_ref(), RepresentationInput::from(&rows))?;
+                .admit(&publication, RepresentationInput::from(&rows))??;
             AdmittedInput::from_publication(
                 std::rc::Rc::clone(scope.owner()),
                 publication.clone(),

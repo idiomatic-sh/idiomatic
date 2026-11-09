@@ -1,4 +1,5 @@
 //! Compiled program lifecycle proof with a real owner.
+use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
 use super::super::inputs::fixtures::{CompiledCase, compiled};
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use std::rc::Rc;
@@ -28,12 +29,9 @@ fn publication_constructor_rejects_same_owner_proof_substitution_even_for_canoni
         kinds,
         count: RowCount(1),
     };
-    let a = owner.computed(rows.clone()).unwrap();
-    let b = owner.computed(rows).unwrap();
-    assert_eq!(
-        a.same_record(&b),
-        ryo_execution_store::application::file_dag::relations::types::Sameness::Different
-    );
+    let a = owner.publish(ryo_execution_store::application::file_dag::relations::publication::types::Body::Computed(rows.clone())).unwrap();
+    let b = owner.publish(ryo_execution_store::application::file_dag::relations::publication::types::Body::Computed(rows)).unwrap();
+    assert!(!a.same_record(&b));
     for aliases in [false, true] {
         if aliases {
             execution
@@ -46,13 +44,13 @@ fn publication_constructor_rejects_same_owner_proof_substitution_even_for_canoni
                 .unwrap();
         }
         let unread = |_| Err(OperatingError::NotRead);
-        let a_rows = owner.resolve(a.as_ref(), &unread).unwrap();
-        let b_rows = owner.resolve(b.as_ref(), &unread).unwrap();
+        let a_rows = owner.rows(&a, &unread).unwrap();
+        let b_rows = owner.rows(&b, &unread).unwrap();
         let a_proof = owner
-            .admit(a.as_ref(), RepresentationInput::from(&a_rows))
+            .admit(&a, RepresentationInput::from(&a_rows)).and_then(|admitted| admitted)
             .unwrap();
         let b_proof = owner
-            .admit(b.as_ref(), RepresentationInput::from(&b_rows))
+            .admit(&b, RepresentationInput::from(&b_rows)).and_then(|admitted| admitted)
             .unwrap();
         if aliases {
             assert_eq!(
@@ -75,12 +73,11 @@ fn publication_constructor_rejects_same_owner_proof_substitution_even_for_canoni
                     ReadProof::complete(execution.partition().clone()),
                 )
                 .unwrap();
-            assert_eq!(
+            assert!(
                 admitted
                     .publication(&owner)
                     .unwrap()
-                    .same_record(publication),
-                ryo_execution_store::application::file_dag::relations::types::Sameness::Same
+                    .same_record(publication)
             );
         }
         for (publication, proof) in [(&b, &a_proof), (&a, &b_proof)] {

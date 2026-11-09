@@ -337,20 +337,17 @@ pub(super) fn outcome_of<'facts>(
     match result {
         Ok(InvocationOutcome::Published(input)) => match table_of(owner, &input, read) {
             Ok(table) => match input.coverage() {
-                Ok(ryo_execution_domain::domain::completion::types::CoverageState::Complete) => {
+                ryo_execution_domain::domain::completion::types::CoverageState::Complete => {
                     RootOutcome::Complete(table)
                 }
-                Ok(
-                    coverage @ (ryo_execution_domain::domain::completion::types::CoverageState::Partial { .. }
-                    | ryo_execution_domain::domain::completion::types::CoverageState::Inapplicable {
-                        ..
-                    }),
-                ) => RootOutcome::Partial {
+                coverage @ (ryo_execution_domain::domain::completion::types::CoverageState::Partial { .. }
+                | ryo_execution_domain::domain::completion::types::CoverageState::Inapplicable {
+                    ..
+                }) => RootOutcome::Partial {
                     table,
-                    affected: ryo_execution_domain::domain::frontier_coverage::service::affected_files(&coverage)
+                    affected: ryo_execution_domain::domain::frontier_coverage::service::affected_files(coverage)
                         .unwrap_or_default(),
                 },
-                Err(error) => classify(error),
             },
             Err(error) => classify(error),
         },

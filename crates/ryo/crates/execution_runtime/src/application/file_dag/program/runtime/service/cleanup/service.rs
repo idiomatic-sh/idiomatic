@@ -1,4 +1,5 @@
 //! Retirement of consumed inputs, cascading cancellation and waiter wake-up.
+use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
 use super::super::{
     AdmissionProgress, ProgramExecution, RetirementWork, RuntimeState, Slot, State,
 };
@@ -125,7 +126,7 @@ impl ProgramExecution {
                 slot.admission = AdmissionProgress::default();
                 let old = std::mem::replace(&mut slot.state, State::Retired);
                 if matches!(old, State::Published(_)) {
-                    self.owner.release_derived_producer(state.scope, id);
+                    self.owner.retire_producer(state.scope, ryo_execution_store::application::file_dag::relations::types::ProducerId(id.0));
                 }
                 work.retired_states.push(old);
                 work.retired_scratch.push(std::mem::take(&mut slot.scratch));

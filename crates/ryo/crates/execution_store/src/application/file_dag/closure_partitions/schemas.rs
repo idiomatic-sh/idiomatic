@@ -56,7 +56,7 @@ pub(crate) fn from_prepared<'f>(
 /// A partitioned closure over a publication, for the proofs of its cursor.
 #[cfg(any(test, feature = "fixtures"))]
 pub fn prepare<'f>(
-    publication: &crate::application::file_dag::relations::handle::service::PublishedInput,
+    publication: &crate::application::file_dag::relations::handle::service::Publication,
     input: RepresentationInput<'f>,
     keys: &[ryo_values::domain::plan_parts::types::ColumnIndex],
     source: ryo_values::domain::plan_parts::types::ColumnIndex,
@@ -86,7 +86,7 @@ pub fn prepare<'f>(
         },
         &schema,
     )?);
-    let proof = owner.admit(publication.as_ref(), input)?;
+    let proof = owner.admit(publication.input()?.as_ref(), input)?;
     let admitted = owner
         .derived()
         .admit_view(&partition_plan, &owner, &[&proof])?;

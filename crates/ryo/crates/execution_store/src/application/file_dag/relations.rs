@@ -82,11 +82,11 @@ impl RelationOwner {
     }
     /// The generation of the resident population, for a proof to keep and present back.
     /// The resident population's generation: the lease the owner issued for it.
-    pub fn current_generation(&self) -> Arc<GenerationLease> {
+    pub(crate) fn current_generation(&self) -> Arc<GenerationLease> {
         Arc::clone(&self.generation.borrow())
     }
     /// Whether `generation` is the resident population's generation.
-    pub fn matches_generation(&self, generation: &Arc<GenerationLease>) -> Sameness {
+    pub(crate) fn matches_generation(&self, generation: &Arc<GenerationLease>) -> Sameness {
         GenerationLease::same(generation, &self.generation.borrow())
     }
 
@@ -100,7 +100,7 @@ impl RelationOwner {
     }
     /// An owner over `semantic` with the default pin limit and no route recording, for the proofs of the store and the engine.
     #[cfg(any(test, feature = "fixtures"))]
-    pub fn new(
+    pub(crate) fn new(
         stable: ReuseEligibility,
         semantic: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
     ) -> Self {
@@ -160,7 +160,7 @@ impl RelationOwner {
         self.stable
     }
     /// Explicitly ends the immutable resident-population lease before release or refill.
-    pub fn release_population(&self) {
+    pub(crate) fn release_population(&self) {
         self.derived.clear();
         self.producer_populations.borrow_mut().clear();
         self.sources.borrow_mut().clear();
@@ -250,6 +250,13 @@ impl interface::RelationStore for RelationOwner {
     }
     fn release(&self) {
         self.release_population();
+    }
+    #[cfg(any(test, feature = "fixtures"))]
+    fn fixture(
+        reuse: ReuseEligibility,
+        derived: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
+    ) -> Self {
+        Self::with_limits(reuse, PinnedViewCount(1024), derived, Default::default())
     }
 }
 

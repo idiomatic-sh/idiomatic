@@ -1,5 +1,6 @@
 //! Deciding which of a file's roots and reached regions cannot have a row or a row error there: each formula is evaluated
 //! lazily over the file's own rows, each relation's pending tests in one pass, and the answers are kept for the file.
+use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
 use crate::application::file_dag::program::facade_runtime::file_execution::FileRun;
 use crate::application::file_dag::program::facade_runtime::types::{
     FilePresence, PresenceGate, RootCandidate, Truth,
@@ -29,7 +30,10 @@ impl<'facts> PresenceRead<'_, 'facts> {
     fn source(&self, relation: Relation) -> Result<Rows<'facts>, OperatingError> {
         match (self.read)(relation) {
             Ok(rows) => {
-                let _pinned = self.owner.source(relation, &rows)?;
+                let _pinned = self.owner.publish(ryo_execution_store::application::file_dag::relations::publication::types::Body::Source {
+                    relation,
+                    rows: &rows,
+                })?;
                 Ok(rows)
             }
             Err(error) => {

@@ -3,7 +3,7 @@
 /// the lease's allocation is that population's generation. Only the population owner can invalidate it; semantic
 /// callbacks never receive a mutable atomic or a revival operation.
 #[derive(Debug)]
-pub struct GenerationLease {
+pub(crate) struct GenerationLease {
     live: std::sync::atomic::AtomicBool,
 }
 impl GenerationLease {
@@ -17,7 +17,7 @@ impl GenerationLease {
     }
     /// Whether two leases are one generation. The owner issues a fresh lease for each population and every proof
     /// keeps the lease it was issued under, so no released allocation can be reused for a later generation.
-    pub fn same(
+    pub(crate) fn same(
         this: &std::sync::Arc<Self>,
         other: &std::sync::Arc<Self>,
     ) -> crate::application::file_dag::relations::types::Sameness {
@@ -28,7 +28,7 @@ impl GenerationLease {
         }
     }
     /// Whether the generation is still live.
-    pub fn is_live(&self) -> crate::application::file_dag::relations::types::Liveness {
+    pub(crate) fn is_live(&self) -> crate::application::file_dag::relations::types::Liveness {
         if self.live.load(std::sync::atomic::Ordering::Acquire) {
             crate::application::file_dag::relations::types::Liveness::Live
         } else {
@@ -52,6 +52,11 @@ impl crate::application::file_dag::relations::types::Generation {
                 Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead)
             }
         }
+    }
+    /// The generation's address, for diagnostics to correlate events of one generation; never an authority.
+    #[must_use]
+    pub fn diagnostic_address(&self) -> *const () {
+        std::sync::Arc::as_ptr(&self.0).cast::<()>()
     }
     /// Whether the generation is still live.
     ///

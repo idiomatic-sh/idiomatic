@@ -19,7 +19,7 @@ impl ObservedPublication {
         readiness: &ryo_values::domain::records::types::ProducerReadiness,
     ) -> Result<(), OperatingError> {
         self.admitted.publication(owner)?;
-        match (self.admitted.coverage()?, readiness) {
+        match (self.admitted.coverage(), readiness) {
             (
                 ryo_execution_domain::domain::completion::types::CoverageState::Complete,
                 ryo_values::domain::records::types::ProducerReadiness::Complete,

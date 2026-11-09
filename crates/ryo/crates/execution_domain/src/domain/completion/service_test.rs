@@ -1,6 +1,6 @@
 //! The `completion` service's cases: what a coverage lacks, and the file a node of a partial lies in.
 
-use super::service::{lacks_of, partial_any, partial_of_lacks};
+use super::service::{contributed, lacks_of, partial_any, partial_of_lacks};
 use super::types::{CoverageState, FileLacks, MissingRows};
 use crate::domain::coverage::types::LackingKind;
 use ryo_relations::domain::relations::types::FileId;
@@ -18,6 +18,46 @@ enum Scenario {
     KindsUnited,
     /// How many relations with a node column have not exactly one file column.
     NodeColumnsWithoutAFile,
+    /// What inputs of these coverages contribute: complete is 0, inapplicable 100 plus its files, partial 200 plus ten times its
+    /// files plus its lacks.
+    Contributed(Inputs),
+}
+
+/// The coverages of the inputs a publication was computed from.
+#[derive(Clone, Copy)]
+enum Inputs {
+    /// Two complete inputs.
+    Complete,
+    /// A complete input and one partial in two files, one of which lacks only rows of some kinds.
+    PartialWithLacks,
+    /// Two inputs inapplicable in overlapping files.
+    Inapplicable,
+    /// A partial input and an inapplicable one.
+    PartialAndInapplicable,
+}
+
+fn coverages(inputs: Inputs) -> Vec<CoverageState> {
+    let partial = || CoverageState::Partial {
+        files: vec![Some(FileId(1)), Some(FileId(2))],
+        lacks: vec![kinds_missing(&["variable"])],
+    };
+    let inapplicable = |files: &[u32]| CoverageState::Inapplicable {
+        files: files.iter().map(|file| FileId(*file)).collect(),
+    };
+    match inputs {
+        Inputs::Complete => vec![CoverageState::Complete, CoverageState::Complete],
+        Inputs::PartialWithLacks => vec![CoverageState::Complete, partial()],
+        Inputs::Inapplicable => vec![inapplicable(&[3, 4]), inapplicable(&[4, 5])],
+        Inputs::PartialAndInapplicable => vec![partial(), inapplicable(&[3])],
+    }
+}
+
+fn contributed_code(inputs: Inputs) -> Result<Value, Failure> {
+    Ok(match contributed(&coverages(inputs)).map_err(|_| ())? {
+        CoverageState::Complete => 0,
+        CoverageState::Inapplicable { files } => 100 + files.len(),
+        CoverageState::Partial { files, lacks } => 200 + files.len() * 10 + lacks.len(),
+    })
 }
 
 /// What a row of the cases asks.
@@ -86,6 +126,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
                 .sum()
         }
         Scenario::NodeColumnsWithoutAFile => node_columns_without_a_file(),
+        Scenario::Contributed(inputs) => contributed_code(inputs)?,
     })
 }
 
@@ -112,6 +153,30 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("every_relation_with_a_node_column_names_the_file_its_nodes_lie_in"),
         word: Word::Succeeds,
         input: || Scenario::NodeColumnsWithoutAFile,
+        expect: Expect::Value(0),
+    },
+    Case {
+        name: CaseName("complete_inputs_contribute_a_complete_coverage"),
+        word: Word::Succeeds,
+        input: || Scenario::Contributed(Inputs::Complete),
+        expect: Expect::Value(0),
+    },
+    Case {
+        name: CaseName("a_partial_input_contributes_its_files_and_their_lacks"),
+        word: Word::Succeeds,
+        input: || Scenario::Contributed(Inputs::PartialWithLacks),
+        expect: Expect::Value(0),
+    },
+    Case {
+        name: CaseName("inapplicable_inputs_contribute_each_file_once"),
+        word: Word::Succeeds,
+        input: || Scenario::Contributed(Inputs::Inapplicable),
+        expect: Expect::Value(0),
+    },
+    Case {
+        name: CaseName("a_partial_input_makes_an_inapplicable_file_lack_any_row"),
+        word: Word::Succeeds,
+        input: || Scenario::Contributed(Inputs::PartialAndInapplicable),
         expect: Expect::Value(0),
     },
 ];

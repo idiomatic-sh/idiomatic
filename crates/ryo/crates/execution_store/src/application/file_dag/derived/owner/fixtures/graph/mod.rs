@@ -152,7 +152,7 @@ impl GraphFixture {
             },
         };
         let mut workspace = InvocationWorkspace::new(Rc::clone(&self.owner));
-        workspace.capture_admitted(vec![publication.clone()]);
+        workspace.capture_admitted(vec![crate::application::file_dag::relations::handle::service::Publication::of(publication.clone())]);
         Ok((workspace, publication))
     }
     /// Acquires the graph of `rows` between `endpoints`, keyed by `keys`.

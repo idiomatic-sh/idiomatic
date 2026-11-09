@@ -32,12 +32,12 @@ impl PublishedInput {
         }
     }
     /// The published record this input leases, borrowed for reading.
-    pub fn as_ref(&self) -> &RelationResult {
+    pub(crate) fn as_ref(&self) -> &RelationResult {
         &self.record
     }
     /// The published record.
-    #[cfg(any(test, feature = "fixtures"))]
-    pub fn record(&self) -> &Arc<RelationResult> {
+    #[cfg(test)]
+    pub(crate) fn record(&self) -> &Arc<RelationResult> {
         &self.record
     }
     pub(crate) fn normalization_charged(&self) -> NormalizationCharge {
@@ -53,8 +53,8 @@ impl PublishedInput {
         *self.leases.normalized.borrow_mut() = Some(lease);
     }
     /// Whether `other` leases the same record.
-    #[cfg(any(test, feature = "fixtures"))]
-    pub fn same_record(
+    #[cfg(test)]
+    pub(crate) fn same_record(
         &self,
         other: &Self,
     ) -> crate::application::file_dag::relations::types::Sameness {
@@ -63,12 +63,6 @@ impl PublishedInput {
         } else {
             crate::application::file_dag::relations::types::Sameness::Different
         }
-    }
-}
-impl std::ops::Deref for PublishedInput {
-    type Target = RelationResult;
-    fn deref(&self) -> &Self::Target {
-        &self.record
     }
 }
 
@@ -86,6 +80,19 @@ pub(crate) enum Held {
     },
 }
 impl Publication {
+    /// Whether `other` holds the same published record, for the engine's own proofs.
+    #[cfg(any(test, feature = "fixtures"))]
+    #[must_use]
+    pub fn same_record(&self, other: &Self) -> bool {
+        match (&self.0, &other.0) {
+            (Held::Relation(this), Held::Relation(that)) => Arc::ptr_eq(&this.record, &that.record),
+            _ => false,
+        }
+    }
+    /// The publication of a relation.
+    pub(crate) fn of(input: PublishedInput) -> Self {
+        Self(Held::Relation(input))
+    }
     /// The relation's publication.
     pub(crate) fn input(
         &self,

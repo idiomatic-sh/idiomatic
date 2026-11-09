@@ -1,4 +1,5 @@
 //! Slot and generation state of one runtime scope, and the execution that owns the scopes.
+use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
 use super::super::{
     ProgramExecution, ProjectState, RetirementWork, RootReaders, RuntimeState, Slot, State,
 };
@@ -71,7 +72,7 @@ impl Slot {
 impl RuntimeState {
     pub(crate) fn new(
         scope: ryo_execution_store::application::file_dag::relations::publication::types::ProducerScope,
-        generation: Arc<ryo_execution_store::application::file_dag::relations::generation::service::GenerationLease>,
+        generation: ryo_execution_store::application::file_dag::relations::types::Generation,
     ) -> Self {
         Self {
             generation,
@@ -143,10 +144,10 @@ impl RuntimeState {
         &self,
         owner: &ryo_execution_store::application::file_dag::relations::RelationOwner,
         root: crate::application::file_dag::program::admission::ProducerRoot,
-        publication: &ryo_execution_store::application::file_dag::relations::handle::service::PublishedInput,
+        publication: &ryo_execution_store::application::file_dag::relations::handle::service::Publication,
     ) -> Result<(), OperatingError> {
         if let crate::application::file_dag::program::admission::ProducerRoot::Region(id) = root {
-            owner.bind_producer(self.scope, id, publication.as_ref())?;
+            owner.bind_producer(self.scope, ryo_execution_store::application::file_dag::relations::types::ProducerId(id.0), publication)?;
         }
         Ok(())
     }
@@ -159,10 +160,10 @@ impl ProgramExecution {
         partition: Partition,
         owner: std::rc::Rc<ryo_execution_store::application::file_dag::relations::RelationOwner>,
     ) -> Self {
-        let generation = owner.current_generation();
+        let generation = owner.generation();
         let file_state = RuntimeState::new(
             ryo_execution_store::application::file_dag::relations::publication::types::ProducerScope::File,
-            Arc::clone(&generation),
+            generation.clone(),
         );
         Self {
             program,
@@ -256,7 +257,7 @@ impl ProgramExecution {
         self.file_state.refused.borrow_mut().push(refusal);
     }
     pub(crate) fn validate_state(&self, state: &RuntimeState) -> Result<(), OperatingError> {
-        if ryo_execution_store::application::file_dag::relations::generation::service::GenerationLease::same(&self.generation, &state.generation) == ryo_execution_store::application::file_dag::relations::types::Sameness::Same && self.generation.is_live() == ryo_execution_store::application::file_dag::relations::types::Liveness::Live {
+        if self.generation.same(&state.generation).is_ok() && self.generation.live().is_ok() {
             Ok(())
         } else {
             Err(OperatingError::NotRead)
@@ -275,7 +276,7 @@ impl ProgramExecution {
         }
         let state = std::rc::Rc::new(RuntimeState::new(
             ryo_execution_store::application::file_dag::relations::publication::types::ProducerScope::Project(id),
-            Arc::clone(&self.generation),
+            self.generation.clone(),
         ));
         states.push(ProjectState {
             population: id,
@@ -295,10 +296,8 @@ impl ProgramExecution {
         use ryo_execution_domain::domain::executable_program::types::{
             InputSource, PartitionRequirement,
         };
-        if self.owner.matches_generation(&self.generation)
-            == ryo_execution_store::application::file_dag::relations::types::Sameness::Different
-            || self.generation.is_live()
-                != ryo_execution_store::application::file_dag::relations::types::Liveness::Live
+        if self.owner.generation().same(&self.generation).is_err()
+            || self.generation.live().is_err()
         {
             return Err(OperatingError::NotRead);
         }
@@ -355,7 +354,7 @@ impl ProgramExecution {
         let failure = self.cleanup_failure.into_inner();
         drop(self.file_state);
         drop(self.project_states);
-        self.owner.release_population();
+        self.owner.release();
         failure.map_or(Ok(()), Err)
     }
 }

@@ -69,7 +69,7 @@ impl RelationOwner {
         }
     }
     /// Publishes `record` with its backing accounted to the ledger.
-    pub fn publication(
+    pub(crate) fn publication(
         &self,
         record: Arc<RelationResult>,
     ) -> Result<PublishedInput, OperatingError> {

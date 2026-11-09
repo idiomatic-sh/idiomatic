@@ -1,4 +1,5 @@
 //! Named publication leases across declared project ready batches. No source IO or producer evaluation.
+use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
 use super::constants::PUBLICATION_INCOMPLETE;
 use crate::application::file_dag::program::observation_stage::types::AdmittedOutput;
 use super::types::{
@@ -267,7 +268,12 @@ impl<'a> CrossPublications<'a> {
                         }
                     })
                     .collect::<Result<Vec<_>, _>>()?;
-                let publication = self.owner.packed_publication(words, &backings)?;
+                let publication = self.owner.publish(
+                    ryo_execution_store::application::file_dag::relations::publication::types::Body::Packed {
+                        words,
+                        arenas: &backings,
+                    },
+                )?;
                 prepared.push((
                     output,
                     CrossRoot::Named {

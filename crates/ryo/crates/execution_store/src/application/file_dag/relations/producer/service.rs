@@ -3,7 +3,7 @@ use crate::application::file_dag::relations::publication::types::ProducerScope;
 use crate::application::file_dag::relations::*;
 impl RelationOwner {
     /// The population identity of the project scope.
-    pub fn project_identity(&self) -> Result<PopulationId, OperatingError> {
+    pub(crate) fn project_identity(&self) -> Result<PopulationId, OperatingError> {
         self.allocate_population()
     }
     pub(crate) fn allocate_population(&self) -> Result<PopulationId, OperatingError> {
@@ -15,13 +15,13 @@ impl RelationOwner {
         Ok(id)
     }
     /// One canonical DAG producer has one population identity across rules and safe recomputation.
-    pub fn bind_producer(
+    pub(crate) fn bind_producer(
         &self,
         scope: ProducerScope,
         node: RegionId,
         result: &RelationResult,
     ) -> Result<(), OperatingError> {
-        self.generation(result)?;
+        self.check_generation(result)?;
         match result.producer_scope.get() {
             Some(existing) if *existing != scope => return Err(OperatingError::WrongBinding),
             Some(_) => {}
@@ -80,7 +80,7 @@ impl RelationOwner {
         }
     }
     /// Pins the derived views of `result` to its publication.
-    pub fn pin_derived(&self, result: &RelationResult) {
+    pub(crate) fn pin_derived(&self, result: &RelationResult) {
         let population = self.result_population(result);
         self.derived.pin(population);
         let backing = self.backing_population(result);
@@ -115,7 +115,7 @@ impl RelationOwner {
     }
     /// Global consumer cancellation need not retain the producer payload.
     /// A generation clear has already released all pins and removed this map.
-    pub fn release_derived_producer(&self, scope: ProducerScope, node: RegionId) {
+    pub(crate) fn release_derived_producer(&self, scope: ProducerScope, node: RegionId) {
         if let Some(known) = self
             .producer_populations
             .borrow()

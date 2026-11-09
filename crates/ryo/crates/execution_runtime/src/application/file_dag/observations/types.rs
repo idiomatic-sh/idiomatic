@@ -10,12 +10,12 @@ use std::rc::Rc;
 pub(crate) enum CrossRoot {
     Pending,
     FileFrontier {
-        publication: ryo_execution_store::application::file_dag::relations::packed::service::PackedPublication,
+        publication: ryo_execution_store::application::file_dag::relations::handle::service::Publication,
         token: crate::application::file_dag::program::restored::types::ValidatedFrontier,
         arenas: Vec<WorkerNumber>,
     },
     Named {
-        publication: ryo_execution_store::application::file_dag::relations::packed::service::PackedPublication,
+        publication: ryo_execution_store::application::file_dag::relations::handle::service::Publication,
         admitted: crate::application::file_dag::program::observed_publication::types::ObservedPublication,
         arenas: Vec<WorkerNumber>,
     },
@@ -33,7 +33,7 @@ pub(crate) struct FrontierPopulation<'a> {
 /// A checked physical frontier; aliases share this exact owned payload and common lease.
 pub(crate) struct PreparedFrontier {
     pub(crate) publication:
-        ryo_execution_store::application::file_dag::relations::packed::service::PackedPublication,
+        ryo_execution_store::application::file_dag::relations::handle::service::Publication,
     pub(crate) token: crate::application::file_dag::program::restored::types::ValidatedFrontier,
     pub(crate) arenas: Vec<WorkerNumber>,
 }

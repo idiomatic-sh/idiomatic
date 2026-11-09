@@ -20,7 +20,7 @@ pub struct InvocationWorkspace {
         std::cell::RefCell<ryo_execution_domain::domain::derived_views::types::DerivedScratch>,
     relation_owner: std::rc::Rc<super::relations::RelationOwner>,
     publications:
-        Vec<Option<crate::application::file_dag::relations::handle::service::PublishedInput>>,
+        Vec<Option<crate::application::file_dag::relations::handle::service::Publication>>,
     #[cfg(any(test, feature = "fixtures"))]
     observation: ryo_execution_domain::domain::operating::fixtures::ExecutionObservation,
     downstream_scratch: ryo_execution_domain::domain::table_scratch::types::OperatorScratch,
@@ -122,7 +122,7 @@ impl InvocationWorkspace {
     /// Holds `publications` as the invocation's admitted inputs.
     pub fn capture_admitted(
         &mut self,
-        publications: Vec<super::relations::handle::service::PublishedInput>,
+        publications: Vec<super::relations::handle::service::Publication>,
     ) {
         self.publications = publications.into_iter().map(Some).collect();
     }

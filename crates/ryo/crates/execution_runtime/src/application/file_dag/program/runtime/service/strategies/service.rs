@@ -167,7 +167,7 @@ impl ProgramExecution {
                 needs,
                 &mut rows,
             );
-            let coverage = source.coverage().map_err(InvocationFailure::Semantic)?;
+            let coverage = source.coverage().clone();
             let publication = inputs
                 .publish(
                     crate::application::file_dag::program::admission::ProducerRoot::Region(id),

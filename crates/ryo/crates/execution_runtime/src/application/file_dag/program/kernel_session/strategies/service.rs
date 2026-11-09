@@ -1,4 +1,5 @@
 //! The ordered-existence strategy of a kernel session.
+use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
 use crate::application::file_dag::program::runtime::service::KernelPermit;
 use crate::application::file_dag::program::runtime::types::InvocationFailure;
 use crate::application::file_dag::program::runtime::types::KernelScratch;
@@ -49,7 +50,7 @@ impl super::super::KernelSession<'_, '_> {
             .owner
             .admit_number(
                 publication,
-                shape.source,
+                ryo_execution_store::application::file_dag::relations::types::ProducerId(shape.source.0),
                 &shape.number,
                 RepresentationInput::from(&rows),
             )

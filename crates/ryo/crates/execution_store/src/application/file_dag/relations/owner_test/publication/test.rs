@@ -24,7 +24,7 @@ fn lazy_source_normalization_is_shared_and_lives_until_the_last_consumer() {
         crate::application::file_dag::relations::types::CheckCount(0),
         "publication does not inspect undemanded source rows"
     );
-    assert!(publication.normalized.get().is_none());
+    assert!(publication.as_ref().normalized.get().is_none());
     assert_eq!(owner.derived.publication_ownership_bytes().1, 0);
     let normalized_address;
     {

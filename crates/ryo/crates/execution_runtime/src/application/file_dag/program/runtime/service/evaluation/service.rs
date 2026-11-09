@@ -188,7 +188,7 @@ impl ProgramExecution {
                         event = crate::application::file_dag::program::constants::WALK_READY,
                         logical = first.logical().0, region = id.0, relation = ?relation,
                         phase = ?region.phase(), file = file.file().0,
-                        generation = ?Arc::as_ptr(&self.generation), population = ?population);
+                        generation = ?self.generation.diagnostic_address(), population = ?population);
                 }
             }
             let joined = kernels

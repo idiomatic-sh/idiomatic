@@ -186,3 +186,49 @@ fn moved(column: ColumnIndex, kept: &[ColumnIndex]) -> Option<ColumnIndex> {
         Err(_) => None,
     }
 }
+
+/// What a publication covers when it was computed from these inputs: complete when each was, partial when one was (any file out of
+/// scope then lacking any row of itself), and inapplicable in the files any input was inapplicable in otherwise.
+///
+/// # Errors
+///
+/// `NotRun` when partial inputs merge to no partial coverage, which no coverage of theirs can.
+pub fn contributed<'a>(
+    inputs: impl IntoIterator<Item = &'a CoverageState>,
+) -> Result<CoverageState, crate::domain::operating::errors::OperatingError> {
+    let mut affected = Vec::new();
+    let mut inapplicable = Vec::new();
+    let mut partial = false;
+    for input in inputs {
+        match input {
+            CoverageState::Complete => {}
+            CoverageState::Partial { files, lacks } => {
+                partial = true;
+                affected.extend(lacks_of(files, lacks));
+            }
+            CoverageState::Inapplicable { files } => {
+                for file in files {
+                    if !inapplicable.contains(file) {
+                        inapplicable.push(*file);
+                    }
+                }
+            }
+        }
+    }
+    if partial {
+        affected.extend(inapplicable.into_iter().map(|file| FileLacks {
+            file: Some(file),
+            missing: MissingRows::Any,
+        }));
+        match partial_of_lacks(affected) {
+            partial @ CoverageState::Partial { .. } => Ok(partial),
+            _ => Err(crate::domain::operating::errors::OperatingError::NotRun),
+        }
+    } else if inapplicable.is_empty() {
+        Ok(CoverageState::Complete)
+    } else {
+        Ok(CoverageState::Inapplicable {
+            files: inapplicable,
+        })
+    }
+}

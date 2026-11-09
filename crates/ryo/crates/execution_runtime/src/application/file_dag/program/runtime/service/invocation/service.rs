@@ -1,4 +1,5 @@
 //! One region invocation: the poll, its continuation chain and the committed outcome.
+use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
 use super::super::{
     AdmissionProgress, Continue, Invocation, InvocationOutcome, KernelInvocation, KernelPermit,
     Poll, ProgramExecution, RuntimeState, Slot, State, Terminal,
@@ -275,7 +276,7 @@ impl Drop for Invocation<'_> {
                 Terminal::Ready => State::Ready,
                 Terminal::Published(input) => match input.publication(&self.execution.owner) {
                     Ok(publication) => {
-                        self.execution.owner.pin_derived(publication.as_ref());
+                        self.execution.owner.pin(publication);
                         State::Published(input)
                     }
                     Err(error) => {

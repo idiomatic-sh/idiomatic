@@ -121,7 +121,7 @@ impl ProjectRun<'_> {
                     ),
                     outcome: match result {
                         Ok(input) => match table_of(&self.owner, &input, &unavailable)
-                            .and_then(|table| Ok((table, input.coverage()?)))
+                            .map(|table| (table, input.coverage().clone()))
                         {
                             Ok((
                                 table,

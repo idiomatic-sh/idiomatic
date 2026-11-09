@@ -1,4 +1,5 @@
 //! Compiled program lifecycle proof with a real owner.
+use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
 use crate::application::file_dag::program::admission::AdmittedInput;
 use crate::application::file_dag::program::admission::Emptiness;
 use crate::application::file_dag::program::admission::Inputs;
@@ -118,7 +119,7 @@ pub(crate) fn compiled() -> CompiledCase {
         roots[0], roots[1],
         "distinct source roots must remain distinct"
     );
-    let owner = Rc::new(RelationOwner::new(
+    let owner = Rc::new(RelationOwner::fixture(
         ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible,
         semantic,
     ));
@@ -196,13 +197,13 @@ impl TestInputs {
             inputs,
             &self.owner,
         )?;
-        let publication = self.owner.computed(table)?;
+        let publication = self.owner.publish(ryo_execution_store::application::file_dag::relations::publication::types::Body::Computed(table))?;
         let rows = self
             .owner
-            .resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))?;
+            .rows(&publication, &|_| Err(OperatingError::NotRead))?;
         let proof = self
             .owner
-            .admit(publication.as_ref(), RepresentationInput::from(&rows))?;
+            .admit(&publication, RepresentationInput::from(&rows)).and_then(|admitted| admitted)?;
         AdmittedInput::from_publication(
             Rc::clone(&self.owner),
             publication.clone(),
@@ -231,7 +232,10 @@ impl Inputs for TestInputs {
             return Err(OperatingError::NotRead);
         };
         let rows = self.read(relation)?;
-        let publication = self.owner.source(relation, &rows)?;
+        let publication = self.owner.publish(ryo_execution_store::application::file_dag::relations::publication::types::Body::Source {
+            relation,
+            rows: &rows,
+        })?;
         crate::application::file_dag::program::admission::AvailableInput::source(
             Rc::clone(&self.owner),
             publication,
@@ -257,7 +261,7 @@ impl Inputs for TestInputs {
         let publication = input.publication(&self.owner)?;
         let rows = self
             .owner
-            .resolve(publication.as_ref(), &|relation| self.read(relation))?;
+            .rows(&publication, &|relation| self.read(relation))?;
         Ok(
             if ryo_execution_domain::domain::table_model::service::count_of(&rows).0 == 0
                 && (representation
@@ -290,7 +294,7 @@ impl Inputs for TestInputs {
         let publication = input.publication(&self.owner)?;
         let rows = self
             .owner
-            .resolve(publication.as_ref(), &|relation| self.read(relation))?;
+            .rows(&publication, &|relation| self.read(relation))?;
         let Rows::Computed(table) = rows else {
             return Err(OperatingError::WrongOperation);
         };
