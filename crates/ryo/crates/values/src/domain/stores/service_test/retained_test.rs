@@ -24,26 +24,26 @@ enum Scenario {
     Staged,
 }
 type Input = Scenario;
-type Value = [u64; 4];
+type Value = crate::domain::stores::types::retention::value_test::Value;
 type Failure = std::convert::Infallible;
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("record_metadata_includes_reserved_nested_headers_without_copying_payloads"),
         word: Word::Succeeds,
         input: || Scenario::Records,
-        expect: Expect::Value([1, 0, 12, 11]),
+        expect: Expect::Value((1, 0, 12, 11)),
     },
     Case {
         name: CaseName("stored_payload_metadata_counts_the_actual_owning_vectors"),
         word: Word::Succeeds,
         input: || Scenario::Stored,
-        expect: Expect::Value([1, 0, 12, 0]),
+        expect: Expect::Value((1, 0, 12, 0)),
     },
     Case {
         name: CaseName("staged_measurement_counts_descriptors_and_saturates_logical_bytes"),
         word: Word::Succeeds,
         input: || Scenario::Staged,
-        expect: Expect::Value([2, 0, 0, u64::MAX]),
+        expect: Expect::Value((2, 0, 0, u64::MAX)),
     },
 ];
 fn records() -> RetainedBytes {

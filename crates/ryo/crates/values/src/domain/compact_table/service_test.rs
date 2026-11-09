@@ -59,9 +59,9 @@ pub(super) fn same(actual: &types::CompactTable, expected: &Table) {
             compact::compact_read(actual, RowIndex(row), &mut scratch),
             expected.cells.get(start..start + width)
         );
-        for column in 0..width {
+        for (column, index) in (0..width).zip(0_u32..) {
             assert_eq!(
-                compact::compact_cell(actual, RowIndex(row), ColumnIndex(column as u32)),
+                compact::compact_cell(actual, RowIndex(row), ColumnIndex(index)),
                 expected.cells.get(start + column).copied()
             );
         }
@@ -106,10 +106,9 @@ pub(super) fn differential(input: Arc<KeptWords>, mode: DecodeMode) {
                     compact::compact_read(&meta, RowIndex(row), &mut scratch),
                     Some(expected)
                 );
-                for (column, value) in expected.iter().enumerate() {
+                for (column, value) in (0_u32..).zip(expected) {
                     let actual =
-                        compact::compact_cell(&meta, RowIndex(row), ColumnIndex(column as u32))
-                            .unwrap();
+                        compact::compact_cell(&meta, RowIndex(row), ColumnIndex(column)).unwrap();
                     assert_eq!(actual, *value);
                     if let (Cell::Name(a), Cell::Name(b)) = (actual, value) {
                         assert_eq!(a.place, b.place);
@@ -118,8 +117,12 @@ pub(super) fn differential(input: Arc<KeptWords>, mode: DecodeMode) {
             }
             assert!(compact::compact_read(&meta, RowIndex(old.count.0), &mut scratch).is_none());
             assert!(
-                compact::compact_cell(&meta, RowIndex(0), ColumnIndex(old.kinds.len() as u32))
-                    .is_none()
+                compact::compact_cell(
+                    &meta,
+                    RowIndex(0),
+                    ColumnIndex(u32::try_from(old.kinds.len()).unwrap_or(u32::MAX))
+                )
+                .is_none()
             );
         }
         let before = new_places.clone();

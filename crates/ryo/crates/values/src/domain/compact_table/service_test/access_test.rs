@@ -26,7 +26,7 @@ fn compact_lease_pins_backing_until_metadata_is_retired() {
     assert_eq!(
         storage.words,
         types::StoragePart {
-            address: types::StorageAddress(input.0.0.as_ptr() as usize),
+            address: types::StorageAddress(input.0.0.as_ptr().addr()),
             length: types::StorageLength(input.0.0.len()),
         }
     );
