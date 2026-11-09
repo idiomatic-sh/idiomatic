@@ -50,8 +50,12 @@ impl<'a> BorrowedInput<'a> {
         self.shape
     }
     /// The generation this input was admitted under.
-    pub fn generation(&self) -> crate::application::file_dag::relations::types::Generation {
-        crate::application::file_dag::relations::types::Generation(Arc::clone(&self.origin.generation))
+    pub fn generation(
+        &self,
+    ) -> crate::application::file_dag::relations::generation::service::ResidentGeneration {
+        crate::application::file_dag::relations::generation::service::ResidentGeneration(
+            Arc::clone(&self.origin.generation),
+        )
     }
     /// The admitted rows.
     pub fn rows(&self) -> RepresentationInput<'a> {

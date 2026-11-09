@@ -19,10 +19,7 @@ impl RelationOwner {
         let expected = self
             .producer_populations
             .borrow()
-            .get(&ProducerKey {
-                scope,
-                producer,
-            })
+            .get(&ProducerKey { scope, producer })
             .copied();
         let actual = ProducerPopulation {
             population: self.result_population(record),

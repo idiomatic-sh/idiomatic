@@ -18,6 +18,7 @@ use crate::outbound::scheduler::fixtures::fake::SchedulerFake;
 use crate::outbound::scheduler::interface::SchedulerPort;
 use crate::outbound::scheduler::types::WorkerCount;
 use ryo_execution::outbound::query_language::fixtures::fake::QueryLanguageFake;
+use ryo_execution_runtime::outbound::observer::factory::counting;
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::runs::types::AnswerShape;
 use std::sync::Arc;
@@ -254,7 +255,8 @@ pub(crate) fn project_reuse_frames_root_and_repository_and_keeps_dependency_evid
         let mut asked = request(&given);
         asked.session.repository = repository;
         let made = world(given);
-        let report = made.use_case.counting().lint(asked).expect("complete lint");
+        let counted = made.use_case.counting(Arc::new(counting()));
+        let report = counted.lint(asked).expect("complete lint");
         (made.language.projects.load(Ordering::SeqCst), report)
     };
     let (cold, cold_report) = invoke("root-a", Repository::Disk, true);

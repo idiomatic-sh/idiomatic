@@ -141,7 +141,7 @@ pub(crate) struct ProgramExecution {
     program: Arc<ExecutableProgram>,
     owner: std::rc::Rc<RelationOwner>,
     /// The owner's generation when this execution opened; its liveness is the execution's.
-    generation: ryo_execution_store::application::file_dag::relations::types::Generation,
+    generation: ryo_execution_store::application::file_dag::relations::generation::service::ResidentGeneration,
     partition: Partition,
     file_state: RuntimeState,
     project_states: RefCell<Vec<ProjectState>>,
@@ -156,7 +156,7 @@ enum RootReaders {
     Selected(Arc<ryo_execution_domain::domain::executable_program::types::RemainingTable>),
 }
 pub(crate) struct RuntimeState {
-    generation: ryo_execution_store::application::file_dag::relations::types::Generation,
+    generation: ryo_execution_store::application::file_dag::relations::generation::service::ResidentGeneration,
     scope: ryo_execution_store::application::file_dag::relations::publication::types::ProducerScope,
     roots: RefCell<RootReaders>,
     slots: RefCell<rustc_hash::FxHashMap<RegionId, Slot>>,
@@ -213,7 +213,7 @@ pub(crate) struct KernelPermit<'scope> {
     program: &'scope ExecutableProgram,
     region: RegionId,
     instruction: InstructionIndex,
-    generation: &'scope ryo_execution_store::application::file_dag::relations::types::Generation,
+    generation: &'scope ryo_execution_store::application::file_dag::relations::generation::service::ResidentGeneration,
     partition: &'scope Partition,
     bindings: BoundInputs<'scope>,
     strategy: RouteKind,
@@ -226,7 +226,7 @@ pub(crate) struct SemanticPermit<'scope> {
     program: &'scope ExecutableProgram,
     region: RegionId,
     instruction: InstructionIndex,
-    live: &'scope ryo_execution_store::application::file_dag::relations::types::Generation,
+    live: &'scope ryo_execution_store::application::file_dag::relations::generation::service::ResidentGeneration,
     strategy: RouteKind,
 }
 

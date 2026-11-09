@@ -1,51 +1,49 @@
 //! The observer port, implemented by counting the rows each step is fed.
 
-use crate::outbound::observer::interface::ExecutionObserver;
+use crate::outbound::observer::interface::ObserverPort;
+use crate::outbound::observer::types::FedTotals;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::operator::types::{LogicalCounts, RowsFed};
-use std::sync::atomic::{AtomicU64, Ordering};
+use super::constants::COUNTED_FED;
+use super::types::CountedFed;
 
-/// Totals of the rows each step of each rule was fed. Addition commutes, so the totals do not depend on the order threads report in.
-#[derive(Debug)]
-pub struct CountingObserver {
-    totals: Box<[Box<[[AtomicU64; 3]]>]>,
+/// The counting observer: what it is told is added up by rule and step, for at most `COUNTED_FED` rules. Addition commutes, so the totals do not depend on the
+/// order threads report in.
+#[derive(Debug, Default)]
+pub(crate) struct ObserverCountingAdapter {
+    totals: CountedFed,
 }
 
-impl CountingObserver {
-    /// Nothing counted yet, with room for the steps of each rule.
-    pub(crate) fn new(steps: &[usize]) -> Self {
-        Self {
-            totals: steps
-                .iter()
-                .map(|steps| (0..*steps).map(|_| Default::default()).collect())
-                .collect(),
-        }
-    }
-
-    /// The rows each step of each rule was fed, by rule.
-    #[must_use]
-    pub fn totals(&self) -> Vec<Vec<RowsFed>> {
-        self.totals
-            .iter()
-            .map(|steps| {
-                steps
-                    .iter()
-                    .map(|step| RowsFed(step.each_ref().map(|input| input.load(Ordering::Relaxed))))
-                    .collect()
-            })
-            .collect()
-    }
-}
-
-impl ExecutionObserver for CountingObserver {
+impl ObserverPort for ObserverCountingAdapter {
     fn fed(&self, rule: RuleIndex, counts: LogicalCounts) {
-        let Some(steps) = self.totals.get(rule.0) else {
+        if rule.0 >= COUNTED_FED {
+            return;
+        }
+        let Ok(mut totals) = self.totals.0.lock() else {
             return;
         };
-        for (step, fed) in steps.iter().zip(counts.fed.iter()) {
-            for (total, more) in step.iter().zip(fed.0) {
-                total.fetch_add(more, Ordering::Relaxed);
+        let rules = rule.0 + 1;
+        if totals.0.len() < rules {
+            totals.0.resize_with(rules, Vec::new);
+        }
+        let Some(steps) = totals.0.get_mut(rule.0) else {
+            return;
+        };
+        if steps.len() < counts.fed.len() {
+            steps.resize(counts.fed.len(), RowsFed::default());
+        }
+        for (total, more) in steps.iter_mut().zip(counts.fed.iter()) {
+            for (slot, each) in total.0.iter_mut().zip(more.0) {
+                *slot = slot.saturating_add(each);
             }
         }
+    }
+
+    fn totals(&self) -> FedTotals {
+        self.totals
+            .0
+            .lock()
+            .map(|totals| totals.clone())
+            .unwrap_or_default()
     }
 }

@@ -16,8 +16,8 @@ pub struct RequestDerived {
 pub struct RuleDerivedNeeds {
     /// The relations the rule reads per file.
     pub relations: Box<[Relation]>,
-    /// Whether the rule walks a graph.
-    pub walks_graph: bool,
+    /// Whether the rule walks a graph, so may request graph admission.
+    pub graph: GraphAdmission,
 }
 impl RequestDerived {
     /// The derived needs of a request, one per rule in rule order.
@@ -26,11 +26,15 @@ impl RequestDerived {
         let graph_rules = needs
             .iter()
             .enumerate()
-            .filter(|(_, rule)| rule.walks_graph)
+            .filter(|(_, rule)| rule.graph == GraphAdmission::Enabled)
             .map(|(rule, _)| RuleIndex(rule))
             .collect();
         Self {
-            relations: needs.into_vec().into_iter().map(|rule| rule.relations).collect(),
+            relations: needs
+                .into_vec()
+                .into_iter()
+                .map(|rule| rule.relations)
+                .collect(),
             graph_rules,
         }
     }

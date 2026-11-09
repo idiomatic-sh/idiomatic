@@ -1,24 +1,20 @@
 //! Pure named-root dependency resolution; the existing application graph owns execution and resources.
 use crate::domain::coverage::types::RuleIndex;
 use crate::domain::file_program::constants::{EXPECT_BINDING_INDEX, EXPECT_OUTPUT_INDEX};
-use crate::domain::observation_schedule::types::{PreparedObservationInputs, ResolvedObservationBinding, ResolvedObservationProducer, RuleSchedule};
-use crate::domain::rule_intent::errors::RuleIntentError;
+use crate::domain::observation_schedule::types::{ObservationRequest, ResolvedObservationProducer};
 use crate::domain::rule_intent::types::FrontierPurpose;
-use ryo_values::domain::observations::types::{BoundObservationInput, ObservationProducer};
 use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plans::types::Plan;
-use ryo_values::domain::rule_requests::types::RuleSpec;
-use ryo_values::domain::runs::types::RuleId;
-use std::collections::{BTreeMap, BTreeSet};
 
 /// Bind every output to the existing graph's actual node identity, with explicit unsupported admission.
 pub(crate) fn graph_outputs(
     plans: &[Plan],
     nodes: &[Vec<Option<crate::domain::file_program::types::ProgramNodeId>>],
-    request: crate::domain::observation_schedule::types::ObservationRequest<'_>,
+    request: ObservationRequest<'_>,
 ) -> Option<crate::domain::file_program::types::GraphObservations> {
-    use crate::domain::file_program::types::{GraphObservationOutput, GraphObservationRoot, GraphObservations};
-use crate::domain::observation_schedule::types::{ObservationRequest};
+    use crate::domain::file_program::types::{
+        GraphObservationOutput, GraphObservationRoot, GraphObservations,
+    };
     let ObservationRequest::Bound {
         bindings, layout, ..
     } = request
@@ -87,13 +83,15 @@ use crate::domain::observation_schedule::types::{ObservationRequest};
                 continue;
             }
             if let Some(&frontier) = positions.get(&root.source) {
-                frontiers.push(crate::domain::observation_schedule::types::ObservedFrontierRoot {
-                    producer: RuleIndex(rule),
-                    output: ryo_values::domain::records::types::ObservationIndex(
-                        u32::try_from(output).expect(EXPECT_OUTPUT_INDEX),
-                    ),
-                    frontier: ryo_values::domain::plan_parts::types::InputNumber(frontier),
-                });
+                frontiers.push(
+                    crate::domain::observation_schedule::types::ObservedFrontierRoot {
+                        producer: RuleIndex(rule),
+                        output: ryo_values::domain::records::types::ObservationIndex(
+                            u32::try_from(output).expect(EXPECT_OUTPUT_INDEX),
+                        ),
+                        frontier: ryo_values::domain::plan_parts::types::InputNumber(frontier),
+                    },
+                );
             }
         }
     }

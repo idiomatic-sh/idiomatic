@@ -1,6 +1,5 @@
 //! Engine-issued lazy restored input: immutable bytes retain their validated
 //! root, coverage, partition set and owning generation until actual demand.
-use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
 use super::admission::AdmittedInput;
 use super::admission::Partition;
 use super::admission::ProducerRoot;
@@ -15,6 +14,7 @@ use ryo_execution_domain::domain::{
     executable_program::types::InputSource, operating::errors::OperatingError,
     operator::types::OperatorContext,
 };
+use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
 use ryo_values::domain::{
     plan_parts::types::InputNumber,
     stored_facts::types::{Bucket, KeptWords},
@@ -163,7 +163,7 @@ impl ValidatedFrontier {
             if table.kinds.as_slice() != self.kinds.as_ref() {
                 return Err(OperatingError::ShapeMismatch);
             }
-            let publication = scope.owner().publish(ryo_execution_store::application::file_dag::relations::publication::types::Body::Computed(table))?;
+            let publication = scope.owner().publish(ryo_execution_store::application::file_dag::relations::publication::types::PublicationBody::Computed(table))?;
             let unread = |_| Err(OperatingError::NotRead);
             let rows = scope.owner().rows(&publication, &unread)?;
             let proof = scope

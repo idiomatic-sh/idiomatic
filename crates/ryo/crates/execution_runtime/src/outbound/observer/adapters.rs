@@ -1,3 +1,3 @@
 //! The observer port's implementations, one module each.
 
-pub mod counting;
+pub(super) mod counting;

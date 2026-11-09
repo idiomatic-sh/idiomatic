@@ -155,7 +155,9 @@ pub(crate) fn compiled_operations() -> Corpus {
     .unwrap();
     let graph =
         ryo_execution_domain::domain::file_program::service::compile_prepared(&plans, &operators);
-    let program = crate::application::file_dag::program::preparation::service::compile_program(&plans, graph, &Sources, &operators)
+    let program = crate::application::file_dag::program::preparation::service::compile_program(
+        &plans, graph, &Sources, &operators,
+    )
     .unwrap();
     let mut walk = ryo_execution_domain::domain::shared_walk::types::prepared_walk::value::PreparedWalk::compile(&plans, &bindings);
     walk.retain_program_consumers(&program).unwrap();
@@ -177,6 +179,8 @@ pub(crate) fn compile_program(
     .unwrap();
     let graph =
         ryo_execution_domain::domain::file_program::service::compile_prepared(plans, &operators);
-    crate::application::file_dag::program::preparation::service::compile_program(plans, graph, &Sources, &operators)
+    crate::application::file_dag::program::preparation::service::compile_program(
+        plans, graph, &Sources, &operators,
+    )
     .unwrap()
 }

@@ -16,6 +16,7 @@ use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{Words, WorkerNumber};
 use ryo_values::domain::files::types::{CorpusInput, FileBytes, FileSize, Hits};
 use ryo_values::domain::records::types::Record;
+use ryo_values::domain::run_metadata::types::RuleRunMetadata;
 use ryo_values::domain::stored_facts::types::PackedWords;
 use ryo_values::domain::stored_facts::types::{ArenaBytes, FileNotes};
 use {crate::domain::finish::types::LineStarts, ryo_values::domain::runs::types::RuleNumber};
@@ -191,4 +192,25 @@ pub(crate) fn with_fresh(kept: Vec<Record>, fresh: Vec<Record>) -> Vec<Record> {
     }
     merged.extend(fresh);
     merged
+}
+
+/// The rows each step of each rule was fed, in the shape of the rules' steps: a step `fed` says nothing of was fed none.
+pub(crate) fn by_step(
+    fed: Vec<Vec<ryo_execution::inbound::use_cases::metadata::interface::RowsFed>>,
+    metadata: &[RuleRunMetadata],
+) -> Vec<Vec<ryo_execution::inbound::use_cases::metadata::interface::RowsFed>> {
+    metadata
+        .iter()
+        .zip(fed.iter().map(Some).chain(std::iter::repeat(None)))
+        .map(|(metadata, reported)| {
+            (0..metadata.steps.len())
+                .map(|step| {
+                    reported
+                        .and_then(|steps| steps.get(step))
+                        .copied()
+                        .unwrap_or_default()
+                })
+                .collect()
+        })
+        .collect()
 }

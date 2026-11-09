@@ -160,9 +160,6 @@ impl ProjectRun<'_> {
         if let Some(observer) = observer {
             observer.fed(rule, counts);
         }
-        Ok(RuleOutcome {
-            emit,
-            observations,
-        })
+        Ok(RuleOutcome { emit, observations })
     }
 }

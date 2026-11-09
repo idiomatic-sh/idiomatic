@@ -1,5 +1,4 @@
 //! Publication of a region result and replay of an admitted publication.
-use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
 use super::super::SourceInputs;
 use crate::application::file_dag::program::admission::AdmittedInput;
 use crate::application::file_dag::program::admission::Inputs;
@@ -8,6 +7,7 @@ use crate::application::file_dag::program::admission::ProducerRoot;
 use crate::application::file_dag::program::admission::Representation;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::types::OperatorContext;
+use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
 use std::rc::Rc;
 
 impl SourceInputs<'_, '_> {
@@ -131,7 +131,7 @@ impl SourceInputs<'_, '_> {
             );
         }
         let Representation::Computed(rows) = representation;
-        let publication = self.owner.publish(ryo_execution_store::application::file_dag::relations::publication::types::Body::Computed(rows))?;
+        let publication = self.owner.publish(ryo_execution_store::application::file_dag::relations::publication::types::PublicationBody::Computed(rows))?;
         self.state.bind(&self.owner, root, &publication)?;
         let resolved = self.owner.rows(&publication, self.read)?;
         let checked = self.owner.admit(

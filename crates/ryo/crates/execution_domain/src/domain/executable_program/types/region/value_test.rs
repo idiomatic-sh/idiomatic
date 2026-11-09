@@ -6,8 +6,8 @@ use super::value::Region;
 use crate::domain::{
     coverage::types::RuleIndex,
     executable_program::types::{InputSource, RegionId, Route, SourcePartition},
-    source_partitions::types::{PartitionRequirement},
     operating::errors::OperatingError,
+    source_partitions::types::PartitionRequirement,
 };
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::StepScope;

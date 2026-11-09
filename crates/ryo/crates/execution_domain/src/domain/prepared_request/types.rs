@@ -7,7 +7,8 @@ pub struct Compiled {
     /// A once-resolved traversal over stable original rule indices.
     pub schedule: crate::domain::observation_schedule::types::RuleSchedule,
     /// Names resolved once to real producer roots; empty on ordinary requests.
-    pub observations: Vec<Vec<crate::domain::observation_schedule::types::ResolvedObservationBinding>>,
+    pub observations:
+        Vec<Vec<crate::domain::observation_schedule::types::ResolvedObservationBinding>>,
     /// The plans, in the order of the rules.
     pub plans: Vec<Plan>,
     /// What each rule binds its parameters to, in the order of the plan's parameters.

@@ -1,5 +1,4 @@
 //! Kernel, semantic and physical permits issued from an admitted invocation.
-use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
 use super::super::{BoundInputs, KernelAdmission, KernelPermit, ProgramExecution, SemanticPermit};
 use crate::application::file_dag::program::admission::AdmittedInput;
 use crate::application::file_dag::program::admission::ProducerRoot;
@@ -9,6 +8,7 @@ use ryo_execution_domain::domain::executable_program::types::InputSource;
 use ryo_execution_domain::domain::executable_program::types::RegionId;
 use ryo_execution_domain::domain::executable_program::types::RouteKind;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
 use std::sync::Arc;
 
 impl<'scope> KernelPermit<'scope> {
@@ -19,7 +19,11 @@ impl<'scope> KernelPermit<'scope> {
         &ryo_execution_domain::domain::executable_program::types::region::value::Region,
         OperatingError,
     > {
-        if execution.owner.generation().same(&execution.generation).is_err()
+        if execution
+            .owner
+            .generation()
+            .same(&execution.generation)
+            .is_err()
         {
             return Err(OperatingError::NotRead);
         }
@@ -153,8 +157,7 @@ impl<'scope> KernelPermit<'scope> {
         .ok_or_else(|| OperatingError::MissingInput { position: at.0 + 1 })
     }
     pub(crate) fn validate_live(&self) -> Result<(), OperatingError> {
-        if self.generation.live().is_ok()
-        {
+        if self.generation.live().is_ok() {
             Ok(())
         } else {
             Err(OperatingError::NotRead)

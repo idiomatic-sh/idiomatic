@@ -33,12 +33,6 @@ pub(crate) struct ProgramParts {
     /// What names the content of packed words, for every request of the program.
     pub(crate) digest: Arc<dyn crate::outbound::digest::interface::DigestPort>,
 }
-/// Whether a rule renders syntax and so needs the semantic session.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum SemanticNeed {
-    Required,
-    NotRequired,
-}
 /// Whether a rule is wanted by the request, directly or through a named observation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Demand {

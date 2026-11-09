@@ -15,12 +15,12 @@ use ryo_execution::inbound::use_cases::execution::interface::ObservationContract
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectObservation;
-use ryo_relations::domain::relations::types::WorkerNumber;
 use ryo_execution::inbound::use_cases::execution::interface::RootOutcome;
 use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
 use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use ryo_execution::inbound::use_cases::publication::interface::PublicationUseCase;
 use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::types::WorkerNumber;
 use ryo_values::domain::records::types::ObservationReason;
 use ryo_values::domain::records::types::ProducerReadiness;
 use ryo_values::domain::rule_requests::errors::RuleRequestsError;

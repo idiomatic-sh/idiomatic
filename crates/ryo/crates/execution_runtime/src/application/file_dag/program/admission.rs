@@ -26,7 +26,7 @@ use std::{rc::Rc, sync::Arc};
 #[derive(Clone)]
 pub(crate) struct FileGeneration {
     file: FileId,
-    generation: ryo_execution_store::application::file_dag::relations::types::Generation,
+    generation: ryo_execution_store::application::file_dag::relations::generation::service::ResidentGeneration,
 }
 /// The project identity is the request and its files, coverage and skips. `inapplicable` and
 /// `refused` are one rule's own evidence beside that identity: equality never reads them, so every
@@ -87,7 +87,7 @@ pub(crate) enum ProducerRoot {
 struct PopulationProof {
     owner: Rc<RelationOwner>,
     population: PopulationId,
-    generation: ryo_execution_store::application::file_dag::relations::types::Generation,
+    generation: ryo_execution_store::application::file_dag::relations::generation::service::ResidentGeneration,
 }
 #[derive(Clone)]
 pub(crate) struct AdmittedInput {

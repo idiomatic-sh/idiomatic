@@ -1,5 +1,4 @@
 //! Data of one execution's shared services, its publication scope and its file roots.
-use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
 use crate::application::file_dag::executor::PrimitiveExecutor;
 use crate::application::file_dag::program::admission::AdmittedInput;
 use crate::application::file_dag::program::admission::ApplicabilityProof;
@@ -9,6 +8,7 @@ use crate::application::file_dag::program::request_identity::RequestIdentity;
 use crate::application::file_dag::program::runtime::service::ProgramExecution;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_store::application::file_dag::relations::RelationOwner;
+use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
 use std::{rc::Rc, sync::Arc};
 
 /// Whether the frontier a file root publishes has been committed by its owner.
@@ -138,7 +138,7 @@ pub(crate) struct ProgramServices {
     pub(super) derived:
         ryo_execution_store::application::file_dag::derived::owner::types::DerivedAccess,
     /// The observer the request's caller asked to be told of the engine's work, if any.
-    pub(super) observer: Option<Arc<dyn crate::outbound::observer::interface::ExecutionObserver>>,
+    pub(super) observer: Option<Arc<dyn crate::outbound::observer::interface::ObserverPort>>,
 }
 impl ProgramServices {
     pub(crate) fn new(
@@ -158,13 +158,15 @@ impl ProgramServices {
     /// The same services, telling `observer` of the engine's work.
     pub(crate) fn observed(
         mut self,
-        observer: Option<Arc<dyn crate::outbound::observer::interface::ExecutionObserver>>,
+        observer: Option<Arc<dyn crate::outbound::observer::interface::ObserverPort>>,
     ) -> Self {
         self.observer = observer;
         self
     }
     /// The observer the request's caller asked to be told of the engine's work, if any.
-    pub(crate) fn observer(&self) -> Option<&dyn crate::outbound::observer::interface::ExecutionObserver> {
+    pub(crate) fn observer(
+        &self,
+    ) -> Option<&dyn crate::outbound::observer::interface::ObserverPort> {
         self.observer.as_deref()
     }
     pub(crate) fn request(&self) -> &Arc<RequestIdentity> {

@@ -308,10 +308,7 @@ fn run(
             symbols,
         );
         fed.push(
-            file.counts(
-                RuleIndex(rule),
-                crate::application::file_dag::program::runtime::types::FedRead::Collect,
-            )
+            file.collected_counts(RuleIndex(rule))
                 .map(|counts| counts.fed.iter().map(|each| each.0.iter().sum()).collect())
                 .unwrap_or_default(),
         );
@@ -1010,7 +1007,9 @@ fn a_schema_error_under_a_false_formula_is_reported() {
 /// arrive, is unconditional even when its other conjunct cannot match.
 #[test]
 fn consumers_of_a_bound_observation_are_never_absent() {
-    use ryo_execution_domain::domain::observation_schedule::types::{ObservationRequest, ResolvedObservationBinding, ResolvedObservationProducer};
+    use ryo_execution_domain::domain::observation_schedule::types::{
+        ObservationRequest, ResolvedObservationBinding, ResolvedObservationProducer,
+    };
     use ryo_values::domain::observations::types::{
         BoundObservationInput, ObservationBindingName, ObservationColumn, ObservationColumnName,
         ObservationName, PlanObservation,

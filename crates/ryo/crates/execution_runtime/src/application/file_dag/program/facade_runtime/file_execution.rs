@@ -115,7 +115,9 @@ pub(crate) fn open_file<'a>(
         routes.profile().file_name(path);
     }
     let owner = open_program_owner(
-        ryo_execution_store::application::file_dag::relations::types::ProducerCapacity(program.program().regions().len()),
+        ryo_execution_store::application::file_dag::relations::types::ProducerCapacity(
+            program.program().regions().len(),
+        ),
         services.derived().clone(),
         reuse_eligible,
         routes.profile().clone(),
@@ -252,6 +254,35 @@ impl FileRun<'_> {
         &self,
     ) -> ryo_execution_domain::domain::shared_walk::types::WalkCounts {
         self.walk.counts()
+    }
+    /// Reports the rows each step of `rule` was fed to the request's observer, after the checks every count read makes;
+    /// without an observer only the checks are made.
+    pub(crate) fn observe(&self, rule: RuleIndex) -> Result<(), OperatingError> {
+        use crate::application::file_dag::program::runtime::types::FedRead;
+        let observer = self.services.observer();
+        let counts = self.counts(
+            rule,
+            if observer.is_some() {
+                FedRead::Collect
+            } else {
+                FedRead::CheckOnly
+            },
+        )?;
+        if let Some(observer) = observer {
+            observer.fed(rule, counts);
+        }
+        Ok(())
+    }
+    /// The rows each step of `rule` was fed, for the interpreter's own proofs.
+    #[cfg(any(test, feature = "fixtures"))]
+    pub(crate) fn collected_counts(
+        &self,
+        rule: RuleIndex,
+    ) -> Result<LogicalCounts, OperatingError> {
+        self.counts(
+            rule,
+            crate::application::file_dag::program::runtime::types::FedRead::Collect,
+        )
     }
     pub(crate) fn counts(
         &self,

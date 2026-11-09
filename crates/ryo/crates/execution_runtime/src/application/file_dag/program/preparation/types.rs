@@ -18,11 +18,17 @@ use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::records::types::ObservationIndex;
 use ryo_values::domain::records::types::ObservationReadinessLayout;
 use std::sync::Arc;
-use crate::application::file_dag::program::prepared_execution::types::SemanticNeed;
 
 /// How many rules the request holds.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RuleTotal(pub usize);
+/// Whether a rule renders syntax and so needs the semantic session.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SemanticNeed {
+    Required,
+    NotRequired,
+}
+
 pub(crate) struct RootMetadata {
     pub source: Result<InputSource, OperatingError>,
     pub phase: StepScope,

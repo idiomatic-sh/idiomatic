@@ -80,7 +80,7 @@ use ryo_values::domain::rows::types::{RowCount, Table};
 
 /// What one publication publishes: a source's rows, a supplied compact or flat source, a computed table, or packed words with the
 /// arenas they reference.
-pub enum Body<'a> {
+pub enum PublicationBody<'a> {
     /// The rows of a source relation.
     Source {
         relation: Relation,

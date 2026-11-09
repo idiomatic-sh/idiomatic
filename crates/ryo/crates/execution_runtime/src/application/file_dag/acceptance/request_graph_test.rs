@@ -1,7 +1,7 @@
 //! Request-graph identities and ordered dependency contracts over the operators the application prepares.
-use ryo_execution_domain::domain::observation_schedule::fixtures::plan;
 use ryo_execution_domain::domain::file_program::service::compile_prepared;
 use ryo_execution_domain::domain::file_program::types::{NodeInput, RequestGraph, SchemaValidity};
+use ryo_execution_domain::domain::observation_schedule::fixtures::plan;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};

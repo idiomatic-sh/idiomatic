@@ -37,6 +37,7 @@ use crate::domain::reporting::types::RowCounts;
 use crate::domain::run_rules::service::{owner_of, scopes_of};
 use crate::domain::storing::types::{Decision, ReadAlone, Reused, ToKeep};
 use crate::domain::visit::service::wants;
+use crate::domain::workers::service::by_step;
 use crate::domain::workers::service::order;
 use crate::domain::workers::types::{CrossReading, ProjectHandle, Visited, WorkersMet};
 use crate::inbound::use_cases::lint::constants::NAMED_PUBLICATION_WAS_NOT_ADMITTED_BY;
@@ -44,11 +45,11 @@ use crate::outbound::corpus::interface::CorpusPort;
 use crate::outbound::language::interface::LanguagePort;
 use crate::outbound::lint_store::types::StoreKeeping;
 use crate::outbound::row_sink::interface::RowSinkPort;
-use ryo_execution_runtime::outbound::observer::adapters::counting::adapter::CountingObserver;
 use ryo_execution::inbound::use_cases::metadata::interface::{MetadataUseCase as _, PlacedScopes};
 use ryo_execution::outbound::matching::interface::MatchingPort;
 use ryo_execution_runtime::outbound::digest::interface::DigestPort;
 use ryo_execution_runtime::outbound::facts::interface::FactsWorker;
+use ryo_execution_runtime::outbound::observer::interface::ObserverPort;
 use ryo_language::inbound::use_cases::project::types::ManifestFile;
 use ryo_matching::inbound::use_cases::matching::errors::MatchingError;
 use ryo_values::domain::files::types::Glob;
@@ -162,7 +163,7 @@ pub(super) fn answer(
     ports: PhasePorts<'_>,
     rows: &dyn RowSinkPort,
     keeps: StoreKeeping,
-    observed: Option<&CountingObserver>,
+    observed: Option<&dyn ObserverPort>,
     run: &LintRun<'_>,
     visit: &FileVisit<'_>,
     project: &mut ProjectHandle<Box<dyn FactsWorker>>,
@@ -341,10 +342,10 @@ pub(super) fn settled(ordinary: OrdinaryOutcome, answered: &mut Answered) -> Res
 }
 
 /// What the report says each feature of the rules was fed, when the run counts the rows.
-fn features_of(counted: Option<&CountingObserver>, run: &LintRun<'_>) -> Vec<FeatureFed> {
-    match counted {
-        Some(counted) => kernel_metadata()
-            .fed_over(run.metadata, &counted.totals())
+fn features_of(observed: Option<&dyn ObserverPort>, run: &LintRun<'_>) -> Vec<FeatureFed> {
+    match observed {
+        Some(observed) => kernel_metadata()
+            .fed_over(run.metadata, &by_step(observed.totals().0, run.metadata))
             .into_iter()
             .map(FeatureFed::from)
             .collect(),
@@ -353,10 +354,10 @@ fn features_of(counted: Option<&CountingObserver>, run: &LintRun<'_>) -> Vec<Fea
 }
 
 /// What the report says each step of each rule was fed, when the run counts the rows.
-fn work_of(counted: Option<&CountingObserver>, run: &LintRun<'_>) -> Vec<RuleWork> {
-    match counted {
-        Some(counted) => kernel_metadata()
-            .work_over(run.metadata, &counted.totals())
+fn work_of(observed: Option<&dyn ObserverPort>, run: &LintRun<'_>) -> Vec<RuleWork> {
+    match observed {
+        Some(observed) => kernel_metadata()
+            .work_over(run.metadata, &by_step(observed.totals().0, run.metadata))
             .into_iter()
             .zip(run.rules)
             .map(|(steps, rule)| RuleWork {

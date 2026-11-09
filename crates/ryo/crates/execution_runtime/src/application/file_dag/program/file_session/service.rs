@@ -154,7 +154,9 @@ impl FileSession<'_, '_> {
     }
     /// The interpreter's shared-walk counters of this file, for its own tests.
     #[must_use]
-    pub fn fixture_walk_counts(&self) -> ryo_execution_domain::domain::shared_walk::types::WalkCounts {
+    pub fn fixture_walk_counts(
+        &self,
+    ) -> ryo_execution_domain::domain::shared_walk::types::WalkCounts {
         self.parts.inner.walk_counts()
     }
     /// The rows each step of `rule` was fed in this file, for the interpreter's own tests.
@@ -166,32 +168,13 @@ impl FileSession<'_, '_> {
         &self,
         rule: RuleIndex,
     ) -> Result<ryo_execution_domain::domain::operator::types::LogicalCounts, OperatingError> {
-        self.parts.inner.counts(
-            rule,
-            crate::application::file_dag::program::runtime::types::FedRead::Collect,
-        )
+        self.parts.inner.collected_counts(rule)
     }
 }
 impl FileSession<'_, '_> {
-    /// Reports the rows each step of `rule` was fed to `observer`, after the checks every count read makes; without an observer
-    /// only the checks are made.
-    pub(crate) fn observe(
-        &self,
-        rule: RuleIndex,
-        observer: Option<&dyn crate::outbound::observer::interface::ExecutionObserver>,
-    ) -> Result<(), OperatingError> {
-        use crate::application::file_dag::program::runtime::types::FedRead;
-        let counts = self.parts.inner.counts(
-            rule,
-            if observer.is_some() {
-                FedRead::Collect
-            } else {
-                FedRead::CheckOnly
-            },
-        )?;
-        if let Some(observer) = observer {
-            observer.fed(rule, counts);
-        }
-        Ok(())
+    /// Reports the rows each step of `rule` was fed to the request's observer, after the checks every count read makes; without
+    /// an observer only the checks are made.
+    pub(crate) fn observe(&self, rule: RuleIndex) -> Result<(), OperatingError> {
+        self.parts.inner.observe(rule)
     }
 }

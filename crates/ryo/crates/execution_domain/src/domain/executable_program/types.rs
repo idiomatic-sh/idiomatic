@@ -1,7 +1,7 @@
 //! Dense executable instructions and their real publication boundaries.
 use crate::domain::operator::types::ReaderMultiplicity;
-use crate::domain::{coverage::types::RuleIndex, operating::errors::OperatingError};
 use crate::domain::source_partitions::types::PartitionRequirement;
+use crate::domain::{coverage::types::RuleIndex, operating::errors::OperatingError};
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{StepId, StepScope};
 

@@ -1,5 +1,4 @@
 //! Slot and generation state of one runtime scope, and the execution that owns the scopes.
-use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
 use super::super::{
     ProgramExecution, ProjectState, RetirementWork, RootReaders, RuntimeState, Slot, State,
 };
@@ -12,6 +11,7 @@ use crate::application::file_dag::program::runtime::types::{Dependencies, Reader
 use ryo_execution_domain::domain::executable_program::types::RegionId;
 use ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
 use std::cell::RefCell;
 use std::sync::Arc;
 
@@ -72,7 +72,7 @@ impl Slot {
 impl RuntimeState {
     pub(crate) fn new(
         scope: ryo_execution_store::application::file_dag::relations::publication::types::ProducerScope,
-        generation: ryo_execution_store::application::file_dag::relations::types::Generation,
+        generation: ryo_execution_store::application::file_dag::relations::generation::service::ResidentGeneration,
     ) -> Self {
         Self {
             generation,
@@ -147,7 +147,11 @@ impl RuntimeState {
         publication: &ryo_execution_store::application::file_dag::relations::handle::service::Publication,
     ) -> Result<(), OperatingError> {
         if let crate::application::file_dag::program::admission::ProducerRoot::Region(id) = root {
-            owner.bind_producer(self.scope, ryo_execution_store::application::file_dag::relations::types::ProducerId(id.0), publication)?;
+            owner.bind_producer(
+                self.scope,
+                ryo_execution_store::application::file_dag::relations::types::ProducerId(id.0),
+                publication,
+            )?;
         }
         Ok(())
     }
@@ -293,8 +297,8 @@ impl ProgramExecution {
         &self,
         root: crate::application::file_dag::program::admission::ProducerRoot,
     ) -> Result<Partition, OperatingError> {
-        use ryo_execution_domain::domain::executable_program::types::{InputSource};
-use ryo_execution_domain::domain::source_partitions::types::{PartitionRequirement};
+        use ryo_execution_domain::domain::executable_program::types::InputSource;
+        use ryo_execution_domain::domain::source_partitions::types::PartitionRequirement;
         if self.owner.generation().same(&self.generation).is_err()
             || self.generation.live().is_err()
         {

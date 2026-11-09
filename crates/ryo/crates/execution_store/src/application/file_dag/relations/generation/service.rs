@@ -36,7 +36,10 @@ impl GenerationLease {
         }
     }
 }
-impl crate::application::file_dag::relations::types::Generation {
+/// The generation of a resident population: the lease the owner issued for it. A proof keeps it and presents it back.
+#[derive(Clone, Debug)]
+pub struct ResidentGeneration(pub(crate) std::sync::Arc<GenerationLease>);
+impl ResidentGeneration {
     /// Whether `other` is this generation.
     ///
     /// # Errors
@@ -63,7 +66,9 @@ impl crate::application::file_dag::relations::types::Generation {
     /// # Errors
     ///
     /// `NotRead` once the owner released the population.
-    pub fn live(&self) -> Result<(), ryo_execution_domain::domain::operating::errors::OperatingError> {
+    pub fn live(
+        &self,
+    ) -> Result<(), ryo_execution_domain::domain::operating::errors::OperatingError> {
         match self.0.is_live() {
             crate::application::file_dag::relations::types::Liveness::Live => Ok(()),
             crate::application::file_dag::relations::types::Liveness::Released => {

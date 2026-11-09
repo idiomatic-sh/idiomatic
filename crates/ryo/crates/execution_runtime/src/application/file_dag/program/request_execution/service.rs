@@ -311,7 +311,6 @@ fn run_file(
                         },
                         facts,
                         &refused,
-                        request.services.observer(),
                     )
                     .unwrap_or_else(|error| stopped(error, &refused))
                 };
@@ -352,7 +351,6 @@ fn rest_of_rule(
     capture: CaptureContext<'_>,
     facts: &dyn FactsWorker,
     refused: &RefCell<Option<FactsError>>,
-    observer: Option<&dyn crate::outbound::observer::interface::ExecutionObserver>,
 ) -> Result<RuleAfter, OperatingError> {
     let first = *at.first.get(at.rule.0).ok_or(OperatingError::NotRun)?;
     let captured = session.capture_frontiers(at.rule, first, symbols, capture)?;
@@ -376,7 +374,7 @@ fn rest_of_rule(
         }
         captures.push(each);
     }
-    session.observe(at.rule, observer)?;
+    session.observe(at.rule)?;
     Ok(RuleAfter::Ran { captures })
 }
 
@@ -384,7 +382,7 @@ fn rest_of_rule(
 pub fn begin(
     program: &PreparedExecutionProgram,
     corpus: &[CorpusInput],
-    observer: Option<Arc<dyn crate::outbound::observer::interface::ExecutionObserver>>,
+    observer: Option<Arc<dyn crate::outbound::observer::interface::ObserverPort>>,
 ) -> RequestExecution {
     RequestExecution {
         program: Arc::clone(&program.parts.inner),

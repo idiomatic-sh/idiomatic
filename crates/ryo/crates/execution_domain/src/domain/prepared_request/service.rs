@@ -1,6 +1,7 @@
 //! Resolve caller plans against actual declarations before executable preparation.
 use super::types::Compiled;
-use crate::domain::observation_schedule::service::{link, schedule, schemas};
+use crate::domain::observation_schedule::service::link::link;
+use crate::domain::observation_schedule::service::{schedule, schemas};
 use crate::domain::rule_intent::errors::RuleIntentError;
 use ryo_values::domain::{
     plans::types::Plan, query_bindings::types::ParameterBinding, rule_requests::types::RuleSpec,

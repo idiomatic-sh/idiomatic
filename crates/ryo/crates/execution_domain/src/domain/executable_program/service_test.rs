@@ -113,7 +113,9 @@ fn subject(check: Input) -> Result<Value, Failure> {
         Check::NameWithoutTextFailsTheReplaceGate => {
             a_name_without_text_is_refused_by_the_replace_text_gate()
         }
-        Check::StepOriginPlaceEqualsTheLogicalLookup => step_origin_place_equals_the_logical_lookup(),
+        Check::StepOriginPlaceEqualsTheLogicalLookup => {
+            step_origin_place_equals_the_logical_lookup()
+        }
         Check::UnresolvedRegionKeepsItsOperators => {
             let route = Route::default();
             assert!(matches!(route, Route::Generic));
@@ -318,8 +320,13 @@ fn step_origin_place_equals_the_logical_lookup() -> Result<Value, Failure> {
         &mut |_| Ok(()),
     )?;
     let borrowed = plans.iter().map(Ok).collect::<Vec<_>>();
-    let partitions =
-        SourcePartitions::new(&rules, &borrowed, &bindings, &[], &vec![vec![]; plans.len()])?;
+    let partitions = SourcePartitions::new(
+        &rules,
+        &borrowed,
+        &bindings,
+        &[],
+        &vec![vec![]; plans.len()],
+    )?;
     let graph = crate::domain::file_program::service::compile_prepared(&plans, &operators);
     let program = super::service::compile(
         &plans,

@@ -1,6 +1,5 @@
 //! The drafted regions the merge cases compare: an axis region per rule and node, its contract, and the linear scan the
 //! merge replaced.
-use crate::domain::source_partitions::types::PartitionRequirement;
 use super::{
     fusion::types::RegionSharing,
     merge::merge_equivalent,
@@ -11,6 +10,7 @@ use super::{
 };
 use crate::domain::file_program::types::{NodeInput, ProgramNodeId};
 use crate::domain::operator::types::ReaderMultiplicity;
+use crate::domain::source_partitions::types::PartitionRequirement;
 use crate::domain::{
     operation_schema::types::InputShape, operator::contract::service::prepare_for,
 };

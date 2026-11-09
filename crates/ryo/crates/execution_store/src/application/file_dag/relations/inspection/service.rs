@@ -1,4 +1,4 @@
-//! Generation checks, identity matches, resolution and physical inspection of publications.
+//! ResidentGeneration checks, identity matches, resolution and physical inspection of publications.
 use crate::application::file_dag::relations::types::NormalizationCharge;
 use crate::application::file_dag::relations::*;
 impl RelationOwner {

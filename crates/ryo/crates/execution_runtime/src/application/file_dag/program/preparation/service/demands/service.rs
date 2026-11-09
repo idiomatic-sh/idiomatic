@@ -121,7 +121,11 @@ pub(crate) fn derived_needs(
         needs.push(
             ryo_execution_store::application::file_dag::derived::prepared::RuleDerivedNeeds {
                 relations: reads.into_boxed_slice(),
-                walks_graph: graph,
+                graph: if graph {
+                    ryo_execution_store::application::file_dag::derived::owner::cache::types::GraphAdmission::Enabled
+                } else {
+                    ryo_execution_store::application::file_dag::derived::owner::cache::types::GraphAdmission::Disabled
+                },
             },
         );
     }

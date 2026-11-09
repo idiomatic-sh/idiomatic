@@ -1,9 +1,9 @@
 //! Source availability: a published input or a first-borrow source inspected once.
-use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
 use super::super::{
     AdmittedInput, AvailableBody, AvailableInput, Partition, ProducerRoot, ReadProof,
 };
 use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
 use ryo_execution_store::application::file_dag::relations::{
     RelationOwner, handle::service::Publication,
 };

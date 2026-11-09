@@ -37,9 +37,6 @@ use ryo_execution::inbound::use_cases::compile_rules::interface::{
     CompileRulesUseCase as _, CompiledPlans,
 };
 use ryo_execution::inbound::use_cases::compile_rules::types::CompileRequest;
-use ryo_execution::inbound::use_cases::execution::interface::Counting;
-use ryo_execution_runtime::outbound::observer::factory::counting;
-use ryo_execution_runtime::outbound::observer::interface::ExecutionObserver;
 use ryo_execution::inbound::use_cases::execution::interface::PreparedReporting as _;
 use ryo_execution::inbound::use_cases::execution::interface::ReplayClosure;
 use ryo_execution::inbound::use_cases::metadata::interface::{MetadataUseCase as _, Needs};
@@ -50,6 +47,7 @@ use ryo_execution::outbound::matching::interface::MatchingPort;
 use ryo_execution::outbound::query_language::interface::QueryLanguagePort;
 use ryo_execution_runtime::outbound::digest::interface::DigestPort;
 use ryo_execution_runtime::outbound::facts::interface::FactsPort;
+use ryo_execution_runtime::outbound::observer::interface::ObserverPort;
 use ryo_execution_runtime::outbound::operators::interface::OperatorsPort;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::rule_requests::types::RuleSpec;
@@ -93,8 +91,9 @@ pub struct LintUseCaseImpl {
     digest: Arc<dyn DigestPort>,
     /// Keeps what a run found of each file and rule for the next run, for the build that made it.
     store: Arc<dyn LintStorePort>,
-    /// Whether the rows each step is fed are counted, for the report's `features`: a count that costs a call for every row.
-    counting: Counting,
+    /// The observer told of the rows each step is fed, when they are counted for the report's `features`: a count that costs a
+    /// call for every row.
+    observer: Option<Arc<dyn ObserverPort>>,
 }
 
 impl std::fmt::Debug for LintUseCaseImpl {
@@ -157,7 +156,7 @@ impl LintUseCaseImpl {
             rows,
             digest,
             store,
-            counting: Counting::DoesNotCount,
+            observer: None,
         }
     }
 
@@ -168,10 +167,11 @@ impl LintUseCaseImpl {
         self
     }
 
-    /// The same, counting the rows each step is fed, for the report's `features`.
+    /// The same, counting the rows each step is fed, for the report's `features`: `observer` is told of them and its totals
+    /// are what the report reads.
     #[must_use]
-    pub fn counting(mut self) -> Self {
-        self.counting = Counting::Counts;
+    pub fn counting(mut self, observer: Arc<dyn ObserverPort>) -> Self {
+        self.observer = Some(observer);
         self
     }
 }
@@ -266,23 +266,7 @@ impl LintUseCase for LintUseCaseImpl {
                 .map_err(|error| request_failed(&error))?,
         );
         let metadata = program.metadata();
-        let counted = match self.counting {
-            Counting::Counts => Some(Arc::new(counting(
-                &metadata
-                    .iter()
-                    .map(|rule| rule.steps.len())
-                    .collect::<Vec<_>>(),
-            ))),
-            Counting::DoesNotCount => None,
-        };
-        let services = execution.begin(
-            &program,
-            &listing.files,
-            counted.clone().map(|counted| {
-                let observer: Arc<dyn ExecutionObserver> = counted;
-                observer
-            }),
-        );
+        let services = execution.begin(&program, &listing.files, self.observer.clone());
         let mut setting = RequestVisitSetting {
             program: Arc::clone(&program),
             source_language: named_provider(&request.source_language),
@@ -386,7 +370,7 @@ impl LintUseCase for LintUseCaseImpl {
             ports,
             self.rows.as_ref(),
             self.store.keeps(),
-            counted.as_deref(),
+            self.observer.as_deref(),
             &run,
             &visit,
             &mut project,

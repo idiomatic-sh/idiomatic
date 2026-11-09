@@ -1,5 +1,4 @@
 //! Lower the temporary canonical analysis graph; erase internal continuation cuts.
-use crate::domain::source_partitions::types::{PartitionRequirement, ProducerPartitions};
 #[cfg(any(test, feature = "fixtures"))]
 use super::fusion::types::Ineligible;
 use super::fusion::types::{Fusibility, RegionSharing};
@@ -10,6 +9,7 @@ use super::types::instruction::value::Instruction;
 use super::types::region::value::Region;
 use super::types::*;
 use crate::domain::operator::types::ReaderMultiplicity;
+use crate::domain::source_partitions::types::{PartitionRequirement, ProducerPartitions};
 use crate::domain::{
     file_program::types::{NodeInput, RequestGraph},
     operating::errors::OperatingError,

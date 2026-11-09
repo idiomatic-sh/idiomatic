@@ -301,9 +301,10 @@ fn stable_partial_population_reuses_structure_without_proving_semantic_absence()
         owner.checks.get(),
         crate::application::file_dag::relations::types::CheckCount(1)
     );
-    let prepared = crate::application::file_dag::derived::prepared::RequestDerived::new(Box::new([
-        crate::application::file_dag::derived::owner::fixtures::reads(relation),
-    ]));
+    let prepared =
+        crate::application::file_dag::derived::prepared::RequestDerived::new(Box::new([
+            crate::application::file_dag::derived::owner::fixtures::reads(relation),
+        ]));
     owner
         .derived
         .prepare_program_file(

@@ -68,11 +68,11 @@ impl PublishedInput {
 
 /// What the store published for a holder: a relation's publication, or packed words it leases. The one handle the runtime holds.
 #[derive(Clone, Debug)]
-pub struct Publication(pub(crate) Held);
+pub struct Publication(pub(crate) PublicationHold);
 
 /// What a publication holds.
 #[derive(Clone, Debug)]
-pub(crate) enum Held {
+pub(crate) enum PublicationHold {
     Relation(PublishedInput),
     /// Packed words; the lease is held, never read.
     Packed {
@@ -83,15 +83,26 @@ impl Publication {
     /// Whether `other` holds the same published record, for the engine's own proofs.
     #[cfg(any(test, feature = "fixtures"))]
     #[must_use]
-    pub fn same_record(&self, other: &Self) -> bool {
+    ///
+    /// # Errors
+    ///
+    /// `NotRead` when it holds another record, or either holds packed words.
+    pub fn same_record(
+        &self,
+        other: &Self,
+    ) -> Result<(), ryo_execution_domain::domain::operating::errors::OperatingError> {
         match (&self.0, &other.0) {
-            (Held::Relation(this), Held::Relation(that)) => Arc::ptr_eq(&this.record, &that.record),
-            _ => false,
+            (PublicationHold::Relation(this), PublicationHold::Relation(that))
+                if Arc::ptr_eq(&this.record, &that.record) =>
+            {
+                Ok(())
+            }
+            _ => Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead),
         }
     }
     /// The publication of a relation.
     pub(crate) fn of(input: PublishedInput) -> Self {
-        Self(Held::Relation(input))
+        Self(PublicationHold::Relation(input))
     }
     /// The relation's publication.
     pub(crate) fn input(
@@ -99,8 +110,8 @@ impl Publication {
     ) -> Result<&PublishedInput, ryo_execution_domain::domain::operating::errors::OperatingError>
     {
         match &self.0 {
-            Held::Relation(input) => Ok(input),
-            Held::Packed { .. } => {
+            PublicationHold::Relation(input) => Ok(input),
+            PublicationHold::Packed { .. } => {
                 Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead)
             }
         }

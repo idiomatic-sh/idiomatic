@@ -2,13 +2,13 @@
 use super::derived::population::types::PopulationId;
 
 use rustc_hash::FxHashMap;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_domain::domain::table_model::types::{PhysicalShape, RepresentationKind};
 use ryo_execution_domain::domain::table_model::{
     service::{kind, materialize, registered},
     types::{PublishedRelation, Rows},
 };
-use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_relations::domain::relations::types::{CellKind, Relation};
 use std::{
     cell::{Cell, RefCell},
@@ -16,8 +16,8 @@ use std::{
 };
 mod accounting;
 pub mod generation;
-pub mod interface;
 pub(crate) mod inspection;
+pub mod interface;
 pub(crate) mod producer;
 pub mod publication;
 pub(crate) mod source;
@@ -169,25 +169,29 @@ impl RelationOwner {
 }
 
 impl interface::RelationStore for RelationOwner {
-    fn generation(&self) -> types::Generation {
-        types::Generation(self.current_generation())
+    fn generation(&self) -> generation::service::ResidentGeneration {
+        generation::service::ResidentGeneration(self.current_generation())
     }
     fn publish(
         &self,
-        body: publication::types::Body<'_>,
+        body: publication::types::PublicationBody<'_>,
     ) -> Result<handle::service::Publication, OperatingError> {
-        use handle::service::{Held, Publication};
-        use publication::types::Body;
+        use handle::service::{Publication, PublicationHold};
+        use publication::types::PublicationBody;
         Ok(Publication(match body {
-            Body::Source { relation, rows } => Held::Relation(self.source(relation, rows)?),
-            Body::Compact(table) => Held::Relation(self.source_compact(table)?),
-            Body::Shared(table) => Held::Relation(self.source_shared_computed(table)?),
-            Body::Computed(table) => Held::Relation(self.computed(table)?),
-            Body::Packed { words, arenas } => {
-                Held::Packed {
+            PublicationBody::Source { relation, rows } => {
+                PublicationHold::Relation(self.source(relation, rows)?)
+            }
+            PublicationBody::Compact(table) => {
+                PublicationHold::Relation(self.source_compact(table)?)
+            }
+            PublicationBody::Shared(table) => {
+                PublicationHold::Relation(self.source_shared_computed(table)?)
+            }
+            PublicationBody::Computed(table) => PublicationHold::Relation(self.computed(table)?),
+            PublicationBody::Packed { words, arenas } => PublicationHold::Packed {
                 _lease: self.packed_publication(words, arenas)?,
-            }
-            }
+            },
         }))
     }
     fn population(&self) -> Result<PopulationId, OperatingError> {
@@ -197,8 +201,7 @@ impl interface::RelationStore for RelationOwner {
         &self,
         publication: &handle::service::Publication,
         rows: RepresentationInput<'a>,
-    ) -> Result<Result<admission::service::BorrowedInput<'a>, OperatingError>, OperatingError>
-    {
+    ) -> Result<Result<admission::service::BorrowedInput<'a>, OperatingError>, OperatingError> {
         self.inspect_available(publication.input()?.as_ref(), rows)
     }
     fn admit_number<'a>(
@@ -243,7 +246,11 @@ impl interface::RelationStore for RelationOwner {
             self.pin_derived(input.as_ref());
         }
     }
-    fn retire_producer(&self, scope: publication::types::ProducerScope, producer: types::ProducerId) {
+    fn retire_producer(
+        &self,
+        scope: publication::types::ProducerScope,
+        producer: types::ProducerId,
+    ) {
         self.release_derived_producer(scope, producer);
     }
     fn release(&self) {

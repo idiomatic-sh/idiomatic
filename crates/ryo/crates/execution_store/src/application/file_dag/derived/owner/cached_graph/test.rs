@@ -101,8 +101,10 @@ fn graph_of(owner: &std::rc::Rc<RelationOwner>) -> Result<bool, OperatingError> 
         &[],
         ryo_values::domain::plan_parts::types::StepScope::PerFile,
     )?;
-    crate::application::file_dag::derived::request::RequestViews::new(owner.derived().semantic.clone())
-        .bind(&mut contract)?;
+    crate::application::file_dag::derived::request::RequestViews::new(
+        owner.derived().semantic.clone(),
+    )
+    .bind(&mut contract)?;
     let contract = &contract;
     let workspace = crate::application::file_dag::workspace::InvocationWorkspace::new(
         std::rc::Rc::clone(owner),

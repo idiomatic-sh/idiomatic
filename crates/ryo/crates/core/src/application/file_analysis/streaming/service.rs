@@ -89,10 +89,7 @@ impl FileVisits {
                 Ok(facts) => facts,
                 Err(error) => return Ok(Err(error.into())),
             };
-            states.push(Worker::new(
-                tables_for(WorkerNumber(number)),
-                facts,
-            ));
+            states.push(Worker::new(tables_for(WorkerNumber(number)), facts));
         }
         let (mut headings, limit) = match run.answering {
             Answering::Findings => (
@@ -305,10 +302,7 @@ impl FileVisits {
             store,
             setting: setting.clone(),
         };
-        let mut worker = Worker::new(
-            tables_for(WorkerNumber(0)),
-            self.facts.worker()?,
-        );
+        let mut worker = Worker::new(tables_for(WorkerNumber(0)), self.facts.worker()?);
         for place in changed {
             self.analysis.visit_file(
                 &mut worker,

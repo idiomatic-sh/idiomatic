@@ -17,7 +17,6 @@ use ryo_execution_domain::domain::executable_program::types::DemandAction;
 use ryo_execution_domain::domain::executable_program::types::InputId;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::contract::types::PreflightOrder;
-use std::sync::Arc;
 
 impl ProgramExecution {
     pub(crate) fn admit_demand(

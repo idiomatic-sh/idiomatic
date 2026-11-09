@@ -1,6 +1,6 @@
 //! Behavioral controls retained from the former application resource constructors.
-use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
+use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
 use ryo_relations::domain::relations::types::{CellKind, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use {
@@ -22,10 +22,12 @@ fn prepare_cycles(
     let RepresentationInput::Computed(table) = input else {
         panic!("computed fixture")
     };
-    let publication = owner.publish(ryo_execution_store::application::file_dag::relations::publication::types::Body::Computed(table.clone()))?;
+    let publication = owner.publish(ryo_execution_store::application::file_dag::relations::publication::types::PublicationBody::Computed(table.clone()))?;
     let held = owner.rows(&publication, &|_| Err(OperatingError::NotRead))?;
     let input = RepresentationInput::from(&held);
-    let proof = owner.admit(&publication, input).and_then(|admitted| admitted)?;
+    let proof = owner
+        .admit(&publication, input)
+        .and_then(|admitted| admitted)?;
     let plan = std::sync::Arc::new(owner.derived().prepare_view(
         &ViewRequest::CycleAdjacency {
             source,
@@ -61,7 +63,7 @@ fn prepare_closure(
     let RepresentationInput::Computed(table) = input else {
         return Err(OperatingError::WrongOperation);
     };
-    let publication = owner.publish(ryo_execution_store::application::file_dag::relations::publication::types::Body::Computed(table.clone()))?;
+    let publication = owner.publish(ryo_execution_store::application::file_dag::relations::publication::types::PublicationBody::Computed(table.clone()))?;
     let rows = owner.rows(&publication, &|_| Err(OperatingError::NotRead))?;
     let input = RepresentationInput::from(&rows);
     let mut cursor =

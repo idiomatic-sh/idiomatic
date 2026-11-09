@@ -1,16 +1,15 @@
 //! Named publication leases across declared project ready batches. No source IO or producer evaluation.
-use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
 use super::constants::PUBLICATION_INCOMPLETE;
-use crate::application::file_dag::program::observation_stage::types::AdmittedOutput;
 use super::types::{
-    ArenaCount, ConsumerCount, CrossPublications, CrossRoot, FinishState,
-    ReferenceCount,
+    ArenaCount, ConsumerCount, CrossPublications, CrossRoot, FinishState, ReferenceCount,
 };
 use crate::application::file_dag::frontiers::types::{
     BoundInput, BoundMember, InputReadiness, PublicationSlot,
 };
+use crate::application::file_dag::program::observation_stage::types::AdmittedOutput;
 use crate::application::file_dag::program::preparation::types::ObservationMetadata;
 use crate::application::file_dag::program::preparation::types::OutputRoot;
+use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
 use ryo_relations::domain::relations::types::{CROSS_FILE, WorkerNumber};
 use ryo_values::domain::{
     records::types::{ObservationIndex, ProducerReadiness},
@@ -269,7 +268,7 @@ impl<'a> CrossPublications<'a> {
                     })
                     .collect::<Result<Vec<_>, _>>()?;
                 let publication = self.owner.publish(
-                    ryo_execution_store::application::file_dag::relations::publication::types::Body::Packed {
+                    ryo_execution_store::application::file_dag::relations::publication::types::PublicationBody::Packed {
                         words,
                         arenas: &backings,
                     },

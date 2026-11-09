@@ -10,5 +10,5 @@ pub struct ObservedPublication {
         ryo_execution_store::application::file_dag::relations::handle::service::Publication,
     pub(crate) population:
         ryo_execution_store::application::file_dag::derived::population::types::PopulationId,
-    pub(crate) generation: ryo_execution_store::application::file_dag::relations::types::Generation,
+    pub(crate) generation: ryo_execution_store::application::file_dag::relations::generation::service::ResidentGeneration,
 }

@@ -137,7 +137,13 @@ pub(super) fn equal_policies_do_not_alias_distinct_admitted_frontier_payloads()
                 RuleIndex(rule),
                 source,
                 &rules.covered,
-                || crate::application::cross_file::service::phase_partials(&crossing.program, &crossing.domain, &declared),
+                || {
+                    crate::application::cross_file::service::phase_partials(
+                        &crossing.program,
+                        &crossing.domain,
+                        &declared,
+                    )
+                },
                 &mut symbols,
             );
             let mut outcomes = vec![outcome];

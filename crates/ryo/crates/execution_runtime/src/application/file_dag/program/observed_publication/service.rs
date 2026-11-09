@@ -8,13 +8,12 @@ use ryo_execution_store::application::file_dag::relations::interface::RelationSt
 impl ObservedPublication {
     /// The handover of an admitted input: its read proof, root, publication, population and generation.
     pub(crate) fn from_parts(admitted: AdmittedInput) -> Self {
-        let (proof, root, publication, population, generation) = admitted.into_parts();
         Self {
-            proof,
-            root,
-            publication,
-            population,
-            generation,
+            proof: admitted.read_proof(),
+            root: admitted.producer_root(),
+            publication: admitted.held_publication().clone(),
+            population: admitted.admitted_population(),
+            generation: admitted.admitted_generation().clone(),
         }
     }
     /// The population the publication was admitted under.
@@ -52,9 +51,10 @@ impl ObservedPublication {
     ) -> Result<(), OperatingError> {
         self.generation.live()?;
         match (self.proof.coverage(), readiness) {
-            (CoverageState::Complete, ryo_values::domain::records::types::ProducerReadiness::Complete) => {
-                Ok(())
-            }
+            (
+                CoverageState::Complete,
+                ryo_values::domain::records::types::ProducerReadiness::Complete,
+            ) => Ok(()),
             (
                 CoverageState::Partial { files, .. },
                 ryo_values::domain::records::types::ProducerReadiness::Unknown(_),

@@ -1,7 +1,7 @@
 //! Immutable request preparation, physical metadata and compilation ownership.
 use super::types::*;
 use crate::application::file_dag::program::prepared_execution::types::{
-    NamedLayout, ObservationContract, SemanticNeed,
+    NamedLayout, ObservationContract,
 };
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram;
@@ -289,9 +289,10 @@ pub(crate) fn prepare(
     let program = Arc::new(compile_program(&plans, graph, &partitions, &operators)?);
     walk.retain_program_consumers(&program)?;
     census::service::trace(rules, &walk, &program);
-    let derived = ryo_execution_store::application::file_dag::derived::prepared::RequestDerived::new(
-        demands::service::derived_needs(&program)?,
-    );
+    let derived =
+        ryo_execution_store::application::file_dag::derived::prepared::RequestDerived::new(
+            demands::service::derived_needs(&program)?,
+        );
     let metadata =
         metadata::service::rules(&program, named.as_ref(), &plans, &observation_frontiers)?;
     let matchers = Arc::new(

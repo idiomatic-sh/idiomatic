@@ -104,6 +104,7 @@ templates = [
   { alias = "issuer-data-role-16", template = "idiomatic.ryo/application-part", file = "relations/admission/service/issuance/service.rs", description = "One explicitly placed nested part of a cohesive application operation." },
   { alias = "issuer-data-role-17", template = "idiomatic.ryo/application-part", file = "relations/admission/service.rs", description = "One explicitly placed nested part of a cohesive application operation." },
   { alias = "issuer-data-role-18", template = "idiomatic.ryo/application-part", file = "relations/generation/mod.rs", description = "One explicitly placed nested part of a cohesive application operation." },
+  { template = "idiomatic.ryo/application-part", file = "relations/interface.rs", description = "The store facade: the one pub route the runtime holds, reads and frees published relations through." },
   { alias = "issuer-data-role-19", template = "idiomatic.ryo/application-part", file = "relations/generation/service.rs", description = "One explicitly placed nested part of a cohesive application operation." },
   { alias = "issuer-data-role-20", template = "idiomatic.ryo/application-part", file = "relations/handle/mod.rs", description = "One explicitly placed nested part of a cohesive application operation." },
   { alias = "issuer-data-role-21", template = "idiomatic.ryo/application-part", file = "relations/handle/service.rs", description = "One explicitly placed nested part of a cohesive application operation." },

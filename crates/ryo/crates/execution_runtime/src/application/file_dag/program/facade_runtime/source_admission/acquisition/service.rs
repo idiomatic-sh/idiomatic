@@ -1,5 +1,4 @@
 //! Demand-triggered source supply for one region input.
-use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
 use super::super::SourceInputs;
 use crate::application::file_dag::program::admission::AdmittedInput;
 use crate::application::file_dag::program::admission::AvailableInput;
@@ -16,6 +15,7 @@ use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::types::OperatorContext;
 use ryo_execution_store::application::file_dag::relations::RelationOwner;
 use ryo_execution_store::application::file_dag::relations::handle::service::Publication;
+use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
 use std::rc::Rc;
 
 impl SourceInputs<'_, '_> {
@@ -50,7 +50,7 @@ impl SourceInputs<'_, '_> {
                     return Err(error);
                 }
                 let rows = (self.read)(relation)?;
-                let publication = self.owner.publish(ryo_execution_store::application::file_dag::relations::publication::types::Body::Source {
+                let publication = self.owner.publish(ryo_execution_store::application::file_dag::relations::publication::types::PublicationBody::Source {
                     relation,
                     rows: &rows,
                 })?;
@@ -82,7 +82,7 @@ impl SourceInputs<'_, '_> {
                     &mut context.symbols,
                     context.phase,
                 );
-                let publication = self.owner.publish(ryo_execution_store::application::file_dag::relations::publication::types::Body::Computed(table))?;
+                let publication = self.owner.publish(ryo_execution_store::application::file_dag::relations::publication::types::PublicationBody::Computed(table))?;
                 admit_published(&self.owner, publication, source, &actual_partition)
             }
             InputSource::Region(id) => self
@@ -145,7 +145,7 @@ impl SourceInputs<'_, '_> {
                 actual_partition.require_supply(partition)?;
                 let publication = self
                     .owner
-                    .publish(ryo_execution_store::application::file_dag::relations::publication::types::Body::Computed(ryo_values::domain::rows::types::Table {
+                    .publish(ryo_execution_store::application::file_dag::relations::publication::types::PublicationBody::Computed(ryo_values::domain::rows::types::Table {
                         kinds: binding
                             .schema
                             .columns

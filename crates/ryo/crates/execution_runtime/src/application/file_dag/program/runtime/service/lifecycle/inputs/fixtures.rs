@@ -1,5 +1,4 @@
 //! Compiled program lifecycle proof with a real owner.
-use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
 use crate::application::file_dag::program::admission::AdmittedInput;
 use crate::application::file_dag::program::admission::Emptiness;
 use crate::application::file_dag::program::admission::Inputs;
@@ -12,11 +11,12 @@ use ryo_execution_domain::domain::operator::types::OperatorContext;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_domain::domain::{
     coverage::types::RuleIndex,
-    executable_program::types::{InputSource},
+    executable_program::types::InputSource,
     source_partitions::types::{PartitionRequirement, ProducerPartitions},
     table_model::types::Rows,
 };
 use ryo_execution_store::application::file_dag::relations::RelationOwner;
+use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
 use ryo_relations::domain::{
     relations::{
         service::kinds,
@@ -101,7 +101,12 @@ pub(crate) fn compiled() -> CompiledCase {
     let graph =
         ryo_execution_domain::domain::file_program::service::compile_prepared(&plans, &prepared);
     let program = Arc::new(
-        crate::application::file_dag::program::preparation::service::compile_program(&plans, graph, &FileProducers, &prepared)
+        crate::application::file_dag::program::preparation::service::compile_program(
+            &plans,
+            graph,
+            &FileProducers,
+            &prepared,
+        )
         .unwrap(),
     );
     let roots = [
@@ -190,13 +195,14 @@ impl TestInputs {
             inputs,
             &self.owner,
         )?;
-        let publication = self.owner.publish(ryo_execution_store::application::file_dag::relations::publication::types::Body::Computed(table))?;
+        let publication = self.owner.publish(ryo_execution_store::application::file_dag::relations::publication::types::PublicationBody::Computed(table))?;
         let rows = self
             .owner
             .rows(&publication, &|_| Err(OperatingError::NotRead))?;
         let proof = self
             .owner
-            .admit(&publication, RepresentationInput::from(&rows)).and_then(|admitted| admitted)?;
+            .admit(&publication, RepresentationInput::from(&rows))
+            .and_then(|admitted| admitted)?;
         AdmittedInput::from_publication(
             Rc::clone(&self.owner),
             publication.clone(),
@@ -225,7 +231,7 @@ impl Inputs for TestInputs {
             return Err(OperatingError::NotRead);
         };
         let rows = self.read(relation)?;
-        let publication = self.owner.publish(ryo_execution_store::application::file_dag::relations::publication::types::Body::Source {
+        let publication = self.owner.publish(ryo_execution_store::application::file_dag::relations::publication::types::PublicationBody::Source {
             relation,
             rows: &rows,
         })?;

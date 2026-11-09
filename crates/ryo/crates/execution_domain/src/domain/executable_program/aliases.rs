@@ -1,17 +1,14 @@
 //! One part of the executable-program service: aliases of named outputs resolve into the same dependency graph once, each
 //! region declares the partition of its relation inputs, and each region's lineage is found once, through the named observations
 //! to the producer roots their members read.
-use crate::domain::source_partitions::types::ProducerPartitions;
 use super::types::ProducerMember;
 use super::types::region::value::Region;
-use super::types::{
-    InputSource, ObservationPlace, RegionId, Route, RuleProgram,
-    SourcePartition,
-};
-use crate::domain::file_program::types::{GraphObservations};
-use crate::domain::observation_schedule::types::{ResolvedObservationProducer};
+use super::types::{InputSource, ObservationPlace, RegionId, Route, RuleProgram, SourcePartition};
+use crate::domain::file_program::types::GraphObservations;
+use crate::domain::observation_schedule::types::ResolvedObservationProducer;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::types::ReaderMultiplicity;
+use crate::domain::source_partitions::types::ProducerPartitions;
 use ryo_values::domain::lineage::types::Lineage;
 use ryo_values::domain::plan_parts::types::StepScope;
 

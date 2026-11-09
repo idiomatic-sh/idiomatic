@@ -10,9 +10,9 @@ use super::types::{
     BindingOffset, DerivedSources, FileProgramNode, NodeInput, ProgramNodeId, RequestGraph,
     ResolvedAlternative, ResolvedShape, SchemaValidity,
 };
-use crate::domain::observation_schedule::types::ObservationRequest;
 use crate::domain::coverage::types::RuleIndex;
 use crate::domain::file_program::types::RequestOperators;
+use crate::domain::observation_schedule::types::ObservationRequest;
 use crate::domain::self_join_recogniser::types::Decline;
 
 use ryo_values::domain::plan_parts::types::StepScope;

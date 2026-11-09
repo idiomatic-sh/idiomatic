@@ -1,8 +1,10 @@
 //! Rule order, observation batches and the demand a request places on its rules.
 use crate::application::file_dag::program::preparation::types::{PreparedProgram, RuleTotal};
-use crate::application::file_dag::program::prepared_execution::types::{Demand};
+use crate::application::file_dag::program::prepared_execution::types::Demand;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
-use ryo_execution_domain::domain::observation_schedule::types::{ResolvedObservationProducer, RuleSchedule};
+use ryo_execution_domain::domain::observation_schedule::types::{
+    ResolvedObservationProducer, RuleSchedule,
+};
 
 impl PreparedProgram {
     pub(crate) fn observation_batches(&self) -> Option<&[Vec<RuleIndex>]> {

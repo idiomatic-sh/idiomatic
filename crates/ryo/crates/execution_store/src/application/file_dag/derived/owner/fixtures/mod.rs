@@ -12,14 +12,14 @@ use std::sync::Arc;
 pub(crate) fn reads(relation: Relation) -> super::super::prepared::RuleDerivedNeeds {
     super::super::prepared::RuleDerivedNeeds {
         relations: Box::new([relation]),
-        walks_graph: false,
+        graph: super::cache::types::GraphAdmission::Disabled,
     }
 }
 /// The derived needs of a rule that walks the axis of `relation`: it reads that relation and walks a graph.
 pub(crate) fn walks(relation: Relation) -> super::super::prepared::RuleDerivedNeeds {
     super::super::prepared::RuleDerivedNeeds {
         relations: Box::new([relation]),
-        walks_graph: true,
+        graph: super::cache::types::GraphAdmission::Enabled,
     }
 }
 pub(crate) fn prepare_view(

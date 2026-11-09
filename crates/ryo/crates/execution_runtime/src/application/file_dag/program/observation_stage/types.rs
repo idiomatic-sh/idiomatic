@@ -28,12 +28,20 @@ pub struct AdmittedOutput {
 /// One ready batch of the program, by its place among the batches.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct BatchNumber(pub usize);
+/// One declared occurrence of an observation stage: the batch it runs in and its rule.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct BatchOccurrence {
+    /// The batch the occurrence runs in.
+    pub batch: BatchNumber,
+    /// The occurrence's rule.
+    pub rule: RuleIndex,
+}
 /// What the batches of an observation stage read: every declared occurrence with its batch, and the corpus and facts their
 /// frontiers are read from. The arenas are the stage's own, read once per batch.
 pub struct ObservationBatches<'a> {
     /// Every declared occurrence, in the order the caller numbers them: per batch, per rule of the batch, per declared occurrence
     /// of that rule.
-    pub occurrences: &'a [(BatchNumber, RuleIndex)],
+    pub occurrences: &'a [BatchOccurrence],
     /// What each file's run observed of the producers that feed named observations.
     pub readiness: &'a [FileObservationReadiness],
     /// Every rule of the program; those named in `occurrences` are selected, the others finished first.
@@ -65,6 +73,8 @@ impl std::fmt::Debug for ObservationBatches<'_> {
 }
 /// What one delivered occurrence hands the stage to install in the slot it reserved: its transfer and its admitted outputs.
 pub struct Install {
+    /// What the occurrence transfers to the stage's arenas.
     pub transfer: CrossPublicationTransfer,
+    /// The admitted publication of each named output it delivers.
     pub publications: Vec<AdmittedOutput>,
 }

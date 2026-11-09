@@ -1,7 +1,9 @@
 //! Retained findings depend on actual producer digests, through original rule indices.
 use super::constants::OBSERVATION_PRODUCERS_DOMAIN;
 use super::errors::RuleCompilationError;
-use ryo_execution_domain::domain::observation_schedule::types::{ResolvedObservationBinding, ResolvedObservationProducer, RuleSchedule};
+use ryo_execution_domain::domain::observation_schedule::types::{
+    ResolvedObservationBinding, ResolvedObservationProducer, RuleSchedule,
+};
 use ryo_execution_domain::domain::rule_intent::errors::RuleIntentError;
 use ryo_execution_runtime::outbound::digest::{interface::DigestPort, types::DigestBytes};
 use ryo_values::domain::stores::types::{Crossing, StoredRule};

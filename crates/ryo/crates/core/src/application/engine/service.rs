@@ -81,7 +81,9 @@ impl Execution {
         &self,
         program: &PreparedExecutionProgram,
         corpus: &[ryo_values::domain::files::types::CorpusInput],
-        observer: Option<Arc<dyn ryo_execution_runtime::outbound::observer::interface::ExecutionObserver>>,
+        observer: Option<
+            Arc<dyn ryo_execution_runtime::outbound::observer::interface::ObserverPort>,
+        >,
     ) -> RequestExecution {
         ExecutionUseCaseImpl::new().execution(program, corpus, observer)
     }

@@ -3,10 +3,8 @@
 //! opened, shared caches. A factory builds nothing else, chooses nothing, and is called
 //! only by an edge.
 
-use super::adapters::counting::adapter::CountingObserver;
-
-/// The counting observer, sized by the number of steps of each rule, in rule order.
+/// The counting observer: it adds up what it is told.
 #[must_use]
-pub fn counting(steps: &[usize]) -> CountingObserver {
-    CountingObserver::new(steps)
+pub fn counting() -> impl crate::outbound::observer::interface::ObserverPort {
+    super::adapters::counting::adapter::ObserverCountingAdapter::default()
 }

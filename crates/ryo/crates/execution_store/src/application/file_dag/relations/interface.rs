@@ -1,9 +1,10 @@
 //! What the runtime needs from the store to hold, read and free published relations: the one pub route to them.
 use super::admission::service::BorrowedInput;
+use super::generation::service::ResidentGeneration;
 use super::handle::service::Publication;
 use super::number::service::AdmittedNumber;
-use super::publication::types::{Body, ProducerScope};
-use super::types::{Generation, ProducerId};
+use super::publication::types::{ProducerScope, PublicationBody};
+use super::types::ProducerId;
 use crate::application::file_dag::derived::population::types::PopulationId;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::self_join_recogniser::types::NumberRequirement;
@@ -38,13 +39,13 @@ use ryo_relations::domain::relations::types::{CellKind, Relation};
 /// ```
 pub trait RelationStore {
     /// The resident population's generation.
-    fn generation(&self) -> Generation;
+    fn generation(&self) -> ResidentGeneration;
     /// Publishes `body`, its backing accounted to the ledger.
     ///
     /// # Errors
     ///
     /// A table whose rows do not fit its contract, a ledger that refuses the lease, or a population count that overflows.
-    fn publish(&self, body: Body<'_>) -> Result<Publication, OperatingError>;
+    fn publish(&self, body: PublicationBody<'_>) -> Result<Publication, OperatingError>;
     /// A population identity for the project scope.
     ///
     /// # Errors

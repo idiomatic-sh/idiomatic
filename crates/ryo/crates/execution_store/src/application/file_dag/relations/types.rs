@@ -43,12 +43,6 @@ pub enum ReuseEligibility {
     Ineligible,
 }
 
-/// The generation of a resident population: the lease the owner issued for it. A proof keeps it and presents it back.
-#[derive(Clone, Debug)]
-pub struct Generation(
-    pub(crate) std::sync::Arc<crate::application::file_dag::relations::generation::service::GenerationLease>,
-);
-
 /// One producer of the runtime's program, as the store keys its population: the runtime names it, the store only compares it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct ProducerId(pub usize);

@@ -115,7 +115,11 @@ impl RelationOwner {
     }
     /// Global consumer cancellation need not retain the producer payload.
     /// A generation clear has already released all pins and removed this map.
-    pub(crate) fn release_derived_producer(&self, scope: ProducerScope, node: crate::application::file_dag::relations::types::ProducerId) {
+    pub(crate) fn release_derived_producer(
+        &self,
+        scope: ProducerScope,
+        node: crate::application::file_dag::relations::types::ProducerId,
+    ) {
         if let Some(known) = self
             .producer_populations
             .borrow()

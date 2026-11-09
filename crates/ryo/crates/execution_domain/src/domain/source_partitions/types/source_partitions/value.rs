@@ -2,9 +2,9 @@
 use super::super::{HostedCount, PartitionRefusal};
 use crate::domain::{
     coverage::types::RuleIndex,
-    source_partitions::types::{PartitionRequirement, ProducerPartitions},
     observation_schedule::types::{ResolvedObservationBinding, ResolvedObservationProducer},
     operating::errors::OperatingError,
+    source_partitions::types::{PartitionRequirement, ProducerPartitions},
 };
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::{

@@ -3,11 +3,11 @@ use crate::application::file_dag::frontiers::types::PublicationSlot;
 use crate::application::file_dag::program::facade_runtime;
 use crate::application::file_dag::program::project_phase::interface::ProjectRootExecution;
 use crate::application::file_dag::program::project_phase::interface::ProjectStage;
+use crate::application::file_dag::program::project_phase::types::FrontierDemand;
 use crate::application::file_dag::program::project_phase::types::FrontierRequest;
 use crate::application::file_dag::program::project_phase::types::OccurrenceNumber;
 use crate::application::file_dag::program::project_phase::types::PhaseOccurrence;
 use crate::application::file_dag::program::project_phase::types::PhaseOccurrences;
-use crate::application::file_dag::program::project_phase::types::FrontierDemand;
 use crate::application::file_dag::program::project_phase::types::PhasePartials;
 use crate::application::file_dag::program::project_phase::types::PhaseRules;
 use crate::application::file_dag::program::project_phase::types::PhaseScope;
@@ -32,9 +32,9 @@ use ryo_execution_domain::domain::readiness::types::ReadinessCounts;
 use ryo_execution_domain::domain::rule_intent::types::{EmitDemand, ObservationDemand, RuleDemand};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::WorkerNumber;
-use ryo_values::domain::stored_facts::types::ArenaBytes;
 use ryo_values::domain::files::types::CorpusInput;
 use ryo_values::domain::runs::types::Skipped;
+use ryo_values::domain::stored_facts::types::ArenaBytes;
 impl ProjectRootExecution for ProjectPhase<'_> {
     fn evaluate_rules<H, T, E>(
         &self,

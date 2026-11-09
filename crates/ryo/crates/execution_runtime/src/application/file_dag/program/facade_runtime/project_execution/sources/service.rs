@@ -1,5 +1,4 @@
 //! Deferred frontier sources of one project phase: their populations and invocation identity.
-use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
 use crate::application::file_dag::frontiers::types::FrontierInput;
 use crate::application::file_dag::program::admission::AvailableInput;
 use crate::application::file_dag::program::admission::Partition;
@@ -17,6 +16,7 @@ use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::executable_program::types::InputSource;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_store::application::file_dag::relations::RelationOwner;
+use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -34,10 +34,10 @@ impl ProjectFrontierPopulation<AvailableInput> {
                 let source = self.source.clone()?;
                 let publication = match &self.payload {
                     ProjectFrontierPayload::Flat(table) => {
-                        owner.publish(ryo_execution_store::application::file_dag::relations::publication::types::Body::Shared(Arc::clone(table)))
+                        owner.publish(ryo_execution_store::application::file_dag::relations::publication::types::PublicationBody::Shared(Arc::clone(table)))
                     }
                     ProjectFrontierPayload::Compact(table) => {
-                        owner.publish(ryo_execution_store::application::file_dag::relations::publication::types::Body::Compact(Arc::clone(table)))
+                        owner.publish(ryo_execution_store::application::file_dag::relations::publication::types::PublicationBody::Compact(Arc::clone(table)))
                     }
                 }?;
                 let unavailable = |_| Err(OperatingError::NotRead);

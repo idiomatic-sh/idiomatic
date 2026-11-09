@@ -6,9 +6,9 @@ pub mod route;
 use self::demand::demand;
 use self::request::{observed, request};
 use crate::application::file_dag::relations::publication::types::ProducerScope;
+use crate::application::file_dag::relations::types::ProducerId;
 use crate::application::file_dag::{fixtures::program_derived_port, relations::RelationOwner};
 use ryo_derived::domain::request::types::DerivedKind;
-use crate::application::file_dag::relations::types::ProducerId;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_domain::domain::{
     derived_views::types::{DerivedInputs, DerivedScratch, ViewRequest},
@@ -139,7 +139,9 @@ fn acquire(
             Scenario::Succeeds | Scenario::Cancelled | Scenario::Held
         ) {
             let mut cursor = crate::application::file_dag::closure_partitions::schemas::prepare(
-                &crate::application::file_dag::relations::handle::service::Publication::of(publication.clone()),
+                &crate::application::file_dag::relations::handle::service::Publication::of(
+                    publication.clone(),
+                ),
                 first.rows(),
                 &keys,
                 source,

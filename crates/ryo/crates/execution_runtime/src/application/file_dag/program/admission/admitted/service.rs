@@ -1,16 +1,16 @@
 //! The admitted input: identity, rows, coverage and generation validation.
-use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
 use super::super::{
     AdmittedInput, AdmittedWalkSource, Agreement, ObservationReadiness, Partition, PartitionSupply,
     PopulationProof, ProducerRoot, ReadProof,
 };
+use ryo_execution_domain::domain::completion::types::CoverageState;
 use ryo_execution_domain::domain::{
     executable_program::types::InputSource, operating::errors::OperatingError,
 };
+use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
 use ryo_execution_store::application::file_dag::relations::{
     RelationOwner, handle::service::Publication,
 };
-use ryo_execution_domain::domain::completion::types::CoverageState;
 use std::rc::Rc;
 
 impl ReadProof {
@@ -46,26 +46,32 @@ impl ReadProof {
 }
 
 impl AdmittedInput {
-    /// What an observation hands over of this input: its read proof, root, publication, population and generation.
-    pub(crate) fn into_parts(
-        self,
-    ) -> (
-        ReadProof,
-        ProducerRoot,
-        Publication,
-        ryo_execution_store::application::file_dag::derived::population::types::PopulationId,
-        ryo_execution_store::application::file_dag::relations::types::Generation,
-    ) {
-        (
-            ReadProof {
-                partition: self.partition,
-                readiness: self.readiness,
-            },
-            self.root,
-            self.publication,
-            self.proof.population,
-            self.proof.generation,
-        )
+    /// What the input's read proved: its partition and how completely it was read.
+    pub(crate) fn read_proof(&self) -> ReadProof {
+        ReadProof {
+            partition: self.partition.clone(),
+            readiness: self.readiness.clone(),
+        }
+    }
+    /// The producer root the input was admitted for.
+    pub(crate) fn producer_root(&self) -> ProducerRoot {
+        self.root
+    }
+    /// The publication the input holds, whatever the owner.
+    pub(crate) fn held_publication(&self) -> &Publication {
+        &self.publication
+    }
+    /// The population the input was admitted under.
+    pub(crate) fn admitted_population(
+        &self,
+    ) -> ryo_execution_store::application::file_dag::derived::population::types::PopulationId {
+        self.proof.population
+    }
+    /// The generation the input was admitted under.
+    pub(crate) fn admitted_generation(
+        &self,
+    ) -> &ryo_execution_store::application::file_dag::relations::generation::service::ResidentGeneration{
+        &self.proof.generation
     }
     pub(crate) fn population(
         &self,
@@ -174,7 +180,7 @@ impl AdmittedInput {
     pub(crate) fn validate_for(
         &self,
         owner: &Rc<RelationOwner>,
-        generation: &ryo_execution_store::application::file_dag::relations::types::Generation,
+        generation: &ryo_execution_store::application::file_dag::relations::generation::service::ResidentGeneration,
         required: &Partition,
         expected: ProducerRoot,
     ) -> Result<(), OperatingError> {
@@ -193,7 +199,7 @@ impl AdmittedInput {
         &'call self,
         relation: ryo_relations::domain::relations::types::Relation,
         rows: &'call ryo_execution_domain::domain::table_model::types::Rows<'call>,
-        generation: &ryo_execution_store::application::file_dag::relations::types::Generation,
+        generation: &ryo_execution_store::application::file_dag::relations::generation::service::ResidentGeneration,
     ) -> Result<Option<AdmittedWalkSource<'call>>, OperatingError> {
         use ryo_execution_domain::domain::table_model::types::RepresentationInput;
         use ryo_execution_domain::domain::table_model::{service::kinds_of, types::Rows};
@@ -263,9 +269,9 @@ impl AdmittedInput {
             return Err(OperatingError::NotRead);
         }
         match &self.readiness {
-            CoverageState::Complete | CoverageState::Partial { .. } | CoverageState::Inapplicable { .. } => {
-                Ok(&self.publication)
-            }
+            CoverageState::Complete
+            | CoverageState::Partial { .. }
+            | CoverageState::Inapplicable { .. } => Ok(&self.publication),
         }
     }
 }

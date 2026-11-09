@@ -7,7 +7,7 @@ use crate::application::file_dag::observations::types::RuleSelection;
 use crate::application::file_dag::program::observation_stage::interface::ObservationExecution;
 use crate::application::file_dag::program::observation_stage::types::ObservationStage;
 use crate::application::file_dag::program::observation_stage::types::{
-    AdmittedOutput, Install, ObservationBatches,
+    AdmittedOutput, BatchOccurrence, Install, ObservationBatches,
 };
 use crate::application::file_dag::program::project_phase::interface::ProjectStage;
 use crate::application::file_dag::program::project_phase::service::reserved;
@@ -49,9 +49,9 @@ impl ObservationExecution for ObservationStage<'_> {
         mut deliver: impl FnMut(OccurrenceNumber, Result<T, PhaseStop<E>>) -> Result<Option<Install>, E>,
     ) -> Result<(), E> {
         let mut selected = vec![RuleSelection::Unselected; batches.rules.len()];
-        for (_, rule) in batches.occurrences {
+        for occurrence in batches.occurrences {
             *selected
-                .get_mut(rule.0)
+                .get_mut(occurrence.rule.0)
                 .ok_or(OperatingError::NotRun)? = RuleSelection::Selected;
         }
         for (rule, selected) in selected.iter().enumerate() {
@@ -61,25 +61,25 @@ impl ObservationExecution for ObservationStage<'_> {
         }
         self.restore(&batches, &selected)?;
         let mut start = 0;
-        while let Some((batch, _)) = batches.occurrences.get(start) {
+        while let Some(BatchOccurrence { batch, .. }) = batches.occurrences.get(start) {
             // Each declared occurrence of the batch in declaration order, numbered by its place among all of them.
             let end = start
                 + batches.occurrences[start..]
                     .iter()
-                    .take_while(|(each, _)| each == batch)
+                    .take_while(|each| each.batch == *batch)
                     .count();
             let declared = &batches.occurrences[start..end];
             let bindings = declared
                 .iter()
-                .map(|(_, rule)| self.bind(*rule))
+                .map(|occurrence| self.bind(occurrence.rule))
                 .collect::<Vec<_>>();
             let (results, refused) = {
                 // The occurrences whose bindings hold reach the phase; a refused binding stays with its occurrence below.
                 let submitted = (start..end)
                     .zip(declared)
                     .zip(&bindings)
-                    .filter_map(|((number, (_, rule)), binding)| match binding {
-                        Ok(binding) => Some((OccurrenceNumber(number), *rule, binding)),
+                    .filter_map(|((number, occurrence), binding)| match binding {
+                        Ok(binding) => Some((OccurrenceNumber(number), occurrence.rule, binding)),
                         Err(_) => None,
                     })
                     .collect::<Vec<_>>();
@@ -121,7 +121,13 @@ impl ObservationExecution for ObservationStage<'_> {
                     |at| partials(declared_number(at)?),
                     &mut guard,
                     |at, outcome, slot, symbols: &mut Symbols| {
-                        complete(declared_number(at)?, outcome, arenas, reserved(slot), symbols)
+                        complete(
+                            declared_number(at)?,
+                            outcome,
+                            arenas,
+                            reserved(slot),
+                            symbols,
+                        )
                     },
                 );
                 match ran {
@@ -133,7 +139,9 @@ impl ObservationExecution for ObservationStage<'_> {
             let mut outcomes = results.into_iter();
             // Past the guard's refusal no occurrence has an outcome to deliver; every one is still retired.
             let mut delivering = true;
-            for ((number, (_, rule)), binding) in (start..end).zip(declared).zip(bindings) {
+            for ((number, BatchOccurrence { rule, .. }), binding) in
+                (start..end).zip(declared).zip(bindings)
+            {
                 let (outcome, slot) = match binding {
                     Err(error) if delivering => (Some(Err(PhaseStop::Unbound(error))), None),
                     Err(_) => (None, None),
@@ -144,15 +152,17 @@ impl ObservationExecution for ObservationStage<'_> {
                     }
                 };
                 if let Some(outcome) = outcome {
-                    let delivered = deliver(OccurrenceNumber(number), outcome).and_then(|install| {
-                        match (install, slot) {
-                            (None, _) => Ok(()),
-                            (Some(install), Some(slot)) => self.install(*rule, slot, install.transfer, install.publications)
-                                .map_err(E::from),
-                            // An occurrence whose binding was refused reserved no slot to install in.
-                            (Some(_), None) => Err(E::from(OperatingError::NotRun)),
-                        }
-                    });
+                    let delivered =
+                        deliver(OccurrenceNumber(number), outcome).and_then(|install| {
+                            match (install, slot) {
+                                (None, _) => Ok(()),
+                                (Some(install), Some(slot)) => self
+                                    .install(*rule, slot, install.transfer, install.publications)
+                                    .map_err(E::from),
+                                // An occurrence whose binding was refused reserved no slot to install in.
+                                (Some(_), None) => Err(E::from(OperatingError::NotRun)),
+                            }
+                        });
                     if let Err(error) = delivered {
                         first_error.get_or_insert(error);
                     }
@@ -183,7 +193,10 @@ impl ObservationStage<'_> {
     }
     /// The readiness of each retained frontier of `rule`, from the bindings each frontier depends on: a frontier is ready only when
     /// every one of them is published in this stage.
-    pub(crate) fn frontier_readiness(&self, rule: RuleIndex) -> Result<ReadinessProof, OperatingError> {
+    pub(crate) fn frontier_readiness(
+        &self,
+        rule: RuleIndex,
+    ) -> Result<ReadinessProof, OperatingError> {
         let readiness = self.publications.binding_readiness(rule)?;
         let dependencies = self.phase.request.program.frontier_dependencies(rule)?;
         Ok(ReadinessProof(
@@ -256,11 +269,11 @@ impl ObservationStage<'_> {
     }
     /// What binds one declared occurrence: the readiness of its frontiers, the publication slot it reserves and its bound inputs,
     /// in that order.
-    pub(crate) fn bind(&mut self, rule: RuleIndex) -> Result<Binding, OperatingError> {
+    pub(crate) fn bind(&mut self, rule: RuleIndex) -> Result<OccurrenceBinding, OperatingError> {
         let ready = self.frontier_readiness(rule)?;
         let slot = self.reserve(rule)?;
         let bound = self.bindings(rule)?;
-        Ok(Binding { ready, slot, bound })
+        Ok(OccurrenceBinding { ready, slot, bound })
     }
     /// The frontiers of the selected rules restored over what the batches read.
     fn restore(
@@ -282,7 +295,7 @@ impl ObservationStage<'_> {
     }
 }
 /// What one declared occurrence was bound with before it reaches the phase.
-pub(crate) struct Binding {
+pub(crate) struct OccurrenceBinding {
     ready: ReadinessProof,
     slot: PublicationSlot,
     bound: Vec<BoundInput>,

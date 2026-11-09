@@ -1,10 +1,10 @@
 //! Real borrowed-index traversal, duplicate order and admission timing controls.
-use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
 use super::view::AxisResource;
 use super::*;
 use ryo_execution_domain::domain::derived_views::types::{
     DerivedInputs, DerivedScratch, MembershipSpace,
 };
+use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
 use ryo_values::domain::table_words::types::ColumnCount;
 use std::sync::Arc;
@@ -75,12 +75,15 @@ fn acquired(
     let RepresentationInput::Computed(table) = rows else {
         panic!("computed fixture")
     };
-    let publication = owner.publish(ryo_execution_store::application::file_dag::relations::publication::types::Body::Computed(table.clone())).unwrap();
+    let publication = owner.publish(ryo_execution_store::application::file_dag::relations::publication::types::PublicationBody::Computed(table.clone())).unwrap();
     let held = owner
         .rows(&publication, &|_| Err(OperatingError::NotRead))
         .unwrap();
     let rows = RepresentationInput::from(&held);
-    let proof = owner.admit(&publication, rows).and_then(|admitted| admitted).unwrap();
+    let proof = owner
+        .admit(&publication, rows)
+        .and_then(|admitted| admitted)
+        .unwrap();
     let inputs = [rows];
     let data = if kind == ryo_derived::domain::request::types::DerivedKind::Membership {
         DerivedInputs::Membership {

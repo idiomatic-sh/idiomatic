@@ -196,9 +196,6 @@ impl FileRun<'_> {
             rule,
             crate::application::file_dag::program::runtime::types::FedRead::CheckOnly,
         )?;
-        Ok(RuleOutcome {
-            emit,
-            observations,
-        })
+        Ok(RuleOutcome { emit, observations })
     }
 }

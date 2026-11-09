@@ -2,21 +2,23 @@
 use crate::application::file_dag::program::preparation::types::ObservationMetadata;
 use ryo_relations::domain::relations::types::{FileId, WorkerNumber};
 use ryo_values::domain::{
-    observations::validated::ValidatedFrontiers, records::types::ObservationIndex,
-    stored_facts::types::ArenaBytes,
+    observations::validated::ValidatedFrontiers, stored_facts::types::ArenaBytes,
 };
 use std::rc::Rc;
 
 pub(crate) enum CrossRoot {
     Pending,
     FileFrontier {
-        publication: ryo_execution_store::application::file_dag::relations::handle::service::Publication,
+        publication:
+            ryo_execution_store::application::file_dag::relations::handle::service::Publication,
         token: crate::application::file_dag::program::restored::types::ValidatedFrontier,
         arenas: Vec<WorkerNumber>,
     },
     Named {
-        publication: ryo_execution_store::application::file_dag::relations::handle::service::Publication,
-        admitted: crate::application::file_dag::program::observed_publication::types::ObservedPublication,
+        publication:
+            ryo_execution_store::application::file_dag::relations::handle::service::Publication,
+        admitted:
+            crate::application::file_dag::program::observed_publication::types::ObservedPublication,
         arenas: Vec<WorkerNumber>,
     },
     Unavailable,

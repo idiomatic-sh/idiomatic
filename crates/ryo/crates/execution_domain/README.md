@@ -80,6 +80,10 @@ Evaluates compiled text patterns over borrowed query values.
 
 Orders canonical decimal and binary numeric values consistently.
 
+### observation_schedule
+
+Schedules the rules that read named observations and links the plans beneath them.
+
 ### operands
 
 Reads typed comparison operands from rows, parameters and literals.

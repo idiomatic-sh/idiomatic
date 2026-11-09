@@ -1,5 +1,4 @@
 //! Restore demanded file roots through the same request owner, once per physical bucket.
-use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
 use crate::application::file_dag::observations::cross::incomplete;
 use crate::application::file_dag::observations::types::CrossRoot;
 use crate::application::file_dag::observations::types::{
@@ -10,6 +9,7 @@ use crate::application::file_dag::program::preparation::types::ObservationMetada
 use crate::application::file_dag::program::preparation::types::OutputRoot;
 use ryo_execution_domain::domain::completion::types::CoverageState;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
 use ryo_relations::domain::relations::types::CROSS_FILE;
 use ryo_values::domain::records::types::ProducerReadiness;
 
@@ -51,7 +51,7 @@ impl CrossPublications<'_> {
             .collect::<Result<Vec<_>, _>>()?;
         Ok(PreparedFrontier {
             publication: self.owner.publish(
-                ryo_execution_store::application::file_dag::relations::publication::types::Body::Packed {
+                ryo_execution_store::application::file_dag::relations::publication::types::PublicationBody::Packed {
                     words,
                     arenas: &backings,
                 },

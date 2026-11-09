@@ -14,30 +14,31 @@ use crate::domain::crossing::service::inapplicable_files;
 use crate::domain::crossing::service::partials_for;
 use crate::domain::crossing::service::partials_for_reads;
 use crate::domain::crossing::service::refused_files;
+use crate::domain::crossing::types::CrossingInput;
 use crate::domain::render::types::Answering;
 use crate::outbound::corpus::interface::CorpusPort;
+use ryo_execution::inbound::use_cases::execution::interface::AdmittedOutput;
+use ryo_execution::inbound::use_cases::execution::interface::BatchNumber;
+use ryo_execution::inbound::use_cases::execution::interface::BatchOccurrence;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::FileObservationReadiness;
+use ryo_execution::inbound::use_cases::execution::interface::Install;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationBatches;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationExecution;
 use ryo_execution::inbound::use_cases::execution::interface::OccurrenceNumber;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution::inbound::use_cases::execution::interface::PhasePartials;
 use ryo_execution::inbound::use_cases::execution::interface::PhaseStop;
 use ryo_execution::inbound::use_cases::execution::interface::PreparationError;
+use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution as _;
+use ryo_execution::inbound::use_cases::execution::interface::PreparedExecutionProgram;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectOutputOutcome;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::execution::interface::RuleOutcome;
-use ryo_execution::inbound::use_cases::execution::interface::AdmittedOutput;
-use ryo_execution::inbound::use_cases::execution::interface::BatchNumber;
-use ryo_execution::inbound::use_cases::execution::interface::Install;
-use ryo_execution::inbound::use_cases::execution::interface::ObservationBatches;
-use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution as _;
-use ryo_execution::inbound::use_cases::execution::interface::PreparedExecutionProgram;
-use crate::domain::crossing::types::CrossingInput;
-use ryo_relations::domain::relations::types::WorkerNumber;
 use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use ryo_execution::inbound::use_cases::publication::interface::PublicationUseCase;
 use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::types::WorkerNumber;
 use ryo_values::domain::rule_requests::service::failed;
 use ryo_values::domain::stored_facts::types::ArenaBytes;
 use std::sync::Arc;
@@ -109,7 +110,10 @@ impl CrossFile {
             .collect::<Vec<(BatchNumber, &Todo)>>();
         let occurrences = declared
             .iter()
-            .map(|(batch, todo)| (*batch, todo.rule))
+            .map(|(batch, todo)| BatchOccurrence {
+                batch: *batch,
+                rule: todo.rule,
+            })
             .collect::<Vec<_>>();
         let readiness = run
             .domain
@@ -171,11 +175,7 @@ fn deliver(
     result: CrossedWithPublications,
     answered: &mut Answered,
 ) -> Result<Option<Install>, CrossFileError> {
-    let Some(transfer) = settle(
-        result.crossed,
-        &mut answered.later,
-        &mut answered.unknowns,
-    ) else {
+    let Some(transfer) = settle(result.crossed, &mut answered.later, &mut answered.unknowns) else {
         return Ok(None);
     };
     let publications = result

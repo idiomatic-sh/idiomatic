@@ -1,11 +1,11 @@
 //! The ordered-existence strategy of a kernel session.
-use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
 use crate::application::file_dag::program::runtime::service::KernelPermit;
 use crate::application::file_dag::program::runtime::types::InvocationFailure;
 use crate::application::file_dag::program::runtime::types::KernelScratch;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::types::{Emit, OperatorContext};
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
+use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
 use ryo_execution_store::application::file_dag::workspace::InvocationWorkspace;
 use std::rc::Rc;
 
@@ -50,7 +50,9 @@ impl super::super::KernelSession<'_, '_> {
             .owner
             .admit_number(
                 publication,
-                ryo_execution_store::application::file_dag::relations::types::ProducerId(shape.source.0),
+                ryo_execution_store::application::file_dag::relations::types::ProducerId(
+                    shape.source.0,
+                ),
                 &shape.number,
                 RepresentationInput::from(&rows),
             )

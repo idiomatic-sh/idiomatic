@@ -1,6 +1,6 @@
 //! What every `observer` adapter must pass.
 
-use crate::outbound::observer::interface::ExecutionObserver;
+use crate::outbound::observer::interface::ObserverPort;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::operator::types::{LogicalCounts, RowsFed};
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
@@ -15,12 +15,14 @@ type Failure = ();
 /// A report the contract makes to an adapter.
 #[derive(Clone, Copy, Debug)]
 pub enum Report {
-    /// The rows of a rule the adapter was sized for.
+    /// The rows of the first rule.
     Declared,
-    /// The rows of a rule beyond those the adapter was sized for.
-    Undeclared,
+    /// The rows of a rule after those reported before.
+    Later,
     /// A rule whose steps were fed nothing.
     Empty,
+    /// The totals asked for after the reports.
+    Totals,
 }
 
 /// The contract's rows: a name, one case word, an input and the expected value or error variant. Every implementation runs them.
@@ -32,9 +34,9 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(()),
     },
     Case {
-        name: CaseName("an_undeclared_rule_is_taken_without_a_panic"),
+        name: CaseName("a_rule_after_those_reported_before_is_taken"),
         word: Word::Succeeds,
-        input: || Report::Undeclared,
+        input: || Report::Later,
         expect: Expect::Value(()),
     },
     Case {
@@ -43,13 +45,24 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Report::Empty,
         expect: Expect::Value(()),
     },
+    Case {
+        name: CaseName("the_totals_answer_after_the_reports"),
+        word: Word::Succeeds,
+        input: || Report::Totals,
+        expect: Expect::Value(()),
+    },
 ];
 
 /// Makes one report to the adapter.
-fn report(adapter: &impl ExecutionObserver, report: Report) {
+fn report(adapter: &impl ObserverPort, report: Report) {
     let (rule, fed) = match report {
+        // The totals hold no rule past those it was told of.
+        Report::Totals => {
+            let _totals = adapter.totals();
+            return;
+        }
         Report::Declared => (RuleIndex(0), vec![RowsFed([1, 0, 0])]),
-        Report::Undeclared => (RuleIndex(usize::MAX), vec![RowsFed([1, 1, 1])]),
+        Report::Later => (RuleIndex(7), vec![RowsFed([1, 1, 1])]),
         Report::Empty => (RuleIndex(0), Vec::new()),
     };
     adapter.fed(
@@ -65,7 +78,7 @@ fn report(adapter: &impl ExecutionObserver, report: Report) {
 /// # Panics
 ///
 /// When the implementation breaks the contract.
-pub fn check(adapter: &impl ExecutionObserver) {
+pub fn check(adapter: &impl ObserverPort) {
     run(CASES, Word::Succeeds, |each| {
         report(adapter, each);
         Ok(())

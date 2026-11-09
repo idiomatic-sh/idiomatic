@@ -1,7 +1,7 @@
 //! The exact lease getter must consume the registered borrowed view without copying storage.
-use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
 use super::*;
 use ryo_derived::domain::contract::types::DerivedView;
+use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
 use ryo_relations::domain::relations::types::{CellKind, Integer};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::sync::Arc;
@@ -40,12 +40,15 @@ fn production_cycle_lease_borrows_actual_trait_output_and_refuses_foreign_storag
         (std::sync::Arc::new(ryo_execution_store::application::file_dag::fixtures::derived())
             as Arc<dyn ryo_execution_store::outbound::derived::interface::DerivedPort>),
     );
-    let publication = owner.publish(ryo_execution_store::application::file_dag::relations::publication::types::Body::Computed(table.clone())).unwrap();
+    let publication = owner.publish(ryo_execution_store::application::file_dag::relations::publication::types::PublicationBody::Computed(table.clone())).unwrap();
     let held = owner
         .rows(&publication, &|_| Err(OperatingError::NotRead))
         .unwrap();
     let rows = RepresentationInput::from(&held);
-    let proof = owner.admit(&publication, rows).and_then(|admitted| admitted).unwrap();
+    let proof = owner
+        .admit(&publication, rows)
+        .and_then(|admitted| admitted)
+        .unwrap();
     let acquired = owner
         .derived()
         .acquire_stored(
