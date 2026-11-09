@@ -209,8 +209,7 @@ let parts = capture(from=listed, path=\"path\", pattern=\"{*dir}/x.rs\", capture
 let dirs = project(from=parts, columns=[\"dir\"]);
 let missing = antijoin(left=dirs, right=dirs, left-on=[\"dir\"], right-on=[\"dir\"]);
 emit missing subject dir key(dir);";
-    let store: Arc<dyn ryo_core::outbound::lint_store::interface::LintStorePort> =
-        Arc::new(ryo_core::outbound::lint_store::fixtures::fake::LintStoreFake::default());
+    let store = Arc::new(ryo_core::outbound::lint_store::fixtures::fake::LintStoreFake::default());
     let work = |root: &std::path::Path| {
         let (_, report) = base::lint_report(
             root,
@@ -219,7 +218,7 @@ emit missing subject dir key(dir);";
                 crate::rule_from_query("across", across, &["**".to_owned()]),
             ],
             Arc::new(ryo_execution_runtime::outbound::facts::factory::memory()),
-            Arc::clone(&store),
+            store.clone(),
         )
         .expect("the rules run");
         report

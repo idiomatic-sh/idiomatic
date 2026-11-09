@@ -66,6 +66,23 @@ fn site(
     })
 }
 
+/// Places each original step of `rules` in the finished program: the region of its logical instruction and the instruction's
+/// place there. Run once the regions are final, after the unions are appended and the aliases resolved, so a place is what the
+/// lookup over the finished program finds.
+pub(super) fn place_steps(
+    rules: &mut [RuleProgram],
+    logical_regions: &[RegionId],
+    regions: &[Region],
+) {
+    for origin in rules
+        .iter_mut()
+        .flat_map(|rule| rule.original_steps.iter_mut())
+        .flatten()
+    {
+        origin.place = site(origin.logical, logical_regions, regions);
+    }
+}
+
 /// The program of every rule, and the region each plan's named output reads, in the plan's own output order. A step's
 /// origin is refused when the step has no node (it reads a step that has not run) or when no root reads it and its schema
 /// is at fault (`faults`, by original node).
@@ -75,7 +92,6 @@ pub(super) fn rule_programs(
     observations: Option<&GraphObservations>,
     representative: &[LogicalInstruction],
     logical_regions: &[RegionId],
-    regions: &[Region],
     faults: &[Option<OperatingError>],
 ) -> RulePrograms {
     let mut rules = Vec::with_capacity(plans.len());
@@ -100,7 +116,7 @@ pub(super) fn rule_programs(
                     rule: RuleIndex(rule),
                     step: StepId(u32::try_from(step).unwrap_or(u32::MAX)),
                     logical,
-                    place: site(logical, logical_regions, regions),
+                    place: None,
                 })
             })
             .collect();

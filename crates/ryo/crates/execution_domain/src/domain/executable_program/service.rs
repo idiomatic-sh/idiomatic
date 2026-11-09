@@ -201,7 +201,6 @@ pub fn compile(
         graph.observations.as_ref(),
         &representative,
         &logical_regions,
-        &regions,
         &faults,
     );
     #[cfg(any(test, feature = "fixtures"))]
@@ -290,6 +289,7 @@ pub fn compile(
             }
         }),
     );
+    super::origins::place_steps(&mut rules, &logical_regions, &regions);
     let file_readers = super::file_demand::service::readers(&regions, &rules)?;
     let program = ExecutableProgram::new(
         regions.into_boxed_slice(),

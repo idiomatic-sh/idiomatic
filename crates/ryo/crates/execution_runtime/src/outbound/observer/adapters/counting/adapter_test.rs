@@ -6,6 +6,7 @@ use crate::outbound::observer::factory::counting;
 use crate::outbound::observer::fixtures::contract::check;
 use crate::outbound::observer::interface::ObserverPort as _;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::types::{LogicalCounts, RowsFed};
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 
@@ -46,7 +47,10 @@ enum Bound {
 /// Reports two rounds of a rule and reads the totals back.
 fn subject(input: Input) -> Value {
     if let Bound::Fresh = input {
-        return CountedFed::default().0.lock().is_ok_and(|totals| totals.0.is_empty());
+        return CountedFed::default()
+            .0
+            .lock()
+            .is_ok_and(|totals| totals.0.is_empty());
     }
     let observer = counting();
     let rule = match input {
@@ -61,17 +65,22 @@ fn subject(input: Input) -> Value {
                 fed: vec![RowsFed([1, 2, 3]), RowsFed([4, 0, 0])].into_boxed_slice(),
             },
         );
-        refused.push(report.is_err());
+        refused.push(report.err());
     }
     match input {
         Bound::Fresh | Bound::Within => {
-            refused == [false, false]
+            refused == [None, None]
                 && observer.totals().is_ok_and(|totals| {
-                totals.0 == vec![vec![], vec![RowsFed([2, 4, 6]), RowsFed([8, 0, 0])]]
-            })
+                    totals.0 == vec![vec![], vec![RowsFed([2, 4, 6]), RowsFed([8, 0, 0])]]
+                })
         }
         Bound::Past => {
-            refused == [true, true] && observer.totals().is_ok_and(|totals| totals.0.is_empty())
+            refused
+                == [
+                    Some(OperatingError::ShapeMismatch),
+                    Some(OperatingError::ShapeMismatch),
+                ]
+                && observer.totals().is_ok_and(|totals| totals.0.is_empty())
         }
     }
 }
