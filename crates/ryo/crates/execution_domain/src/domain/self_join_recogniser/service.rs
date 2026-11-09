@@ -56,7 +56,7 @@ fn from_step(input: Input) -> Result<StepId, Decline> {
 
 /// Decode lineage only through value-preserving operations. No metadata-only proof of
 /// arbitrary hosted/Rows values is accepted. Stored Number decoding itself is total.
-fn number_origins(
+pub(super) fn number_origins(
     plan: &Plan,
     input: Input,
     column: ColumnIndex,
