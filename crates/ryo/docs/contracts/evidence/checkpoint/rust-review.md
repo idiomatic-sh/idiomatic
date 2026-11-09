@@ -1,115 +1,110 @@
-# Rust gate: checkpoint 332, second pass
+# Rust gate: checkpoint 332, delta pass
 
-- Reviewed source: `c3639e10a62b7e89bc711d9c678dc018b6f59171`. The code repairs are in `10c561ef6a`; the record and `validation.json` are in `c3639e10a6`.
-- Base: `b1e81f7242`, the checkpoint 331 landing. The first pass reviewed `6402b7dd06` and FAILED on items 1 and 6 (F1 to F4).
-- Scope: `332`. This pass re-checks F1 to F4 against `git diff 7d7888247c..c3639e10a6`, and checks whether the repairs broke anything. The rest of the 332 diff is as judged in the first pass.
-- Evidence read: the diffs, the files they touch, and the integrator's run logs `gatefix_*.log` in the validation332 directory. Under the review definition I ran no cargo.
-- Tree: HEAD stayed at `c3639e10a6` for the whole pass. The only working-tree changes are this file and its JSON. The first pass's `rust-review.json` was never committed; this pass overwrites it.
+- Reviewed source: `2991a41cd2b10a176f3da435660ef32983aaa8a9`.
+- Delta: `c3639e10a6..2991a41cd2`. The previous pass, at `c3639e10a6`, was PASS 7/7.
+- The delta carries four things:
+  - B1 and B4 (`5e7ca6fb96`);
+  - the tm 0.1.2 import-reading merge (`0f2fa35a12`, with branch commits `55e5fd3520`, `7fb164654f`, `e196dbe503`, `e2c66a218a` and `f1c9e1c968`);
+  - the `std::sync::atomic` allow-list entry (`883f0d6dd6`);
+  - the record and the evidence.
+- Evidence read: the diffs, the files they touch, and the integrator's logs `gatefix_tastemaker_*.log` in the validation332 directory. Under the review definition I ran no cargo.
+- Tree: HEAD stayed at `2991a41cd2` for the whole pass. The only working-tree changes are this file and its JSON.
+- Already known and being fixed, counted as FAIL here as you asked: the cold memory guard (finding F5) and the reporting test (F6). The go/api samples are F7.
 
-**Verdict: PASS.** All seven items pass.
+**Verdict: FAIL.** Items 3 and 6 fail; items 1, 2, 4, 5 and 7 pass.
 
 | Item | Verdict |
 | --- | --- |
-| 1 Ownership and API shape | PASS (F1 repaired) |
+| 1 Ownership and API shape | PASS |
 | 2 Compiler over tests | PASS |
-| 3 Hot path | PASS |
+| 3 Hot path | FAIL (F5) |
 | 4 One representation per concept | PASS |
 | 5 Standard crate over home-grown | PASS |
-| 6 Tests | PASS (F2, F3, F4 repaired) |
+| 6 Tests | FAIL (F6, F7, F8) |
 | 7 Rust fit | PASS |
-
-## Checking the integrator's claims
-
-| Claim | Verified | Evidence |
-| --- | --- | --- |
-| The doctests pass | Yes | `gatefix_doctests.log`: `Doc-tests ryo_execution_domain` reports 2 passed and `Doc-tests ryo_execution_store` 1 passed, both with 0 failed. |
-| compare_corpus is green | Yes | `gatefix_compare_corpus.log`: 2 passed, 0 failed. `gatefix_benchmark_lib.log`: 229 passed, 1 failed. The failure is `verify_cases ... process_capture::test::succeeds`, red since validation326 and already listed. `gatefix_benchmark_bdd.log`: every scenario passes. |
-| tm_import_cli exits 0 through the patch | Yes | `gatefix_tm_import_cli.log`: `imports::visibility_scopes_do_not_authorize_real_imports_types_or_calls ... ok`, 1 passed. `crates/tastemaker/Cargo.toml:238-253` patches the 15 ryo crates. Every third-party crate the lock gains has the same version in `crates/ryo/Cargo.lock`. |
-| 6 new red_green entries, 3 of them compile proofs | Yes, with a correction to the count | `validation.json` entries 25-30. Only one is a behaviour red; the other **five** are compile reds, not three. See F4 below. |
 
 ## 1 Ownership and API shape: PASS
 
-F1 is repaired.
-
-**`PatternSemantics`** (`crates/ryo/crates/execution_domain/src/domain/matching/types.rs:22-37`):
-- Its runnable example wraps `MatchingUseCaseImpl` in `PatternMatcher`, shows `compile_regex("(")` refusing, and shows `^ab+$` matching `abb` and differing on `ba`.
-- It is sealed: `pub trait PatternSemantics: sealed::Sealed`, where `Sealed` lives in a `pub(crate) mod sealed` (`:13-20`).
-- The only implementation of `Sealed` is the blanket impl at `application/matching/service.rs:13`, which sits beside the blanket `PatternSemantics` impl.
-
-**`DerivedOwner::serve_project`** (`crates/ryo/crates/execution_store/src/application/file_dag/derived/owner/setup.rs:57-81`):
-- It now states `# Errors` (`WrongOperation`).
-- Its runnable example shows a fresh owner answering `Ok(())` and an owner after `prepare_program_file` answering `WrongOperation`.
-- The example needed `owner/fixtures/mod.rs:11` `prepared_sources` to become `pub`. That module stays behind `#[cfg(any(test, feature = "fixtures"))]` (`owner/mod.rs:253`).
-- Its return type `RequestDerived` is `pub` (`derived/prepared.rs:13`), so the workspace's `private_interfaces = "deny"` still holds.
-
-`crates/ryo/crates/sdk/api.txt` is unchanged.
+- **B1 is applied.** `crates/tastemaker/crates/core/Cargo.toml:33` requires `idiomatic-sh-ryo-sdk` 0.1.2.
+- **B4 is applied.** The seal's doc comments now say exactly what it enforces: every `MatchingUseCase` implementation, in any crate, gets `PatternSemantics` through the bridge, and no type implements it directly (`crates/ryo/crates/execution_domain/src/domain/matching/types.rs:11-27`).
+- The new `Scope`, `ScopeKind` and `Name.binding` (`crates/tastemaker/crates/core/src/domain/imports/types.rs:76-99`) are Tastemaker domain rows.
+- `sdk/api.txt` is unchanged.
+- Advisory C1: `crates/tastemaker/cli/Cargo.toml` still asks for SDK 0.1.1, and for the language crates at 0.1.1.
 
 ## 2 Compiler over tests: PASS
 
-The seal is a compiler guarantee: no crate outside `execution_domain` can write `impl PatternSemantics for X`. No test stands in for it.
+- `Relation::Scopes` is a new variant, so `query` and `keep` cover it in exhaustive matches.
+- `ScopeKind` is an enum, mapped from the two kind texts in one place (`import_rows/service.rs:102-113`).
 
-## 3 Hot path: PASS
+## 3 Hot path: FAIL
 
-`10c561ef6a` adds no runtime code. The seal is a marker supertrait with no methods, so dispatch through `&dyn PatternSemantics` is unchanged.
+**F5 (fix pending).** Tastemaker's cold check of `crates/ryo` peaks at 4,491,136 KiB against its guard of 1,331,200 KiB. It is red only with the import-reading branch's core changes (`validation.json` `tastemaker_workspace`; `gatefix_tastemaker_without_tm_branch.log`).
+
+The scope logic I was asked to look at explains it:
+
+**(a) The scopes rule emits far more rows than it uses. This is the likely cause of the memory.**
+- `SCOPES` (`crates/tastemaker/crates/core/src/domain/import_rows/constants.rs:39-41`) is `select id, kind, file, span from "syntax-tree" where glob_any(kind, "{stmt-list,item-list}")`.
+- That emits one row for every `stmt-list` and every `item-list` in the tree: every function body, block, `impl` body, `trait` body and inline module. On `crates/ryo` that is tens of thousands of rows, where only the scopes around a `use` and the inline modules matter.
+- `glob_any` on `kind` is not a kind equality. Only a leading run of total kind equalities narrows the engine's dispatch (`execution_domain/src/domain/shared_walk/service.rs`), so the rule tests every node of every file.
+- Each emitted row comes back as a lint answer with all its columns, and is then copied into a `Scope` that owns its own `RepoPath` (`import_rows/service.rs:108-112`).
+
+**(b) `in_scope` repeats the same work for every edge. This costs CPU.**
+- For each use-site edge, `imports()` runs `in_scope` against each name whose binding matches.
+- `in_scope` scans all of the file's scopes twice: `filter` plus `min_by_key`, then `any` (`import_rows/service.rs:147-169`).
+- It finds the innermost scope of the same `use` again for every edge, so the cost is O(edges × scopes) per file.
+
+Required change:
+1. Emit only what `in_scope` reads. The innermost scope of a `use` is the parent node of that `use` item, so query the `use` items' parents (one row per import) plus the item lists that belong to an inline `module`. Select by kind equality, for example two selects joined by a union, instead of `glob_any`.
+2. Key scopes per file without one `RepoPath` copy per row.
+3. Compute `around` once per name, and find the inline modules around an edge by bisecting scopes sorted by start.
+4. Re-measure with the cold memory guard (`check::checking_crates_ryo_cold_stays_under_its_memory_guard`).
 
 ## 4 One representation per concept: PASS
 
-- The patch points each ryo crate at its one source in this repository, instead of a published copy that had drifted.
-- The 18 third-party crates the lock gains match ryo's lock exactly: pyproject-toml 0.13.7, pep440_rs 0.7.3, pep508_rs 0.9.1, thiserror 1.0.69 and 2.0.20, boxcar 0.2.14, toml 0.9.12 and 1.1.4, urlencoding 2.1.3, and the rest.
+- `Scope` projects the engine's `syntax-tree` answer into Tastemaker's own row types, as `Name`, `Package` and `Owner` already do for their relations.
+- The constants left unused by the query's early returns are deleted: `EDGES_RELATION` and `EDGE_KEY`.
 
 ## 5 Standard crate over home-grown: PASS
 
-No dependency was added. The seal uses the standard sealed-supertrait pattern.
+No new dependency. The only lock change is Tastemaker's own version, which goes from 0.1.1 to 0.1.2.
 
-## 6 Tests: PASS
+## 6 Tests: FAIL
 
-**F2 is repaired.** `crates/ryo/crates/benchmark/src/inbound/use_cases/compare_corpus/fixtures.rs:170-173` now hands `ExecutionFake { status: 0, ..ExecutionFake::default() }`, and the logs above show the tests green.
+**F6 (fix pending). The reporting test is red, and the cause is a real false negative.**
+- `crates/tastemaker/crates/core/src/application/reporting/service_test.rs:492` reads 0 findings where it expects 1 (`gatefix_tastemaker_workspace.log:7960`).
+- The cause: `keep()` now keeps a `static-import` row only when it has both cells, `if let (Some(written), Some(binding))` (`import_rows/service.rs:73-82`). The test's answer carries `target` and `span` but no `binding`, so its import is never read.
+- Production hits the same drop. The JavaScript provider gives an unknown binding to a side-effect import (`import "x"`) and to a dynamic `import(..)` (`crates/ryo/languages/javascript/src/domain/syntax/service.rs:272`, `:291-292`). Those imports would silently stop reaching every import rule.
 
-**F3 is repaired.** `tm_import_cli` passes.
+Required change:
+1. Make the field `binding: Option<ModuleName>` and keep every row that has a `target`.
+2. Match a use-site path's first name only against `Some(binding)`.
+3. Add an `import_rows` case for a row without a binding (advisory C2).
 
-**F4 is repaired.** The six entries prove their tests, though the record calls only three of them compile proofs:
-- **Behaviour red** (`gatefix_red_green_a_red.log`): `operation_schema::service_test::refuses` FAILED with `cycles_whose_source_and_destination_differ_in_kind_is_refused: expected ShapeMismatch, answered Ok(())`, and the same for the closure case. Its `base_sha` is `add03c25b3`, the parent of `09718aee51`. `a_green` is green.
-- **Compile reds**, each green after restoring the production code:
-  - `b_red_language`: E0432 on `holding`;
-  - `b_red_python`: E0432 on `ancestors` and `operand_place`, covering the `comparisons_test` and `nested_test` entries;
-  - `c_red_python`: E0432 on `enclosing` and `project`, covering the two "at 616dbb9433 tests" entries.
+**F7 (pending a later delta). Two go/api replay rows went red through the patch.**
+- `replay samples each_row_of_each_sample_is_fixed_and_restored`, both its "inside a repository" and "as a repository of its own" rows, fail at 332 through the local ryo crates the patch links. They are green at 331.
+- My second pass missed this, because only `tm_import_cli` had been run under the patch (its B6 advisory). Required change: the fix the PM has scheduled, then the replay green.
 
-The record says outright that these count tests can only go red by failing to compile. That is the proof form the 332 record already accepts for `serve_project` and `refuse_spans_alone`, so it satisfies the red-then-green rule. Advisory B5 covers what it leaves unproven.
-
-**Did the repairs break anything?**
-- No `impl PatternSemantics` exists outside the bridge, so the seal breaks no fake.
-- `tm_import_cli` compiled every ryo dependent against the sealed trait.
-- The doctest build compiled `execution_domain` and `execution_store` cleanly.
-- None of the warnings in the gatefix logs points at a line `10c561ef6a` added. The `execution_store owner/setup.rs` warnings are at lines 13, 35, 38, 39 and 47, all older.
+**F8. The two tm fixes have no red-then-green record.**
+- `55e5fd3520` and `e2c66a218a` change production behaviour, but their commit messages name no test, and `validation.json` `red_green` still holds 30 entries.
+- Their cases exist in `crates/tastemaker/crates/core/src/domain/import_rows/service_test.rs`:
+  - `a_path_at_a_use_site_through_a_name_an_import_binds_is_that_imports`
+  - `a_path_at_a_use_site_from_the_package_root_is_an_import_of_its_own`
+  - `a_path_in_an_inline_module_sees_no_import_written_outside_it`
+  - `a_path_outside_the_block_of_an_import_sees_no_binding_of_it`
+  - `a_path_outside_the_inline_module_of_an_import_sees_no_binding_of_it`
+  - `a_path_in_the_block_of_an_import_is_that_imports`
+- None is shown failing without its fix. Required change: reverse each fix's production hunks, run the cases red, restore and run them green, then add the entries. The F6 repair also needs a test, which C2 supplies.
 
 ## 7 Rust fit: PASS
 
-**The `#[expect(unnameable_types)]` on the seal** (`matching/types.rs:15-19`) is correct, for three reasons:
-- `crates/ryo/Cargo.toml:84` denies `unnameable_types`. A sealed supertrait is unnameable outside its crate by construction, so the lint must fire, and the seal cannot exist without answering it.
-- `#[expect]`, unlike `#[allow]`, turns into an `unfulfilled_lint_expectations` warning if the trait ever becomes nameable, for example if `mod sealed` is made `pub` and the seal opened. No gatefix log reports an unfulfilled expectation.
-- The reason it states is the real one.
-
-One wording nit on the trait's doc is advisory B4.
-
-The repairs add no `unsafe`, no `#[allow]`, and no `unwrap` or `expect` in production code. The doctests use `expect` and `?` as examples do.
-
-### The warnings seen in the tastemaker build
-
-They are ryo's existing warning debt. They also appear in ryo's own build, and they are not a gate item.
-
-- **They are in ryo's own build.** `gatefix_doctests.log` builds in ryo's workspace and reports the same lint classes (unnecessary qualification, missing docs): language 57, values 76, operators 169, execution_domain 116, execution_store 146 warnings. The integration record's full workspace check counts 4,406 warnings at 332, down from 4,460 at 331.
-- **Why they surfaced only now.** Both workspaces set `missing_docs` and `unused_qualifications` to `warn` (`crates/ryo/Cargo.toml:101,103`, `crates/tastemaker/Cargo.toml:75,77`). Cargo resolves a patched path crate's `lints.workspace = true` against that crate's own workspace, so the levels are ryo's. Registry dependencies are built with `--cap-lints`; path dependencies are not. Before the patch, the ryo crates came from crates.io and their warnings were hidden. Now they come by path and show.
-- **Why the per-crate counts differ** (core 36 in the tastemaker build against 43 in ryo's): the two workspaces unify features differently, so `cfg` code differs.
-- **Why they don't block the gate.** None is on a line this diff added. Item 7 concerns `#[allow]` without a reason and panics in production, not existing warn-level lint debt. They do matter to the project's zero-warning aim and to anyone building Tastemaker, whose own warnings now drown in ryo's (advisory B2).
+- The delta adds no `unsafe`, no `#[allow]`, and no `unwrap`, `expect` or `panic` in production code.
+- `size()` maps an unplaced scope to `usize::MAX` on purpose, so it never wins as the innermost scope (`import_rows/service.rs:148-151`).
+- The `std::sync::atomic::*` allow-list entry (`crates/ryo/tastemaker.toml:205`) is justified. The providers' production code already counts with it: the python `parse/contract.rs`, and the ruff parser's `adapter.rs` and `semantic.rs`.
 
 ## Advisories
 
 No bead ids here. Each advisory becomes a bead, or is dropped with a reason.
 
-- **B1. The tastemaker-core manifest understates the SDK it needs.** `crates/tastemaker/crates/core/Cargo.toml:33` still says `version = "0.1.1"`, but the adapter needs 0.1.2's fields. The patch hides this. Published as is, a consumer resolving 0.1.1 fails to compile. Fix: require `version = "0.1.2"`. The patch still resolves it here, and the manifest then says what the code needs.
-- **B2. ryo's warnings are now visible in Tastemaker.** Through the path patch, about 900 warning lines in `gatefix_tm_import_cli.log` come from ryo crates. Fix: pay down the debt in ryo; the record already counts it. Alternatively, until the SDK is published, have the Tastemaker gate count only warnings from its own crates.
-- **B3. The `serve_project` example is built from test fixtures.** It uses `owner::fixtures::prepared_sources` and `file_dag::fixtures::program_derived_port`, which exist only under the `fixtures` feature, a "test support, not a public API" switch (`execution_store/Cargo.toml:40`). On docs.rs the example's items do not exist. Fix: build the example from the public constructor path, or mark it `no_run` with a note that it needs `fixtures`.
-- **B4. The `Sealed` doc claims more than the seal does.** It says "no crate outside this one adds a second matching semantics". But the blanket impl covers any type that implements the public, open `MatchingUseCase`, so an outside crate gets a second semantics by implementing that trait. The trait's own doc, "any matching use case answers it through this crate's blanket bridge", is accurate. Fix: reword the `Sealed` doc the same way.
-- **B5. The count tests were never shown failing against the old scan.** Every count test calls an item its fix added, so the bound was never seen to fail against a scan. This extends the first pass's A9. Fix: add a negative-control row that runs a linear scan through the same counting closure and asserts that it exceeds the bound.
-- **B6. Most Tastemaker tests have not run under the patch.** The patch moves the whole Tastemaker workspace from ryo 0.1.1 to 0.1.2, but only `tm_import_cli` ran under it (1 of 39 replay tests; its other 38 were filtered out). This is Tastemaker-crate territory, so it can go with the tm 0.1.2 branch. Fix: run `cargo test --manifest-path crates/tastemaker/Cargo.toml` once on this head.
-- **B7. The first-pass advisories are tracked, not fixed.** A1 to A9 are carried in the record as their own items. The record says their beads are filed and keeps the ids out of shipped text.
+- **C1. The cli manifest still asks for 0.1.1.** `crates/tastemaker/cli/Cargo.toml` requires `idiomatic-sh-ryo-sdk` 0.1.1, and the ryo language crates at 0.1.1, while core requires 0.1.2. Cargo resolves both to one version, so nothing breaks today, but the manifests disagree. Fix: raise the cli's ryo requirements to 0.1.2.
+- **C2. No case covers a row without a binding.** Add an `import_rows` case for a `static-import` row with no `binding` cell. It is the test F6's repair needs.
+- **C3. The `in_scope` scope rules have gaps.** In Rust, a `use` inside a block also binds for the items nested in that block, and a glob import (`use a::*`) binds no single first name. `in_scope` handles the first only through the block's span, and the second never drops anything; both outcomes are conservative. If the reading should go further, state the rule.

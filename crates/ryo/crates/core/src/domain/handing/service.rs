@@ -149,9 +149,10 @@ pub(crate) fn hand_into(
     }
 }
 
-/// The relations a record says were read in part, as the coverage steps take them.
+/// The relations a record says were read in part, as the coverage steps take them, for the file `own` the run numbers it: a part
+/// kept of one file is of the file the record is of (see `stored_of`), whatever number the file had in the run that kept it.
 #[must_use]
-pub(crate) fn partials_of(stored: &[StoredPartial]) -> Vec<Partial> {
+pub(crate) fn partials_of(stored: &[StoredPartial], own: FileId) -> Vec<Partial> {
     stored
         .iter()
         .filter_map(|each| {
@@ -159,9 +160,9 @@ pub(crate) fn partials_of(stored: &[StoredPartial]) -> Vec<Partial> {
                 relation,
                 cause: PartialCause(each.cause.0.clone()),
                 at: match each.at {
-                    PartialScope::OneFile(file) => {
+                    PartialScope::OneFile(_) => {
                         ryo_execution::inbound::use_cases::metadata::interface::PartialPlace::File(
-                            FileId(file.0),
+                            own,
                         )
                     }
                     PartialScope::Repository => {
@@ -227,24 +228,30 @@ pub(crate) fn hand_rest_again(
                 .iter()
                 .map(|rule| RuleIndex(usize::try_from(*rule).unwrap_or(usize::MAX)))
                 .collect(),
-            partial: partials_of(partials),
+            partial: partials_of(partials, number),
         });
     }
 }
 
-/// The relations read in part, as a record keeps them.
+/// The relations of the file `own` read in part, as a record keeps them. The number a file has differs from run to run, so a part
+/// read of the file itself is kept with no number, as `moved_words` keeps the file's own words at file 0: place 0 is the file the record
+/// is of, and `partials_of` gives it the number the reading run has for it. A part said of another file has no place in this
+/// file's record that a later run could number, so it is kept as the repository's: wider, never on the wrong file.
 #[must_use]
-pub(crate) fn stored_of(partials: &[Partial]) -> Vec<StoredPartial> {
+pub(crate) fn stored_of(partials: &[Partial], own: FileId) -> Vec<StoredPartial> {
     partials
         .iter()
         .map(|each| StoredPartial {
             relation_name: RelationName(name(each.relation).0.into()),
             cause: PartialCause(each.cause.0.clone()),
             at: match each.at {
-                ryo_execution::inbound::use_cases::metadata::interface::PartialPlace::File(at) => {
-                    PartialScope::OneFile(PartialAt(at.0))
+                ryo_execution::inbound::use_cases::metadata::interface::PartialPlace::File(at)
+                    if at == own =>
+                {
+                    PartialScope::OneFile(PartialAt(0))
                 }
-                ryo_execution::inbound::use_cases::metadata::interface::PartialPlace::Repository => {
+                ryo_execution::inbound::use_cases::metadata::interface::PartialPlace::File(_)
+                | ryo_execution::inbound::use_cases::metadata::interface::PartialPlace::Repository => {
                     PartialScope::Repository
                 }
             },
