@@ -560,6 +560,47 @@ fn row_errors_upstream_keep_the_rule_running() {
     assert_eq!(error(&ran.outcomes[3]), Some(OperatingError::ShapeMismatch));
 }
 
+/// R1.6: a literal pattern that does not compile is refused when a row first reaches it. A Replace over a Symbol column
+/// cannot fail on its rows, but with such a pattern its input is fallible, so the rule runs where the input has rows and
+/// reports the refusal as its full run does, even where its other conjunct cannot match.
+#[test]
+fn an_invalid_replace_pattern_is_reported_where_its_input_has_rows() {
+    let invalid = plan(vec![
+        select(Input::Relation(Relation::Comment), vec![]),
+        step(Operation::Replace {
+            from: at(0),
+            text: ColumnIndex(TEXT),
+            pattern: LiteralText("(".into()),
+            replacement: LiteralText("b".into()),
+        }),
+        select(Input::Relation(Relation::Function), vec![equal(TEXT, "y")]),
+        join_on_file(1, 2, 1),
+    ]);
+    let prepared = prepare(vec![invalid]);
+    let ran = run(&prepared, &mut facts(&["x"], &["f"]), &[run_intent()], &[], &[]);
+    let reported = error(&ran.outcomes[0]);
+    assert!(matches!(reported, Some(OperatingError::InvalidRegex { .. })), "{reported:?}");
+}
+
+/// R1.6: a select's literal `matches` pattern is compiled when a row first reaches it, so one that does not compile, by
+/// its syntax or by the compiled size limit, makes the select's input fallible: the rule runs where that input has rows
+/// and reports the refusal as its full run does, even where its other conjunct cannot match.
+#[test]
+fn an_invalid_select_pattern_is_reported_where_its_input_has_rows() {
+    for pattern in ["(", r"\w{1000}{1000}"] {
+        let invalid = plan(vec![
+            select(Input::Relation(Relation::Comment), vec![]),
+            select(at(0), vec![compare(TEXT, Test::Matches, pattern)]),
+            select(Input::Relation(Relation::Function), vec![equal(TEXT, "y")]),
+            join_on_file(1, 2, 1),
+        ]);
+        let prepared = prepare(vec![invalid]);
+        let ran = run(&prepared, &mut facts(&["x"], &["f"]), &[run_intent()], &[], &[]);
+        let reported = error(&ran.outcomes[0]);
+        assert!(matches!(reported, Some(OperatingError::InvalidRegex { .. })), "{pattern}: {reported:?}");
+    }
+}
+
 /// R1.7: rule A's absent root reads X, which reads Y; A is also an input of admitted rule F. X and Y are never visited and
 /// nothing is left owed at the end; when F also reads Y, Y runs once, for F.
 #[test]

@@ -6,15 +6,37 @@ use ryo_execution_domain::domain::executable_program::file_demand::types::Absent
 use ryo_execution_domain::domain::executable_program::types::RegionId;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::executable_program::presence::types::{FormulaId, RegionPresence, PresenceFormula, PresenceTable, TestId};
-use ryo_execution_domain::domain::readiness::types::RegionCount;
+use ryo_execution_domain::domain::executable_program::types::RegionCount;
 use ryo_execution_domain::domain::table_model::types::Rows;
 use ryo_relations::domain::relations::types::Relation;
 
 /// What a presence test reads: the file's rows, the texts its comparisons resolve, and the request's prepared matchers.
 struct PresenceRead<'r, 'facts> {
     read: &'r dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
+    owner: &'r ryo_execution_store::application::file_dag::relations::RelationOwner,
+    execution: &'r crate::application::file_dag::program::runtime::service::ProgramExecution,
     texts: &'r ryo_execution_domain::domain::table_texts::types::Texts<'r>,
     matchers: &'r ryo_execution_domain::domain::matching::types::prepared::value::PreparedMatchers,
+}
+
+impl<'facts> PresenceRead<'_, 'facts> {
+    /// The file's first read of a source, which is admission's first read: a population it reads is pinned, so admission
+    /// refuses one that changed after it, and a refusal it meets is the file's refusal for the source.
+    fn source(&self, relation: Relation) -> Result<Rows<'facts>, OperatingError> {
+        match (self.read)(relation) {
+            Ok(rows) => {
+                let _pinned = self.owner.source(relation, &rows)?;
+                Ok(rows)
+            }
+            Err(error) => {
+                self.execution.refuse_source(crate::application::file_dag::program::runtime::types::SourceRefusal {
+                    relation,
+                    error: error.clone(),
+                });
+                Err(error)
+            }
+        }
+    }
 }
 
 impl FileRun<'_> {
@@ -42,6 +64,8 @@ impl FileRun<'_> {
         };
         let tested = PresenceRead {
             read,
+            owner: &self.owner,
+            execution: &self.execution,
             texts: &texts,
             matchers: self.program.matchers().as_ref(),
         };
@@ -81,6 +105,8 @@ impl FileRun<'_> {
             };
             let tested = PresenceRead {
                 read,
+                owner: &self.owner,
+                execution: &self.execution,
                 texts: &texts,
                 matchers: self.program.matchers().as_ref(),
             };
@@ -160,7 +186,7 @@ impl FilePresence {
             if self.read.contains(relation) {
                 continue;
             }
-            if (tested.read)(*relation).is_err() {
+            if tested.source(*relation).is_err() {
                 self.gate = PresenceGate::Off;
                 return Truth::Fails;
             }
@@ -190,7 +216,7 @@ impl FilePresence {
             ),
             None => open.push(test),
         }
-        if let Ok(rows) = (tested.read)(relation) {
+        if let Ok(rows) = tested.source(relation) {
             if !self.read.contains(&relation) {
                 self.read.push(relation);
             }

@@ -399,11 +399,21 @@ fn the_region_table_takes_each_regions_node() -> Result<(), OperatingError> {
     Ok(())
 }
 
+/// An operation that raises an error from what reaches it, and the condition it raises it on.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Raiser {
+    /// On the values of its input rows.
+    Rows(OperationKind),
+    /// On a literal pattern that does not compile, when a row first reaches it.
+    Pattern(OperationKind),
+}
+
 /// What can raise a fault: the values of rows that reach an operator, or something fixed before any row is read.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Fault {
-    /// Raised by an operator the `failure` table names, on rows of the inputs its mask names.
-    RowFallible,
+    /// Raised by these operations on rows of an input: each must declare the input fallible, through its prepared
+    /// contract's failure mask or, for a literal pattern, through the fold.
+    RowFallible(&'static [Raiser]),
     /// Raised by a comparison over a row; every literal comparison is inside its select's presence test, which holds
     /// when the comparison errs, so the select runs and reports it.
     Comparison,
@@ -417,21 +427,40 @@ enum Fault {
     Incomplete,
 }
 
+const DFS: &[Raiser] = &[Raiser::Rows(OperationKind::OrderedDfs)];
+const ORDERED: &[Raiser] = &[Raiser::Rows(OperationKind::OrderedMatch)];
+const SPAN: &[Raiser] = &[Raiser::Rows(OperationKind::SpanBetween)];
+const SOURCE_SPAN: &[Raiser] = &[Raiser::Rows(OperationKind::SourceMatches)];
+const BOUNDS: &[Raiser] = &[Raiser::Rows(OperationKind::SpanBounds)];
+const RENDER: &[Raiser] = &[Raiser::Rows(OperationKind::RenderSyntax), Raiser::Rows(OperationKind::FitsRendered)];
+const TEXT_GATE: &[Raiser] = &[Raiser::Rows(OperationKind::Replace)];
+const REGEX: &[Raiser] = &[
+    Raiser::Rows(OperationKind::Select),
+    Raiser::Rows(OperationKind::Join),
+    Raiser::Rows(OperationKind::Axis),
+    Raiser::Pattern(OperationKind::Select),
+    Raiser::Pattern(OperationKind::Join),
+    Raiser::Pattern(OperationKind::Axis),
+    Raiser::Pattern(OperationKind::Replace),
+    Raiser::Pattern(OperationKind::SourceMatches),
+];
+
 /// R6: every operating error and every portable operator fault, audited as row-dependent or not. The matches are
-/// exhaustive, so a new variant cannot land without a verdict.
+/// exhaustive, so a new variant cannot land without a verdict, and a row-dependent verdict names the operations that
+/// raise it.
 fn operating(error: &OperatingError) -> Fault {
     match error {
-        OperatingError::DuplicateDfsOrder
-        | OperatingError::DfsOrdinalOverflow
-        | OperatingError::InvalidSpan
-        | OperatingError::InvalidSourceMatchSpan
-        | OperatingError::InvalidSpanBounds
-        | OperatingError::DuplicateOrder
-        | OperatingError::SemanticRender(_)
-        | OperatingError::SemanticBatchShape => Fault::RowFallible,
-        OperatingError::InvalidRegex { .. } | OperatingError::WrongTest => Fault::Comparison,
+        OperatingError::DuplicateDfsOrder | OperatingError::DfsOrdinalOverflow => Fault::RowFallible(DFS),
+        OperatingError::DuplicateOrder => Fault::RowFallible(ORDERED),
+        OperatingError::InvalidSpan => Fault::RowFallible(SPAN),
+        OperatingError::InvalidSourceMatchSpan => Fault::RowFallible(SOURCE_SPAN),
+        OperatingError::InvalidSpanBounds => Fault::RowFallible(BOUNDS),
+        OperatingError::SemanticRender(_) | OperatingError::SemanticBatchShape => Fault::RowFallible(RENDER),
+        // A regular expression read from the row, or a literal one that does not compile.
+        OperatingError::InvalidRegex { .. } => Fault::RowFallible(REGEX),
+        OperatingError::WrongTest => Fault::Comparison,
         // Replace's text gate; any other source is a schema check.
-        OperatingError::ShapeMismatch => Fault::RowFallible,
+        OperatingError::ShapeMismatch => Fault::RowFallible(TEXT_GATE),
         OperatingError::Spelling(_)
         | OperatingError::ObservationConfiguration(_)
         | OperatingError::MissingInput { .. }
@@ -448,9 +477,11 @@ fn operating(error: &OperatingError) -> Fault {
 fn portable(fault: &ryo_operators::domain::contract::types::PortableOperatorFault) -> Fault {
     use ryo_operators::domain::contract::types::PortableOperatorFault::*;
     match fault {
-        ShapeMismatch | InvalidSpanBounds | InvalidSpan | InvalidSourceMatchSpan | UnsupportedRender => {
-            Fault::RowFallible
-        }
+        ShapeMismatch => Fault::RowFallible(TEXT_GATE),
+        InvalidSpanBounds => Fault::RowFallible(BOUNDS),
+        InvalidSpan => Fault::RowFallible(SPAN),
+        InvalidSourceMatchSpan => Fault::RowFallible(SOURCE_SPAN),
+        UnsupportedRender => Fault::RowFallible(RENDER),
         NoSuchColumn { .. } | WrongOperation | UnboundKey | WrongBinding | Unbound | MissingCapture => {
             Fault::Fixed
         }
@@ -458,12 +489,182 @@ fn portable(fault: &ryo_operators::domain::contract::types::PortableOperatorFaul
     }
 }
 
+/// An operation of this kind in the condition its raiser names: a node column for Replace's text gate, a pattern read
+/// from the row for a comparison, and the literal pattern `(` for a literal one.
+fn raising(raiser: Raiser) -> Operation {
+    let from = Source::Relation(Relation::Function);
+    let comparisons = |pattern: Operand| {
+        vec![PlanComparison {
+            test: Test::Matches,
+            left: Operand::Column(ColumnIndex(0)),
+            right: pattern,
+            origin: ComparisonOrigin::Unrecorded,
+        }]
+    };
+    let (kind, pattern) = match raiser {
+        Raiser::Rows(kind) => (kind, Operand::Column(ColumnIndex(1))),
+        Raiser::Pattern(kind) => (kind, Operand::Literal(QueryLiteral::Text(LiteralText("(".into())))),
+    };
+    let literal = match &pattern {
+        Operand::Literal(QueryLiteral::Text(text)) => text.clone(),
+        _ => LiteralText("a".into()),
+    };
+    match kind {
+        OperationKind::Select => Operation::Select { from, comparisons: comparisons(pattern), kept: vec![] },
+        OperationKind::Join => Operation::Join {
+            left: from,
+            right: from,
+            left_on: vec![],
+            right_on: vec![],
+            output: vec![],
+            filter: comparisons(pattern),
+            view: vec![],
+            reach: None,
+        },
+        OperationKind::Axis => Operation::Axis {
+            from,
+            edges: from,
+            domain: from,
+            direction: ryo_values::domain::plan_parts::types::Direction::Descendant,
+            id: ColumnIndex(0),
+            parent: ColumnIndex(0),
+            child: ColumnIndex(1),
+            domain_id: ColumnIndex(0),
+            domain_filter: comparisons(pattern),
+            domain_view: vec![],
+            output: vec![],
+        },
+        OperationKind::Replace => Operation::Replace {
+            from,
+            // A node column has no text, so the text gate raises on its rows.
+            text: ColumnIndex(if matches!(raiser, Raiser::Rows(_)) { 0 } else { 1 }),
+            pattern: literal,
+            replacement: LiteralText("b".into()),
+        },
+        OperationKind::SourceMatches => Operation::SourceMatches {
+            from,
+            span: ColumnIndex(0),
+            base_line: None,
+            pattern: literal,
+            capture: None,
+            capture_text: ryo_values::domain::query_operators::types::TextOutput::Omitted,
+            capture_line: ryo_values::domain::query_operators::types::LineOutput::Omitted,
+        },
+        OperationKind::OrderedDfs => Operation::OrderedDfs {
+            from,
+            edges: from,
+            root: ColumnIndex(0),
+            source: ColumnIndex(0),
+            destination: ColumnIndex(1),
+            order: ColumnIndex(0),
+            edge: ColumnIndex(0),
+            root_keys: vec![],
+            edge_keys: vec![],
+        },
+        OperationKind::OrderedMatch => Operation::OrderedMatch {
+            left: from,
+            right: from,
+            left_on: vec![],
+            right_on: vec![],
+            left_order: ColumnIndex(0),
+            right_order: ColumnIndex(0),
+            output: vec![],
+        },
+        OperationKind::SpanBetween => Operation::SpanBetween { from, start: ColumnIndex(0), end: ColumnIndex(0) },
+        OperationKind::SpanBounds => Operation::SpanBounds { from, span: ColumnIndex(0) },
+        OperationKind::RenderSyntax => Operation::RenderSyntax {
+            from,
+            node: ColumnIndex(0),
+            context: ryo_language::domain::semantics::types::RenderContext::AssignmentTarget,
+        },
+        OperationKind::FitsRendered => Operation::FitsRendered {
+            from,
+            texts: vec![],
+            literals: vec![],
+            span: ColumnIndex(0),
+            max_line: ryo_values::domain::query_operators::types::MaxLine(88),
+            tab_width: ryo_values::domain::query_operators::types::TabWidth(8),
+        },
+        other => panic!("no raising operation for {other:?}"),
+    }
+}
+
+/// Whether the raiser declares the input it raises on: the prepared contract's failure mask, or the fold's check of a
+/// literal pattern.
+fn declared(raiser: Raiser) -> bool {
+    let operation = raising(raiser);
+    let kind = ryo_values::domain::plans::service::kind_of(&operation);
+    let function = kinds(Relation::Function);
+    let shapes = [InputShape { kinds: function, tree: None }; 3];
+    let failure = prepare_for(kind, &operation, &shapes, &[], StepScope::PerFile).map(|contract| contract.failure);
+    let rows = matches!(failure, Ok(RowFailure::OnRows(mask)) if mask != InputMask(0));
+    match raiser {
+        Raiser::Rows(_) => rows,
+        Raiser::Pattern(_) => {
+            rows || super::narrowing::invalid_patterns(
+                &operation,
+                crate::domain::matching::types::PatternMatcher(
+                    &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
+                ),
+            )
+            .is_some()
+        }
+    }
+}
+
 fn every_fault_has_a_verdict() -> Result<(), OperatingError> {
     use ryo_operators::domain::contract::types::PortableOperatorFault;
-    assert_eq!(operating(&OperatingError::DuplicateOrder), Fault::RowFallible);
-    assert_eq!(operating(&OperatingError::InvalidRegex { reason: String::new() }), Fault::Comparison);
+    let reason = || String::new();
+    let errors = [
+        OperatingError::DuplicateDfsOrder,
+        OperatingError::DfsOrdinalOverflow,
+        OperatingError::DuplicateOrder,
+        OperatingError::InvalidSpan,
+        OperatingError::InvalidSourceMatchSpan,
+        OperatingError::InvalidSpanBounds,
+        OperatingError::SemanticBatchShape,
+        OperatingError::InvalidRegex { reason: reason() },
+        OperatingError::ShapeMismatch,
+        OperatingError::WrongTest,
+        OperatingError::NotRun,
+    ];
+    let faults = [
+        PortableOperatorFault::ShapeMismatch,
+        PortableOperatorFault::InvalidSpanBounds,
+        PortableOperatorFault::InvalidSpan,
+        PortableOperatorFault::InvalidSourceMatchSpan,
+        PortableOperatorFault::UnsupportedRender,
+        PortableOperatorFault::MissingCapture,
+    ];
+    let verdicts = errors.iter().map(operating).chain(faults.iter().map(portable));
+    for verdict in verdicts {
+        if let Fault::RowFallible(raisers) = verdict {
+            for raiser in raisers {
+                assert!(declared(*raiser), "{raiser:?} raises a row error it does not declare");
+            }
+        }
+    }
+    // A literal pattern over the compiled size limit is refused at first use like a syntax error, and declared alike.
+    let oversized = Operation::Select {
+        from: Source::Relation(Relation::Function),
+        comparisons: vec![PlanComparison {
+            test: Test::Matches,
+            left: Operand::Column(ColumnIndex(1)),
+            right: Operand::Literal(QueryLiteral::Text(LiteralText(r"\w{1000}{1000}".into()))),
+            origin: ComparisonOrigin::Unrecorded,
+        }],
+        kept: vec![],
+    };
+    assert_eq!(
+        super::narrowing::invalid_patterns(
+            &oversized,
+            crate::domain::matching::types::PatternMatcher(
+                &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
+            ),
+        ),
+        Some(InputMask(1))
+    );
     assert_eq!(operating(&OperatingError::NotRun), Fault::Engine);
-    assert_eq!(portable(&PortableOperatorFault::InvalidSpan), Fault::RowFallible);
     assert_eq!(portable(&PortableOperatorFault::MissingCapture), Fault::Fixed);
     Ok(())
 }

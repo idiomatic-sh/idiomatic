@@ -144,8 +144,7 @@ pub(crate) fn execute(
                 || (matches!(supply, InputSupply::MissingAfterFirst) && counts[0].get() > 1)
             {
                 Err(OperatingError::NotRead)
-            // The first read is the file's presence read; the population changes between the two reads admission makes.
-            } else if matches!(supply, InputSupply::Changed) && counts[0].get() > 2 {
+            } else if matches!(supply, InputSupply::Changed) && counts[0].get() > 1 {
                 Ok(SourceRows::Computed(&changed))
             } else {
                 Ok(SourceRows::Computed(&left))
@@ -258,7 +257,7 @@ fn valid_populations_and_generation_binding() {
         Err(OperatingError::NotRead),
         "a matching schema does not replace the available source's physical identity"
     );
-    assert_eq!(calls, [3, 0]);
+    assert_eq!(calls, [2, 0]);
 }
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {

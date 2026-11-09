@@ -193,8 +193,7 @@ fn one_prepared_request_reopens_same_file_after_delivery_failure_empty_skip_and_
         }),
         Err(OperatingError::NotRead)
     ));
-    // The file's presence read meets the refusal first and turns presence off; admission then meets it once.
-    assert_eq!(right_refusals.get(), 2);
+    assert_eq!(right_refusals.get(), 1);
     assert!(rows.is_empty());
     assert_eq!(file.owner.derived().counts().0, 0);
     assert_eq!(

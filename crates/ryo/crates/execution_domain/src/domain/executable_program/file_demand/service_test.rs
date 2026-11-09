@@ -151,7 +151,7 @@ fn absent_roots_stop_the_walk_at_any_depth() {
         (RegionId(0), ReaderMultiplicity(1)),
         (RegionId(1), ReaderMultiplicity(1)),
     ]);
-    let mut regions = AbsentRegions::none(crate::domain::readiness::types::RegionCount(4));
+    let mut regions = AbsentRegions::none(crate::domain::executable_program::types::RegionCount(4));
     regions.insert(RegionId(1));
     let absent = AbsentRoots::decided(regions);
     let alone = program(false);

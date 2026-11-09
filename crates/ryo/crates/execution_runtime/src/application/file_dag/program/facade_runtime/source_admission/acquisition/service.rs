@@ -43,6 +43,11 @@ impl SourceInputs<'_, '_> {
                     .execution
                     .source_partition(ProducerRoot::Input(source))?;
                 actual_partition.require_supply(partition)?;
+                // The file's presence read is admission's first read: a source it met refused is refused here too,
+                // and the provider is not asked again.
+                if let Some(error) = self.state.refusal(relation) {
+                    return Err(error);
+                }
                 let rows = (self.read)(relation)?;
                 let publication = self.owner.source(relation, &rows)?;
                 return AvailableInput::source(

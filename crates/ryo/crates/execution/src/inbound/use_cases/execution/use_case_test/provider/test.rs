@@ -182,31 +182,27 @@ fn subject((operator, missing, delivery): Input) -> Result<Value, Failure> {
         }
     };
     let history = reads.into_inner();
-    // Pinned successful LHS borrows may repeat, but refusal is terminal. The first read of a refused left provider is
-    // the file's presence read, which stops presence there; admission then meets the refusal once.
+    // Pinned successful LHS borrows may repeat, but refusal is terminal.
     match missing {
-        Missing::First => assert_eq!(history, [Relation::Function, Relation::Function]),
+        Missing::First => assert_eq!(history, [Relation::Function]),
         Missing::Neither => {
             assert!(history.contains(&Relation::Function), "the left provider is read");
             assert!(history.contains(&Relation::Comment), "the right provider is read");
         }
         Missing::Second => {
-            let (last, prefix) = history.split_last().expect("RHS must actually be demanded");
-            assert_eq!(*last, Relation::Comment);
-            assert!(
-                !prefix.is_empty(),
-                "nonempty successful LHS is demanded first"
-            );
-            // The file's presence read meets the refused RHS first and stops there; admission then meets it once.
-            let after_presence = prefix
-                .iter()
-                .position(|relation| *relation == Relation::Comment)
-                .map_or(prefix, |at| &prefix[at + 1..]);
-            assert!(
-                after_presence
-                    .iter()
-                    .all(|relation| *relation == Relation::Function),
+            // The file's presence read is admission's first read: it may meet the refused RHS before admission's
+            // pinned LHS borrows, and admission meets that refusal without reading the RHS again.
+            assert_eq!(history.first(), Some(&Relation::Function), "nonempty successful LHS is demanded first");
+            assert_eq!(
+                history.iter().filter(|relation| **relation == Relation::Comment).count(),
+                1,
                 "RHS refusal occurs exactly once, with no subsequent producer read"
+            );
+            assert!(
+                history
+                    .iter()
+                    .all(|relation| matches!(relation, Relation::Function | Relation::Comment)),
+                "only the LHS borrows repeat"
             );
         }
     }

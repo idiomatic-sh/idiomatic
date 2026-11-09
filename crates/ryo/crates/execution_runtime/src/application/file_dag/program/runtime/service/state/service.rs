@@ -88,7 +88,19 @@ impl RuntimeState {
             }),
             absent: RefCell::new(Default::default()),
             interior: RefCell::new(Default::default()),
+            refused: RefCell::new(Vec::new()),
         }
+    }
+    /// The refusal the file's presence read met for this source, which admission meets in its place.
+    pub(crate) fn refusal(
+        &self,
+        relation: ryo_relations::domain::relations::types::Relation,
+    ) -> Option<OperatingError> {
+        self.refused
+            .borrow()
+            .iter()
+            .find(|refusal| refusal.relation == relation)
+            .map(|refusal| refusal.error.clone())
     }
     /// Whether a region the file's admitted roots reach has a skip formula that fails on the file.
     pub(crate) fn presence(
@@ -228,6 +240,10 @@ impl ProgramExecution {
         interior: ryo_execution_domain::domain::executable_program::file_demand::types::AbsentRegions,
     ) {
         *self.file_state.interior.borrow_mut() = interior;
+    }
+    /// The file's presence read met this source refused: its refusal is the file's refusal for the source.
+    pub(crate) fn refuse_source(&self, refusal: crate::application::file_dag::program::runtime::types::SourceRefusal) {
+        self.file_state.refused.borrow_mut().push(refusal);
     }
     pub(crate) fn validate_state(
         &self,

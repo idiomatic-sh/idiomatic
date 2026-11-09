@@ -72,17 +72,48 @@ pub(super) fn node_narrowing(tables: &mut PresenceTables, operation: &Operation,
 }
 
 /// The input whose rows a literal regular expression that does not compile fails on: the error is raised when a row
-/// first reaches the comparison, and a consumer's presence formula may not read that input. A pattern read from the row
-/// is declared by the operator's own failure mask.
+/// first reaches the comparison or the replacement, and a consumer's presence formula may not read that input. A pattern
+/// read from the row is declared by the operator's own failure mask. The match names every operation, so a new one that
+/// carries a literal pattern cannot be left out.
 pub(super) fn invalid_patterns(
     operation: &Operation,
     matcher: crate::domain::matching::types::PatternMatcher<'_>,
 ) -> Option<InputMask> {
+    let invalid = |pattern: &ryo_values::domain::plan_parts::types::LiteralText| {
+        crate::domain::matching::types::prepared::value::compile_regex(
+            crate::domain::table_texts::types::TextView(&pattern.0),
+            matcher,
+        )
+        .is_err()
+    };
     let (comparisons, mask) = match operation {
         Operation::Select { comparisons, .. } => (comparisons, InputMask(1)),
         Operation::Join { filter, .. } => (filter, InputMask(2)),
         Operation::Axis { domain_filter, .. } => (domain_filter, InputMask(4)),
-        _ => return None,
+        Operation::Replace { pattern, .. } | Operation::SourceMatches { pattern, .. } => {
+            return invalid(pattern).then_some(InputMask(1));
+        }
+        Operation::Project { .. }
+        | Operation::Extend { .. }
+        | Operation::Union { .. }
+        | Operation::Intersection { .. }
+        | Operation::Difference { .. }
+        | Operation::Antijoin { .. }
+        | Operation::GroupCount { .. }
+        | Operation::GroupDigest { .. }
+        | Operation::Capture { .. }
+        | Operation::Rank { .. }
+        | Operation::OrderedMatch { .. }
+        | Operation::Words { .. }
+        | Operation::Closure { .. }
+        | Operation::OrderedDfs { .. }
+        | Operation::Cycles { .. }
+        | Operation::Rows { .. }
+        | Operation::Hosted { .. }
+        | Operation::SpanBetween { .. }
+        | Operation::RenderSyntax { .. }
+        | Operation::FitsRendered { .. }
+        | Operation::SpanBounds { .. } => return None,
     };
     comparisons
         .iter()
@@ -90,11 +121,7 @@ pub(super) fn invalid_patterns(
             Operand::Literal(QueryLiteral::Text(pattern))
                 if comparison.test == ryo_values::domain::plan_parts::types::Test::Matches =>
             {
-                crate::domain::matching::types::prepared::value::compile_regex(
-                    crate::domain::table_texts::types::TextView(&pattern.0),
-                    matcher,
-                )
-                .is_err()
+                invalid(pattern)
             }
             _ => false,
         })

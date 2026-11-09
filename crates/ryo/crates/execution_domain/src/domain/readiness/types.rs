@@ -1,9 +1,6 @@
 //! Scheduler decisions carry region identities, never evaluation authority.
 use crate::domain::executable_program::types::RegionId;
 pub mod ready_queue;
-/// Distinct physical regions in this compiled program.
-#[derive(Debug, Clone, Copy)]
-pub struct RegionCount(pub usize);
 /// Readiness entries a queue holds, one for each region it has reached.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[cfg(test)]

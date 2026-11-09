@@ -195,7 +195,8 @@ fn presence(kind: OperationKind) -> PresenceMask {
 /// `table_texts::datum`, which answers text for every `Value::Symbol` and `Value::File`; a `Value::Name` (a name that
 /// left its file, held under `CellKind::Symbol`) may have none. Names reach a region only through paths that never
 /// skip: cross-file steps, steps downstream of a bound observation, project relations and frontiers. So a per-file
-/// Replace over a resolved Symbol or File column cannot fail; any other Replace can.
+/// Replace over a resolved Symbol or File column cannot fail on its rows; any other Replace can. Its literal pattern is
+/// checked by the presence fold, which makes the input fallible when the pattern does not compile.
 fn failure(
     operation: &ryo_values::domain::plans::types::Operation,
     inputs: &[crate::domain::operation_schema::types::InputShape<'_>],
@@ -230,7 +231,8 @@ fn failure(
 }
 
 /// A regular expression read from the row is compiled when a row reaches its comparison, so it can fail on the rows of the
-/// input the comparisons filter. A literal pattern that does not compile is found by the presence fold.
+/// input the comparisons filter. A literal pattern is compiled at first use too: the presence fold compiles it with the
+/// request's matcher, so one refused by its syntax or the size limit makes the input fallible there.
 fn comparison_failure(
     comparisons: &[ryo_values::domain::plan_parts::types::PlanComparison],
     input: InputMask,

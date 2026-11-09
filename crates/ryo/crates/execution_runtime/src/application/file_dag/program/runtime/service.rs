@@ -164,6 +164,8 @@ pub(crate) struct RuntimeState {
     absent: RefCell<ryo_execution_domain::domain::executable_program::file_demand::types::AbsentRoots>,
     /// The other regions the file's admitted roots reach whose skip formula fails on the file.
     interior: RefCell<ryo_execution_domain::domain::executable_program::file_demand::types::AbsentRegions>,
+    /// The sources the file's presence read met refused, each the file's refusal for that source.
+    refused: RefCell<Vec<super::types::SourceRefusal>>,
     #[cfg(test)]
     reader_initializations: std::cell::Cell<ReaderInitializations>,
 }

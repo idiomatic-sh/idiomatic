@@ -9,6 +9,10 @@ pub mod executable_program;
 pub mod instruction;
 pub mod region;
 
+/// Distinct physical regions in this compiled program.
+#[derive(Debug, Clone, Copy)]
+pub struct RegionCount(pub usize);
+
 /// A region of the executable program, by its place among the program's regions.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct RegionId(pub usize);

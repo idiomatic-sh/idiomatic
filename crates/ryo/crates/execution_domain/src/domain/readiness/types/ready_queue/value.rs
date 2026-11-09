@@ -1,9 +1,9 @@
 //! A producer completion wakes exactly the admissions waiting for that producer.
 use super::super::{
-    ReadinessAction, ReadinessCounts, ReadinessOutcome, RegionCount,
+    ReadinessAction, ReadinessCounts, ReadinessOutcome,
     WaitingCount,
 };
-use crate::domain::{executable_program::types::RegionId, operating::errors::OperatingError};
+use crate::domain::{executable_program::types::{RegionCount, RegionId}, operating::errors::OperatingError};
 use std::collections::VecDeque;
 use rustc_hash::FxHashMap;
 

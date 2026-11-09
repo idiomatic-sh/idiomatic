@@ -285,33 +285,24 @@ fn union_preserves_left_source_refusal_and_demands_right_after_empty_left() {
         {
             let order = read_order.borrow();
             if left_refuses {
-                // Presence reads the left source once before the first region; admission does not retry it after it fails.
-                assert_eq!(left_reads.get(), 2, "a failed source is not retried");
-                assert_eq!(order.as_slice(), &[Relation::Function, Relation::Function]);
+                assert_eq!(left_reads.get(), 1, "a failed source is not retried");
+                assert_eq!(order.as_slice(), &[Relation::Function]);
             } else {
-                // Accepted publications may resolve the pinned borrowed view more
-                // than once. Those borrows must all precede the right refusal.
+                // Accepted publications may resolve the pinned borrowed view more than once. The file's presence
+                // read is admission's first read, so the right refusal may come before admission's left borrows, and
+                // admission meets it without reading the right side again.
                 assert!(left_reads.get() > 0);
-                assert_eq!(order.last(), Some(&Relation::SemanticChild));
-                let preceding = &order[..order.len() - 1];
-                assert!(!preceding.is_empty());
-                // The file's presence read meets the refused right source first and stops there.
-                let preceding = preceding
-                    .iter()
-                    .position(|relation| *relation == Relation::SemanticChild)
-                    .map_or(preceding, |at| &preceding[at + 1..]);
+                assert_eq!(order.first(), Some(&Relation::Function));
                 assert!(
-                    preceding
+                    order
                         .iter()
-                        .all(|relation| *relation == Relation::Function)
+                        .all(|relation| matches!(relation, Relation::Function | Relation::SemanticChild))
                 );
             }
         }
-        // After an empty left, the file's presence read meets the refused right side first; admission then demands it
-        // exactly once.
         assert_eq!(
             right_reads.get(),
-            2 * usize::from(!left_refuses),
+            usize::from(!left_refuses),
             "left failure wins; empty success still demands the right side exactly once"
         );
         let reads_before_finish = read_order.borrow().len();
