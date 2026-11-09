@@ -5,9 +5,6 @@ use ryo_relations::domain::relations::types::WorkerNumber;
 use ryo_values::domain::files::types::{
     CorpusEntry, CorpusInput, FileNumber, FileSize, Glob, Hits, Nanoseconds,
 };
-use ryo_values::domain::plan_parts::types::StepScope;
-use ryo_values::domain::plan_parts::types::{ColumnIndex, StepId};
-use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
 use ryo_values::domain::records::types::{FileOutcome, Record, Unreadable};
 use ryo_values::domain::stored_facts::types::{ArenaBytes, Digest};
 
@@ -76,35 +73,6 @@ fn count(number: usize) -> u64 {
 
 fn yes(governing: Governing) -> u64 {
     u64::from(governing == Governing::Governs)
-}
-
-/// A plan of this many steps, all of them the same.
-fn plan(steps: usize) -> Plan {
-    Plan {
-        observation_inputs: Vec::new(),
-        observations: Vec::new(),
-        parameters: Vec::new(),
-        steps: std::iter::repeat_with(|| PlanStep {
-            operation: Operation::Project {
-                from: ryo_values::domain::plan_parts::types::Input::Relation(
-                    ryo_relations::domain::relations::types::Relation::Function,
-                ),
-                columns: vec![ColumnIndex(0)],
-                distinct: ryo_values::domain::plan_parts::types::RepeatedRows::Dropped,
-            },
-            scope: StepScope::PerFile,
-        })
-        .take(steps)
-        .collect(),
-        emit: Emit {
-            step: StepId(0),
-            subject: ColumnIndex(0),
-            key: Vec::new(),
-            headings: Vec::new(),
-        },
-        frontier: Vec::new(),
-        comparison_origins: Vec::new(),
-    }
 }
 
 fn entry(path: &str, size: u64) -> CorpusEntry {
