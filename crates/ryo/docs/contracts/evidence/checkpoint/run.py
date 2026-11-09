@@ -451,7 +451,7 @@ def fix_problems(v,repo=None,base=None,head='HEAD',baseline=FIX_BASELINE):
   # A merge's own changes are the files its result changes against every parent (the combined diff).
   own=['diff-tree','--cc','--no-commit-id','--name-only',sha] if len((git(repo,'rev-list','--parents','-n1',sha) or '').split())>2 else ['diff-tree','--root','--no-commit-id','-r','--name-only',sha]
   files=(git(repo,*own) or '').split()
-  if not any(is_production(f) for f in files): continue
+  if not any(is_production(f) and not comment_only(repo,sha,f,own) for f in files): continue
   short=sha[:10]+' '+message.splitlines()[0][:70]
   if PERF.match(message):
    if not perf_identical(repo,base,head,sha): bad.append('perf '+short+': no evidence/perf/*/after.json added or changed in the checkpoint with identical_output true and a source built on it')
@@ -466,6 +466,15 @@ def fix_problems(v,repo=None,base=None,head='HEAD',baseline=FIX_BASELINE):
  # Identical change, identical proof: a commit whose stable patch-id is that of a proven commit (a reworded or re-applied twin) is proven.
  twins={patch_id(repo,sha) for sha in proven}-{None}
  return bad+[why for sha,why in unproven.items() if patch_id(repo,sha) not in twins]
+RUST_COMMENT=re.compile(r'^\s*(//.*)?$')
+def comment_only(repo,sha,path,own):
+ """A Rust file whose change in the commit adds and removes only comment lines (`//`, `///`, `//!`) and blank lines: no behaviour
+ changes, so FIX does not count it."""
+ if not path.endswith('.rs'): return False
+ diff=git(repo,*([x for x in own if x!='--name-only']+['-p','--',path])) or ''
+ changed=[l[1:] for l in diff.splitlines() if l[:1] in '+-' and not l.startswith(('+++','---'))]
+ if own[1]=='--cc': changed=[l[2:] for l in diff.splitlines() if l[:2].strip('+- ')=='' and l[:2]!='  ' and not l.startswith(('+++','---'))]
+ return bool(changed) and all(RUST_COMMENT.match(l) for l in changed)
 def patch_id(repo,sha):
  """The commit's `git patch-id --stable`, or None for a commit with no diff against its first parent."""
  diff=subprocess.run(['git','-C',str(repo),'show','--format=','--no-color',sha],capture_output=True)

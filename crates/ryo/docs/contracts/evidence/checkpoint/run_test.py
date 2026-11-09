@@ -325,6 +325,11 @@ class Diff(unittest.TestCase):
   found=self.fixes([{'test':'service_test::one_answers (red red.log, green green.log)','base_sha':self.base,'merge_sha':proven}])
   self.assertNotIn(twin[:10],' '.join(found)); self.assertNotIn(proven[:10],' '.join(found))
   self.assertEqual(len([x for x in found if other[:10] in x]),1)
+ def test_a_comment_only_change_is_no_fix_and_a_code_line_beside_a_comment_still_is(self):
+  quiet=commit(self.repo,{'a/src/lib.rs':'/// One.\n///\n/// # Examples\n/// ```\n/// ```\n// It answers.\n\npub fn one() {}\n'},'docs(a): say what one does')
+  loud=commit(self.repo,{'a/src/lib.rs':'/// One.\n///\n/// # Examples\n/// ```\n/// ```\n// It answers twice.\n\npub fn one() { }\n'},'fix(a): one answers')
+  found=self.fixes([])
+  self.assertFalse(any(quiet[:10] in x for x in found),found); self.assertTrue(any(loud[:10] in x for x in found),found)
  def test_without_a_base_both_checks_refuse(self):
   self.assertEqual(run.fix_problems({'red_green':[]},repo=self.repo),[run.NO_BASE])
   self.assertEqual(run.doc_problems(repo=self.repo),[run.NO_BASE])
