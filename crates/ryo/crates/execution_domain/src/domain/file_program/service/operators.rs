@@ -90,29 +90,13 @@ pub fn prepare<'s>(
                 &step.operation,
                 &schemas,
                 bindings.get(rule).map_or(&[], Vec::as_slice),
+                step.scope,
             )?;
             bind(&mut contract)?;
-            let tree = match &step.operation {
-                Operation::Select {
-                    comparisons, kept, ..
-                } if comparisons.is_empty() && kept.is_empty() => {
-                    schemas.first().and_then(|input| input.tree)
-                }
-                Operation::Project {
-                    columns, distinct, ..
-                } if *distinct == ryo_values::domain::plan_parts::types::RepeatedRows::Kept
-                    && schemas.first().is_some_and(|input| {
-                        columns.len() == input.kinds.len()
-                            && columns
-                                .iter()
-                                .enumerate()
-                                .all(|(at, column)| column.0 as usize == at)
-                    }) =>
-                {
-                    schemas.first().and_then(|input| input.tree)
-                }
-                _ => None,
-            };
+            let tree = crate::domain::operation_schema::projection::tree_output(
+                &step.operation,
+                schemas.first().copied(),
+            );
             tree_outputs.push(tree);
             preparations += 1;
             contracts.push(Arc::new(contract));

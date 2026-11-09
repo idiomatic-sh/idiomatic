@@ -28,7 +28,7 @@ fn an_instruction_answers_what_it_was_compiled_with() {
         tree: None,
     }];
     let contract = Arc::new(
-        prepare_for(OperationKind::Select, &operation, &inputs, &[])
+        prepare_for(OperationKind::Select, &operation, &inputs, &[], ryo_values::domain::plan_parts::types::StepScope::PerFile)
             .expect("the select contract prepares"),
     );
     let instruction = Instruction::new(

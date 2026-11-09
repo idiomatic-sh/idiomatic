@@ -1,5 +1,7 @@
 //! Exhaustive semantic declarations; strategy, cache admission and lifetimes are not kinds.
 use super::types::*;
+use crate::domain::operator::contract::presence::{InputMask, PresenceMask, RowFailure};
+use crate::domain::operating::errors::OperatingError;
 use ryo_values::domain::query_operators::types::OperationKind;
 
 /// One semantic input and dependency contract, independent of output delivery.
@@ -163,6 +165,86 @@ pub fn semantics(kind: OperationKind) -> OperationSemantics {
         },
         effects,
         absence: AbsenceMask(absence),
+        presence: presence(kind),
+    }
+}
+
+/// The inputs that must have a row for the operation to answer one: each is implied by the kernel, which emits nothing
+/// from an empty required input. An operation that could answer a row from empty inputs declares `Always`.
+fn presence(kind: OperationKind) -> PresenceMask {
+    use OperationKind::*;
+    match kind {
+        Select | Project | Extend | Capture | Words | Replace | Rank | SpanBetween | SpanBounds
+        | SourceMatches | RenderSyntax | FitsRendered | GroupCount | GroupDigest => {
+            PresenceMask::AllOf(InputMask(1))
+        }
+        Join | Intersection | OrderedMatch => PresenceMask::AllOf(InputMask(3)),
+        Union => PresenceMask::AnyOf(InputMask(3)),
+        // The right input only removes rows.
+        Antijoin | Difference => PresenceMask::AllOf(InputMask(1)),
+        // The walk starts from the rows of the first input.
+        Axis | OrderedDfs => PresenceMask::AllOf(InputMask(1)),
+        // No edge, no pair.
+        Closure | Cycles => PresenceMask::AllOf(InputMask(1)),
+        Rows | Hosted => PresenceMask::Always,
+    }
+}
+
+/// Which inputs' rows can make a prepared operation fail on their values. Replace reads its text column through
+/// `table_texts::datum`, which answers text for every `Value::Symbol` and `Value::File`; a `Value::Name` (a name that
+/// left its file, held under `CellKind::Symbol`) may have none. Names reach a region only through paths that never
+/// skip: cross-file steps, steps downstream of a bound observation, project relations and frontiers. So a per-file
+/// Replace over a resolved Symbol or File column cannot fail on its rows; any other Replace can. Its literal pattern is
+/// checked by the presence fold, which makes the input fallible when the pattern does not compile.
+fn failure(
+    operation: &ryo_values::domain::plans::types::Operation,
+    inputs: &[crate::domain::operation_schema::types::InputShape<'_>],
+    scope: ryo_values::domain::plan_parts::types::StepScope,
+) -> RowFailure {
+    use ryo_relations::domain::relations::types::CellKind;
+    use ryo_values::domain::plans::types::Operation;
+    match operation {
+        Operation::Replace { text, .. } => {
+            let kind = inputs.first().and_then(|input| input.kinds.get(text.0 as usize));
+            if scope == ryo_values::domain::plan_parts::types::StepScope::PerFile
+                && matches!(kind, Some(CellKind::Symbol | CellKind::File))
+            {
+                RowFailure::Never
+            } else {
+                RowFailure::OnRows(InputMask(1))
+            }
+        }
+        Operation::RenderSyntax { .. }
+        | Operation::FitsRendered { .. }
+        | Operation::SourceMatches { .. }
+        | Operation::SpanBetween { .. }
+        | Operation::SpanBounds { .. } => RowFailure::OnRows(InputMask(1)),
+        Operation::OrderedMatch { .. } | Operation::OrderedDfs { .. } => {
+            RowFailure::OnRows(InputMask(3))
+        }
+        Operation::Select { comparisons, .. } => comparison_failure(comparisons, InputMask(1)),
+        Operation::Join { filter, .. } => comparison_failure(filter, InputMask(2)),
+        Operation::Axis { domain_filter, .. } => comparison_failure(domain_filter, InputMask(4)),
+        _ => RowFailure::Never,
+    }
+}
+
+/// A regular expression read from the row is compiled when a row reaches its comparison, so it can fail on the rows of the
+/// input the comparisons filter. A literal pattern is compiled at first use too: the presence fold compiles it with the
+/// request's matcher, so one refused by its syntax or the size limit makes the input fallible there.
+fn comparison_failure(
+    comparisons: &[ryo_values::domain::plan_parts::types::PlanComparison],
+    input: InputMask,
+) -> RowFailure {
+    use ryo_values::domain::plan_parts::types::{Operand, QueryLiteral, Test};
+    let fallible = comparisons.iter().any(|comparison| {
+        comparison.test == Test::Matches
+            && !matches!(&comparison.right, Operand::Literal(QueryLiteral::Text(_)))
+    });
+    if fallible {
+        RowFailure::OnRows(input)
+    } else {
+        RowFailure::Never
     }
 }
 
@@ -172,6 +254,7 @@ pub(crate) fn prepare_for(
     operation: &ryo_values::domain::plans::types::Operation,
     inputs: &[crate::domain::operation_schema::types::InputShape<'_>],
     bindings: &[ryo_values::domain::query_bindings::types::ParameterBinding],
+    scope: ryo_values::domain::plan_parts::types::StepScope,
 ) -> Result<OperatorContract, crate::domain::operating::errors::OperatingError> {
     if ryo_values::domain::plans::service::kind_of(operation) != expected {
         return Err(crate::domain::operating::errors::OperatingError::WrongOperation);
@@ -268,6 +351,7 @@ pub(crate) fn prepare_for(
         resources,
         empty_results: super::preflight::empty_results(operation, inputs),
         source_gate,
+        failure: failure(operation, inputs, scope),
         row_error,
         literal_pattern,
         predicates,

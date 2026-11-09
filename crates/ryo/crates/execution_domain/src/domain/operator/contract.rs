@@ -3,6 +3,7 @@ pub(crate) mod candidates;
 pub mod context;
 pub(crate) mod driver;
 pub mod failure;
+pub mod presence;
 
 pub(crate) mod graph;
 pub mod graph_view;

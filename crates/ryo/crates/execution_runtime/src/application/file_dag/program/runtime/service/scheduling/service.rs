@@ -24,8 +24,9 @@ impl ProgramExecution {
     ) -> Result<(), OperatingError> {
         self.validate_state(state)?;
         use ryo_execution_domain::domain::readiness::types::{
-            ReadinessAction, ReadinessOutcome, RegionCount, ready_queue::value::ReadyQueue,
+            ReadinessAction, ReadinessOutcome, ready_queue::value::ReadyQueue,
         };
+        use ryo_execution_domain::domain::executable_program::types::RegionCount;
         // Publication delivery and retries must not re-enter readiness work.
         let mut pending = Vec::with_capacity(roots.len());
         for &root in roots {
@@ -77,7 +78,8 @@ impl ProgramExecution {
         *self.readiness_counts.borrow_mut() += counts;
         tracing::trace!(target: EXECUTION_TARGET, event = READINESS_QUEUE,
             preparations = counts.preparations.0, evaluations = counts.evaluations.0,
-            suspensions = counts.suspensions.0, wakeups = counts.wakeups.0);
+            suspensions = counts.suspensions.0, wakeups = counts.wakeups.0,
+            presence_absent = self.readiness_counts.borrow().presence_absent.0);
         result
     }
     pub(crate) fn published(

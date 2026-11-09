@@ -1,10 +1,10 @@
 //! Transition controls for the production readiness queue, without a second evaluator.
 use super::value::ReadyQueue;
 use crate::domain::{
-    executable_program::types::RegionId,
+    executable_program::types::{RegionCount, RegionId},
     operating::errors::OperatingError,
     readiness::types::{
-        ReadinessAction as Action, ReadinessEntryCount, ReadinessOutcome as Outcome, RegionCount,
+        ReadinessAction as Action, ReadinessEntryCount, ReadinessOutcome as Outcome,
     },
 };
 fn diamond_preserves_cohorts_and_wakes_each_actual_waiter_once() {

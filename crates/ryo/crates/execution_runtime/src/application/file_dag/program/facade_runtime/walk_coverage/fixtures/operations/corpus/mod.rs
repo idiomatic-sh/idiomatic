@@ -153,12 +153,10 @@ pub(crate) fn compiled_operations() -> Corpus {
         crate::application::file_dag::fixtures::real_derived_port(),
     )
     .unwrap();
-    let graph =
-        ryo_execution_domain::domain::file_program::service::compile_prepared(&plans, &operators);
-    let program = ryo_execution_domain::domain::executable_program::service::compile(
-        &plans, graph, &Sources, &operators,
-    )
-    .unwrap();
+    let graph = ryo_execution_domain::domain::file_program::service::compile_prepared(&plans, &operators);
+    let program =
+        ryo_execution_domain::domain::executable_program::service::compile(&plans, graph, &Sources, &operators, ryo_execution_domain::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl))
+            .unwrap();
     let mut walk = ryo_execution_domain::domain::shared_walk::types::prepared_walk::value::PreparedWalk::compile(&plans, &bindings);
     walk.retain_program_consumers(&program).unwrap();
     Corpus { program, walk }
@@ -177,10 +175,6 @@ pub(crate) fn compile_program(
         crate::application::file_dag::fixtures::real_derived_port(),
     )
     .unwrap();
-    let graph =
-        ryo_execution_domain::domain::file_program::service::compile_prepared(plans, &operators);
-    ryo_execution_domain::domain::executable_program::service::compile(
-        plans, graph, &Sources, &operators,
-    )
-    .unwrap()
+    let graph = ryo_execution_domain::domain::file_program::service::compile_prepared(plans, &operators);
+    ryo_execution_domain::domain::executable_program::service::compile(plans, graph, &Sources, &operators, ryo_execution_domain::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl)).unwrap()
 }

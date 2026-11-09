@@ -1,5 +1,7 @@
 //! Immutable request-wide file root activation metadata.
 use super::super::types::{InputSource, RegionId};
+use crate::domain::executable_program::presence::types::RegionPresence;
+use crate::domain::executable_program::types::RegionCount;
 use crate::domain::operating::errors::OperatingError;
 use ryo_values::domain::{plan_parts::types::StepScope, records::types::ObservationIndex};
 
@@ -99,5 +101,66 @@ impl FileRuleDemand {
             FrontierSelection::All => 2,
         };
         &self.modes[diagnostic + observations + capture]
+    }
+}
+
+/// A root a file selects as an external reader, and how many readers it has.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct SelectedRoot {
+    /// The root.
+    pub region: RegionId,
+    /// Its readers.
+    pub readers: crate::domain::operator::types::ReaderMultiplicity,
+}
+/// The file roots whose skip formula fails on one file: each publishes the empty table there without demanding an input,
+/// and the file's reader counts never follow its edges. Decided once per file, when the file binds its intents.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct AbsentRoots(AbsentRegions);
+
+impl AbsentRoots {
+    /// The roots a file found absent.
+    pub fn decided(absent: AbsentRegions) -> Self {
+        Self(absent)
+    }
+    /// Whether a region is one of them.
+    pub fn presence(&self, region: RegionId) -> RegionPresence {
+        self.0.presence(region)
+    }
+    /// How many there are.
+    pub fn count(&self) -> RegionCount {
+        self.0.count()
+    }
+}
+
+/// Regions whose skip formula fails on one file, one bit each.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct AbsentRegions(Box<[u64]>);
+
+impl AbsentRegions {
+    /// No region, over a program of `regions` regions.
+    pub fn none(regions: RegionCount) -> Self {
+        Self(vec![0; regions.0.div_ceil(64)].into_boxed_slice())
+    }
+    /// Adds a region; one past the program is ignored.
+    pub fn insert(&mut self, region: RegionId) {
+        if let Some(word) = self.0.get_mut(region.0 / 64) {
+            *word |= 1 << (region.0 % 64);
+        }
+    }
+    /// Whether the set holds a region.
+    pub fn presence(&self, region: RegionId) -> RegionPresence {
+        if self
+            .0
+            .get(region.0 / 64)
+            .is_some_and(|word| word & (1 << (region.0 % 64)) != 0)
+        {
+            RegionPresence::Absent
+        } else {
+            RegionPresence::Present
+        }
+    }
+    /// How many regions it holds.
+    pub fn count(&self) -> RegionCount {
+        RegionCount(self.0.iter().map(|word| word.count_ones() as usize).sum())
     }
 }

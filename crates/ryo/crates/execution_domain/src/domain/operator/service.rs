@@ -13,6 +13,7 @@ pub fn prepare_operator(
     operation: &Operation,
     inputs: &[InputShape<'_>],
     bindings: &[ParameterBinding],
+    scope: ryo_values::domain::plan_parts::types::StepScope,
 ) -> Result<OperatorContract, OperatingError> {
-    super::contract::registration::registered(kind).prepare(operation, inputs, bindings)
+    super::contract::registration::registered(kind).prepare(operation, inputs, bindings, scope)
 }

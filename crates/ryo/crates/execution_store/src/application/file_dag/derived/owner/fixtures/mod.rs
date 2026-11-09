@@ -69,13 +69,8 @@ pub(crate) fn compiled(
         &request,
         ryo_execution_domain::domain::file_program::types::ObservationRequest::Independent,
     );
-    ryo_execution_domain::domain::executable_program::service::compile(
-        plans,
-        graph,
-        &partitions,
-        &request,
-    )
-    .unwrap()
+    ryo_execution_domain::domain::executable_program::service::compile(plans, graph, &partitions, &request, ryo_execution_domain::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl))
+        .unwrap()
 }
 pub(crate) fn source_plan(relation: Relation) -> Plan {
     use ryo_values::domain::{

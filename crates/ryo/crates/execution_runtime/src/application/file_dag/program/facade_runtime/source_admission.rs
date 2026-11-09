@@ -81,6 +81,12 @@ impl Inputs for SourceInputs<'_, '_> {
         self.completion.rebind(rule);
         self.rule = rule;
     }
+    fn presence(
+        &mut self,
+        region: ryo_execution_domain::domain::executable_program::types::RegionId,
+    ) -> ryo_execution_domain::domain::executable_program::presence::types::RegionPresence {
+        self.state.presence(region)
+    }
     fn dependency(
         &self,
         source: ryo_execution_domain::domain::executable_program::types::InputSource,

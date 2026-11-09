@@ -110,7 +110,7 @@ impl FileExecution for FileSession<'_, '_> {
         self.parts.inner.counts(rule)
     }
 }
-pub(super) fn source_rows<'a, 'facts: 'a>(
+pub(crate) fn source_rows<'a, 'facts: 'a>(
     read: &dyn Fn(
         ryo_relations::domain::relations::types::Relation,
     ) -> Result<SourceRows<'facts>, OperatingError>,

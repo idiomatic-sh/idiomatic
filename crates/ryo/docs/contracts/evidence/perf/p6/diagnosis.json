@@ -1,0 +1,134 @@
+{
+ "iteration": "p6",
+ "source": "67cb2b1385230b843e39fb3a3202b179423ad53f",
+ "worker_sha256": "276575e224e52c121cb518c4d7bf1bfc4c9c82880d023ef9e8e0e03087cd304b",
+ "heap_worker_sha256": "61262bc7216b8de36100bab2bc38a2dbd8f02509580b634bbeff1e5efd81b6a1",
+ "staged_digest": "0132c274d68dc22252b09d0551a36617652fd7ffecaff02a246e5bf0448027df",
+ "workloads": [
+  {
+   "name": "one file x 413 (django/__init__.py, tests/admin_views/__init__.py, tests/admin_views/urls.py), cold",
+   "wall_s": 3.842,
+   "cpu_s": 4.77,
+   "peak_mb": 1110,
+   "peak_kb": 1136140,
+   "load": 2.90,
+   "output_sha256_prefix": "61039d5c"
+  },
+  {
+   "name": "100 files x 413, cold",
+   "wall_s": 11.571,
+   "cpu_s": 64.3,
+   "peak_mb": 2027,
+   "peak_kb": 2075704,
+   "load": 2.89,
+   "output_sha256_prefix": "bfcf3857"
+  },
+  {
+   "name": "full Django 413 (2,875 files), cold",
+   "wall_s": 330.8,
+   "cpu_s": 2636,
+   "peak_mb": 3513,
+   "peak_kb": 3597668,
+   "load": 2.85,
+   "output_sha256_prefix": "53b163f4"
+  },
+  {
+   "name": "ruff 0.16.5, full Django, same 413 rules (reference)",
+   "wall_s": 0.145,
+   "cpu_s": 0.63,
+   "peak_mb": 130,
+   "peak_kb": 133444,
+   "load": 2.75
+  }
+ ],
+ "hypotheses": [
+  {
+   "id": "h1",
+   "claim": "Lock contention idles the workers.",
+   "verdict": "refuted",
+   "evidence": "strace -c on full Django: futex 619.7 thread-s over only 6,039 waits (avg 103 ms); /usr/bin/time -v 358 voluntary context switches in 330 s. Few long parks of idle rayon workers, not many short contended waits."
+  },
+  {
+   "id": "h2",
+   "claim": "I/O or the store is a lever.",
+   "verdict": "refuted",
+   "evidence": "strace -c on full Django: read, pread64, statx, lseek, openat and write together under 9 thread-s of 2,636 CPU-s; 1,534,769 pread64 calls cost 3.3 thread-s."
+  },
+  {
+   "id": "h3",
+   "claim": "Parse and syntax facts are a CPU lever.",
+   "verdict": "refuted",
+   "evidence": "perf record --children on full Django: ParseContract::read_file_explicit 0.44%, derived structures 0.90%, cross-file 0.13%, spill and frontier storage 0.07%."
+  },
+  {
+   "id": "h4",
+   "claim": "Rule compilation and program preparation dominate.",
+   "verdict": "refuted",
+   "evidence": "perf record --children: compile_one 0.05% and PrepareUseCase::prepare 0.03% on full Django (31.3% and 22.2% on one file only)."
+  },
+  {
+   "id": "h5",
+   "claim": "The per-file executor is the cost, and most of it is runtime around the kernels.",
+   "verdict": "confirmed",
+   "evidence": "perf record --children on full Django: RequestExecution::run_file 99.2%; RegisteredOperator::evaluate 26.9%; the rest of prepare_roots about 68% (prepare_roots self 10.68%, Slot::touched 2.81%, inspect_available 2.37%)."
+  },
+  {
+   "id": "h6",
+   "claim": "Most (file, rule) evaluations produce nothing for the file.",
+   "verdict": "confirmed",
+   "evidence": "output coverage.evaluated 1,186,980 pairs on full Django, 2,507 with a finding: 99.79% of pairs report nothing. One-file split: about 0.46 CPU-s per near-empty file is program walk."
+  },
+  {
+   "id": "h7",
+   "claim": "Allocation churn in runtime bookkeeping is large.",
+   "verdict": "confirmed",
+   "evidence": "jemalloc prof_accum with jeprof --alloc_objects on full Django: 5,939 M allocations, 2,650 GB; 39.8% under source admission publish, 34.1% under region evaluate; madvise 148,075 calls, 67 thread-s."
+  },
+  {
+   "id": "h8",
+   "claim": "The per-file slot table is a large share of per-file memory.",
+   "verdict": "confirmed",
+   "evidence": "jeprof --cum on the one-file peak dump: Slot::touched (runtime/service/state/service.rs:25) 251.7 MB of 824.7 MB; 723.5 MB at 100 files; 587.2 MB in the full-Django peak."
+  }
+ ],
+ "levers": [
+  {
+   "id": "l1",
+   "rank": 1,
+   "lever": "Do not instantiate or walk rules that cannot match a file: decide from a cheap per-file necessary condition which rule roots run; untouched regions get no slot and no poll.",
+   "evidence": "99.79% of 1,186,980 (file, rule) pairs report nothing (h6); executor 99.2% of full-Django CPU (h5); about 0.46 CPU-s per near-empty file is program walk."
+  },
+  {
+   "id": "l2",
+   "rank": 2,
+   "lever": "Per-file runtime state proportional to work: dense slots for regions that run, a worker-local arena reused across files.",
+   "evidence": "Slot::touched table 251.7 MB one file, 723.5 MB at 100 files (h8); Slot::touched 2.8-4.0% self CPU; Invocation and AdmissionProgress drops 3-5%; 148,075 madvise calls."
+  },
+  {
+   "id": "l3",
+   "rank": 3,
+   "lever": "Stream kernel output instead of buffering whole row sets per kernel.",
+   "evidence": "full-Django peak dump: kernel evaluation rows 1,240 MB (replay/types.rs:19 1,009 MB; lease.rs:265 879 MB; __rust_realloc 1,665 MB live)."
+  },
+  {
+   "id": "l4",
+   "rank": 4,
+   "lever": "Fuse rule passes so per-region runtime overhead is paid once per fused pass.",
+   "evidence": "runtime around kernels 68% of full-Django CPU, 82% at 100 files (h5)."
+  },
+  {
+   "id": "l5",
+   "rank": 5,
+   "lever": "Share the prepared program across workers instead of cloning it.",
+   "evidence": "Operation::clone at values/src/domain/plans/types.rs:44/46 holds 146 MB at the one-file peak; prepare 280 MB and compile 147 MB shared."
+  },
+  {
+   "id": "l6",
+   "rank": 6,
+   "lever": "Close the idle 20% of worker time.",
+   "evidence": "futex 620 thread-s over 6,039 waits; 797% CPU on 10 cores (h1)."
+  }
+ ],
+ "reviewer": "perf-diagnosis",
+ "date": "2026-11-08"
+}

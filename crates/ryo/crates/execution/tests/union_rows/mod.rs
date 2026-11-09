@@ -288,16 +288,15 @@ fn union_preserves_left_source_refusal_and_demands_right_after_empty_left() {
                 assert_eq!(left_reads.get(), 1, "a failed source is not retried");
                 assert_eq!(order.as_slice(), &[Relation::Function]);
             } else {
-                // Accepted publications may resolve the pinned borrowed view more
-                // than once. Those borrows must all precede the right refusal.
+                // Accepted publications may resolve the pinned borrowed view more than once. The file's presence
+                // read is admission's first read, so the right refusal may come before admission's left borrows, and
+                // admission meets it without reading the right side again.
                 assert!(left_reads.get() > 0);
-                assert_eq!(order.last(), Some(&Relation::SemanticChild));
-                let preceding = &order[..order.len() - 1];
-                assert!(!preceding.is_empty());
+                assert_eq!(order.first(), Some(&Relation::Function));
                 assert!(
-                    preceding
+                    order
                         .iter()
-                        .all(|relation| *relation == Relation::Function)
+                        .all(|relation| matches!(relation, Relation::Function | Relation::SemanticChild))
                 );
             }
         }

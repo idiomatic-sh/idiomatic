@@ -12,12 +12,13 @@ impl RegisteredOperator {
         operation: &ryo_values::domain::plans::types::Operation,
         inputs: &[crate::domain::operation_schema::types::InputShape<'_>],
         bindings: &[ryo_values::domain::query_bindings::types::ParameterBinding],
+        scope: ryo_values::domain::plan_parts::types::StepScope,
     ) -> Result<super::types::OperatorContract, crate::domain::operating::errors::OperatingError>
     {
         if ryo_values::domain::plans::service::kind_of(operation) != self.kind {
             return Err(crate::domain::operating::errors::OperatingError::WrongOperation);
         }
-        super::service::prepare_for(self.kind, operation, inputs, bindings)
+        super::service::prepare_for(self.kind, operation, inputs, bindings, scope)
     }
     /// Evaluates an operation through the operators' one meaning of its kind.
     pub fn evaluate(

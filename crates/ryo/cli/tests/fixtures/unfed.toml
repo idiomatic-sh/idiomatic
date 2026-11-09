@@ -127,3 +127,6 @@ why = "no recorded rule reads it; the Python I001 query does."
 
 [feature."relation:TokenLink"]
 why = "no recorded rule reads it."
+
+[feature."relation:Annotates"]
+why = "regions only rules absent on a file reach are not run there: the rules that read `annotates` cannot match most of ruff's files, so it is fed only where they can (31 rows)."

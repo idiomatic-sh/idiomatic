@@ -13,6 +13,7 @@ pub(super) const PHASE_DEPENDENCY: &str = "dependency";
 pub(super) const PHASE_AVAILABILITY: &str = "availability";
 pub(super) const PHASE_PHYSICAL: &str = "physical";
 pub(super) const READINESS_QUEUE: &str = "readiness_queue";
+pub(super) const PRESENCE_FILE: &str = "presence_file";
 pub(super) const REGION_FAILURE: &str = "region_failure";
 pub(super) const REGION_POLL: &str = "region_poll";
 pub(super) const OUTCOME_MISSING: &str = "missing";

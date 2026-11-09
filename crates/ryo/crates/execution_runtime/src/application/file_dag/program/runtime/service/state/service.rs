@@ -7,7 +7,7 @@ use crate::application::file_dag::program::admission::Partition;
 use crate::application::file_dag::program::runtime::types::CallCount;
 #[cfg(test)]
 use crate::application::file_dag::program::runtime::types::ReaderInitializations;
-use crate::application::file_dag::program::runtime::types::{Dependencies, ReaderCount};
+use crate::application::file_dag::program::runtime::types::{Dependencies, ReaderCount, Touch};
 use ryo_execution_domain::domain::executable_program::types::RegionId;
 use ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
@@ -35,6 +35,8 @@ impl Slot {
             None => state.initial_remaining(program, id)?,
         };
         let cancelled = remaining.0 == 0;
+        // An absent root owes no input: the walk never counted its edges, so nothing is released when it publishes.
+        let absent = state.absent.borrow().presence(id) == ryo_execution_domain::domain::executable_program::presence::types::RegionPresence::Absent;
         // Compiled obligations include roots in other project populations. They
         // remain a conservative upper bound until phase finish; no bank may
         // retire another population's publication or claim exact last use.
@@ -56,7 +58,7 @@ impl Slot {
             ]
             .into_boxed_slice(),
             remaining,
-            dependencies_consumed: if cancelled {
+            dependencies_consumed: if cancelled || absent {
                 Dependencies::Consumed
             } else {
                 Dependencies::Pending
@@ -87,7 +89,28 @@ impl RuntimeState {
                 retired_states: Vec::new(),
                 retired_scratch: Vec::new(),
             }),
+            absent: RefCell::new(Default::default()),
+            interior: RefCell::new(Default::default()),
+            refused: RefCell::new(Vec::new()),
         }
+    }
+    /// The refusal the file's presence read met for this source, which admission meets in its place.
+    pub(crate) fn refusal(
+        &self,
+        relation: ryo_relations::domain::relations::types::Relation,
+    ) -> Option<OperatingError> {
+        self.refused
+            .borrow()
+            .iter()
+            .find(|refusal| refusal.relation == relation)
+            .map(|refusal| refusal.error.clone())
+    }
+    /// Whether a region the file's admitted roots reach has a skip formula that fails on the file.
+    pub(crate) fn presence(
+        &self,
+        id: RegionId,
+    ) -> ryo_execution_domain::domain::executable_program::presence::types::RegionPresence {
+        self.interior.borrow().presence(id)
     }
     pub(crate) fn initial_remaining(
         &self,
@@ -105,7 +128,8 @@ impl RuntimeState {
                 .map(|region| ReaderCount(region.consumers().0))
                 .ok_or_else(|| OperatingError::NotRun),
             RootReaders::Selected(selected) => {
-                Ok(ReaderCount(ryo_execution_domain::domain::executable_program::file_demand::service::reader_count(selected, id).0))
+                ryo_execution_domain::domain::executable_program::file_demand::service::reader_count(selected, id)
+                    .map(|count| ReaderCount(count.0))
             }
         }
     }
@@ -153,35 +177,82 @@ impl ProgramExecution {
             producer_lease_probe: RefCell::new(None),
         }
     }
-    /// Bind the immutable declared file intents before any region is touched.
-    pub(crate) fn activate_file_roots(&self, readers: &[RegionId]) -> Result<(), OperatingError> {
-        if !matches!(self.partition, Partition::File(_))
-            || !self.file_state.slots.borrow().is_empty()
-            || !self.file_state.dormant.borrow().is_empty()
-            || !matches!(*self.file_state.roots.borrow(), RootReaders::Declared)
-        {
+    /// Bind the immutable declared file intents before any region is touched: the reader counts of one walk from the
+    /// admitted roots that stops at the absent ones.
+    pub(crate) fn activate_file_roots(
+        &self,
+        readers: &[RegionId],
+        absent: ryo_execution_domain::domain::executable_program::file_demand::types::AbsentRoots,
+    ) -> Result<(), OperatingError> {
+        if !matches!(self.partition, Partition::File(_)) || self.touched() == Touch::Touched {
             return Err(OperatingError::NotRun);
         }
-        let mut selected = std::collections::HashMap::new();
+        let mut counted = rustc_hash::FxHashMap::<RegionId, usize>::default();
         for &root in readers {
-            if !self.program.file_readers().consumers.contains_key(&root) {
+            if !self.program.file_readers().roots.contains(&root) {
                 return Err(OperatingError::NotRun);
             }
-            selected
-                .entry(root)
-                .or_insert(ryo_execution_domain::domain::operator::types::ReaderMultiplicity(0))
-                .0 += 1;
+            *counted.entry(root).or_default() += 1;
         }
-        let remaining =
-            ryo_execution_domain::domain::executable_program::file_demand::service::remaining(
-                self.program.file_readers(),
-                self.program.regions(),
-                &selected,
-            )?;
-        *self.file_state.roots.borrow_mut() = RootReaders::Selected(remaining.table);
+        let selected: Vec<_> = counted
+            .into_iter()
+            .map(|(region, count)| {
+                ryo_execution_domain::domain::executable_program::file_demand::types::SelectedRoot {
+                    region,
+                    readers: ryo_execution_domain::domain::operator::types::ReaderMultiplicity(count),
+                }
+            })
+            .collect();
+        let table = ryo_execution_domain::domain::executable_program::file_demand::service::table(
+            self.program.regions(),
+            &selected,
+            &absent,
+        )?;
+        *self.file_state.roots.borrow_mut() = RootReaders::Selected(Arc::new(table));
+        *self.file_state.absent.borrow_mut() = absent;
         Ok(())
     }
-    pub(crate) fn validate_state(&self, state: &RuntimeState) -> Result<(), OperatingError> {
+    /// Whether the file scope has touched a region: before it has, its reader counts may be bound again.
+    pub(crate) fn touched(&self) -> Touch {
+        if self.file_state.slots.borrow().is_empty() && self.file_state.dormant.borrow().is_empty() {
+            Touch::Untouched
+        } else {
+            Touch::Touched
+        }
+    }
+    /// The regions the file's walk counted a reader for: what its admitted roots can reach, and its absent roots.
+    pub(crate) fn reached(&self) -> Vec<RegionId> {
+        match &*self.file_state.roots.borrow() {
+            RootReaders::Selected(table) => {
+                let mut reached = Vec::with_capacity(table.counts.len());
+                reached.extend(
+                    table
+                        .counts
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, count)| count.0 > 0)
+                        .map(|(at, _)| RegionId(at)),
+                );
+                reached
+            }
+            RootReaders::Declared => Vec::new(),
+        }
+    }
+    /// The regions found absent at admission: interior regions of admitted rules whose skip formula fails on the file.
+    pub(crate) fn mark_interior(
+        &self,
+        interior: ryo_execution_domain::domain::executable_program::file_demand::types::AbsentRegions,
+    ) {
+        *self.file_state.interior.borrow_mut() = interior;
+    }
+    /// The file's presence read met this source refused: its refusal is the file's refusal for the source.
+    pub(crate) fn refuse_source(&self, refusal: crate::application::file_dag::program::runtime::types::SourceRefusal) {
+        self.file_state.refused.borrow_mut().push(refusal);
+    }
+    pub(crate) fn validate_state(
+        &self,
+        state: &RuntimeState,
+    ) -> Result<(), OperatingError> {
         if ryo_execution_store::application::file_dag::relations::generation::service::GenerationLease::same(&self.generation, &state.generation) == ryo_execution_store::application::file_dag::relations::types::Sameness::Same && self.generation.is_live() == ryo_execution_store::application::file_dag::relations::types::Liveness::Live {
             Ok(())
         } else {

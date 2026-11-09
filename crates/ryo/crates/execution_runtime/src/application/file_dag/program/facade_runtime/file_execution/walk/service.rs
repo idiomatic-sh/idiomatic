@@ -11,8 +11,12 @@ use crate::application::file_dag::program::facade_runtime::file_execution::class
 use crate::application::file_dag::program::facade_runtime::file_execution::readiness_of;
 use crate::application::file_dag::program::facade_runtime::source_admission::SourceInputs;
 use crate::application::file_dag::program::facade_runtime::types::{
-    DeclaredIntent, FileRoot, FrontierCommit, NamedReadiness, PreparedNamed, WalkPreparation,
+    DeclaredIntent, FileRoot, FrontierCommit, NamedReadiness, PendingActivation, PreparedNamed, PresenceGate,
+    RootCandidate, WalkPreparation,
 };
+use crate::application::file_dag::program::constants::{EXECUTION_TARGET, PRESENCE_FILE};
+use ryo_execution_domain::domain::executable_program::file_demand::types::AbsentRoots;
+use ryo_execution_domain::domain::executable_program::presence::types::RegionPresence;
 use crate::application::file_dag::program::native_walk::Deliveries;
 use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
@@ -33,12 +37,24 @@ impl FileRun<'_> {
         use ryo_execution_domain::domain::executable_program::file_demand::types::{
             FileDemand, FileRootDemand as DemandRoot, FrontierSelection, RootSelection,
         };
-        let ScopePartials::File { publication, .. } = &self.partials else {
+        let ScopePartials::File {
+            evaluation,
+            publication,
+        } = &self.partials
+        else {
             return Err(OperatingError::WrongOperation);
+        };
+        // The presence gate: off on any file with a partial read, where every root runs in full.
+        let gate = if evaluation.is_empty() && publication.is_empty() {
+            PresenceGate::On
+        } else {
+            PresenceGate::Off
         };
         let mut seen = rustc_hash::FxHashSet::default();
         let mut readers = Vec::new();
         let mut demanded = Vec::new();
+        // Each run rule's prepared roots, which the presence gate may find absent.
+        let mut candidates: Vec<RootCandidate> = Vec::new();
         for (index, intent) in self.intents.iter().copied().enumerate() {
             let rule = RuleIndex(index);
             let compiled = self.program.file_demand(rule)?;
@@ -144,6 +160,9 @@ impl FileRun<'_> {
                 if seen.insert(id) {
                     self.prepared_roots.push(id);
                 }
+                if matches!(intent, FileRuleIntent::Run { .. }) {
+                    candidates.push(RootCandidate { rule, region: id });
+                }
             }
             match intent {
                 FileRuleIntent::Skipped(reason) => {
@@ -177,10 +196,77 @@ impl FileRun<'_> {
                 _ => {}
             }
         }
-        self.execution.activate_file_roots(&readers)?;
+        self.execution
+            .activate_file_roots(&readers, AbsentRoots::default())?;
+        self.activation = Some(PendingActivation {
+            readers,
+            candidates,
+            gate,
+        });
         Ok(demanded)
     }
-    pub(crate) fn declared(&self, rule: RuleIndex) -> Result<DeclaredIntent, OperatingError> {
+    /// Binds the file's selected roots before its first region is touched: the roots presence finds absent on the file's
+    /// rows, the reader counts of one walk from the admitted roots, and the reached regions that are absent too.
+    pub(crate) fn activate<'facts>(
+        &mut self,
+        read: &dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
+        symbols: &ryo_language::domain::symbols::types::Symbols,
+    ) -> Result<(), OperatingError> {
+        let Some(PendingActivation {
+            readers,
+            candidates,
+            gate,
+        }) = self.activation.take()
+        else {
+            return Ok(());
+        };
+        // Presence reads the file's rows, so it binds when the first entry point reads the file; the counts bound at open
+        // stand until then, and stand for good once a region was touched.
+        if self.execution.touched()
+            == crate::application::file_dag::program::runtime::types::Touch::Touched
+        {
+            return Ok(());
+        }
+        let source = self.source;
+        let started = tracing::enabled!(target: EXECUTION_TARGET, tracing::Level::TRACE)
+            .then(std::time::Instant::now);
+        let decided = self.decide_presence(read, symbols, source, gate, &candidates)?;
+        let presence_elapsed = started.map(|started| started.elapsed());
+        if decided.count().0 > 0 {
+            self.execution
+                .activate_file_roots(&readers, AbsentRoots::decided(decided.clone()))?;
+        }
+        let walk_elapsed = started.map(|started| started.elapsed());
+        let interior = self.decide_interior(read, symbols, source, gate, &decided)?;
+        if let (Some(started), Some(presence_elapsed), Some(walk_elapsed)) =
+            (started, presence_elapsed, walk_elapsed)
+        {
+            let mut skipped = Vec::new();
+            for (at, candidate) in candidates.iter().enumerate() {
+                let rule = candidate.rule;
+                if candidates[..at].iter().any(|earlier| earlier.rule == rule) {
+                    continue;
+                }
+                if candidates
+                    .iter()
+                    .filter(|each| each.rule == rule)
+                    .all(|each| decided.presence(each.region) == RegionPresence::Absent)
+                {
+                    skipped.push(self.program.rule_id(rule)?.0.clone());
+                }
+            }
+            tracing::trace!(target: EXECUTION_TARGET, event = PRESENCE_FILE, file = self.file.0,
+                gate = ?gate, absent_roots = decided.count().0, interior = interior.count().0, skipped = ?skipped,
+                presence_ns = presence_elapsed.as_nanos() as u64,
+                walk_ns = walk_elapsed.saturating_sub(presence_elapsed).as_nanos() as u64,
+                interior_ns = started.elapsed().saturating_sub(walk_elapsed).as_nanos() as u64);
+        }
+        Ok(())
+    }
+    pub(crate) fn declared(
+        &self,
+        rule: RuleIndex,
+    ) -> Result<DeclaredIntent, OperatingError> {
         match self.intents.get(rule.0) {
             Some(FileRuleIntent::Run {
                 diagnostic,
@@ -202,6 +288,8 @@ impl FileRun<'_> {
         if self.walk_prepared == WalkPreparation::Prepared {
             return Ok(());
         }
+        self.context.validate(symbols)?;
+        self.activate(read, symbols)?;
         let Some(first) = self.prepared_roots.first() else {
             self.walk_prepared = WalkPreparation::Prepared;
             return Ok(());
@@ -298,3 +386,4 @@ impl FileRun<'_> {
         Ok(())
     }
 }
+

@@ -6,7 +6,7 @@ use crate::domain::{
     coverage::types::RuleIndex,
     executable_program::types::{
         FileReaderGraph, InputSource, ObservationPlace, PartitionRequirement, RegionId,
-        RemainingMemo, SourcePartition, region::value::Region,
+        SourcePartition, region::value::Region,
     },
     operating::errors::OperatingError,
 };
@@ -28,10 +28,7 @@ fn program() -> ExecutableProgram {
     }]));
     ExecutableProgram::new(
         Box::new([region]),
-        FileReaderGraph {
-            consumers: std::collections::HashMap::new(),
-            remaining: std::sync::Mutex::new(RemainingMemo::default()),
-        },
+        FileReaderGraph::default(),
         Box::new([]),
         Box::new([RegionId(0)]),
         Box::new([Ok(RegionId(0)), Err(OperatingError::NotRead)]),

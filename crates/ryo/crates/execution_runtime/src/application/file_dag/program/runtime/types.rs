@@ -114,6 +114,32 @@ pub(crate) struct CallCount(pub usize);
 #[derive(Clone, Copy, Default, Debug, PartialEq, Eq)]
 pub(crate) struct ReaderInitializations(pub usize);
 
+/// Whether a scope holds an entry for a region, observed only by tests.
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum SlotHolding {
+    Held,
+    Missing,
+}
+/// Whether a scope holds a slot and a dormant reader count for a region, observed only by tests.
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct Instantiation {
+    pub(crate) slot: SlotHolding,
+    pub(crate) dormant: SlotHolding,
+}
+/// A source the file's presence read met refused: admission meets the same refusal without asking the provider again.
+#[derive(Clone, Debug)]
+pub(crate) struct SourceRefusal {
+    pub(crate) relation: ryo_relations::domain::relations::types::Relation,
+    pub(crate) error: ryo_execution_domain::domain::operating::errors::OperatingError,
+}
+/// Whether a scope has touched any region yet.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Touch {
+    Untouched,
+    Touched,
+}
 /// Whether a region's dependencies were already released by its consumers.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Dependencies {

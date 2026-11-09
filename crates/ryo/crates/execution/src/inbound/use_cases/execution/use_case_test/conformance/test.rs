@@ -111,14 +111,18 @@ pub(crate) fn compare_delivery_with_port(
     refusal: RefusalOutcome,
     port: Arc<dyn OperatorsPort>,
 ) -> Result<ObservedDelivery, OperatingError> {
-    use ryo_values::domain::{
-        files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
-        query_tokens::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
-        rule_requests::types::{RuleParameters, RuleSpec},
-        runs::types::{RuleApplicability, RuleId},
-        stored_facts::types::Digest,
-    };
-    let schema = ryo_execution_domain::domain::operation_schema::service::schema_of(
+    let schema = schema(operation, inputs, bindings);
+    let authored = author(operation, inputs, bindings, symbols);
+    deliver(authored, schema, inputs.len(), bindings, source, symbols, stop, semantic, refusal, port)
+}
+
+/// The operation's output schema over these input tables.
+pub(crate) fn schema(
+    operation: &Operation,
+    inputs: &[Table],
+    bindings: &[ryo_values::domain::query_bindings::types::ParameterBinding],
+) -> Result<Vec<CellKind>, OperatingError> {
+    ryo_execution_domain::domain::operation_schema::service::schema_of(
         operation,
         &inputs
             .iter()
@@ -130,9 +134,18 @@ pub(crate) fn compare_delivery_with_port(
             )
             .collect::<Vec<_>>(),
         bindings,
-    );
+    )
+}
+
+/// The authored plan of an operation over these input tables.
+pub(crate) fn author(
+    operation: &Operation,
+    inputs: &[Table],
+    bindings: &[ryo_values::domain::query_bindings::types::ParameterBinding],
+    symbols: &mut Symbols,
+) -> inputs::AuthoredRows {
     let refs = inputs.iter().collect::<Vec<_>>();
-    let authored = if matches!(operation, Operation::SpanBetween { .. }) {
+    if matches!(operation, Operation::SpanBetween { .. }) {
         use ryo_values::domain::plan_parts::types::{Input, JoinColumn, Side, StepId};
         let left = Table {
             kinds: vec![CellKind::Span],
@@ -182,6 +195,29 @@ pub(crate) fn compare_delivery_with_port(
         a
     } else {
         inputs::table_inputs(operation.clone(), &refs, bindings, symbols)
+    }
+}
+
+/// Delivers an authored plan through the real prepare, open_file, collect and forward protocol.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn deliver(
+    authored: inputs::AuthoredRows,
+    schema: Result<Vec<CellKind>, OperatingError>,
+    width: usize,
+    bindings: &[ryo_values::domain::query_bindings::types::ParameterBinding],
+    source: &[u8],
+    symbols: &mut Symbols,
+    stop: Option<usize>,
+    semantic: Option<&dyn SemanticLookup>,
+    refusal: RefusalOutcome,
+    port: Arc<dyn OperatorsPort>,
+) -> Result<ObservedDelivery, OperatingError> {
+    use ryo_values::domain::{
+        files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
+        query_tokens::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
+        rule_requests::types::{RuleParameters, RuleSpec},
+        runs::types::{RuleApplicability, RuleId},
+        stored_facts::types::Digest,
     };
     let emit = authored.plan.emit.step;
     let engine = Preparation::new(port, Arc::new(owner_fixtures::derived()));
@@ -221,7 +257,7 @@ pub(crate) fn compare_delivery_with_port(
                 collected: Err(error.clone()),
                 rows: vec![],
                 stream_error: Some(error),
-                visits: vec![0; inputs.len()],
+                visits: vec![0; width],
             });
         }
     };
@@ -294,7 +330,7 @@ pub(crate) fn compare_delivery_with_port(
         _ => panic!("declared per-file operation must settle"),
     };
     let visits =
-        collected_file.counts(RuleIndex(0))?.fed[emit.0 as usize].0[..inputs.len()].to_vec();
+        collected_file.counts(RuleIndex(0))?.fed[emit.0 as usize].0[..width].to_vec();
     collected_file.finish()?;
     let forward_intent = [FileRuleIntent::Run {
         diagnostic: DiagnosticDelivery::Forwarded,
@@ -326,7 +362,7 @@ fn all_registrations_refuse_a_foreign_variant() -> Result<(), Failure> {
     for (at, kind) in OperationKind::ALL.iter().enumerate() {
         let foreign = fixture(OperationKind::ALL[(at + 1) % OperationKind::ALL.len()]);
         assert!(matches!(
-            prepare_operator(*kind, &foreign.operation, &[], &[]),
+            prepare_operator(*kind, &foreign.operation, &[], &[], ryo_values::domain::plan_parts::types::StepScope::PerFile),
             Err(OperatingError::WrongOperation)
         ));
     }

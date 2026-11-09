@@ -196,17 +196,19 @@ fn subject((operator, missing, delivery): Input) -> Result<Value, Failure> {
             );
         }
         Missing::Second => {
-            let (last, prefix) = history.split_last().expect("RHS must actually be demanded");
-            assert_eq!(*last, Relation::Comment);
-            assert!(
-                !prefix.is_empty(),
-                "nonempty successful LHS is demanded first"
+            // The file's presence read is admission's first read: it may meet the refused RHS before admission's
+            // pinned LHS borrows, and admission meets that refusal without reading the RHS again.
+            assert_eq!(history.first(), Some(&Relation::Function), "nonempty successful LHS is demanded first");
+            assert_eq!(
+                history.iter().filter(|relation| **relation == Relation::Comment).count(),
+                1,
+                "RHS refusal occurs exactly once, with no subsequent producer read"
             );
             assert!(
-                prefix
+                history
                     .iter()
-                    .all(|relation| *relation == Relation::Function),
-                "RHS refusal occurs exactly once, with no subsequent producer read"
+                    .all(|relation| matches!(relation, Relation::Function | Relation::Comment)),
+                "only the LHS borrows repeat"
             );
         }
     }

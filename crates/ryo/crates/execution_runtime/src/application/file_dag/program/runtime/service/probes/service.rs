@@ -17,6 +17,19 @@ use ryo_execution_domain::domain::executable_program::types::RegionId;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 
 impl ProgramExecution {
+    /// Whether the file scope holds a slot, or a dormant reader count, for a region: a region never instantiated has neither.
+    #[cfg(test)]
+    pub(crate) fn instantiated(
+        &self,
+        id: RegionId,
+    ) -> crate::application::file_dag::program::runtime::types::Instantiation {
+        use crate::application::file_dag::program::runtime::types::{SlotHolding, Instantiation};
+        let held = |present| if present { SlotHolding::Held } else { SlotHolding::Missing };
+        Instantiation {
+            slot: held(self.file_state.slots.borrow().contains_key(&id)),
+            dormant: held(self.file_state.dormant.borrow().contains_key(&id)),
+        }
+    }
     /// Observe actual release boundaries without retaining a producer or a backing lease.
     #[cfg(test)]
     pub(crate) fn observe_producer_releases(
