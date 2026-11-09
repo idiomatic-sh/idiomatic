@@ -48,3 +48,8 @@ Each failed check's findings become beads (one per finding class, all instances 
 
 ## Per-branch result
 A review of a builder branch head is written (by the rule in Output) to `crates/ryo/docs/contracts/evidence/branches/<branch-name-with-slashes-as-dashes>.json` (same fields, `source` the branch head sha); the guard hook refuses a merge into a checkpoint without its PASS.
+
+## Budget and stop
+- **Time budget: 45 minutes** from the first tool call. At the budget, decide from what is proved: an item or check without evidence is FAIL, as everywhere in this review. Never extend the pass to finish an investigation.
+- **Verdict file first.** Write the JSON (`leak-review.json`, or `branches/<branch>.json` for a branch head) the moment the verdict is decided, before the write-up; then write the Markdown report. The SubagentStop hook (`.claude/hooks/acceptance_on_stop.py`) holds a stop until the verdict file is in the `INTEGRATION_TREE` the prompt names, written during this run, with `reviewer` and `verdict` set; the only other stop is `BLOCKED: <one question>`.
+- **One attempt at a hard residual.** A question that one probe, plant or reading does not settle is documented, not chased: the finding, what was tried, the evidence it gave, and the probe that would settle it. It is a FAIL when it leaves an item without evidence, and an advisory otherwise.

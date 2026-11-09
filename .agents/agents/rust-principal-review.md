@@ -74,3 +74,8 @@ The tool-based notes below are read from the output of the standard tools the PM
 
 ## On FAIL
 Each failed item's findings become beads (one per finding class, all instances listed, with file:line). The landing does not push: `.claude/hooks/guard_shell.py` refuses any `git push` naming `claude/ryo-consolidation` unless HEAD's `rust-review.json` has verdict PASS and a source that is an ancestor of HEAD. The landing pushes only after the findings are repaired and a fresh review passes, or after the owner overrules the FAIL in writing; the overrule is quoted in the bead, the FAIL `rust-review.json` stays committed, and the owner, not an agent, pushes.
+
+## Budget and stop
+- **Time budget: 45 minutes** from the first tool call. At the budget, decide from what is proved: an item or check without evidence is FAIL, as everywhere in this review. Never extend the pass to finish an investigation.
+- **Verdict file first.** Write `rust-review.json` the moment the verdict is decided, before the write-up; then write the Markdown report. The SubagentStop hook (`.claude/hooks/acceptance_on_stop.py`) holds a stop until the verdict file is in the `INTEGRATION_TREE` the prompt names, written during this run, with `reviewer` and `verdict` set; the only other stop is `BLOCKED: <one question>`.
+- **One attempt at a hard residual.** A question that one probe, plant or reading does not settle is documented, not chased: the finding, what was tried, the evidence it gave, and the probe that would settle it. It is a FAIL when it leaves an item without evidence, and an advisory otherwise.

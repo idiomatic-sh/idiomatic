@@ -31,6 +31,7 @@ Require immutable commits, exact source/diff, approved claim, matrix,
 test receipts and explicit exclusions. Performance requires matched full configured
 rule inventories, corpus, and settings; singleton runs are diagnostic only.
 Record HEAD/status before and after; discard source-mutating passes.
+The change-amplification numbers are `validation.json` `census` (the `census` command, `run.py --census`); compare them with the previous checkpoint's committed `validation.json`, never recount by hand.
 Check source/evidence hashes; reuse only proven-identical executed postimages.
 A bounded review never closes wider architecture categories.
 Refuse a request that lacks the three receipts of the [review README](../../crates/ryo/docs/contracts/review/README.md): `tm check` over its scope at 0 findings and 0 suppressed, `run.py --check` exit 0, and the `no_print` target green with file-level cycles 0 in `validation.json`.
@@ -66,3 +67,8 @@ This file is not enforcement. The `contract-review` CI job (`ci/contract_review/
 
 ## Matrix upkeep
 Verify the affected contract and crate matrix rows against each reviewed batch and its actual tests. Flag stale owners, paths, claims or missing rows as review failures. Identify the implementer responsible for correcting them; do not approve documentation that outruns the code.
+
+## Budget and stop
+- **Time budget: 60 minutes** from the first tool call. At the budget, decide from what is proved: an item or check without evidence is FAIL, as everywhere in this review. Never extend the pass to finish an investigation.
+- **Verdict file first.** Write `contract-review.json` the moment the verdict is decided, before the write-up; then write the Markdown report. The SubagentStop hook (`.claude/hooks/acceptance_on_stop.py`) holds a stop until the verdict file is in the `INTEGRATION_TREE` the prompt names, written during this run, with `reviewer` and `verdict` set; the only other stop is `BLOCKED: <one question>`.
+- **One attempt at a hard residual.** A question that one probe, plant or reading does not settle is documented, not chased: the finding, what was tried, the evidence it gave, and the probe that would settle it. It is a FAIL when it leaves an item without evidence, and an advisory otherwise.
