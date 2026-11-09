@@ -74,3 +74,6 @@ each red test with its red rows.
 Both modes print the scope delta against `validation.json` at `HEAD`: each
 newly scoped directory with its finding count, and each directory no longer
 scoped. The checkpoint commit message carries these lines.
+
+## Red-then-green record
+For each fix (a change to production behaviour) the integrator records the test id the builder named, the base sha where it fails (red) and the merge sha where it passes (green). Docs-only, evidence-only and perf changes are exempt. See the [Builder test rule](../../review/README.md#builder-test-rule).
