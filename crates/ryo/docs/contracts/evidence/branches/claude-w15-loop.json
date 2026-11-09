@@ -1,6 +1,6 @@
 {
  "branch": "claude/w15-loop",
- "source": "25b93d6312b6bb1b07f46fe7447d7a86b5f0975c",
+ "source": "b59b22c6e72b9c84f63c1ca0bcc2a8395dfddca5",
  "base": "dcea2ee7df",
  "verdict": "FAIL",
  "reviewer": "leak-review",
@@ -8,333 +8,93 @@
   {
    "id": "1",
    "verdict": "PASS",
-   "evidence": "The repair range cde5651c7d..25b93d6312 changes no Rust source and no manifest; dcea2ee7df..25b93d6312 changes only crates/ryo/Cargo.toml:149-152 (two clippy lints) among Rust files. No engine, core or SDK contract is asserted from benchmarks/ or languages/; run.py --census (run.py:484-506) reads sources statically and proves nothing."
+   "evidence": "dcea2ee7df..b59b22c6e7 changes no Rust source; the only manifest edit is crates/ryo/Cargo.toml:149-152. The census reads sources statically and proves nothing."
   },
   {
    "id": "2",
    "verdict": "FAIL",
-   "evidence": "Every earlier plant is now refused (plants list). New escapes, each passing with exit 0: (a) builder lane: guard_shell.py:87 consumes one word per option, so a short cluster ending in a value flag leaves its value as the lock operand and the lock path as the command word; `flock -sw 5 /workspaces/.cargo-build.lock cargo test --workspace` (a shared lock, all members) and `... cargo build --workspace` are invisible to every cargo rule; the same holds for xargs -0n 1, timeout -vs KILL 5, env -iu X, env -iC, ionice -tc 2. `flock LOCK -c '...'`, `env --split-string=...` and `rustup run stable cargo build --workspace` also hide cargo (guard_shell.py:62, 83, 90). `cargo --config check test -p pa --target-dir <check target>` reads as a check because the verb is the first non-dash word (guard_shell.py:341). (b) push to main: `GIT_CONFIG_PARAMETERS=\"'push.default=matching'\" git push origin`, `GIT_CONFIG_COUNT=1 ...remote.origin.push=HEAD:refs/heads/main git push origin`, `git -c alias.p=push p origin HEAD:main`, `git config push.default matching; git push origin` and `git send-pack` pass; dry-run --porcelain on a scratch remote shows refs/heads/main updated (guard_shell.py:388, 440-455). (c) reviewer hold: token() takes the first NAME= match (acceptance_on_stop.py:62); a prompt that quotes the previous SOURCE= before the current one releases a verdict for the old sha. (d) FIX: a behaviour change typed refactor: or perf: is exempt by its own label (run.py:336); README.md:89 says refactor is judged by the Rust gate, but rust-principal-review.md has no refactor check (0 matches), and the perf gate demands identical_output only when the message states a number (guard_shell.py:808-809), so the exemption is a leak. A fix in ci/contract_review/service.py or run.py is not production (run.py:335); merge commits are skipped (run.py:375); hand-written red and green logs for a test that never ran pass (run.py:367). (e) DOC: a top-level pub fn whose name is pub at top level in another module of the crate is exempt (run.py:439, owner None); a bare `/// # Examples` heading passes (run.py:441). (f) census: `type O = Operation;` takes exhaustive matches 24 to 23 (run.py:481); a `#[cfg(test)] mod x {}` at the top of a production file moves the whole file to test (run.py:476, exhaustive 24 to 23); renaming a cfg(test) module file off test.rs takes cross_crate_tests 51 to 50 and production 41 to 42 (run.py:471); a decoy `pub struct AdmittedOutput;` in another crate drops vocabulary 68 to 67 (run.py:494). Unit suites stay green (test_hooks 146 OK, run_test 31 OK), so none of these is covered. The clippy deny lints (Cargo.toml:151-152) remain unplanted: the guard refuses clippy outside an integration tree."
+   "evidence": "FAIL on one variant of the round-4 class. The round-4 escape is closed: run.py:524-536 counts `<`/`>` only while header is true and sets header false at the first `{`, and literal_end (run.py:510-521) skips //, /* */, strings, raw strings and char literals while leaving lifetimes alone. Re-planted in a git archive copy, each before a method matching 8 Operation variants in the same impl (baseline 24, 25 with the method): `self.seen < 4`, `n << 2`, `if n < 4 {}`, '{', \"(\", r#\"}{\"#, a `}` in a comment, lifetimes, nested generics with a closure comparison and a where clause all stay at 25. Escape: the header runs to the first `{` or `;`, so an initializer is header too. `#[cfg(test)] const LIMIT: usize = 1 << 10;` or `const SMALL: bool = 3 < 4;` leaves the depth above 0 at its `;` (run.py:529, 531), and the following production method counts as test (25 to 24). The shape is ordinary in this tree: core/src/outbound/lint_store/adapters/memory/constants.rs:4-5 is a #[cfg(test)] const in a production file, and core/src/domain/ordering/service.rs:138, 153 and execution_domain/src/domain/comparing/service.rs:33 are `1 << 20`-style consts. Rounds 1-4 still hold: .claude/ is byte-identical to 1c2a73da64 and test_hooks passes with the flock --wait/--shared and repeated-token cases (test_hooks.py:171-191, 1385-1403); is_test_file keeps use_case_test/ as test and latest/, contest/ as production; a cfg(test) field still ends at its comma; run_test passes (41 tests)."
   },
   {
    "id": "3",
    "verdict": "PASS",
-   "evidence": "No visibility, package allowlist, import boundary or feature change: the only manifest edit is the [workspace.lints] table at crates/ryo/Cargo.toml:149-152, which every package crate inherits."
+   "evidence": "No visibility, allowlist, import boundary or feature change; the repair 1c2a73da64..b59b22c6e7 touches only run.py and run_test.py."
   },
   {
    "id": "4",
-   "verdict": "FAIL",
-   "evidence": "The earlier finding is fixed: acceptance_on_stop.py:66-80 shape_problem calls shape() in ci/contract_review/service.py, and review/README.md lists it as the third caller. New: run.py now holds three definitions of a test file that disagree. is_test_path (run.py:18, '/test' substring) splits tm findings; validate's is_test (run.py:520-522) splits finding counts; this branch adds is_test_file (run.py:329-332) for FIX, DOC and the census. crates/x/benches/a.rs and crates/x/src/foo_tests.rs are tests to is_test_file and production to is_test; crates/testing_support/src/lib.rs is a test to is_test_path only. Required: one is_test_file, called by all three."
+   "verdict": "PASS",
+   "evidence": "run.py:328 is_test_file stays the only test-file classifier and now treats *_test/ directories as tests, agreeing with crate-imports.ryoql's **/*_test/** exclusion; token() is the one prompt-token reader."
   },
   {
    "id": "5",
    "verdict": "PASS",
-   "evidence": "No .rs file changed in dcea2ee7df..25b93d6312, so no layer or crate-crossing item moved."
+   "evidence": "No .rs file changed in dcea2ee7df..b59b22c6e7."
   },
   {
    "id": "6",
    "verdict": "PASS",
-   "evidence": "No feature, cfg(test) bypass, pub test helper or fixture constructor added; the diff is Python harness code, agent docs and the lint table."
+   "evidence": "No feature, cfg(test) bypass, pub test helper or fixture constructor added."
   }
  ],
  "plants": [
   {
-   "claim": "re-run: builder tests past -- (-- -p, -- --package x)",
-   "file": ".claude/hooks/guard_shell.py:340",
+   "claim": "re-plant: census #[cfg(test)] fn holding `self.seen < 4` (inside the impl) before an 8-variant match (exhaustive stays 25)",
+   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:531",
    "count": 1,
    "reverted": true
   },
   {
-   "claim": "re-run: builder tests -p '*' (test and nextest run)",
-   "file": ".claude/hooks/guard_shell.py:293",
+   "claim": "re-plant: census #[cfg(test)] fn holding `n << 2` or `if n < 4 { true } else { false }` before an 8-variant match (stays 25)",
+   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:531",
    "count": 1,
    "reverted": true
   },
   {
-   "claim": "re-run: builder tests -p pa -p pb",
-   "file": ".claude/hooks/guard_shell.py:350",
+   "claim": "re-plant (advisory): census #[cfg(test)] fn returning '{', \"(\" or r#\"}{\"# before an 8-variant match (stays 25)",
+   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:526",
    "count": 1,
    "reverted": true
   },
   {
-   "claim": "re-run: lock spelled elsewhere (echo LOCK; env Z=LOCK; flock LOCKx; flock -s; flock --shared; flock -n)",
-   "file": ".claude/hooks/guard_shell.py:344",
+   "claim": "re-plant: census #[cfg(test)] fn with lifetimes and a `}` in a comment; nested generics with a closure `> 1 && >= 2`; a where clause (stays 25)",
+   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:510",
    "count": 1,
    "reverted": true
   },
   {
-   "claim": "re-run: cargo t/b --workspace, cargo coverage-all, cargo-nextest nextest run --workspace",
-   "file": ".claude/hooks/guard_shell.py:131",
+   "claim": "re-plant: census #[cfg(test)] const ARR: [u8; 2] = [b'{', b'('] (stays 25)",
+   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:520",
    "count": 1,
    "reverted": true
   },
   {
-   "claim": "control: flock LOCK cargo test -p pa --target-dir <own> (allowed form passes)",
-   "file": ".claude/hooks/guard_shell.py:357",
-   "count": 0,
-   "reverted": true
-  },
-  {
-   "claim": "new: flock -sw 5 LOCK cargo test --workspace (and build --workspace, -nw 5, -sE 3)",
-   "file": ".claude/hooks/guard_shell.py:87",
-   "count": 0,
-   "reverted": true
-  },
-  {
-   "claim": "new: same option-cluster class on other wrappers (xargs -0n 1, timeout -vs KILL 5, env -iu X, env -iC /tmp, ionice -tc 2)",
-   "file": ".claude/hooks/guard_shell.py:87",
-   "count": 0,
-   "reverted": true
-  },
-  {
-   "claim": "new: flock LOCK -c 'cargo test --workspace' and flock -c ... LOCK and flock LOCK --command ...",
-   "file": ".claude/hooks/guard_shell.py:90",
-   "count": 0,
-   "reverted": true
-  },
-  {
-   "claim": "new: env --split-string='cargo build --workspace'",
-   "file": ".claude/hooks/guard_shell.py:83",
-   "count": 0,
-   "reverted": true
-  },
-  {
-   "claim": "new: rustup run stable cargo build --workspace",
-   "file": ".claude/hooks/guard_shell.py:62",
-   "count": 0,
-   "reverted": true
-  },
-  {
-   "claim": "new: cargo --config check test -p pa --target-dir <check target> (first non-dash word is the --config value)",
-   "file": ".claude/hooks/guard_shell.py:341",
-   "count": 0,
-   "reverted": true
-  },
-  {
-   "claim": "re-run: git push origin :main, +:refs/heads/main",
-   "file": ".claude/hooks/guard_shell.py:433",
+   "claim": "re-plant: census #[cfg(test)] struct field ends at its comma (`b: u8` and `pub fn after` stay production)",
+   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:529",
    "count": 1,
    "reverted": true
   },
   {
-   "claim": "re-run: git -c push.default=upstream push; -c remote.origin.push=HEAD:refs/heads/main",
-   "file": ".claude/hooks/guard_shell.py:446",
+   "claim": "new: census #[cfg(test)] const LIMIT: usize = 1 << 10; or const SMALL: bool = 3 < 4; before an 8-variant match (exhaustive 25 to 24)",
+   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:531",
+   "count": 0,
+   "reverted": true
+  },
+  {
+   "claim": "control: census with no cfg(test) item before the 8-variant match (25)",
+   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:531",
    "count": 1,
    "reverted": true
   },
   {
-   "claim": "new: GIT_CONFIG_PARAMETERS / GIT_CONFIG_COUNT env push config (dry-run --porcelain shows refs/heads/main)",
-   "file": ".claude/hooks/guard_shell.py:440",
-   "count": 0,
-   "reverted": true
-  },
-  {
-   "claim": "new: git -c alias.p=push p origin HEAD:main; git config alias.p push; git p ...",
-   "file": ".claude/hooks/guard_shell.py:388",
-   "count": 0,
-   "reverted": true
-  },
-  {
-   "claim": "new: git config push.default matching; git push origin (and remote.origin.push refs/heads/*:refs/heads/*)",
-   "file": ".claude/hooks/guard_shell.py:452",
-   "count": 0,
-   "reverted": true
-  },
-  {
-   "claim": "new: git send-pack origin HEAD:refs/heads/main",
-   "file": ".claude/hooks/guard_shell.py:375",
-   "count": 0,
-   "reverted": true
-  },
-  {
-   "claim": "re-run: reviewer hold, another branch's file only",
-   "file": ".claude/hooks/acceptance_on_stop.py:122",
+   "claim": "spot-check: is_test_file on */use_case_test/mod.rs (test); latest/, contest/ stay production",
+   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:328",
    "count": 1,
    "reverted": true
   },
   {
-   "claim": "re-run: reviewer hold, verdict 'not decided' without source or checks",
-   "file": ".claude/hooks/acceptance_on_stop.py:79",
+   "claim": "spot-check: hooks byte-identical to 1c2a73da64 (git diff empty for .claude); test_hooks OK holds the flock --wait/--shared and repeated-token cases (test_hooks.py:171-191, 1385-1403); run_test OK, 41 tests",
+   "file": ".claude/hooks/test_hooks.py:171",
    "count": 1,
-   "reverted": true
-  },
-  {
-   "claim": "re-run: reviewer hold, transcript without timestamp",
-   "file": ".claude/hooks/acceptance_on_stop.py:118",
-   "count": 1,
-   "reverted": true
-  },
-  {
-   "claim": "re-run: reviewer hold, old mtime",
-   "file": ".claude/hooks/acceptance_on_stop.py:84",
-   "count": 1,
-   "reverted": true
-  },
-  {
-   "claim": "re-run: reviewer hold, stale source",
-   "file": ".claude/hooks/acceptance_on_stop.py:96",
-   "count": 1,
-   "reverted": true
-  },
-  {
-   "claim": "re-run: INTEGRATION_TREE=<path>: trailing colon (valid verdict released, as it must)",
-   "file": ".claude/hooks/acceptance_on_stop.py:63",
-   "count": 0,
-   "reverted": true
-  },
-  {
-   "claim": "new: reviewer hold, prompt names an earlier SOURCE= before the current one; stale-source verdict released",
-   "file": ".claude/hooks/acceptance_on_stop.py:62",
-   "count": 0,
-   "reverted": true
-  },
-  {
-   "claim": "re-run: FIX module path named, one log twice",
-   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:367",
-   "count": 1,
-   "reverted": true
-  },
-  {
-   "claim": "re-run: FIX same log as red and green",
-   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:367",
-   "count": 1,
-   "reverted": true
-  },
-  {
-   "claim": "re-run: FIX entry test differs from commit test",
-   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:365",
-   "count": 1,
-   "reverted": true
-  },
-  {
-   "claim": "re-run: FIX chore: behaviour change",
-   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:380",
-   "count": 1,
-   "reverted": true
-  },
-  {
-   "claim": "re-run: FIX no base",
-   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:373",
-   "count": 1,
-   "reverted": true
-  },
-  {
-   "claim": "control: FIX proper entry passes",
-   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:368",
-   "count": 0,
-   "reverted": true
-  },
-  {
-   "claim": "new: FIX refactor: behaviour change",
-   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:336",
-   "count": 0,
-   "reverted": true
-  },
-  {
-   "claim": "new: FIX perf: behaviour change without a number",
-   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:336",
-   "count": 0,
-   "reverted": true
-  },
-  {
-   "claim": "new: FIX fix: in ci/contract_review/service.py (the evidence validator)",
-   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:335",
-   "count": 0,
-   "reverted": true
-  },
-  {
-   "claim": "new: FIX fix: in evidence/checkpoint/run.py",
-   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:335",
-   "count": 0,
-   "reverted": true
-  },
-  {
-   "claim": "new: FIX behaviour change inside a merge commit",
-   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:375",
-   "count": 0,
-   "reverted": true
-  },
-  {
-   "claim": "new: FIX hand-written red and green logs for a test that never ran",
-   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:367",
-   "count": 0,
-   "reverted": true
-  },
-  {
-   "claim": "re-run: DOC new item in a renamed file",
-   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:433",
-   "count": 1,
-   "reverted": true
-  },
-  {
-   "claim": "re-run: DOC src/test_*.rs production module",
-   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:332",
-   "count": 1,
-   "reverted": true
-  },
-  {
-   "claim": "re-run: DOC no base",
-   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:431",
-   "count": 1,
-   "reverted": true
-  },
-  {
-   "claim": "re-run: DOC impl N { pub fn new() -> Result } on a new type",
-   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:439",
-   "count": 3,
-   "reverted": true
-  },
-  {
-   "claim": "open: DOC top-level pub fn parse() -> Result in y.rs when x.rs has a pub fn parse",
-   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:439",
-   "count": 0,
-   "reverted": true
-  },
-  {
-   "claim": "new: DOC /// # Examples heading with no example",
-   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:441",
-   "count": 0,
-   "reverted": true
-  },
-  {
-   "claim": "re-run: census use crate::Operation as O (exhaustive files 24 -> 24)",
-   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:480",
-   "count": 1,
-   "reverted": true
-  },
-  {
-   "claim": "re-run: census same-named pub struct in another crate's test (vocabulary unchanged)",
-   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:494",
-   "count": 1,
-   "reverted": true
-  },
-  {
-   "claim": "re-run: census cross-crate test in tests.rs counted as test",
-   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:332",
-   "count": 1,
-   "reverted": true
-  },
-  {
-   "claim": "new: census type O = Operation; O::X (exhaustive files 24 -> 23)",
-   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:481",
-   "count": 0,
-   "reverted": true
-  },
-  {
-   "claim": "new: census #[cfg(test)] mod early_tests {} at the top of a production file (exhaustive 24 -> 23)",
-   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:476",
-   "count": 0,
-   "reverted": true
-  },
-  {
-   "claim": "new: census test.rs renamed check.rs under its pub(super) mod (cross_crate_tests 51 -> 50, production 41 -> 42)",
-   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:471",
-   "count": 0,
-   "reverted": true
-  },
-  {
-   "claim": "new: census decoy pub struct AdmittedOutput; in crates/values/src/lib.rs (vocabulary 68 -> 67)",
-   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:494",
-   "count": 0,
    "reverted": true
   }
  ],
@@ -517,7 +277,7 @@
      "text": " pub fn new() -> Result<Self, E> { todo!() }"
     }
    ],
-   "instance_status": "open"
+   "instance_status": "fixed"
   },
   {
    "id": "fix-entry-unbound-to-test-and-log-bdafa8b8",
@@ -551,7 +311,7 @@
      "text": "use Operation as O; O::V0 O::V1 O::V2 O::V3 O::V4 O::V5 O::V6 O::V7"
     }
    ],
-   "instance_status": "open"
+   "instance_status": "fixed"
   },
   {
    "id": "census-tests-rs-counted-production-ef46c4d0",
@@ -683,7 +443,7 @@
      "text": "Previous SOURCE=cde5651c7d5a82a72192aebbb045095395a98f59 was FAIL. SOURCE=25b93d6312b6bb1b07f46fe7447d7a86b5f0975c"
     }
    ],
-   "instance_status": "open"
+   "instance_status": "fixed"
   },
   {
    "id": "fix-exemption-by-commit-type-da27fb6c",
@@ -705,7 +465,7 @@
      "text": "perf(a): faster  (same change, no number, no after.json)"
     }
    ],
-   "instance_status": "open"
+   "instance_status": "fixed"
   },
   {
    "id": "fix-scope-excludes-harness-code-db7cadbc",
@@ -722,7 +482,7 @@
      "text": "def shape(r): return None  # in a fix: commit naming no test"
     }
    ],
-   "instance_status": "open"
+   "instance_status": "fixed"
   },
   {
    "id": "fix-skips-merge-commits-8f027951",
@@ -739,7 +499,7 @@
      "text": "a merge commit whose resolution changes pub fn f() -> u8 { 3 }"
     }
    ],
-   "instance_status": "open"
+   "instance_status": "fixed"
   },
   {
    "id": "fix-log-provenance-unbound-d24d168c",
@@ -756,7 +516,7 @@
      "text": "hand-red.log: test a::t::never_ran_test ... FAILED; hand-green.log: test a::t::never_ran_test ... ok"
     }
    ],
-   "instance_status": "open"
+   "instance_status": "fixed"
   },
   {
    "id": "doc-examples-heading-only-074a596b",
@@ -773,7 +533,7 @@
      "text": "/// # Examples"
     }
    ],
-   "instance_status": "open"
+   "instance_status": "fixed"
   },
   {
    "id": "census-test-split-by-text-position-2c355bb0",
@@ -795,7 +555,7 @@
      "text": "(test.rs renamed check.rs; parent declares pub(super) mod check)"
     }
    ],
-   "instance_status": "open"
+   "instance_status": "fixed"
   },
   {
    "id": "census-vocabulary-decoy-declaration-c9bc4e18",
@@ -812,7 +572,7 @@
      "text": "pub struct AdmittedOutput;"
     }
    ],
-   "instance_status": "open"
+   "instance_status": "fixed"
   },
   {
    "id": "test-file-classifier-three-definitions-c7d88a5c",
@@ -834,8 +594,115 @@
      "text": " def is_test(path):"
     }
    ],
-   "instance_status": "open"
+   "instance_status": "fixed"
+  },
+  {
+   "id": "flock-long-option-unlisted-4240df61",
+   "class": "flock-long-option-unlisted",
+   "signature": "flock --wait <secs> <lock> cargo <verb>: WRAPPER_VALUES['flock'] lacks --wait, so after_wrapper reads <secs> as the lock and the lock path as the command word",
+   "scope": [
+    ".claude/hooks/guard_shell.py"
+   ],
+   "suggested_mechanism": "new rule",
+   "plants": [
+    {
+     "file": ".claude/hooks/guard_shell.py",
+     "line": 68,
+     "text": "flock --wait 600 /workspaces/.cargo-build.lock cargo test --workspace --target-dir /workspaces/idiomatic-target/<tree>"
+    }
+   ],
+   "instance_status": "fixed"
+  },
+  {
+   "id": "reviewer-token-ambiguous-a57ec567",
+   "class": "reviewer-token-ambiguous",
+   "signature": "re.findall(NAME + r'=(\\S+)', prompt)[-1]: one value taken when the prompt names NAME= twice with different values",
+   "scope": [
+    ".claude/hooks/acceptance_on_stop.py"
+   ],
+   "suggested_mechanism": "new rule",
+   "plants": [
+    {
+     "file": ".claude/hooks/acceptance_on_stop.py",
+     "line": 64,
+     "text": "INTEGRATION_TREE=<tree> SOURCE=<current> BRANCH=<b> ... the previous FAIL was at SOURCE=<earlier>."
+    }
+   ],
+   "instance_status": "fixed"
+  },
+  {
+   "id": "perf-evidence-unbound-to-commit-e5d70ab6",
+   "class": "perf-evidence-unbound-to-commit",
+   "signature": "perf_identical(repo, base, head): any evidence/perf/*/after.json with identical_output true in base..head clears every perf commit, whatever the after.json source",
+   "scope": [
+    "crates/ryo/docs/contracts/evidence/checkpoint/run.py"
+   ],
+   "suggested_mechanism": "new rule",
+   "plants": [
+    {
+     "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py",
+     "line": 398,
+     "text": "perf(a): real speedup (adds perf/p9/after.json); then perf(a): also faster changing f() -> 2"
+    }
+   ],
+   "instance_status": "fixed"
+  },
+  {
+   "id": "census-cfg-test-field-extent-5c02f2ee",
+   "class": "census-cfg-test-field-extent",
+   "signature": "#[cfg(test)] on a struct field (`#[cfg(test)]\\n    pub(crate) <field>: <Type>,`): item_end ignores the field's `,` and the brace below depth 0, so the following production items count as test",
+   "scope": [
+    "crates/ryo/docs/contracts/evidence/checkpoint/run.py"
+   ],
+   "suggested_mechanism": "new rule",
+   "plants": [
+    {
+     "file": "crates/ryo/crates/query_language/src/domain/cutting/kinds.rs",
+     "line": 4,
+     "text": "    #[cfg(test)]\n    pub(crate) seen: usize,"
+    }
+   ],
+   "instance_status": "fixed"
+  },
+  {
+   "id": "census-cfg-test-angle-bracket-depth-334fc686",
+   "class": "census-cfg-test-angle-bracket-depth",
+   "signature": "item_end counts `<` (not followed by `=`) as an opening bracket, so a #[cfg(test)] fn body holding a comparison or shift (`self.seen < 4`, `n << 2`) never returns to depth 0 and the following production items count as test",
+   "scope": [
+    "crates/ryo/docs/contracts/evidence/checkpoint/run.py"
+   ],
+   "suggested_mechanism": "new rule",
+   "instance_status": "fixed",
+   "plants": [
+    {
+     "file": "crates/ryo/crates/query_language/src/domain/cutting/kinds.rs",
+     "line": 10,
+     "text": "    #[cfg(test)]\n    pub(crate) fn is_small(&self) -> bool {\n        self.seen < 4\n    }"
+    }
+   ]
+  },
+  {
+   "id": "census-cfg-test-header-initializer-angle-c993d1af",
+   "class": "census-cfg-test-header-initializer-angle",
+   "signature": "item_end counts `<` as an opening bracket anywhere in the header (header and c=='<' and text[i+1:i+2]!='='), including a const, static or discriminant initializer after `=`, so `#[cfg(test)] const LIMIT: usize = 1 << 10;` never returns to depth 0 at its `;` and the following production items count as test",
+   "scope": [
+    "crates/ryo/docs/contracts/evidence/checkpoint/run.py"
+   ],
+   "suggested_mechanism": "new rule",
+   "instance_status": "open",
+   "plants": [
+    {
+     "file": "crates/ryo/crates/query_language/src/domain/cutting/kinds.rs",
+     "line": 4,
+     "text": "    #[cfg(test)]\n    const LIMIT: usize = 1 << 10;"
+    },
+    {
+     "file": "crates/ryo/crates/query_language/src/domain/cutting/kinds.rs",
+     "line": 4,
+     "text": "    #[cfg(test)]\n    const SMALL: bool = 3 < 4;"
+    }
+   ]
   }
  ],
- "date": "2026-11-09T17:51:53+00:00"
+ "date": "2026-11-09T18:26:04+00:00"
 }

@@ -1,6 +1,6 @@
 # Leak review: claude/w14-isolation-lens
 
-Source `3d1e6d91a4895cd0867d81c806983d81a08e8bb0`. Base `781653e221c3c7d4b937918d46496c5564ebe647`: the commit's parent and its merge-base with checkpoint 333. The request named no base. The change is docs only: `.agents/agents/contract-review.md` gains a "Change isolation" criterion (ryo-e4s4). The reviewed tree had HEAD 3d1e6d91a4 and a clean status before and after the review.
+Source `3d1e6d91a4895cd0867d81c806983d81a08e8bb0`. Base `781653e221c3c7d4b937918d46496c5564ebe647`: the commit's parent and its merge-base with checkpoint 333. The request named no base. The change is docs only: `.agents/agents/contract-review.md` gains a "Change isolation" criterion. The reviewed tree had HEAD 3d1e6d91a4 and a clean status before and after the review.
 
 ## 1 Proof where the contract lives: PASS
 The diff touches only contract-review.md:10,17,21. No contract is asserted from benchmarks/ or languages/.

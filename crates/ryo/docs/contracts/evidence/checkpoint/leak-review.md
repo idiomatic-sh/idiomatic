@@ -2,7 +2,7 @@
 
 Landed sha `dcea2ee7df7c02711f42c332cbc403ff7b84a034`, base `b1e81f7242`. Scope: the integrator's own commits beyond the branch heads already covered by `evidence/branches/`: the replay harness repairs (4b9580619f, b18f6b1535, 7fd2dbf1f5, 1101b931f2), the file splits (e0ad1b1895, 930fc65c86, 5b9555b1a0), the file-length ignores (802aea996c), the Rust gate repairs (10c561ef6a, 5e7ca6fb96, beb55b206a), the provider-imports allow (883f0d6dd6), the memory guard (96b5545cb8, 1123506752) and the run.py changes (fbebd781e6, e0ad1b1895, 2991a41cd2). The closure covers the crates they touch and their importers: cli, core, execution_domain, execution_store, execution_runtime, query_language, operators, benchmark, the python and rust languages, and tastemaker core and cli.
 
-Before and after: `git rev-parse HEAD` = dcea2ee7df7c02711f42c332cbc403ff7b84a034, and `git status --porcelain` showed the same 6 untracked reviewer drafts under `evidence/branches/` at both points. Plants ran in a `git archive` copy with the prebuilt tm 0.1.2 and the check target `/workspaces/idiomatic-check-target/lr332`, and both were deleted when the review ended.
+Before and after: `git rev-parse HEAD` = dcea2ee7df7c02711f42c332cbc403ff7b84a034, and `git status --porcelain` showed the same 6 untracked reviewer drafts under `evidence/branches/` at both points. Plants ran in a `git archive` copy with the prebuilt tm 0.1.2 and a check target of its own, and both were deleted when the review ended.
 
 ## Check 1: proof where the contract lives: PASS
 - The replay harness repairs stay in `crates/ryo/cli/tests/fixtures/replay/base.rs` and `counting.rs`.

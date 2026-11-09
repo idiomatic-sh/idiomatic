@@ -1,6 +1,8 @@
 {
  "question": "all-413 Phase 1 parity: ryo run-ryo vs Ruff on full Django, finding by finding",
- "source": "1086daee4b3a4435e60438d2df6ec7a7128dd883",
+ "source": "563c0bc69b95071aa4586d4d8bcd4a1bab9eec0e",
+ "source_note": "the head whose ruff_parity run gave the committed per-rule.json byte for byte (checkpoint 333's final run); the fields below describe the 330 baseline run (source 1086daee4b) the comparison was first written from",
+ "baseline_source": "1086daee4b3a4435e60438d2df6ec7a7128dd883",
  "staged_source_commit": "4df6abaca2fb9b8e24bf35261477ceae87bb60ab",
  "staged_source_note": "rules/, fragments/ and benchmark.toml are byte-identical between 4df6abaca2 and 1086daee4b (git diff --stat empty)",
  "worker": {

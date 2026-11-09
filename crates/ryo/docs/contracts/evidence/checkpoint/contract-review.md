@@ -24,7 +24,7 @@ HEAD was dcea2ee7df before and after the review, with 6 untracked files both tim
 |---|---|---|---|---|
 | tm | `tm --root crates/ryo check --format json` (tm 0.1.2 release, sha256 `f335d4ab`, built from `781653e221`, which predates the tastemaker refactor `beb55b206a`) | 0 (208 s) | 0 findings, 13 suppressed, all `idiomatic.arch/file-length` in-source ignores with reasons (7 accepted by the owner decision in `7d7888247c`) | PASS (manual judgment: the agent file says "0 suppressed") |
 | run.py | `python3 -I .../checkpoint/run.py --check` | 0 | 17 "newly scoped ... (0 findings)" lines | PASS |
-| no_print | `/tmp/ryo-contract-validation332/no_print.json` | 0 | 0 lines starting `error` | PASS |
+| no_print | `no_print.json` of validation332 | 0 | 0 lines starting `error` | PASS |
 | file-level cycles | Tarjan SCC recount over validation332 `ownership_edges.log` (source `7fd2dbf1f5`) | n/a | 0 cycles, 4,797 occurrences, 756 files | PASS (the record is stale, see P3) |
 
 ## Recounts against the record (validation332 raw logs)

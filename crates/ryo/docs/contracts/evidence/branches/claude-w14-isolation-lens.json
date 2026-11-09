@@ -10,7 +10,7 @@
   {"id": "3", "verdict": "PASS", "evidence": "No code. Overlap: criterion (a) at contract-review.md:17, 'names no internals behind another crate's or hex's seam', grades how coupled a test is. Leak check 3 (leak-review.md:14, pub where pub(crate) serves) and check 5 (leak-review.md:16, inbound or application items leaking across crates) grade the production visibility that lets such a test compile. These are two lenses on one fact, not the same check. Footprint (b) and census (c) have no leak-review counterpart."},
   {"id": "4", "verdict": "PASS", "evidence": "No code. One owner per lens: contract-review.md:10 now gives 'whether each cited enforcement fires' to the leak review (matching leak check 2, leak-review.md:13) and change isolation to the contract review, and no other agent doc defines isolation (grep over .agents/ and .claude/ finds 'census' only in contract-review.md:17)."},
   {"id": "5", "verdict": "PASS", "evidence": "No code."},
-  {"id": "6", "verdict": "PASS", "evidence": "No code. No machine paths (/workspaces, /tmp, /home) and no tracker ids appear in the diff (grep over the diff came back empty); the bead id ryo-e4s4 appears only in the commit subject."}
+  {"id": "6", "verdict": "PASS", "evidence": "No code. No machine paths and no tracker ids appear in the diff (grep over the diff came back empty); the tracker id appears only in the commit subject."}
  ],
  "plants": [],
  "advisories": [

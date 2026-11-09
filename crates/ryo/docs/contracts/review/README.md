@@ -114,31 +114,28 @@ One definition validates this shape: `shape` in `ci/contract_review/service.py`.
 
 ## Known red
 
-Each is named with its reason and owner in `validation.json` (`results`, validation332, validated source `7fd2dbf1f5`) and in the
-checkpoint 332 integration record in [the records](../records.md).
+Each is named with its reason and owner in `validation.json` (`results`, the final checkpoint 333 run, validated source
+`563c0bc69b`) and in the checkpoint 333 integration record in [the matrix](../README.md).
 
 - `core_allocation` (core `allocation` test, exit 101): a Phase 7 measurement.
-- Benchmark library 227 / 3: `verify_cases` `process_capture::test::succeeds`, one red row, and the parity tool's `compare_corpus` `use_case_test::{refuses,succeeds}` (each answers an operational failure over the fakes).
-- Cli `replay` target: 96 passed / 3 failed. The three causes span-semantics' stricter harness exposed are repaired: the replay
-  links the TOML language beside the Rust language, so the three manifest recordings run and give their recorded rows; the
-  manifests tests write a missing value as absent; a located compile refusal is matched by its innermost refusal. Left, owned:
-  import-fan-in's false `derive_message_formats.rs` edge, an `error-variant-never-constructed` row for a variant `?` constructs
-  through `#[from]`, and the warm peak.
-- Cli `cli_cost`: 4 / 3, the three unseeded ruff ratchet rows (cold 9,331 ms, peak 579 MB, warm 629 ms); the Django rows answer
-  not available without a preflight worker.
-- `tm_import_cli`: Tastemaker's ryo adapter now fills the local SDK's request fields, so it does not compile against the published
-  SDK 0.1.1 the replay resolves.
+- Benchmark library 229 / 1: `verify_cases` `process_capture::test::succeeds`, one red row.
+- Cli `replay` target: 96 passed / 3 failed, each owned: import-fan-in's false `derive_message_formats.rs` edge, an
+  `error-variant-never-constructed` row for a variant `?` constructs through `#[from]`, and the warm peak.
+- Cli `cli_cost`: 4 / 3, the three unseeded ruff ratchet rows; the Django rows answer not available without a preflight worker.
+- Tastemaker workspace 264 / 4: three red since 331 (two `scaffold` replays and one `validate` bound) and the cold check of
+  crates/ryo over its memory guard (4,424,456 KiB against 1,331,200): the project phase's row retention, recorded red by owner
+  decision and owned by the fused rewrite.
 
 ## Verification limits
 
-Not covered by the latest validation (`validation.json`, validated source `7fd2dbf1f5`, checkpoint 332, validation332; "not full
+Not covered by the latest validation (`validation.json`, validated source `563c0bc69b`, the final checkpoint 333 run; "not full
 product acceptance"):
 
-- Whole-tree TM is measured with the rebuilt tm 0.1.1, which reads use-site paths as imports: 1,467 findings, 13 suppressed:
-  1,464 `#imports` false positives of that reading (the tm 0.1.2 branch fixes it) and 3 in untracked reviewer drafts; the
-  findings 332 had introduced are fixed (331 under 0.1.0: 18, the domain-concept ring, now 0). The scoped `tm_source` run is 0.
-- The receipts for the root and Tastemaker workspaces use tm 0.1.0 (their pin); crates/ryo uses 0.1.1, unpublished.
-- No new performance claim: the Django receipt is a store/peak record for the span-semantics attribution, not a speed claim.
+- Whole-tree TM over crates/ryo is measured with tm 0.1.2 rebuilt from the validated head on a fresh store, outside the
+  validation set; the scoped `tm_source` run is 0. The root and Tastemaker workspaces keep tm 0.1.0, their pin, until the owner
+  releases tastemaker 0.1.2.
+- The Django receipt was taken at `e0a566da62`; the repair pass after it changes no code the receipt worker runs (an exhaustive
+  match with the same answers, version numbers, test fixtures and the checkpoint harness).
 - Language conformance targets print no pass count; exit 0 is the receipt.
 
 Links: [matrix](../README.md), [execution plan](../execution-plan.md),
