@@ -14,16 +14,19 @@ pub(crate) fn publication_owner(
     services: &ProgramServices,
     digest: Arc<dyn crate::outbound::digest::interface::DigestPort>,
 ) -> Result<PublicationScope, OperatingError> {
+    // The project phase opens no route scope: its owner records into an empty profile.
+    let owner = open_program_owner(
+        program.program(),
+        services.derived().clone(),
+        ReuseEligibility::Eligible,
+        ryo_execution_store::application::file_dag::route_counts::types::RouteProfile::default(),
+    );
+    // It reads every file's frontier rows and is never prepared for one file: it holds no graph cache.
+    owner.derived().serve_project()?;
     Ok(PublicationScope {
         request: Arc::clone(&services.request),
         program: Arc::clone(program.program()),
-        // The project phase opens no route scope: its owner records into an empty profile.
-        owner: open_program_owner(
-            program.program(),
-            services.derived().clone(),
-            ReuseEligibility::Eligible,
-            ryo_execution_store::application::file_dag::route_counts::types::RouteProfile::default(),
-        ),
+        owner,
         execution: std::cell::OnceCell::new(),
         walk:
             crate::application::file_dag::program::native_walk::project::service::ProjectWalk::new(),

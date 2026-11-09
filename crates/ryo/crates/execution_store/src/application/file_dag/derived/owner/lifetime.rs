@@ -59,7 +59,10 @@ impl DerivedOwner {
     }
     /// Population mutation ends every identity and every owned view before provider refill.
     pub(crate) fn clear(&self) {
-        self.file_prepared.set(FilePreparation::Unprepared);
+        // A file owner is prepared again for its next file; the project owner stays the project's.
+        if self.file_prepared.get() == FilePreparation::Prepared {
+            self.file_prepared.set(FilePreparation::Unprepared);
+        }
         let mut state = self.state.borrow_mut();
         state.entries.clear();
         state.next_admission = AdmissionOrder(0);

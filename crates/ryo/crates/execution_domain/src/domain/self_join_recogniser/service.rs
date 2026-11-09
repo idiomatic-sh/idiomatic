@@ -56,7 +56,7 @@ fn from_step(input: Input) -> Result<StepId, Decline> {
 
 /// Decode lineage only through value-preserving operations. No metadata-only proof of
 /// arbitrary hosted/Rows values is accepted. Stored Number decoding itself is total.
-fn number_origins(
+pub(super) fn number_origins(
     plan: &Plan,
     input: Input,
     column: ColumnIndex,
@@ -66,8 +66,11 @@ fn number_origins(
         // A named publication needs an explicit admitted-number lineage proof;
         // relation metadata is not authority for arbitrary producer values.
         Input::BoundObservation(_) => None,
+        // A native relation is read as its tree, never as stored columns: the runtime's admission of a
+        // stored number refuses it, so the shape is declined here rather than refused when it runs.
         Input::Relation(relation) => (kinds(relation).get(column.0 as usize)
-            == Some(&CellKind::Number))
+            == Some(&CellKind::Number)
+            && crate::domain::table_cells::service::native_form(relation).is_none())
         .then_some(vec![StoredNumberOrigin { relation, column }]),
         Input::Step(id) => {
             let at = id.0 as usize;

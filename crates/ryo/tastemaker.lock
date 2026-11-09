@@ -218,10 +218,10 @@ extras-iff-variant = "0.1.0"
 language-depends-on-ryo-only = "0.2.0"
 language-parts = "0.1.0"
 language-test-entries = "0.1.0"
-program-implementation-boundary = "0.1.0"
+program-implementation-boundary = "0.2.0"
 readers-in-items = "0.2.0"
 runtime-authority = "0.2.0"
-shared-walk-owner = "0.1.0"
+shared-walk-owner = "0.2.0"
 source-import-allowlist = "0.1.0"
 
 [packages."idiomatic.ryo".specs]

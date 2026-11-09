@@ -20,13 +20,14 @@ enum Scenario {
     FilteredJoin,
     ViewedJoin,
     NaturalOrder,
+    NativeOrigin,
 }
 type Input = Scenario;
 type Value = ();
 type Failure = Decline;
 
-fn fixture() -> (Plan, Vec<CellKind>) {
-    let schema = kinds(Relation::SourceLocation).to_vec();
+fn fixture(relation: Relation) -> (Plan, Vec<CellKind>) {
+    let schema = kinds(relation).to_vec();
     let number = ColumnIndex(
         schema
             .iter()
@@ -34,7 +35,7 @@ fn fixture() -> (Plan, Vec<CellKind>) {
             .expect("typed numeric source") as u32,
     );
     let source = Operation::Select {
-        from: Source::Relation(Relation::SourceLocation),
+        from: Source::Relation(relation),
         comparisons: vec![],
         kept: vec![],
     };
@@ -107,7 +108,10 @@ fn prepared(plan: &Plan, schema: &[CellKind]) -> Program {
 }
 
 fn subject(scenario: Input) -> Result<Value, Failure> {
-    let (mut plan, schema) = fixture();
+    let (mut plan, schema) = fixture(match scenario {
+        Scenario::NativeOrigin => Relation::SyntaxChild,
+        _ => Relation::SourceLocation,
+    });
     match scenario {
         Scenario::Eligible => {}
         Scenario::ExtraConsumer => plan.frontier.push(Source::Step(StepId(1))),
@@ -130,6 +134,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 comparisons[0].test = Test::NaturalLessThan;
             }
         }
+        Scenario::NativeOrigin => {}
     }
     let found = prepared(&plan, &schema);
     if let Some(declined) = found.declines.first() {
@@ -183,6 +188,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Scenario::NaturalOrder,
         expect: Expect::Error(Decline::NonStrictOrder),
+    },
+    Case {
+        name: CaseName("a_number_of_a_native_relation_is_not_a_stored_origin"),
+        word: Word::Refuses,
+        input: || Scenario::NativeOrigin,
+        expect: Expect::Error(Decline::UnprovenNumberOrigin),
     },
 ];
 

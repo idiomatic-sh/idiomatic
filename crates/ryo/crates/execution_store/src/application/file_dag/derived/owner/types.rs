@@ -118,12 +118,15 @@ pub struct ScopeId(pub usize);
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct EntryLimit(pub usize);
 
-/// Whether the file's demanded requirements have been prepared.
+/// Whether the file's demanded requirements have been prepared, or the owner serves the project phase.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) enum FilePreparation {
     #[default]
     Unprepared,
     Prepared,
+    /// The owner of the project phase: it reads every file's frontier rows, is never prepared for one file and holds no
+    /// graph cache, so an axis or a reach it runs walks its tables.
+    Project,
 }
 
 /// Whether two immutable identities describe the same retained thing.
