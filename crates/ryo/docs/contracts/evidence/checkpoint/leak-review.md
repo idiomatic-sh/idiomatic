@@ -1,81 +1,65 @@
-# Leak review, checkpoint 332
+# Leak review: checkpoint 333 (landed)
 
-Landed sha `dcea2ee7df7c02711f42c332cbc403ff7b84a034`, base `b1e81f7242`. Scope: the integrator's own commits beyond the branch heads already covered by `evidence/branches/`: the replay harness repairs (4b9580619f, b18f6b1535, 7fd2dbf1f5, 1101b931f2), the file splits (e0ad1b1895, 930fc65c86, 5b9555b1a0), the file-length ignores (802aea996c), the Rust gate repairs (10c561ef6a, 5e7ca6fb96, beb55b206a), the provider-imports allow (883f0d6dd6), the memory guard (96b5545cb8, 1123506752) and the run.py changes (fbebd781e6, e0ad1b1895, 2991a41cd2). The closure covers the crates they touch and their importers: cli, core, execution_domain, execution_store, execution_runtime, query_language, operators, benchmark, the python and rust languages, and tastemaker core and cli.
+Source `40e49021520d4392d29df28ee5bd2fef739e5d37`, base `dcea2ee7df7c02711f42c332cbc403ff7b84a034`. The four branch heads already have leak PASS files under `evidence/branches/`. This review covers what integration added on top of them: the merge repairs and file splits (`a73aa2bee8`, `28efeb7bf0`, `5339ed5df3`), the target-supplement repairs, `own()` and the removal of stale owners, `replay_languages()` and the deletion of `pending.txt`, `unfed.toml`, the 0.1.3 bump (`8bf8ae89a1`, `7e5beb9128`, `563c0bc69b`), the tracker-pattern fix (`98e0fcb703`, `40e4902152`), the removal of `asymptote.json` (`5e2aad3bf1`) and the census (`6451254521`). The closure is execution, execution_domain, execution_runtime, values, operators, the cli replay harness, the python ruff authoring package, `ci/contract_review`, `.claude/hooks`, and the Tastemaker manifests. The reviewed tree was read-only: HEAD and `git status --porcelain` were the same before and after. The plants ran in a `git archive` copy with its own check target, and both were deleted afterwards.
 
-Before and after: `git rev-parse HEAD` = dcea2ee7df7c02711f42c332cbc403ff7b84a034, and `git status --porcelain` showed the same 6 untracked reviewer drafts under `evidence/branches/` at both points. Plants ran in a `git archive` copy with the prebuilt tm 0.1.2 and a check target of its own, and both were deleted when the review ended.
+## 1 Proof where the contract lives: PASS
+- The F1 exhaustiveness guard is in execution_domain (`operator/contract/service.rs:206-245`).
+- The stale-owner refusal is tested by the runner's own test (`run_test.py:370-377` against `run.py:263-269`).
+- `replay_languages()`, the pending check and `unfed.toml` stay in the cli replay harness (`cli/tests/fixtures/replay/base.rs:336-357`, `counting.rs:176`).
+- The target-supplement validator stays in the python ruff authoring package (`authoring/target_supplement.py:17-27`).
+- No engine, core or SDK contract is newly asserted from `benchmarks/` or `languages/`.
 
-## Check 1: proof where the contract lives: PASS
-- The replay harness repairs stay in `crates/ryo/cli/tests/fixtures/replay/base.rs` and `counting.rs`.
-- The edited recordings now equal the real rule assets: `recordings/crate-dependency-depth/query.ryoql:3` matches `tastemaker/rules/crate-dependency-depth/0.1.0/rule.toml:8`, and `recordings/layer-order/query.ryoql:1` matches `tastemaker/rules/layer-order/0.2.0/rule.toml:5`.
-- The memory guard is a tm claim, in `crates/tastemaker/cli/tests/replay/check.rs:360-376`.
-- The moved cases stay in their own crates (core `lint/fixtures/stores.rs:300`, runtime `project_phase/service_test.rs`).
+## 2 Every enforcement claim fires: FAIL
+Plants (all reverted, since the copy was deleted):
+- F1 exhaustiveness guard: a `Planted` variant on `Operation` (`values/src/domain/plans/types.rs:67`). `cargo check -p idiomatic-sh-ryo-execution-domain` reports E0004 at `operator/contract/service.rs:206`. Count 1.
+- `own()` with a stale owner: adding `'tm_import_cli':CLOSE` (green) to OWNERS makes `run.py --check` exit 1 with `stale owner: tm_import_cli`. Count 1. Deleting `run.py:269` turns `test_a_green_result_with_only_a_stale_owner_fails_the_check` red. Count 1.
+- The tracker validator against a candidate class "see " followed by a tracker id with a child number: refused. Count 1. The same id preceded by `bead-`: accepted. Count 0.
 
-## Check 2: every enforcement claim fires: FAIL
-Plants (all reverted):
-| Claim | Planted at | Count |
-| --- | --- | --- |
-| `idiomatic.ryo/provider-imports` | python `fixtures/module_identity_only/mod.rs:15` (`use std::fs::read_to_string`) | 1 (`std::sync::atomic` at :14 gives 0, as allowed) |
-| `idiomatic.arch/file-length` | core `lint/fixtures/lookups.rs` padded to 428 lines | 1 |
-| `#[expect(unnameable_types)]` on the PatternSemantics seal | `execution_domain/src/domain/matching/types.rs:14` made `pub mod sealed` | 1 (lint expectation unfulfilled, at :18) |
-| run.py `own()` reports a red without an owner | a red `manifests_go::…` added to `cli_replay_reds` | **0**: `--check` exits 0 after the note rewrite |
-| the same, control | an unowned red name | 1 (`has no owner`, exit 1) |
+Findings:
+- **(a) A gate group was dropped. New in `5e2aad3bf1`.** The TM steward's gate became `asymptote check --groups lint,check` (`.agents/agents/tm-specialist.md:18`, `evidence/checkpoint/README.md:5`). The deleted `asymptote.json` ran `lint,check,clippy` and recorded the clippy group red. No checkpoint gate now runs the clippy group (`crates/ryo/asymptote.toml:30-37`): not the steward, not the Rust gate, not `checkpoint.yml`, and `commands.json:84` is a print-only clippy over five crates. A clippy denial now passes every checkpoint. The owner's decision (contracts README:336) removed the record file, not the group. `tm-specialist.md:32` still shows `lint,check,clippy`. **Required change:** the steward's gate runs `--groups lint,check,clippy` (tm-specialist.md:18 and :32, checkpoint README:5, the decision row), and the clippy red stays owned.
+- **(b) The tracker validator was narrowed. New in `98e0fcb703`.** `TRACKER` (`ci/contract_review/service.py:55`) now has the lookbehind `(?<![\w-])`, so a tracker id preceded by a hyphen passes the validator, yet bare `ryo-core` is still refused. The validator and `idiomatic.arch/no-tracker-text-shipped` (`tastemaker/specs/idiomatic-project/0.3.1/spec.toml:16`, which needs a digit or a child number) are two definitions of a tracker id. **Required change:** one definition. Either the validator reads the rule's patterns, or its regex gets the rule's shape (a digit or a child number, any prefix) in place of the hyphen lookbehind.
+- **(c) Tests pass when their input is absent** (they were there before 333, but the diff touches or cites these tests):
+  - `test_target_supplement.py:189-190` calls `skipTest` when `latest-failed-observations` is absent.
+  - `test_target_supplement.py:179-180` silently uses `ruf101-target-supplement` in its place. This test is cited in validation.json `red_green`.
+  - `test_preflight_staged_profile.py:56-59` uses `skipUnless` on the worker environment.
+  - cli_cost's Django and one-file rows pass with a `NotAvailable` reason when `RYO_PREFLIGHT_WORKER` is unset (`cli/tests/fixtures/replay/workload.rs:148`).
 
-**Finding 2a: stale owners pre-own reds** (`run.py:245-283`). fbebd781e6 added 28 OWNERS entries, most pointing at the catch-all row "Close full TM, contracts, independent review and normal CI." Every one of them except `lowering::every_rule_gives_the_same_rows_on_two_runs_over_ruff` (:273, not in the recorded logs) is green at this sha: the 26 CLOSE tests at :257-272 and :274-283, and `tm_import_cli` (:255, exit 0). The same holds for `core_library` (:246, failed 0), `behavior::ruff_rules_feed_every_catalog_feature_a_thousand_rows` (:250) and `cache::the_store_every_recorded_rule_keeps_over_ruff_stays_within_its_bound` (:253). If any of them turns red, `own()` (:300-312) files it under that row, and `--check` passes it. The plant shows this.
-Required change: `own()` reports every OWNERS key whose result or test is not red as a problem (a stale owner), and the stale entries are deleted. A red then needs an owner chosen at the time it turns red.
+  **Required change:** each test asserts that its input is present and fails when it is absent. Drop the fallback target. cli_cost's absent-worker rows count as not run, not passed.
 
-**Finding 2b: a pending recording the harness can run is skipped.** b18f6b1535 links the TOML language into every replay lint (`base.rs:401`, `base.rs:475-482`, `counting.rs:177-181`). `provided()` (`base.rs:335-347`) still asks only the Rust language. `recording_at` (`base.rs:281-290`) requires `pending.txt` to name exactly the relations that set lacks. `recordings/dependency-feature-sprawl/pending.txt` names `entry`, `mapping` and `sequence-element`, and the TOML language provides all three (`languages/toml/src/domain/relations/collections/relations/{entry,mapping,sequence_element}/item.rs`). So the recording is never compared (`answers.rs:100,132,337` filter `Pending::Missing`), and the exactness assert stops anyone from removing its `pending.txt`.
-Every variant: `no-json-in-process/pending.txt` (`tastemaker.placed`, a host relation) is legitimate. No other `pending.txt` exists.
-Required change: one function in the replay fixtures returns the replay's language connections, and `provided()`, `lint_report_hosted` and `lint_observing` all use it. Delete `dependency-feature-sprawl/pending.txt`, and its recorded rows are compared.
+These hold:
+- `own()` refuses a stale owner (`run.py:269`).
+- `pending.txt` cannot outlive provision: `base.rs:285-294` asserts `absent == expected` over `replay_languages()`.
+- `unfed.toml` only shrinks (its header) and both commits only removed entries.
+- `28efeb7bf0` keeps every assertion: after whitespace normalisation, the assert counts are equal in all 16 changed `.rs` files.
 
-The other harness changes leave no pass path:
-- `innermost` unwraps only `Located`; any other refusal still panics (`base.rs:292`).
-- `ABSENT` makes the tool side stricter.
-- The `TextSets` arm applies only to arrays of string arrays; anything else stays unbound and fails the bind assert.
-- The memory guard refuses exit 2, an unreadable report and an empty report. It is red at 4,452,912 KiB.
-- The `compare_corpus` fixture with `status: 0` keeps its scenario's assertions.
+## 3 Boundaries hold across crates: PASS
+- The 0.1.3 bump closes leak 332's check 3. `crates/ryo/Cargo.toml:23` and every path dependency are 0.1.3, and no ryo manifest still names 0.1.2.
+- Tastemaker requires the unpublished SDK 0.1.3 (`crates/tastemaker/crates/core/Cargo.toml:33`, `cli/Cargo.toml:35-46, 63-66`), so its requirement no longer names a released API. It names only the SDK, and the `[patch]` serves the transitive crates.
+- The new fixtures modules are `cfg(test)`.
+- execution's `fixtures` features are dev-dependencies only (`execution/Cargo.toml:30-37`).
 
-## Check 3: boundaries hold across crates: FAIL
-**Finding 3: tastemaker builds against unreleased ryo under a released version.** `crates/tastemaker/Cargo.toml:236-253` (10c561ef6a) patches 15 ryo crates to `../ryo` paths. Tastemaker still requires `idiomatic-sh-ryo-sdk` `0.1.2` (`crates/tastemaker/crates/core/Cargo.toml:33`, `cli/Cargo.toml:35`; the language crates at `cli/Cargo.toml:37-46, 63-66`).
-- 0.1.2 is released (tag `idiomatic-sh-ryo-v0.1.2`). It lacks the seven request fields the ryo adapter fills, which e1dfa19a93's own message states.
-- `crates/ryo/Cargo.toml:23` still says 0.1.2, so one version names two APIs.
-- A build without the patch would resolve the published 0.1.2 and fail to compile.
+## 4 One implementation per concept: PASS
+- The skip-rules merge kept one file-demand table. 332's memo was dropped with its test, not kept beside the new table.
+- `trust/reads.rs:77` calls the single `output_origins` (`operation_schema/projection.rs:139`).
+- `replay_languages()` is now the one language set for the pending check, the recording lint and the counting lint, which closes 332's split.
+- The splits move code; they do not copy it.
+- Advisory: the tracker-id pattern exists twice, outside any crate. It is recorded under 2(b).
 
-Required change: give the unreleased ryo crates a version that is not published (bump `crates/ryo/Cargo.toml:23`) and require that version in tastemaker. Then the patch resolves only unreleased source, and a registry build fails to resolve instead of compiling against the wrong API. The alternative is to drop the patch until the SDK release that carries the fields.
-
-Advisory: 883f0d6dd6 allows `std::sync::atomic::*` for `languages/{lang}/src` (`crates/ryo/tastemaker.toml:205`), but every provider use of it is test-only:
-- `ruff_python_parser/adapter.rs:26-31` (`#[cfg(test)]`)
-- `parse/contract.rs:45-46` (`#[cfg(test)]`)
-- the `*_test.rs` files
-- `fixtures/module_identity_only/mod.rs:14`
-
-So the production allowlist was widened for tests.
-
-Holding: `prepared_sources` is `pub` only under `cfg(any(test, feature = "fixtures"))` (execution_store `derived/owner/mod.rs:252-253`), and the seal fires when it is made nameable (check 2).
-
-## Check 4: one implementation and one representation per concept: PASS
-- The parity per-rule document has one writer (bmf `schemas.rs:345` `parity_rules`), and `verify_profiles.py` holds no copy.
-- certify's `Observations` wraps the one `ExecutionFake` (`certify/fixtures/observations.rs:14-17`).
-- `ContextProbe` was moved, not copied (`module_identity_only/mod.rs:69`).
-- The span refusals moved to `query_language/src/domain/refusing/service.rs:17,89`, and `assembling/service.rs:121-122` is their one caller.
-- The `lookups.rs` case moved whole to `stores.rs:300`.
-
-Advisory: `compiled_lint` (`stores.rs:366-390`) repeats the real-compiler wiring of `runs.rs:46-59` and `lookups.rs:196-208`. That is composition, which is allowed.
-
-## Check 5: layer direction: PASS
-- `refusing` is a domain concept, called by domain `assembling`.
-- The `Sealed` blanket impl is in `execution_domain/src/application/matching/service.rs:13`, over the domain trait (`domain/matching/types.rs:14-22`).
-- `import_rows` (tastemaker core `domain/import_rows/service.rs:104-113, 216-232`) stays in its domain.
+## 5 Layer direction: PASS
+- The presence probes moved within `execution_runtime` `application/file_dag/program/facade_runtime` (`file_execution/presence/service.rs:352-390`).
+- The execution_domain merge-repair edits are fmt and import order, plus the lazy select scratch.
+- F1 changes one match in `domain/operator/contract`.
 - No inbound or application item crosses a crate.
 
-## Check 6: test seams stay out of production: PASS
-- No `[dependencies]` entry or default feature in any committed `Cargo.toml` enables a fixtures or test feature (manifest scan).
-- The `serve_project` doctest's fixtures are behind `cfg(any(test, feature = "fixtures"))`, switched on only by the crate's own dev-dependency (`execution_store/Cargo.toml:27`).
-- The parse counters are `#[cfg(test)]` fields.
+## 6 Test seams stay out of production: PASS
+- `region_probe` and `retire_again` keep `#[cfg(test)]` after the move.
+- `executable_program/fixtures.rs` and `conformance/fixtures.rs` are `cfg(test)` modules.
+- `acceptance` stays behind `cfg(any(test, feature = "fixtures"))` (`execution_runtime/src/application/file_dag.rs:21-22`) and is switched on only from dev-dependencies.
 
 ## Enforcement candidates
-- `stale-red-owner-5fdfc825` (new rule)
-- `cross-product-path-patch-a711e823` (new rule)
-- `replay-language-set-split-e2460590` (compiler: one function for the language set)
-- `test-only-import-in-production-allowlist-77f00ace` (strengthen `idiomatic.ryo/provider-imports`)
+These are new at 333. They are not carried from 332, because this is not a re-review of 332. In 332's terms: `stale-red-owner-5fdfc825` is fixed by `own()`, `cross-product-path-patch-a711e823` is fixed by 0.1.3, `replay-language-set-split-e2460590` is fixed by `replay_languages()`, and `test-only-import-in-production-allowlist-77f00ace` is still open (`crates/ryo/tastemaker.toml:205` still allows `std::sync::atomic::*`).
+- `checkpoint-gate-drops-a-quality-group-d347eb4d`: new rule.
+- `absence-gated-test-pass-080c5466`: strengthen `idiomatic.arch/no-ignored-tests`, which today covers only Rust `#[ignore]`.
+- `tracker-id-definition-split-78f9a5a1`: strengthen `idiomatic.arch/no-tracker-text-shipped`, as the single definition the validator reads.
 
-VERDICT: FAIL: 2, 3
+VERDICT: FAIL: 2
