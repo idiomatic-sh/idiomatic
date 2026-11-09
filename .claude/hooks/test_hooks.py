@@ -705,6 +705,14 @@ class PerfGate(unittest.TestCase):
                 self.assertEqual(done.returncode, 2)
                 self.assertIn("push of claude/p6-speed refused", done.stderr)
 
+    def test_redirections_with_no_remote_or_branch_named_still_hit_the_perf_gate(self):
+        self.perf()
+        for command in ("git push", "git push -q 2>&1", "git push &>log", "git push >log 2>&1", "git push -q >log 2>&1"):
+            with self.subTest(command=command):
+                done = run_hook("guard_shell.py", {"tool_input": {"command": command}, "cwd": self.tree})
+                self.assertEqual(done.returncode, 2)
+                self.assertIn("push of claude/p6-speed refused", done.stderr)
+
     def test_remote_consolidation_perf_commits_are_not_pushed(self):
         git(self.tree, "checkout", "-q", "-b", "claude/other", self.base)
         git(self.tree, "commit", "-q", "--allow-empty", "-m", "perf(engine): remote only 3s")

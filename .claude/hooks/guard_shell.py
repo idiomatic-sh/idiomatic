@@ -788,7 +788,7 @@ GATES = (bulk_push, rust_review, previous_reviews, perf_gate, branch_review)
 EVIDENCE_NAME = re.compile(r"(rust-review|contract-review|leak-review|tm-steward)[^/]*\.json|asymptote\.json")
 EVIDENCE_TAIL = "/crates/ryo/docs/contracts/evidence/"
 CHECKPOINT_BRANCH = re.compile(r"claude/checkpoint-\d+")
-REDIRECT = re.compile(r"(?<![<&0-9])\d?>>?\s*(?!&)(\"[^\"]+\"|'[^']+'|[^\s;&|<>()]+)")
+WRITE_REDIRECT = re.compile(r"(?<![<&0-9])\d?>>?\s*(?!&)(\"[^\"]+\"|'[^']+'|[^\s;&|<>()]+)")
 
 
 def evidence_write_problem(path, here):
@@ -822,7 +822,7 @@ def evidence_write_problem(path, here):
 def written_paths(segment, words):
     """The files a shell segment writes by > , >>, tee, cp, mv or install (a copy into a directory counts the
     source's file name under that directory)."""
-    found = [m.group(1).strip("'\"") for m in REDIRECT.finditer(segment)]
+    found = [m.group(1).strip("'\"") for m in WRITE_REDIRECT.finditer(segment)]
     if len(words) > 2 and words[0] == "git" and "show" in words[1:3] and any(re.match(r"[^\s:]+:\S", w) for w in words[2:]):
         found = []  # git show <rev>:<committed path> > file is a read copy of committed content
     for inner in unwrapped(words):
