@@ -345,6 +345,7 @@
     {"test": "tm provider-imports on a real-tree sibling plant in languages/rust/src: 1 finding at fn b's line 2 (red: 0 under tm built from 0f2fa35a12)", "base_sha": "0f2fa35a1230599c4e2556a7b116c407b1bd8dad", "merge_sha": "563c0bc69b95071aa4586d4d8bcd4a1bab9eec0e"},
     {"test": "authoring.test_target_supplement: 7 of 9 green (red: 7 of 9 failing at a19f3047c6, 8 at the 333 merge)", "base_sha": "a19f3047c624f2e2c03d0cf85b12ef527aa13f9d", "merge_sha": "563c0bc69b95071aa4586d4d8bcd4a1bab9eec0e"},
     {"test": "run_test.py Check.test_a_green_result_with_only_a_stale_owner_fails_the_check (leak review 332 check 2a)", "base_sha": "8e4d22b3a59c388b22e108a7387d1f6e7d3ae788", "merge_sha": "563c0bc69b95071aa4586d4d8bcd4a1bab9eec0e"},
-    {"test": "compile-time guard: execution_domain operator contract failure() names every Operation variant (Rust gate 333 F1; a new variant fails to compile, no behaviour change)", "base_sha": "6af005e9f749d03192fb87f68db577ef42944ce5", "merge_sha": "563c0bc69b95071aa4586d4d8bcd4a1bab9eec0e"}
+    {"test": "compile-time guard: execution_domain operator contract failure() names every Operation variant (Rust gate 333 F1; a new variant fails to compile, no behaviour change)", "base_sha": "6af005e9f749d03192fb87f68db577ef42944ce5", "merge_sha": "563c0bc69b95071aa4586d4d8bcd4a1bab9eec0e"},
+    {"test": "ci/contract_review/service_test.py::test_the_ci_and_hook_validators_agree_on_every_variant (package names in a candidate are no tracker ids)", "base_sha": "e4f1d396eb8cdd57ecf77357ad72b58b9487b76a", "merge_sha": "98e0fcb703d88416849edce3f8606af41a91ca21"}
   ]
 }
