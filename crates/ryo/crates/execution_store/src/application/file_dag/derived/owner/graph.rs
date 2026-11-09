@@ -29,6 +29,10 @@ impl DerivedOwner {
         if !std::ptr::eq(self, admission.owner().derived()) {
             return Err(OperatingError::NotRead);
         }
+        // The project owner holds no graph cache: its axis or reach walks the frontier tables, as an uncached one does.
+        if self.file_prepared.get() == FilePreparation::Project {
+            return Ok(None);
+        }
         let mut cache = self.graph_cache()?;
         if cache.graph_enabled != GraphAdmission::Enabled {
             return Ok(None);
@@ -37,7 +41,8 @@ impl DerivedOwner {
     }
     /// The one place a graph demand reaches the cache: before `prepare_program_file`, after
     /// retirement, or when the file's cache was refused, the demand is refused with
-    /// `NotRun` and never traversed by an ordinary route.
+    /// `NotRun` and never traversed by an ordinary route. The project owner never reaches it:
+    /// `prepare_graph` declines the graph there.
     pub(crate) fn graph_cache(
         &self,
     ) -> Result<std::cell::RefMut<'_, CacheBackend>, OperatingError> {

@@ -27,7 +27,7 @@ impl DerivedOwner {
         demanded: &[RuleIndex],
         partial: &[Partial],
     ) -> Result<(), OperatingError> {
-        if self.file_prepared.get() == FilePreparation::Prepared {
+        if self.file_prepared.get() != FilePreparation::Unprepared {
             return Err(OperatingError::NotRun);
         }
         tracing::trace!(target: activation::TARGET, event = activation::BEGIN);
@@ -52,6 +52,15 @@ impl DerivedOwner {
         *self.backend.borrow_mut() = backend;
         self.file_prepared.set(FilePreparation::Prepared);
         tracing::trace!(target: activation::TARGET, event = activation::END);
+        Ok(())
+    }
+    /// Sets the owner up for the project phase: it is never prepared for one file and holds no graph cache. An owner
+    /// already prepared for a file is refused.
+    pub fn serve_project(&self) -> Result<(), OperatingError> {
+        if self.file_prepared.get() == FilePreparation::Prepared {
+            return Err(OperatingError::WrongOperation);
+        }
+        self.file_prepared.set(FilePreparation::Project);
         Ok(())
     }
 }
