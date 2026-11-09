@@ -76,21 +76,22 @@ inputs = [".github"]
 [[tools]]
 id = "commitizen"
 group = "lint"
-# The commit messages about to be pushed are conventional commits (cz.toml): the range from the oldest commit no remote holds yet to
-# HEAD, through cz's own --rev-range, so history a remote already holds is never checked again; a branch every commit of which a
-# remote holds has none to check. The commit being made is checked at the next commit. The pull request's title, which a squash
-# merge makes the commit main keeps, is the owner's, checked when the owner merges.
-run = ["bash", "-c", "set -e; first=$(git rev-list --reverse HEAD --not --remotes | head -n 1); [ -z \"$first\" ] || cz check --rev-range \"$(git rev-parse --verify -q \"$first^\" || git hash-object -t tree /dev/null)..HEAD\""]
+# The branch's commit messages are conventional commits (cz.toml): the range from its merge-base with origin/main to HEAD, through
+# cz's own --rev-range, so a checkout of a pushed branch (CI's) checks the branch's own commits and main's history is never checked
+# again; a branch with no commit ahead of origin/main has none to check. The commit being made is checked at the next commit. The
+# pull request's title, which a squash merge makes the commit main keeps, is the owner's, checked when the owner merges.
+run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD"]
 timeout-seconds = 300
 
 [[tools]]
 id = "gitleaks"
 group = "lint"
 # No secret is committed (.gitleaks.toml: gitleaks' default rules and the allowlist of what is proven not a secret; .gitleaksignore:
-# single findings proven not secrets). The staged change is scanned before it is committed, and every commit no remote holds yet
-# before it is pushed, so a secret committed and then deleted still fails; what a remote already holds is public. The whole history
-# was scanned once, on 2026-11-09. Exit 1 is a finding; --redact keeps the secret out of the output.
-run = ["bash", "-c", "set -e; gitleaks git --pre-commit --staged --redact --no-banner .; [ -z \"$(git rev-list HEAD --not --remotes)\" ] || gitleaks git --redact --no-banner '--log-opts=HEAD --not --remotes' ."]
+# single findings proven not secrets). The staged change is scanned before it is committed, and every commit of the branch since
+# its merge-base with origin/main, so a secret committed and then deleted still fails, and a checkout of a pushed branch (CI's)
+# scans the branch's own commits. The whole history was scanned once, on 2026-11-09. Exit 1 is a finding; --redact keeps the
+# secret out of the output.
+run = ["bash", "-c", "set -e; gitleaks git --pre-commit --staged --redact --no-banner .; [ -z \"$(git rev-list origin/main..HEAD)\" ] || gitleaks git --redact --no-banner --log-opts=origin/main..HEAD ."]
 timeout-seconds = 600
 
 [[tools]]
@@ -108,8 +109,10 @@ group = "checkpoint"
 # commands.json over the checked-out source, writes each command's log and exit under target/checks/checkpoint, and writes
 # validation.json, identity.json and tests.json beside itself; the checkpoint workflow uploads them with the logs. The commands
 # build offline, so the two workspaces they build are fetched first. Its exit is run.py's, from the results alone (a red command no
-# README row owns, or a ticked row the results do not prove), kept in target/checks/checkpoint/status.
-run = ["bash", "-c", "set -e; mkdir -p target/checks/checkpoint; cargo fetch --locked --manifest-path crates/ryo/Cargo.toml; cargo fetch --locked --manifest-path crates/tastemaker/Cargo.toml; set +e; python3 -I crates/ryo/docs/contracts/evidence/checkpoint/run.py target/checks/checkpoint; tool_status=$?; printf '%s\\n' \"$tool_status\" > target/checks/checkpoint/status; exit \"$tool_status\""]
+# README row owns, or a ticked row the results do not prove), kept in target/checks/checkpoint/status. Its output is kept in
+# summary.log, and on GitHub Actions each command it did not run (`NOT RUN ruff_parity: parity not run: ...`), each red and a stale
+# record go to the run's summary, so an owned refusal is never folded into a green job unseen.
+run = ["bash", "-c", "set -e; mkdir -p target/checks/checkpoint; cargo fetch --locked --manifest-path crates/ryo/Cargo.toml; cargo fetch --locked --manifest-path crates/tastemaker/Cargo.toml; set +e -o pipefail; python3 -I crates/ryo/docs/contracts/evidence/checkpoint/run.py target/checks/checkpoint | tee target/checks/checkpoint/summary.log; tool_status=$?; [ -z \"${GITHUB_STEP_SUMMARY:-}\" ] || grep -E '^(NOT RUN|RED|UNTICKED ROW|TICKED ROW|STALE RECORD) ' target/checks/checkpoint/summary.log >> \"$GITHUB_STEP_SUMMARY\"; printf '%s\\n' \"$tool_status\" > target/checks/checkpoint/status; exit \"$tool_status\""]
 timeout-seconds = 21600
 
 [[tools]]

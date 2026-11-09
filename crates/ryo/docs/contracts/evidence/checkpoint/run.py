@@ -282,9 +282,23 @@ OWNERS={
  'manifests_npm::ryo_says_what_npm_says_of_the_manifests_of_a_workspace':CLOSE,
  'manifests_cargo::ryo_says_what_cargo_says_of_the_manifests_of_every_target':CLOSE,
 }
+# The exit's owners: each red test a command recorded, by its exact (command, test binary, test) id, and the open README row that
+# owns it. A red no entry names, and a red command that recorded no failed test, are unowned and fail the run.
+RED_OWNERS={
+ ('libraries','ryo_benchmark','inbound::use_cases::compare_corpus::use_case_test::refuses'):CLOSE,
+ ('libraries','ryo_benchmark','inbound::use_cases::compare_corpus::use_case_test::succeeds'):CLOSE,
+ ('libraries','ryo_benchmark','inbound::use_cases::verify_cases::use_case_test::process_capture::test::succeeds'):CLOSE,
+ ('cli_tests','replay','behavior::ruff_findings_equal_the_expected_findings'):CLOSE,
+ ('cli_tests','replay','behavior::every_recorded_rule_gives_the_recorded_rows'):CLOSE,
+ ('cli_tests','replay','peak::a_warm_unchanged_run_over_ruff_peaks_within_its_bound'):OWNERS['peak::a_warm_unchanged_run_over_ruff_peaks_within_its_bound'],
+ ('cli_cost','replay','cost::a_cold_run_over_ruff_holds_the_peak_ratchet'):OWNERS['cli_cost'],
+ ('cli_cost','replay','cost::a_warm_run_and_an_edit_run_over_ruff_hold_their_ratchets'):OWNERS['cli_cost'],
+ ('cli_cost','replay','cost::every_live_rule_together_holds_the_cold_ratchet_of_ruff'):OWNERS['cli_cost'],
+}
 # A command that cannot run on this machine says so on its first output line (`not available: <why>`) and exits non-zero; the row
-# named here owns that refusal, and only that refusal: any other red of the command is its own.
+# named here owns that refusal, and only that refusal. Every run prints it as not run (`ruff_parity`: parity not run).
 UNAVAILABLE_OWNERS={'ruff_parity':CLOSE}
+NOT_RUN={'ruff_parity':'parity not run'}
 NOT_AVAILABLE_LINE=re.compile(r'^not available: (.+)$')
 def unavailable(log):
  """The reason a command's raw log gives on its first line for not running here, or None."""
@@ -292,16 +306,21 @@ def unavailable(log):
  m=NOT_AVAILABLE_LINE.match(lines[0]) if lines else None
  return m.group(1) if m else None
 def command_owners(name,check,tests):
- """The rows that own a red command: its UNAVAILABLE_OWNERS row for a recorded `not available` refusal, its own OWNERS row, or the
- rows of the red tests it recorded (a test by its name, a library test binary `ryo_<x>` by `<x>_library`); [] when one red has none."""
+ """The rows that own a red command: its UNAVAILABLE_OWNERS row for a recorded `not available` refusal, else the RED_OWNERS rows of
+ its recorded red tests; [] when it recorded no red test or one of them has no exact entry."""
  if check.get('not_available'): return [UNAVAILABLE_OWNERS[name]] if name in UNAVAILABLE_OWNERS else []
- if name in OWNERS: return [OWNERS[name]]
- failed=[(binary,test) for binary,t in tests.get(name,{}).items() for test in t['failed']]
- owners=[OWNERS.get(test) or OWNERS.get(binary.removeprefix('ryo_')+'_library') for binary,test in failed]
- return sorted(set(owners)) if failed and all(owners) else []
+ owners=[RED_OWNERS.get((name,binary,test)) for binary,t in tests.get(name,{}).items() for test in t['failed']]
+ return sorted(set(owners)) if owners and all(owners) else []
 def red_commands(v):
  """(name, exit, owning rows) of every command the validation recorded red."""
  return [(n,c['exit'],command_owners(n,c,v.get('tests',{}))) for n,c in v.get('checks',{}).items() if c.get('exit',0)!=0]
+def open_row_problems(readme_text):
+ """Each owner of the exit (RED_OWNERS, UNAVAILABLE_OWNERS) that is no open README row: a ticked row owns nothing."""
+ bad=[]
+ for key,title in [*RED_OWNERS.items(),*UNAVAILABLE_OWNERS.items()]:
+  if '[ ] '+title in readme_text: continue
+  bad.append('owner of '+str(key)+(' is a ticked README row: ' if '[x] '+title in readme_text else ' is no README row: ')+title[:80])
+ return bad
 OWNED=re.compile(r'(?:; )?(?:[a-z_]+ )?owned by "[^"]*"')
 def owned(note,clauses):
  """The note without its owner clauses, then one `owned by "<row title>"` clause per owner."""
@@ -314,7 +333,8 @@ def own(v,readme_text):
  """Each red result carries its owning row's exact title in its validation.json note, from OWNERS; a green result carries none. A red with no owner and a title that is no README row are reported. Returns (changed, problems)."""
  results=v['results']; bad=[]; before=json.dumps(results)
  for key,title in OWNERS.items():
-  if '[ ] '+title not in readme_text and '[x] '+title not in readme_text: bad.append('owner of '+key+' is no README row: '+title[:80])
+  if '[ ] '+title in readme_text: continue
+  bad.append('owner of '+key+(' is a ticked README row: ' if '[x] '+title in readme_text else ' is no README row: ')+title[:80])
  for key,x in results.items():
   if not isinstance(x,dict) or key in LISTED: continue
   if red(x):
@@ -339,7 +359,7 @@ def finish(v,check=False):
  old=readme.read_text(); owners_changed,owner_bad=own(v,old); text=write_block(old,v)
  if owners_changed: validation_json.write_text(dumps({k:x for k,x in v.items() if k!='tests'})+'\n')
  for line in scope_delta(v): print(line)
- bad=list(owner_bad)+red_green_problems(v); texts=[]; changed=['validation.json'] if owners_changed else []; unticked_any=False
+ bad=list(owner_bad)+open_row_problems(old)+red_green_problems(v); texts=[]; changed=['validation.json'] if owners_changed else []; unticked_any=False
  for part in sorted(contracts.glob('*.md')):
   before=old if part==readme else part.read_text(); body,unticked=untick_unproven(text if part==readme else before,v); where='' if part==readme else part.name+' '
   if body!=before: part.write_text(body); changed.append(part.name)
@@ -352,6 +372,8 @@ def finish(v,check=False):
  for line in bad: print('TICKED ROW '+line)
  unowned=[]
  for name,code,owners in red_commands(v):
+  reason=v['checks'][name].get('not_available')
+  if reason: print('NOT RUN '+name+': '+NOT_RUN.get(name,name+' not run')+': '+reason)
   print('RED '+name+' exit '+str(code)+(', owned by '+'; '.join('"'+x+'"' for x in owners) if owners else ', owned by no row'))
   if not owners: unowned.append(name)
  if changed: print(('STALE RECORD: the committed record is not what validation.json gives: ' if check else 'rewritten from validation.json (numbers block, owner notes, un-ticked rows): ')+', '.join(changed)+'; stage them')

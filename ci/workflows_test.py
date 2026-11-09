@@ -28,10 +28,11 @@ CAPTURE_GROUP = re.compile(r"asymptote check --groups ([a-z][a-z-]*) --format js
 # and the token `gh` creates the GitHub Release with; npm and PyPI exchange the OIDC token themselves.
 COMMAND = re.compile(r"uv run ci/[a-z_]+/command\.py( [\w./=-]+)*")
 HANDED = {"CARGO_REGISTRY_TOKEN", "GH_TOKEN"}
-# What may start a workflow: a hand run alone (no paid CI: no pull request, no schedule). A workflow that publishes may start on a
-# push to main too, which only a merged pull request makes; `pull_request_target`, which runs a fork's code with the repository's
-# secrets, never.
+# What may start a workflow: a hand run alone (no paid CI: no pull request, no schedule). The release workflow, by name, may start
+# on a push to main too, which only the owner's merged release pull request makes; `pull_request_target`, which runs a fork's code
+# with the repository's secrets, never.
 ALLOWED = {"workflow_dispatch"}
+PUSHED = {"release.yml"}
 # What may follow a job's check: uploading what its tools left (a bench's documents) as the run's artifact.
 UPLOAD = "actions/upload-artifact@"
 # The GitHub Release is the one step beside the job command that is not a command of its own: `gh` calls and the checksums they upload.
@@ -160,14 +161,13 @@ def environment(job: dict) -> str | None:
 
 
 def trigger_problems(name: str, workflow: dict) -> list[str]:
-    """What starts the workflow that may not: a trigger outside `ALLOWED`, a push for a workflow that does not publish (a `publish`
-    job, or a job in the `release` environment), and a push to a branch other than main for one that does."""
+    """What starts the workflow that may not: a trigger outside `ALLOWED`, a push for any workflow `PUSHED` does not name, and a
+    push to a branch other than main for one it does."""
     started = triggers(workflow)
-    jobs = workflow["jobs"]
-    publishes = "publish" in jobs or any(environment(job) == "release" for job in jobs.values())
-    found = [f"{name} starts on {each}" for each in sorted(started - ALLOWED - ({"push"} if publishes else set()))]
+    pushed = name in PUSHED
+    found = [f"{name} starts on {each}" for each in sorted(started - ALLOWED - ({"push"} if pushed else set()))]
     on = workflow["on" if "on" in workflow else True]
-    if publishes and "push" in started and (on.get("push") if isinstance(on, dict) else None) != {"branches": ["main"]}:
+    if pushed and "push" in started and (on.get("push") if isinstance(on, dict) else None) != {"branches": ["main"]}:
         found.append(f"{name} starts on a push to more than main")
     return found
 
@@ -590,6 +590,8 @@ def test_a_workflow_that_publishes_starts_only_by_hand_or_on_a_push_to_main() ->
     assert trigger_problems("release.yml", by_hand) == []
     on_a_push = by_hand | {"on": {"push": {"branches": ["main"]}, "workflow_dispatch": None}}
     assert trigger_problems("release.yml", on_a_push) == []
+    # Publishing grants no push: only the release workflow, by name, starts on one.
+    assert trigger_problems("publish.yml", on_a_push) == ["publish.yml starts on push"]
     on_any_push = by_hand | {"on": {"push": None}}
     assert trigger_problems("release.yml", on_any_push) == ["release.yml starts on a push to more than main"]
 
@@ -1043,5 +1045,7 @@ def test_a_hand_run_validates_the_checkpoint_and_uploads_its_record() -> None:
         f"{evidence}/tests.json",
     ]
     (tool,) = [tool for tool in tomllib.loads((ROOT / "asymptote.toml").read_text())["tools"] if tool["group"] == "checkpoint"]
-    assert f"python3 -I {evidence}/run.py target/checks/checkpoint;" in tool["run"][-1]
+    assert f"python3 -I {evidence}/run.py target/checks/checkpoint | tee target/checks/checkpoint/summary.log;" in tool["run"][-1]
+    # A command that did not run (`NOT RUN ruff_parity: parity not run: ...`), every red and a stale record reach the run's summary.
+    assert "grep -E '^(NOT RUN|RED|UNTICKED ROW|TICKED ROW|STALE RECORD) ' target/checks/checkpoint/summary.log >> \"$GITHUB_STEP_SUMMARY\"" in tool["run"][-1]
     assert (ROOT / evidence / "commands.json").is_file()

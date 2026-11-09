@@ -44,7 +44,8 @@ sources and approved reuse of those runs.
 
 On GitHub Actions the checkpoint workflow (`.github/workflows/checkpoint.yml`), started by hand on a ref, runs `run.py` through the
 root `asymptote.toml`'s `checkpoint` tool with `target/checks/checkpoint` as the output directory, and uploads `validation.json`,
-`identity.json`, `tests.json` and every command's `.log` and `.json` as the `checkpoint-validation` artifact.
+`identity.json`, `tests.json`, `summary.log` (run.py's output) and every command's `.log` and `.json` as the
+`checkpoint-validation` artifact; its `NOT RUN`, `RED`, ticked-row and `STALE RECORD` lines go to the run's summary.
 
 ## What `run.py` writes and checks
 
@@ -67,11 +68,12 @@ cargo and takes no lock. It rewrites the block from the committed
 so a stale block cannot pass. A full run rewrites the block every time (its validation number is new), which is not a failure:
 it exits on the validation's results alone.
 
-Both modes exit 1 for a red command no README row owns, and print every red command with its owning rows: its own `OWNERS` row,
-or the rows of every red test it recorded (a test by its name, a library test binary `ryo_<x>` by `<x>_library`). A command that
-cannot run on the machine prints `not available: <why>` as its first line and exits non-zero (`ruff_parity`, whose pinned Django
-request stays outside the repository); `run.py` records the reason in its check, and only that refusal is owned, by its
-`UNAVAILABLE_OWNERS` row. Both modes also exit 1 when a ticked row (`☑`,
+Both modes exit 1 for a red command no open README row owns, and print every red command with its owning rows. A red is owned
+only by its exact recorded test id, `(command, test binary, test)` in `RED_OWNERS`; a red command that recorded no failed test
+(a build failure, a crashed binary, a `harness = false` target such as `core_allocation`) is unowned. A command that cannot run on
+the machine prints `not available: <why>` as its first line and exits non-zero (`ruff_parity`, whose pinned Django request stays
+outside the repository); `run.py` records the reason in its check, prints it as `NOT RUN ruff_parity: parity not run: <why>`, and
+only that refusal is owned, by its `UNAVAILABLE_OWNERS` row. An owning row must be open: `own()` and the exit refuse a ticked one. Both modes also exit 1 when a ticked row (`☑`,
 `[x]`) of the matrix cites no validation (`validationNNN`, `proofNNN`,
 `reviewNNN`, `passNNN`, `runtimeNNN`, `reuseNNN`, `inNNN`, `atNNN`) or cites one
 greater than `validation`; each offending row is printed with its line number.
