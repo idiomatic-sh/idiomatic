@@ -1,4 +1,4 @@
-description = "File walk ownership and semantic dispatch stay inside the required engine boundary."
+description = "File walk ownership and semantic dispatch stay inside the required engine boundary, from any crate of the workspace."
 why = "All file invocation strategies receive one required file-walk owner and use its acquisition policy. Explicit project scope is checked against the live runtime permit; it is never an optional file owner. FileWalk and WalkResult have private representations in native_walk.rs; the issued PermittedWalk data and consuming semantic dispatch live in native_walk/lease/service.rs. Only that owner constructs the request from its actual ready-class queue and calls the semantic shared walker. Rust privacy resolves construction aliases; runtime controls prove scope, readiness, source identity and semantic barriers. The structural checks reject optional KernelSession state, moved or widened owner representations and written raw evaluator paths. Across every execution source layer, resolved same-crate source dependencies also reject aliased access to the semantic service. Only native_walk/lease/service.rs, the semantic service itself, and the exact registered domain/shared_walk/service_test.rs proof may reference that service; test filenames and neighboring domain modules grant no authority. Fundamental shared-walk counters, predicate identities and file scratch belong to types.rs; prepared request values may depend on that common vocabulary, never the reverse. Resolved reverse dependencies reject counter/identity moves back into the prepared value. Macro expansion and facade re-export chains remain outside this source proof."
 query = '''
 let nodes = select id, kind, file, span from "syntax-tree" where text = "";
@@ -33,7 +33,7 @@ let boundary = union(left=wrong-placement, right=widened);
 let session-boundary = union(left=boundary, right=optional-session);
 let dependencies = capture(from="source-dependency", path="source", pattern="{*source-root}/{*source-tail}", captures=["source-root", "source-tail"]);
 let semantic-targets = capture(from=dependencies, path="target", pattern="{*target-root}/{*semantic-tail}", captures=["target-root", "semantic-tail"]);
-let foreign-semantics = select source as file, span from semantic-targets where source-root = target-root and glob_any(semantic-tail, "{domain/shared_walk.rs,domain/shared_walk/service.rs}") and not glob_any(source-tail, "{application/file_dag/program/native_walk/lease/service.rs,domain/shared_walk/service.rs,domain/shared_walk/service_test.rs}");
+let foreign-semantics = select source as file, span from semantic-targets where glob_any(source-root, "{src,**/src}") and glob_any(target-root, "{src,**/src}") and glob_any(semantic-tail, "{domain/shared_walk.rs,domain/shared_walk/service.rs}") and not glob_any(source-tail, "{application/file_dag/program/native_walk/lease/service.rs,domain/shared_walk/service.rs,domain/shared_walk/service_test.rs}");
 let visibility-paths = axis(from=visibilities, relation="syntax-child", direction=descendant, domain=paths);
 let visibility-references = select r.file as file, r.span as span from visibility-paths as l join paths as r on l.related = r.id;
 let callable-semantics = antijoin(left=foreign-semantics, right=visibility-references, left-on=["file", "span"], right-on=["file", "span"]);
@@ -50,13 +50,26 @@ message = "shared file-walk ownership escapes its required private engine bounda
 help = "Keep FileWalk/WalkResult private in native_walk.rs and the permitted request private in native_walk/lease/service.rs. Give file sessions a required owner and project sessions an explicitly validated stage. Acquire shared results through the file owner."
 
 [given]
-include = ["src/**"]
+include = ["src/**", "walker/src/**"]
 files.'Cargo.toml' = '''
 [package]
 name = "shared_walk_owner_fixture"
 version = "0.1.0"
 edition = "2024"
+
+[workspace]
+members = ["walker"]
 '''
+files.'walker/Cargo.toml' = '''
+[package]
+name = "walker"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+engine = { package = "shared_walk_owner_fixture", path = ".." }
+'''
+files.'walker/src/lib.rs' = 'pub fn walk() {}'
 files.'src/lib.rs' = 'mod application; mod domain;'
 files.'src/domain.rs' = 'mod shared_walk;'
 files.'src/domain/shared_walk.rs' = 'pub(crate) mod service;'
@@ -116,7 +129,7 @@ const NOTE: &str = "crate::domain::shared_walk::service::evaluate()";
 id = "aliased-semantic-service-refused"
 scenario = "Resolved module aliases cannot restore a raw walk outside the file owner."
 given.files.'src/application/file_dag/program/kernel_session.rs' = 'use crate::domain::shared_walk as semantic; fn bypass() { semantic::service::evaluate(); }'
-then.findings = [{ path = "src/application/file_dag/program/kernel_session.rs", line = 1 }]
+then.findings = [{ path = "src/application/file_dag/program/kernel_session.rs", line = 1 }, { path = "src/application/file_dag/program/kernel_session.rs", line = 1 }]
 
 [[scenarios]]
 id = "aliased-inbound-semantic-module-refused"
@@ -125,14 +138,14 @@ given.files.'src/lib.rs' = 'mod application; mod domain; mod inbound;'
 given.files.'src/inbound.rs' = 'mod use_cases;'
 given.files.'src/inbound/use_cases.rs' = 'mod rogue;'
 given.files.'src/inbound/use_cases/rogue.rs' = 'use crate::domain::shared_walk as semantic; fn bypass() { semantic::service::evaluate(); }'
-then.findings = [{ path = "src/inbound/use_cases/rogue.rs", line = 1 }]
+then.findings = [{ path = "src/inbound/use_cases/rogue.rs", line = 1 }, { path = "src/inbound/use_cases/rogue.rs", line = 1 }]
 
 [[scenarios]]
 id = "aliased-domain-semantic-module-refused"
 scenario = "A different domain concept has no raw-walk scheduling authority."
 given.files.'src/domain.rs' = 'mod shared_walk; mod rogue;'
 given.files.'src/domain/rogue.rs' = 'use crate::domain::shared_walk as semantic; fn bypass() { semantic::service::evaluate(); }'
-then.findings = [{ path = "src/domain/rogue.rs", line = 1 }]
+then.findings = [{ path = "src/domain/rogue.rs", line = 1 }, { path = "src/domain/rogue.rs", line = 1 }]
 
 [[scenarios]]
 id = "aliased-outbound-semantic-module-refused"
@@ -140,7 +153,7 @@ scenario = "An outbound provider supplies facts and cannot invoke the semantic w
 given.files.'src/lib.rs' = 'mod application; mod domain; mod outbound;'
 given.files.'src/outbound.rs' = 'mod rogue;'
 given.files.'src/outbound/rogue.rs' = 'use crate::domain::shared_walk as semantic; fn bypass() { semantic::service::evaluate(); }'
-then.findings = [{ path = "src/outbound/rogue.rs", line = 1 }]
+then.findings = [{ path = "src/outbound/rogue.rs", line = 1 }, { path = "src/outbound/rogue.rs", line = 1 }]
 
 [[scenarios]]
 id = "aliased-service-item-inbound-refused"
@@ -155,14 +168,14 @@ id = "test-filename-is-not-authority"
 scenario = "A different gated test module cannot evade the exact semantic-proof caller inventory."
 given.files.'src/domain.rs' = 'mod shared_walk; #[cfg(test)] mod rogue_test;'
 given.files.'src/domain/rogue_test.rs' = 'use crate::domain::shared_walk as semantic; fn bypass() { semantic::service::evaluate(); }'
-then.findings = [{ path = "src/domain/rogue_test.rs", line = 1 }]
+then.findings = [{ path = "src/domain/rogue_test.rs", line = 1 }, { path = "src/domain/rogue_test.rs", line = 1 }]
 
 [[scenarios]]
 id = "neighboring-semantic-module-is-not-owner"
 scenario = "A new module beside the semantic service cannot acquire its raw evaluator authority."
 given.files.'src/domain/shared_walk.rs' = 'pub(crate) mod service; mod rogue;'
 given.files.'src/domain/shared_walk/rogue.rs' = 'use crate::domain::shared_walk as semantic; fn bypass() { semantic::service::evaluate(); }'
-then.findings = [{ path = "src/domain/shared_walk/rogue.rs", line = 1 }]
+then.findings = [{ path = "src/domain/shared_walk/rogue.rs", line = 1 }, { path = "src/domain/shared_walk/rogue.rs", line = 1 }]
 
 [[scenarios]]
 id = "exact-domain-semantic-proof-is-authorized"
@@ -186,7 +199,7 @@ id = "counter-value-cannot-alias-evaluator"
 scenario = "The visibility exception is limited to syntax paths inside visibility nodes, not a whole metadata module."
 given.files.'src/domain/shared_walk.rs' = 'pub(crate) mod service; mod types;'
 given.files.'src/domain/shared_walk/types.rs' = 'use crate::domain::shared_walk as semantic; fn bypass() { semantic::service::evaluate(); }'
-then.findings = [{ path = "src/domain/shared_walk/types.rs", line = 1 }]
+then.findings = [{ path = "src/domain/shared_walk/types.rs", line = 1 }, { path = "src/domain/shared_walk/types.rs", line = 1 }]
 
 [[scenarios]]
 id = "prepared-values-use-common-counter-types"
@@ -212,7 +225,7 @@ given.files.'src/domain/shared_walk.rs' = 'pub(crate) mod service; mod types;'
 given.files.'src/domain/shared_walk/types.rs' = 'pub(crate) mod prepared_walk; use self::prepared_walk::value as prepared; struct Scratch { visits: prepared::RowsVisited }'
 given.files.'src/domain/shared_walk/types/prepared_walk.rs' = 'pub(crate) mod value;'
 given.files.'src/domain/shared_walk/types/prepared_walk/value.rs' = 'pub(crate) struct RowsVisited(pub u64);'
-then.findings = [{ path = "src/domain/shared_walk/types.rs", line = 1 }]
+then.findings = [{ path = "src/domain/shared_walk/types.rs", line = 1 }, { path = "src/domain/shared_walk/types.rs", line = 1 }]
 
 [[scenarios]]
 id = "old-walk-owner-cannot-dispatch-semantics"
@@ -224,7 +237,7 @@ then.findings = [{path="src/application/file_dag/program/native_walk.rs",line=2}
 id = "old-walk-owner-cannot-alias-semantics"
 scenario = "The previous parent role cannot retain evaluator permission through a renamed import."
 given.files.'src/application/file_dag/program/native_walk.rs' = "pub(super) struct FileWalk { generation: () } pub(super) struct WalkResult { result: () } pub(super) mod lease; \nuse crate::domain::shared_walk as semantic; fn bypass() { semantic::service::evaluate(); }"
-then.findings = [{path="src/application/file_dag/program/native_walk.rs",line=2}]
+then.findings = [{path="src/application/file_dag/program/native_walk.rs",line=2}, {path="src/application/file_dag/program/native_walk.rs",line=2}]
 
 [[scenarios]]
 id = "new-neighbor-cannot-dispatch-semantics"
@@ -238,3 +251,9 @@ id = "permitted-request-cannot-return-to-parent"
 scenario = "The issued data declaration cannot move back into the workflow owner."
 given.files.'src/application/file_dag/program/native_walk.rs' = "pub(super) struct FileWalk { generation: () } pub(super) struct WalkResult { result: () } pub(super) mod lease; \npub(crate) struct PermittedWalk { permit: (), ready: () }"
 then.findings = [{path="src/application/file_dag/program/native_walk.rs",line=2}]
+
+[[scenarios]]
+id = "cross-crate-aliased-semantic-service-refused"
+scenario = "Another crate of the workspace cannot restore a raw walk through an aliased import of the semantic service."
+given.files.'walker/src/lib.rs' = 'use engine::domain::shared_walk::service as semantic; pub fn bypass() { semantic::evaluate(); }'
+then.findings = [{ path = "walker/src/lib.rs", line = 1 }, { path = "walker/src/lib.rs", line = 1 }]

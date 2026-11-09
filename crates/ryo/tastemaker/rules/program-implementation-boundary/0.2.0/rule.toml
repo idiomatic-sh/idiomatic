@@ -461,26 +461,26 @@ then.findings = [{ path = "src/domain/operator/collections/operators/select/item
 id = "neutral-protocol-cannot-hold-runtime-owner"
 scenario = "Neutral output DTOs cannot regain a lifecycle dependency through an aliased runtime type."
 given.files.'src/application/file_dag/program/rule_outcome/types.rs' = 'use crate::application::file_dag::program::runtime::service as owner; struct Output { permit: owner::KernelPermit }'
-then.findings = [{ path = "src/application/file_dag/program/rule_outcome/types.rs", line = 1 }]
+then.findings = [{ path = "src/application/file_dag/program/rule_outcome/types.rs", line = 1 }, { path = "src/application/file_dag/program/rule_outcome/types.rs", line = 1 }]
 
 [[scenarios]]
 id = "preparation-cannot-call-file-workflow"
 scenario = "Immutable request compilation cannot reintroduce file execution through an alias."
 given.files.'src/application/file_dag/program/preparation/service.rs' = 'use crate::application::file_dag::program::facade_runtime as workflow; fn bypass() { workflow::run(); }'
 given.files.'src/application/file_dag/program/facade_runtime.rs' = 'pub fn run() {}'
-then.findings = [{ path = "src/application/file_dag/program/preparation/service.rs", line = 1 }]
+then.findings = [{ path = "src/application/file_dag/program/preparation/service.rs", line = 1 }, { path = "src/application/file_dag/program/preparation/service.rs", line = 1 }]
 
 [[scenarios]]
 id = "source-proofs-cannot-validate-interpreter-object"
 scenario = "Source admission depends on explicit owner and partition requirements rather than runtime state."
 given.files.'src/application/file_dag/program/admission.rs' = 'use crate::application::file_dag::program::runtime::service as execution; fn bypass(_: &execution::KernelPermit) {}'
-then.findings = [{ path = "src/application/file_dag/program/admission.rs", line = 1 }]
+then.findings = [{ path = "src/application/file_dag/program/admission.rs", line = 1 }, { path = "src/application/file_dag/program/admission.rs", line = 1 }]
 
 [[scenarios]]
 id = "runtime-types-cannot-import-runtime-interpreter"
 scenario = "Runtime state and capability DTOs cannot depend back on interpreter implementation."
 given.files.'src/application/file_dag/program/runtime/types.rs' = 'use super::service as interpreter; fn bypass() { interpreter::execute(); }'
-then.findings = [{ path = "src/application/file_dag/program/runtime/types.rs", line = 1 }]
+then.findings = [{ path = "src/application/file_dag/program/runtime/types.rs", line = 1 }, { path = "src/application/file_dag/program/runtime/types.rs", line = 1 }]
 
 [[scenarios]]
 id = "physical-bridge-borrows-runtime-capability-type"
