@@ -34,7 +34,10 @@ pub fn state(entries: &ObservedEntries, path: &FilePath) -> Option<ObservedEntry
     }
     match entries.0[index].state {
         ObservedEntryState::Unknown => None,
-        state => Some(state),
+        state @ (ObservedEntryState::File
+        | ObservedEntryState::Directory
+        | ObservedEntryState::Other
+        | ObservedEntryState::Missing) => Some(state),
     }
 }
 

@@ -9,6 +9,10 @@ use super::types::{
 /// Pure regex and glob semantics over caller-owned values.
 pub trait MatchingUseCase {
     /// Compile a regex. Invalid syntax is a refusal rather than an empty match.
+    ///
+    /// # Errors
+    ///
+    /// [`MatchingError::InvalidRegex`] when the pattern is not valid regex syntax.
     fn compile_regex(&self, pattern: RegexSource<'_>) -> Result<CompiledRegex, MatchingError>;
     /// Search text with the matcher already acquired by the caller.
     fn matches_regex(&self, regex: &CompiledRegex, text: SearchText<'_>) -> MatchOutcome;
@@ -20,6 +24,10 @@ pub trait MatchingUseCase {
         each: &mut dyn FnMut(TextSpan) -> std::ops::ControlFlow<()>,
     ) -> std::ops::ControlFlow<()>;
     /// Refuse an unknown name before scanning, skip nonparticipating known groups, and honor breaks.
+    ///
+    /// # Errors
+    ///
+    /// [`MatchingError::InvalidRegex`] when `name` is not a group of the regex; the visitor is not called.
     fn visit_regex_captures(
         &self,
         regex: &CompiledRegex,
@@ -34,8 +42,16 @@ pub trait MatchingUseCase {
     /// Match a row-dependent text glob without acquiring or compiling cache state.
     fn matches_text_glob(&self, pattern: GlobPattern<'_>, text: SearchText<'_>) -> MatchOutcome;
     /// Compile globs together, retaining authored index order.
+    ///
+    /// # Errors
+    ///
+    /// [`MatchingError::BadGlob`] when a glob is not valid glob syntax, or the set does not compile.
     fn compile_globs(&self, globs: &[GlobPattern<'_>]) -> Result<CompiledGlobs, MatchingError>;
     /// Validate one glob before a run.
+    ///
+    /// # Errors
+    ///
+    /// [`MatchingError::BadGlob`] when the glob is not valid glob syntax.
     fn parse_glob(&self, glob: GlobPattern<'_>) -> Result<(), MatchingError>;
     /// Replace hit storage with matching authored indices.
     fn match_globs(&self, globs: &CompiledGlobs, path: &std::path::Path, hits: &mut GlobHits);

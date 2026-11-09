@@ -91,7 +91,10 @@ fn hosted(kinds: &[CellKind]) -> Lineage {
 pub fn anchor_at(lineage: &Lineage, column: ColumnIndex) -> ColumnAnchor {
     match lineage {
         Lineage::OneFile(anchors)
-            if anchors.get(column.0 as usize) == Some(&ColumnAnchor::InFile) =>
+            if usize::try_from(column.0)
+                .ok()
+                .and_then(|at| anchors.get(at))
+                == Some(&ColumnAnchor::InFile) =>
         {
             ColumnAnchor::InFile
         }
@@ -123,7 +126,7 @@ pub fn anchor_through(
     if view.is_empty() {
         return anchor_at(lineage, column);
     }
-    match view.get(column.0 as usize) {
+    match usize::try_from(column.0).ok().and_then(|at| view.get(at)) {
         Some(own) => anchor_at(lineage, *own),
         None => ColumnAnchor::Elsewhere,
     }

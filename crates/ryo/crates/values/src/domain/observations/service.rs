@@ -51,7 +51,7 @@ where
 {
     bytes.0.extend_from_slice(
         &u64::try_from(items.into_iter().len())
-            .expect(super::constants::COUNT_FITS_MESSAGE)
+            .unwrap_or(u64::MAX)
             .to_le_bytes(),
     );
 }
@@ -71,13 +71,19 @@ pub fn new_frontiers(
         slots,
         complete: crate::domain::records::types::ReadinessBits(vec![
             0;
-            (slots.0 as usize).div_ceil(64)
+            usize::try_from(slots.0)
+                .map_or(0, |slots| slots
+                    .div_ceil(64))
         ]),
         skipped: crate::domain::records::types::ReadinessBits(Vec::new()),
         refusals: Vec::new(),
     }
 }
 /// Record an actual state; an unset slot remains Unknown without allocating a boxed reason per root.
+///
+/// # Errors
+///
+/// [`ObservationsError::Invalid`] when the slot is outside the map.
 pub fn set_frontier(
     map: &mut crate::domain::records::types::FrontierReadiness,
     slot: crate::domain::records::types::ObservationReadinessSlot,
@@ -88,7 +94,7 @@ pub fn set_frontier(
     if slot.0 >= map.slots.0 {
         return Err(ObservationsError::Invalid);
     }
-    let index = slot.0 as usize / 64;
+    let index = usize::try_from(slot.0 / 64).map_err(|_| ObservationsError::Invalid)?;
     let mask = 1_u64 << (slot.0 % 64);
     *map.complete
         .0
@@ -138,13 +144,17 @@ pub fn set_frontier(
     Ok(())
 }
 /// Validate once against the current stable semantic layout before any bit can establish completion.
+///
+/// # Errors
+///
+/// [`ObservationsError::Invalid`] when the map's version, layout, slot count or encoded states are not the request's.
 pub fn validate_frontiers<'a>(
     map: &'a crate::domain::records::types::FrontierReadiness,
     layout: crate::domain::records::types::ObservationReadinessLayout,
     slots: crate::domain::records::types::ObservationReadinessCount,
 ) -> Result<super::validated::ValidatedFrontiers<'a>, ObservationsError> {
     use ObservationsError::Invalid;
-    let words = (slots.0 as usize).div_ceil(64);
+    let words = usize::try_from(slots.0).map_err(|_| Invalid)?.div_ceil(64);
     if map.version != super::constants::READINESS_VERSION
         || map.layout != layout
         || map.slots != slots
@@ -177,6 +187,10 @@ pub fn validate_frontiers<'a>(
     Ok(super::validated::ValidatedFrontiers(map))
 }
 /// Read the already-validated generation. Missing state is an explicit Unknown, not complete-empty.
+///
+/// # Errors
+///
+/// [`ObservationsError::Invalid`] when the slot is outside the map.
 pub fn frontier_state(
     map: super::validated::ValidatedFrontiers<'_>,
     slot: crate::domain::records::types::ObservationReadinessSlot,
@@ -220,7 +234,7 @@ fn bit(
 ) -> ReadinessBit {
     if words
         .0
-        .get(slot.0 as usize / 64)
+        .get(usize::try_from(slot.0 / 64).unwrap_or(usize::MAX))
         .is_some_and(|word| word & (1_u64 << (slot.0 % 64)) != 0)
     {
         ReadinessBit::Set
@@ -229,6 +243,10 @@ fn bit(
     }
 }
 /// Digest one original producer's slot range without walking unrelated roots or allocating rows.
+///
+/// # Errors
+///
+/// [`ObservationsError::Invalid`] when the range overflows or reaches past the map's slots.
 pub fn frontier_identity(
     validated: super::validated::ValidatedFrontiers<'_>,
     range: super::types::ObservationReadinessRange,

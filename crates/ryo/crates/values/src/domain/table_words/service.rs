@@ -39,6 +39,11 @@ pub fn decode_combined(packed: &PackedWords, places: &mut Vec<NamePlace>) -> Tab
 }
 /// The same decoder with an explicit completion proof for required named publications.
 /// Refusal rolls back this call's name-place additions; legacy permissive callers are unchanged.
+///
+/// # Errors
+///
+/// [`TableWordsError::Incomplete`](super::errors::TableWordsError::Incomplete) when the words are truncated, noncanonical or hold
+/// incompatible frame schemas.
 pub fn decode_complete(
     packed: &PackedWords,
     places: &mut Vec<NamePlace>,
@@ -78,7 +83,10 @@ fn decode_combined_status(
                 Some(kind) if !had_kinds => combined.kinds.push(kind),
                 Some(kind) => {
                     if mode == DecodeMode::Complete
-                        && combined.kinds.get(column as usize) != Some(&kind)
+                        && usize::try_from(column)
+                            .ok()
+                            .and_then(|at| combined.kinds.get(at))
+                            != Some(&kind)
                     {
                         complete = false;
                     }
@@ -89,7 +97,8 @@ fn decode_combined_status(
                 }
             }
         }
-        if mode == DecodeMode::Complete && combined.kinds.len() != columns as usize {
+        if mode == DecodeMode::Complete && u64::try_from(combined.kinds.len()).ok() != Some(columns)
+        {
             complete = false;
         }
         if readable && decode_places(&mut words, places).is_none() {

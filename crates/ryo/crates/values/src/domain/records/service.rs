@@ -85,7 +85,8 @@ pub fn is_well_formed(
         | FrontierAffected::Repository(FrontierMissing::Kinds { kinds, .. }) => {
             !kinds.is_empty() && kinds.windows(2).all(|pair| pair[0] < pair[1])
         }
-        _ => true,
+        FrontierAffected::CurrentFile(FrontierMissing::Any)
+        | FrontierAffected::Repository(FrontierMissing::Any) => true,
     };
     let well_formed = !affected.is_empty()
         && affected.iter().all(sorted_kinds)

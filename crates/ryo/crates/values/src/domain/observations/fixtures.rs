@@ -9,6 +9,10 @@ use crate::domain::records::types::{
 };
 
 /// Checks the frontier readiness of a request against its layout.
+///
+/// # Errors
+///
+/// [`ObservationsError::Invalid`] when the map is not the request's.
 pub fn validate_frontiers(
     map: &FrontierReadiness,
     layout: ObservationReadinessLayout,
@@ -18,6 +22,10 @@ pub fn validate_frontiers(
 }
 
 /// The readiness of the producer of a slot.
+///
+/// # Errors
+///
+/// [`ObservationsError::Invalid`] when the slot is outside the map.
 pub fn frontier_state(
     map: ValidatedFrontiers<'_>,
     slot: ObservationReadinessSlot,
