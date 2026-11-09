@@ -16,8 +16,7 @@ use crate::domain::{
         types::Kind,
     },
 };
-use ryo::languages::{self, EmbeddedSource, Position, Symbols, Tree};
-use std::ops::Range;
+use ryo::languages::{self, Position, Symbols, Tree};
 
 /// Every stable identity available to the explicit semantic projection.
 pub(crate) fn positions(tree: &Tree<'_>) -> impl Iterator<Item = Position> {
@@ -25,72 +24,56 @@ pub(crate) fn positions(tree: &Tree<'_>) -> impl Iterator<Item = Position> {
 }
 
 /// Whether an occurrence belongs to native syntax or an enabled embedded expression.
-/// The file's embedded expressions are projected once; each occurrence is then one bisection.
+/// The file's embedded expressions are classified once; each occurrence is then a carrier lookup
+/// and a bisection of the hidden roots.
 pub(crate) fn visibility(
     tree: &Tree<'_>,
     model: &Declarations,
     at: Position,
     symbols: &mut Symbols,
 ) -> Visibility {
+    let Some(embedding) = languages::embedded_source_at(tree.elements, at) else {
+        return Visibility::Visible;
+    };
     if model.semantic.borrow().state == QualificationState::Fresh {
-        // Native occurrences leave the projection unbuilt until an embedded occurrence is read.
-        if languages::embedded_source_at(tree.elements, at).is_none() {
-            return Visibility::Visible;
-        }
         let mut hidden = std::mem::take(&mut model.semantic.borrow_mut().hidden);
         hidden.clear();
         let provenance = prepare(tree, model);
-        project(
-            languages::embedded_expressions(tree.elements),
-            &mut hidden,
-            bounds,
-            |host| type_position(tree, model, &provenance, host, symbols),
-        );
+        for expression in languages::embedded_expressions(tree.elements) {
+            // A holder is appended before the expressions nested in it, so it is already decided.
+            if hidden_at(tree, &hidden, expression.host) == Visibility::Hidden
+                || type_position(tree, model, &provenance, expression.host, symbols)
+                    != TypeContext::Type
+            {
+                hidden.push(expression.root);
+            }
+        }
         let mut semantic = model.semantic.borrow_mut();
         semantic.hidden = hidden;
         semantic.state = QualificationState::Ready;
     }
-    if enclosing(&model.semantic.borrow().hidden, at, bounds).is_some() {
+    if model
+        .semantic
+        .borrow()
+        .hidden
+        .binary_search(&embedding.root)
+        .is_ok()
+    {
         Visibility::Hidden
     } else {
         Visibility::Visible
     }
 }
 
-/// The appended element interval of one embedded expression.
-fn bounds(source: &EmbeddedSource) -> Range<Position> {
-    source.root..source.end
-}
-
-/// Keep, in append order, each embedded expression that is not a type expression or whose host
-/// lies in a hidden one. `typed` is asked only for a host outside every hidden expression;
-/// `bounds` reads one expression's interval per comparison.
-pub(crate) fn project(
-    sources: impl IntoIterator<Item = EmbeddedSource>,
-    hidden: &mut Vec<EmbeddedSource>,
-    mut bounds: impl FnMut(&EmbeddedSource) -> Range<Position>,
-    mut typed: impl FnMut(Position) -> TypeContext,
-) {
-    for source in sources {
-        // A holder starts before its nested host, so it is already decided.
-        if enclosing(hidden, source.host, &mut bounds).is_some()
-            || typed(source.host) != TypeContext::Type
-        {
-            hidden.push(source);
-        }
+/// Hidden when the embedded expression holding `at` has its root among the ascending `hidden`.
+fn hidden_at(tree: &Tree<'_>, hidden: &[Position], at: Position) -> Visibility {
+    if languages::embedded_source_at(tree.elements, at)
+        .is_some_and(|holder| hidden.binary_search(&holder.root).is_ok())
+    {
+        Visibility::Hidden
+    } else {
+        Visibility::Visible
     }
-}
-
-/// The expression holding `at` among disjoint expressions ascending by root, found by bisection.
-pub(crate) fn enclosing(
-    sources: &[EmbeddedSource],
-    at: Position,
-    mut bounds: impl FnMut(&EmbeddedSource) -> Range<Position>,
-) -> Option<&EmbeddedSource> {
-    let next = sources.partition_point(|source| bounds(source).start <= at);
-    next.checked_sub(1)
-        .and_then(|index| sources.get(index))
-        .filter(|source| at < bounds(source).end)
 }
 
 /// Resolve a typing form using the same lexical provenance as ordinary expressions.
@@ -136,8 +119,7 @@ pub(crate) fn type_position(
         .is_some_and(|context| context.0 == ANNOTATION_SEED);
     let mut established = false;
     let mut below = host;
-    let mut ancestor = parent(tree, below);
-    while ancestor != below {
+    for ancestor in ancestors(tree, host) {
         // Slice bounds are runtime values even when their receiver is a known generic class.
         if kind(tree, ancestor) == Kind::Node(Node::Slice) {
             return TypeContext::Value;
@@ -190,13 +172,29 @@ pub(crate) fn type_position(
             }
         }
         below = ancestor;
-        ancestor = parent(tree, ancestor);
     }
     if allowed {
         TypeContext::Type
     } else {
         TypeContext::Value
     }
+}
+
+/// The ancestors that can change a host's type context, nearest first, through its statement:
+/// no slice, subscription, call or annotated assignment holds a statement.
+pub(crate) fn ancestors<'a>(
+    tree: &'a Tree<'_>,
+    host: Position,
+) -> impl Iterator<Item = Position> + 'a {
+    let mut below = host;
+    std::iter::from_fn(move || {
+        let ancestor = parent(tree, below);
+        if ancestor == below || category(tree, below) == Category::Statement {
+            return None;
+        }
+        below = ancestor;
+        Some(ancestor)
+    })
 }
 
 /// Classify positional and keyword type operands after resolving the callable.
@@ -220,14 +218,26 @@ fn type_argument(
             TypeContext::Value
         };
     }
-    let source_position = nodes(tree, arguments).position(|at| at == argument);
-    let positional = nodes(tree, arguments)
-        .filter(|at| category(tree, *at) == Category::Expression)
-        .position(|at| at == argument);
+    operand_place(nodes(tree, arguments), argument, form, |at| {
+        category(tree, at)
+    })
+}
+
+/// Whether a non-keyword `argument` among the call's `operands` is a type operand of `form`.
+/// Reads up to the second operand, or to the first expression for `TypeVar`; never the whole list.
+pub(crate) fn operand_place(
+    mut operands: impl Iterator<Item = Position>,
+    argument: Position,
+    form: TypingForm,
+    mut category: impl FnMut(Position) -> Category,
+) -> TypeContext {
     let is_type = match form {
-        TypingForm::Cast => source_position == Some(0),
-        TypingForm::NewType => source_position == Some(1),
-        TypingForm::TypeVar => positional.is_some_and(|position| position > 0),
+        TypingForm::Cast => operands.next() == Some(argument),
+        TypingForm::NewType => operands.nth(1) == Some(argument),
+        TypingForm::TypeVar => {
+            category(argument) == Category::Expression
+                && operands.find(|at| category(*at) == Category::Expression) != Some(argument)
+        }
         TypingForm::Literal
         | TypingForm::Annotated
         | TypingForm::TypeAlias
@@ -252,8 +262,9 @@ fn annotated_operand(tree: &Tree<'_>, subscription: Position, host: Position) ->
     let Some(first) = nth(tree, slice, Category::Expression, CategoryIndex(0)) else {
         return TypeContext::Value;
     };
+    // The host lies under the subscription, so the walk ends there at the latest.
     let mut owner = host;
-    while parent(tree, owner) != slice && parent(tree, owner) != owner {
+    while parent(tree, owner) != slice && owner != subscription {
         owner = parent(tree, owner);
     }
     if owner == first {

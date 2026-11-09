@@ -36,6 +36,16 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         },
         expect: Expect::Value((0, "", 0, 0)),
     },
+    Case {
+        name: CaseName("a cast operand nested blocks deep is still a type"),
+        word: Word::Succeeds,
+        input: || {
+            Input::Source(
+                "from typing import cast\nimport alpha\nif a:\n    if b:\n        x = cast(\"alpha.run()\", v)\n",
+            )
+        },
+        expect: Expect::Value((1, "alpha.run", 71, 82)),
+    },
 ];
 
 #[test]

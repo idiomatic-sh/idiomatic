@@ -10,10 +10,12 @@ use crate::domain::diagnostics::service::{
     clear, count, incomplete_lexical_stream, incomplete_syntax, listed,
 };
 use crate::domain::diagnostics::types::{Diagnostic, SyntaxCompleteness};
-use ryo_relations::domain::relations::constants::{IMPLIED, NO_FIELD, NO_SYMBOL, TOKEN};
-use ryo_relations::domain::relations::types::{Bytes, Count, Extent, Flags, KindBits, Offset, Position};
 use ryo_relations::domain::elements::types::ElementOrigin;
+use ryo_relations::domain::relations::constants::{IMPLIED, NO_FIELD, NO_SYMBOL, TOKEN};
 use ryo_relations::domain::relations::types::FieldId;
+use ryo_relations::domain::relations::types::{
+    Bytes, Count, Extent, Flags, KindBits, Offset, Position,
+};
 use ryo_relations::domain::terms::types::ChildOrdinal;
 use ryo_relations::domain::terms::types::Symbol;
 
@@ -342,11 +344,24 @@ pub fn embedded_source_at(
     elements: &Elements,
     at: Position,
 ) -> Option<ryo_relations::domain::elements::types::EmbeddedSource> {
-    let sources = &engine(elements).embedded;
-    let next = sources.partition_point(|source| source.root <= at);
+    holding(&engine(elements).embedded, at, |source| {
+        source.root..source.end
+    })
+}
+
+/// The carrier holding `at` among disjoint carriers ascending by root, found by bisection;
+/// `bounds` reads one carrier's appended interval per comparison.
+pub(crate) fn holding(
+    sources: &[ryo_relations::domain::elements::types::EmbeddedSource],
+    at: Position,
+    mut bounds: impl FnMut(
+        &ryo_relations::domain::elements::types::EmbeddedSource,
+    ) -> core::ops::Range<Position>,
+) -> Option<ryo_relations::domain::elements::types::EmbeddedSource> {
+    let next = sources.partition_point(|source| bounds(source).start <= at);
     next.checked_sub(1)
         .and_then(|index| sources.get(index))
-        .filter(|source| at < source.end)
+        .filter(|source| at < bounds(source).end)
         .copied()
 }
 

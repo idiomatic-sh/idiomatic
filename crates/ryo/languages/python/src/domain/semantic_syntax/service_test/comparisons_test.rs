@@ -1,114 +1,151 @@
-//! Visibility costs one bisection per occurrence and per embedded expression, never a scan.
-//!
-//! The replaced scan compared every embedded expression for every occurrence and every projected
-//! expression: on the 1024 x 1024 case at least 1024 * 1024 / 2 comparisons, over its bound.
-use super::super::service::{enclosing, project};
-use super::super::types::{TypeContext, Visibility};
+//! Type-context classification reads a bounded part of the tree per host, never a whole list or
+//! a whole ancestor chain.
+use super::super::service::{ancestors, operand_place};
+use super::super::types::{TypeContext, TypingForm};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo::languages::{EmbeddedMapping, EmbeddedSource, Position};
+use crate::domain::{
+    nodes::types::{Category, Node},
+    syntax::{
+        service::{kind, literal},
+        types::{Kind, Literal},
+    },
+};
+use crate::fixtures::reading::parsed;
+use ryo::languages::{self, ByteSlice, Position, Tree};
 
-/// Occurrences looked up, and synthetic embedded expressions projected.
+/// A bounded-cost scenario.
 #[derive(Clone, Copy, Debug)]
-struct Input {
-    /// N: occurrences spread evenly over native and embedded elements.
-    rows: u32,
-    /// M: embedded expressions, every odd one nested in its predecessor.
-    spans: u32,
+enum Input {
+    /// Classify the second and the last of this many operands of each typing form.
+    Operands(u32),
+    /// Walk the ancestors of a call's quoted operand nested this many blocks deep.
+    Blocks(usize),
 }
-/// Whether the comparisons stayed within (N + M)(log2(M + 1) + 2).
+/// Whether the reads stayed within the scenario's bound with the expected answers.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Cost {
     /// Within the bound.
-    Logarithmic,
-    /// Over the bound.
+    Bounded,
+    /// Over the bound, or an answer differed.
     Exceeded,
 }
-/// An occurrence answered differently from the expected projection.
-type Failure = Position;
+/// The source could not be parsed.
+type Failure = ();
 
-/// Native elements end at this position; embedded expression `i` spans `NATIVE + 4i ..+ 3`.
-/// An even expression's host is native element `i / 2`; an odd one's lies in its predecessor.
-const NATIVE: u32 = 1000;
-
+/// The replaced code scanned the operand list twice per argument, reading all 10,000 operands
+/// for the last one, and walked every ancestor to the module, over 64 blocks for a nested host.
 const CASES: &[Case<Input, Cost, Failure>] = &[
     Case {
-        name: CaseName("one occurrence over one embedded expression"),
+        name: CaseName("a typing operand is placed reading at most two operands of 10,000"),
         word: Word::Succeeds,
-        input: || Input { rows: 1, spans: 1 },
-        expect: Expect::Value(Cost::Logarithmic),
+        input: || Input::Operands(10_000),
+        expect: Expect::Value(Cost::Bounded),
     },
     Case {
-        name: CaseName(
-            "occurrences and nested embedded expressions cost (N + M) log M comparisons, not N x M",
-        ),
+        name: CaseName("a quoted operand 64 blocks deep walks its expression, not its blocks"),
         word: Word::Succeeds,
-        input: || Input {
-            rows: 1024,
-            spans: 1024,
-        },
-        expect: Expect::Value(Cost::Logarithmic),
+        input: || Input::Blocks(64),
+        expect: Expect::Value(Cost::Bounded),
     },
 ];
 
-/// Project the synthetic expressions, then look up every occurrence, counting each interval read.
-fn subject(Input { rows, spans }: Input) -> Result<Cost, Failure> {
-    let sources = (0..spans).map(|index| {
-        let root = NATIVE + 4 * index;
-        EmbeddedSource {
-            host: if index % 2 == 1 {
-                Position(root - 3)
-            } else {
-                Position(index / 2)
-            },
-            root: Position(root),
-            end: Position(root + 3),
-            mapping: EmbeddedMapping::WholeHost,
-        }
-    });
-    let mut count = 0_u64;
-    let mut read = |source: &EmbeddedSource| {
-        count += 1;
-        source.root..source.end
+/// Count operand reads, or ancestor steps, for one scenario.
+fn subject(input: Input) -> Result<Cost, Failure> {
+    let bounded = match input {
+        Input::Operands(count) => operands(count),
+        Input::Blocks(depth) => blocks(depth)?,
     };
-    let mut hidden = Vec::new();
-    // A native host at 2 mod 4 is a value, so its nested successor is hidden through its holder.
-    project(sources, &mut hidden, &mut read, |host| {
-        if host.0 < NATIVE && host.0 % 4 == 2 {
-            TypeContext::Value
-        } else {
-            TypeContext::Type
-        }
-    });
-    let last = u64::from(NATIVE + 4 * spans);
-    for row in 0..u64::from(rows) {
-        let at = Position(u32::try_from(row * last / u64::from(rows)).unwrap_or(u32::MAX));
-        let hidden_holder =
-            at.0.checked_sub(NATIVE)
-                .filter(|offset| offset % 4 < 3)
-                .map(|offset| offset / 4)
-                .map(|index| if index % 2 == 1 { index - 1 } else { index })
-                .is_some_and(|holder| (holder / 2) % 4 == 2);
-        let expected = if hidden_holder {
-            Visibility::Hidden
-        } else {
-            Visibility::Visible
-        };
-        let found = if enclosing(&hidden, at, &mut read).is_some() {
-            Visibility::Hidden
-        } else {
-            Visibility::Visible
-        };
-        if found != expected {
-            return Err(at);
-        }
-    }
-    let depth = u64::from((spans + 1).next_power_of_two().trailing_zeros());
-    let bound = (u64::from(rows) + u64::from(spans)) * (depth + 2);
-    Ok(if count <= bound {
-        Cost::Logarithmic
+    Ok(if bounded {
+        Cost::Bounded
     } else {
         Cost::Exceeded
     })
+}
+
+/// One operand to place: its form, its place among the operands, and the expected answer.
+struct Placement {
+    /// The resolved callable.
+    form: TypingForm,
+    /// The operand's place.
+    argument: u32,
+    /// Its type context.
+    expected: TypeContext,
+}
+
+/// Every form answers as before for the second and the last operand, each within two reads.
+fn operands(count: u32) -> bool {
+    let last = count - 1;
+    [
+        Placement {
+            form: TypingForm::Cast,
+            argument: 1,
+            expected: TypeContext::Value,
+        },
+        Placement {
+            form: TypingForm::NewType,
+            argument: 1,
+            expected: TypeContext::Type,
+        },
+        Placement {
+            form: TypingForm::TypeVar,
+            argument: 1,
+            expected: TypeContext::Type,
+        },
+        Placement {
+            form: TypingForm::Cast,
+            argument: last,
+            expected: TypeContext::Value,
+        },
+        Placement {
+            form: TypingForm::NewType,
+            argument: last,
+            expected: TypeContext::Value,
+        },
+        Placement {
+            form: TypingForm::TypeVar,
+            argument: last,
+            expected: TypeContext::Type,
+        },
+    ]
+    .into_iter()
+    .all(|placement| {
+        let mut reads = 0_u32;
+        let answer = operand_place(
+            (0..count).map(Position).inspect(|_| reads += 1),
+            Position(placement.argument),
+            placement.form,
+            |_| Category::Expression,
+        );
+        answer == placement.expected && reads <= 2
+    })
+}
+
+/// The quoted `cast` operand walks to its assignment statement and stops, whatever the depth.
+fn blocks(depth: usize) -> Result<bool, Failure> {
+    let mut source = String::from("from typing import cast\n");
+    for level in 0..depth {
+        source.push_str(&"    ".repeat(level));
+        source.push_str("if a:\n");
+    }
+    source.push_str(&"    ".repeat(depth));
+    source.push_str("x = cast(\"T\", v)\n");
+    let parsed = parsed(source.as_bytes()).map_err(|_error| ())?;
+    let tree = Tree {
+        elements: &parsed.elements,
+        source: ByteSlice(parsed.bytes),
+        file: languages::FileId(0),
+    };
+    let host = languages::positions(tree.elements)
+        .find(|&at| {
+            kind(&tree, at) == Kind::Node(Node::Constant) && literal(&tree, at) == Literal::String
+        })
+        .ok_or(())?;
+    let walked = ancestors(&tree, host).collect::<Vec<_>>();
+    // The arguments, the call, and the assignment that ends the walk.
+    Ok(walked.len() <= 4
+        && walked
+            .last()
+            .is_some_and(|&last| kind(&tree, last) == Kind::Node(Node::Assign)))
 }
 
 #[test]

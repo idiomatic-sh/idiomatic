@@ -132,8 +132,8 @@ pub(crate) struct QualificationIndex {
 /// Retained selection of annotation expressions after lexical context classification.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct SemanticIndex {
-    /// The disabled embedded expressions, in append order: disjoint and ascending by root.
-    pub hidden: Vec<ryo::languages::EmbeddedSource>,
+    /// The roots of the disabled embedded expressions, ascending.
+    pub hidden: Vec<Position>,
     /// Whether this projection belongs to the current parse.
     pub state: QualificationState,
 }

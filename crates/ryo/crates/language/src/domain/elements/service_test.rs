@@ -120,7 +120,56 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || a_node_with_a_token_is_three_positions_with_its_root,
         expect: Expect::Value(1),
     },
+    Case {
+        name: CaseName("an_embedded_source_is_found_in_n_plus_m_log_m_comparisons_not_n_times_m"),
+        word: Word::Succeeds,
+        input: || an_embedded_source_is_found_by_bisection,
+        expect: Expect::Value(1),
+    },
 ];
+
+/// Native elements end at this position; embedded source `i` spans `NATIVE + 4i ..+ 3`.
+const NATIVE: u32 = 1000;
+
+/// Looks up 1024 occurrences over 1024 embedded sources, counting each interval read: 1 when every
+/// answer matches its source and the reads stay within N(log2(M + 1) + 2). A scan of the sources
+/// per occurrence reads at least 1024 * 1024 / 2 of them here, over the bound.
+fn an_embedded_source_is_found_by_bisection() -> usize {
+    use super::service::{embedded_source_at, engine_mut, holding};
+    use ryo_relations::domain::elements::types::{EmbeddedMapping, EmbeddedSource};
+
+    let rows = 1024_u32;
+    let spans = 1024_u32;
+    let mut elements = Elements::default();
+    engine_mut(&mut elements).embedded = (0..spans)
+        .map(|index| EmbeddedSource {
+            host: Position(index),
+            root: Position(NATIVE + 4 * index),
+            end: Position(NATIVE + 4 * index + 3),
+            mapping: EmbeddedMapping::WholeHost,
+        })
+        .collect();
+    let mut count = 0_u64;
+    let last = u64::from(NATIVE + 4 * spans);
+    let mut answers = 0_u32;
+    for row in 0..u64::from(rows) {
+        let at = Position(u32::try_from(row * last / u64::from(rows)).unwrap_or(u32::MAX));
+        let expected =
+            at.0.checked_sub(NATIVE)
+                .filter(|offset| offset % 4 < 3)
+                .map(|offset| Position(offset / 4));
+        let counted = holding(&super::service::engine(&elements).embedded, at, |source| {
+            count += 1;
+            source.root..source.end
+        });
+        let found = embedded_source_at(&elements, at);
+        if found == counted && found.map(|source| source.host) == expected {
+            answers += 1;
+        }
+    }
+    let depth = u64::from((spans + 1).next_power_of_two().trailing_zeros());
+    usize::from(answers == rows && count <= u64::from(rows) * (depth + 2))
+}
 
 /// Writes at a position past an empty table: 1 when that crashes as a position the table never gave.
 fn a_write_past_the_table_crashes() -> usize {
