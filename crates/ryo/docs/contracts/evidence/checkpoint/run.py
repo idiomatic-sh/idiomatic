@@ -474,7 +474,7 @@ def comment_only(repo,sha,path,own):
  attributes (`#[expect(..)]`, `#[allow(..)]`, `#![deny(..)]`, over any number of lines): lint configuration and comments change no
  behaviour, so FIX does not count it. A Cargo.toml lints table is no production file to begin with."""
  if not path.endswith('.rs'): return False
- diff=git(repo,*([x for x in own if x!='--name-only']+['-p','--',path])) or ''
+ diff=git(repo,*([x for x in own if x!='--name-only']+['-p','--',':(top)'+path])) or ''
  width=2 if own[1]=='--cc' else 1
  sides={'+':[],'-':[]}
  for l in diff.splitlines():

@@ -335,6 +335,8 @@ class Diff(unittest.TestCase):
   code=commit(self.repo,{'a/src/lib.rs':'/// One.\n///\n/// # Examples\n/// ```\n/// ```\n#[allow(dead_code)]\npub fn one() { }\n'},'fix(a): one answers')
   found=self.fixes([])
   self.assertFalse(any(lint[:10] in x for x in found),found); self.assertTrue(any(code[:10] in x for x in found),found)
+  deep=Path(self.repo)/'d'; deep.mkdir(exist_ok=True)
+  self.assertEqual(run.fix_problems({'red_green':[],'raw_identity':str(self.raw)},repo=deep,base=self.base),found)
  def test_without_a_base_both_checks_refuse(self):
   self.assertEqual(run.fix_problems({'red_green':[]},repo=self.repo),[run.NO_BASE])
   self.assertEqual(run.doc_problems(repo=self.repo),[run.NO_BASE])
