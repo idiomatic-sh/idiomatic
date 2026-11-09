@@ -1,65 +1,65 @@
 {
- "source": "781d6663eec6f09c7e5a82e2baebd0e7f1ba6082",
+ "source": "db950ed280f21d541aa58fc2f1f4fb02e4bc08fb",
  "baseline_source": "1086daee4b3a4435e60438d2df6ec7a7128dd883",
  "worker_sha256": {
   "before": "42f627bb1299d6911644329729278804a751284d72f20f8e8dd9b8afe61b43e9",
-  "after": "a6db3027985910c323a25d28c2c879924e92722982f9741232c44eaa5fe8966a"
+  "after": "74b1f7a4b0c8845d98bf3f44d9686c7848da6e9204d6e90659fb548ccbe2265a"
  },
  "staged_digest": "0132c274d68dc22252b09d0551a36617652fd7ffecaff02a246e5bf0448027df",
  "before": [
   {
    "name": "one file x 413 (django/__init__.py, tests/admin_views/__init__.py, tests/admin_views/urls.py), cold, hyperfine 5 runs",
-   "wall_s": 3.946,
-   "wall_stddev_s": 0.143,
-   "cpu_s": 4.81,
+   "wall_s": 3.906,
+   "wall_stddev_s": 0.199,
+   "cpu_s": 4.7,
    "peak_mb": 1038,
-   "peak_kb": 1063240,
-   "load": 2.95
+   "peak_kb": 1063736,
+   "load": 2.47
   },
   {
    "name": "100 files x 413, cold, hyperfine 5 runs",
-   "wall_s": 11.659,
-   "wall_stddev_s": 0.976,
-   "cpu_s": 61.28,
-   "peak_mb": 1691,
-   "peak_kb": 1731888,
-   "load": 2.89
+   "wall_s": 10.305,
+   "wall_stddev_s": 0.141,
+   "cpu_s": 58.27,
+   "peak_mb": 1760,
+   "peak_kb": 1802972,
+   "load": 2.44
   },
   {
    "name": "full Django 413 (2,875 files), cold, /usr/bin/time -v 1 run",
-   "wall_s": 352.7,
-   "cpu_s": 2513.4,
-   "peak_mb": 3277,
-   "peak_kb": 3356540,
-   "load": 2.64
+   "wall_s": 327.8,
+   "cpu_s": 2504.0,
+   "peak_mb": 3398,
+   "peak_kb": 3479668,
+   "load": 2.88
   }
  ],
  "after": [
   {
    "name": "one file x 413 (django/__init__.py, tests/admin_views/__init__.py, tests/admin_views/urls.py), cold, hyperfine 5 runs",
-   "wall_s": 3.591,
-   "wall_stddev_s": 0.346,
-   "cpu_s": 3.61,
-   "peak_mb": 893,
-   "peak_kb": 914512,
-   "load": 2.19
+   "wall_s": 3.538,
+   "wall_stddev_s": 0.099,
+   "cpu_s": 3.65,
+   "peak_mb": 892,
+   "peak_kb": 913960,
+   "load": 2.64
   },
   {
    "name": "100 files x 413, cold, hyperfine 5 runs",
-   "wall_s": 4.278,
-   "wall_stddev_s": 0.168,
-   "cpu_s": 10.11,
-   "peak_mb": 1134,
-   "peak_kb": 1161328,
-   "load": 2.63
+   "wall_s": 4.39,
+   "wall_stddev_s": 0.108,
+   "cpu_s": 9.88,
+   "peak_mb": 1136,
+   "peak_kb": 1163620,
+   "load": 2.94
   },
   {
    "name": "full Django 413 (2,875 files), cold, /usr/bin/time -v 1 run",
-   "wall_s": 103.6,
-   "cpu_s": 828.7,
-   "peak_mb": 2817,
-   "peak_kb": 2885356,
-   "load": 2.97
+   "wall_s": 115.7,
+   "cpu_s": 813.6,
+   "peak_mb": 2838,
+   "peak_kb": 2906604,
+   "load": 2.56
   }
  ],
  "outputs_sha256_prefix": {
