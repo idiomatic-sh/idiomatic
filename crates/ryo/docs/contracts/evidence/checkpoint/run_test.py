@@ -251,6 +251,13 @@ class Census(unittest.TestCase):
     self.assertIn(kept,production); self.assertLess(len(tests),200,tests[:300])
   production,tests=run.split_tests('struct S {\n    #[cfg(test)]\n    a: HashMap<A, B>,\n    b: C,\n}\nstruct T {\n    #[cfg(test)]\n    z: u8\n}\nfn after() {}\n')
   self.assertEqual(tests,'    #[cfg(test)]\n    a: HashMap<A, B>,    #[cfg(test)]\n    z: u8\n'); self.assertIn('b: C',production); self.assertIn('fn after',production)
+ def test_a_cfg_test_fn_body_ends_at_its_brace_whatever_it_compares_or_quotes(self):
+  for body in ('self.seen < 4','n << 2','let c = \'{\';','let s = "}{"; let r = r#"{"#;','// a { in a comment\n','x as u8 > 1 && y >= 2'):
+   with self.subTest(body=body):
+    production,tests=run.split_tests('#[cfg(test)]\nfn early() -> bool {\n    '+body+'\n}\npub fn after() {}\nfn generic<T: Into<u8>>(t: T) {}\n')
+    self.assertIn('pub fn after() {}',production); self.assertNotIn('pub fn after',tests); self.assertIn(body,tests)
+  production,tests=run.split_tests("#[cfg(test)]\nfn life<'a>(x: &'a str) -> &'a str { x }\npub fn after() {}\n")
+  self.assertIn('pub fn after',production)
  def test_a_cfg_test_item_counts_alone(self):
   body='#[cfg(test)]\nmod early_tests { }\n'+' '.join('Operation::V'+str(n) for n in range(8))
   self.assertEqual(self.census(crates__values__src__m_DOT_rs=body)['operation_exhaustive_matches']['files'],1)

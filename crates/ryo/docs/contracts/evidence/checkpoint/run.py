@@ -505,18 +505,36 @@ def census_production(path):
  return bool(re.match(r'(crates/[^/]+/src|cli/src|languages/[^/]+/src)/',path)) and not is_test_file(path)
 def census_crate(path): return path.split('/')[0] if path.startswith('cli/') else '/'.join(path.split('/')[:2])
 CFG_TEST=re.compile(r'^\s*#\[cfg\(test\)\]',re.M)
+CHAR=re.compile(r"'(?:\\(?:x[0-9a-fA-F]{2}|u\{[0-9a-fA-F]+\}|.)|[^\\'])'")
+RAW=re.compile(r'r(#*)"')
+def literal_end(text,i):
+ """The index after the comment, string, raw string or char literal starting at i, or None when none starts there (a lifetime is no literal)."""
+ if text.startswith('//',i): j=text.find('\n',i); return len(text) if j<0 else j
+ if text.startswith('/*',i): j=text.find('*/',i+2); return len(text) if j<0 else j+2
+ m=RAW.match(text,i)
+ if m and (i==0 or not (text[i-1].isalnum() or text[i-1]=='_')): j=text.find('"'+m.group(1),m.end()); return len(text) if j<0 else j+1+len(m.group(1))
+ if text[i]=='"':
+  j=i+1
+  while j<len(text) and text[j]!='"': j+=2 if text[j]=='\\' else 1
+  return j+1
+ m=CHAR.match(text,i) if text[i]=="'" else None
+ return m.end() if m else None
 def item_end(text,start):
- """The end of the item that starts at start: its closing brace, matched; its first `;`, or, for a struct field or enum variant, its `,` or the enclosing `}`, outside brackets."""
- depth=0
- for i in range(start,len(text)):
+ """The end of the item that starts at start: its body's closing brace, matched; its first `;`, or, for a struct field or enum variant, its `,` or the enclosing `}`. Angle brackets count only in the header, before the body; comments, strings and char literals are skipped."""
+ depth=0; header=True; i=start
+ while i<len(text):
+  skip=literal_end(text,i) if text[i] in '/"\'r' else None
+  if skip is not None: i=skip; continue
   c=text[i]
   if depth==0 and c in ';,': return i+1
-  if c in '{([' or c=='<' and text[i+1:i+2]!='=': depth+=1
-  elif c in ')]' or c=='>' and text[i-1:i] not in ('-','='): depth-=1
+  if c=='{': depth+=1; header=False
+  elif c in '([' or header and c=='<' and text[i+1:i+2]!='=': depth+=1
+  elif c in ')]' or header and c=='>' and text[i-1:i] not in ('-','='): depth-=1
   elif c=='}':
    if depth==0: return i
    depth-=1
    if depth==0: return i+1
+  i+=1
  return len(text)
 def split_tests(text):
  """A production file's text without its #[cfg(test)] items, and the text of those items: each item's own extent."""
