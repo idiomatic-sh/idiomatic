@@ -54,6 +54,20 @@ def test_the_installed_crates_are_read_from_cargo(monkeypatch) -> None:
     assert install.installed_crates() == {"cargo-deny": ("0.20.2", ""), "tm": ("0.1.0", "/work/crates/tastemaker/cli")}
 
 
+def test_a_gh_extension_is_installed_pinned_only_when_missing_or_at_another_tag(monkeypatch) -> None:
+    listing = "gh stack\tgithub/gh-stack\tv0.2.1\n"
+    monkeypatch.setattr(install, "run", lambda *a, **k: subprocess.CompletedProcess(a, 0, listing, ""))
+    assert install.installed_gh_extensions() == {"github/gh-stack": "v0.2.1"}
+    calls = recorded(monkeypatch, 0)
+    assert install.install_gh_extensions({"github/gh-stack": "v0.2.1"}) == []
+    assert install.install_gh_extensions({}) == ["github/gh-stack@v0.2.1"]
+    assert install.install_gh_extensions({"github/gh-stack": "v0.1.0"}) == ["github/gh-stack@v0.2.1"]
+    assert calls == [
+        ["gh", "extension", "install", "github/gh-stack", "--pin", "v0.2.1"],
+        ["gh", "extension", "install", "github/gh-stack", "--pin", "v0.2.1", "--force"],
+    ]
+
+
 def test_a_crate_is_stale_when_missing_or_at_another_version() -> None:
     crate = install.Crate("cargo-deny", "0.20.2")
     assert install.stale_crate(crate, {}) == "not installed"

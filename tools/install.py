@@ -22,6 +22,7 @@ Where a version is declared:
 - the nightly toolchain, in `crates/ryo/Cargo.toml` (`[workspace.metadata.api] nightly`).
 - everything that is not Rust, in `TOOLS` below: it has no manifest here; the package managers ryo's tests compare against, which npm
   installs, in `NODE_TOOLS`.
+- the `gh` extensions, in `GH_EXTENSIONS` below: `gh extension install <repository> --pin <tag>`.
 - `cargo-binstall`, which installs the prebuilt Rust tools, in `BINSTALL` below: its official release archive for this machine, checked
   against the SHA-256 recorded there, never compiled.
 
@@ -132,6 +133,8 @@ TOOLS = {
 
 # The package managers ryo's replay tests ask what a JavaScript workspace resolves to, installed by npm: command -> version.
 NODE_TOOLS = {"pnpm": "11.25.0", "bun": "1.4.4"}
+# The gh extensions, by repository, each at the release tag it is pinned to: gh-stack opens the stacked pull requests.
+GH_EXTENSIONS = {"github/gh-stack": "v0.2.1"}
 
 
 def declared_crates(root: Path = ROOT, shared: list[Crate] = ROOT_CRATES) -> list[Crate]:
@@ -206,6 +209,24 @@ def installed_node(command: str) -> str:
         return ""
     answered = run([found, "--version"], check=False, capture=True)
     return answered.stdout.strip() if answered.returncode == 0 else ""
+
+
+def installed_gh_extensions() -> dict[str, str]:
+    """The extensions `gh extension list` names: repository -> pinned tag."""
+    listing = run(["gh", "extension", "list"], capture=True).stdout
+    return {fields[1]: fields[2] for line in listing.splitlines() if len(fields := line.split("\t")) >= 3}
+
+
+def install_gh_extensions(installed: dict[str, str]) -> list[str]:
+    """Installs each of `GH_EXTENSIONS` not installed at its pinned tag, replacing one at another tag; returns the ones it installed."""
+    done = []
+    for repository, tag in GH_EXTENSIONS.items():
+        if installed.get(repository) == tag:
+            continue
+        replace = ["--force"] if repository in installed else []
+        run(["gh", "extension", "install", repository, "--pin", tag, *replace])
+        done.append(f"{repository}@{tag}")
+    return done
 
 
 def installed_crates() -> dict[str, tuple[str, str]]:
@@ -444,6 +465,9 @@ def main(argv: list[str]) -> int:
         if npm is None:
             sys.exit(f"npm installs {', '.join(stale)}: install Node.js first")
         run([npm, "install", "--global", *stale])
+    if shutil.which("gh") is None:
+        sys.exit(f"gh installs {', '.join(GH_EXTENSIONS)}: install the GitHub CLI first")
+    install_gh_extensions(installed_gh_extensions())
     version = dist_version()
     if dist_installed() != version:
         install_dist(version)
