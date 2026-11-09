@@ -776,6 +776,67 @@ def gated_text(command):
 GATES = (bulk_push, rust_review, previous_reviews, perf_gate, branch_review)
 
 
+EVIDENCE_NAME = re.compile(r"(rust-review|contract-review|leak-review|tm-steward)[^/]*\.json|asymptote\.json")
+EVIDENCE_TAIL = "/crates/ryo/docs/contracts/evidence/"
+CHECKPOINT_BRANCH = re.compile(r"claude/checkpoint-\d+")
+REDIRECT = re.compile(r"(?<![<&0-9])\d?>>?\s*(?!&)(\"[^\"]+\"|'[^']+'|[^\s;&|<>()]+)")
+
+
+def evidence_write_problem(path, here):
+    """The refusal when path is a review-evidence file outside a claude/checkpoint-N worktree's evidence directory.
+
+    Evidence files are the reviewers' committed record, so they are written straight into the open checkpoint
+    integration worktree; a scratchpad copy is never read by the push hooks. Shared by the Write/Edit hook.
+    """
+    full = os.path.normpath(os.path.join(here, os.path.expanduser(path)))
+    parts = full.split("/")
+    in_branches = any(a == "evidence" and b == "branches" for a, b in zip(parts, parts[1:-1]))
+    if not (EVIDENCE_NAME.fullmatch(parts[-1]) or in_branches):
+        return None
+    at = full.find(EVIDENCE_TAIL)
+    if at >= 0:
+        root = full[:at] or "/"
+        done = subprocess.run(["git", "-C", root, "symbolic-ref", "--short", "HEAD"],
+                              capture_output=True, text=True, check=False)
+        if done.returncode == 0 and CHECKPOINT_BRANCH.fullmatch(done.stdout.strip()):
+            return None
+    return (full + " is review evidence outside a claude/checkpoint-N worktree's crates/ryo/docs/contracts/evidence/; "
+            "write it into <INTEGRATION_TREE>/crates/ryo/docs/contracts/evidence/, never a scratchpad")
+
+
+def written_paths(segment, words):
+    """The files a shell segment writes by > , >>, tee, cp, mv or install (a copy into a directory counts the
+    source's file name under that directory)."""
+    found = [m.group(1).strip("'\"") for m in REDIRECT.finditer(segment)]
+    for inner in unwrapped(words):
+        if not inner:
+            continue
+        operands = [a for a in inner[1:] if not a.startswith("-")]
+        if inner[0] == "tee":
+            found += operands
+        elif inner[0] in ("cp", "mv", "install") and operands:
+            target = operands[-1]
+            if "-t" in inner or any(a.startswith("--target-directory") for a in inner):
+                for i, a in enumerate(inner):
+                    if a == "-t" and i + 1 < len(inner):
+                        target = inner[i + 1]
+                    elif a.startswith("--target-directory="):
+                        target = a.split("=", 1)[1]
+                sources = operands
+            else:
+                sources = operands[:-1]
+            found += [target] + [os.path.join(target, os.path.basename(src)) for src in sources]
+    return found
+
+
+def evidence_writes(segment, words, here):
+    for path in written_paths(segment, words):
+        found = evidence_write_problem(path, here)
+        if found:
+            return found
+    return None
+
+
 def reason(command, cwd=None):
     clean = COMMENT.sub("", command)
     if re.search(r"\b(while|until|for)\b", clean) and re.search(r"\b(pgrep|pkill)\b[^;&|\n]*\s-[A-Za-z]*f", clean):
@@ -792,7 +853,7 @@ def reason(command, cwd=None):
         words = tokens(segment)
         if len(words) > 1 and words[0] == "cd":
             here = os.path.join(here, os.path.expanduser(words[1]))
-        for found in (stash(words), removal(words), cargo_rules(words, before, dirs), tm_fix(words, clean)):
+        for found in (stash(words), removal(words), cargo_rules(words, before, dirs), tm_fix(words, clean), evidence_writes(segment, words, here)):
             if found:
                 return found
         for inner in unwrapped(words):

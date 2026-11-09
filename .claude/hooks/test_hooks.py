@@ -528,6 +528,57 @@ class PreviousReviewsPush(unittest.TestCase):
         self.assertEqual(self.push().returncode, 2)
 
 
+class EvidenceWrites(unittest.TestCase):
+    """Review evidence is written only into a claude/checkpoint-N worktree's evidence directory."""
+    SCRATCH = "/tmp/claude-scratch/leak-review.json"
+    TAIL = "crates/ryo/docs/contracts/evidence/"
+
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.dir.cleanup)
+        self.tree = repo(self.dir.name, "ryo-332", "claude/checkpoint-332")
+        self.other = repo(self.dir.name, "ryo-w1", "claude/w1-x")
+
+    def write(self, path):
+        return run_hook("guard_write.py", {"tool_name": "Write", "tool_input": {"file_path": path}}).returncode
+
+    def test_a_bash_heredoc_to_the_scratchpad_is_refused(self):
+        self.assertEqual(shell("cat > " + self.SCRATCH + " <<'EOF'\n{}\nEOF"), 2)
+        self.assertEqual(shell("echo {} | tee /tmp/claude-scratch/tm-steward-9.json"), 2)
+
+    def test_a_bash_cp_to_the_scratchpad_is_refused(self):
+        self.assertEqual(shell("cp leak-review.json /tmp/claude-scratch/"), 2)
+        self.assertEqual(shell("mv x.json " + self.SCRATCH), 2)
+        self.assertEqual(shell("cp x.json " + self.other + "/" + self.TAIL + "branches/x.json"), 2)
+
+    def test_a_write_to_the_scratchpad_is_refused(self):
+        self.assertEqual(self.write(self.SCRATCH), 2)
+        self.assertEqual(self.write("/tmp/claude-scratch/evidence/branches/x.json"), 2)
+        self.assertEqual(self.write(self.other + "/" + self.TAIL + "checkpoint/rust-review.json"), 2)
+
+    def test_a_write_into_a_checkpoint_worktrees_evidence_directory_is_allowed(self):
+        self.assertEqual(self.write(self.tree + "/" + self.TAIL + "branches/x.json"), 0)
+        self.assertEqual(self.write(self.tree + "/" + self.TAIL + "checkpoint/leak-review.json"), 0)
+        self.assertEqual(shell("cat > " + self.tree + "/" + self.TAIL + "checkpoint/leak-review.json <<EOF\n{}\nEOF"), 0)
+        self.assertEqual(shell("cp x.json " + self.tree + "/" + self.TAIL + "branches/x.json"), 0)
+
+    def test_an_unrelated_scratchpad_file_is_allowed(self):
+        self.assertEqual(self.write("/tmp/claude-scratch/notes.json"), 0)
+        self.assertEqual(shell("echo hi > /tmp/claude-scratch/notes.md"), 0)
+        self.assertEqual(shell("cp a b 2>&1 > /dev/null"), 0)
+
+    def test_the_write_hook_fails_closed_on_its_own_error_for_evidence_paths_only(self):
+        copy = os.path.join(self.dir.name, "hooks")
+        shutil.copytree(HERE, copy, ignore=shutil.ignore_patterns("__pycache__", "test_*"))
+        with open(os.path.join(copy, "guard_shell.py"), "a", encoding="utf-8") as handle:
+            handle.write("\nraise RuntimeError('injected')\n")
+        def run(path):
+            return subprocess.run(["python3", "-I", os.path.join(copy, "guard_write.py")], capture_output=True, text=True,
+                                  input=json.dumps({"tool_input": {"file_path": path}}), check=False)
+        self.assertEqual(run(self.SCRATCH).returncode, 2)
+        self.assertEqual(run("/tmp/claude-scratch/notes.json").returncode, 0)
+
+
 class PerfGate(unittest.TestCase):
     DIR = "crates/ryo/docs/contracts/evidence/perf/p6/"
 
