@@ -1,0 +1,117 @@
+{
+ "iteration": "file-phase-memory",
+ "bead": "ryo-n6vk",
+ "lever_of": "project-retention l3 (evidence/perf/project-retention/diagnosis.json)",
+ "source": "dcea2ee7df",
+ "source_note": "claude/ryo-consolidation when the brief was written; the worktree claude/p9-file-phase-memory starts there",
+ "worker": "tm 0.1.2 built from source with jemalloc's profiler and line tables: CARGO_PROFILE_RELEASE_DEBUG=line-tables-only cargo build --release -p idiomatic-sh-tastemaker --features tikv-jemallocator/profiling --target-dir /workspaces/idiomatic-target/ryo-perf-p9 --locked --offline (crates/tastemaker, every language)",
+ "worker_sha256": "d9e72218f26bb3ffc2dbf1a0907bec1da634fbf32bebb1a3e9fd1c9ce2ec5f5d",
+ "staged_digest": null,
+ "staged_digest_note": "not a ruff request, so nothing is staged with verify_profiles.py. The workload is the memory guard's recipe as in project-retention: `git archive dcea2ee7df | tar -x`, `git init` and commit, every .tastemaker_cache removed, then `tm check --format json` cold in crates/ryo. No reference tool checks a Tastemaker workspace, so none is profiled",
+ "workload_digest": {"dcea2ee7df": "1491aa0d207a5e1d976fec57fd17ba588aef11faff788791c80df266109119c9"},
+ "heap_profile": "_RJEM_MALLOC_CONF=prof:true,prof_active:true,lg_prof_sample:19,lg_prof_interval:29,prof_final:true (27 for the single-rule runs). Each dump's total is jeprof's sampling estimate, bytes / (1 - exp(-avg/2^19)) per stack; it matches `jeprof --text` to 0.1% (dump 471: 2288 against 2287.6 MB). Stacks are symbolized with addr2line -i (inlined frames, file:line). Each stack is assigned to the first matching concept in this order: capture rows, decoded frontier, other project phase, findings sink, record findings, handed buckets/text/notes, spill index, spill pending, worker facts columns, worker element table, worker names, worker file bytes, other file phase, other lint, tm",
+ "workloads": [
+  {"name": "tm check crates/ryo cold, archive of dcea2ee7df, profiled", "wall_s": 165.76, "cpu_s": 383.55, "peak_mb": 4584, "peak_kib": 4476716, "heap_peak_mb": 4258, "heap_file_phase_end_mb": 2288, "exit": 0, "load_start": 2.88, "load_end": 9.81, "timing": false},
+  {"name": "same tree without the 27 files over 1 MB under crates/ryo (21 .json, 3 .jsonl, 1 .txt, 1 .rast, 1 .tree), profiled", "wall_s": 163.03, "cpu_s": 354.96, "peak_mb": 4422, "peak_kib": 4318596, "heap_peak_mb": 4286, "heap_file_phase_end_mb": 1516, "exit": 0, "load_start": 2.79, "load_end": 10.48, "timing": false},
+  {"name": "crates/ryo/tastemaker.toml placing only idiomatic.ryo/program-implementation-boundary (plus what the package dependencies place), tm check --fix, profiled", "wall_s": 20.68, "cpu_s": 69.84, "peak_mb": 1550, "peak_kib": 1514080, "heap_peak_mb": 1476, "heap_project_phase_max_mb": 1065, "capture_rows_mb": 638, "exit": 1, "load_start": 2.65, "load_end": 6.08, "timing": false},
+  {"name": "same, only idiomatic.ryo/shared-walk-owner", "peak_kib": 1476152, "heap_peak_mb": 1363, "heap_project_phase_max_mb": 1041, "capture_rows_mb": 638, "exit": 1, "load_start": 2.84, "load_end": 3.84, "timing": false},
+  {"name": "same, only idiomatic.ryo/derived-view-acquisition", "peak_kib": 1344188, "heap_peak_mb": 1528, "heap_project_phase_max_mb": 466, "capture_rows_mb": 9, "exit": 1, "load_start": 2.72, "load_end": 3.89, "timing": false}
+ ],
+ "file_phase_end": {
+  "dump": "471 of 512 (lg_prof_interval:29); the heap falls 2275 -> 1538 -> 1422 MB over dumps 472-474 as the workers are dropped",
+  "total_mb": 2288,
+  "by_concept_mb": {
+   "worker_element_table": 617,
+   "findings_sink": 346,
+   "record_findings": 252,
+   "worker_facts_columns": 172,
+   "file_phase_other": 161,
+   "spill_stretch_index": 144,
+   "worker_names": 129,
+   "tm_other": 122,
+   "record_handed_buckets": 107,
+   "lint_other": 91,
+   "worker_file_bytes": 63,
+   "record_handed_text": 40,
+   "spill_pending": 20,
+   "record_handed_notes": 14,
+   "capture_rows": 11
+  },
+  "frames": {
+   "worker_element_table": "ryo_language domain/builders/service.rs:276-283 (the eight element columns) < parse/service.rs:133 build_recognized < core file_analysis/parsing/service.rs:211; 9 live allocations per column, one per worker, avg 7.05 MB (two columns 3.55 MB)",
+   "worker_facts_columns": "execution_runtime outbound/facts/types.rs:95 (ColumnsMut::write, column.0.push) < sdk languages/macros/reads.rs:122; 126 + 134 allocations, the worker's relation columns, cleared per file with their capacity kept",
+   "worker_names": "ryo_language domain/names/service.rs:23 < json domain/syntax/service.rs:102 and :262",
+   "worker_file_bytes": "core outbound/corpus/adapters/ignore/adapter.rs:282 < file_analysis/service.rs:204 (worker.tables.bytes); 9 allocations avg 6.4 MB",
+   "findings_sink": "core outbound/row_sink/adapters/collect/adapter.rs:37 (KeptRow per row, 344,403 rows, avg 475 B) and values records/service.rs owned cells under it (4,557,530 cells, avg 32 B) < file_analysis/streaming/service.rs:238 write_findings",
+   "record_findings": "core domain/keeping/service.rs:39 (RowsText, 134 MB) and :40 (cells, 88 MB) rows_of < domain/recording/service.rs:190 made_ran < file_analysis/outcome/service.rs:110: the same rows as the sink, kept in Ran.rows of each FreshRecord for the store",
+   "record_handed_buckets": "core domain/recording/service.rs:103 (Vec<BucketWords> -> Handed.buckets: per bucket a FrontierProof and a staged-words handle; the words themselves are staged to the store spool)",
+   "record_handed_text": "core domain/recording/service.rs:214 (Handed.text: the file's arena text copied with to_vec)",
+   "record_handed_notes": "core domain/recording/service.rs:228 (Handed.notes: a clone of the file's notes)",
+   "spill_stretch_index": "execution_runtime outbound/facts/adapters/spill/adapter.rs:196 (SpillStretch pushed per keep: offset, length, file and a cloned FrontierProof, about 72 B) < request_execution/service.rs:363",
+   "file_phase_other": "execution_domain domain/finish/service.rs:206 (each worker's name arena, 38 MB, read by the project phase), matching domain/matching/service.rs:61 (41 MB of per-worker glob hits), globbing 20 MB, table_words 13 MB"
+  }
+ },
+ "project_phase_start": {"dump": 474, "total_mb": 1422, "by_concept_mb": {"findings_sink": 346, "record_findings": 253, "spill_stretch_index": 145, "tm_other": 122, "record_handed_buckets": 107, "file_phase_other": 107, "lint_other": 102, "frontier_decode": 96, "project_phase_other": 48, "record_handed_text": 40, "spill_pending": 21, "worker_names": 16, "record_handed_notes": 14, "worker_facts_columns": 4, "capture_rows": 2}},
+ "project_phase_peak": {"dump": 501, "total_mb": 4258, "by_concept_mb": {"capture_rows": 2176, "frontier_decode": 664, "findings_sink": 346, "record_findings": 253, "spill_stretch_index": 145, "project_phase_other": 142, "tm_other": 122, "record_handed_buckets": 107, "file_phase_other": 107, "lint_other": 102, "record_handed_text": 40, "spill_pending": 21, "worker_names": 16, "record_handed_notes": 14, "worker_facts_columns": 4}},
+ "file_phase_timeline_mb": {"200": 615, "300": 983, "380": 1770, "384": 1667, "390": 1917, "430": 2029, "449": 2227, "471": 2288, "note": "the retained concepts (findings sink, record findings, spill index, handed buckets) grow steadily with the files read; the worker tables jump at dumps 384-390 (element table 315 -> 433 MB) and reach 617 MB once every worker has read one of the large JSON files"},
+ "hypotheses": [
+  {"id": "h1", "claim": "The facts the languages write (relation columns) are kept file after file until the project phase.", "verdict": "refuted", "evidence": "dump 471: 172 MB of facts columns in 126 + 134 allocations, the 9 workers' columns, cleared per file (FactsWorker::release) with their capacity kept; 4 MB of them at dump 474 after the workers are dropped"},
+  {"id": "h2", "claim": "The parsed models (element tables, names) of the files read are kept until the project phase.", "verdict": "refuted", "evidence": "the element table is 617 MB at dump 471 in exactly 9 allocations per column (one table per worker, reused), and 0 MB at dump 474; names 129 -> 16 MB"},
+  {"id": "h3", "claim": "Each worker keeps the capacity its largest file needed, so 9 workers x the largest file's tables set the file-phase peak.", "verdict": "confirmed", "evidence": "avg 7.05 MB per element column per worker, 6.4 MB file buffer per worker; without the 27 files over 1 MB the worker tables at the file phase's end fall from 981 MB (element 617, facts 172, names 129, bytes 63) to 217 MB (103, 51, 56, 7) and the file-phase end from 2288 to 1516 MB (-772 MB). The project phase is unchanged (4286 MB peak heap)"},
+  {"id": "h4", "claim": "The tables are large because a file's tree is built whether or not a rule governing the file reads its language's relations.", "verdict": "supported, not proven", "evidence": "with only program-implementation-boundary placed (it governs Rust sources) the worker tables still reach 1059 MB (element 669, facts 179, names 140, bytes 71) at that run's peak; LanguageAdapter::read parses every recognized file with the run-wide `wanted` (core outbound/language/adapters/use_case/adapter.rs:236). Which rules govern each large JSON file was not listed"},
+  {"id": "h5", "claim": "The findings rows are held twice: once for the answer, once in the store's records.", "verdict": "confirmed", "evidence": "dump 471: 346 MB in the collect row sink (344,403 rows, 4,557,530 owned cells) and 252 MB in Ran.rows of the FreshRecords (keeping/service.rs:39-40); both are still live at the project peak (dump 501)"},
+  {"id": "h6", "claim": "The per-file frontier words are held in memory until the project phase.", "verdict": "refuted", "evidence": "the words go to the spill file (FLUSH_AT 1 MiB, 20 MB pending over 9 workers) and to the store's staging spool (stage_outcome); what stays is per-(bucket, file) metadata: the spill index 144 MB and the records' handed buckets 107 MB"},
+  {"id": "h7", "claim": "The project phase's own frontier decode starts during the file phase.", "verdict": "refuted", "evidence": "frontier_decode 0 MB at dump 471, 96 MB at dump 474 (the project phase), 664 MB at the peak"},
+  {"id": "h8", "claim": "Tastemaker's own state, not the engine, is a large share.", "verdict": "refuted", "evidence": "tm frames outside the lint call: 122 MB of 2288 MB at dump 471"}
+ ],
+ "question_1_what_holds_it": {
+  "answer": "At dcea2ee7df the file phase ends at 2288 MB of heap (project-retention measured 2513 MB on 8a59189be5, a different tree). 981 MB is the 9 workers' reused tables. 760 MB is per-file outputs kept for the end of the run: 346 MB of answer rows, 252 MB of the store's copy of the same rows, and 161 MB of handed metadata, text and notes. 164 MB is the spill index and the pending spill bytes. 122 MB is tm, and 252 MB is other engine state (name arenas, glob hits, the program).",
+  "owners": {
+   "worker tables (981 MB)": "core domain/workers/types.rs Tables.elements, .symbols, .bytes and the FactsWorker columns, owned by each worker for the whole file phase",
+   "answer rows (346 MB)": "core outbound/row_sink/adapters/collect (the SDK's collected LintReport rows)",
+   "store records (413 MB)": "core Tables.fresh: Vec<FreshRecord> -> Record.outcome Ran {rows, handed}, written by finish_run",
+   "spill index (164 MB)": "execution_runtime outbound/facts/adapters/spill Spill.stretches and .pending"
+  }
+ },
+ "question_2_needed_or_accident": {
+  "needed_by_project_phase": "the spill index (145 MB), though not at its size: it holds about 1.5-2 million stretches, each with a 48-byte FrontierProof clone that is constant per bucket except its coverage; the workers' name arenas (38 MB, finish/service.rs:206), which the frontier words point into; and the program and plan",
+  "needed_later_not_by_project_phase": "the answer rows (346 MB, handed to tm after the run) and the store records (413 MB, written at finish_run). Both live from the file phase through the project peak only because the engine keeps them in memory until the run ends",
+  "accident": "the worker tables' capacity (981 MB), kept at the largest file's size by all 9 workers and released only when the file phase ends (that sets the file-phase peak, not the project phase's); the second copy of the findings rows (252 MB); handed metadata kept in memory after the words were already staged (161 MB); and the per-stretch proof copy (about 100 MB of the spill index)"
+ },
+ "question_3_floor_or_fixable": {
+  "answer": "Mostly fixable in place. Only the per-(rule, file) frontier metadata (spill index plus handed buckets, 252 MB) is the fact model's per-tree floor in its count, the counterpart of the Django study's ~378 MB of facts. Even its bytes per entry can shrink.",
+  "fixes": [
+   {"lever": "l3a", "saves_file_phase_mb": "600-770", "saves_project_phase_mb": 0},
+   {"lever": "l3b", "saves_file_phase_mb": 252, "saves_project_phase_mb": 253},
+   {"lever": "l3c", "saves_file_phase_mb": 161, "saves_project_phase_mb": 161},
+   {"lever": "l3d", "saves_file_phase_mb": "90-100", "saves_project_phase_mb": "90-100"},
+   {"lever": "l3e", "saves_file_phase_mb": "about 100 (uncertain)", "saves_project_phase_mb": "about 100 (uncertain)"}
+  ]
+ },
+ "question_4_guard": {
+  "answer": "no",
+  "guard": "1.33 GB peak RSS; the head run's RSS/heap ratio is 4584/4258 = 1.077, so the guard is about 1235 MB of heap",
+  "largest_single_rule": "program-implementation-boundary alone: 638 MB of capture rows + 30 MB decoded frontier + 17 MB other = 685 MB of project working set (dump 632); shared-walk-owner alone also reaches 638 MB of capture rows (its semantic-targets splits the same paths); derived-view-acquisition alone 9 MB",
+  "arithmetic": [
+   "after project-retention l1 alone: residual at project start 1422 MB + largest rule 685 MB = 2107 MB heap, about 2.27 GB RSS",
+   "after l1 + l3b + l3c + l3d: residual 1422 - 253 - 161 - 100 = 908 MB, + 685 = 1593 MB heap, about 1.72 GB RSS",
+   "after l1 + every l3 lever including l3e: 808 + 685 = 1493 MB heap, about 1.61 GB RSS",
+   "file phase after l3a-l3d: 1516 MB (ablation end) - about 120 MB of the remaining worker tables - 514 MB = about 0.9 GB heap, about 0.95-1.0 GB RSS: under the guard"
+  ],
+  "floor": "With l1 and l3 under the current model, the project phase's floor is the residual it cannot drop plus the largest rule's materialized capture. That residual is tm's plan (122-186 MB), the answer rows in their most compact form (about 250 MB), the name arenas (38 MB), a compact spill index (about 50 MB), the decoded frontier at project start (96 MB) and the program (about 100 MB): about 650-700 MB. Adding 685 MB gives about 1.35 GB of heap, or about 1.45 GB RSS. The file phase can reach the guard; the project phase cannot while program-implementation-boundary's and shared-walk-owner's path-split captures (local-dependencies has 3,480,084 rows) are published whole. Getting under 1.33 GB needs project-retention l2 (stream those captures) on top of l1 and l3, or a different guard"
+ },
+ "levers": [
+  {"id": "l3a", "rank": 1, "lever": "Bound the worker tables. After a file whose element table, facts columns, names or byte buffer grew past a cap, a worker shrinks them back to the cap instead of keeping the largest file's capacity. Files over a size bound are read one at a time, so 9 workers never hold 9 large trees at once. Alternative, needing a semantic check first (h4): skip building the tree for a file whose governing rules read none of its language's relations. That check must keep the unread/partial reporting of a file that fails to parse byte-identical. Scheduling and buffer lifetime only; no second data structure.", "size": "core application/file_analysis (Worker tables, release after the visit) and the scheduler's admission, about 80-200 lines; the h4 variant adds a per-file wanted set from the mask, about 150-300 lines", "evidence": "h3: 981 MB of worker tables at dump 471, 9 allocations per column; the ablation without the 27 files over 1 MB lowers the file-phase end by 772 MB"},
+  {"id": "l3b", "rank": 2, "lever": "Keep one copy of the findings rows. stage_outcome already moves each fresh record's bucket words into the store's staging spool; move Ran.rows (FindingRows) there the same way, so the store's copy is not held in memory until finish_run.", "size": "core lint_store (postcard adapter staging, read path) and values records types (a staged rows handle beside StagedWords), about 150-300 lines", "evidence": "h5: keeping/service.rs:39-40, 252 MB at the file phase's end and 253 MB at the project peak"},
+  {"id": "l3c", "rank": 3, "lever": "Stage the handed metadata too: Handed.buckets' proofs and handles, Handed.text and Handed.notes go to the same spool as the words, not into the in-memory FreshRecord.", "size": "same mechanism as l3b, about 100-200 lines", "evidence": "recording/service.rs:103 107 MB, :214 40 MB, :228 14 MB at both peaks"},
+  {"id": "l3d", "rank": 4, "lever": "Make the spill index compact. Keep the FrontierProof once per bucket per worker, and its coverage only when it is Partial, so a SpillStretch is offset, length and file (about 24 B, not 72 B).", "size": "execution_runtime outbound/facts/adapters/spill (types.rs, adapter.rs keep and finish), about 50-120 lines", "evidence": "spill/adapter.rs:196, 144 MB in 3,575 Vecs (avg 31 KB) at dump 471, 145 MB at the peak"},
+  {"id": "l3e", "rank": 5, "lever": "Hold the answer rows the way FindingRows holds them (one text buffer, cells as ranges), not as one Vec per row with one owned allocation per text cell.", "size": "core outbound/row_sink/adapters/collect and the SDK report conversion, about 80-150 lines; uncertain where tm reads the rows", "evidence": "collect/adapter.rs:37, 164 MB of rows (avg 475 B) plus 145 MB of 4,557,530 owned cells (avg 32 B), against 222 MB for the same rows as FindingRows"}
+ ],
+ "not_measured": [
+  "which rules govern each of the 27 large files (the h4 variant of l3a)",
+  "the peak with l3a applied when several large files arrive together (estimated from the ablation, not run)",
+  "the largest single rule's project working set once project-retention l1 shares producers between rules: program-implementation-boundary and shared-walk-owner each reach 638 MB alone; if one shared capture serves both, the per-rule bound stays 685 MB, otherwise two live captures would be about 1.3 GB"
+ ],
+ "reviewer": "perf-diagnosis",
+ "date": "2026-11-09T17:55:00Z"
+}
