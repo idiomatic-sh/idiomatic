@@ -38,7 +38,7 @@ The `bounds` parameter of `holding` and the `category` parameter of `operand_pla
 ## Residual: long left-nested string chains
 Accepted, and no memo is needed now. A chain of K string operands in one expression (`"a" + "b" + ...`) still costs O(K^2) ancestor steps through `completion_hosts`.
 
-I measured the benchmark Django tree (`/tmp/ryo-benchmark-corpora/projects/django-36b5f39d93...`, all of it including `tests/`) with Python `ast`:
+I measured the benchmark Django tree (the benchmark corpora cache's `projects/django-36b5f39d93...`, all of it including `tests/`) with Python `ast`:
 
 | Measure | Value |
 | --- | --- |
