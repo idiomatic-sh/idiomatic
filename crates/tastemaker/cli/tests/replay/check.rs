@@ -345,15 +345,32 @@ fn checking_crates_ryo_cold_stays_under_its_memory_guard() {
         .expect("git starts");
     assert!(init.success(), "git init succeeds");
     let output = std::process::Command::new("/usr/bin/time")
-        .args(["-f", "peak-kib %M", env!("CARGO_BIN_EXE_tm"), "check"])
+        .args([
+            "-f",
+            "peak-kib %M",
+            env!("CARGO_BIN_EXE_tm"),
+            "check",
+            "--format",
+            "json",
+        ])
         .current_dir(scratch.path().join("crates/ryo"))
         .output()
         .expect("tm starts");
     let said = String::from_utf8_lossy(&output.stderr).into_owned();
-    // The check ends with its findings (1 or 2) or none (0); anything else is a crash, and says nothing of memory.
+    // The peak says something of memory only for a run that checked the tree: crates/ryo has findings, so the check ends
+    // with them (exit 1) and reports them. A run that could not check (exit 2, such as a definition refused for want of a
+    // proof) stops in seconds, and its peak proves nothing.
+    assert_eq!(
+        output.status.code(),
+        Some(FOUND),
+        "tm check did not end with the tree's findings:\n{said}"
+    );
+    let report: serde_json::Value = serde_json::from_slice(&output.stdout)
+        .unwrap_or_else(|error| panic!("tm check answered no report ({error}):\n{said}"));
+    let found = report["findings"].as_array().map_or(0, Vec::len);
     assert!(
-        matches!(output.status.code(), Some(0..=2)),
-        "tm check ended badly:\n{said}"
+        found > 0,
+        "tm check reported no finding over crates/ryo, so it checked nothing:\n{said}"
     );
     let peak = said
         .lines()

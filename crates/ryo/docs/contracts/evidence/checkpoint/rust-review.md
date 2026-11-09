@@ -1,110 +1,128 @@
-# Rust gate: checkpoint 332, delta pass
+# Rust gate: checkpoint 332, fourth pass
 
-- Reviewed source: `2991a41cd2b10a176f3da435660ef32983aaa8a9`.
-- Delta: `c3639e10a6..2991a41cd2`. The previous pass, at `c3639e10a6`, was PASS 7/7.
+- Reviewed source: `eedb4f1a77317542e3db0ccb5e3fe3ebd4f26cda`.
+- Delta: `2991a41cd2..eedb4f1a77`. The third pass, at `2991a41cd2`, FAILed on F5 to F8.
 - The delta carries four things:
-  - B1 and B4 (`5e7ca6fb96`);
-  - the tm 0.1.2 import-reading merge (`0f2fa35a12`, with branch commits `55e5fd3520`, `7fb164654f`, `e196dbe503`, `e2c66a218a` and `f1c9e1c968`);
-  - the `std::sync::atomic` allow-list entry (`883f0d6dd6`);
-  - the record and the evidence.
-- Evidence read: the diffs, the files they touch, and the integrator's logs `gatefix_tastemaker_*.log` in the validation332 directory. Under the review definition I ran no cargo.
-- Tree: HEAD stayed at `2991a41cd2` for the whole pass. The only working-tree changes are this file and its JSON.
-- Already known and being fixed, counted as FAIL here as you asked: the cold memory guard (finding F5) and the reporting test (F6). The go/api samples are F7.
+  - the t611 edit-run fix (`c2ba5669a6` and `bec665436a`, merged at `2c94c8e3d5`);
+  - the tm import-reading repair (`db77cdd326` and `96b5545cb8`, merged at `69caa24a4e`);
+  - the `lookups.rs` split (`5b9555b1a0`);
+  - the record (`eedb4f1a77`).
+- Evidence read: the diffs, the files they touch, the branch leak re-reviews, and the integrator's logs in the validation332 directory. Under the review definition I ran no cargo.
+- Tree: HEAD stayed at `eedb4f1a77` for the whole pass. The only working-tree changes are this file and its JSON.
 
-**Verdict: FAIL.** Items 3 and 6 fail; items 1, 2, 4, 5 and 7 pass.
+**Verdict: FAIL.** Items 3 and 6 fail, both on missing evidence; the code is sound. Items 1, 2, 4, 5 and 7 pass.
 
 | Item | Verdict |
 | --- | --- |
 | 1 Ownership and API shape | PASS |
 | 2 Compiler over tests | PASS |
-| 3 Hot path | FAIL (F5) |
+| 3 Hot path | FAIL (F5: evidence only) |
 | 4 One representation per concept | PASS |
 | 5 Standard crate over home-grown | PASS |
-| 6 Tests | FAIL (F6, F7, F8) |
+| 6 Tests | FAIL (F8: evidence only) |
 | 7 Rust fit | PASS |
 
 ## 1 Ownership and API shape: PASS
 
-- **B1 is applied.** `crates/tastemaker/crates/core/Cargo.toml:33` requires `idiomatic-sh-ryo-sdk` 0.1.2.
-- **B4 is applied.** The seal's doc comments now say exactly what it enforces: every `MatchingUseCase` implementation, in any crate, gets `PatternSemantics` through the bridge, and no type implements it directly (`crates/ryo/crates/execution_domain/src/domain/matching/types.rs:11-27`).
-- The new `Scope`, `ScopeKind` and `Name.binding` (`crates/tastemaker/crates/core/src/domain/imports/types.rs:76-99`) are Tastemaker domain rows.
+- **C1 is applied.** `crates/tastemaker/cli/Cargo.toml:35-46` and `:63-66` require the ryo SDK and the ryo language crates at 0.1.2, the same as core.
+- **Tastemaker types** (`crates/tastemaker/crates/core/src/domain/imports/types.rs`):
+  - `Name.binding` is now `Option<ModuleName>` (`:77`).
+  - `Scope` is `Copy` and no longer carries its own path (`:84-90`).
+  - Scopes are owned once per file, in `BTreeMap<RepoPath, Vec<Scope>>` (`:139`).
+- `imports()` borrows the scopes per source and clones nothing (`crates/tastemaker/crates/core/src/domain/import_rows/service.rs:213-235`).
+- **t611** passes the file's number down by value (`crates/ryo/crates/core/src/domain/handing/service.rs:155,231,241`; `recording/service.rs:238,245`).
 - `sdk/api.txt` is unchanged.
-- Advisory C1: `crates/tastemaker/cli/Cargo.toml` still asks for SDK 0.1.1, and for the language crates at 0.1.1.
 
 ## 2 Compiler over tests: PASS
 
-- `Relation::Scopes` is a new variant, so `query` and `keep` cover it in exhaustive matches.
-- `ScopeKind` is an enum, mapped from the two kind texts in one place (`import_rows/service.rs:102-113`).
+- **The memory guard can no longer pass vacuously** (`crates/tastemaker/cli/tests/replay/check.rs:328-376`).
+  - It now requires exit 1 and a JSON report with at least one finding before it reads the peak.
+  - Before, it accepted exit codes 0 to 2. 96b5545cb8 shows a pre-branch tm refusing with exit 2 after 8.6 s at a 454 MB peak, so the 331 "pass" measured nothing.
+  - The harness itself was repaired; no parallel test was added.
+- **t611 keeps one numbering per file.** A part read of the file itself is stored at `PartialAt(0)` and given the reading run's number when read back (`handing/service.rs:241-260`), the same convention `moved_words` uses.
 
-## 3 Hot path: FAIL
+## 3 Hot path: FAIL (F5, evidence only)
 
-**F5 (fix pending).** Tastemaker's cold check of `crates/ryo` peaks at 4,491,136 KiB against its guard of 1,331,200 KiB. It is red only with the import-reading branch's core changes (`validation.json` `tastemaker_workspace`; `gatefix_tastemaker_without_tm_branch.log`).
+**The import reading's own cost is now proportionate.** Each part of my third-pass finding is answered:
+- **The query.** `SCOPES` (`crates/tastemaker/crates/core/src/domain/import_rows/constants.rs:40-47`) selects by kind equality. It emits only the `stmt-list` that is the parent of a `use`, joined through `syntax-child`, plus the `item-list` nodes of inline modules. Before, it emitted every block of every file.
+  - The leak re-review's probe table supports "nothing is missed": a `use` stands only in a `StmtList`, and the module test reads item lists only.
+- **The rows.** Scopes are grouped per file with no path per row.
+- **The scans.** Each import's innermost scope is computed once (`service.rs:231-235`). The innermost module around an edge is found by bisection over the file's few scopes (`innermost`, `:144-157`).
+- **The recorded peak** went from 4,491,136 to 4,402,760 KiB (`tastemaker_workspace_69caa24a4e.log:7591`).
 
-The scope logic I was asked to look at explains it:
+**Is landing with the engine's retention as a named, owned red acceptable under item 3? Yes in principle.**
+- Item 3 judges the diff, and the retention is not in this diff.
+- The guard was vacuous before, so the 331 "green" said nothing. A red guard here shows a real problem, now made visible, not a regression this diff introduced.
+- It has an owner ("Project phase retains 2 GB of rows on a cold tm check of crates/ryo"), and the test stays red instead of being ignored. That is the right state for a known red.
 
-**(a) The scopes rule emits far more rows than it uses. This is the likely cause of the memory.**
-- `SCOPES` (`crates/tastemaker/crates/core/src/domain/import_rows/constants.rs:39-41`) is `select id, kind, file, span from "syntax-tree" where glob_any(kind, "{stmt-list,item-list}")`.
-- That emits one row for every `stmt-list` and every `item-list` in the tree: every function body, block, `impl` body, `trait` body and inline module. On `crates/ryo` that is tens of thousands of rows, where only the scopes around a `use` and the inline modules matter.
-- `glob_any` on `kind` is not a kind equality. Only a leading run of total kind equalities narrows the engine's dispatch (`execution_domain/src/domain/shared_walk/service.rs`), so the rule tests every node of every file.
-- Each emitted row comes back as a lint answer with all its columns, and is then copied into a `Scope` that owns its own `RepoPath` (`import_rows/service.rs:108-112`).
+**Why item 3 still fails: nothing committed supports the attribution.** Missing evidence for an item is FAIL.
+- The two numbers it rests on are in no file in the validation332 directory, in no record line and in no evidence file:
+  - the pre-branch tm peak of 4.34 GB, measured on a run that actually checked the tree;
+  - the heap profile putting 2.04 GB in project-phase row retention.
+- The README's Tastemaker workspace row states the attribution without a number behind it.
+- The only recorded runs without the branch are the vacuous ones:
+  - `gatefix_tastemaker_without_tm_branch.log:14091` ("ok" from an exit-2 run);
+  - `gatefix_tastemaker_at_331.log:47`.
+- So, from recorded data alone, it cannot be ruled out that this diff still adds most of the 4.40 GB.
 
-**(b) `in_scope` repeats the same work for every edge. This costs CPU.**
-- For each use-site edge, `imports()` runs `in_scope` against each name whose binding matches.
-- `in_scope` scans all of the file's scopes twice: `filter` plus `min_by_key`, then `any` (`import_rows/service.rs:147-169`).
-- It finds the innermost scope of the same `use` again for every edge, so the cost is O(edges × scopes) per file.
+Required change, evidence only, no code:
+1. Put two logs in the validation directory, beside `tastemaker_workspace_69caa24a4e.log`:
+   - **The pre-branch peak.** Build tm from the pre-branch core, `f67311c990`'s `crates/tastemaker`, with the provider-imports proof made to pass so the run checks the tree. Run the non-vacuous guard command (`tm check --format json` over the scratch copy of `crates/ryo`, under `/usr/bin/time -f "peak-kib %M"`) and keep its exit code, its finding count and its peak.
+   - **The heap profile summary** of the current tm on the same run: the top allocation sites with their retained bytes, at least the project-phase row-retention frame and the `import_rows` frames.
+2. Cite both in the README row and in `validation.json` `tastemaker_workspace`.
 
-Required change:
-1. Emit only what `in_scope` reads. The innermost scope of a `use` is the parent node of that `use` item, so query the `use` items' parents (one row per import) plus the item lists that belong to an inline `module`. Select by kind equality, for example two selects joined by a union, instead of `glob_any`.
-2. Key scopes per file without one `RepoPath` copy per row.
-3. Compute `around` once per name, and find the inline modules around an edge by bisecting scopes sorted by start.
-4. Re-measure with the cold memory guard (`check::checking_crates_ryo_cold_stays_under_its_memory_guard`).
+If the pre-branch peak is within about 100 MB of 4.40 GB and the import_rows frames are small, item 3 passes with the guard as a named, owned red.
 
 ## 4 One representation per concept: PASS
 
-- `Scope` projects the engine's `syntax-tree` answer into Tastemaker's own row types, as `Name`, `Package` and `Owner` already do for their relations.
-- The constants left unused by the query's early returns are deleted: `EDGES_RELATION` and `EDGE_KEY`.
+- `Scope` no longer duplicates the file path.
+- t611 removes a second numbering: before, a stored file number from another run was read back as this run's (`bec665436a`).
+- The `lookups.rs` split moves fixture cases into `fixtures/stores.rs` without copying them.
 
 ## 5 Standard crate over home-grown: PASS
 
-No new dependency. The only lock change is Tastemaker's own version, which goes from 0.1.1 to 0.1.2.
+No dependency is added. The only manifest change raises version requirements from 0.1.1 to 0.1.2.
 
-## 6 Tests: FAIL
+## 6 Tests: FAIL (F8, evidence only)
 
-**F6 (fix pending). The reporting test is red, and the cause is a real false negative.**
-- `crates/tastemaker/crates/core/src/application/reporting/service_test.rs:492` reads 0 findings where it expects 1 (`gatefix_tastemaker_workspace.log:7960`).
-- The cause: `keep()` now keeps a `static-import` row only when it has both cells, `if let (Some(written), Some(binding))` (`import_rows/service.rs:73-82`). The test's answer carries `target` and `span` but no `binding`, so its import is never read.
-- Production hits the same drop. The JavaScript provider gives an unknown binding to a side-effect import (`import "x"`) and to a dynamic `import(..)` (`crates/ryo/languages/javascript/src/domain/syntax/service.rs:272`, `:291-292`). Those imports would silently stop reaching every import rule.
+**F6 is repaired.**
+- `keep()` keeps every `static-import` row with a target, with `binding` optional (`crates/tastemaker/crates/core/src/domain/import_rows/service.rs:73-80`).
+- The case `an_import_that_binds_no_name_is_kept_and_a_path_is_never_its` pins it.
+- Core reporting is green: `f8_green_core.log` shows 4 passed, 0 failed.
+- The Tastemaker workspace is 264/4 (`tastemaker_workspace_69caa24a4e.log`). The 4 are the memory guard (F5) and the 3 tests already red at 331.
+
+**F7 is repaired.**
+- The two t611 fixes name their tests, both rows of the core lint `lifecycle` group.
+- Their red-then-green is machine-recorded: `t611_red_*.log` and `t611_green_*.log` cover lifecycle, samples, the go/api repro and the core library. These are `red_green` entries 31-34.
+
+**F8 is not proven.**
+- `validation.json` `red_green` entries 35-43 list 9 reds. Only one is in an integrator log: the reporting test, red at `0f2fa35a12` (`gatefix_tastemaker_workspace.log:7960`).
+- The 8 `import_rows` reds are copied from the message of builder commit `96b5545cb8`. That message says they were seen with "the case runner made to report every miss", a temporary local change.
+- The leak re-review of `96b5545cb8` ran none of them.
+- The validation directory holds `f8_green_core.log` and no red log.
+- So a claim stands in for a run. Item 6 requires that the integrator's red-then-green record prove the named test.
 
 Required change:
-1. Make the field `binding: Option<ModuleName>` and keep every row that has a `target`.
-2. Match a use-site path's first name only against `Some(binding)`.
-3. Add an `import_rows` case for a row without a binding (advisory C2).
+1. On the merged head, reverse each fix's production hunk in turn:
+   - `e2c66a218a`'s `in_scope` gating (3 rows);
+   - `55e5fd3520`'s use-site drop (4 rows);
+   - the optional-binding keep (1 row).
+2. Run `tastemaker-core` `domain::import_rows::service_test::succeeds` after each revert. Use the standard case runner, which already lists every failing row, or a committed per-row option, not a local edit.
+3. Save each red log, restore the head, and save the green log.
+4. Name the logs in the 8 entries.
 
-**F7 (pending a later delta). Two go/api replay rows went red through the patch.**
-- `replay samples each_row_of_each_sample_is_fixed_and_restored`, both its "inside a repository" and "as a repository of its own" rows, fail at 332 through the local ryo crates the patch links. They are green at 331.
-- My second pass missed this, because only `tm_import_cli` had been run under the patch (its B6 advisory). Required change: the fix the PM has scheduled, then the replay green.
-
-**F8. The two tm fixes have no red-then-green record.**
-- `55e5fd3520` and `e2c66a218a` change production behaviour, but their commit messages name no test, and `validation.json` `red_green` still holds 30 entries.
-- Their cases exist in `crates/tastemaker/crates/core/src/domain/import_rows/service_test.rs`:
-  - `a_path_at_a_use_site_through_a_name_an_import_binds_is_that_imports`
-  - `a_path_at_a_use_site_from_the_package_root_is_an_import_of_its_own`
-  - `a_path_in_an_inline_module_sees_no_import_written_outside_it`
-  - `a_path_outside_the_block_of_an_import_sees_no_binding_of_it`
-  - `a_path_outside_the_inline_module_of_an_import_sees_no_binding_of_it`
-  - `a_path_in_the_block_of_an_import_is_that_imports`
-- None is shown failing without its fix. Required change: reverse each fix's production hunks, run the cases red, restore and run them green, then add the entries. The F6 repair also needs a test, which C2 supplies.
+`a_path_at_a_use_site_from_the_package_root_is_an_import_of_its_own` is green in every revert by design: it guards against dropping too much. That is correct.
 
 ## 7 Rust fit: PASS
 
 - The delta adds no `unsafe`, no `#[allow]`, and no `unwrap`, `expect` or `panic` in production code.
-- `size()` maps an unplaced scope to `usize::MAX` on purpose, so it never wins as the innermost scope (`import_rows/service.rs:148-151`).
-- The `std::sync::atomic::*` allow-list entry (`crates/ryo/tastemaker.toml:205`) is justified. The providers' production code already counts with it: the python `parse/contract.rs`, and the ruff parser's `adapter.rs` and `semantic.rs`.
+- `innermost` returns `None` for an unplaced span (`import_rows/service.rs:144-147`).
+- `bindings` skips imports that bind no name with `filter_map` and `?` (`:231-235`).
+- t611's `u32::try_from(place.0).unwrap_or(u32::MAX)` (`crates/ryo/crates/core/src/application/file_analysis/streaming/service.rs:316`) follows the existing pattern of that loop.
 
 ## Advisories
 
 No bead ids here. Each advisory becomes a bead, or is dropped with a reason.
 
-- **C1. The cli manifest still asks for 0.1.1.** `crates/tastemaker/cli/Cargo.toml` requires `idiomatic-sh-ryo-sdk` 0.1.1, and the ryo language crates at 0.1.1, while core requires 0.1.2. Cargo resolves both to one version, so nothing breaks today, but the manifests disagree. Fix: raise the cli's ryo requirements to 0.1.2.
-- **C2. No case covers a row without a binding.** Add an `import_rows` case for a `static-import` row with no `binding` cell. It is the test F6's repair needs.
-- **C3. The `in_scope` scope rules have gaps.** In Rust, a `use` inside a block also binds for the items nested in that block, and a glob import (`use a::*`) binds no single first name. `in_scope` handles the first only through the block's span, and the second never drops anything; both outcomes are conservative. If the reading should go further, state the rule.
+- **D1. `innermost` scans backward linearly.** After the bisection it walks back through the earlier spans with `rev().find(..)` (`import_rows/service.rs:149-156`). For a span that no scope holds, it visits every earlier sibling. With only blocks holding a `use` plus inline modules this is small today. Fix: keep a nesting stack from the sorted spans, or stop at the first span that ends before the target starts and has no enclosing parent.
+- **D2. The scopes map takes an owned path per row.** `rows.scopes.entry(path)` (`import_rows/service.rs:107-110`) is handed an owned `RepoPath` for every scope row and drops it when the file is already present. Fix: look the file up first with `get_mut(&path)`, and insert only when it is absent.

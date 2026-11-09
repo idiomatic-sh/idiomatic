@@ -1,0 +1,66 @@
+Checkpoint 332, Rust gate pass 4, F5 (b): heap profile of the current tm on a cold check of a git archive of the repository at the 332 head, run in its crates/ryo, by method.md's heap-profile recipe (jemalloc's profiler, a dump per 1 GiB allocated, the peak dump read with jeprof). The build adds tikv-jemallocator/profiling, the allocator's profiler, which no release build carries.
+
+head 781653e221c3c7d4b937918d46496c5564ebe647; tm built with line tables and tikv-jemallocator/profiling from it (sha256 f335d4ab02468a2e); archive of crates/ryo at the head, cold
+MALLOC_CONF prof:true,prof_active:true,lg_prof_sample:19,lg_prof_interval:30,prof_final:true
+exit 0 peak-kib 4513824 wall 158.78
+dumps 257; peak dump jeprof.3951073.249.i249.heap, total bytes 4259226952
+
+== peak dump, cumulative bytes live by function, top 52 (jeprof --text --cum --show_bytes)
+Total: 4259226952 B
+       0   0.0%   0.0% 4258702660 100.0% catch_unwind (inline)
+       0   0.0%   0.0% 4258702660 100.0% do_call (inline)
+       0   0.0%   0.0% 4258702660 100.0% {closure#0} (inline)
+       0   0.0%   0.0% 4257653192 100.0% _rjem_je_prof_backtrace
+       0   0.0%   0.0% 4257653192 100.0% _rjem_je_prof_tctx_create
+       0   0.0%   0.0% 4257653192 100.0% prof_alloc_prep (inline)
+4257653192 100.0% 100.0% 4257653192 100.0% prof_backtrace_impl
+       0   0.0% 100.0% 3367159833  79.1% {closure#1} (inline)
+       0   0.0% 100.0% 3306295803  77.6% ::execute (inline)
+       0   0.0% 100.0% 3306295803  77.6% execute
+       0   0.0% 100.0% 3130144325  73.5% run
+       0   0.0% 100.0% 3129083371  73.5% __libc_init_first@@GLIBC_2.17
+       0   0.0% 100.0% 3129083371  73.5% __libc_start_main@GLIBC_2.17
+       0   0.0% 100.0% 3129083371  73.5% _start
+       0   0.0% 100.0% 3129083371  73.5% main
+       0   0.0% 100.0% 3128559079  73.5% run_from (inline)
+       0   0.0% 100.0% 3128559079  73.5% std::process::ExitCode>
+       0   0.0% 100.0% 3128559079  73.5% std::process::ExitCode> (inline)
+       0   0.0% 100.0% 3128559079  73.5% tastemaker_cli::resources::run (inline)
+       0   0.0% 100.0% 3128559079  73.5% tastemaker_cli::resources::workspace::check::command::run (inline)
+       0   0.0% 100.0% 3128559079  73.5% tm::main
+       0   0.0% 100.0% 3128034278  73.4% ::check
+       0   0.0% 100.0% 3072054487  72.1% ::lint
+       0   0.0% 100.0% 3047484103  71.6% ryo::resources::linter::lint::entry::lint_with
+       0   0.0% 100.0% 2987583052  70.1% answer
+       0   0.0% 100.0% 2987583052  70.1% ryo_core::inbound::use_cases::lint::service::answer (inline)
+       0   0.0% 100.0% 2977465263  69.9% ::crossed
+       0   0.0% 100.0% 2977465263  69.9% ::ordinary
+       0   0.0% 100.0% 2931385538  68.8% ::ordinary (inline)
+       0   0.0% 100.0% 2931385538  68.8% evaluate_occurrences (inline)
+       0   0.0% 100.0% 2905138050  68.2% spec_extend (inline)
+       0   0.0% 100.0% 2807538381  65.9% __rust_realloc (inline)
+       0   0.0% 100.0% 2807538381  65.9% do_rallocx
+       0   0.0% 100.0% 2807538381  65.9% irallocx_prof (inline)
+       0   0.0% 100.0% 2804390100  65.8% realloc_nonnull (inline)
+       0   0.0% 100.0% 2801017733  65.8% ::finish_grow (inline)
+       0   0.0% 100.0% 2798895035  65.7% finish_grow
+       0   0.0% 100.0% 2778280844  65.2% grow (inline)
+       0   0.0% 100.0% 2778280844  65.2% grow_impl (inline)
+       0   0.0% 100.0% 2778280844  65.2% grow_impl_runtime (inline)
+       0   0.0% 100.0% 2505174078  58.8% ::row (inline)
+       0   0.0% 100.0% 2505174078  58.8% row
+       0   0.0% 100.0% 2363594754  55.5% reserve (inline)
+       0   0.0% 100.0% 2353218075  55.2% ::reserve::do_reserve_and_handle:: (inline)
+       0   0.0% 100.0% 2353218075  55.2% do_reserve_and_handle
+       0   0.0% 100.0% 2292811970  53.8% {closure#2} (inline)
+       0   0.0% 100.0% 2286348825  53.7% prepare_roots
+       0   0.0% 100.0% 2283114387  53.6% poll (inline)
+       0   0.0% 100.0% 2277947055  53.5% evaluate (inline)
+       0   0.0% 100.0% 2267154103  53.2% append_elements (inline)
+       0   0.0% 100.0% 2267154103  53.2% extend_from_slice (inline)
+
+== peak dump, frames under import_rows (--focus=import_rows): none hold a live byte at the peak
+Total: 4259226952 B
+
+
+Reading: 2,987,583,052 B of the 4,259,226,952 B live at the peak (70.1%) are under ryo_core lint answer -> crossed -> ordinary -> evaluate_occurrences -> row (spec_extend, append_elements): the rows the project phase keeps (owned by "Project phase retains 2 GB of rows on a cold tm check of crates/ryo"). No import_rows frame holds memory at the peak.

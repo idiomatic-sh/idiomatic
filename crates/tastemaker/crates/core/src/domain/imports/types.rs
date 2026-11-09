@@ -72,17 +72,16 @@ pub struct Name {
     pub source: RepoPath,
     /// The path as written.
     pub written: WrittenPath,
-    /// The name it binds in the file: a path written at a use site that starts at it is this import's.
-    pub binding: ModuleName,
+    /// The name it binds in the file, when it binds one: a path written at a use site that starts at it, where the
+    /// import binds, is this import's. An import that binds no name (a side-effect `import "x"`) is still an import.
+    pub binding: Option<ModuleName>,
     /// Where.
     pub span: ImportPlace,
 }
 
-/// A block or an inline module of a file: what a `use` written in it binds within.
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+/// A block that holds a `use`, or an inline module, of a file: what a `use` written in it binds within.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Scope {
-    /// The file.
-    pub source: RepoPath,
     /// Where.
     pub span: ImportPlace,
     /// Which.
@@ -136,8 +135,8 @@ pub struct ImportRows {
     pub packages: Vec<Package>,
     /// Every `file-package` row.
     pub owners: Vec<Owner>,
-    /// Every block and inline module.
-    pub scopes: Vec<Scope>,
+    /// Each file's blocks that hold a `use` and its inline modules, the file kept once.
+    pub scopes: BTreeMap<RepoPath, Vec<Scope>>,
 }
 
 /// The package a file belongs to: the `file-package` relation.
