@@ -240,3 +240,11 @@ expected = [{ "end" = 116, "file" = "RUF100_0.py", "rule" = "RUF100", "start" = 
 "project-search-roots" = ["", "src"]
 "given-project-inventory" = { "entries" = [], "completeness" = "complete-within-declared-scope" }
 "rule-context" = { "external-prefixes" = [], "disabled-rules" = {  } }
+
+[[cases]]
+name = "blanket-noqa-on-a-star-import-that-needs-no-combining-is-unused"
+comparison = "full"
+files = { "case.py" = "from a.q import *  # NOQA\nfrom a.q import Query\n" }
+expected = [{ "end" = 25, "file" = "case.py", "rule" = "RUF100", "start" = 19 }]
+"selected-rules" = ["RUF100", "I001"]
+"rule-observations" = { "RUF100" = [{ "name" = "suppression_matches", "columns" = [{ "name" = "directive", "kind" = "node" }, { "name" = "file", "kind" = "file" }, { "name" = "code", "kind" = "symbol" }], "producers" = [{ "kind" = "output", "rule" = "I001", "output" = "noqa_matches" }] }] }

@@ -27,8 +27,8 @@ let parameter_binds = select l.id as binding, l.file as file, l.scope as scope, 
 let definitions = select id, file, span from "defines";
 let located = select l.binding as id, l.file as file, r.span as span from parameter_binds as l join definitions as r on l.binding = r.id and l.file = r.file;
 let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from located as l join "source-location" as r on l.id = r.id and l.file = r.file;
-let violations = suppress(candidates=candidate_locations, inline-pattern="^[\\s,]*(?:[A-Z]+[0-9]+[\\s,]*)*PLW0642(?:$|[\\s,#]|[A-Z])", range-pattern="(?:^|,)(?:PLW0642)(?:,|$)");
-let ruf100_matches = observation_matches(candidates=candidate_locations, inline-pattern="^[\\s,]*(?:[A-Z]+[0-9]+[\\s,]*)*PLW0642(?:$|[\\s,#]|[A-Z])", range-pattern="(?:^|,)(?:PLW0642)(?:,|$)");
+let violations = suppress(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*PLW0642(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:PLW0642)(?:,|$)");
+let ruf100_matches = observation_matches(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*PLW0642(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:PLW0642)(?:,|$)");
 let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
 let ruf100_used = extend(from=ruf100_directives, values={code: "PLW0642"});
 observe ruf100_used as noqa_matches;

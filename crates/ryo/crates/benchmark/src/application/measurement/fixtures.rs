@@ -102,3 +102,53 @@ impl crate::outbound::execution::interface::ExecutionPort for Empty {
         })
     }
 }
+
+/// The fake linter pinning its child to one worker thread, as the real linters pin a timed run, and
+/// setting one variable of its own.
+pub(super) struct Pinned;
+impl crate::outbound::linter::interface::LinterPort for Pinned {
+    fn rule_configuration(
+        &self,
+    ) -> ryo_benchmark_contracts::domain::workloads::types::RuleConfigurationSupport {
+        crate::outbound::linter::fixtures::fake::LinterFake::default().rule_configuration()
+    }
+    fn prepare(&self, request: &RunRequest) -> Result<Invocation, Error> {
+        let mut invocation =
+            crate::outbound::linter::fixtures::fake::LinterFake::default().prepare(request)?;
+        let _absent = invocation.environment.insert(
+            ryo_benchmark_contracts::domain::measurements::constants::THREAD_PIN.into(),
+            "1".into(),
+        );
+        let _other = invocation.environment.insert("LINTER_HOME".into(), "fixture".into());
+        Ok(invocation)
+    }
+    fn decode(&self, request: &RunRequest, output: ProcessOutput) -> Result<RunReport, Error> {
+        crate::outbound::linter::fixtures::fake::LinterFake::default().decode(request, output)
+    }
+    fn settings_text(
+        &self,
+        normalized: &Invocation,
+        case: &ryo_benchmark_contracts::domain::workloads::types::PreparedCase,
+        profile: &ryo_benchmark_contracts::domain::workloads::types::Tool,
+    ) -> Result<crate::outbound::linter::types::CanonicalText, Error> {
+        crate::outbound::linter::fixtures::fake::LinterFake::default()
+            .settings_text(normalized, case, profile)
+    }
+    fn rule_context_text(&self, prepared: &ryo_benchmark_contracts::domain::context::types::PreparedRuleContext) -> crate::outbound::linter::types::CanonicalText {
+        crate::outbound::linter::fixtures::fake::LinterFake::default().rule_context_text(prepared)
+    }
+}
+
+/// The environment variable names the last launch an execution fake recorded carried, sorted and joined.
+pub(super) fn last_environment(execution: &ExecutionFake) -> Option<String> {
+    execution.history.lock().ok().and_then(|history| {
+        history.last().map(|invocation| {
+            invocation
+                .environment
+                .keys()
+                .map(|name| name.to_string_lossy().into_owned())
+                .collect::<Vec<_>>()
+                .join(",")
+        })
+    })
+}

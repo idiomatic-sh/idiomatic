@@ -18,3 +18,18 @@ expected = []
 name = "runtime"
 files = { "case.py" = "import sys\nif sys.platform == \"linus\":\n    ...\n" }
 expected = []
+
+[[cases]]
+name = "noqa-codes-comma-space-suppress-misspelled-platform"
+files = { "case.pyi" = "import sys\nif sys.platform == \"linus\":  # noqa: E501, PYI008\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "noqa-codes-comma-suppress-misspelled-platform"
+files = { "case.pyi" = "import sys\nif sys.platform == \"linus\":  # noqa: E501,PYI008\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "noqa-codes-trailing-reason-suppress-misspelled-platform"
+files = { "case.pyi" = "import sys\nif sys.platform == \"linus\":  # noqa: PYI008 # why\n    ...\n" }
+expected = []

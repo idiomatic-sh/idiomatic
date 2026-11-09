@@ -1823,3 +1823,26 @@ requested-files = ["input.py"]
 given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "src", state = "directory" }, { path = "src/acme.py", state = "file" }, { path = "src/acme", state = "directory" }, { path = "src/acme/billing", state = "directory" }, { path = "src/acme/billing/__init__.py", state = "file" }] }
 files = { "input.py" = "import numpy\n\nimport acme.billing\n", "src/acme.py" = "", "src/acme/billing/__init__.py" = "" }
 expected = []
+
+[[cases]]
+name = "module-name-containing-as-is-not-an-alias"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from django.utils.datastructures import ImmutableList, OrderedSet\n" }
+expected = []
+
+[[cases]]
+name = "import-of-the-files-own-package-root-is-first-party"
+comparison = "full"
+project-search-roots = ["", "src"]
+requested-files = ["django/__init__.py", "tests/pkg/__init__.py", "tests/pkg/sub/__init__.py", "tests/pkg/sub/t.py"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "django", state = "directory" }, { path = "django/__init__.py", state = "file" }, { path = "tests", state = "directory" }, { path = "tests/pkg", state = "directory" }, { path = "tests/pkg/__init__.py", state = "file" }, { path = "tests/pkg/sub", state = "directory" }, { path = "tests/pkg/sub/__init__.py", state = "file" }, { path = "tests/pkg/sub/t.py", state = "file" }] }
+files = { "tests/pkg/sub/t.py" = "from pkg.utils import X\n\nfrom django import Y\n", "tests/pkg/__init__.py" = "", "tests/pkg/sub/__init__.py" = "", "django/__init__.py" = "" }
+expected = [{ rule = "I001", file = "tests/pkg/sub/t.py", start = 0, end = 45 }]
+
+[[cases]]
+name = "star-import-is-not-combined-with-named-imports-of-the-module"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from a.q import *\nfrom a.q import Query\n" }
+expected = []

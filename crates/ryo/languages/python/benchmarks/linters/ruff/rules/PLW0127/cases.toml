@@ -28,3 +28,23 @@ name = "first-target-in-chained-self-assignment"
 comparison = "full"
 files = { "case.py" = "a = a = value\n" }
 expected = [{ rule = "PLW0127", file = "case.py", start = 0, end = 1 }]
+
+[[cases]]
+name = "tuple-swap-pairs-elements-by-position"
+files = { "case.py" = "def f(model, dependency):\n    model, dependency = dependency, model\n" }
+expected = []
+
+[[cases]]
+name = "noqa-codes-comma-space-suppress-simple_self_assignment"
+files = { "case.py" = "x = x  # noqa: E501, PLW0127\n" }
+expected = []
+
+[[cases]]
+name = "noqa-codes-comma-suppress-simple_self_assignment"
+files = { "case.py" = "x = x  # noqa: E501,PLW0127\n" }
+expected = []
+
+[[cases]]
+name = "noqa-codes-trailing-reason-suppress-simple_self_assignment"
+files = { "case.py" = "x = x  # noqa: PLW0127 # why\n" }
+expected = []

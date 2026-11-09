@@ -142,6 +142,24 @@ impl SuitePort for SuiteLocalAdapter {
     ) -> Result<(), Error> {
         std::fs::write(file, text).map_err(Into::into)
     }
+    fn accepted_differences(
+        &self,
+        ArtifactPath(file): ArtifactPath<'_>,
+    ) -> Result<ryo_benchmark_contracts::domain::reports::types::AcceptedDifferences, Error> {
+        super::accepted::schemas::accepted(&std::fs::read(file)?)
+    }
+    fn source_text(
+        &self,
+        ArtifactPath(file): ArtifactPath<'_>,
+    ) -> Result<ryo::linter::SourceText, Error> {
+        Ok(ryo::linter::SourceText(std::fs::read_to_string(file)?.into_boxed_str()))
+    }
+    fn create_text(
+        &self,
+        ArtifactPath(file): ArtifactPath<'_>,
+    ) -> Result<Box<dyn std::io::Write + Send>, Error> {
+        Ok(Box::new(std::fs::File::create(file)?))
+    }
     fn selection(&self, ArtifactPath(file): ArtifactPath<'_>) -> Result<Vec<SelectedName>, Error> {
         super::selection::schemas::names(&std::fs::read(file)?)
     }

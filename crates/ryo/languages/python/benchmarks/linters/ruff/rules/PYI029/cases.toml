@@ -45,3 +45,18 @@ name = "nested-function-control"
 comparison = "full"
 files = { "case.pyi" = "def outer():\n    def __str__(self) -> str: ...\n" }
 expected = []
+
+[[cases]]
+name = "noqa-codes-comma-space-suppress-simple-str-method"
+files = { "case.pyi" = "class C:\n    def __str__(self) -> str: ...  # noqa: E501, PYI029\n" }
+expected = []
+
+[[cases]]
+name = "noqa-codes-comma-suppress-simple-str-method"
+files = { "case.pyi" = "class C:\n    def __str__(self) -> str: ...  # noqa: E501,PYI029\n" }
+expected = []
+
+[[cases]]
+name = "noqa-codes-trailing-reason-suppress-simple-str-method"
+files = { "case.pyi" = "class C:\n    def __str__(self) -> str: ...  # noqa: PYI029 # why\n" }
+expected = []

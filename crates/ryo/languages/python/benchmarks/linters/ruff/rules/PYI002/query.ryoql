@@ -29,8 +29,8 @@ let non_simple_tests = union(left=bad_compare_tests, right=multi_operator_tests)
 let invalid_tests = union(left=non_simple_tests, right=non_compare_tests);
 let reportable = select l.test as id, r.file as file, r.span as span from invalid_tests as l join "semantic-syntax" as r on l.test = r.id and l.file = r.file;
 let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id;
-let violations = suppress(candidates=candidate_locations, inline-pattern="^[\\s,]*(?:[A-Z]+[0-9]+[\\s,]*)*PYI002(?:$|[\\s,#]|[A-Z])", range-pattern="(?:^|,)(?:PYI002)(?:,|$)");
-let ruf100_matches = observation_matches(candidates=candidate_locations, inline-pattern="^[\\s,]*(?:[A-Z]+[0-9]+[\\s,]*)*PYI002(?:$|[\\s,#]|[A-Z])", range-pattern="(?:^|,)(?:PYI002)(?:,|$)");
+let violations = suppress(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*PYI002(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:PYI002)(?:,|$)");
+let ruf100_matches = observation_matches(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*PYI002(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:PYI002)(?:,|$)");
 let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
 let ruf100_used = extend(from=ruf100_directives, values={code: "PYI002"});
 observe ruf100_used as noqa_matches;

@@ -11,3 +11,5 @@ pub const NO_MEASURED_EVIDENCE: &str = "no measured evidence";
 /// Refusal of a publication that carries samples of a scoped subset of the inventory.
 pub const DIAGNOSTIC_OBSERVATIONS_CANNOT_PUBLISH: &str =
     "diagnostic observations cannot publish benchmark metrics";
+/// The name the candidate's samples and parity counts carry.
+pub const CANDIDATE_NAME: &str = "ryo";

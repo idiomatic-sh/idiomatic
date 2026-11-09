@@ -10,6 +10,7 @@ mod diagnostic_protocol;
 mod locations;
 mod measure;
 mod output;
+mod parity;
 mod request_input;
 mod targets;
 /// Dispatch benchmark commands and retain the complete certification-to-observation timeline.
@@ -58,6 +59,11 @@ pub(crate) fn run(
             | self::constants::MEASURE_VALID,
         ) => self::measure::measure(
             self::certification::MeasureCommand(command.as_deref().unwrap_or_default()),
+            &mut args.map(self::request_input::BenchmarkArgument),
+            observations,
+            &suite_source,
+        ),
+        Some(self::constants::PARITY) => self::parity::parity(
             &mut args.map(self::request_input::BenchmarkArgument),
             observations,
             &suite_source,

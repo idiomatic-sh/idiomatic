@@ -333,3 +333,6 @@ fn succeeds() {
 fn refuses() {
     run(CASES, Word::Refuses, subject);
 }
+
+#[cfg(test)]
+mod rules_test;

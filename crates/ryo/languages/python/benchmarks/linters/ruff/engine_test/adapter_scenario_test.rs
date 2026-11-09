@@ -103,7 +103,9 @@ pub(super) fn invocation_matches(
     Ok(invocation.arguments == expected
         && invocation
             .environment
-            .get(std::ffi::OsStr::new("RAYON_NUM_THREADS"))
+            .get(std::ffi::OsStr::new(
+                ryo_benchmark_contracts::domain::measurements::constants::THREAD_PIN,
+            ))
             == Some(&"1".into())
         && invocation.directory == request.root
         && invocation.executable == executable)

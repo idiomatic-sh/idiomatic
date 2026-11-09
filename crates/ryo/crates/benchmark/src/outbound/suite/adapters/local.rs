@@ -1,5 +1,6 @@
 //! Local boundary implementation.
 pub(crate) mod adapter;
+mod accepted;
 mod constants;
 mod rule_cases;
 mod corpus;

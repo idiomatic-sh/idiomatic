@@ -16,8 +16,8 @@ let valid_operator_rows = select l.comparison as comparison, l.rhs as rhs, l.fil
 let invalid_names = select comparison, rhs, file from valid_operator_rows where value != "linux" and value != "win32" and value != "cygwin" and value != "darwin";
 let reportable = select l.rhs as id, r.file as file, r.span as span from invalid_names as l join "semantic-syntax" as r on l.rhs = r.id and l.file = r.file;
 let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id;
-let violations = suppress(candidates=candidate_locations, inline-pattern="^[\\s,]*(?:[A-Z]+[0-9]+[\\s,]*)*PYI008(?:$|[\\s,#]|[A-Z])", range-pattern="(?:^|,)(?:PYI008)(?:,|$)");
-let ruf100_matches = observation_matches(candidates=candidate_locations, inline-pattern="^[\\s,]*(?:[A-Z]+[0-9]+[\\s,]*)*PYI008(?:$|[\\s,#]|[A-Z])", range-pattern="(?:^|,)(?:PYI008)(?:,|$)");
+let violations = suppress(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*PYI008(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:PYI008)(?:,|$)");
+let ruf100_matches = observation_matches(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*PYI008(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:PYI008)(?:,|$)");
 let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
 let ruf100_used = extend(from=ruf100_directives, values={code: "PYI008"});
 observe ruf100_used as noqa_matches;

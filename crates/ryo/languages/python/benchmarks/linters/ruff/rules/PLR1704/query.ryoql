@@ -1,8 +1,13 @@
 import observation_matches from "python/ruff/suppress-matches";
 import suppress from "python/ruff/suppress";
-let events = select occurrence, name, scope, phase, kind, file from "binding-event";
+let events = select occurrence, name, scope, phase, kind, ordinal, file from "binding-event";
 let parameters = select id, name, owner, file from "parameter";
-let shadow_edges = select binding, previous, file from "binding-shadow";
+let bind_events = select occurrence, name, scope, ordinal from events where kind = "bind";
+let candidate_shadows = select binding, previous, file from "binding-shadow";
+let binding_ordinals = select l.binding as binding, l.previous as previous, l.file as file, r.scope as scope, r.name as name, r.ordinal as binding_ordinal from candidate_shadows as l join bind_events as r on l.binding = r.occurrence;
+let shadow_ordinals = select l.binding as binding, l.previous as previous, l.file as file, l.scope as scope, l.name as name, l.binding_ordinal as binding_ordinal, r.ordinal as previous_ordinal from binding_ordinals as l join bind_events as r on l.previous = r.occurrence;
+let intervening = select l.binding as binding, l.previous as previous from shadow_ordinals as l join bind_events as r on l.scope = r.scope and l.name = r.name where r.ordinal > l.previous_ordinal and r.ordinal < l.binding_ordinal;
+let shadow_edges = antijoin(left=shadow_ordinals, right=intervening, left-on=["binding","previous"], right-on=["binding","previous"]);
 let loop_nodes = select id, file from "semantic-syntax" where kind = "for" or kind = "async-for";
 let target_fields = select parent, child from "semantic-child" where field = "target";
 let loop_target_roots = select r.child as id from loop_nodes as l join target_fields as r on l.id = r.parent;

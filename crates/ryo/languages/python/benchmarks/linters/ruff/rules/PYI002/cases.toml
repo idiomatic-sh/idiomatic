@@ -42,3 +42,18 @@ expected = []
 name = "runtime-module"
 files = { "case.py" = "import sys\nif sys.version == \"3.10\":\n    ...\n" }
 expected = []
+
+[[cases]]
+name = "noqa-codes-comma-space-suppress-invalid-version-attribute"
+files = { "case.pyi" = "import sys\nif sys.version == \"3.10\":  # noqa: E501, PYI002\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "noqa-codes-comma-suppress-invalid-version-attribute"
+files = { "case.pyi" = "import sys\nif sys.version == \"3.10\":  # noqa: E501,PYI002\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "noqa-codes-trailing-reason-suppress-invalid-version-attribute"
+files = { "case.pyi" = "import sys\nif sys.version == \"3.10\":  # noqa: PYI002 # why\n    ...\n" }
+expected = []

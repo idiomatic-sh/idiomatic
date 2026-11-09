@@ -140,6 +140,24 @@ pub trait SuitePort {
     /// # Errors
     /// Refuses an unwritable path.
     fn write_text(&self, file: ArtifactPath<'_>, text: ArtifactText<'_>) -> Result<(), Error>;
+    /// The differences a corpus comparison accepts, as the file writes them.
+    ///
+    /// # Errors
+    /// Refuses a missing file, malformed document, unknown side or invalid rule name.
+    fn accepted_differences(
+        &self,
+        file: ArtifactPath<'_>,
+    ) -> Result<ryo_benchmark_contracts::domain::reports::types::AcceptedDifferences, Error>;
+    /// The UTF-8 text of one source file.
+    ///
+    /// # Errors
+    /// Refuses a missing, unreadable or non-UTF-8 file.
+    fn source_text(&self, file: ArtifactPath<'_>) -> Result<ryo::linter::SourceText, Error>;
+    /// A new file to stream text into, replacing any file at that path.
+    ///
+    /// # Errors
+    /// Refuses a path that cannot be created.
+    fn create_text(&self, file: ArtifactPath<'_>) -> Result<Box<dyn std::io::Write + Send>, Error>;
     /// The names a selection file lists.
     ///
     /// # Errors

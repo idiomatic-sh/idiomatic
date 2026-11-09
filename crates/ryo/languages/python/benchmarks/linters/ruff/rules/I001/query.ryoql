@@ -57,7 +57,7 @@ let first_aliases = antijoin(left=import_aliases, right=later_aliases, left-on=[
 let alias_counts = group-count(from=import_aliases, keys=["statement","file"], count="count", distinct="alias");
 let multiple_aliases = select statement, file from alias_counts where count > 1;
 let from_import_nodes = select id, file, span from syntax where kind = "import-from";
-let as_import_nodes = source-matches(from=from_import_nodes, span="span", pattern="[ \\t]as[ \\t]", output="as_word");
+let as_import_nodes = source-matches(from=from_import_nodes, span="span", pattern="[ \t]as[ \t]", output="as_word");
 let from_split_alias_statements = select l.id as statement, l.file as file from as_import_nodes as l join multiple_aliases as r on l.id = r.statement and l.file = r.file;
 let plain_import_nodes = select id, file from syntax where kind = "import";
 let plain_split_alias_statements = select l.id as statement, l.file as file from plain_import_nodes as l join multiple_aliases as r on l.id = r.statement and l.file = r.file;
@@ -120,7 +120,8 @@ let spelled_members = select l.block as block, l.file as file, l.statement as st
 let from_statements = select id as statement, file from from_import_nodes;
 let from_member_statements = select l.block as block, l.file as file, l.statement as statement from member_statements as l join from_statements as r on l.statement = r.statement and l.file = r.file;
 let from_statement_modules = select l.block as block, l.file as file, l.statement as statement, r.module_text as module from from_member_statements as l join from_modules as r on l.statement = r.id and l.file = r.file;
-let combinable_from_statements = antijoin(left=from_statement_modules, right=as_import_nodes, left-on=["statement","file"], right-on=["id","file"]);
+let unaliased_from_statements = antijoin(left=from_statement_modules, right=as_import_nodes, left-on=["statement","file"], right-on=["id","file"]);
+let combinable_from_statements = antijoin(left=unaliased_from_statements, right=star_statements, left-on=["statement","file"], right-on=["statement","file"]);
 let from_module_counts = group-count(from=combinable_from_statements, keys=["block","file","module"], count="count", distinct="statement");
 let repeated_from_modules = select block, file from from_module_counts where count > 1;
 let combine_from_problems = select l.id as block, l.span as span, l.file as file from blocks as l join repeated_from_modules as r on l.id = r.block and l.file = r.file;
@@ -172,7 +173,10 @@ let stdlib_aliases = select l.alias as alias, l.file as file from stdlib_aliases
 let nonfuture_stdlib = antijoin(left=stdlib_aliases, right=future_aliases, left-on=["alias","file"], right-on=["alias","file"]);
 let relative_aliases = select alias, file from imports where matches(target, "^[.]");
 let first_party_aliases0 = select l.alias as alias, l.file as file from imports as l join "project-namespace-membership" as r on l.file = r.file where r.membership = "present" and (r.kind = "module" or r.kind = "package") and (l.target = r.path or starts_with(l.target, concat(r.path, ".")));
-let first_party_spelled = select l.alias as alias, l.file as file from first_party_aliases0 as l join source_module_matches as r on l.alias = r.alias and l.file = r.file;
+let file_package_roots = select file, "package-root-name" as root from "module-identity" where "package-root-name" != "";
+let same_package_aliases = select l.alias as alias, l.file as file from imports as l join file_package_roots as r on l.file = r.file where l.target = r.root or starts_with(l.target, concat(r.root, "."));
+let project_aliases = union(left=first_party_aliases0, right=same_package_aliases);
+let first_party_spelled = select l.alias as alias, l.file as file from project_aliases as l join source_module_matches as r on l.alias = r.alias and l.file = r.file;
 let first_party_counts = group-count(from=first_party_spelled, keys=["alias","file"], count="count", distinct="alias");
 let first_party_aliases = select alias, file from first_party_counts;
 let known0 = union(left=future_aliases, right=nonfuture_stdlib);

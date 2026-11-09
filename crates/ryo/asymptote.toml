@@ -244,3 +244,18 @@ run = ["bash", "-o", "pipefail", "-c", "set -euo pipefail\nmkdir -p target/bench
 output = "bmf"
 timeout-seconds = 14400
 inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
+
+[[tools]]
+id = "performance-python-ruff-parity"
+group = "perf"
+# Every rule the committed Ruff profile configures (benchmark.toml defaults, all 413) runs in ryo and in the pinned Ruff over the whole
+# Django corpus, compared finding by finding through the shared benchmark runner; a request selecting any other rule set is refused.
+# The corpus stays outside the repository: its pinned run-ryo request is placed (or linked) at
+# target/benchmark/python/django/cold-request.json, and the digest docs/contracts/evidence/parity/django-413/accepted-differences.json
+# names ties the run to it. The measures are the rules that differ and the differences that file does not accept; target/benchmark/python/parity/per-rule.json
+# holds each rule's row.
+run = ["bash", "-o", "pipefail", "-c", "set -euo pipefail\nout=target/benchmark/python/parity\nrm -rf \"$out\"\nmkdir -p \"$out\"\ncargo bench --no-run --locked -p idiomatic-sh-ryo-python --bench ruff --message-format=json > \"$out/worker-build.jsonl\"\npython3 ../../.github/scripts/seal_cargo_artifact.py \"$out/worker-build.jsonl\" ruff bench /languages/python/benchmarks/linters/ruff/bench.rs true \"$out/worker\" >&2\npython3 languages/python/benchmarks/linters/ruff/verify_profiles.py --stage-request target/benchmark/python/django/cold-request.json --output-dir \"$PWD/$out/stage\" >&2\n\"$out/worker\" parity \"$(command -v ruff)\" \"$PWD/$out/worker\" \"$PWD/$out/stage/request.json\" docs/contracts/evidence/parity/django-413/accepted-differences.json \"$out/per-rule.json\""]
+output = "bmf"
+timeout-seconds = 7200
+inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
+

@@ -99,3 +99,8 @@ name = "nested-sync-function-in-async"
 comparison = "full"
 files = { "case.py" = "async def outer():\n    def inner():\n        for x in values:\n            yield x\n" }
 expected = [{ rule = "UP028", file = "case.py", start = 44, end = 80 }]
+
+[[cases]]
+name = "target-name-read-by-another-loop-in-the-scope-is-an-outside-use"
+files = { "case.py" = "def f(a, b):\n    for page in a:\n        yield page\n    for page in b:\n        yield page\n" }
+expected = []

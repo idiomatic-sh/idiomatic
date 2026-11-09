@@ -143,4 +143,16 @@ pub fn check(adapter: &impl EvidencePort) {
         Ok(()),
         "an exact comparison of two complete reports is written"
     );
+    assert_eq!(
+        adapter
+            .parity(&ryo_benchmark_contracts::domain::reports::types::ParityReport {
+                reference: ryo_benchmark_contracts::domain::reports::types::ContestantName("reference"),
+                candidate: ryo_benchmark_contracts::domain::reports::types::ContestantName("candidate"),
+                rules: Vec::new(),
+                problems: Vec::new(),
+            })
+            .map_err(|_invalid_boundary_value| ()),
+        Ok(()),
+        "a parity report is written"
+    );
 }

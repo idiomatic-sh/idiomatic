@@ -1,5 +1,5 @@
 //! The pure rules of a documented reference discrepancy.
-mod constants;
+pub(crate) mod constants;
 pub(crate) mod errors;
 #[cfg(test)]
 pub(crate) mod fixtures;

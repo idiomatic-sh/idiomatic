@@ -25,8 +25,8 @@ let named_assignments = select l.id as id, t.assignment as assignment, l.file as
 let reportable = select l.id as id, l.file as file from named_assignments as l join all_aliases as a on l.assignment = a.assignment and l.file = a.file;
 let locations = select r.id as id, r.file as file, r.span as span, r."start-line" as line from "source-location" as r;
 let candidates = select l.id as id, l.file as file, r.span as span, r.line as line from reportable as l join locations as r on l.id = r.id and l.file = r.file;
-let violations = suppress(candidates=candidates, inline-pattern="^[\\s,]*(?:[A-Z]+[0-9]+[\\s,]*)*PYI026(?:$|[\\s,#]|[A-Z])", range-pattern="(?:^|,)(?:PYI026)(?:,|$)");
-let ruf100_matches = observation_matches(candidates=candidates, inline-pattern="^[\\s,]*(?:[A-Z]+[0-9]+[\\s,]*)*PYI026(?:$|[\\s,#]|[A-Z])", range-pattern="(?:^|,)(?:PYI026)(?:,|$)");
+let violations = suppress(candidates=candidates, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*PYI026(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:PYI026)(?:,|$)");
+let ruf100_matches = observation_matches(candidates=candidates, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*PYI026(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:PYI026)(?:,|$)");
 let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
 let ruf100_used = extend(from=ruf100_directives, values={code: "PYI026"});
 observe ruf100_used as noqa_matches;

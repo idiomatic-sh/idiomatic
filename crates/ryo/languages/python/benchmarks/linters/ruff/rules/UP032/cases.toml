@@ -255,3 +255,8 @@ name = "lambda-phase-repeated-code-object-identity"
 comparison = "full"
 files = { "case.py" = "\"{0.__code__!r}|{0.__code__!r}\".format(lambda: 0)\n" }
 expected = [{ rule = "UP032", file = "case.py", start = 0, end = 49 }]
+
+[[cases]]
+name = "repeated-index-counts-per-implicitly-concatenated-part"
+files = { "case.py" = "raise E(\n    \"Migration {0} on ('{1}', '{2}'). \"\n    \"replace {1}.{2} with [{3}] \".format(\n        exc.origin, exc.node[0], exc.node[1], tries\n    ),\n)\n" }
+expected = [{ rule = "UP032", file = "case.py", start = 13, end = 148 }]

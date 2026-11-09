@@ -122,6 +122,18 @@ impl SuitePort for SuiteFake {
     fn write_text(&self, file: ArtifactPath<'_>, text: ArtifactText<'_>) -> Result<(), Error> {
         local().write_text(file, text)
     }
+    fn accepted_differences(
+        &self,
+        file: ArtifactPath<'_>,
+    ) -> Result<ryo_benchmark_contracts::domain::reports::types::AcceptedDifferences, Error> {
+        local().accepted_differences(file)
+    }
+    fn source_text(&self, file: ArtifactPath<'_>) -> Result<ryo::linter::SourceText, Error> {
+        local().source_text(file)
+    }
+    fn create_text(&self, file: ArtifactPath<'_>) -> Result<Box<dyn std::io::Write + Send>, Error> {
+        local().create_text(file)
+    }
     fn selection(&self, file: ArtifactPath<'_>) -> Result<Vec<SelectedName>, Error> {
         local().selection(file)
     }

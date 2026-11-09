@@ -12,7 +12,7 @@ let collections = select id, kind, file from nodes where kind = "list" or kind =
 let elements = select l.id as collection, l.kind as collection_kind, r.child as id, l.file as file from collections as l join "semantic-child" as r on l.id = r.parent and l.file = r.file where r.field = "elts";
 let collection_strings = select l.collection as collection, l.collection_kind as collection_kind, l.id as id, l.file as file from elements as l join concatenated as r on l.id = r.id and l.file = r.file;
 let located = select l.collection as collection, l.collection_kind as collection_kind, l.id as id, l.file as file, r."start-byte" as start from collection_strings as l join "source-location" as r on l.id = r.id and l.file = r.file;
-let collection_positions = select l.id as id, l.file as file, r."start-byte" as start from collections as l join "source-location" as r on l.id = r.id and l.file = r.file;
+let collection_positions = select l.id as id, l.file as file, r."start-byte" as start, r."end-byte" as end from collections as l join "source-location" as r on l.id = r.id and l.file = r.file;
 let tokens = select id, text, file from "syntax-tree" where text != "" and kind != "comment" and matches(text, "[^ \t\r\n\x0c]");
 let token_positions = select l.id as token, l.text as text, l.file as file, r."start-byte" as start, r."end-byte" as end from tokens as l join "source-location" as r on l.id = r.id and l.file = r.file;
 let preceding = select l.collection as collection, l.collection_kind as collection_kind, l.id as id, l.file as file, r.token as token, r.text as text, r.start as token_start, r.end as token_end from located as l join token_positions as r on l.file = r.file where r.end <= l.start;
@@ -20,7 +20,14 @@ let earlier = select l.id as id, l.token as token, l.file as file from preceding
 let last = antijoin(left=preceding, right=earlier, left-on=["id", "token", "file"], right-on=["id", "token", "file"]);
 let openings = select id, collection, collection_kind, token_start, file from last where text = "(";
 let parenthesized0 = select l.id as id, l.file as file from openings as l join collection_positions as r on l.collection = r.id and l.file = r.file where l.collection_kind != "tuple" or l.token_start != r.start;
-let reportable = antijoin(left=collection_strings, right=parenthesized0, left-on=["id", "file"], right-on=["id", "file"]);
+let tuple_own_openings = select l.id as id, l.collection as collection, l.file as file, r.end as collection_end from openings as l join collection_positions as r on l.collection = r.id and l.file = r.file where l.collection_kind = "tuple" and l.token_start = r.start;
+let opened_ends = select l.id as id, l.collection_end as collection_end, l.file as file, r."end-byte" as end from tuple_own_openings as l join "source-location" as r on l.id = r.id and l.file = r.file;
+let following = select l.id as id, l.collection_end as collection_end, l.file as file, r.token as token, r.text as text, r.start as token_start, r.end as token_end from opened_ends as l join token_positions as r on l.file = r.file where r.start >= l.end;
+let later_following = select l.id as id, l.token as token, l.file as file from following as l join following as r on l.id = r.id and l.file = r.file where l.token_start > r.token_start;
+let next_tokens = antijoin(left=following, right=later_following, left-on=["id", "token", "file"], right-on=["id", "token", "file"]);
+let self_parenthesized = select id, file from next_tokens where text = ")" and token_end < collection_end;
+let parenthesized = union(left=parenthesized0, right=self_parenthesized);
+let reportable = antijoin(left=collection_strings, right=parenthesized, left-on=["id", "file"], right-on=["id", "file"]);
 let candidates = select l.id as id, l.file as file, r.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id and l.file = r.file;
 let violations = suppress(candidates=candidates, inline-pattern="(?:^|[^A-Z0-9])ISC004(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:ISC004)(?:,|$)");
 let ruf100_matches = observation_matches(candidates=candidates, inline-pattern="(?:^|[^A-Z0-9])ISC004(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:ISC004)(?:,|$)");

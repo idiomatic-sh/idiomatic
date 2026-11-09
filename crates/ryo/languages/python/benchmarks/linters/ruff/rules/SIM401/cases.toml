@@ -118,3 +118,8 @@ name = "elif-else-not-in-branch-negative"
 comparison = "full"
 files = { "case.py" = "d = {}\nif key not in d:\n    value = 0\nelif other:\n    changed = 1\nelse:\n    value = d[key]\n" }
 expected = []
+
+[[cases]]
+name = "elif-shaped-like-the-pattern-is-not-reported"
+files = { "case.py" = "d = {}\nif other:\n    pass\nelif key in d:\n    value = d[key]\nelse:\n    value = 0\n" }
+expected = []

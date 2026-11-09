@@ -36,6 +36,13 @@ impl EvidencePort for EvidenceFake {
     ) -> Result<(), Error> {
         Ok(())
     }
+    /// The fake has no external effects, so the parity evidence goes nowhere.
+    fn parity(
+        &self,
+        _parity: &ryo_benchmark_contracts::domain::reports::types::ParityReport<'_>,
+    ) -> Result<(), Error> {
+        Ok(())
+    }
 }
 #[cfg(test)]
 #[path = "fake_test.rs"]
