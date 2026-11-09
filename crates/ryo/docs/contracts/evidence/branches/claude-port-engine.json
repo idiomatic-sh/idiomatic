@@ -1,0 +1,155 @@
+{
+  "checkpoint": "branch:claude/port-engine",
+  "source": "c23d7fa7596b8af6b03d9381aa68c31b3340e4b3",
+  "base": "40e49021520d4392d29df28ee5bd2fef739e5d37",
+  "verdict": "FAIL",
+  "reviewer": "leak-review",
+  "checks": [
+    {
+      "id": "1",
+      "verdict": "PASS",
+      "evidence": "The diff touches no file under benchmarks/ or languages/ (git diff --stat 40e4902152..c23d7fa759). The new proofs live with their owners: the place guard in execution_domain/src/domain/executable_program/service_test.rs:248-363, the coverage merge in execution_domain/src/domain/completion/service_test.rs, the derived needs in crates/ryo/crates/execution_runtime/src/application/file_dag/program/preparation/service/demands/service_test.rs, all on hand-built plans, no product rule set or corpus."
+    },
+    {
+      "id": "2",
+      "verdict": "FAIL",
+      "evidence": "T1 fires: 3 plants in core (a stale forward, a grouped import, a glob) each reported by idiomatic.arch/library-surface, and the {,::*} negative did not fire. Three harness paths pass on a failure: (a) the observer port contract cannot fail: crates/ryo/crates/execution_runtime/src/outbound/observer/fixtures/contract.rs:81-86 runs every row with a closure returning Ok(()) and Value = (), so ObserverFake, whose totals() always answers FedTotals::default() (fixtures/fake.rs:21-23), passes it; (b) the counter seals are bundled compile_fail doctests: crates/ryo/crates/execution_runtime/src/application/file_dag/program/file_session/interface.rs:23-31 and crates/ryo/crates/execution_runtime/src/application/file_dag/program/project_phase/interface.rs:30-38 put several calls in one E0599 probe, so putting back walk_counts on FileSession or state_counts on ProjectPhase still leaves the doctest failing to compile, which counts as a pass (probe counts 0 and 0 below); (c) a weakened assertion: crates/ryo/crates/core/src/application/cross_file/service_test.rs:97,112 put the literal 0 where done.fed.len() was measured, and :176 expects [2, 0, 10], a column that cannot fail."
+    },
+    {
+      "id": "3",
+      "verdict": "PASS",
+      "evidence": "Sealed items are pub(crate) and the forwards are gone: PublicationSlot, BoundInput, ReadinessProof, InputReadiness (frontiers/types.rs), PhaseOccurrence(s) and FrontierDemand (crates/ryo/crates/execution_runtime/src/application/file_dag/program/project_phase/types.rs:50,70,88), RuleSelection, and GenerationLease (execution_store/.../relations/generation/service.rs:6). Twenty RelationOwner methods are pub(crate) (relations/{source,producer,inspection,admission,number,packed}/service.rs). execution/src/inbound/use_cases/execution/interface.rs forwards exactly T1's list; the T1 entry (crates/ryo/tastemaker.toml:17) carries the general entry's engine libraries for core, sdk and cli, so nothing lost coverage when the general entry excluded them (:16)."
+    },
+    {
+      "id": "4",
+      "verdict": "FAIL",
+      "evidence": "The protocol was moved, not copied: core's bind, batch loop and BatchOccurrenceBinding are deleted (core/src/application/cross_file/service.rs, types.rs) and the one loop is ObservationStage::run_batches (crates/ryo/crates/execution_runtime/src/application/file_dag/program/observation_stage/service.rs:35-176). But 'does the run count the rows' now has two representations: the dead enum Counting (crates/ryo/crates/execution_domain/src/domain/operator/types.rs:33), still forwarded (crates/ryo/crates/execution/src/inbound/use_cases/execution/interface.rs:59) and listed in T1's surface (crates/ryo/tastemaker.toml:17), and Option<Arc<dyn ObserverPort>>, which replaced it (crates/ryo/crates/core/src/inbound/use_cases/lint/use_case.rs:96). No production file in any crate reads Counting."
+    },
+    {
+      "id": "5",
+      "verdict": "PASS",
+      "evidence": "The observer is an outbound port of the runtime (execution_runtime/src/outbound/observer/) that imports only execution_domain; application reaches it through ProgramServices::observer (crates/ryo/crates/execution_runtime/src/application/file_dag/program/facade_runtime/types.rs:141,167); core's lint names only its interface. file_program imports observation_schedule and never the other way round (grep: observation_schedule names file_program only in a fixtures doc comment); execution_store/src names no executable_program item (grep: 0 hits)."
+    },
+    {
+      "id": "6",
+      "verdict": "PASS",
+      "evidence": "The new test helpers are behind cfg(any(test, feature = \"fixtures\")): FileSession::fixture_{readiness_counts,walk_counts,counts} (crates/ryo/crates/execution_runtime/src/application/file_dag/program/file_session/service.rs:126-170), ProjectPhase::fixture_{readiness,state}_counts (crates/ryo/crates/execution_runtime/src/application/file_dag/program/project_phase/service.rs), FileRun::collected_counts (crates/ryo/crates/execution_runtime/src/application/file_dag/program/facade_runtime/file_execution.rs:278), RelationStore::fixture (execution_store/.../relations/interface.rs:119) and observer::fixtures (outbound/observer.rs:8). No Cargo.toml changed, and every fixtures feature stays a dev-dependency."
+    }
+  ],
+  "plants": [
+    {
+      "claim": "T1 library-surface (core, sdk, cli confined to the seam vocabulary): a stale forward",
+      "file": "crates/ryo/crates/core/src/application/cross_file/ordinary/service.rs:3",
+      "count": 1,
+      "reverted": true
+    },
+    {
+      "claim": "T1 library-surface: a grouped import naming a sealed item",
+      "file": "crates/ryo/crates/core/src/application/cross_file/ordinary/service.rs:4",
+      "count": 1,
+      "reverted": true
+    },
+    {
+      "claim": "T1 library-surface: a glob import of the interface",
+      "file": "crates/ryo/crates/core/src/application/cross_file/ordinary/service.rs:5",
+      "count": 1,
+      "reverted": true
+    },
+    {
+      "claim": "compile_fail,E0599 doctest on FileExecution (counters gone): pub fn walk_counts put back on FileSession; the doctest body still fails to compile with E0599 on readiness_counts and counts",
+      "file": "crates/ryo/crates/execution_runtime/src/application/file_dag/program/file_session/service.rs:175",
+      "count": 0,
+      "reverted": true
+    },
+    {
+      "claim": "compile_fail,E0599 doctest on ProjectRootExecution (counters gone): pub fn state_counts put back on ProjectPhase; the doctest body still fails to compile with E0599 on readiness_counts",
+      "file": "crates/ryo/crates/execution_runtime/src/application/file_dag/program/project_phase/service.rs:107",
+      "count": 0,
+      "reverted": true
+    },
+    {
+      "claim": "compile_fail,E0624 doctest on RelationStore (control): RelationOwner::computed made pub; the doctest body compiles, so the doctest reports it",
+      "file": "crates/ryo/crates/execution_store/src/application/file_dag/relations/source/service.rs:94",
+      "count": 1,
+      "reverted": true
+    }
+  ],
+  "enforcement_candidates": [
+    {
+      "id": "vacuous-port-contract-3390d83d",
+      "class": "vacuous-port-contract",
+      "signature": "a port fixtures/contract.rs whose check() runs CASES with a closure that calls the adapter and returns Ok(()) (type Value = ()), never comparing an adapter answer",
+      "scope": [
+        "crates/ryo/crates/*/src/outbound/*/fixtures/contract.rs",
+        "crates/ryo/languages/*/src/outbound/*/fixtures/contract.rs"
+      ],
+      "suggested_mechanism": "new rule",
+      "plants": [
+        {
+          "file": "crates/ryo/crates/execution_runtime/src/outbound/observer/fixtures/contract.rs",
+          "line": 84,
+          "text": "        Ok(())"
+        }
+      ],
+      "instance_status": "open"
+    },
+    {
+      "id": "compile-fail-doctest-several-probes-73e2218f",
+      "class": "compile-fail-doctest-several-probes",
+      "signature": "a ```compile_fail,E<code> doctest whose body holds more than one statement that alone raises E<code>",
+      "scope": [
+        "crates/ryo/crates/**/src/**/*.rs"
+      ],
+      "suggested_mechanism": "new rule",
+      "plants": [
+        {
+          "file": "crates/ryo/crates/execution_runtime/src/application/file_dag/program/file_session/interface.rs",
+          "line": 28,
+          "text": "///     let _ = file.walk_counts();"
+        },
+        {
+          "file": "crates/ryo/crates/execution_runtime/src/application/file_dag/program/project_phase/interface.rs",
+          "line": 37,
+          "text": "///     let _ = project.state_counts();"
+        }
+      ],
+      "instance_status": "open"
+    },
+    {
+      "id": "constant-in-place-of-measured-value-9ffcaaea",
+      "class": "constant-in-place-of-measured-value",
+      "signature": "a case subject returning an array literal Ok([<measured expr>, <integer literal>, <measured expr>]) whose literal element replaced a measured expression",
+      "scope": [
+        "crates/ryo/crates/**/src/**/*_test.rs",
+        "crates/ryo/crates/**/src/**/test.rs"
+      ],
+      "suggested_mechanism": "new rule",
+      "plants": [
+        {
+          "file": "crates/ryo/crates/core/src/application/cross_file/service_test.rs",
+          "line": 97,
+          "text": "                0,"
+        }
+      ],
+      "instance_status": "open"
+    },
+    {
+      "id": "dead-seam-forward-de90151f",
+      "class": "dead-seam-forward",
+      "signature": "pub use ryo_execution_domain::domain::operator::types::Counting; in execution/src/inbound/use_cases/execution/interface.rs with no consumer outside the engine crates",
+      "scope": [
+        "crates/ryo/crates/execution/src/inbound/use_cases/*/interface.rs"
+      ],
+      "suggested_mechanism": "strengthen idiomatic.arch/pub-item-unreferenced-elsewhere",
+      "plants": [
+        {
+          "file": "crates/ryo/crates/execution/src/inbound/use_cases/execution/interface.rs",
+          "line": 59,
+          "text": "pub use ryo_execution_domain::domain::operator::types::Counting;"
+        }
+      ],
+      "instance_status": "open"
+    }
+  ],
+  "date": "2026-11-09T21:40:00+00:00"
+}
