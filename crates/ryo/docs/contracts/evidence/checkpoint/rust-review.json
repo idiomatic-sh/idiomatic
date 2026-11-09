@@ -1,28 +1,24 @@
 {
   "checkpoint": 332,
-  "source": "5e56d8e9182c341a4c594831b0b628970b89a153",
-  "base": "eedb4f1a77317542e3db0ccb5e3fe3ebd4f26cda",
-  "previous_source": "eedb4f1a77317542e3db0ccb5e3fe3ebd4f26cda",
+  "source": "110b66de9e9feda9ccd0060ad76824b64767c299",
+  "base": "5e56d8e9182c341a4c594831b0b628970b89a153",
+  "previous_source": "5e56d8e9182c341a4c594831b0b628970b89a153",
   "scope": "332",
-  "verdict": "FAIL",
+  "verdict": "PASS",
   "reviewer": "rust-review",
-  "date": "2026-11-09T11:20:00Z",
+  "date": "2026-11-09T12:30:00Z",
   "checks": [
-    {"id": "1", "verdict": "PASS", "evidence": "D2 is applied. keep() pushes onto an existing file's scopes through get_mut and moves the path into the map only for a new file (crates/tastemaker/crates/core/src/domain/import_rows/service.rs:107-113). The scope selection takes an Option<ScopeKind> in place of a &dyn Fn(ScopeKind) -> bool (:216, :231-232), which states the meaning and drops a dynamic call per scope. No public surface changes."},
-    {"id": "2", "verdict": "PASS", "evidence": "The delta changes no visibility or type boundary. The Option<ScopeKind> filter is checked by the compiler where the bool predicate was not."},
-    {"id": "3", "verdict": "PASS", "evidence": "F5 is repaired, and both pass-4 conditions are met by committed readings. (a) The pre-branch peak is within about 100 MB: memory-guard-pre-branch.txt has the pre-branch tm at 4,382,468 KiB (exit 1, 1,253 findings) and the current tm at 4,440,812 KiB (exit 0, 0 findings), +58,344 KiB, on the same git archive of 781653e221 (raw logs f5a_base_tm_check.log, f5a_current_tm_check.log). The comparison is like for like where the peak is taken. Both binaries link this tree's ryo crates. The provider-imports spec swapped into the base archive differs from the current one only in its [[scenarios]] (crates/ryo/tastemaker/specs/provider-imports/0.1.0/spec.toml, +320 lines of scenarios and no query), so the engine runs the same rules over the same files, plus the scopes built-in rule, which is exactly the branch's cost. The 1,253 versus 0 findings are produced after the engine answers, and the peak sits inside the lint answer (memory-guard-heap.txt: 70.1% under ryo_core lint answer -> crossed -> ordinary -> evaluate_occurrences -> row), so the extra findings can only raise the base side: +58 MB is if anything an overstatement of the branch's cost. (b) The import_rows frames are small: --focus=import_rows holds 0 live bytes at the peak. That reading is weak on its own, since import_rows runs after the lint returns, so the A/B delta in (a) carries the attribution. Landing with the project-phase retention as a named, owned red is acceptable under item 3: it predates this diff, the guard was blind to it, and it has an owner."},
-    {"id": "4", "verdict": "PASS", "evidence": "No second representation. Scopes are still one list per file."},
+    {"id": "1", "verdict": "PASS", "evidence": "The delta touches no production code and no public surface. Only crates/tastemaker/cli/tests/replay/check.rs and the record change. Pass 5's item 1 stands: D2 get_mut and the Option<ScopeKind> filter (crates/tastemaker/crates/core/src/domain/import_rows/service.rs:107-113, :216)."},
+    {"id": "2", "verdict": "PASS", "evidence": "No structural change. The guard uses the shared exit-code constants CLEAN and FOUND (crates/tastemaker/cli/tests/fixtures/replay/fixes.rs:26) instead of literals (check.rs:3, :364-367)."},
+    {"id": "3", "verdict": "PASS", "evidence": "As at pass 5: the import reading costs +58,344 KiB over the pre-branch tm on the same archive (memory-guard-pre-branch.txt), and 70.1% of live bytes at the peak are project-phase rows (memory-guard-heap.txt). The memory guard is a named, owned red: f9_green_memory_guard.log reads 4,452,912 KiB against 1,331,200, owned by 'Project phase retains 2 GB of rows on a cold tm check of crates/ryo'. That is acceptable, because the retention predates this diff."},
+    {"id": "4", "verdict": "PASS", "evidence": "No change to any representation."},
     {"id": "5", "verdict": "PASS", "evidence": "No dependency change."},
-    {"id": "6", "verdict": "FAIL", "evidence": "F8 is repaired at the granularity of the record's tests. Each production hunk was reversed on the merged head (beb55b206a) and domain::import_rows::service_test::succeeds was run with the standard runner, red each time: f8_red_scope_gating.log names a_path_in_an_inline_module_sees_no_import_written_outside_it, f8_red_use_site_drop.log names a_path_at_a_use_site_through_a_name_an_import_binds_is_that_imports, and f8_red_optional_binding_keep.log names an_import_that_binds_no_name_is_kept_and_a_path_is_never_its. f8_green_restored.log is green. The runner stops at its first miss, so 5 of the 8 row entries name a row no log shows, and the README says so. F9 (new): the memory guard's premise is false at the head. checking_crates_ryo_cold_stays_under_its_memory_guard asserts exit 1 and at least one finding before it reads the peak (crates/tastemaker/cli/tests/replay/check.rs:359-373). The comment there says 'crates/ryo has findings', but the committed evidence shows the current tm on a git archive of the head ends with exit 0 and 0 findings (memory-guard-pre-branch.txt, current: exit 0, findings 0, suppressed 13). So at this head the guard fails on 'tm check did not end with the tree's findings' before it reaches its subject, and it would stay red once the retention is fixed and the tree stays clean. The record's 'memory guard stays red at 4,402,760 KiB' is the reading at 69caa24a4e, when lookups.rs at 409 lines still gave a finding; it has not been rerun since. My pass-4 item 2 praised this guard without checking its premise against a clean tree; this corrects that."},
-    {"id": "7", "verdict": "PASS", "evidence": "The delta adds no unsafe, no allow, and no unwrap or expect. The discarded insert result is typed (import_rows/service.rs:111)."}
+    {"id": "6", "verdict": "PASS", "evidence": "F9 is repaired. The guard accepts exit 0 or 1, refuses exit 2 and a report it cannot parse, and requires findings + suppressed > 0 before it reads the peak (check.rs:360-376), so a clean tree, which carries 13 in-source suppressions, is measured and a run that checked nothing is not. Red then green is machine-recorded on 1123506752. Red: f9_red_memory_guard.log:7326-7330 fails at check.rs:363, 'tm check did not end with the tree's findings', left Some(0). Green: f9_green_memory_guard.log:7325-7326 reaches the peak assertion at check.rs:381, 4,452,912 KiB over the 1,331,200 KiB guard. The test stays red only on its subject, as a named, owned red, and is not ignored. E1 is applied: F8 is three red_green entries, each naming the test function domain::import_rows::service_test::succeeds with its own red log and the restored green (validation.json entries 35-37), the granularity the logs prove."},
+    {"id": "7", "verdict": "PASS", "evidence": "The delta adds no unsafe, no allow, and no unwrap or expect in production code. The guard's panics are test assertions with messages that say what to read."}
   ],
-  "findings": [
-    "F9 (check 6): the crates/ryo memory guard requires exit 1 and a finding, but a clean tree checks with exit 0 and 0 findings, so the guard is red at the head for a reason other than memory and could never go green",
-    "open item: five F8 row entries name rows no red log shows",
-    "open item: F5 readings are one sample each, taken at load above 3"
-  ],
+  "findings": [],
   "repaired": [
-    {"id": "F5", "check": "3", "where": "crates/ryo/docs/contracts/evidence/checkpoint/memory-guard-pre-branch.txt; memory-guard-heap.txt", "state": "repaired: +58,344 KiB against the pre-branch tm on the same archive; peak 70.1% in project-phase rows; import_rows 0 live bytes at the peak"},
-    {"id": "F8", "check": "6", "where": "validation.json red_green entries 35-42; f8_red_*.log, f8_green_restored.log", "state": "repaired: each of the three fixes reversed on the merged head turns service_test::succeeds red; restored green"}
+    {"id": "F9", "check": "6", "where": "crates/tastemaker/cli/tests/replay/check.rs:360-376", "state": "repaired: accepts a clean check, requires findings or suppressed, reaches the peak; red f9_red_memory_guard.log, green f9_green_memory_guard.log"},
+    {"id": "E1", "check": "6", "where": "validation.json red_green entries 35-37", "state": "applied: one entry per reversal, naming the test function and its logs"}
   ]
 }
