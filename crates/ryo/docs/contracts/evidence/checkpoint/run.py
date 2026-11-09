@@ -332,6 +332,17 @@ def write_block(text,v):
  start=next(i for i,l in enumerate(lines) if l.startswith('### Current ownership checkpoint'))
  end=next(i for i in range(start+1,len(lines)) if lines[i].startswith('- ['))
  return ''.join(lines[:start])+render(v)+''.join(lines[end:])
+def count_problems(v):
+ """Each result of a cargo test command that gives counts must be what its recorded tests give: passed, failed and not run, so a
+ test that printed `not available` and measured nothing is counted as not run, never as passed."""
+ bad=[]
+ for name,binaries in v.get('tests',{}).items():
+  x=v['results'].get(name)
+  if not binaries or not (isinstance(x,dict) and 'passed' in x): continue
+  given={'passed':sum(len(t['passed']) for t in binaries.values()),'failed':sum(len(t['failed']) for t in binaries.values()),'not_run':sum(len(t.get('not_run',[])) for t in binaries.values())}
+  typed={k:x.get(k,0) for k in given}
+  if typed!=given: bad.append('result '+name+' gives '+str(typed)+', its recorded tests give '+str(given))
+ return bad
 def red_green_problems(v):
  """Each red_green entry must be {test, base_sha, merge_sha} with 40-hex shas."""
  return ['red_green entry '+str(n)+' is not {test, base_sha, merge_sha} with 40-hex shas' for n,x in enumerate(v.get('red_green',[])) if not (isinstance(x,dict) and set(x)=={'test','base_sha','merge_sha'} and isinstance(x['test'],str) and x['test'] and all(isinstance(x[s],str) and re.fullmatch('[0-9a-f]{40}',x[s]) for s in ('base_sha','merge_sha')))]
@@ -340,7 +351,7 @@ def finish(v,check=False):
  old=readme.read_text(); owners_changed,owner_bad=own(v,old); text=write_block(old,v)
  if owners_changed: validation_json.write_text(dumps({k:x for k,x in v.items() if k!='tests'})+'\n')
  for line in scope_delta(v): print(line)
- bad=list(owner_bad)+open_row_problems(old)+red_green_problems(v); texts=[]; changed=['validation.json'] if owners_changed else []; unticked_any=False
+ bad=list(owner_bad)+open_row_problems(old)+red_green_problems(v)+count_problems(v); texts=[]; changed=['validation.json'] if owners_changed else []; unticked_any=False
  for part in sorted(contracts.glob('*.md')):
   before=old if part==readme else part.read_text(); body,unticked=untick_unproven(text if part==readme else before,v); where='' if part==readme else part.name+' '
   if body!=before: part.write_text(body); changed.append(part.name)

@@ -197,4 +197,9 @@ class Check(unittest.TestCase):
    v={'source':'a'*40,'validation':322,'raw_identity':self.raw.name,'results':self.owned_record(),'checks':planted,'tests':run_tests,'tm_whole_tree':{'total':0,'suppressed':0,'at_checkpoint_318':0},'ownership_graph':{'other_cycles':0,'targeted_cycles':[]}}
    with contextlib.redirect_stdout(io.StringIO()): self.assertEqual(run.finish(v),1)
   finally: run.readme,run.contracts,run.validation_json=saved
+ def test_a_test_that_printed_not_available_counts_as_not_run_never_as_passed(self):
+  tests={'cli_cost':{'replay':{'passed':['cost::typed'],'ignored':[],'not_run':['cost::django'],'failed':{'cost::ratchet':{'rows':[],'collected':False}}}}}
+  self.assertEqual(run.count_problems({'results':{'cli_cost':{'passed':1,'failed':1,'not_run':1}},'tests':tests}),[])
+  self.assertEqual(run.count_problems({'results':{'cli_cost':{'passed':2,'failed':1,'not_run':0}},'tests':tests}),["result cli_cost gives {'passed': 2, 'failed': 1, 'not_run': 0}, its recorded tests give {'passed': 1, 'failed': 1, 'not_run': 1}"])
+  self.assertEqual(run.count_problems({'results':{'cli_cost':{'passed':2,'failed':1}},'tests':tests}),["result cli_cost gives {'passed': 2, 'failed': 1, 'not_run': 0}, its recorded tests give {'passed': 1, 'failed': 1, 'not_run': 1}"])
 if __name__=='__main__': unittest.main()
