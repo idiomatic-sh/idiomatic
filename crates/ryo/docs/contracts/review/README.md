@@ -7,7 +7,7 @@ red except for the known-red list below.
 
 ## Branch
 
-Checkpoints 310-327 are evidence commits on the branch; each names the batches
+Checkpoints 310-331 are evidence commits on the branch; each names the batches
 it merged and the validation it ran.
 
 | Checkpoint | Sha | Landed |
@@ -30,6 +30,10 @@ it merged and the validation it ran.
 | 325 | `dcd94840fc` | review repairs IX, Django unknowns second pass, ratchet 323 |
 | 326 | `f3a9a7e95c` | review repairs X, perf iteration 2 |
 | 327 | `e49dc1dfc5` | review repairs XI, perf iteration 3 (validated source `142fe40a98`) |
+| 328 | `90a0a472b2` | landing 2 (the runtime crate), Phase 1 tail, review repairs XII |
+| 329 | `1fce372156` | review repairs XIII, runtime follow-up, engine fixes after landing 2, heap profile feature (validated source `74a799c116`) |
+| 330 | `1086daee4b` | perf iterations 4 and 5 (Django peak 6.78 to 3.33 GB; validated source `4df6abaca2`) |
+| 331 | `b1e81f7242` | perf gate, typed unknowns, repairs XIV, sharing contract, leak repairs A, store key, lineage, p6 diagnosis (validated source `340808449f`) |
 
 ## How work lands
 
@@ -102,36 +106,31 @@ One definition validates this shape: `shape` in `ci/contract_review/service.py`.
 
 ## Known red
 
-Each is named with its reason in `validation.json` (`results`) and in the
-checkpoint 319 integration record in [the records](../records.md).
+Each is named with its reason and owner in `validation.json` (`results`, validation332, validated source `9a130bb449`) and in the
+checkpoint 332 integration record in [the records](../records.md).
 
-- `core_allocation` (core `allocation` test, exit 101, about 1,880 blocks per
-  file): a Phase 7 measurement.
-- Cli `replay` target (validation319): 73 passed / 5 failed, the five being
-  `results.cli_replay_reds`: three behaviour tests, the cache store size test and
-  the warm peak test. The sixth red of checkpoint 318,
-  `behavior::ruff_findings_equal_the_expected_findings`, passes.
-- Cli `cli_cost`: 3 of 7 ratchet rows fail until the perf ratchet is seeded on a quiet machine.
-- Python `ruff` target: 11 passed / 1 failed, the I001 observation row of
-  `engine_test`, which was green at checkpoint 318; the same step-key anchoring
-  fails five `project_phase::restoration::partition` rows of `boundary_contract`
-  (98 passed / 5 failed).
-- Execution library 549 / 2 and core library 108 / 2: the two `errored_rule` rows
-  and two review-repair rows named in the record.
+- `core_allocation` (core `allocation` test, exit 101): a Phase 7 measurement.
+- Benchmark library 221 / 1: `verify_cases` `process_capture::test::succeeds`, one red row.
+- Cli `replay` target: 69 passed / 32 failed (`results.cli_replay_reds`), from three causes the fixed replay harness exposes:
+  (A) 23 tests, the `blocks` target and the three `cli_cost` ruff rows stop at `fixtures/replay/base.rs:251` because
+  `crate-dependency-cycles`' `pending.txt` names `package-dependency`, which the Rust language now provides; (B) 8 manifests
+  tests expect empty text where ryo answers an absent cell; (C) the harness test
+  `recordings::a_pending_txt_naming_exactly_the_refused_relation_waits`. The import-fan-in recording holds the 34 verified
+  cross-crate rows (66); the false `derive_message_formats.rs` row keeps the behaviour rows red once (A) is repaired.
+- Cli `cli_cost`: 4 / 3, the three ruff ratchet rows (cause (A) above); the Django rows answer not available without a preflight worker.
+- `tm_import_cli`: Tastemaker's ryo adapter now fills the local SDK's request fields, so it does not compile against the published
+  SDK 0.1.1 the replay resolves.
 
 ## Verification limits
 
-Not covered by the latest validation (`validation.json`, validated source
-`da1fe3eff3`, checkpoint 319, validation319; "not full product acceptance"):
+Not covered by the latest validation (`validation.json`, validated source `9a130bb449`, checkpoint 332, validation332; "not full
+product acceptance"):
 
-- Whole-tree TM is measured, not clean: 2,762 findings, 0 suppressed (3,676 at
-  checkpoint 318). The scoped `tm_source` run is 250 findings over sixteen
-  directories, 200 in production files and 50 in test trees (the split is
-  recorded in `validation.json`).
-- No new performance measurement; the benchmark harness is not part of the set,
-  and the route differential of the kernel consolidation is left to its
-  quiet-machine run.
-- The cli replay target compiles and runs; its five red tests are listed above.
+- Whole-tree TM is measured with the rebuilt tm 0.1.1, which reads qualified uses as imports: 1,470 findings, 6 suppressed, of which
+  1,457 are `#imports` findings tm 0.1.0 did not report (331 under 0.1.0: 18, the domain-concept ring, now 0). The other 13 are
+  named in `validation.json` (`tm_whole_tree`). The scoped `tm_source` run is 1 finding (a test file no template places).
+- The receipts for the root and Tastemaker workspaces use tm 0.1.0 (their pin); crates/ryo uses 0.1.1, unpublished.
+- No new performance claim: the Django receipt is a store/peak record for the span-semantics attribution, not a speed claim.
 - Language conformance targets print no pass count; exit 0 is the receipt.
 
 Links: [matrix](../README.md), [execution plan](../execution-plan.md),
