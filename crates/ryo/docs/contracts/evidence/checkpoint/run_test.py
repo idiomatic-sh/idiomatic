@@ -330,6 +330,11 @@ class Diff(unittest.TestCase):
   loud=commit(self.repo,{'a/src/lib.rs':'/// One.\n///\n/// # Examples\n/// ```\n/// ```\n// It answers twice.\n\npub fn one() { }\n'},'fix(a): one answers')
   found=self.fixes([])
   self.assertFalse(any(quiet[:10] in x for x in found),found); self.assertTrue(any(loud[:10] in x for x in found),found)
+ def test_a_lint_attribute_only_change_is_no_fix_and_a_code_line_beside_one_still_is(self):
+  lint=commit(self.repo,{'a/src/lib.rs':'/// One.\n///\n/// # Examples\n/// ```\n/// ```\n#[expect(\n    clippy::indexing_slicing,\n    reason = \"in bounds (by construction)\"\n)]\npub fn one() {}\n'},'fix(a): a reasoned expect')
+  code=commit(self.repo,{'a/src/lib.rs':'/// One.\n///\n/// # Examples\n/// ```\n/// ```\n#[allow(dead_code)]\npub fn one() { }\n'},'fix(a): one answers')
+  found=self.fixes([])
+  self.assertFalse(any(lint[:10] in x for x in found),found); self.assertTrue(any(code[:10] in x for x in found),found)
  def test_without_a_base_both_checks_refuse(self):
   self.assertEqual(run.fix_problems({'red_green':[]},repo=self.repo),[run.NO_BASE])
   self.assertEqual(run.doc_problems(repo=self.repo),[run.NO_BASE])

@@ -467,14 +467,27 @@ def fix_problems(v,repo=None,base=None,head='HEAD',baseline=FIX_BASELINE):
  twins={patch_id(repo,sha) for sha in proven}-{None}
  return bad+[why for sha,why in unproven.items() if patch_id(repo,sha) not in twins]
 RUST_COMMENT=re.compile(r'^\s*(//.*)?$')
+# A lint attribute, inner or outer, over one or more lines: `#[expect(clippy::x, reason = "...")]`, `#![deny(y)]`.
+LINT_ATTRIBUTE=re.compile(r'#!?\[\s*(?:expect|allow|warn|deny|forbid)\s*\((?:[^()"]|"(?:[^"\\]|\\.)*"|\((?:[^()"]|"(?:[^"\\]|\\.)*")*\))*\)\s*\]')
 def comment_only(repo,sha,path,own):
- """A Rust file whose change in the commit adds and removes only comment lines (`//`, `///`, `//!`) and blank lines: no behaviour
- changes, so FIX does not count it."""
+ """A Rust file whose change in the commit adds and removes only comment lines (`//`, `///`, `//!`), blank lines and lint
+ attributes (`#[expect(..)]`, `#[allow(..)]`, `#![deny(..)]`, over any number of lines): lint configuration and comments change no
+ behaviour, so FIX does not count it. A Cargo.toml lints table is no production file to begin with."""
  if not path.endswith('.rs'): return False
  diff=git(repo,*([x for x in own if x!='--name-only']+['-p','--',path])) or ''
- changed=[l[1:] for l in diff.splitlines() if l[:1] in '+-' and not l.startswith(('+++','---'))]
- if own[1]=='--cc': changed=[l[2:] for l in diff.splitlines() if l[:2].strip('+- ')=='' and l[:2]!='  ' and not l.startswith(('+++','---'))]
- return bool(changed) and all(RUST_COMMENT.match(l) for l in changed)
+ width=2 if own[1]=='--cc' else 1
+ sides={'+':[],'-':[]}
+ for l in diff.splitlines():
+  if l.startswith(('+++','---')) or len(l)<width: continue
+  mark=l[:width]
+  if mark.strip()=='' : continue
+  if mark.strip('+- ')!='': continue
+  sides['+' if '+' in mark else '-'].append(l[width:])
+ if not sides['+'] and not sides['-']: return False
+ for lines in sides.values():
+  text='\n'.join(x for x in lines if not RUST_COMMENT.match(x) or x.strip()=='')
+  if LINT_ATTRIBUTE.sub('',text).strip(): return False
+ return True
 def patch_id(repo,sha):
  """The commit's `git patch-id --stable`, or None for a commit with no diff against its first parent."""
  diff=subprocess.run(['git','-C',str(repo),'show','--format=','--no-color',sha],capture_output=True)
