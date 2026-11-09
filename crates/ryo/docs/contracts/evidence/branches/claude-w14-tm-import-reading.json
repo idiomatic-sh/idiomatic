@@ -1,0 +1,36 @@
+{
+ "checkpoint": 332,
+ "source": "e196dbe50300fb85144bc19da48d3f81b507acde",
+ "base": "f67311c99057245e20ae4ed0da490bf4ee39e885",
+ "branch": "claude/w14-tm-import-reading",
+ "verdict": "FAIL",
+ "reviewer": "leak-review",
+ "date": "2026-11-09",
+ "checks": [
+  {"id": "1", "verdict": "PASS", "evidence": "The import-reading contract is proven in tastemaker core (import_rows/service_test.rs use_site cases) and in the provider-imports spec scenarios (crates/ryo/tastemaker/specs/provider-imports/0.1.0/spec.toml:167-347). Both use fixture workspaces, not a product corpus."},
+  {"id": "2", "verdict": "FAIL", "evidence": "provider-imports does not fire on a planted violation. crates/tastemaker/crates/core/src/domain/import_rows/service.rs:172-179 drops a use-site path whenever any import anywhere in the file binds its first segment (brought.iter().any(|name| name.binding == *first)), ignoring the scope the import binds in. Plants, run with the built tm 0.1.2 (scratchpad/w14tm/tm012) in a workspace copied from the spec scenario (deny default, allow crate::shared::* and ryo_language::*, crate `engine` denied), on a full archive of e196dbe503. Control: `pub fn work() { engine::run(); }` gives 1 finding. Each of the following gives 0: (1) `use crate::shared::contract as engine;` at the top and `mod inner { pub fn work() { engine::run(); } }`; (2) `fn a() { use crate::shared::contract as engine; ... }` and `fn b() { engine::run(); }`; (3) `fn b() { engine::run(); }` with `#[cfg(test)] mod tests { use crate::shared::contract as engine; ... }`. In each, Rust resolves `engine::run` to the extern crate `engine`, because the binding is not in scope there. A glob import (`use crate::shared::*;`) still reports. `self::engine::Collect` is judged as written, as before. The tests can fail: the two use_site unit cases and the four scenarios each discriminate, but none covers a binding out of scope."},
+  {"id": "3", "verdict": "FAIL", "evidence": "The import boundary is unenforced in each case above: a denied crate is reached from provider code with no finding. Allow-list entries `ryo::link` and `ryo::reads` (crates/ryo/tastemaker.toml:205) are narrow: exact names, no glob, and both are #[macro_export] macros at crates/ryo/crates/sdk/src/resources/languages/macros/link.rs:10 and reads.rs:53, so nothing can be reached below them."},
+  {"id": "4", "verdict": "PASS", "evidence": "One import reader; the Name row gains `binding`, read from the existing Names relation column. No copy."},
+  {"id": "5", "verdict": "PASS", "evidence": "The change is within tastemaker core's domain (import_rows, imports types)."},
+  {"id": "6", "verdict": "PASS", "evidence": "No test seam in production code."}
+ ],
+ "leak": "crates/tastemaker/crates/core/src/domain/import_rows/service.rs:172-179: the use-site drop matches the first segment against bindings file-wide, so an import bound in one scope (a nested module, a function body, a test module) hides a same-named extern-crate path in another scope.",
+ "required_change": "Drop a use-site path only when the import that binds its first segment is in scope at the use site: the use's enclosing module or block contains the path's span (Holding::Holds of the binding use's scope over the edge span), and no nearer scope rebinds the name. Otherwise judge the path as written. Add scenarios for the three plants (nested mod, sibling fn, cfg(test) mod), each expecting the finding at the engine::run line.",
+ "advisories": [
+  "A `use` silenced by an in-source ignore now also covers every use-site path through its binding. That is consistent with judging the import once, but the ignore's reach is wider than its line."
+ ],
+ "plants": [
+  {"claim": "provider-imports refuses a denied crate path at a use site (nested module)", "file": "demo/src/domain/model.rs:4", "count": 0, "reverted": true},
+  {"claim": "provider-imports refuses a denied crate path at a use site (sibling function)", "file": "demo/src/domain/model.rs:2", "count": 0, "reverted": true},
+  {"claim": "provider-imports refuses a denied crate path at a use site (cfg(test) module binds the name)", "file": "demo/src/domain/model.rs:1", "count": 0, "reverted": true},
+  {"claim": "control: same path with no same-named import", "file": "demo/src/domain/model.rs:1", "count": 1, "reverted": true}
+ ],
+ "findings": [
+  "open item: use-site import drop ignores binding scope; a same-named extern crate path out of the import's scope is never judged"
+ ],
+ "enforcement_candidates": [
+  {"id": "use-site-binding-matched-file-wide-f7738c58", "class": "use-site-binding-matched-file-wide", "signature": "brought.iter().any(|name| name.binding == *first) in import_rows::service::imports: a use-site path dropped when any import anywhere in the file binds its first segment, without the import's scope", "scope": ["crates/tastemaker/crates/core/src/domain/import_rows/service.rs"], "suggested_mechanism": "strengthen idiomatic.ryo/provider-imports",
+   "plants": [{"file": "demo/src/domain/model.rs", "line": 4, "text": "    pub fn work() { engine::run(); }"},
+              {"file": "demo/src/domain/model.rs", "line": 2, "text": "pub fn b() { engine::run(); }"}]}
+ ]
+}
