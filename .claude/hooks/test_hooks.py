@@ -208,6 +208,20 @@ class GuardShell(unittest.TestCase):
             with self.subTest(command=command):
                 self.assertEqual(shell(command, lane), 2)
 
+    def test_a_file_moved_out_of_a_package_still_counts_as_that_packages_change(self):
+        lane, own = self.lane()
+        git = ["git", "-C", lane, "-c", "user.email=t@example.com", "-c", "user.name=t"]
+        os.makedirs(os.path.join(lane, "y", "src"))
+        with open(os.path.join(lane, "y", "src", "lib.rs"), "w", encoding="utf-8") as handle:
+            handle.write("pub fn y() {}\n")
+        subprocess.run(git + ["add", "-A", "y"], check=True)
+        subprocess.run(git + ["commit", "-q", "-m", "y source"], check=True)
+        subprocess.run(git + ["update-ref", "refs/remotes/origin/claude/ryo-consolidation", "HEAD"], check=True)
+        subprocess.run(git + ["add", "-A", "x"], check=True)
+        subprocess.run(git + ["mv", "y/src/lib.rs", "x/src/moved.rs"], check=True)
+        subprocess.run(git + ["commit", "-q", "-m", "move"], check=True)
+        self.assertEqual(shell(LOCK + "cargo test -p y" + own, lane), 0)
+
     def test_a_builder_tree_without_a_known_base_runs_no_tests(self):
         self.assertEqual(shell(LOCK + "cargo test -p x" + OWN, self.builder), 2)
 
