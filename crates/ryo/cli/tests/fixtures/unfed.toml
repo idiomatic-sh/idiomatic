@@ -35,9 +35,6 @@ why = "770 rows; read only by `repeated-bound-strings`."
 [feature."relation:Comment"]
 why = "no recorded rule reads the relation; `todo-comments`, `unsafe-without-safety` and `duplicate-function-bodies` read the comment tokens of the tree."
 
-[feature."relation:Entry"]
-why = "read only by `dependency-feature-sprawl`, recorded as pending: the Rust language of ryo does not provide `sequence-element`, `entry` and `mapping`."
-
 [feature."relation:FilePackage"]
 why = "added by the declarations batch; no recorded rule reads it yet."
 
