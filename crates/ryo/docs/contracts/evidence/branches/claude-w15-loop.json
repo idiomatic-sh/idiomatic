@@ -1,61 +1,742 @@
 {
  "branch": "claude/w15-loop",
- "source": "794ec68025a5e1ea34af3725f11ddb83f92c4ad6",
- "base": "b59b22c6e7",
- "verdict": "PASS",
- "reviewer": "leak-review",
+ "source": "94a0b93588b94ddfb0cfbc36325d11138dbd1854",
+ "base": "794ec68025a5e1ea34af3725f11ddb83f92c4ad6",
+ "verdict": "FAIL",
  "checks": [
-  {"id": "1", "verdict": "PASS", "evidence": "Delta b59b22c6e7..794ec68025 touches four files: .agents/agents/leak-review.md:13, .claude/hooks/README.md:14-16, run.py:523-530 and run_test.py:261-267. No Rust source or manifest changes, and the census reads source statically and proves no contract."},
-  {"id": "2", "verdict": "PASS", "evidence": "PASS. The open finding census-cfg-test-header-initializer-angle-c993d1af is closed: run.py:530 ends the header at a depth-0 `=` that is not part of `==`, `=>`, `<=`, `>=` or `!=`. Plants were made in the real file core/src/outbound/lint_store/adapters/memory/constants.rs of a git archive copy, each followed by a production fn naming 8 Operation variants (control 25). With the new run.py these all stay at 25: `const LIMIT: usize = 1 << 10;`, `const SMALL: bool = 3 < 4;`, `static S: [u8; 2] = [1 << 2, 0];`, a cfg(test) discriminant `A = 1 << 3,`, `const V: Vec<Option<u8>>`, a closure const using `>` and `>=`, `type A<T = u8>`, mixed `<= != >= << ==`, `Iterator<Item = u8>` with a where clause, macro_rules with `=>`, and an impl holding an associated const. Positive control: b59b22c6e7's run.py drops LIMIT and SMALL to 24. run_test passes 42 tests (run_test.py:261 is the new case). One residual is an advisory under the recorded decision (leak-review.md:13, hooks README:14-16): an array length in the header, as in `fn arr() -> [u8; 1 << 2]` or `const A: [u8; 1 << 2]`, drops the count to 24. `git grep` at 794ec68025 finds this shape only inside string literals in *_test.rs and tests/ files, never in Rust code. The .claude/hooks change is README text only, so the hook code is unchanged since round 4."},
-  {"id": "3", "verdict": "PASS", "evidence": "The delta changes no visibility, allowlist, import boundary or feature."},
-  {"id": "4", "verdict": "PASS", "evidence": "item_end (run.py:522) is still the only extent scanner. The fix edits it in place and adds no second scanner."},
-  {"id": "5", "verdict": "PASS", "evidence": "The delta changes no .rs file."},
-  {"id": "6", "verdict": "PASS", "evidence": "The delta adds no feature, cfg(test) bypass, pub test helper or fixture constructor."}
+  {
+   "id": "1",
+   "verdict": "PASS",
+   "evidence": "PASS. The delta (794ec68025..94a0b93588) touches only .agents/agents/tm-specialist.md:15, .claude/hooks/acceptance_on_stop.py:84-115,139, .claude/hooks/test_hooks.py:1422-1442, ci/contract_review/service.py:56 and service_test.py:148. It changes no Rust and asserts no engine, core or SDK contract from benchmarks/ or languages/."
+  },
+  {
+   "id": "2",
+   "verdict": "FAIL",
+   "evidence": "FAIL. acceptance_on_stop.py:111-112 now releases the tm-steward hold through guard_shell.stands_for (guard_shell.py:700-707), and that function lists changes with `git diff --name-only` (line 706). Git's default rename detection prints only a rename's new path, so `git mv code.rs crates/ryo/docs/contracts/evidence/checkpoint/code.rs` between the decided sha and SOURCE returns True: a code change passes as evidence-only. The same class appears at guard_shell.py:743 (the push gate's previous_reviews), at guard_shell.py:828 (names_pushed_work), at ci/contract_review/service.py:116 (a protected file moved out of the protected tree, crates/ryo/src/x.rs to crates/other/src/x.rs, gives since=['crates/other/src/x.rs'] and no protected change; with --no-renames both paths appear and the change is protected) and at service.py:100 (the activation check). A second variant: guard_module() at acceptance_on_stop.py:85-92,111 runs outside a try. A guard_shell.py that fails to import makes the hook exit 1, which releases the stop. A planted `raise ImportError` turned all four subtests of the new test into exit 1, including the two that must hold (expected 2). This contradicts shape_problem's own policy at :77 ('holds the stop, never releases it'). Without the plants the new test passes 4/4, ReviewerStop passes 6/6 and the service_test table passes 62. The 15 errors in the archive copy are setup errors, because the copy is not a git repo. Tracker: (?<![\\w-])ryo-... still matches ryo-g3xh, (ryo-g3xh), bead:ryo-abc1, see ryo-fpg4.2.1.92 and ryo-tq5.18, and no longer matches idiomatic-sh-ryo-sdk. The candidate validator scans json.dumps(entry) (service.py:91), so class/signature text such as 'see ryo-ab12.3' is still refused (service_test.py:147). Advisory: a hyphen- or underscore-joined id (fix-ryo-g3xh, bead_ryo-abc) is no longer caught; the old \\b also missed the underscore form."
+  },
+  {
+   "id": "3",
+   "verdict": "PASS",
+   "evidence": "PASS. No visibility, manifest, package allowlist or import boundary changed. guard_module() loads the sibling .claude/hooks/guard_shell.py by path, inside the hooks directory."
+  },
+  {
+   "id": "4",
+   "verdict": "PASS",
+   "evidence": "PASS. The stop hook reuses guard_shell.stands_for and guard_shell.EVIDENCE (acceptance_on_stop.py:112) and keeps no second ancestry check, so the stop hook and the push gate have one definition. Advisory: EVIDENCE means the evidence root in acceptance_on_stop.py:16 and the checkpoint subdirectory in guard_shell.py:29 (EVIDENCE_ROOT there is the root). This is one name with two meanings, which existed before the delta."
+  },
+  {
+   "id": "5",
+   "verdict": "PASS",
+   "evidence": "PASS. No Rust source changed; no nu-hex layer is touched."
+  },
+  {
+   "id": "6",
+   "verdict": "PASS",
+   "evidence": "PASS. The only test addition is the unittest at test_hooks.py:1422. Nothing in production imports it, and the delta adds no feature, cfg(test) bypass or fixture constructor."
+  }
  ],
  "plants": [
-  {"claim": "control: no cfg(test) item before the 8-variant production fn (25)", "file": "crates/ryo/crates/core/src/outbound/lint_store/adapters/memory/constants.rs:6", "count": 1, "reverted": true},
-  {"claim": "positive control, b59b22c6e7 run.py: #[cfg(test)] const LIMIT: usize = 1 << 10; / const SMALL: bool = 3 < 4; (25 to 24, escape reproduced)", "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:531", "count": 1, "reverted": true},
-  {"claim": "fix, 794ec68025 run.py: #[cfg(test)] const LIMIT: usize = 1 << 10; (stays 25)", "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:530", "count": 1, "reverted": true},
-  {"claim": "fix: #[cfg(test)] const SMALL: bool = 3 < 4; (stays 25)", "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:530", "count": 1, "reverted": true},
-  {"claim": "fix: #[cfg(test)] static S: [u8; 2] = [1 << 2, 0]; and the cfg(test) enum discriminant A = 1 << 3, (stays 25)", "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:530", "count": 1, "reverted": true},
-  {"claim": "operator spellings: `<= != >= << ==` in an initializer, closure `x > 1 && x >= 2`, `type A<T = u8>`, `Iterator<Item = u8>` with a where clause, macro_rules `=>`, an impl with an associated const (all stay 25)", "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:530", "count": 1, "reverted": true},
-  {"claim": "advisory (scanner edge case, shape not in real tree): #[cfg(test)] fn arr() -> [u8; 1 << 2] / const A: [u8; 1 << 2] (25 to 24)", "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:532", "count": 0, "reverted": true},
-  {"claim": "run_test: 42 tests OK", "file": "crates/ryo/docs/contracts/evidence/checkpoint/run_test.py:261", "count": 1, "reverted": true}
+  {
+   "claim": "tm-steward stop hold (acceptance_on_stop.py:112 via guard_shell.stands_for): ancestor with code changed since, new test",
+   "file": ".claude/hooks/test_hooks.py:1438",
+   "count": 1,
+   "reverted": true
+  },
+  {
+   "claim": "tm-steward stop hold: decided sha not an ancestor of SOURCE, new test",
+   "file": ".claude/hooks/test_hooks.py:1439",
+   "count": 1,
+   "reverted": true
+  },
+  {
+   "claim": "guard_shell.stands_for: code file renamed into evidence/checkpoint/ (scratch repo)",
+   "file": ".claude/hooks/guard_shell.py:706",
+   "count": 0,
+   "reverted": true
+  },
+  {
+   "claim": "contract_review.validate since-list: protected file renamed out of crates/ryo/ (scratch repo)",
+   "file": "ci/contract_review/service.py:116",
+   "count": 0,
+   "reverted": true
+  },
+  {
+   "claim": "tm-steward stop hold with guard_shell.py failing to import (archive copy)",
+   "file": ".claude/hooks/acceptance_on_stop.py:111",
+   "count": 0,
+   "reverted": true
+  },
+  {
+   "claim": "TRACKER refuses a candidate class 'see ryo-ab12.3'",
+   "file": "ci/contract_review/service_test.py:147",
+   "count": 1,
+   "reverted": true
+  }
  ],
  "enforcement_candidates": [
-  {"id": "hook-argument-scan-past-double-dash-10512216", "class": "hook-argument-scan-past-double-dash", "signature": "packaged = any(w in (\"-p\", \"--package\") or w.startswith(\"--package=\") or (w.startswith(\"-p\") and len(w) > 2) for w in rest)", "scope": [".claude/hooks/guard_shell.py"], "suggested_mechanism": "new rule", "plants": [{"file": "crates/ryo", "line": 1, "text": "flock /workspaces/.cargo-build.lock cargo test --target-dir /workspaces/idiomatic-target/<tree> -- -p"}], "instance_status": "fixed"},
-  {"id": "cargo-package-glob-accepted-3b04ff14", "class": "cargo-package-glob-accepted", "signature": "w in (\"-p\", \"--package\")  # value never checked for * ? [", "scope": [".claude/hooks/guard_shell.py"], "suggested_mechanism": "new rule", "plants": [{"file": "crates/ryo", "line": 1, "text": "flock /workspaces/.cargo-build.lock cargo nextest run -p '*' --target-dir /workspaces/idiomatic-target/<tree>"}], "instance_status": "fixed"},
-  {"id": "lock-substring-match-38bf0f42", "class": "lock-substring-match", "signature": "LOCK not in \" \".join(words[:at]) and LOCK not in before", "scope": [".claude/hooks/guard_shell.py"], "suggested_mechanism": "new rule", "plants": [{"file": "crates/ryo", "line": 1, "text": "echo /workspaces/.cargo-build.lock; cargo test -p x --target-dir /workspaces/idiomatic-target/<tree>"}, {"file": "crates/ryo", "line": 1, "text": "flock -s /workspaces/.cargo-build.lock cargo test -p x --target-dir /workspaces/idiomatic-target/<tree>"}], "instance_status": "fixed"},
-  {"id": "cargo-verb-set-misses-aliases-c5f1d132", "class": "cargo-verb-set-misses-aliases", "signature": "CARGO_BUILDS = {\"build\", \"test\", \"nextest\", \"bench\", \"clippy\", \"run\", \"check\", \"doc\"}", "scope": [".claude/hooks/guard_shell.py"], "suggested_mechanism": "new rule", "plants": [{"file": "crates/ryo", "line": 1, "text": "cargo t --workspace"}, {"file": "crates/ryo", "line": 1, "text": "cargo-nextest nextest run --workspace"}], "instance_status": "fixed"},
-  {"id": "push-refspec-empty-source-skipped-675cdcce", "class": "push-refspec-empty-source-skipped", "signature": "if not source:\\n            continue", "scope": [".claude/hooks/guard_shell.py"], "suggested_mechanism": "new rule", "plants": [{"file": ".", "line": 1, "text": "git push origin :main"}], "instance_status": "fixed"},
-  {"id": "reviewer-verdict-second-validator-28e12b70", "class": "reviewer-verdict-second-validator", "signature": "review.get(\"reviewer\") == agent and isinstance(review.get(\"verdict\"), str)", "scope": [".claude/hooks/acceptance_on_stop.py"], "suggested_mechanism": "new rule", "plants": [{"file": "crates/ryo/docs/contracts/evidence/branches/x.json", "line": 1, "text": "{\"reviewer\":\"leak-review\",\"verdict\":\"not decided\"}"}], "instance_status": "fixed"},
-  {"id": "reviewer-hold-any-file-in-directory-bdd367cd", "class": "reviewer-hold-any-file-in-directory", "signature": "\"leak-review\": [\"checkpoint/leak-review.json\", \"branches/\"]", "scope": [".claude/hooks/acceptance_on_stop.py"], "suggested_mechanism": "new rule", "plants": [{"file": "crates/ryo/docs/contracts/evidence/branches/claude-other-branch.json", "line": 1, "text": "{\"reviewer\":\"leak-review\",\"verdict\":\"PASS\",\"source\":\"x\"}"}], "instance_status": "fixed"},
-  {"id": "diff-filter-skips-renames-aceba679", "class": "diff-filter-skips-renames", "signature": "'--diff-filter=AM'", "scope": ["crates/ryo/docs/contracts/evidence/checkpoint/run.py"], "suggested_mechanism": "new rule", "plants": [{"file": "a/src/core.rs", "line": 1, "text": "pub fn brand_new() -> Result<(), E> { todo!() }  // in a file renamed from a/src/lib.rs"}], "instance_status": "fixed"},
-  {"id": "fail-open-on-missing-base-3183081a", "class": "fail-open-on-missing-base", "signature": "if not base: return []", "scope": ["crates/ryo/docs/contracts/evidence/checkpoint/run.py"], "suggested_mechanism": "new rule", "plants": [{"file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py", "line": 347, "text": "fix_problems(v) in a tree with no the consolidation remote branch"}], "instance_status": "fixed"},
-  {"id": "doc-exemption-by-name-only-c7d940e1", "class": "doc-exemption-by-name-only", "signature": "m.groups() in old", "scope": ["crates/ryo/docs/contracts/evidence/checkpoint/run.py"], "suggested_mechanism": "new rule", "plants": [{"file": "a/src/widget.rs", "line": 3, "text": " pub fn new() -> Result<Self, E> { todo!() }"}], "instance_status": "fixed"},
-  {"id": "fix-entry-unbound-to-test-and-log-bdafa8b8", "class": "fix-entry-unbound-to-test-and-log", "signature": "entry_logs(x) and all((raw/l).is_file() for l in entry_logs(x))", "scope": ["crates/ryo/docs/contracts/evidence/checkpoint/run.py"], "suggested_mechanism": "new rule", "plants": [{"file": "validation.json", "line": 1, "text": "{\"test\":\"nothing (cli_tests.log)\",\"base_sha\":\"<base>\",\"merge_sha\":\"<fix>\"}"}], "instance_status": "fixed"},
-  {"id": "census-literal-name-regex-edc8de66", "class": "census-literal-name-regex", "signature": "re.compile(r'\\bOperation::([A-Z]\\w*)')", "scope": ["crates/ryo/docs/contracts/evidence/checkpoint/run.py"], "suggested_mechanism": "new rule", "plants": [{"file": "crates/values/src/m.rs", "line": 1, "text": "use Operation as O; O::V0 O::V1 O::V2 O::V3 O::V4 O::V5 O::V6 O::V7"}], "instance_status": "fixed"},
-  {"id": "census-tests-rs-counted-production-ef46c4d0", "class": "census-tests-rs-counted-production", "signature": "parts[-1]=='test.rs'", "scope": ["crates/ryo/docs/contracts/evidence/checkpoint/run.py"], "suggested_mechanism": "new rule", "plants": [{"file": "crates/core/src/tests.rs", "line": 1, "text": "FileSession"}], "instance_status": "fixed"},
-  {"id": "shared-failure-counter-per-agent-type-252e8c5c", "class": "shared-failure-counter-per-agent-type", "signature": "failure(\"review-\" + agent", "scope": [".claude/hooks/acceptance_on_stop.py"], "suggested_mechanism": "new rule", "plants": [{"file": ".claude/hooks/acceptance_on_stop.py", "line": 99, "text": "five SubagentStop calls of any leak-review instances without a verdict file"}], "instance_status": "fixed"},
-  {"id": "wrapper-option-cluster-hides-command-c198ea5b", "class": "wrapper-option-cluster-hides-command", "signature": "words = words[2:] if flag in values or (wrapper == \"script\" and flag in (\"-c\", \"--command\")) else words[1:]", "scope": [".claude/hooks/guard_shell.py"], "suggested_mechanism": "new rule", "plants": [{"file": ".claude/hooks/guard_shell.py", "line": 87, "text": "flock -sw 5 /workspaces/.cargo-build.lock cargo test --workspace"}, {"file": ".claude/hooks/guard_shell.py", "line": 87, "text": "xargs -0n 1 cargo build --workspace"}, {"file": ".claude/hooks/guard_shell.py", "line": 87, "text": "env -iu X cargo build --workspace"}], "instance_status": "open"},
-  {"id": "cargo-behind-unrecognised-launcher-2ea2a219", "class": "cargo-behind-unrecognised-launcher", "signature": "WRAPPERS = {\"env\", \"time\", \"exec\", \"nohup\", \"command\", \"nice\", \"timeout\", \"stdbuf\", \"xargs\", \"flock\", \"ionice\", \"unbuffer\", \"script\", \"watch\"}", "scope": [".claude/hooks/guard_shell.py"], "suggested_mechanism": "new rule", "plants": [{"file": ".claude/hooks/guard_shell.py", "line": 62, "text": "rustup run stable cargo build --workspace"}, {"file": ".claude/hooks/guard_shell.py", "line": 62, "text": "flock /workspaces/.cargo-build.lock -c 'cargo test --workspace'"}, {"file": ".claude/hooks/guard_shell.py", "line": 62, "text": "env --split-string='cargo build --workspace'"}], "instance_status": "open"},
-  {"id": "push-destination-outside-argv-9151a27d", "class": "push-destination-outside-argv", "signature": "if i >= len(words) or words[i] != verb:", "scope": [".claude/hooks/guard_shell.py"], "suggested_mechanism": "new rule", "plants": [{"file": ".claude/hooks/guard_shell.py", "line": 388, "text": "git -c alias.p=push p origin HEAD:main"}, {"file": ".claude/hooks/guard_shell.py", "line": 440, "text": "GIT_CONFIG_PARAMETERS=\"'push.default=matching'\" git push origin"}, {"file": ".claude/hooks/guard_shell.py", "line": 440, "text": "git config push.default matching; git push origin"}], "instance_status": "open"},
-  {"id": "reviewer-token-first-match-332f487a", "class": "reviewer-token-first-match", "signature": "found = re.search(r\"(?<![A-Za-z0-9_])\" + name + r\"=(\\S+)\", text)", "scope": [".claude/hooks/acceptance_on_stop.py"], "suggested_mechanism": "new rule", "plants": [{"file": ".claude/hooks/acceptance_on_stop.py", "line": 62, "text": "Previous SOURCE=cde5651c7d5a82a72192aebbb045095395a98f59 was FAIL. SOURCE=25b93d6312b6bb1b07f46fe7447d7a86b5f0975c"}], "instance_status": "fixed"},
-  {"id": "fix-exemption-by-commit-type-da27fb6c", "class": "fix-exemption-by-commit-type", "signature": "NOT_BEHAVIOUR=re.compile(r'^(perf|refactor)(\\([^)]*\\))?!?:')", "scope": ["crates/ryo/docs/contracts/evidence/checkpoint/run.py"], "suggested_mechanism": "new rule", "plants": [{"file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py", "line": 336, "text": "refactor: tidy  (changes pub fn f() -> u8 { 1 } to { 2 })"}, {"file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py", "line": 336, "text": "perf(a): faster  (same change, no number, no after.json)"}], "instance_status": "fixed"},
-  {"id": "fix-scope-excludes-harness-code-db7cadbc", "class": "fix-scope-excludes-harness-code", "signature": "path.endswith('.rs') or path.startswith('.claude/hooks/') and path.endswith('.py')", "scope": ["crates/ryo/docs/contracts/evidence/checkpoint/run.py"], "suggested_mechanism": "new rule", "plants": [{"file": "ci/contract_review/service.py", "line": 28, "text": "def shape(r): return None  # in a fix: commit naming no test"}], "instance_status": "fixed"},
-  {"id": "fix-skips-merge-commits-8f027951", "class": "fix-skips-merge-commits", "signature": "git(repo,'rev-list','--no-merges',base+'..'+head)", "scope": ["crates/ryo/docs/contracts/evidence/checkpoint/run.py"], "suggested_mechanism": "new rule", "plants": [{"file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py", "line": 375, "text": "a merge commit whose resolution changes pub fn f() -> u8 { 3 }"}], "instance_status": "fixed"},
-  {"id": "fix-log-provenance-unbound-d24d168c", "class": "fix-log-provenance-unbound", "signature": "(raw/red.group(1)).is_file()", "scope": ["crates/ryo/docs/contracts/evidence/checkpoint/run.py"], "suggested_mechanism": "new rule", "plants": [{"file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py", "line": 367, "text": "hand-red.log: test a::t::never_ran_test ... FAILED; hand-green.log: test a::t::never_ran_test ... ok"}], "instance_status": "fixed"},
-  {"id": "doc-examples-heading-only-074a596b", "class": "doc-examples-heading-only", "signature": "'# Examples' not in doc", "scope": ["crates/ryo/docs/contracts/evidence/checkpoint/run.py"], "suggested_mechanism": "new rule", "plants": [{"file": "crates/a/src/y.rs", "line": 1, "text": "/// # Examples"}], "instance_status": "fixed"},
-  {"id": "census-test-split-by-text-position-2c355bb0", "class": "census-test-split-by-text-position", "signature": "CFG_TEST=re.compile(r'^\\s*#\\[cfg\\(test\\)\\]',re.M)", "scope": ["crates/ryo/docs/contracts/evidence/checkpoint/run.py"], "suggested_mechanism": "new rule", "plants": [{"file": "crates/values/src/domain/plans/service.rs", "line": 1, "text": "#[cfg(test)] mod early_tests {}"}, {"file": "crates/execution/src/inbound/use_cases/execution/use_case_test/admission_order/check.rs", "line": 1, "text": "(test.rs renamed check.rs; parent declares pub(super) mod check)"}], "instance_status": "fixed"},
-  {"id": "census-vocabulary-decoy-declaration-c9bc4e18", "class": "census-vocabulary-decoy-declaration", "signature": "vocabulary=home-{n for f,t in prod_text.items() if not f.startswith(EVALUATOR) for n in declared.findall(t)}-{'Demand'}", "scope": ["crates/ryo/docs/contracts/evidence/checkpoint/run.py"], "suggested_mechanism": "new rule", "plants": [{"file": "crates/values/src/lib.rs", "line": 1, "text": "pub struct AdmittedOutput;"}], "instance_status": "fixed"},
-  {"id": "test-file-classifier-three-definitions-c7d88a5c", "class": "test-file-classifier-three-definitions", "signature": "def is_test_path(path): return '/test' in path or '_test.rs' in path", "scope": ["crates/ryo/docs/contracts/evidence/checkpoint/run.py"], "suggested_mechanism": "new rule", "plants": [{"file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py", "line": 18, "text": "def is_test_path(path): return '/test' in path or '_test.rs' in path"}, {"file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py", "line": 520, "text": " def is_test(path):"}], "instance_status": "fixed"},
-  {"id": "flock-long-option-unlisted-4240df61", "class": "flock-long-option-unlisted", "signature": "flock --wait <secs> <lock> cargo <verb>: WRAPPER_VALUES['flock'] lacks --wait, so after_wrapper reads <secs> as the lock and the lock path as the command word", "scope": [".claude/hooks/guard_shell.py"], "suggested_mechanism": "new rule", "plants": [{"file": ".claude/hooks/guard_shell.py", "line": 68, "text": "flock --wait 600 /workspaces/.cargo-build.lock cargo test --workspace --target-dir /workspaces/idiomatic-target/<tree>"}], "instance_status": "fixed"},
-  {"id": "reviewer-token-ambiguous-a57ec567", "class": "reviewer-token-ambiguous", "signature": "re.findall(NAME + r'=(\\S+)', prompt)[-1]: one value taken when the prompt names NAME= twice with different values", "scope": [".claude/hooks/acceptance_on_stop.py"], "suggested_mechanism": "new rule", "plants": [{"file": ".claude/hooks/acceptance_on_stop.py", "line": 64, "text": "INTEGRATION_TREE=<tree> SOURCE=<current> BRANCH=<b> ... the previous FAIL was at SOURCE=<earlier>."}], "instance_status": "fixed"},
-  {"id": "perf-evidence-unbound-to-commit-e5d70ab6", "class": "perf-evidence-unbound-to-commit", "signature": "perf_identical(repo, base, head): any evidence/perf/*/after.json with identical_output true in base..head clears every perf commit, whatever the after.json source", "scope": ["crates/ryo/docs/contracts/evidence/checkpoint/run.py"], "suggested_mechanism": "new rule", "plants": [{"file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py", "line": 398, "text": "perf(a): real speedup (adds perf/p9/after.json); then perf(a): also faster changing f() -> 2"}], "instance_status": "fixed"},
-  {"id": "census-cfg-test-field-extent-5c02f2ee", "class": "census-cfg-test-field-extent", "signature": "#[cfg(test)] on a struct field (`#[cfg(test)]\\n    pub(crate) <field>: <Type>,`): item_end ignores the field's `,` and the brace below depth 0, so the following production items count as test", "scope": ["crates/ryo/docs/contracts/evidence/checkpoint/run.py"], "suggested_mechanism": "new rule", "plants": [{"file": "crates/ryo/crates/query_language/src/domain/cutting/kinds.rs", "line": 4, "text": "    #[cfg(test)]\n    pub(crate) seen: usize,"}], "instance_status": "fixed"},
-  {"id": "census-cfg-test-angle-bracket-depth-334fc686", "class": "census-cfg-test-angle-bracket-depth", "signature": "item_end counts `<` (not followed by `=`) as an opening bracket, so a #[cfg(test)] fn body holding a comparison or shift (`self.seen < 4`, `n << 2`) never returns to depth 0 and the following production items count as test", "scope": ["crates/ryo/docs/contracts/evidence/checkpoint/run.py"], "suggested_mechanism": "new rule", "instance_status": "fixed", "plants": [{"file": "crates/ryo/crates/query_language/src/domain/cutting/kinds.rs", "line": 10, "text": "    #[cfg(test)]\n    pub(crate) fn is_small(&self) -> bool {\n        self.seen < 4\n    }"}]},
-  {"id": "census-cfg-test-header-initializer-angle-c993d1af", "class": "census-cfg-test-header-initializer-angle", "signature": "item_end counts `<` as an opening bracket anywhere in the header (header and c=='<' and text[i+1:i+2]!='='), including a const, static or discriminant initializer after `=`, so `#[cfg(test)] const LIMIT: usize = 1 << 10;` never returns to depth 0 at its `;` and the following production items count as test", "scope": ["crates/ryo/docs/contracts/evidence/checkpoint/run.py"], "suggested_mechanism": "new rule", "instance_status": "fixed", "plants": [{"file": "crates/ryo/crates/query_language/src/domain/cutting/kinds.rs", "line": 4, "text": "    #[cfg(test)]\n    const LIMIT: usize = 1 << 10;"}, {"file": "crates/ryo/crates/query_language/src/domain/cutting/kinds.rs", "line": 4, "text": "    #[cfg(test)]\n    const SMALL: bool = 3 < 4;"}]},
-  {"id": "census-cfg-test-header-array-length-angle-1f312aff", "class": "census-cfg-test-header-array-length-angle", "signature": "item_end counts `<` as an opening bracket in the header before any `=` or `{`, including an array-length expression (`[u8; 1 << 2]`) in a #[cfg(test)] fn return type or const type, so the depth never returns to 0 and the following production items count as test", "scope": ["crates/ryo/docs/contracts/evidence/checkpoint/run.py"], "suggested_mechanism": "new rule", "instance_status": "open", "plants": [{"file": "crates/ryo/crates/core/src/outbound/lint_store/adapters/memory/constants.rs", "line": 6, "text": "#[cfg(test)]\nfn arr() -> [u8; 1 << 2] { [0; 4] }"}]}
+  {
+   "id": "hook-argument-scan-past-double-dash-10512216",
+   "class": "hook-argument-scan-past-double-dash",
+   "signature": "packaged = any(w in (\"-p\", \"--package\") or w.startswith(\"--package=\") or (w.startswith(\"-p\") and len(w) > 2) for w in rest)",
+   "scope": [
+    ".claude/hooks/guard_shell.py"
+   ],
+   "suggested_mechanism": "new rule",
+   "plants": [
+    {
+     "file": "crates/ryo",
+     "line": 1,
+     "text": "flock /workspaces/.cargo-build.lock cargo test --target-dir /workspaces/idiomatic-target/<tree> -- -p"
+    }
+   ],
+   "instance_status": "fixed"
+  },
+  {
+   "id": "cargo-package-glob-accepted-3b04ff14",
+   "class": "cargo-package-glob-accepted",
+   "signature": "w in (\"-p\", \"--package\")  # value never checked for * ? [",
+   "scope": [
+    ".claude/hooks/guard_shell.py"
+   ],
+   "suggested_mechanism": "new rule",
+   "plants": [
+    {
+     "file": "crates/ryo",
+     "line": 1,
+     "text": "flock /workspaces/.cargo-build.lock cargo nextest run -p '*' --target-dir /workspaces/idiomatic-target/<tree>"
+    }
+   ],
+   "instance_status": "fixed"
+  },
+  {
+   "id": "lock-substring-match-38bf0f42",
+   "class": "lock-substring-match",
+   "signature": "LOCK not in \" \".join(words[:at]) and LOCK not in before",
+   "scope": [
+    ".claude/hooks/guard_shell.py"
+   ],
+   "suggested_mechanism": "new rule",
+   "plants": [
+    {
+     "file": "crates/ryo",
+     "line": 1,
+     "text": "echo /workspaces/.cargo-build.lock; cargo test -p x --target-dir /workspaces/idiomatic-target/<tree>"
+    },
+    {
+     "file": "crates/ryo",
+     "line": 1,
+     "text": "flock -s /workspaces/.cargo-build.lock cargo test -p x --target-dir /workspaces/idiomatic-target/<tree>"
+    }
+   ],
+   "instance_status": "fixed"
+  },
+  {
+   "id": "cargo-verb-set-misses-aliases-c5f1d132",
+   "class": "cargo-verb-set-misses-aliases",
+   "signature": "CARGO_BUILDS = {\"build\", \"test\", \"nextest\", \"bench\", \"clippy\", \"run\", \"check\", \"doc\"}",
+   "scope": [
+    ".claude/hooks/guard_shell.py"
+   ],
+   "suggested_mechanism": "new rule",
+   "plants": [
+    {
+     "file": "crates/ryo",
+     "line": 1,
+     "text": "cargo t --workspace"
+    },
+    {
+     "file": "crates/ryo",
+     "line": 1,
+     "text": "cargo-nextest nextest run --workspace"
+    }
+   ],
+   "instance_status": "fixed"
+  },
+  {
+   "id": "push-refspec-empty-source-skipped-675cdcce",
+   "class": "push-refspec-empty-source-skipped",
+   "signature": "if not source:\\n            continue",
+   "scope": [
+    ".claude/hooks/guard_shell.py"
+   ],
+   "suggested_mechanism": "new rule",
+   "plants": [
+    {
+     "file": ".",
+     "line": 1,
+     "text": "git push origin :main"
+    }
+   ],
+   "instance_status": "fixed"
+  },
+  {
+   "id": "reviewer-verdict-second-validator-28e12b70",
+   "class": "reviewer-verdict-second-validator",
+   "signature": "review.get(\"reviewer\") == agent and isinstance(review.get(\"verdict\"), str)",
+   "scope": [
+    ".claude/hooks/acceptance_on_stop.py"
+   ],
+   "suggested_mechanism": "new rule",
+   "plants": [
+    {
+     "file": "crates/ryo/docs/contracts/evidence/branches/x.json",
+     "line": 1,
+     "text": "{\"reviewer\":\"leak-review\",\"verdict\":\"not decided\"}"
+    }
+   ],
+   "instance_status": "fixed"
+  },
+  {
+   "id": "reviewer-hold-any-file-in-directory-bdd367cd",
+   "class": "reviewer-hold-any-file-in-directory",
+   "signature": "\"leak-review\": [\"checkpoint/leak-review.json\", \"branches/\"]",
+   "scope": [
+    ".claude/hooks/acceptance_on_stop.py"
+   ],
+   "suggested_mechanism": "new rule",
+   "plants": [
+    {
+     "file": "crates/ryo/docs/contracts/evidence/branches/claude-other-branch.json",
+     "line": 1,
+     "text": "{\"reviewer\":\"leak-review\",\"verdict\":\"PASS\",\"source\":\"x\"}"
+    }
+   ],
+   "instance_status": "fixed"
+  },
+  {
+   "id": "diff-filter-skips-renames-aceba679",
+   "class": "diff-filter-skips-renames",
+   "signature": "'--diff-filter=AM'",
+   "scope": [
+    "crates/ryo/docs/contracts/evidence/checkpoint/run.py"
+   ],
+   "suggested_mechanism": "new rule",
+   "plants": [
+    {
+     "file": "a/src/core.rs",
+     "line": 1,
+     "text": "pub fn brand_new() -> Result<(), E> { todo!() }  // in a file renamed from a/src/lib.rs"
+    }
+   ],
+   "instance_status": "fixed"
+  },
+  {
+   "id": "fail-open-on-missing-base-3183081a",
+   "class": "fail-open-on-missing-base",
+   "signature": "if not base: return []",
+   "scope": [
+    "crates/ryo/docs/contracts/evidence/checkpoint/run.py"
+   ],
+   "suggested_mechanism": "new rule",
+   "plants": [
+    {
+     "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py",
+     "line": 347,
+     "text": "fix_problems(v) in a tree with no the consolidation remote branch"
+    }
+   ],
+   "instance_status": "fixed"
+  },
+  {
+   "id": "doc-exemption-by-name-only-c7d940e1",
+   "class": "doc-exemption-by-name-only",
+   "signature": "m.groups() in old",
+   "scope": [
+    "crates/ryo/docs/contracts/evidence/checkpoint/run.py"
+   ],
+   "suggested_mechanism": "new rule",
+   "plants": [
+    {
+     "file": "a/src/widget.rs",
+     "line": 3,
+     "text": " pub fn new() -> Result<Self, E> { todo!() }"
+    }
+   ],
+   "instance_status": "fixed"
+  },
+  {
+   "id": "fix-entry-unbound-to-test-and-log-bdafa8b8",
+   "class": "fix-entry-unbound-to-test-and-log",
+   "signature": "entry_logs(x) and all((raw/l).is_file() for l in entry_logs(x))",
+   "scope": [
+    "crates/ryo/docs/contracts/evidence/checkpoint/run.py"
+   ],
+   "suggested_mechanism": "new rule",
+   "plants": [
+    {
+     "file": "validation.json",
+     "line": 1,
+     "text": "{\"test\":\"nothing (cli_tests.log)\",\"base_sha\":\"<base>\",\"merge_sha\":\"<fix>\"}"
+    }
+   ],
+   "instance_status": "fixed"
+  },
+  {
+   "id": "census-literal-name-regex-edc8de66",
+   "class": "census-literal-name-regex",
+   "signature": "re.compile(r'\\bOperation::([A-Z]\\w*)')",
+   "scope": [
+    "crates/ryo/docs/contracts/evidence/checkpoint/run.py"
+   ],
+   "suggested_mechanism": "new rule",
+   "plants": [
+    {
+     "file": "crates/values/src/m.rs",
+     "line": 1,
+     "text": "use Operation as O; O::V0 O::V1 O::V2 O::V3 O::V4 O::V5 O::V6 O::V7"
+    }
+   ],
+   "instance_status": "fixed"
+  },
+  {
+   "id": "census-tests-rs-counted-production-ef46c4d0",
+   "class": "census-tests-rs-counted-production",
+   "signature": "parts[-1]=='test.rs'",
+   "scope": [
+    "crates/ryo/docs/contracts/evidence/checkpoint/run.py"
+   ],
+   "suggested_mechanism": "new rule",
+   "plants": [
+    {
+     "file": "crates/core/src/tests.rs",
+     "line": 1,
+     "text": "FileSession"
+    }
+   ],
+   "instance_status": "fixed"
+  },
+  {
+   "id": "shared-failure-counter-per-agent-type-252e8c5c",
+   "class": "shared-failure-counter-per-agent-type",
+   "signature": "failure(\"review-\" + agent",
+   "scope": [
+    ".claude/hooks/acceptance_on_stop.py"
+   ],
+   "suggested_mechanism": "new rule",
+   "plants": [
+    {
+     "file": ".claude/hooks/acceptance_on_stop.py",
+     "line": 99,
+     "text": "five SubagentStop calls of any leak-review instances without a verdict file"
+    }
+   ],
+   "instance_status": "fixed"
+  },
+  {
+   "id": "wrapper-option-cluster-hides-command-c198ea5b",
+   "class": "wrapper-option-cluster-hides-command",
+   "signature": "words = words[2:] if flag in values or (wrapper == \"script\" and flag in (\"-c\", \"--command\")) else words[1:]",
+   "scope": [
+    ".claude/hooks/guard_shell.py"
+   ],
+   "suggested_mechanism": "new rule",
+   "plants": [
+    {
+     "file": ".claude/hooks/guard_shell.py",
+     "line": 87,
+     "text": "flock -sw 5 /workspaces/.cargo-build.lock cargo test --workspace"
+    },
+    {
+     "file": ".claude/hooks/guard_shell.py",
+     "line": 87,
+     "text": "xargs -0n 1 cargo build --workspace"
+    },
+    {
+     "file": ".claude/hooks/guard_shell.py",
+     "line": 87,
+     "text": "env -iu X cargo build --workspace"
+    }
+   ],
+   "instance_status": "open"
+  },
+  {
+   "id": "cargo-behind-unrecognised-launcher-2ea2a219",
+   "class": "cargo-behind-unrecognised-launcher",
+   "signature": "WRAPPERS = {\"env\", \"time\", \"exec\", \"nohup\", \"command\", \"nice\", \"timeout\", \"stdbuf\", \"xargs\", \"flock\", \"ionice\", \"unbuffer\", \"script\", \"watch\"}",
+   "scope": [
+    ".claude/hooks/guard_shell.py"
+   ],
+   "suggested_mechanism": "new rule",
+   "plants": [
+    {
+     "file": ".claude/hooks/guard_shell.py",
+     "line": 62,
+     "text": "rustup run stable cargo build --workspace"
+    },
+    {
+     "file": ".claude/hooks/guard_shell.py",
+     "line": 62,
+     "text": "flock /workspaces/.cargo-build.lock -c 'cargo test --workspace'"
+    },
+    {
+     "file": ".claude/hooks/guard_shell.py",
+     "line": 62,
+     "text": "env --split-string='cargo build --workspace'"
+    }
+   ],
+   "instance_status": "open"
+  },
+  {
+   "id": "push-destination-outside-argv-9151a27d",
+   "class": "push-destination-outside-argv",
+   "signature": "if i >= len(words) or words[i] != verb:",
+   "scope": [
+    ".claude/hooks/guard_shell.py"
+   ],
+   "suggested_mechanism": "new rule",
+   "plants": [
+    {
+     "file": ".claude/hooks/guard_shell.py",
+     "line": 388,
+     "text": "git -c alias.p=push p origin HEAD:main"
+    },
+    {
+     "file": ".claude/hooks/guard_shell.py",
+     "line": 440,
+     "text": "GIT_CONFIG_PARAMETERS=\"'push.default=matching'\" git push origin"
+    },
+    {
+     "file": ".claude/hooks/guard_shell.py",
+     "line": 440,
+     "text": "git config push.default matching; git push origin"
+    }
+   ],
+   "instance_status": "open"
+  },
+  {
+   "id": "reviewer-token-first-match-332f487a",
+   "class": "reviewer-token-first-match",
+   "signature": "found = re.search(r\"(?<![A-Za-z0-9_])\" + name + r\"=(\\S+)\", text)",
+   "scope": [
+    ".claude/hooks/acceptance_on_stop.py"
+   ],
+   "suggested_mechanism": "new rule",
+   "plants": [
+    {
+     "file": ".claude/hooks/acceptance_on_stop.py",
+     "line": 62,
+     "text": "Previous SOURCE=cde5651c7d5a82a72192aebbb045095395a98f59 was FAIL. SOURCE=25b93d6312b6bb1b07f46fe7447d7a86b5f0975c"
+    }
+   ],
+   "instance_status": "fixed"
+  },
+  {
+   "id": "fix-exemption-by-commit-type-da27fb6c",
+   "class": "fix-exemption-by-commit-type",
+   "signature": "NOT_BEHAVIOUR=re.compile(r'^(perf|refactor)(\\([^)]*\\))?!?:')",
+   "scope": [
+    "crates/ryo/docs/contracts/evidence/checkpoint/run.py"
+   ],
+   "suggested_mechanism": "new rule",
+   "plants": [
+    {
+     "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py",
+     "line": 336,
+     "text": "refactor: tidy  (changes pub fn f() -> u8 { 1 } to { 2 })"
+    },
+    {
+     "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py",
+     "line": 336,
+     "text": "perf(a): faster  (same change, no number, no after.json)"
+    }
+   ],
+   "instance_status": "fixed"
+  },
+  {
+   "id": "fix-scope-excludes-harness-code-db7cadbc",
+   "class": "fix-scope-excludes-harness-code",
+   "signature": "path.endswith('.rs') or path.startswith('.claude/hooks/') and path.endswith('.py')",
+   "scope": [
+    "crates/ryo/docs/contracts/evidence/checkpoint/run.py"
+   ],
+   "suggested_mechanism": "new rule",
+   "plants": [
+    {
+     "file": "ci/contract_review/service.py",
+     "line": 28,
+     "text": "def shape(r): return None  # in a fix: commit naming no test"
+    }
+   ],
+   "instance_status": "fixed"
+  },
+  {
+   "id": "fix-skips-merge-commits-8f027951",
+   "class": "fix-skips-merge-commits",
+   "signature": "git(repo,'rev-list','--no-merges',base+'..'+head)",
+   "scope": [
+    "crates/ryo/docs/contracts/evidence/checkpoint/run.py"
+   ],
+   "suggested_mechanism": "new rule",
+   "plants": [
+    {
+     "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py",
+     "line": 375,
+     "text": "a merge commit whose resolution changes pub fn f() -> u8 { 3 }"
+    }
+   ],
+   "instance_status": "fixed"
+  },
+  {
+   "id": "fix-log-provenance-unbound-d24d168c",
+   "class": "fix-log-provenance-unbound",
+   "signature": "(raw/red.group(1)).is_file()",
+   "scope": [
+    "crates/ryo/docs/contracts/evidence/checkpoint/run.py"
+   ],
+   "suggested_mechanism": "new rule",
+   "plants": [
+    {
+     "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py",
+     "line": 367,
+     "text": "hand-red.log: test a::t::never_ran_test ... FAILED; hand-green.log: test a::t::never_ran_test ... ok"
+    }
+   ],
+   "instance_status": "fixed"
+  },
+  {
+   "id": "doc-examples-heading-only-074a596b",
+   "class": "doc-examples-heading-only",
+   "signature": "'# Examples' not in doc",
+   "scope": [
+    "crates/ryo/docs/contracts/evidence/checkpoint/run.py"
+   ],
+   "suggested_mechanism": "new rule",
+   "plants": [
+    {
+     "file": "crates/a/src/y.rs",
+     "line": 1,
+     "text": "/// # Examples"
+    }
+   ],
+   "instance_status": "fixed"
+  },
+  {
+   "id": "census-test-split-by-text-position-2c355bb0",
+   "class": "census-test-split-by-text-position",
+   "signature": "CFG_TEST=re.compile(r'^\\s*#\\[cfg\\(test\\)\\]',re.M)",
+   "scope": [
+    "crates/ryo/docs/contracts/evidence/checkpoint/run.py"
+   ],
+   "suggested_mechanism": "new rule",
+   "plants": [
+    {
+     "file": "crates/values/src/domain/plans/service.rs",
+     "line": 1,
+     "text": "#[cfg(test)] mod early_tests {}"
+    },
+    {
+     "file": "crates/execution/src/inbound/use_cases/execution/use_case_test/admission_order/check.rs",
+     "line": 1,
+     "text": "(test.rs renamed check.rs; parent declares pub(super) mod check)"
+    }
+   ],
+   "instance_status": "fixed"
+  },
+  {
+   "id": "census-vocabulary-decoy-declaration-c9bc4e18",
+   "class": "census-vocabulary-decoy-declaration",
+   "signature": "vocabulary=home-{n for f,t in prod_text.items() if not f.startswith(EVALUATOR) for n in declared.findall(t)}-{'Demand'}",
+   "scope": [
+    "crates/ryo/docs/contracts/evidence/checkpoint/run.py"
+   ],
+   "suggested_mechanism": "new rule",
+   "plants": [
+    {
+     "file": "crates/values/src/lib.rs",
+     "line": 1,
+     "text": "pub struct AdmittedOutput;"
+    }
+   ],
+   "instance_status": "fixed"
+  },
+  {
+   "id": "test-file-classifier-three-definitions-c7d88a5c",
+   "class": "test-file-classifier-three-definitions",
+   "signature": "def is_test_path(path): return '/test' in path or '_test.rs' in path",
+   "scope": [
+    "crates/ryo/docs/contracts/evidence/checkpoint/run.py"
+   ],
+   "suggested_mechanism": "new rule",
+   "plants": [
+    {
+     "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py",
+     "line": 18,
+     "text": "def is_test_path(path): return '/test' in path or '_test.rs' in path"
+    },
+    {
+     "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py",
+     "line": 520,
+     "text": " def is_test(path):"
+    }
+   ],
+   "instance_status": "fixed"
+  },
+  {
+   "id": "flock-long-option-unlisted-4240df61",
+   "class": "flock-long-option-unlisted",
+   "signature": "flock --wait <secs> <lock> cargo <verb>: WRAPPER_VALUES['flock'] lacks --wait, so after_wrapper reads <secs> as the lock and the lock path as the command word",
+   "scope": [
+    ".claude/hooks/guard_shell.py"
+   ],
+   "suggested_mechanism": "new rule",
+   "plants": [
+    {
+     "file": ".claude/hooks/guard_shell.py",
+     "line": 68,
+     "text": "flock --wait 600 /workspaces/.cargo-build.lock cargo test --workspace --target-dir /workspaces/idiomatic-target/<tree>"
+    }
+   ],
+   "instance_status": "fixed"
+  },
+  {
+   "id": "reviewer-token-ambiguous-a57ec567",
+   "class": "reviewer-token-ambiguous",
+   "signature": "re.findall(NAME + r'=(\\S+)', prompt)[-1]: one value taken when the prompt names NAME= twice with different values",
+   "scope": [
+    ".claude/hooks/acceptance_on_stop.py"
+   ],
+   "suggested_mechanism": "new rule",
+   "plants": [
+    {
+     "file": ".claude/hooks/acceptance_on_stop.py",
+     "line": 64,
+     "text": "INTEGRATION_TREE=<tree> SOURCE=<current> BRANCH=<b> ... the previous FAIL was at SOURCE=<earlier>."
+    }
+   ],
+   "instance_status": "fixed"
+  },
+  {
+   "id": "perf-evidence-unbound-to-commit-e5d70ab6",
+   "class": "perf-evidence-unbound-to-commit",
+   "signature": "perf_identical(repo, base, head): any evidence/perf/*/after.json with identical_output true in base..head clears every perf commit, whatever the after.json source",
+   "scope": [
+    "crates/ryo/docs/contracts/evidence/checkpoint/run.py"
+   ],
+   "suggested_mechanism": "new rule",
+   "plants": [
+    {
+     "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py",
+     "line": 398,
+     "text": "perf(a): real speedup (adds perf/p9/after.json); then perf(a): also faster changing f() -> 2"
+    }
+   ],
+   "instance_status": "fixed"
+  },
+  {
+   "id": "census-cfg-test-field-extent-5c02f2ee",
+   "class": "census-cfg-test-field-extent",
+   "signature": "#[cfg(test)] on a struct field (`#[cfg(test)]\\n    pub(crate) <field>: <Type>,`): item_end ignores the field's `,` and the brace below depth 0, so the following production items count as test",
+   "scope": [
+    "crates/ryo/docs/contracts/evidence/checkpoint/run.py"
+   ],
+   "suggested_mechanism": "new rule",
+   "plants": [
+    {
+     "file": "crates/ryo/crates/query_language/src/domain/cutting/kinds.rs",
+     "line": 4,
+     "text": "    #[cfg(test)]\n    pub(crate) seen: usize,"
+    }
+   ],
+   "instance_status": "fixed"
+  },
+  {
+   "id": "census-cfg-test-angle-bracket-depth-334fc686",
+   "class": "census-cfg-test-angle-bracket-depth",
+   "signature": "item_end counts `<` (not followed by `=`) as an opening bracket, so a #[cfg(test)] fn body holding a comparison or shift (`self.seen < 4`, `n << 2`) never returns to depth 0 and the following production items count as test",
+   "scope": [
+    "crates/ryo/docs/contracts/evidence/checkpoint/run.py"
+   ],
+   "suggested_mechanism": "new rule",
+   "instance_status": "fixed",
+   "plants": [
+    {
+     "file": "crates/ryo/crates/query_language/src/domain/cutting/kinds.rs",
+     "line": 10,
+     "text": "    #[cfg(test)]\n    pub(crate) fn is_small(&self) -> bool {\n        self.seen < 4\n    }"
+    }
+   ]
+  },
+  {
+   "id": "census-cfg-test-header-initializer-angle-c993d1af",
+   "class": "census-cfg-test-header-initializer-angle",
+   "signature": "item_end counts `<` as an opening bracket anywhere in the header (header and c=='<' and text[i+1:i+2]!='='), including a const, static or discriminant initializer after `=`, so `#[cfg(test)] const LIMIT: usize = 1 << 10;` never returns to depth 0 at its `;` and the following production items count as test",
+   "scope": [
+    "crates/ryo/docs/contracts/evidence/checkpoint/run.py"
+   ],
+   "suggested_mechanism": "new rule",
+   "instance_status": "fixed",
+   "plants": [
+    {
+     "file": "crates/ryo/crates/query_language/src/domain/cutting/kinds.rs",
+     "line": 4,
+     "text": "    #[cfg(test)]\n    const LIMIT: usize = 1 << 10;"
+    },
+    {
+     "file": "crates/ryo/crates/query_language/src/domain/cutting/kinds.rs",
+     "line": 4,
+     "text": "    #[cfg(test)]\n    const SMALL: bool = 3 < 4;"
+    }
+   ]
+  },
+  {
+   "id": "census-cfg-test-header-array-length-angle-1f312aff",
+   "class": "census-cfg-test-header-array-length-angle",
+   "signature": "item_end counts `<` as an opening bracket in the header before any `=` or `{`, including an array-length expression (`[u8; 1 << 2]`) in a #[cfg(test)] fn return type or const type, so the depth never returns to 0 and the following production items count as test",
+   "scope": [
+    "crates/ryo/docs/contracts/evidence/checkpoint/run.py"
+   ],
+   "suggested_mechanism": "new rule",
+   "instance_status": "open",
+   "plants": [
+    {
+     "file": "crates/ryo/crates/core/src/outbound/lint_store/adapters/memory/constants.rs",
+     "line": 6,
+     "text": "#[cfg(test)]\nfn arr() -> [u8; 1 << 2] { [0; 4] }"
+    }
+   ]
+  },
+  {
+   "id": "name-only-diff-hides-rename-source-25b627f8",
+   "class": "name-only-diff-hides-rename-source",
+   "signature": "git_out(tree, \"diff\", \"--name-only\", source, head)",
+   "scope": [
+    ".claude/hooks/guard_shell.py",
+    ".claude/hooks/acceptance_on_stop.py",
+    "ci/contract_review/service.py"
+   ],
+   "suggested_mechanism": "new rule",
+   "plants": [
+    {
+     "file": ".claude/hooks/guard_shell.py",
+     "line": 706,
+     "text": "git mv code.rs crates/ryo/docs/contracts/evidence/checkpoint/code.rs  # stands_for(A, B, EVIDENCE) -> True"
+    },
+    {
+     "file": "ci/contract_review/service.py",
+     "line": 116,
+     "text": "git mv crates/ryo/src/x.rs crates/other/src/x.rs  # since == ['crates/other/src/x.rs'], no protected change seen"
+    }
+   ],
+   "instance_status": "open"
+  },
+  {
+   "id": "hook-loader-exception-releases-hold-218b1b33",
+   "class": "hook-loader-exception-releases-hold",
+   "signature": "guard = guard_module()",
+   "scope": [
+    ".claude/hooks/acceptance_on_stop.py"
+   ],
+   "suggested_mechanism": "new rule",
+   "plants": [
+    {
+     "file": ".claude/hooks/guard_shell.py",
+     "line": 1,
+     "text": "raise ImportError(\"planted\")  # tm-steward stop exits 1 (released) instead of 2"
+    }
+   ],
+   "instance_status": "open"
+  }
  ],
- "date": "2026-11-09T18:31:29+00:00"
+ "reviewer": "leak-review",
+ "date": "2026-11-09T19:24:00+00:00"
 }
