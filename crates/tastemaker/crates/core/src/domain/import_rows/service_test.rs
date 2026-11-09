@@ -1,6 +1,8 @@
 //! What the `import_rows` service writes and keeps: the query of each built-in rule, and the row each relation keeps from
 //! the cells a rule answered.
 
+use std::collections::BTreeMap;
+
 use super::service::{imports, keep, query};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::applications::types::CellText;
@@ -26,6 +28,9 @@ enum Question {
     /// What the imports of `src/a.x` written `use crate::contract` (binding `contract`, at 0 to 21) are, with an edge to
     /// `src/contract/collect.x` written at a use site, at 40 to 56, as this path, in these scopes.
     UseSite(&'static str, Layout),
+    /// What a `static-import` row with a `target` and no `binding` keeps, and what `src/a.x` imports when that row is
+    /// its one import (at 0 to 21) and a use-site path `x::Y` (at 40 to 56) reaches `src/x.x`.
+    Unbound,
 }
 
 /// The blocks and inline modules around the `use` (0 to 21) and the use-site path (40 to 56).
@@ -41,6 +46,10 @@ enum Layout {
     ModuleAroundUse,
     /// A block (0 to 60) holds both.
     BlockAroundBoth,
+    /// An inline module (0 to 60) holds both.
+    ModuleAroundBoth,
+    /// An inline module (0 to 70) holds both, and another (22 to 30) nested in it ends before the path.
+    ModuleBesidePath,
 }
 
 type Input = Question;
@@ -72,7 +81,7 @@ fn expected(relation: Relation) -> ImportRows {
         Relation::Names => rows.names.push(Name {
             source: path("a.txt"),
             written: WrittenPath("b.txt".into()),
-            binding: ModuleName("other".into()),
+            binding: Some(ModuleName("other".into())),
             span: place(),
         }),
         Relation::Packages => rows.packages.push(Package {
@@ -84,11 +93,13 @@ fn expected(relation: Relation) -> ImportRows {
             path: path("a.txt"),
             package: path("c.toml"),
         }),
-        Relation::Scopes => rows.scopes.push(Scope {
-            source: path("a.txt"),
-            span: place(),
-            kind: ScopeKind::Module,
-        }),
+        Relation::Scopes => drop(rows.scopes.insert(
+            path("a.txt"),
+            vec![Scope {
+                span: place(),
+                kind: ScopeKind::Module,
+            }],
+        )),
     }
     rows
 }
@@ -211,6 +222,24 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(String::new()),
     },
     Case {
+        name: CaseName("a_path_in_the_inline_module_of_an_import_is_that_imports"),
+        word: Word::Succeeds,
+        input: || Question::UseSite("contract::Collect", Layout::ModuleAroundBoth),
+        expect: Expect::Value(String::new()),
+    },
+    Case {
+        name: CaseName("an_inline_module_that_ends_before_a_path_does_not_shut_it_from_an_import"),
+        word: Word::Succeeds,
+        input: || Question::UseSite("contract::Collect", Layout::ModuleBesidePath),
+        expect: Expect::Value(String::new()),
+    },
+    Case {
+        name: CaseName("an_import_that_binds_no_name_is_kept_and_a_path_is_never_its"),
+        word: Word::Succeeds,
+        input: || Question::Unbound,
+        expect: Expect::Value(String::new()),
+    },
+    Case {
         name: CaseName("a_path_in_the_block_of_an_import_is_that_imports"),
         word: Word::Succeeds,
         input: || Question::UseSite("contract::Collect", Layout::BlockAroundBoth),
@@ -242,7 +271,13 @@ emit rows subject "source" key("target", "span");
             "let rows = select * from \"file-package\";\nemit rows subject \"path\" key(\"path\");\n"
         }
         Relation::Scopes => {
-            r#"let rows = select id, kind, file, span from "syntax-tree" where glob_any(kind, "{stmt-list,item-list}");
+            r#"let uses = select id from "syntax-tree" where kind = "use" and text = "";
+let blocks = select id, kind, file, span from "syntax-tree" where kind = "stmt-list" and text = "";
+let modules = select id, kind, file, span from "syntax-tree" where kind = "item-list" and text = "";
+let parents = select r.parent as id from uses as l join "syntax-child" as r on l.id = r.child;
+let held = select r.id as id, r.kind as kind, r.file as file, r.span as span from parents as l join blocks as r on l.id = r.id;
+let used = project(from=held, columns=["id", "kind", "file", "span"]);
+let rows = union(left=used, right=modules);
 emit rows subject "file" key("id");
 "#
         }
@@ -256,7 +291,7 @@ fn resolved(written: &'static str) -> String {
         names: vec![Name {
             source: path("src/a.x"),
             written: WrittenPath(written.into()),
-            binding: ModuleName("thing".into()),
+            binding: Some(ModuleName("thing".into())),
             span: place(),
         }],
         packages: vec![
@@ -275,7 +310,7 @@ fn resolved(written: &'static str) -> String {
             path: path("src/a.x"),
             package: path("app.m"),
         }],
-        scopes: Vec::new(),
+        scopes: BTreeMap::new(),
     };
     let wanted = if written.starts_with('@') {
         "scoped/lib.m"
@@ -299,7 +334,6 @@ fn at(start: usize, end: usize) -> ImportPlace {
 /// the `use` and the path otherwise.
 fn use_site(written: &'static str, layout: Layout) -> String {
     let scope = |start, end, kind| Scope {
-        source: path("src/a.x"),
         span: at(start, end),
         kind,
     };
@@ -309,6 +343,14 @@ fn use_site(written: &'static str, layout: Layout) -> String {
         Layout::BlockAroundUse => (vec![scope(0, 25, ScopeKind::Block)], false),
         Layout::ModuleAroundUse => (vec![scope(0, 25, ScopeKind::Module)], false),
         Layout::BlockAroundBoth => (vec![scope(0, 60, ScopeKind::Block)], true),
+        Layout::ModuleAroundBoth => (vec![scope(0, 60, ScopeKind::Module)], true),
+        Layout::ModuleBesidePath => (
+            vec![
+                scope(0, 70, ScopeKind::Module),
+                scope(22, 30, ScopeKind::Module),
+            ],
+            true,
+        ),
     };
     let declared = Import {
         source: path("src/a.x"),
@@ -327,12 +369,12 @@ fn use_site(written: &'static str, layout: Layout) -> String {
         names: vec![Name {
             source: path("src/a.x"),
             written: WrittenPath("crate::contract".into()),
-            binding: ModuleName("contract".into()),
+            binding: Some(ModuleName("contract".into())),
             span: at(0, 21),
         }],
         packages: Vec::new(),
         owners: Vec::new(),
-        scopes,
+        scopes: BTreeMap::from([(path("src/a.x"), scopes)]),
     };
     let wanted = if through && written.starts_with("contract") {
         vec![declared]
@@ -347,8 +389,54 @@ fn use_site(written: &'static str, layout: Layout) -> String {
     }
 }
 
+/// The row a `static-import` row without a `binding` keeps, and the imports of a file whose one import binds no name.
+fn unbound() -> String {
+    let mut rows = ImportRows::default();
+    let column = |name: ImportColumn<'_>| match name.0 {
+        "target" => Some(CellText("x".into())),
+        _ => None,
+    };
+    keep(
+        &mut rows,
+        Relation::Names,
+        path("src/a.x"),
+        &RepoPath::default(),
+        &column,
+        at(0, 21),
+    );
+    let name = Name {
+        source: path("src/a.x"),
+        written: WrittenPath("x".into()),
+        binding: None,
+        span: at(0, 21),
+    };
+    if rows.names != vec![name] {
+        return format!("{:?}", rows.names);
+    }
+    let site = Import {
+        source: path("src/a.x"),
+        span: at(40, 56),
+        written: WrittenPath("x::Y".into()),
+        target: Target::File(path("src/x.x")),
+    };
+    rows.edges.push(site.clone());
+    let declared = Import {
+        source: path("src/a.x"),
+        span: at(0, 21),
+        written: WrittenPath("x".into()),
+        target: Target::Module,
+    };
+    let found = imports(&rows);
+    if found == vec![declared, site] {
+        String::new()
+    } else {
+        format!("{found:?}")
+    }
+}
+
 fn subject(question: Input) -> Value {
     match question {
+        Question::Unbound => unbound(),
         Question::UseSite(written, layout) => use_site(written, layout),
         Question::Resolved(written) => resolved(written),
         Question::Outside => {
