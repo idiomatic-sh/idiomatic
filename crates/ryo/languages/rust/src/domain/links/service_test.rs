@@ -55,6 +55,7 @@ pub(super) fn writes(segments: &[&str]) -> Written {
         end: Offset(2),
         text: Spelling(segments.join("::").into()),
         bound: None,
+        block: None,
     }
 }
 
@@ -327,5 +328,7 @@ fn link(
     merged(run, gaps_in(&trees), examined)
 }
 
+#[cfg(test)]
+mod aliases_test;
 #[cfg(test)]
 mod external_test;

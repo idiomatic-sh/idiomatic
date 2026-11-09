@@ -81,4 +81,8 @@ pub(crate) struct WrittenNote<'a> {
     /// The name a `use` leaf binds in its module: its `as` name, or else its last segment; none for a glob, an `as _` or a path
     /// that is not a `use` leaf.
     pub bound: Option<NoteName<'a>>,
+    /// The block of statements a `use` leaf is written in, when that block, and no inline module inside it, is the innermost one around
+    /// the `use`: the `use` binds its name in that block alone. None for a path that is not a `use` leaf and for a `use` written
+    /// straight in a module.
+    pub block: Option<ryo::languages::Span>,
 }
