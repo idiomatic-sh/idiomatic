@@ -76,4 +76,4 @@ newly scoped directory with its finding count, and each directory no longer
 scoped. The checkpoint commit message carries these lines.
 
 ## Red-then-green record
-For each fix (a change to production behaviour) the integrator records the test id the builder named, the base sha where it fails (red) and the merge sha where it passes (green). Docs-only, evidence-only and perf changes are exempt. See the [Builder test rule](../../review/README.md#builder-test-rule).
+For each fix (a change to production behaviour) the integrator appends to the `red_green` list in [validation.json](validation.json) an entry `{test, base_sha, merge_sha}`: the test id the builder named, the 40-hex base sha where it fails (red) and the 40-hex merge sha where it passes (green). `run.py --check` refuses an entry of any other shape. Docs-only, evidence-only and perf changes are exempt. See the [Builder test rule](../../review/README.md#builder-test-rule).

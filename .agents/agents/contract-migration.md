@@ -66,4 +66,4 @@ Treat missing mappings or enforcement as failures, not exemptions.
 Each implementation batch updates its rows in the existing contract and crate matrix: current owning crate, remaining responsibilities, source and actual check results. Do not leave superseded paths or ownership descriptions as current. Untested work stays unchecked. The integrator reconciles overlapping rows before handoff.
 
 ## Builder test rule
-Every fix names the test that fails before it and passes after; the integrator records it red, then green, in the checkpoint record. See the [Builder test rule](../../crates/ryo/docs/contracts/review/README.md#builder-test-rule).
+Every fix names the test that fails before it and passes after; the integrator records it red, then green, in the [red-then-green record](../../crates/ryo/docs/contracts/evidence/checkpoint/README.md#red-then-green-record). See the [Builder test rule](../../crates/ryo/docs/contracts/review/README.md#builder-test-rule).

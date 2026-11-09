@@ -280,12 +280,15 @@ def write_block(text,v):
  start=next(i for i,l in enumerate(lines) if l.startswith('### Current ownership checkpoint'))
  end=next(i for i in range(start+1,len(lines)) if lines[i].startswith('- ['))
  return ''.join(lines[:start])+render(v)+''.join(lines[end:])
+def red_green_problems(v):
+ """Each red_green entry must be {test, base_sha, merge_sha} with 40-hex shas."""
+ return ['red_green entry '+str(n)+' is not {test, base_sha, merge_sha} with 40-hex shas' for n,x in enumerate(v.get('red_green',[])) if not (isinstance(x,dict) and set(x)=={'test','base_sha','merge_sha'} and isinstance(x['test'],str) and x['test'] and all(isinstance(x[s],str) and re.fullmatch('[0-9a-f]{40}',x[s]) for s in ('base_sha','merge_sha')))]
 def finish(v):
  """Write the matrix numbers block from validation.json, print the scope delta, un-tick each ticked row that cites no test or a test the recorded logs do not prove, check each ticked row cites a validation and each rerun result names its raw log. Returns the exit code."""
  old=readme.read_text(); owners_changed,owner_bad=own(v,old); text=write_block(old,v)
  if owners_changed: validation_json.write_text(dumps({k:x for k,x in v.items() if k!='tests'})+'\n')
  for line in scope_delta(v): print(line)
- bad=list(owner_bad); texts=[]; changed=['validation.json'] if owners_changed else []
+ bad=list(owner_bad)+red_green_problems(v); texts=[]; changed=['validation.json'] if owners_changed else []
  for part in sorted(contracts.glob('*.md')):
   before=old if part==readme else part.read_text(); body,unticked=untick_unproven(text if part==readme else before,v); where='' if part==readme else part.name+' '
   if body!=before: part.write_text(body); changed.append(part.name)
