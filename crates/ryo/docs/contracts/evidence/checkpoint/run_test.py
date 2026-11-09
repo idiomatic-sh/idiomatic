@@ -1,5 +1,5 @@
 """Fixture cases of `run.py --check`: a ticked row (a `[x]` box or a `☑` cell) stays ticked only when it cites a test, every test it cites passed in the recorded logs, and it does not say its review is pending."""
-import importlib.util,json,tempfile,unittest
+import importlib.util,json,subprocess,tempfile,unittest
 from pathlib import Path
 spec=importlib.util.spec_from_file_location('run',Path(__file__).resolve().parent/'run.py'); run=importlib.util.module_from_spec(spec); spec.loader.exec_module(run)
 LOG='''     Running unittests src/lib.rs (/target/debug/deps/ryo_values-0123abcd)
@@ -94,4 +94,60 @@ class Check(unittest.TestCase):
   self.assertEqual(v['results']['core_allocation']['note'],'owned by "'+run.OWNERS['core_allocation']+'"')
   self.assertEqual(v['results']['ruff_rule_phases']['note'],'repaired')
   self.assertNotIn('note',v['results']['libraries_total'])
+def commit(repo,files,message):
+ """Writes the files (path -> text, None deletes) into the fixture repository and commits them; returns the sha."""
+ for path,body in files.items():
+  f=Path(repo)/path
+  if body is None: f.unlink(); continue
+  f.parent.mkdir(parents=True,exist_ok=True); f.write_text(body)
+ subprocess.run(['git','-C',repo,'add','-A'],check=True); subprocess.run(['git','-C',repo,'commit','-q','-m',message],check=True)
+ return subprocess.run(['git','-C',repo,'rev-parse','HEAD'],capture_output=True,text=True,check=True).stdout.strip()
+class Diff(unittest.TestCase):
+ """The checkpoint-diff checks: a fix carries its red-then-green, and a published crate's new pub item its examples."""
+ def setUp(self):
+  self.dir=tempfile.TemporaryDirectory(); self.repo=self.dir.name; self.raw=Path(self.repo)/'raw'
+  subprocess.run(['git','init','-q','-b','claude/checkpoint-9',self.repo],check=True)
+  for k,x in (('user.email','t@example.com'),('user.name','t')): subprocess.run(['git','-C',self.repo,'config',k,x],check=True)
+  self.base=commit(self.repo,{'a/Cargo.toml':'[package]\nname="a"\n','a/src/lib.rs':'/// One.\n///\n/// # Examples\n/// ```\n/// ```\npub fn one() {}\n','b/Cargo.toml':'[package]\nname="b"\npublish = false\n','b/src/lib.rs':''},'chore: base')
+ def tearDown(self): self.dir.cleanup()
+ def fixes(self,entries): return run.fix_problems({'red_green':entries,'raw_identity':str(self.raw)},repo=self.repo,base=self.base)
+ def test_a_fix_with_a_named_test_and_a_logged_entry_over_it_passes(self):
+  sha=commit(self.repo,{'a/src/lib.rs':'pub fn one() { }\n'},'fix(a): one answers\n\nTest: `service_test::one_answers` fails before, passes after.')
+  self.raw.mkdir(); (self.raw/'red.log').write_text(''); (self.raw/'green.log').write_text('')
+  self.assertEqual(self.fixes([{'test':'a service_test::one_answers (red red.log, green green.log)','base_sha':self.base,'merge_sha':sha}]),[])
+ def test_a_fix_naming_no_test_with_no_entry_or_an_unlogged_entry_is_refused(self):
+  sha=commit(self.repo,{'a/src/lib.rs':'pub fn one() { }\n'},'fix(a): one answers')
+  self.assertEqual([x.rsplit(': ',1)[1] for x in self.fixes([])],['its message names no test that fails before it and passes after','no red_green entry has it between its base_sha and merge_sha'])
+  self.assertIn('names its red and green logs',self.fixes([{'test':'a service_test::one_answers','base_sha':self.base,'merge_sha':sha}])[1])
+  self.assertIn('names its red and green logs',self.fixes([{'test':'a t (red gone.log)','base_sha':self.base,'merge_sha':sha}])[1])
+ def test_an_entry_whose_range_does_not_hold_the_fix_does_not_cover_it(self):
+  sha=commit(self.repo,{'a/src/lib.rs':'pub fn one() { }\n'},'fix(a): one answers, `service_test::one_answers`')
+  self.assertIn('between its base_sha and merge_sha',self.fixes([{'test':'t (red.log)','base_sha':sha,'merge_sha':sha}])[0])
+ def test_docs_tests_refactors_and_perf_are_not_fixes(self):
+  for files,message in (({'a/src/lib.rs':'pub fn one() { }\n'},'refactor(a): one'),({'a/src/lib.rs':'pub fn one() {  }\n'},'perf(a): one'),
+                        ({'a/src/lib_test.rs':'x'},'fix(a): a test'),({'a/README.md':'x'},'fix(a): docs')):
+   commit(self.repo,files,message)
+  self.assertEqual(self.fixes([]),[])
+ def test_a_new_pub_item_of_a_published_crate_needs_examples_and_errors(self):
+  commit(self.repo,{'a/src/lib.rs':'pub fn one() {}\n/// Two.\npub fn two() -> Result<(), E> {}\n/// Three.\n///\n/// # Examples\n/// # Errors\npub fn three() -> std::result::Result<(), E> {}\npub(crate) fn four() {}\nmod seal { pub trait Sealed {} }\n',
+                        'a/src/fixtures.rs':'pub fn fixture() {}\n','a/tests/t.rs':'pub fn helper() {}\n','b/src/lib.rs':'pub fn unpublished() {}\n'},'feat(a): two and three')
+  self.assertEqual(run.doc_problems(repo=self.repo,base=self.base),['a/src/lib.rs:3 pub fn two: no `# Examples` section','a/src/lib.rs:3 pub fn two: returns a Result with no `# Errors` section'])
+ def test_an_item_moved_within_its_crate_is_not_new(self):
+  commit(self.repo,{'a/src/lib.rs':'','a/src/moved.rs':'pub fn one() {}\n'},'refactor(a): move one')
+  self.assertEqual(run.doc_problems(repo=self.repo,base=self.base),[])
+class Census(unittest.TestCase):
+ def test_the_census_counts_each_coupling_in_its_owners_terms(self):
+  with tempfile.TemporaryDirectory() as repo:
+   subprocess.run(['git','init','-q',repo],check=True)
+   files={'crates/execution_runtime/src/lib.rs':'pub struct FileSession;\npub trait DigestPort {}\n','crates/core/src/a.rs':'use x::FileSession;\n',
+          'crates/core/src/b.rs':'use x::DigestPort;\n','crates/core/src/c.rs':'ryo_execution_runtime::run();\n','crates/core/tests/t.rs':'FileSession\n',
+          'crates/execution_store/tests/s.rs':'RelationOwner\n','crates/values/src/m.rs':' '.join('Operation::V'+str(n) for n in range(8)),'crates/values/src/n.rs':'Operation::V1',
+          'languages/go/src/r.rs':'binding_read','crates/relations/src/r.rs':'BindingRead','crates/core/src/r_test.rs':'binding_read'}
+   for path,body in files.items(): f=Path(repo)/path; f.parent.mkdir(parents=True,exist_ok=True); f.write_text(body)
+   subprocess.run(['git','-C',repo,'add','-A'],check=True)
+   c=run.census(repo)
+  self.assertEqual(c['replace_the_evaluator'],{'production':{'files':2,'crates':1},'test':{'files':1,'crates':1},'total_files':3,'vocabulary':2})
+  self.assertEqual(c['operation_exhaustive_matches'],{'files':1,'crates':1})
+  self.assertEqual(c['per_file_fact_touch_points'],{'files':2,'crates':2})
+  self.assertEqual(c['cross_crate_tests_naming_runtime_internals'],{'files':1,'crates':1})
 if __name__=='__main__': unittest.main()

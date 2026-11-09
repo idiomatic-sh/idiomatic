@@ -1,3 +1,4 @@
+# ignore: idiomatic.arch/file-length - the checkpoint evidence directory holds one validation script, run.py, beside its fixture cases in run_test.py; the census and the checkpoint diff checks are modes of it over the same validation.json, commits and raw logs, and a second script would be a file role the directory does not have.
 import json,os,re,subprocess,sys,time,fcntl,tomllib
 from datetime import date
 from pathlib import Path
@@ -36,10 +37,11 @@ def tm_validate_counts(log):
   elif where and line.startswith('{') and '"proven"' in line: d=json.loads(line); counts[where]={'passed':d['proven'],'failed':len(d['failed'])}
  return counts
 def record(v,commands,out_dir):
- """The checks block (each command's exit, source and time) from the run's raw `<name>.json`, the tm target splits, and the `tm validate` counts."""
+ """The checks block (each command's exit, source and time) from the run's raw `<name>.json`, the tm target splits, the `tm validate` counts and the change-amplification census."""
  v['checks']={n:json.loads((out_dir/(n+'.json')).read_text()) for n,c in commands if (out_dir/(n+'.json')).exists()}
  v['tm_targets']={n:tm_target(c,out_dir/(n+'.log')) for n,c in commands if n in TM_TARGETS and (out_dir/(n+'.log')).exists()}
  if (out_dir/(TM_VALIDATE+'.log')).exists(): v['results'][TM_VALIDATE]=tm_validate_counts(out_dir/(TM_VALIDATE+'.log'))
+ if (out_dir/'census.log').exists(): v['census']=json.loads((out_dir/'census.log').read_text())
 def scope_delta(v):
  """The scoped directories that are new since the validation.json at HEAD, each with its finding count."""
  r=subprocess.run(['git','-C',str(p),'show','HEAD:./validation.json'],capture_output=True,text=True)
@@ -66,6 +68,8 @@ def render(v):
  rows.append(('Whole-tree TM',str(w['total'])+' findings, '+str(w['suppressed'])+' suppressed ('+str(w['at_checkpoint_318'])+' at 318)'))
  g=v['ownership_graph']
  rows.append(('File-level ownership cycles',str(g['other_cycles'])+' ('+fmt(g['targeted_cycles'])+' targeted)'))
+ c=v.get('census')
+ if c: rows.append(('Change amplification','replace the evaluator '+str(c['replace_the_evaluator']['total_files'])+' files ('+str(c['replace_the_evaluator']['production']['files'])+' production in '+str(c['replace_the_evaluator']['production']['crates'])+' crates, '+str(c['replace_the_evaluator']['test']['files'])+' test); Operation exhaustive matches '+str(c['operation_exhaustive_matches']['files'])+' files in '+str(c['operation_exhaustive_matches']['crates'])+' crates; per-file fact '+str(c['per_file_fact_touch_points']['files'])+' files in '+str(c['per_file_fact_touch_points']['crates'])+' crates; cross-crate tests naming runtime internals '+str(c['cross_crate_tests_naming_runtime_internals']['files'])))
  rows+=[('Red test',x) for x in red_rows(v)]
  rows+=[('Not run test',x) for x in not_run_rows(v)]
  table=['| Check | Result |','|---|---|']+['| '+k+' | '+fmt(x).replace('|','\\|')+' |' for k,x in rows]
@@ -314,12 +318,91 @@ def write_block(text,v):
 def red_green_problems(v):
  """Each red_green entry must be {test, base_sha, merge_sha} with 40-hex shas."""
  return ['red_green entry '+str(n)+' is not {test, base_sha, merge_sha} with 40-hex shas' for n,x in enumerate(v.get('red_green',[])) if not (isinstance(x,dict) and set(x)=={'test','base_sha','merge_sha'} and isinstance(x['test'],str) and x['test'] and all(isinstance(x[s],str) and re.fullmatch('[0-9a-f]{40}',x[s]) for s in ('base_sha','merge_sha')))]
+CONSOLIDATION='origin/claude/ryo-consolidation'
+def git(repo,*args):
+ r=subprocess.run(['git','-C',str(repo),*args],capture_output=True,text=True)
+ return r.stdout if r.returncode==0 else None
+def checkpoint_base(repo):
+ """The previous landed head this checkpoint's diff is taken against: the merge base of HEAD and the consolidation branch, or None."""
+ base=git(repo,'merge-base','HEAD',CONSOLIDATION)
+ return base.strip() if base else None
+def is_test_file(path):
+ parts=path.split('/'); name=parts[-1]
+ return any(x in ('tests','test','fixtures','benches','benchmarks','examples') for x in parts[:-1]) or name in ('test.rs','tests.rs','fixtures.rs','test_hooks.py','run_test.py') or name.endswith(('_test.rs','_test.py')) or name.startswith('test_')
+def is_production(path):
+ """A Rust source or a harness hook that is not a test, fixture or bench: a change to it can change behaviour."""
+ return not is_test_file(path) and (path.endswith('.rs') or path.startswith('.claude/hooks/') and path.endswith('.py'))
+BEHAVIOUR=re.compile(r'^(fix|feat)(\([^)]*\))?!?:')
+NAMED_TEST=re.compile(r'\b(?:[a-z_][a-z0-9_]*::)+[a-z_][a-z0-9_]*\b|\btest_\w+|\b[a-z][a-z0-9]*(?:_[a-z0-9]+){3,}\b')
+def named_tests(message): return [t for t in NAMED_TEST.findall(message) if not t.startswith(('crates::','std::','self::','super::'))]
+def entry_logs(entry): return re.findall(r'[\w.-]+\.log\b',entry.get('test',''))
+def covered(repo,entry,ranges):
+ """The commits the red_green entry's range holds: in its merge sha and not in its base sha (read once per range)."""
+ key=(entry.get('base_sha',''),entry.get('merge_sha','')) if isinstance(entry,dict) else ('','')
+ if key not in ranges: ranges[key]=set((git(repo,'rev-list',key[0]+'..'+key[1]) or '').split()) if all(key) else set()
+ return ranges[key]
+def fix_problems(v,repo=None,base=None,head='HEAD'):
+ """Each fix or feat commit of the checkpoint that changes production code names a test in its message and lies in the range (base_sha, merge_sha] of a red_green entry whose `test` names its red and green logs, each present in the validation directory."""
+ repo=repo or p; base=base or checkpoint_base(repo)
+ if not base: return []
+ bad=[]; raw=Path(v.get('raw_identity') or '/nonexistent'); ranges={}
+ for sha in (git(repo,'rev-list','--no-merges',base+'..'+head) or '').split():
+  message=git(repo,'show','-s','--format=%B',sha) or ''
+  if not BEHAVIOUR.match(message): continue
+  files=(git(repo,'diff-tree','--no-commit-id','-r','--name-only',sha) or '').split()
+  if not any(is_production(f) for f in files): continue
+  short=sha[:10]+' '+message.splitlines()[0][:70]
+  if not named_tests(message): bad.append('fix '+short+': its message names no test that fails before it and passes after')
+  entries=[x for x in v.get('red_green',[]) if sha in covered(repo,x,ranges)]
+  if not entries: bad.append('fix '+short+': no red_green entry has it between its base_sha and merge_sha'); continue
+  if not any(entry_logs(x) and all((raw/l).is_file() for l in entry_logs(x)) for x in entries):
+   bad.append('fix '+short+': no red_green entry over it names its red and green logs present in '+str(raw))
+ return bad
+# The items the Rust API guidelines give an example (C-EXAMPLE); a `Sealed` supertrait is the seal, not API.
+ITEM=re.compile(r'^\s*pub\s+(?:const\s+|async\s+|unsafe\s+)*(fn|struct|enum|trait|type|union)\s+([A-Za-z_]\w*)')
+def published(repo,path,rev):
+ """The file's crate is published: its nearest Cargo.toml with a [package] does not say publish = false."""
+ crate=crate_dir(repo,path,rev)
+ return crate is not None and not re.search(r'(?m)^publish\s*=\s*false',git(repo,'show',rev+':'+crate+'/Cargo.toml'))
+CRATES={}
+def crate_dir(repo,path,rev):
+ """The directory of the file's nearest Cargo.toml with a [package], or None."""
+ parts=path.split('/'); key=(str(repo),rev,'/'.join(parts[:-1]))
+ if key not in CRATES:
+  CRATES[key]=None
+  for n in range(len(parts)-1,0,-1):
+   text=git(repo,'show',rev+':'+'/'.join(parts[:n])+'/Cargo.toml')
+   if text is not None and '[package]' in text: CRATES[key]='/'.join(parts[:n]); break
+ return CRATES[key]
+def doc_above(lines,at):
+ doc=[]; i=at-1
+ while i>=0 and (lines[i].strip().startswith(('///','#[','#!['))): doc.append(lines[i]); i-=1
+ return '\n'.join(doc)
+def doc_problems(repo=None,base=None,head='HEAD'):
+ """Each pub item a published crate gains in the checkpoint (declared pub nowhere in that crate at the base) has an `# Examples` section, and `# Errors` when it returns a Result."""
+ repo=repo or p; base=base or checkpoint_base(repo)
+ if not base: return []
+ bad=[]; olds={}
+ for path in (git(repo,'diff','--name-only','--diff-filter=AM',base,head,'--',':(top,glob)**/*.rs') or '').split():
+  if is_test_file(path) or '/src/' not in '/'+path or not published(repo,path,head): continue
+  crate=crate_dir(repo,path,head)
+  if crate not in olds: olds[crate]={m.groups() for m in map(ITEM.match,(git(repo,'grep','-h','-E',r'^\s*pub\s',base,'--',':(top)'+crate) or '').splitlines()) if m}
+  old=olds[crate]
+  lines=(git(repo,'show',head+':'+path) or '').splitlines()
+  for n,line in enumerate(lines):
+   m=ITEM.match(line)
+   if not m or m.groups() in old or m.groups()==('trait','Sealed'): continue
+   doc=doc_above(lines,n); where=path+':'+str(n+1)+' pub '+m.group(1)+' '+m.group(2)
+   if '# Examples' not in doc: bad.append(where+': no `# Examples` section')
+   signature=' '.join(lines[n:n+12]).split('{')[0].split(';')[0]
+   if m.group(1)=='fn' and re.search(r'->\s*(?:[\w:]+::)?Result\b',signature) and '# Errors' not in doc: bad.append(where+': returns a Result with no `# Errors` section')
+ return bad
 def finish(v):
  """Write the matrix numbers block from validation.json, print the scope delta, un-tick each ticked row that cites no test or a test the recorded logs do not prove, check each ticked row cites a validation and each rerun result names its raw log. Returns the exit code."""
  old=readme.read_text(); owners_changed,owner_bad=own(v,old); text=write_block(old,v)
  if owners_changed: validation_json.write_text(dumps({k:x for k,x in v.items() if k!='tests'})+'\n')
  for line in scope_delta(v): print(line)
- bad=list(owner_bad)+red_green_problems(v); texts=[]; changed=['validation.json'] if owners_changed else []
+ bad=list(owner_bad)+red_green_problems(v); diff=['FIX '+x for x in fix_problems(v)]+['DOC '+x for x in doc_problems()]; texts=[]; changed=['validation.json'] if owners_changed else []
  for part in sorted(contracts.glob('*.md')):
   before=old if part==readme else part.read_text(); body,unticked=untick_unproven(text if part==readme else before,v); where='' if part==readme else part.name+' '
   if body!=before: part.write_text(body); changed.append(part.name)
@@ -329,8 +412,40 @@ def finish(v):
  texts+=[('validation.json results '+k,OWNED.sub('',x['note'])) for k,x in v['results'].items() if isinstance(x,dict) and 'note' in x]
  bad+=reruns_without_log(texts,v)
  for line in bad: print('TICKED ROW '+line)
+ for line in diff: print(line)
  if changed: print('rewritten from validation.json (numbers block, un-ticked rows): '+', '.join(changed)+'; stage them')
- return 1 if bad or changed else 0
+ return 1 if bad or diff or changed else 0
+EVALUATOR='crates/execution_runtime/'
+STORE='crates/execution_store/'
+SEAM_PORTS={'DigestPort','DigestBytes','FactsPort','OperatorsPort','FactsError'}
+RUNTIME_INTERNALS=('FileRunInput','FileSession','FileInput','RanRule','RuleFile','SourceRows','FileRules','FileFinished','EmittedRoot','KindSupport','SemanticSupport','CaptureContext','RuleSelection','AdmittedInput','InputAdmissions','RelationOwner','InvocationWorkspace')
+PER_FILE_FACT=re.compile(r'binding_read|binding-read|BindingRead')
+def census_production(path):
+ """A production source of the product: under crates/*/src, cli/src or languages/*/src, and no test, fixture, bench, benchmark or acceptance file."""
+ parts=path.split('/')
+ return bool(re.match(r'(crates/[^/]+/src|cli/src|languages/[^/]+/src)/',path)) and not (path.endswith('_test.rs') or parts[-1]=='test.rs' or any(x.startswith('fixtures') or x in ('tests','benches','benchmarks') or 'acceptance' in x for x in parts))
+def census_crate(path): return path.split('/')[0] if path.startswith('cli/') else '/'.join(path.split('/')[:2])
+def census(product):
+ """Change-amplification counts over the product's tracked Rust files, read statically: what a change of each kind must touch outside its owner."""
+ files=(git(product,'ls-files','*.rs') or '').split()
+ text={f:(Path(product)/f).read_text(errors='replace') for f in files}
+ prod=[f for f in files if census_production(f)]
+ declared=re.compile(r'\bpub (?:struct|enum|trait|type) ([A-Z]\w*)')
+ home={n for f in prod if f.startswith(EVALUATOR) for n in declared.findall(text[f])}
+ vocabulary=home-{n for f in files if not f.startswith(EVALUATOR) for n in declared.findall(text[f])}-{'Demand'}
+ named=re.compile(r'\b(?:'+'|'.join(map(re.escape,sorted(vocabulary|SEAM_PORTS)))+r')\b')
+ evaluator=[f for f in files if not f.startswith(EVALUATOR) and (set(named.findall(text[f]))-SEAM_PORTS or 'ryo_execution_runtime' in text[f])]
+ ev_prod=[f for f in evaluator if f in prod]; ev_test=[f for f in evaluator if f not in prod]
+ operation=re.compile(r'\bOperation::([A-Z]\w*)')
+ exhaustive=[f for f in prod if len(set(operation.findall(text[f])))>=8]
+ fact=[f for f in prod if PER_FILE_FACT.search(text[f])]
+ internals=re.compile(r'\b(?:'+'|'.join(RUNTIME_INTERNALS)+r')\b')
+ tests=[f for f in files if not census_production(f) and ('/tests/' in f or f.endswith(('_test.rs','/test.rs')))]
+ leaking=[f for f in tests if not f.startswith((EVALUATOR,STORE)) and internals.search(text[f])]
+ count=lambda fs:{'files':len(fs),'crates':len({census_crate(f) for f in fs})}
+ return {'replace_the_evaluator':{'production':count(ev_prod),'test':count(ev_test),'total_files':len(evaluator),'vocabulary':len(vocabulary)},
+  'operation_exhaustive_matches':count(exhaustive),'per_file_fact_touch_points':count(fact),'cross_crate_tests_naming_runtime_internals':count(leaking)}
+if __name__=='__main__' and sys.argv[1:]==['--census']: print(json.dumps(census(p.parents[3]),indent=1)); sys.exit(0)
 if __name__=='__main__' and sys.argv[1:]==['--check']: sys.exit(finish(dict(json.loads(validation_json.read_text()),tests=loaded(json.loads(tests_json.read_text())) if tests_json.exists() else {})))
 def validate():
  """Runs every command of commands.json at a frozen head, records its results and tests, and checks the matrix."""
