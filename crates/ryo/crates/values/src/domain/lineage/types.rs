@@ -55,21 +55,3 @@ pub enum KeyPairing {
     /// No key proves that the rows it matches come from one file.
     Unproven,
 }
-
-/// Whether a value of a kind names the file it lies in, so the file can be read from the value itself.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_relations::domain::relations::types::CellKind;
-/// use ryo_values::domain::lineage::{service::naming_of, types::FileNaming};
-/// assert_eq!(naming_of(CellKind::Node), FileNaming::Named);
-/// assert_eq!(naming_of(CellKind::Span), FileNaming::Unnamed);
-/// ```
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum FileNaming {
-    /// The value is a file, or a node, whose number holds its file.
-    Named,
-    /// The value holds no file: a span is a place in its row's file but does not say which.
-    Unnamed,
-}

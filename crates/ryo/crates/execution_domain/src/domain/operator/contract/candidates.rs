@@ -7,7 +7,7 @@ use super::types::{FoundRows, PrimitiveResources};
 use super::views::{JoinCursor, NativeCursor, NativeJoin, Started};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_cells::service::{find_native, tree_value};
-use crate::domain::table_model::types::{RepresentationInput, Verdict};
+use crate::domain::table_model::types::Verdict;
 use ryo_operators::domain::contract::types::{FirstOccurrence, RowDriver};
 use ryo_operators::domain::equality_join::errors::EqualityJoinError;
 use ryo_operators::domain::equality_join::types::{Advance, JoinDriver, JoinEvaluation};
@@ -15,7 +15,7 @@ use ryo_operators::domain::set_rows::errors::SetRowsError;
 use ryo_operators::domain::set_rows::types::{
     RightMembership, RightPopulation, SetRowDriver, SetRowsEvaluation,
 };
-use ryo_relations::domain::relations::types::{CellKind, Position, Value};
+use ryo_relations::domain::relations::types::{Position, Value};
 use ryo_values::domain::plan_parts::types::{ColumnIndex, InputNumber};
 use ryo_values::domain::plans::types::Operation;
 
@@ -127,13 +127,6 @@ impl JoinDriver for LeaseDriver<'_, '_> {
             self.join
                 .current
                 .and_then(|at| self.join.index?.rows.cell(at, column))
-        }
-    }
-    fn right_kinds(&self) -> &[CellKind] {
-        if let Some(native) = self.join.native {
-            RepresentationInput::Tree(native.tree).kinds()
-        } else {
-            self.join.index.map_or(&[], |index| index.rows.kinds())
         }
     }
     fn emit(&mut self, row: &[Value]) -> Result<(), EqualityJoinError> {

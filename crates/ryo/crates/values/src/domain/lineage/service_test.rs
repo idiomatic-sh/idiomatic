@@ -1,6 +1,6 @@
 //! The `lineage` service's cases: which steps keep their rows in one file, and which of their columns lie in it.
-use super::service::{anchor_of, naming_of, of_step, one_file, pairing};
-use super::types::{ColumnAnchor, FileNaming, KeyPairing, Lineage};
+use super::service::{anchor_of, of_step, one_file, pairing};
+use super::types::{ColumnAnchor, KeyPairing, Lineage};
 use ryo_relations::domain::relations::types::CellKind;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::plan_parts::types::{
@@ -17,9 +17,9 @@ enum Scenario {
     AJoinKeyedByFileKeepsItsRowsInOneFile,
     /// A join on a byte offset may combine the rows of two files.
     AJoinOnAByteOffsetMayCombineTwoFiles,
-    /// A span is a place in its row's file, so a join keyed by spans pairs rows of one file; but it names no file, so a count
-    /// keyed by spans, or the distinct rows of spans alone, may merge equal spans of two files.
-    AJoinKeyedBySpansPairsRowsOfOneFile,
+    /// A span holds no file, so a join keyed by spans alone may combine the rows of two files, and a key pairs a file of one
+    /// operand only with the file of the other at the same position.
+    AJoinKeyedBySpansAloneMayCombineTwoFiles,
     /// A join with a hosted relation holding no file, whose answer takes every file and node column from the other operand,
     /// keeps that operand's rows in their file; one taking a file or node column of each operand does not.
     AJoinTakingEveryFileColumnFromOneOperandKeepsItsFile,
@@ -96,56 +96,34 @@ fn subject(input: Input) {
             ),
             Lineage::Mixed
         ),
-        Scenario::AJoinKeyedBySpansPairsRowsOfOneFile => {
-            assert_eq!(anchor_of(CellKind::Span), InFile);
-            assert_eq!(naming_of(CellKind::Span), FileNaming::Unnamed);
-            let spans = one_file(&[CellKind::Span, CellKind::Number]);
+        Scenario::AJoinKeyedBySpansAloneMayCombineTwoFiles => {
+            assert_eq!(anchor_of(CellKind::Span), Elsewhere);
+            let spans = one_file(&[CellKind::Span, CellKind::File]);
             assert_eq!(
                 pairing(&spans, &[ColumnIndex(0)], &spans, &[ColumnIndex(0)], &[]),
-                KeyPairing::SameFile,
-                "equal spans of two files do not meet"
-            );
-            assert_eq!(
-                pairing(&spans, &[ColumnIndex(1)], &spans, &[ColumnIndex(1)], &[]),
                 KeyPairing::Unproven,
-                "equal numbers of two files meet"
+                "equal spans of two files are equal"
             );
             assert_eq!(
-                of_step(
-                    &Operation::GroupCount {
-                        from: PlanInput::Step(StepId(0)),
-                        keys: vec![ColumnIndex(0)],
-                        distinct: None,
-                    },
-                    std::slice::from_ref(&spans),
-                    &[CellKind::Span, CellKind::Number]
+                pairing(
+                    &spans,
+                    &[ColumnIndex(1), ColumnIndex(0)],
+                    &spans,
+                    &[ColumnIndex(0), ColumnIndex(1)],
+                    &[]
                 ),
-                Lineage::Mixed,
-                "a count merges equal spans of two files"
+                KeyPairing::Unproven,
+                "a file paired with a span proves nothing"
             );
-            let distinct = |columns: Vec<ColumnIndex>| Operation::Project {
-                from: PlanInput::Step(StepId(0)),
-                columns,
-                distinct: crate::domain::plan_parts::types::RepeatedRows::Dropped,
-            };
             assert_eq!(
-                of_step(
-                    &distinct(vec![ColumnIndex(0)]),
-                    std::slice::from_ref(&spans),
-                    &[CellKind::Span]
+                pairing(
+                    &spans,
+                    &[ColumnIndex(0), ColumnIndex(1)],
+                    &spans,
+                    &[ColumnIndex(0), ColumnIndex(1)],
+                    &[]
                 ),
-                columns(&[Elsewhere]),
-                "the distinct spans of two files merge"
-            );
-            let located = one_file(&[CellKind::Span, CellKind::File]);
-            assert_eq!(
-                of_step(
-                    &distinct(vec![ColumnIndex(0), ColumnIndex(1)]),
-                    std::slice::from_ref(&located),
-                    &[CellKind::Span, CellKind::File]
-                ),
-                columns(&[InFile, InFile]),
-                "a file kept beside the span keeps the files apart"
+                KeyPairing::SameFile
             );
         }
         Scenario::AJoinTakingEveryFileColumnFromOneOperandKeepsItsFile => {
@@ -268,9 +246,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(()),
     },
     Case {
-        name: CaseName("a_join_keyed_by_spans_pairs_rows_of_one_file"),
+        name: CaseName("a_join_keyed_by_spans_alone_may_combine_two_files"),
         word: Word::Succeeds,
-        input: || Scenario::AJoinKeyedBySpansPairsRowsOfOneFile,
+        input: || Scenario::AJoinKeyedBySpansAloneMayCombineTwoFiles,
         expect: Expect::Value(()),
     },
     Case {

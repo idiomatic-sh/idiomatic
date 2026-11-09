@@ -5,8 +5,8 @@ use crate::domain::completion::service::{
     after_select, any_of, lacks_of, partial_any, partial_of_lacks, remapped,
 };
 use crate::domain::completion::types::{CoverageState, FileLacks, MissingRows};
-use ryo_values::domain::lineage::service::{anchor_at, anchor_through, naming_of, pairing};
-use ryo_values::domain::lineage::types::{ColumnAnchor, FileNaming, KeyPairing};
+use ryo_values::domain::lineage::service::{anchor_at, anchor_of, anchor_through, pairing};
+use ryo_values::domain::lineage::types::{ColumnAnchor, KeyPairing};
 use crate::domain::operating::errors::OperatingError;
 use ryo_relations::domain::relations::types::FileId;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn};
@@ -62,7 +62,7 @@ fn proven_by_lineage(
         return Proof::Unproven;
     }
     let anchored = output.iter().zip(output_kinds).all(|(column, kind)| {
-        naming_of(*kind) != FileNaming::Named
+        anchor_of(*kind) != ColumnAnchor::InFile
             || match column.side {
                 Side::Left => anchor_at(left, column.column),
                 Side::Right => anchor_through(right, view, column.column),
@@ -109,7 +109,7 @@ fn transported(
         (right_on, left_on)
     };
     let anchored = output.iter().zip(output_kinds).all(|(column, kind)| {
-        if naming_of(*kind) != FileNaming::Named {
+        if anchor_of(*kind) != ColumnAnchor::InFile {
             return true;
         }
         if column.side == own_side {
@@ -140,7 +140,7 @@ pub fn output_coverage(
 ) -> Result<CoverageState, OperatingError> {
     use ryo_relations::domain::relations::types::CellKind;
     use ryo_values::domain::{plan_parts::types::Side, plans::types::Operation};
-    let file_kind = |kind: CellKind| naming_of(kind) == FileNaming::Named;
+    let file_kind = |kind: CellKind| anchor_of(kind) == ColumnAnchor::InFile;
     let mut affected = Vec::new();
     let mut inapplicable = Vec::new();
     for input in inputs {
@@ -377,7 +377,7 @@ pub fn ordered_output_coverage(
     source: &InputCoverage<'_>,
 ) -> CoverageState {
     use ryo_relations::domain::relations::types::CellKind;
-    let file_kind = |kind: CellKind| naming_of(kind) == FileNaming::Named;
+    let file_kind = |kind: CellKind| anchor_of(kind) == ColumnAnchor::InFile;
     if !output_kinds.iter().copied().any(file_kind)
         || partition.iter().any(|column| {
             source

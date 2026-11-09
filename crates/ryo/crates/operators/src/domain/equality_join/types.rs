@@ -7,8 +7,7 @@ use super::errors::EqualityJoinError;
 pub trait JoinDriver {
     /// Advance to the next admitted match for this left key. Every yielded candidate
     /// must satisfy the prepared equality or native lookup contract; the kernel does
-    /// not repeat verified key comparisons, and itself drops a candidate a span key
-    /// matched in another file. Empty sources never access output cells.
+    /// not repeat verified key comparisons. Empty sources never access output cells.
     fn next(
         &mut self,
         key: &[ryo_relations::domain::relations::types::Value],
@@ -18,31 +17,11 @@ pub trait JoinDriver {
         &self,
         column: ryo_values::domain::plan_parts::types::ColumnIndex,
     ) -> Option<ryo_relations::domain::relations::types::Value>;
-    /// The kinds of the right rows' columns, as `right_cell` numbers them: the kernel reads the
-    /// file of a candidate a span key matched from them.
-    fn right_kinds(&self) -> &[ryo_relations::domain::relations::types::CellKind];
     /// Deliver one projected row. After interruption every later call must remain interrupted.
     fn emit(
         &mut self,
         row: &[ryo_relations::domain::relations::types::Value],
     ) -> Result<(), EqualityJoinError>;
-}
-
-/// The file a row is of, by its first file or node cell.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_operators::domain::equality_join::types::RowFile;
-/// use ryo_relations::domain::relations::types::FileId;
-/// assert_ne!(RowFile::Named(FileId(0)), RowFile::Unnamed);
-/// ```
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum RowFile {
-    /// The row names this file.
-    Named(ryo_relations::domain::relations::types::FileId),
-    /// The row holds no file or node, so it names no file.
-    Unnamed,
 }
 
 /// Ordinary Join representations. Dispatch is exhaustive at the single capability boundary.

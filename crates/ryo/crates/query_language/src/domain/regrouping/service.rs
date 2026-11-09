@@ -29,8 +29,8 @@ use ryo_values::domain::plans::types::PlanStep;
 /// input, made two joins: the two per-file inputs joined in each file, and the join's other input joined with that after the files.
 /// `Join(Join(C, P1, k1), P2, k2)`, with every column of `k2` a column of `P1` and `k2` pairing a column of each side that states its row's file,
 /// becomes `Join(C, Join(P1, P2, k2), k1)`: a file hands over the rows of `P1` and `P2` that meet, not every row of each. Joins are
-/// associative, and every pair `k2` matches is of one file, so the rows and their columns are the same. A key of spans states its
-/// row's file, as a join on spans pairs rows of one file only. Done again on the join it makes, so a chain of such joins is made in
+/// associative, and every pair `k2` matches is of one file, so the rows and their columns are the same. A key of spans alone states
+/// no file and leaves the join as it is. Done again on the join it makes, so a chain of such joins is made in
 /// each file down to its first input from after the files.
 #[must_use]
 pub(crate) fn regroup_joins(steps: Vec<PlanStep>, mut emitted: StepId) -> Planned {
@@ -235,7 +235,7 @@ fn regrouped_on(
         })
         .collect::<Option<Vec<_>>>()?;
     // Rows of two files could meet on the inner join's keys unless they pair, at one position, a column of each input that states its
-    // row's file, a span among them: a join on spans pairs rows of one file only.
+    // row's file: a key of spans alone states none, since equal spans of two files are equal.
     let local_lineage = file_lineage(steps, memo, split.local);
     let other_lineage = file_lineage(steps, memo, other);
     if pairing(
