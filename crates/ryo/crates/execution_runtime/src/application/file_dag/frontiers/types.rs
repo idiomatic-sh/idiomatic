@@ -1,3 +1,4 @@
+// ignore: idiomatic.arch/file-length - the frontier part's own types: the cache, decodes, readiness proof and providers are the values its one preparation operation builds and hands on, and the application-service spec places one types.rs per part
 //! Whether this phase owns a coordinator-reserved publication arena.
 #[derive(Clone, Copy, Debug)]
 pub enum PublicationSlot {

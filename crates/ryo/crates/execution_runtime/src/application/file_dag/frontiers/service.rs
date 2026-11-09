@@ -1,3 +1,4 @@
+// ignore: idiomatic.arch/file-length - the one preparation operation of the frontier part: prepare, its admissions and bucket validation and the cache it fills run as one sequence over the same request, and the spec places one service.rs per part
 //! One compact admission operation for diagnostic and observed project phases.
 //! Store reads and name/spelling preparation keep their existing eager order;
 //! row-cell allocation belongs to the shared executable invocation owner.

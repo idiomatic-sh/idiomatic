@@ -1,3 +1,4 @@
+// ignore: idiomatic.arch/file-length - one concept's rules: the type of an expression is decided from its operators and operands in one recursive classification, so the operator tables and the classification read each other
 //! One bottom-up pass for basic expression-type classification.
 use crate::domain::{
     expression_types::types::{

@@ -1,3 +1,4 @@
+// ignore: idiomatic.arch/file-length - the parse use case's one dispatch: each generic engine function and the dyn-engine entry the SDK re-exports for it are the same operation, so the pairs stay together
 //! Drive a provider's parse contract, then dispatch each requested relation through its own reader.
 //! The table is traversed once; optional capability promises gate both absence answers and reads.
 

@@ -1,3 +1,4 @@
+// ignore: idiomatic.arch/file-length - one application operation: verify runs require_authority and verify_context over the same suite and store ports, so they are its steps, not sibling services (which may not call each other) nor pure domain rules
 //! Enumerate every registered default, invoke the existing verifier, and retain every result.
 use super::constants;
 use crate::domain::suite::types::inventory::value::{

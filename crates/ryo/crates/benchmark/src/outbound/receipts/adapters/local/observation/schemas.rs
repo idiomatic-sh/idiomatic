@@ -1,3 +1,4 @@
+// ignore: idiomatic.arch/file-length - the wire schema of one document, the native observation row: every struct and enum here is a field of that one serde document, and the adapter places one schemas.rs beside it
 //! The native receipt row: read back by the inventory and written by the case observer.
 //! Unknown fields are refused; the documents are a contract.
 use crate::outbound::receipts::errors::ReceiptsError;
