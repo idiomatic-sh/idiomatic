@@ -21,6 +21,7 @@ BUILDERS_AUTHOR = ("Builders author; the integrator compiles. cargo builds only 
                    "(branch claude/checkpoint-N); builders may run " + CHECK_FORM + ", and " + TEST_FORM)
 COMMENT = re.compile(r"(^|\s)#.*$", re.MULTILINE)
 CONSOLIDATION = "claude/ryo-consolidation"
+PROTECTED = ("main", "master")
 EVIDENCE_ROOT = "crates/ryo/docs/contracts/evidence/"
 EVIDENCE = EVIDENCE_ROOT + "checkpoint/"
 RUST_REVIEW = EVIDENCE + "rust-review.json"
@@ -473,7 +474,7 @@ def service_ids(review):
 
 
 def bulk_push(words, here):
-    """git push --all / --mirror would push refs no gate has looked at; this repository refuses them."""
+    """git push --all / --mirror would push refs no gate has looked at, and main is the owner's; this repository refuses them."""
     push = git_verb(words, "push")
     if push is not None and any(a in ("--all", "--mirror", "--branches") for a in push[1]):
         return "git push --all/--mirror/--branches pushes refs no gate checked; push each branch by name"
@@ -482,6 +483,10 @@ def bulk_push(words, here):
             if SHELL_EXPANDED.search(operand) or operand.lstrip("+") == ":":
                 return ("git push operand " + operand + " is shell-expanded, a pattern or the matching refspec; "
                         "write the branch name")
+        tree = os.path.join(here, push[0]) if push[0] else here
+        for _, _, destination in push_targets(tree, push):
+            if destination in PROTECTED:
+                return "git push to " + destination + " is refused: agents push claude/* branches only; the owner merges"
     return None
 
 

@@ -160,6 +160,15 @@ class GuardShell(unittest.TestCase):
             with self.subTest(command=command):
                 self.assertEqual(shell(command, self.builder), 2)
 
+    def test_a_push_to_main_is_refused_in_every_spelling(self):
+        main = repo(self.dir.name, "on-main", "main")
+        for command, where in [("git push origin main", self.builder), ("git push origin HEAD:refs/heads/main", self.builder),
+                               ("git push -u origin +HEAD:master", self.builder), ("git push", main), ("git push origin HEAD", main),
+                               ("git -C " + main + " push origin", self.builder)]:
+            with self.subTest(command=command, where=where):
+                self.assertEqual(shell(command, where), 2)
+        self.assertEqual(shell("git push origin claude/p1-coverage-kinds", self.builder), 0)
+
     def test_integration_tree_nextest_needs_the_lock(self):
         self.assertEqual(shell(LOCK + "cargo nextest run --workspace", self.integration), 0)
         self.assertEqual(shell("cargo nextest run --workspace", self.integration), 2)
