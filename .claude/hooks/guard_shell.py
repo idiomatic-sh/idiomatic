@@ -377,32 +377,51 @@ def review_shape(review, reviewer):
     return validated(lambda module: module.shape(review, reviewer))
 
 
+def dropped_candidates(tree, head, sha, name):
+    """The candidate ids some version of name (at head, then every commit touching it up to sha) had that a later
+    version lacks; a version where the file is absent has none."""
+    versions = [head] + git_out(tree, "log", "--full-history", "--reverse", "--format=%H", head + ".." + sha,
+                                "--", name)[1].split()
+    seen, dropped = set(), []
+    for version in versions:
+        code, text = git_out(tree, "show", version + ":" + name)
+        try:
+            ids = set(service_ids(json.loads(text))) if code == 0 else set()
+        except ValueError:
+            ids = set()
+        dropped += [i for i in sorted(seen - ids) if i not in dropped]
+        seen |= ids
+    return dropped
+
+
 def candidate_problem(tree, sha, head, leak):
     """The refusal text when the leak-review.json (parsed) or a branch result carries candidates the previous
     checkpoint's tm-steward.json did not decide, else None. Candidates come from that checkpoint's leak-review.json
     and the evidence/branches/*.json files added or modified since the previous landed head; decisions never carry forward."""
     reviews = [(EVIDENCE + "leak-review.json", leak)]
     code, listing = git_out(tree, "diff", "--name-status", "--no-renames", head + ".." + sha, "--", MERGE_BRANCHES)
+    changed = {}
     for line in (listing.split("\n") if code == 0 else []):
         status, _, name = line.partition("\t")
-        if status not in ("A", "M") or not name.endswith(".json"):
+        changed[name] = status
+    # every path touched in the range, so a file added and deleted inside the checkpoint still counts its candidates
+    code, touched = git_out(tree, "log", "--full-history", "--no-renames", "--name-only", "--format=", head + ".." + sha,
+                            "--", MERGE_BRANCHES)
+    for name in sorted(set(touched.split("\n")) | set(changed)):
+        if not name.endswith(".json"):
+            continue
+        dropped = dropped_candidates(tree, head, sha, name)
+        if dropped:
+            return (name + " drops enforcement candidate " + ", ".join(dropped) + " of an earlier version in this "
+                    "checkpoint (a deleted or renamed branch file drops them all); candidates are append-only: "
+                    "carry each forward with instance_status fixed or open")
+        if changed.get(name) not in ("A", "M"):
             continue
         code, text = git_out(tree, "show", sha + ":" + name)
         try:
             reviews.append((name, json.loads(text)))
         except ValueError:
             return name + " at " + sha[:10] + " is not JSON"
-        if status == "M":
-            code, before = git_out(tree, "show", head + ":" + name)
-            try:
-                earlier = service_ids(json.loads(before)) if code == 0 else {}
-            except ValueError:
-                earlier = {}
-            now = service_ids(reviews[-1][1])
-            dropped = [i for i in earlier if i not in now]
-            if dropped:
-                return (name + " drops enforcement candidate " + ", ".join(dropped) + " of its earlier version; "
-                        "candidates are append-only: carry each forward with instance_status fixed or open")
     ids, plants = [], {}
     for name, review in reviews:
         if isinstance(review, dict) and "enforcement_candidates" in review:
