@@ -273,9 +273,9 @@
       "note": "new at 332 (claude/w13-bench-parity): full Django, all 413 rules, ryo against ruff 0.16.5: 412 identical of 413, 0 unaccepted (FURB122: 3 extra findings, accepted); staged digest 1a9cf788; evidence/parity/django-413/per-rule.json is this run's output, in the tool's form (each agreeing rule as its count under identical)"
     },
     "tastemaker_workspace": {
-      "passed": 263,
-      "failed": 5,
-      "note": "Rust gate B6, new at 332: cargo test --workspace --all-features in crates/tastemaker at 0f2fa35a12 (gatefix_tastemaker_workspace.log; the bdd scenarios all pass). Attributed by rerunning the failures with the tm-import-reading branch's core changes reversed (gatefix_tastemaker_without_tm_branch.log) and with crates/tastemaker and tastemaker/ at 331 (gatefix_tastemaker_at_331.log). From the tm-import-reading branch, red only with its core changes: core reporting service_test succeeds (0 findings where 1 is expected) and replay check::checking_crates_ryo_cold_stays_under_its_memory_guard (4,491,136 KiB against 1,331,200). The go/api samples rows (inside_a_repository, as_a_repository_of_its_own) were red through the local ryo crates the patch links: an edited file read alone on an edit run was numbered by its place among the changed files, not in the run's listing, so its filesystem.file row carried another file's path (a contract rendering); claude/w14-t611 numbers it by its place in the run's listing and keeps a file's part read in part as its own. Both are green on 2c94c8e3d5 in a rerun (t611_green_samples.log; red without its production hunks, t611_red_samples.log), so 263 / 5. Red at 331 too: replay scaffold a_captured_nested_item_is_written_and_held, scaffold a_fresh_language_compiles_and_lacks_no_part, validate validating_the_repository_s_definitions_stays_within_its_bounds; owned by \"Close full TM, contracts, independent review and normal CI.\""
+      "passed": 264,
+      "failed": 4,
+      "note": "Rust gate B6, new at 332: cargo test --workspace --all-features in crates/tastemaker at 0f2fa35a12 (gatefix_tastemaker_workspace.log; the bdd scenarios all pass). Attributed by rerunning the failures with the tm-import-reading branch's core changes reversed (gatefix_tastemaker_without_tm_branch.log) and with crates/tastemaker and tastemaker/ at 331 (gatefix_tastemaker_at_331.log). From the tm-import-reading branch at 0f2fa35a12: core reporting service_test succeeds (0 findings where 1 is expected) and the replay cold check of crates/ryo under its memory guard (4,491,136 KiB against 1,331,200). Its repair (96b5545cb8, merge 69caa24a4e) reads import scopes only from the blocks that hold a use and inline modules and keeps an import that binds no name: reporting is green, and the memory guard stays red at 4,402,760 KiB, the project phase's row retention (the item \"Project phase retains 2 GB of rows on a cold tm check of crates/ryo\"), not the import reading. Rerun on 69caa24a4e: 264 / 4 (tastemaker_workspace_69caa24a4e.log). The go/api samples rows (inside_a_repository, as_a_repository_of_its_own) were red through the local ryo crates the patch links: an edited file read alone on an edit run was numbered by its place among the changed files, not in the run's listing, so its filesystem.file row carried another file's path (a contract rendering); claude/w14-t611 numbers it by its place in the run's listing and keeps a file's part read in part as its own. Both are green on 2c94c8e3d5 in a rerun (t611_green_samples.log; red without its production hunks, t611_red_samples.log), so 263 / 5. Red at 331 too: replay scaffold a_captured_nested_item_is_written_and_held, scaffold a_fresh_language_compiles_and_lacks_no_part, validate validating_the_repository_s_definitions_stays_within_its_bounds; owned by \"Close full TM, contracts, independent review and normal CI.\""
     }
   },
   "ownership_graph": {
@@ -292,7 +292,7 @@
   "validation": 332,
   "raw_identity": "/tmp/ryo-contract-validation332",
   "tm_whole_tree": {
-    "command": "tm --root crates/ryo check --format json with tm 0.1.2 built from 0f2fa35a12 (the merge of claude/w14-tm-import-reading; sha256 4f65931a), the version crates/ryo pins after that merge (no --fix), run on 883f0d6dd6",
+    "command": "tm --root crates/ryo check --format json with tm 0.1.2 built from 69caa24a4e (sha256 3c1f1608), the version crates/ryo pins (no --fix), run on 5b9555b1a0, where the t611 fixture that grew past file-length is split",
     "total": 2,
     "suppressed": 13,
     "at_checkpoint_318": 3676,
@@ -301,7 +301,7 @@
     "per_crate": {"docs/contracts": 2},
     "module_cycles_findings": 0,
     "no_domain_concept_cycles_findings": 0,
-    "tm_validate": "crates/ryo: 241 versions hold, 0 do not (tm 0.1.2); repository root: 224 hold, 0 do not (tm 0.1.0); rerun at 883f0d6dd6, gatefix_tm_validate_all.log",
+    "tm_validate": "crates/ryo: 241 versions hold, 0 do not (tm 0.1.2); repository root: 224 hold, 0 do not (tm 0.1.0); rerun at 69caa24a4e, tm_validate_69caa24a4e.log",
     "unknown_findings": 0,
     "note": "1,467 under tm 0.1.1 at 7fd2dbf1f5, 1,464 of them false #imports findings of its import reading; tm 0.1.2 reads a use-site path through the import that binds it in scope, and they are gone. At the merge tm 0.1.2 gave 4: 2 provider-imports findings on a real use of std::sync::atomic in the python fixture module_identity_only/mod.rs, which 332 split out; the providers already count with std::sync::atomic, so the allow list admits it (883f0d6dd6). The 2 left are in untracked reviewer drafts under evidence/branches/, not in the validated source."
   },
@@ -372,6 +372,15 @@
     {"test": "core inbound::use_cases::lint::use_case_test::lifecycle::test::succeeds", "base_sha": "36e415bdb9b1c4b179260a3fd3c91eadb1693c61", "merge_sha": "2c94c8e3d50a94d0e8b1c149acaba5f07a5d9361"},
     {"test": "tastemaker replay samples::each_row_of_each_sample_is_fixed_and_restored_inside_a_repository", "base_sha": "36e415bdb9b1c4b179260a3fd3c91eadb1693c61", "merge_sha": "2c94c8e3d50a94d0e8b1c149acaba5f07a5d9361"},
     {"test": "tastemaker replay samples::each_row_of_each_sample_is_fixed_and_restored_as_a_repository_of_its_own", "base_sha": "36e415bdb9b1c4b179260a3fd3c91eadb1693c61", "merge_sha": "2c94c8e3d50a94d0e8b1c149acaba5f07a5d9361"},
-    {"test": "tastemaker go/api edit run after the Naming convention fix reports only scripts/seed.go for top-level-directories", "base_sha": "36e415bdb9b1c4b179260a3fd3c91eadb1693c61", "merge_sha": "2c94c8e3d50a94d0e8b1c149acaba5f07a5d9361"}
+    {"test": "tastemaker go/api edit run after the Naming convention fix reports only scripts/seed.go for top-level-directories", "base_sha": "36e415bdb9b1c4b179260a3fd3c91eadb1693c61", "merge_sha": "2c94c8e3d50a94d0e8b1c149acaba5f07a5d9361"},
+    {"test": "tastemaker-core domain::import_rows::service_test::succeeds row a_path_in_an_inline_module_sees_no_import_written_outside_it", "base_sha": "e196dbe50300fb85144bc19da48d3f81b507acde", "merge_sha": "69caa24a4efbe63de78f5ecc298e83fba51d9cd2"},
+    {"test": "tastemaker-core domain::import_rows::service_test::succeeds row a_path_outside_the_block_of_an_import_sees_no_binding_of_it", "base_sha": "e196dbe50300fb85144bc19da48d3f81b507acde", "merge_sha": "69caa24a4efbe63de78f5ecc298e83fba51d9cd2"},
+    {"test": "tastemaker-core domain::import_rows::service_test::succeeds row a_path_outside_the_inline_module_of_an_import_sees_no_binding_of_it", "base_sha": "e196dbe50300fb85144bc19da48d3f81b507acde", "merge_sha": "69caa24a4efbe63de78f5ecc298e83fba51d9cd2"},
+    {"test": "tastemaker-core domain::import_rows::service_test::succeeds row a_path_at_a_use_site_through_a_name_an_import_binds_is_that_imports", "base_sha": "f67311c99057245e20ae4ed0da490bf4ee39e885", "merge_sha": "69caa24a4efbe63de78f5ecc298e83fba51d9cd2"},
+    {"test": "tastemaker-core domain::import_rows::service_test::succeeds row a_path_in_the_inline_module_of_an_import_is_that_imports", "base_sha": "f67311c99057245e20ae4ed0da490bf4ee39e885", "merge_sha": "69caa24a4efbe63de78f5ecc298e83fba51d9cd2"},
+    {"test": "tastemaker-core domain::import_rows::service_test::succeeds row an_inline_module_that_ends_before_a_path_does_not_shut_it_from_an_import", "base_sha": "f67311c99057245e20ae4ed0da490bf4ee39e885", "merge_sha": "69caa24a4efbe63de78f5ecc298e83fba51d9cd2"},
+    {"test": "tastemaker-core domain::import_rows::service_test::succeeds row a_path_in_the_block_of_an_import_is_that_imports", "base_sha": "f67311c99057245e20ae4ed0da490bf4ee39e885", "merge_sha": "69caa24a4efbe63de78f5ecc298e83fba51d9cd2"},
+    {"test": "tastemaker-core domain::import_rows::service_test::succeeds row an_import_that_binds_no_name_is_kept_and_a_path_is_never_its", "base_sha": "f1c9e1c968d443ca0334182c40eacd0eb96a9d8d", "merge_sha": "69caa24a4efbe63de78f5ecc298e83fba51d9cd2"},
+    {"test": "tastemaker-core application::reporting::service_test::succeeds", "base_sha": "0f2fa35a1230599c4e2556a7b116c407b1bd8dad", "merge_sha": "69caa24a4efbe63de78f5ecc298e83fba51d9cd2"}
   ]
 }
