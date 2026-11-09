@@ -12,7 +12,7 @@ The brief starts with `BEAD: <id>` and `WORKTREE: <path>`; a brief without both 
 ## Checks you run
 - `tm` over your scope, continuously.
 - The package-scoped check of your crate into the check-only target, `/workspaces/idiomatic-check-target/<worktree name>`; a crate move also checks every dependent crate with all targets and features.
-- **Your own crate's tests**: `flock /workspaces/.cargo-build.lock cargo nextest run -p <your crate> --target-dir /workspaces/idiomatic-target/<worktree name>`, and the same with `cargo test -p <your crate> --doc` for doctests. The guard hook allows exactly this; workspace-wide tests, builds and clippy are the integrator's.
+- **Your own crate's tests**: `flock /workspaces/.cargo-build.lock cargo nextest run -p <your crate> --target-dir /workspaces/idiomatic-target/<worktree name>`, and the same with `cargo test -p <your crate> --doc` for doctests. The guard hook allows exactly this: `flock` with the build lock directly before cargo, one `-p` naming a package this branch changes (no pattern), and this worktree's own target; workspace-wide tests, other packages' tests, builds, clippy and every other cargo verb are the integrator's.
 - `python3 crates/ryo/docs/contracts/evidence/checkpoint/run.py --check` for its `DOC` lines on your diff: every new `pub` item of a published crate has `# Examples`, and `# Errors` when it returns a `Result`.
 
 ## Tests
