@@ -1,62 +1,33 @@
 {
- "checkpoint": 330,
- "source": "055b130c25ad627f547eb1774abbe9db27b6800f",
- "base": "171789169e",
- "scope": "diff 171789169e..055b130c25 (second pass; repairs F1.1, F1.2, E1 in 055b130c25; code validated at 4df6abaca2)",
- "verdict": "PASS",
- "items": [
-  {
-   "item": 1,
-   "verdict": "PASS",
-   "evidence": "Ownership: the rewrites take Vec<PlanStep> by value and SplitJoin<'a> borrows (regrouping/types.rs:19-36), with no Arc and no lifetime-escaping clone. F1.1 is repaired: UnknownRuleIndex maps to Self::Execution { reason: error.to_string() } (core lint/errors.rs:325-329), which the SDK maps to LintError::Execution (sdk lint/schemas.rs:354), so no fabricated RuleId reaches a user. F1.2 is repaired: FrameOffset has docs and a doctest (values table_words/types.rs:107-114). sdk/api.txt is unchanged."
-  },
-  {
-   "item": 2,
-   "verdict": "PASS",
-   "evidence": "First-pass evidence stands: the modules are pub(crate) (query_language/src/domain.rs:16-31), outcomes are typed enums (selection_pushing/types.rs:27-43), the observation is #[cfg(test)] (lease.rs:72), and core's From match stays exhaustive after the repair."
-  },
-  {
-   "item": 3,
-   "verdict": "PASS",
-   "evidence": "First-pass evidence stands: the rewrites run at plan time, and compact_values (compact_table/service.rs:189-211) adds no allocation, with 4-byte row offsets. The repair touches no hot path."
-  },
-  {
-   "item": 4,
-   "verdict": "PASS",
-   "evidence": "First-pass evidence stands: Narrowed, Regrouped, SplitJoin, PushedFilter, SplitComparisons and ValueOrigin are each the transient working state of a single call. CompactFrame.first_row replaces the absolute offset rather than copying it."
-  },
-  {
-   "item": 5,
-   "verdict": "PASS",
-   "evidence": "No hand-written mechanism replaces a crate, and the dependencies are unchanged."
-  },
-  {
-   "item": 6,
-   "verdict": "PASS",
-   "evidence": "The counter bounds moved to runtime measured_work/test.rs:79-134 and 193-224, and the exact scratch tuples state their reason in 07ec517ffe. validation.json is rebound to libraries.log (1085/1; execution 73, core 119, runtime 200). The new doctest asserts a derived Ord."
-  },
-  {
-   "item": 7,
-   "verdict": "PASS",
-   "evidence": "No unsafe, no #[allow], and no production unwrap or expect. The one #[expect(clippy::too_many_lines)] has a reason (regrouping/service.rs:184-187). The repair adds none of these."
-  }
- ],
- "required_changes": [],
- "rustfmt_finding": "It predates the diff. rustfmt --check (edition 2024, max_width 100) reports the same single hunk at errors.rs:298 at 171789169e, d1073bd952 and 055b130c25: the 107-column `impl From<...RuleCompilationError> for LintError {` header at line 301, dated by blame to 828262ad34 (pre-329). The new UnknownRuleIndex arm adds no hunk.",
- "evidence_notes": [
-  "validation.json still validates 4df6abaca2. The repair commit 055b130c25 (one core match arm and one values doctest) has not been compiled. Run the core library and doctest_values on 055b130c25 before the push."
- ],
- "advisories": [
-  "A1 put a plan digest in the store key (open item)",
-  "A2 ryo_execution error exhaustiveness policy (owner)",
-  "A3 CompactFrame/CompactTable semver",
-  "A4 one relation_scope()",
-  "A5 index_among returns Option",
-  "A6 memoize lineage",
-  "A7 Span invariant in stated_by / regrouping",
-  "A8 report-this-bug hint in the UnknownRuleIndex message",
-  "A9 the pre-existing rustfmt hunk at core lint/errors.rs:298-301; fix with cargo fmt -p idiomatic-sh-ryo-core"
- ],
- "reviewer": "rust-principal-review",
- "date": "2026-11-08T20:57:44Z"
+  "source": "8ff611fb8eb50ba0c62be432293e22b5a7c61cf4",
+  "base": "1086daee4b",
+  "scope": "331",
+  "verdict": "PASS",
+  "reviewer": "rust-review",
+  "date": "2026-11-09",
+  "checks": [
+    {"id": 1, "verdict": "PASS", "evidence": "F1 is repaired. Every new public item in a published crate now has docs and a runnable `# Examples` doctest: values lineage/service.rs:21,41,78,105,134,267 (anchor_of, one_file, anchor_at, anchor_through, pairing, of_step), values lineage/types.rs:5,24,41 (Lineage, ColumnAnchor, KeyPairing), values runs/types.rs:61,78 (ApplicabilityRefusal, UnknownCause) and execution_domain coverage/types.rs:144 (RefusedFiles). The examples assert behaviour: pairing on a span-only key is Unproven, and anchor_through reads through a view. The counts are consistent: values 5 + 11 = 16 and execution_domain 0 + 1 = 1. Ownership is unchanged from the first pass and clean: &[PlanStep] with a per-plan LineageMemo (query_language lineage/types.rs:20-31), plan_identity(&Plan) (core repository/service.rs:114), no Arc and no lifetime-escaping clone. sdk/api.txt is unchanged."},
+    {"id": 2, "verdict": "PASS", "evidence": "Visibility enforces the narrowed phase surface: ProjectTask and ProjectInput are pub(crate) (execution_runtime project_phase/types.rs:33-47). The compile_fail doctests name their error codes (project_phase/interface.rs:31, E0603; operators interface.rs:46, E0521) and pin what visibility enforces. CauseSchema is an exhaustive match in both directions (core postcard/unknowns/schemas.rs:39-48,60-69)."},
+    {"id": 3, "verdict": "PASS", "evidence": "Nothing new runs per node or per row. plan_identity runs once per rule per run (repository/service.rs:114-118). LineageMemo lives only at plan time. refusals() and refused_files() each build one index per run (core gating/service.rs:185; crossing/service.rs:141). The second-pass commit changes only docs and doctests."},
+    {"id": 4, "verdict": "PASS", "evidence": "The file-lineage rule now has one definition, values::domain::lineage::service::anchor_of (values lineage/service.rs:31). It replaces the copies in execution_domain::lineage and query_language stated_by/states_file/origins_state_file, and execution_domain coverage/service.rs:67 reads it. ApplicabilityRefusal moved; it was not copied."},
+    {"id": 5, "verdict": "PASS", "evidence": "No dependency was added. IdentityHasher (core repository/types.rs:32-85) is small glue that feeds derived-Hash bytes to the existing DigestPort, so the store key keeps one digest algorithm."},
+    {"id": 6, "verdict": "PASS", "evidence": "The rewrite tests take their expected rows from running the unrewritten plan (execution tests/project_phase/rewrites/test.rs:125-240). The PlanIdentity row asserts properties (repository/service_test.rs:202-215). The premise changes in 4dad7e48b2 state their reasons and ran green in validation331. The new doctests assert behaviour rather than restating values."},
+    {"id": 7, "verdict": "PASS", "evidence": "The diff adds no unsafe and no #[allow], and every added unwrap, expect or panic is in test or fixture code. index_among returns Option (query_language pushing/service.rs:163-176), so a missing column refuses the rewrite instead of reading column 0."}
+  ],
+  "findings": [],
+  "repaired": [
+    {"id": "F1", "check": 1, "where": "values lineage/service.rs:21-286, lineage/types.rs:5-52, runs/types.rs:61-86, execution_domain coverage/types.rs:144-154", "state": "repaired: an `# Examples` doctest on each of the 12 items"},
+    {"id": "F2", "check": "record", "where": "crates/ryo/docs/contracts/README.md:56", "state": "repaired: the store growth (62,022,326 to 164,712,192) and the peak (3.33 to 3.54 GB) are attributed to the lineage span-key rule (regrouping/service.rs:241-249, narrowing/service.rs:134-142), called required for soundness with rewrites/test.rs:125-135 cited, and the 62 MB ratchet is recorded as regressed pending the span-semantics decision; no tracker id"}
+  ],
+  "evidence_notes": [
+    "The 16/0 values and 1/0 execution_domain doctest counts come from the README record (README.md:45). Their raw log is not in the validation331 log directory, which predates 8ff611fb8e. The PM should keep that log beside validation331's logs, or rerun doctest_values and doctest_execution_domain before the push."
+  ],
+  "advisories": [
+    "open item: decide whether span equality pairs rows of one file only (query_language planning/service.rs:79-85 treats a span as within-file for placement, while regrouping and narrowing do not); the answer decides whether the 62 MB store can return",
+    "open item: population_reads proves sharing only while the test holds both prepared frontiers (execution tests/project_phase/population_reads/test.rs:232-233); add a control that drops them first and asserts exactly 3 project reads",
+    "open item: completion probes the path-keyed refusals map (core completion/service.rs:124-130) while the engine holds RefusedFiles by file number; keep one index",
+    "open item: IdentityHasher relies on std's derived-Hash byte stream, which is not promised stable across toolchains (a change only causes a cache miss); state this in the doc at core repository/types.rs:29-31",
+    "open item: decide #[non_exhaustive] for UnknownCause and ApplicabilityRefusal under the exhaustiveness policy before distribution",
+    "open item: the new public fields StoredUnknown.cause and Unknown.cause are semver-breaking; record them for cargo-semver-checks"
+  ]
 }
