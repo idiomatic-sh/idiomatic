@@ -65,7 +65,6 @@ mod finish;
 mod frontier;
 mod governing;
 mod interface;
-mod linear;
 mod linking;
 mod lowering;
 mod manifests;

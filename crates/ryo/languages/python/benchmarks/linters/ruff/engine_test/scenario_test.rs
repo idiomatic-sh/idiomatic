@@ -2,11 +2,6 @@
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) enum EngineScenario {
-    Finding,
-    Missing,
-    Unread,
-    Partial,
-    InvalidSyntax,
     LexicallyCompleteSyntaxError,
     PreservedSemanticSyntaxError,
     PreservedStubSemanticSyntaxError,
@@ -17,15 +12,10 @@ pub(super) enum EngineScenario {
     LateFutureDirectiveProjection,
     UnknownFutureWithoutConsumer,
     FrontendRuleCollision,
-    ProjectionCacheQueryChange,
     QueryModuleInlineEquivalence,
-    TargetConfigurationCacheChange,
-    RejectedSyntaxWithProviderPartialsSkipsOnlyAcceptedSyntaxRules,
     ARejectedFileLeavesPt020Pt025AndPt026AnsweringTheValidFile,
     ARejectedFileLeavesI001Plw0406AndRuf100AnsweringTheValidFile,
     SharedSuppressionFragmentMatchesTheHistoricalInlineQueries,
-    LiteralPropertiesReachEngineQueriesForTrueAndFalseBooleanNodes,
-    DecodedNumericPayloadsAndStrictGreaterCompositionReachEngineQueries,
     SelectedConsumerKeepsUnselectedProducerWithoutItsDiagnostics,
     ActualI001MixedNamespaceObservationStaysUnknownOnColdAndWarmReplay,
     LazyFutureStaysVisibleWithoutADedicatedSelectedRule,

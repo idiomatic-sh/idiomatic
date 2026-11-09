@@ -1,12 +1,9 @@
-//! Real local-adapter project context and retained-cache lifecycle checks.
+//! Real local-adapter project context checks. The retained-cache lifecycle of project evidence is proved by core over owned fixtures.
 use super::boundary_failure_test::{BoundaryFailure, failure};
 use super::prepared_engine_test::PreparedEngine as _;
 use ryo_benchmark::cases::{Case, CaseName, Expect, Word, run};
 use ryo_benchmark::inbound::use_cases::prepare_cases::interface::PrepareCasesUseCase as _;
-use ryo_benchmark::outbound::{
-    engine::factory,
-    suite::{interface::SuitePort as _, types::ArtifactPath},
-};
+use ryo_benchmark::outbound::engine::factory;
 use ryo_benchmark_contracts::domain::context::types::ContextManifest;
 use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
@@ -97,23 +94,6 @@ fn sealed_mut(seal: &mut ryo_benchmark_contracts::domain::requests::types::Conte
         ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed => panic!("seal"),
     }
 }
-fn content_hash(
-    bytes: &[u8],
-) -> ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest {
-    use sha2::Digest as _;
-    ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest(format!(
-        "{:x}",
-        sha2::Sha256::digest(bytes)
-    ))
-}
-fn changed_manifest(manifest: &mut ContextManifest, path: &Path, bytes: &[u8]) {
-    let digest = content_hash(bytes);
-    if let Some(previous) = manifest.auxiliary_files.get_mut(path) {
-        *previous = digest;
-    } else {
-        let _previous = manifest.source_files.insert(path.to_owned(), digest);
-    }
-}
 fn exact_root_and_package_controls_reach_the_real_local_adapter() -> Result<(), Error> {
     let scratch = tempfile::tempdir()?;
     let (profile, cases) = staged(scratch.path())?;
@@ -137,64 +117,6 @@ fn exact_root_and_package_controls_reach_the_real_local_adapter() -> Result<(), 
         assert_eq!(receipt.actual_root, case.request.root);
         assert!(!receipt.dependencies.is_empty());
     }
-    Ok(())
-}
-fn shared_cache_root_mode_and_source_edits_preserve_project_evidence() -> Result<(), Error> {
-    let scratch = tempfile::tempdir()?;
-    let (profile, cases) = staged(scratch.path())?;
-    let find = |name: &str| {
-        cases
-            .iter()
-            .find(|case| case.name.0 == name)
-            .expect("retained case")
-    };
-    let pkg = find("root-package-name-matches");
-    let other = find("root-package-name-differs");
-    let cache = scratch.path().join("shared-cache");
-    let engine = factory::local(super::prepared_engine_test::python_310(), None);
-    let cold = engine.run_prepared(request(&profile, pkg, &cache))?;
-    let warm = engine.run_prepared(request(&profile, pkg, &cache))?;
-    assert_eq!(
-        cold, warm,
-        "warm reuse retains the complete dependency receipt"
-    );
-    assert_eq!(cold.diagnostics.len(), 1);
-    assert!(
-        engine
-            .run_prepared(request(&profile, other, &cache))?
-            .diagnostics
-            .is_empty(),
-        "identical files under another root have another module identity"
-    );
-    let mut isolated = request(&profile, pkg, &cache);
-    isolated.project_context_mode = ProjectContextMode::Isolated;
-    isolated.context_manifest = ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed;
-    let result = engine.run_prepared(isolated.clone())?;
-    assert!(
-        result.diagnostics.is_empty(),
-        "Given mode cannot reuse Disk package rows"
-    );
-    assert_eq!(result.project_context, ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested);
-    isolated
-        .files
-        .push(ryo::linter::RelativePath("__init__.py".into()));
-    assert!(
-        matches!(engine.run_prepared(isolated), Err(Error::Invalid(_))),
-        "Given root package is unknown rather than an empty success"
-    );
-    let mut edited = request(&profile, pkg, &cache);
-    let bytes = b"import other.mod\n";
-    std::fs::write(edited.root.join("mod.py"), bytes)?;
-    changed_manifest(
-        sealed_mut(&mut edited.context_manifest),
-        Path::new("pkg/mod.py"),
-        bytes,
-    );
-    assert!(engine.run_prepared(edited.clone())?.diagnostics.is_empty());
-    assert_eq!(
-        engine.run_prepared(edited.clone())?,
-        engine.run_prepared(edited)?
-    );
     Ok(())
 }
 fn changed_undeclared_escaping_and_unreadable_context_never_certify() -> Result<(), Error> {
@@ -262,58 +184,10 @@ fn changed_undeclared_escaping_and_unreadable_context_never_certify() -> Result<
     Ok(())
 }
 
-fn ancestor_marker_appearance_removal_and_edits_invalidate_warm_project_rows() -> Result<(), Error>
-{
-    let scratch = tempfile::tempdir()?;
-    let (profile, cases) = staged(scratch.path())?;
-    let case = cases
-        .iter()
-        .find(|case| case.name.0 == "ancestor-package-absent")
-        .expect("case");
-    let engine = factory::local(super::prepared_engine_test::python_310(), None);
-    let cache = scratch.path().join("cache");
-    let mut asked = request(&profile, case, &cache);
-    let marker = PathBuf::from("pkg2/__init__.py");
-    sealed_mut(&mut asked.context_manifest)
-        .missing
-        .retain(|path| path != &marker);
-    let absent = engine.run_prepared(asked.clone())?;
-    assert!(absent.diagnostics.is_empty());
-    assert_eq!(absent, engine.run_prepared(asked.clone())?);
-    let added_seal = sealed_mut(&mut asked.context_manifest);
-    std::fs::write(added_seal.boundary.join(&marker), b"")?;
-    added_seal.missing.retain(|path| path != &marker);
-    let _previous = added_seal
-        .auxiliary_files
-        .insert(marker.clone(), content_hash(b""));
-    let added = engine.run_prepared(asked.clone())?;
-    assert_eq!(added.diagnostics.len(), 1);
-    assert_eq!(added, engine.run_prepared(asked.clone())?);
-    let edited_seal = sealed_mut(&mut asked.context_manifest);
-    std::fs::write(edited_seal.boundary.join(&marker), b"# edited\n")?;
-    changed_manifest(edited_seal, &marker, b"# edited\n");
-    let edited = engine.run_prepared(asked.clone())?;
-    assert_eq!(edited.diagnostics, added.diagnostics);
-    assert_ne!(
-        edited.project_context, added.project_context,
-        "kept dependency content identity must refresh"
-    );
-    let removed_seal = sealed_mut(&mut asked.context_manifest);
-    std::fs::remove_file(removed_seal.boundary.join(&marker))?;
-    let _removed = removed_seal.auxiliary_files.remove(&marker);
-    let removed = engine.run_prepared(asked.clone())?;
-    assert!(removed.diagnostics.is_empty());
-    assert_eq!(removed.project_context, absent.project_context);
-    assert_eq!(removed, engine.run_prepared(asked)?);
-    Ok(())
-}
-
 #[derive(Clone, Copy)]
 enum ProjectContextScenario {
     ExactRootAndPackageControlsReachTheRealLocalAdapter,
-    SharedCacheRootModeAndSourceEditsPreserveProjectEvidence,
     ChangedUndeclaredEscapingAndUnreadableContextNeverCertify,
-    AncestorMarkerAppearanceRemovalAndEditsInvalidateWarmProjectRows,
 }
 type Input = ProjectContextScenario;
 type Value = bool;
@@ -327,23 +201,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(true),
     },
     Case {
-        name: CaseName("shared_cache_root_mode_and_source_edits_preserve_project_evidence"),
-        word: Word::Succeeds,
-        input: || ProjectContextScenario::SharedCacheRootModeAndSourceEditsPreserveProjectEvidence,
-        expect: Expect::Value(true),
-    },
-    Case {
         name: CaseName("changed_undeclared_escaping_and_unreadable_context_never_certify"),
         word: Word::Succeeds,
         input: || ProjectContextScenario::ChangedUndeclaredEscapingAndUnreadableContextNeverCertify,
-        expect: Expect::Value(true),
-    },
-    Case {
-        name: CaseName("ancestor_marker_appearance_removal_and_edits_invalidate_warm_project_rows"),
-        word: Word::Succeeds,
-        input: || {
-            ProjectContextScenario::AncestorMarkerAppearanceRemovalAndEditsInvalidateWarmProjectRows
-        },
         expect: Expect::Value(true),
     },
 ];
@@ -351,9 +211,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn exercise(input: Input) -> Result<Value, Error> {
     match input {
         ProjectContextScenario::ExactRootAndPackageControlsReachTheRealLocalAdapter => exact_root_and_package_controls_reach_the_real_local_adapter().map(|()| true),
-        ProjectContextScenario::SharedCacheRootModeAndSourceEditsPreserveProjectEvidence => shared_cache_root_mode_and_source_edits_preserve_project_evidence().map(|()| true),
         ProjectContextScenario::ChangedUndeclaredEscapingAndUnreadableContextNeverCertify => changed_undeclared_escaping_and_unreadable_context_never_certify().map(|()| true),
-        ProjectContextScenario::AncestorMarkerAppearanceRemovalAndEditsInvalidateWarmProjectRows => ancestor_marker_appearance_removal_and_edits_invalidate_warm_project_rows().map(|()| true),
     }
 }
 

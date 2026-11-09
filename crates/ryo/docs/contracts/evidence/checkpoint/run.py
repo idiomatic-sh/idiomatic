@@ -250,7 +250,7 @@ OWNERS={
  'behavior::ruff_rules_feed_every_catalog_feature_a_thousand_rows':'Consolidate the kernels: run the all-413 parity run against Ruff with and without each of the five join/select kernels and delete every kernel the evidence shows superseded.',
  'behavior::ruff_findings_equal_the_expected_findings':CLOSE,
  'behavior::every_recorded_rule_gives_the_recorded_rows':CLOSE,
- 'cache::every_recorded_rule_gives_over_ruff_the_rows_a_warm_run_gives_again_from_a_small_store':REPAIR,
+ 'cache::the_store_every_recorded_rule_keeps_over_ruff_stays_within_its_bound':REPAIR,
  'peak::a_warm_unchanged_run_over_ruff_peaks_within_its_bound':'Decode lazy packed frontiers once per population, not once per root, and compile ordered existence without the eager request-level pass.',
 }
 OWNED=re.compile(r'(?:; )?(?:[a-z_]+ )?owned by "[^"]*"')
