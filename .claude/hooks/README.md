@@ -26,4 +26,7 @@ These reach past the guards and are left out on purpose; none is a spelling an a
   the repository's config before the push, and `git send-pack`;
 - a hand-written log that copies a test runner's frame (`run.py --check` reads the runner's own header and summary
   lines, which catches a typed result, not a forged one);
+- a tracker id the `no-tracker-text-shipped` placement does not describe (one with no digit and no child number).
+  The review evidence validator (`ci/contract_review/service.py`) reads its tracker-id globs from that placement in
+  the newest `idiomatic-project` spec, so the rule and the validator hold one definition;
 - `gh pr merge`. Server-side branch protection on `main` is the complete fix for every push to it.

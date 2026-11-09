@@ -53,7 +53,32 @@ def shape(review: object, reviewer: str = "contract-review") -> None:
         decided(review["candidate_decisions"])
 
 
-TRACKER = re.compile(r"(?<![\w-])ryo-[a-z0-9]{3,}(\.[0-9]+)*\b")
+SPECS = Path(__file__).resolve().parents[2] / "tastemaker" / "specs" / "idiomatic-project"
+TRACKER_RULE = "idiomatic.arch/no-tracker-text-shipped"
+
+
+def tracker_patterns() -> list[str]:
+    """The tracker-id globs of the one definition: the `patterns` the newest idiomatic-project spec places on
+    no-tracker-text-shipped, those naming `ryo-` (an id with a digit or a child number, any prefix)."""
+    import tomllib
+    for spec in sorted(SPECS.glob("*/spec.toml"), key=lambda p: tuple(int(x) for x in p.parent.name.split(".")),
+                       reverse=True):
+        for placement in tomllib.loads(spec.read_text()).get("rules", []):
+            if str(placement.get("rule", "")).startswith(TRACKER_RULE):
+                return [g for g in placement["params"]["patterns"] if "ryo-" in g]
+    raise ValueError("no idiomatic-project spec places " + TRACKER_RULE + " with patterns")
+
+
+def names_tracker(value: object) -> bool:
+    """True when any string in value matches a tracker-id glob of no-tracker-text-shipped, as the rule matches a text."""
+    from fnmatch import fnmatchcase
+    if isinstance(value, str):
+        return any(fnmatchcase(value, glob) for glob in tracker_patterns())
+    if isinstance(value, dict):
+        return any(names_tracker(k) or names_tracker(v) for k, v in value.items())
+    if isinstance(value, list):
+        return any(names_tracker(v) for v in value)
+    return False
 MECHANISMS = re.compile(r"compiler|new rule|strengthen \S.*")
 
 
@@ -90,14 +115,14 @@ def candidates(listing: object) -> None:
                     and isinstance(plant.get("line"), int) and not isinstance(plant["line"], bool)
                     and isinstance(plant.get("text"), str)):
                 raise ValueError("a plant is not {file, line, text}")
-        if TRACKER.search(json.dumps(entry)):
+        if names_tracker(entry):
             raise ValueError("an enforcement candidate carries a tracker id")
 
 
 def validate(root: Path, head: str = "HEAD") -> str:
     head = git(root, "rev-parse", f"{head}^{{commit}}").decode().strip()
     git(root, "merge-base", "--is-ancestor", ACTIVATION, head)
-    changed = [path.decode() for path in git(root, "diff", "--name-only", "-z", ACTIVATION, head).split(b"\0") if path]
+    changed = [path.decode() for path in git(root, "diff", "--name-only", "--no-renames", "-z", ACTIVATION, head).split(b"\0") if path]
     if not any(protected(path) for path in changed):
         return "No protected changes since activation; historical work is not certified."
     try:
@@ -113,7 +138,7 @@ def validate(root: Path, head: str = "HEAD") -> str:
             raise ValueError(f"review verdict is {review['verdict']}, not PASS")
         source = review["source"]
         git(root, "merge-base", "--is-ancestor", source, head)
-        since = [p.decode() for p in git(root, "diff", "--name-only", "-z", source, head).split(b"\0") if p]
+        since = [p.decode() for p in git(root, "diff", "--name-only", "--no-renames", "-z", source, head).split(b"\0") if p]
         if any(protected(path) for path in since):
             raise ValueError("protected source changed after the reviewed source " + source)
     except (KeyError, ValueError, subprocess.CalledProcessError) as error:
