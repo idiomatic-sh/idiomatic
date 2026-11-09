@@ -1,6 +1,6 @@
 param kinds: set<string>;
 param max-reach: integer;
-let analyzed-files = select l."path" as "file" from "analyzed-source" as l;
+let listed-files = select l."path" as "file" from "filesystem.file" as l;
 let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
 let counted = select * from "package-dependency" where kind in $kinds;
 let dependencies = project(from=counted, columns=["source", "target"]);
@@ -12,7 +12,7 @@ let reach = closure(edges=edges, source="from", destination="to");
 let others = select * from reach where from != to;
 let reach-counts = group-count(from=others, keys=["from"], count="reached", distinct="to");
 let wide = select * from reach-counts where reached > $max-reach;
-let members = select l."package" as "file" from "workspace-member" as l join analyzed-files as r on l."package" = r."file";
+let members = select l."package" as "file" from "workspace-member" as l join listed-files as r on l."package" = r."file";
 let member-manifests = select l."id" as "id", l."file" as "file", l."span" as "span" from manifests as l join members as r on l."file" = r."file";
 let wide-members = select r."file" as "file", l."reached" as "reached", r."span" as "span" from wide as l join member-manifests as r on l."from" = r."id";
 emit wide-members subject "file" key("file");

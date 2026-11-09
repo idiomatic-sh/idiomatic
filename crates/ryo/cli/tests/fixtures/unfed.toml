@@ -53,9 +53,6 @@ why = "no recorded rule reads it; it was added for the comparison of a template 
 [feature."relation:Mention"]
 why = "added by the declarations batch; no recorded rule reads it yet."
 
-[feature."relation:PackageDependency"]
-why = "read only by `crate-dependency-cycles`, `crate-dependency-depth` and `layer-order`, recorded as pending: they read package-dependency, which the Rust language of ryo did not provide when they were recorded."
-
 [feature."relation:SequenceElement"]
 why = "no recorded rule reads it."
 

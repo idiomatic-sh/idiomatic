@@ -1,4 +1,4 @@
-param layers: ListOfSets(String);
+param layers: list<set<string>>;
 let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
 let shipped = select * from "package-dependency" where kind != "dev";
 let edges = project(from=shipped, columns=["source", "target"]);

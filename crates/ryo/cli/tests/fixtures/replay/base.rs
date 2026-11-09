@@ -116,6 +116,25 @@ pub(crate) fn parameter(name: &str, value: &toml::Value) -> Option<RuleParameter
                     .collect(),
             )
         }
+        // A list of sets of text (`list<set<string>>`), each set an array of text.
+        toml::Value::Array(items)
+            if items.iter().all(|set| {
+                set.as_array()
+                    .is_some_and(|texts| texts.iter().all(toml::Value::is_str))
+            }) =>
+        {
+            ParameterValue::TextSets(
+                items
+                    .iter()
+                    .filter_map(toml::Value::as_array)
+                    .map(|set| {
+                        set.iter()
+                            .filter_map(|each| each.as_str().map(|text| LiteralText(text.into())))
+                            .collect()
+                    })
+                    .collect(),
+            )
+        }
         toml::Value::Float(_)
         | toml::Value::Datetime(_)
         | toml::Value::Array(_)

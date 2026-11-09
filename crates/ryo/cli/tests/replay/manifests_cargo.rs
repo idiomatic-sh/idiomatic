@@ -200,7 +200,7 @@ fn cargo_lines(root: &Path, manifests: &[String], home: &str) -> BTreeSet<String
                         || resolved_target(root, resolved.as_ref(), package, dependency),
                         |path| relative(root, &Path::new(path).join("Cargo.toml")),
                     )
-                    .unwrap_or_else(|| crate::base::ABSENT.to_owned());
+                    .unwrap_or_else(|| base::ABSENT.to_owned());
                 lines.extend([dependency_line(&source, &target, dependency)]);
             }
         }
