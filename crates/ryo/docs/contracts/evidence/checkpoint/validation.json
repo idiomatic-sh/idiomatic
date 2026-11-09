@@ -271,7 +271,7 @@
     "tastemaker_workspace": {
       "passed": 264,
       "failed": 4,
-      "note": "Rust gate B6, new at 332: cargo test --workspace --all-features in crates/tastemaker at 0f2fa35a12 (gatefix_tastemaker_workspace.log; the bdd scenarios all pass). Attributed by rerunning the failures with the tm-import-reading branch's core changes reversed (gatefix_tastemaker_without_tm_branch.log) and with crates/tastemaker and tastemaker/ at 331 (gatefix_tastemaker_at_331.log). From the tm-import-reading branch at 0f2fa35a12: core reporting service_test succeeds (0 findings where 1 is expected) and the replay cold check of crates/ryo under its memory guard (4,491,136 KiB against 1,331,200). Its repair (96b5545cb8, merge 69caa24a4e) reads import scopes only from the blocks that hold a use and inline modules and keeps an import that binds no name: reporting is green, and the memory guard stays red at 4,402,760 KiB; the pre-branch tm (core f67311c990, the pre-branch provider-imports spec) checking the same archive peaks at 4,382,468 KiB (exit 1, 1,253 findings) against 4,440,812 KiB for the current tm (exit 0, 0 findings), +58,344 KiB (evidence/checkpoint/memory-guard-pre-branch.txt), and the heap profile puts the peak in the project phase with no import_rows frame holding memory at the peak (evidence/checkpoint/memory-guard-heap.txt: 70.1% of 4,259,226,952 B live under the evaluate_occurrences rows of the project phase): the project phase's row retention (the item \"Project phase retains 2 GB of rows on a cold tm check of crates/ryo\"), not the import reading. Rerun on 69caa24a4e: 264 / 4 (tastemaker_workspace_69caa24a4e.log). The go/api samples rows (inside_a_repository, as_a_repository_of_its_own) were red through the local ryo crates the patch links: an edited file read alone on an edit run was numbered by its place among the changed files, not in the run's listing, so its filesystem.file row carried another file's path (a contract rendering); claude/w14-t611 numbers it by its place in the run's listing and keeps a file's part read in part as its own. Both are green on 2c94c8e3d5 in a rerun (t611_green_samples.log; red without its production hunks, t611_red_samples.log), so 263 / 5. Red at 331 too: replay scaffold a_captured_nested_item_is_written_and_held, scaffold a_fresh_language_compiles_and_lacks_no_part, validate validating_the_repository_s_definitions_stays_within_its_bounds; owned by \"Close full TM, contracts, independent review and normal CI.\""
+      "note": "rerun at 8568d6f1a2 (rerun_8568d6f1a2_tastemaker_workspace.log): cargo test --workspace --all-features in crates/tastemaker, 264 / 4 as at 332. Red, each owned as at 332: the cold check of crates/ryo under its memory guard (the project phase's row retention, \"Project phase retains 2 GB of rows on a cold tm check of crates/ryo\"; evidence/checkpoint/memory-guard-heap.txt), and, red at 331 too, replay scaffold a_captured_nested_item_is_written_and_held, scaffold a_fresh_language_compiles_and_lacks_no_part and validate validating_the_repository_s_definitions_stays_within_its_bounds,; owned by \"Close full TM, contracts, independent review and normal CI.\""
     }
   },
   "ownership_graph": {
@@ -288,18 +288,18 @@
   "validation": 333,
   "raw_identity": "/tmp/ryo-contract-validation333",
   "tm_whole_tree": {
-    "command": "tm --root crates/ryo check --format json, tm 0.1.2 built from e0a566da62 (crates/tastemaker with the local ryo crates: the Rust provider of claude/w14-provider-alias and the 332 head's core), sha256 754622be, on a fresh store (crates/ryo/.tastemaker_cache removed first), run on e0a566da62",
-    "total": 1,
-    "suppressed": 16,
+    "command": "tm --root crates/ryo check --format json, tm 0.1.2 built from 8568d6f1a2 (crates/tastemaker with the local ryo crates), sha256 8cddc4c1, on a fresh store (crates/ryo/.tastemaker_cache removed first), run on 8568d6f1a2",
+    "total": 0,
+    "suppressed": 19,
     "at_checkpoint_318": 3676,
     "at_checkpoint_332": 1467,
-    "status": "measured whole-tree state at checkpoint 333; 214 s wall, 4.5 GB peak; no ProjectError",
+    "status": "measured whole-tree state at checkpoint 333 after the third 332 merge; 165 s wall, 4.4 GB peak; no ProjectError",
     "per_crate": {},
     "module_cycles_findings": 0,
     "no_domain_concept_cycles_findings": 0,
     "tm_validate": "crates/ryo: 241 versions hold, 0 do not; repository root: 224 hold, 0 do not",
     "unknown_findings": 0,
-    "note": "1,467 at 332 under tm 0.1.1: the 1,464 import false positives are gone with tm 0.1.2's import reading. The one finding is file-length on crates/core/src/inbound/use_cases/lint/fixtures/lookups.rs (409 lines), which the 332 head's core fix grew after its own validation; it is that fix's, not 333's. The 4 tracker-text findings this run found in validation.json's notes are reworded (0 on the committed file). At cbdc70adad, before the 332 head's core fix: 0 findings, 16 suppressed (190 s, 4.4 GB)."
+    "note": "1,467 at 332 under tm 0.1.1: the 1,464 import false positives are gone with tm 0.1.2's import reading. At e0a566da62 (tm 754622be): 1, file-length of core lint/fixtures/lookups.rs, which the 332 head's 5b9555b1a0 split. At cbdc70adad: 0, 16 suppressed."
   },
   "tm_targets": {
     "tm_cli_source": {
