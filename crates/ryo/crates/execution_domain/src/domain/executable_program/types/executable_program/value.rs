@@ -17,6 +17,8 @@ pub struct ExecutableProgram {
     observation_regions: Box<[Result<RegionId, OperatingError>]>,
     /// The partition requirement of each relation source: the first region declaring it decides, found once per program.
     relation_partitions: rustc_hash::FxHashMap<ryo_relations::domain::relations::types::Relation, PartitionRequirement>,
+    /// What a file must hold for each region to have a row or a row error there.
+    presence: crate::domain::presence::types::PresenceTable,
     /// The fusion classification of every instruction, indexed by its logical number.
     #[cfg(any(test, feature = "fixtures"))]
     fusibility: Box<[crate::domain::executable_program::fusion::types::Fusibility]>,
@@ -46,9 +48,22 @@ impl ExecutableProgram {
             rules,
             logical_regions,
             observation_regions,
+            presence: Default::default(),
             #[cfg(any(test, feature = "fixtures"))]
             fusibility: Box::new([]),
         }
+    }
+    /// The same program with the presence formulas of its regions.
+    pub(in crate::domain::executable_program) fn with_presence(
+        mut self,
+        presence: crate::domain::presence::types::PresenceTable,
+    ) -> Self {
+        self.presence = presence;
+        self
+    }
+    /// What a file must hold for each region to have a row or a row error there.
+    pub fn presence(&self) -> &crate::domain::presence::types::PresenceTable {
+        &self.presence
     }
     /// The same program with the fusion classification the compiler made, which only the controls read.
     #[cfg(any(test, feature = "fixtures"))]

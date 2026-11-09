@@ -14,6 +14,8 @@ pub(crate) mod operator_collections_operators_span_bounds_item_test;
 #[cfg(any(test, feature = "fixtures"))]
 pub mod operator_contract_test;
 #[cfg(test)]
+pub(crate) mod presence_service_test;
+#[cfg(test)]
 pub(crate) mod request_graph_test;
 #[cfg(test)]
 pub(crate) mod self_join_recogniser_service_test;

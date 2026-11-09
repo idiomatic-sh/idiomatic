@@ -127,7 +127,7 @@ fn demand_program(order: DemandOrder, count: usize, expected: &[usize]) -> Resul
             tree: None,
         },
     ];
-    let mut contract = prepare_for(OperationKind::Axis, &operation, &inputs, &[])?;
+    let mut contract = prepare_for(OperationKind::Axis, &operation, &inputs, &[], ryo_values::domain::plan_parts::types::StepScope::PerFile)?;
     assert_eq!(contract.semantics.demand, DemandOrder::LeftThenRight);
     contract.semantics.demand = order;
     let program = DemandProgram::compiled(contract.semantics, ryo_values::domain::plan_parts::types::InputCount(count));
@@ -177,7 +177,7 @@ fn contract() -> Arc<crate::domain::operator::contract::types::OperatorContract>
         },
     ];
     Arc::new(
-        prepare_for(OperationKind::Axis, &axis(0), &inputs, &[])
+        prepare_for(OperationKind::Axis, &axis(0), &inputs, &[], ryo_values::domain::plan_parts::types::StepScope::PerFile)
             .expect("the axis contract prepares"),
     )
 }

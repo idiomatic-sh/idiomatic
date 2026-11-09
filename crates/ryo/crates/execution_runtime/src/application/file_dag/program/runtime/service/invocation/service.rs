@@ -103,6 +103,7 @@ impl ProgramExecution {
         let mut admitted = std::mem::take(&mut progress.inputs);
         let mut call = Poll {
             id,
+            state,
             region,
             completion,
             kernels,
@@ -114,6 +115,9 @@ impl ProgramExecution {
         };
         let result: Result<InvocationOutcome, InvocationFailure> = (|| {
             if let Some(outcome) = self.blocked(&mut call)? {
+                return Ok(outcome);
+            }
+            if let Some(outcome) = self.absent(&mut call)? {
                 return Ok(outcome);
             }
             if let Some(outcome) = self.ordered(&mut call)? {
@@ -142,7 +146,14 @@ impl ProgramExecution {
             }
             Ok(InvocationOutcome::Published(input)) => {
                 cleanup.terminal = Terminal::Published(input.clone());
-                self.release_inputs(state, id)?;
+                // Only an absent root is already `Consumed` when it publishes: the walk counted none of its inputs.
+                let owes_inputs = state.slots.borrow().get(&id).is_none_or(|slot| {
+                    slot.dependencies_consumed
+                        != crate::application::file_dag::program::runtime::types::Dependencies::Consumed
+                });
+                if owes_inputs {
+                    self.release_inputs(state, id)?;
+                }
                 Ok(InvocationOutcome::Published(input))
             }
             Err(InvocationFailure::Semantic(error)) => {

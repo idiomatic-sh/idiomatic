@@ -214,7 +214,7 @@ fn exercise(given: &[&[i64]], expected: Option<&[i64]>, registered_calls: usize)
         &mut symbols,
         None,
         None,
-    )
+        &|_| Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead))
     .unwrap();
     let read = |_| Err::<Rows<'_>, _>(OperatingError::NotRead);
     for index in 0..consumer {

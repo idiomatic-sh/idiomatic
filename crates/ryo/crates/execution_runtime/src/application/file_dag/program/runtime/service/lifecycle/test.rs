@@ -213,6 +213,7 @@ fn a_region_evaluated_in_its_preparation_is_counted_once_as_a_dispatched_one_is(
                 evaluations: ReadinessEvents(1),
                 suspensions: ReadinessEvents(0),
                 wakeups: ReadinessEvents(0),
+                presence_absent: ReadinessEvents(0),
             }
         );
     }
@@ -221,7 +222,7 @@ fn a_region_evaluated_in_its_preparation_is_counted_once_as_a_dispatched_one_is(
 #[test]
 fn reached_slots_initialize_reader_obligations_once() {
     let CompiledCase { execution, roots } = compiled();
-    execution.activate_file_roots(&roots).unwrap();
+    execution.activate_file_roots(&roots, Default::default()).unwrap();
     let state = execution.file_state();
     let before = state.reader_initializations.get();
     let mut slots = state.slots.borrow_mut();
@@ -238,7 +239,7 @@ fn reached_slots_initialize_reader_obligations_once() {
 fn repeated_consumer_release_is_atomic_and_primary_semantic_failure_wins_cleanup() {
     let CompiledCase { execution, roots } = compiled();
     execution
-        .activate_file_roots(&[roots[0], roots[1], roots[1]])
+        .activate_file_roots(&[roots[0], roots[1], roots[1]], Default::default())
         .unwrap();
     let healthy = RuntimeProbe::new(Rc::clone(&execution), RuntimeProbeMode::Plain);
     let mut input = TestInputs::new(&execution);

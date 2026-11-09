@@ -206,7 +206,8 @@ pub(super) fn run(
             ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible,
             symbols,
             None,
-            None)?;
+            None,
+        &|_| Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead))?;
         let read = |relation| {
             providers
                 .iter()

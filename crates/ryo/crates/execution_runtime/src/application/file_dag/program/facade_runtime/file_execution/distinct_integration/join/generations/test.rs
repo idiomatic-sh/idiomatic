@@ -84,7 +84,8 @@ fn one_prepared_request_reopens_same_file_after_delivery_failure_empty_skip_and_
             ReuseEligibility::Eligible,
             &mut symbols,
             None,
-            None)
+            None,
+        &|_| Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead))
         .unwrap();
         let weak = Rc::downgrade(&file.owner);
         let mut prefix = vec![];
@@ -183,7 +184,7 @@ fn one_prepared_request_reopens_same_file_after_delivery_failure_empty_skip_and_
         &mut symbols,
         None,
         None,
-    )
+        &|_| Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead))
     .unwrap();
     let mut rows = vec![];
     assert!(matches!(

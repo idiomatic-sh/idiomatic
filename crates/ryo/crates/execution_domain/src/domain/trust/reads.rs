@@ -68,80 +68,33 @@ fn step_reads(
                 .clone()?,
         });
     }
+    // The kind provenance of the step's columns is the one column-origin propagation; a join's sides hand theirs on as
+    // none, so a kind is only narrowed through the rows of one read.
+    let origins: Vec<&[Option<ReadIndex>]> = parts.iter().map(|part| part.provenance.as_slice()).collect();
+    let provenance = crate::domain::operation_schema::projection::output_origins(
+        operation,
+        &[],
+        &origins,
+        &mut |_, _| None,
+    );
     // Each input's reads are its own, moved rather than copied: the first is what the step starts from.
     let mut parts = parts.into_iter();
     let StepReads {
         mut uses,
-        mut provenance,
+        provenance: first,
     } = parts.next().unwrap_or_default();
     match operation {
-        Operation::Select {
-            comparisons, kept, ..
-        } => {
+        Operation::Select { comparisons, .. } => {
             for comparison in comparisons {
                 if let Operand::Column(column) = &comparison.left
                     && let Some(Some(read)) =
-                        provenance.get(usize::try_from(column.0).unwrap_or(usize::MAX))
+                        first.get(usize::try_from(column.0).unwrap_or(usize::MAX))
                     && let Some(each) = uses.get_mut(read.0)
                 {
                     each.kinds.push(comparison.clone());
                 }
             }
-            if !kept.is_empty() {
-                provenance = kept
-                    .iter()
-                    .map(|column| {
-                        provenance
-                            .get(usize::try_from(column.0).unwrap_or(usize::MAX))
-                            .copied()
-                            .flatten()
-                    })
-                    .collect();
-            }
         }
-        Operation::Project { columns, .. } => {
-            provenance = columns
-                .iter()
-                .map(|column| {
-                    provenance
-                        .get(usize::try_from(column.0).unwrap_or(usize::MAX))
-                        .copied()
-                        .flatten()
-                })
-                .collect();
-        }
-        Operation::Extend { values, .. } => {
-            provenance.extend(values.iter().map(|_| None));
-        }
-        Operation::SpanBetween { .. } => provenance.push(None),
-        Operation::RenderSyntax { .. } => provenance.push(None),
-        Operation::FitsRendered { .. } => {}
-        Operation::SourceMatches {
-            base_line,
-            capture,
-            capture_text,
-            capture_line,
-            ..
-        } => {
-            provenance.push(None);
-            if base_line.is_some() {
-                provenance.push(None);
-            }
-            if capture.is_some() {
-                provenance.push(None);
-                if *capture_text
-                    == ryo_values::domain::query_operators::types::TextOutput::Appended
-                {
-                    provenance.push(None);
-                }
-                if *capture_line
-                    == ryo_values::domain::query_operators::types::LineOutput::Appended
-                {
-                    provenance.push(None);
-                }
-            }
-        }
-        Operation::SpanBounds { .. } => provenance.extend([None, None]),
         Operation::Antijoin { .. } | Operation::Difference { .. } => {
             // The left rows that remain, as they were; the right rows only decide which remain.
             let right = parts.next().unwrap_or_default();
@@ -166,8 +119,14 @@ fn step_reads(
             for part in parts {
                 absorb(&mut uses, part.uses);
             }
-            provenance = Vec::new();
         }
+        Operation::Project { .. }
+        | Operation::Extend { .. }
+        | Operation::SpanBetween { .. }
+        | Operation::RenderSyntax { .. }
+        | Operation::FitsRendered { .. }
+        | Operation::SourceMatches { .. }
+        | Operation::SpanBounds { .. } => {}
     }
     Ok(StepReads { uses, provenance })
 }

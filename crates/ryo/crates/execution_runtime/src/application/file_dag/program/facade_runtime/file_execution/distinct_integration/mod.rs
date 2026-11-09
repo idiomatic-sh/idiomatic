@@ -262,7 +262,7 @@ fn exercise(
         &mut symbols,
         None,
         None,
-    )?;
+        &|_| Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead))?;
     let function = function_rows(match scenario {
         Scenario::ReachDuplicate => &[0, 0],
         _ => &[0, 0, 2],

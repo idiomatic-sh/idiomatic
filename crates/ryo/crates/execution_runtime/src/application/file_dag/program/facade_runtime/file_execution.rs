@@ -57,6 +57,7 @@ use ryo_execution_domain::domain::operating::types::OperatorContext;
 mod emission;
 mod frontier;
 mod rule;
+mod presence;
 mod walk;
 
 pub(crate) struct FileRun<'a> {
@@ -77,8 +78,9 @@ pub(crate) struct FileRun<'a> {
     walk: super::super::native_walk::FileWalk,
     walk_prepared: WalkPreparation,
     routes: ryo_execution_store::application::file_dag::route_counts::types::FileScope,
+    presence: super::types::FilePresence,
 }
-pub(crate) fn open_file<'a>(
+pub(crate) fn open_file<'a, 'facts>(
     program: &'a Arc<PreparedProgram>,
     file: FileId,
     partials: ScopePartials<'a>,
@@ -89,6 +91,7 @@ pub(crate) fn open_file<'a>(
     symbols: &mut ryo_language::domain::symbols::types::Symbols,
     semantic: Option<&'a dyn ryo_execution_domain::domain::operating::types::SemanticLookup>,
     kinds: Option<Arc<ryo_execution_domain::domain::kind_sets::types::vocabulary::value::PreparedVocabulary>>,
+    read: &dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
 ) -> Result<FileRun<'a>, OperatingError> {
     if intents.len() != program.rule_count().0 {
         return Err(OperatingError::ShapeMismatch);
@@ -140,8 +143,13 @@ pub(crate) fn open_file<'a>(
         context: super::super::context::RunContext::file(
             &services, source, symbols, semantic, kinds,
         ),
+        presence: super::types::FilePresence {
+            tests: Vec::new(),
+            formulas: Vec::new(),
+            scratch: Default::default(),
+        },
     };
-    let demanded = run.bind_intents()?;
+    let demanded = run.bind_intents(read, symbols, source)?;
     run.owner
         .derived()
         .prepare_program_file(program.derived(), &demanded, publication)?;
@@ -166,6 +174,48 @@ impl FileRun<'_> {
         self.execution.finish()?;
         drop(self.routes);
         Ok(readiness)
+    }
+    /// Whether the file holds a slot and a dormant count for a region, and its checkpoint: what a presence skip left.
+    #[cfg(test)]
+    pub(crate) fn region_probe(
+        &self,
+        region: ryo_execution_domain::domain::executable_program::types::RegionId,
+    ) -> super::types::RegionProbe {
+        use crate::application::file_dag::program::runtime::types::{DependencyCheckpoint, SlotHolding};
+        use super::types::{InputRelease, Instantiated};
+        let held = self.execution.instantiated(region);
+        super::types::RegionProbe {
+            instantiated: match (held.slot, held.dormant) {
+                (SlotHolding::Held, _) => Instantiated::Slot,
+                (SlotHolding::Missing, SlotHolding::Held) => Instantiated::Dormant,
+                (SlotHolding::Missing, SlotHolding::Missing) => Instantiated::Never,
+            },
+            inputs: match (held.slot, self.execution.retry_checkpoint(self.execution.file_state(), region)) {
+                (SlotHolding::Held, Ok(checkpoint)) => Some(match checkpoint.dependencies {
+                    DependencyCheckpoint::Consumed => InputRelease::Released,
+                    DependencyCheckpoint::Pending => InputRelease::Owed,
+                }),
+                (SlotHolding::Held | SlotHolding::Missing, _) => None,
+            },
+        }
+    }
+    /// Releases a region's inputs once more, as a consumer that already released them would.
+    #[cfg(test)]
+    pub(crate) fn retire_again(
+        &self,
+        region: ryo_execution_domain::domain::executable_program::types::RegionId,
+    ) -> Result<(), OperatingError> {
+        self.execution.retire(self.execution.file_state(), region)
+    }
+    /// Whether the file's cleanup has recorded a refusal.
+    #[cfg(test)]
+    pub(crate) fn cleanup_status(&self) -> Result<(), OperatingError> {
+        self.execution.cleanup_status()
+    }
+    /// The live state the file's execution holds.
+    #[cfg(test)]
+    pub(crate) fn state_counts(&self) -> ryo_execution_domain::domain::readiness::types::InvocationStateCounts {
+        self.execution.state_counts()
     }
     /// Weak lifetime observation only; the test never retains a workspace or owner.
     #[cfg(any(test, feature = "fixtures"))]

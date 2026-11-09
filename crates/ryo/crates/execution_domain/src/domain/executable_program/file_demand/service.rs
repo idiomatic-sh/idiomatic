@@ -2,8 +2,8 @@
 use super::super::types::executable_program::value::ExecutableProgram;
 use super::super::types::region::value::Region;
 use super::super::types::{
-    ComputationCount, ConsumerObligation, FileReaderGraph, InputSource, ObservationPlace,
-    ReaderMultiplicity, RegionId, Remaining, RemainingMemo, RemainingTable, RuleProgram,
+    FileReaderGraph, InputSource, ObservationPlace, ReaderMultiplicity, RegionId, RemainingTable,
+    RuleProgram,
 };
 use super::types::*;
 use crate::domain::rule_intent::types::FrontierPurpose;
@@ -159,143 +159,69 @@ pub fn compile(
     })
 }
 
-/// Compute potential consumer obligations once, without opening or polling any input.
+/// The regions a file may select as external readers, collected once for the request.
 pub(crate) fn readers(
     regions: &[Region],
     rules: &[RuleProgram],
 ) -> Result<FileReaderGraph, OperatingError> {
-    use std::collections::{HashMap, HashSet};
-    let mut compiled = HashMap::new();
+    let mut roots = std::collections::HashSet::new();
     for root in rules
         .iter()
         .flat_map(|rule| rule.root_readers.iter().copied())
     {
-        if compiled.contains_key(&root) {
+        let _region = regions.get(root.0).ok_or(OperatingError::NotRun)?;
+        let _new = roots.insert(root);
+    }
+    Ok(FileReaderGraph { roots })
+}
+
+/// One file's initial reader counts, by one walk from its admitted roots. Each selected root counts its own
+/// multiplicity, absent or not. Each region reached from an admitted root without passing through an absent root adds one
+/// to each of its dependencies, once per declared edge, so duplicate edges stay distinct and a shared consumer is counted
+/// once. An absent root is reached and counted, but its own edges are never followed: nothing only it reaches gets a
+/// count, at any depth.
+pub fn table(
+    regions: &[Region],
+    selected: &[SelectedRoot],
+    absent: &AbsentRoots,
+) -> Result<RemainingTable, OperatingError> {
+    let mut counts = vec![ReaderMultiplicity::default(); regions.len()].into_boxed_slice();
+    let mut visited = vec![false; regions.len()];
+    let mut pending = Vec::with_capacity(selected.len());
+    for &SelectedRoot { region: root, readers } in selected {
+        let count = counts.get_mut(root.0).ok_or(OperatingError::NotRun)?;
+        count.0 = count
+            .0
+            .checked_add(readers.0)
+            .ok_or(OperatingError::ShapeMismatch)?;
+        if absent.presence(root) == crate::domain::presence::types::RegionPresence::Present {
+            pending.push(root);
+        }
+    }
+    while let Some(id) = pending.pop() {
+        let seen = visited.get_mut(id.0).ok_or(OperatingError::NotRun)?;
+        if *seen {
             continue;
         }
-        let mut pending = vec![root];
-        let mut visited = HashSet::new();
-        let mut consumers = HashMap::<RegionId, HashMap<RegionId, ReaderMultiplicity>>::new();
-        while let Some(id) = pending.pop() {
-            if !visited.insert(id) {
-                continue;
-            }
-            let region = regions.get(id.0).ok_or(OperatingError::NotRun)?;
-            for &dependency in region.dependencies() {
-                consumers
-                    .entry(dependency)
-                    .or_default()
-                    .entry(id)
-                    .or_default()
-                    .0 += 1;
-                pending.push(dependency);
-            }
+        *seen = true;
+        if absent.presence(id) == crate::domain::presence::types::RegionPresence::Absent {
+            continue;
         }
-        compiled.insert(
-            root,
-            consumers
-                .into_iter()
-                .map(|(producer, users)| {
-                    let mut users = users.into_iter().collect::<Vec<_>>();
-                    users.sort_unstable_by_key(|(id, _)| id.0);
-                    (
-                        producer,
-                        users
-                            .into_iter()
-                            .map(|(consumer, readers)| ConsumerObligation { consumer, readers })
-                            .collect::<Vec<_>>()
-                            .into_boxed_slice(),
-                    )
-                })
-                .collect(),
-        );
-    }
-    Ok(FileReaderGraph {
-        consumers: compiled,
-        remaining: Default::default(),
-    })
-}
-
-/// Initial reader counts for the selected roots, computed once and shared by every
-/// later file that selects the same roots.
-pub fn remaining(
-    graph: &FileReaderGraph,
-    regions: &[Region],
-    selected: &std::collections::HashMap<RegionId, ReaderMultiplicity>,
-) -> Result<Remaining, OperatingError> {
-    let mut memo = graph
-        .remaining
-        .lock()
-        .map_err(|_| OperatingError::NotRun)?;
-    if let Some(table) = &memo.table
-        && table.selected == *selected
-    {
-        return Ok(Remaining {
-            table: std::sync::Arc::clone(table),
-            #[cfg(test)]
-            computations: memo.computations,
-        });
-    }
-    let table = std::sync::Arc::new(table(graph, regions, selected)?);
-    memo.computations = ComputationCount(memo.computations.0 + 1);
-    memo.table = Some(std::sync::Arc::clone(&table));
-    Ok(Remaining {
-        table,
-        #[cfg(test)]
-        computations: memo.computations,
-    })
-}
-
-/// Count only selected external roots and their potentially live direct consumers.
-/// Duplicate dependency edges remain distinct; shared consumers are counted once.
-fn table(
-    graph: &FileReaderGraph,
-    regions: &[Region],
-    selected: &std::collections::HashMap<RegionId, ReaderMultiplicity>,
-) -> Result<RemainingTable, OperatingError> {
-    let mut consumers =
-        vec![std::collections::HashMap::<RegionId, ReaderMultiplicity>::new(); regions.len()];
-    for root in selected.keys() {
-        let producers = graph.consumers.get(root).ok_or(OperatingError::NotRun)?;
-        for (producer, users) in producers {
-            let slot = consumers
-                .get_mut(producer.0)
-                .ok_or(OperatingError::NotRun)?;
-            for user in users {
-                slot.entry(user.consumer)
-                    .and_modify(|count| *count = ReaderMultiplicity(count.0.max(user.readers.0)))
-                    .or_insert(user.readers);
-            }
+        let region = regions.get(id.0).ok_or(OperatingError::NotRun)?;
+        for &dependency in region.dependencies() {
+            let count = counts.get_mut(dependency.0).ok_or(OperatingError::NotRun)?;
+            count.0 = count.0.checked_add(1).ok_or(OperatingError::ShapeMismatch)?;
+            pending.push(dependency);
         }
     }
-    let counts = consumers
-        .iter()
-        .enumerate()
-        .map(|(at, users)| {
-            users.values().try_fold(
-                selected.get(&RegionId(at)).copied().unwrap_or_default(),
-                |count, used| {
-                    count
-                        .0
-                        .checked_add(used.0)
-                        .map(ReaderMultiplicity)
-                        .ok_or(OperatingError::ShapeMismatch)
-                },
-            )
-        })
-        .collect::<Result<Vec<_>, _>>()?
-        .into_boxed_slice();
-    Ok(RemainingTable {
-        selected: selected.clone(),
-        counts,
-    })
+    Ok(RemainingTable { counts })
 }
 
-/// The initial reader count of `producer` in a table: its dense count, or the selected root's own.
-pub fn reader_count(table: &RemainingTable, producer: RegionId) -> ReaderMultiplicity {
-    table
-        .counts
-        .get(producer.0)
-        .copied()
-        .unwrap_or_else(|| table.selected.get(&producer).copied().unwrap_or_default())
+/// The initial reader count of `producer` in a table, which counts every region of its program.
+///
+/// # Errors
+///
+/// [`OperatingError::NotRun`] for a region the program does not have.
+pub fn reader_count(table: &RemainingTable, producer: RegionId) -> Result<ReaderMultiplicity, OperatingError> {
+    table.counts.get(producer.0).copied().ok_or(OperatingError::NotRun)
 }

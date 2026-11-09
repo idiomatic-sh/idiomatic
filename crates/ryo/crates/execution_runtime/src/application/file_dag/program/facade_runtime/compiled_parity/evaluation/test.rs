@@ -81,7 +81,7 @@ pub(crate) fn subject(scenario: Input) -> Result<Value, Failure> {
         &mut symbols,
         None,
         None,
-    )?;
+        &|_| Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead))?;
     let function = Table {
         kinds: kinds(Relation::Function).to_vec(),
         cells: kinds(Relation::Function)

@@ -318,7 +318,7 @@ fn all_registrations_refuse_a_foreign_variant() -> Result<(), Failure> {
     for (at, kind) in OperationKind::ALL.iter().enumerate() {
         let foreign = fixture(OperationKind::ALL[(at + 1) % OperationKind::ALL.len()]);
         assert!(matches!(
-            prepare_operator(*kind, &foreign.operation, &[], &[]),
+            prepare_operator(*kind, &foreign.operation, &[], &[], ryo_values::domain::plan_parts::types::StepScope::PerFile),
             Err(OperatingError::WrongOperation)
         ));
     }

@@ -1,4 +1,4 @@
-//! Whole-region strategies that publish without the ordinary kernel loop: blocked and ordered-existence regions.
+//! Whole-region strategies that publish without the ordinary kernel loop: blocked, absent and ordered-existence regions.
 use super::super::{InvocationOutcome, Poll, ProgramExecution};
 use super::super::{KernelAdmission, KernelPermit};
 use crate::application::file_dag::program::runtime::types::InvocationFailure;
@@ -45,6 +45,44 @@ impl ProgramExecution {
             )));
         }
         Ok(None)
+    }
+    /// A region whose skip formula fails on the file has no row and no row error there: it publishes the empty table,
+    /// complete, without demanding an input. Blocked regions publish first; the presence gate is off on any file with a
+    /// partial read, so the two never meet.
+    pub(crate) fn absent(
+        &self,
+        call: &mut Poll<'_, '_>,
+    ) -> Result<Option<InvocationOutcome>, InvocationFailure> {
+        let id = call.id;
+        let region = call.region;
+        let root = call.state.absent.borrow().presence(id);
+        if root == ryo_execution_domain::domain::presence::types::RegionPresence::Present && call.inputs.presence(id) == ryo_execution_domain::domain::presence::types::RegionPresence::Present {
+            return Ok(None);
+        }
+        let needs = region
+            .needs()
+            .as_ref()
+            .map_err(|error| InvocationFailure::Semantic(error.clone()))?;
+        let last = region
+            .instructions()
+            .last()
+            .ok_or_else(|| InvocationFailure::Semantic(OperatingError::NotRun))?;
+        let input = call
+            .inputs
+            .publish(
+                crate::application::file_dag::program::admission::ProducerRoot::Region(id),
+                &self.partition,
+                &[],
+                crate::application::file_dag::program::admission::Representation::empty(
+                    last.contract().output_kinds.clone(),
+                )
+                .map_err(InvocationFailure::Semantic)?,
+            )
+            .map_err(InvocationFailure::Semantic)?;
+        self.readiness_counts.borrow_mut().presence_absent.0 += 1;
+        Ok(Some(InvocationOutcome::Published(
+            input.with_coverage(call.completion.coverage(needs)),
+        )))
     }
     pub(crate) fn ordered(
         &self,

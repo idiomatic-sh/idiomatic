@@ -225,7 +225,7 @@ pub(crate) fn run_chain(
         &mut case.symbols,
         Some(&semantic),
         None,
-    )?;
+        &|_| Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead))?;
     let read = |relation| {
         sources
             .providers

@@ -300,6 +300,7 @@ pub(crate) fn graph_outputs(
                             &union,
                             &[schema, schema],
                             &[],
+                            input.schema.scope,
                         )
                         .map(std::sync::Arc::new),
                     }

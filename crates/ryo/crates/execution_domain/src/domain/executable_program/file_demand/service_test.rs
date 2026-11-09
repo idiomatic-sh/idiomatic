@@ -60,8 +60,24 @@ fn counted(
     selected: &std::collections::HashMap<RegionId, ReaderMultiplicity>,
     producer: RegionId,
 ) -> Result<ReaderMultiplicity, OperatingError> {
-    super::service::remaining(program.file_readers(), program.regions(), selected)
-        .map(|remaining| super::service::reader_count(&remaining.table, producer))
+    walked(program, selected, &AbsentRoots::default(), producer)
+}
+fn walked(
+    program: &ExecutableProgram,
+    selected: &std::collections::HashMap<RegionId, ReaderMultiplicity>,
+    absent: &AbsentRoots,
+    producer: RegionId,
+) -> Result<ReaderMultiplicity, OperatingError> {
+    let mut roots: Vec<SelectedRoot> = selected
+        .iter()
+        .map(|(region, readers)| SelectedRoot {
+            region: *region,
+            readers: *readers,
+        })
+        .collect();
+    roots.sort_unstable_by_key(|root| root.region.0);
+    super::service::table(program.regions(), &roots, absent)
+        .and_then(|table| super::service::reader_count(&table, producer))
 }
 fn selected_reader_counts_keep_duplicate_edges_without_disabled_siblings() {
     let program = build(
@@ -95,33 +111,67 @@ fn selected_reader_counts_keep_duplicate_edges_without_disabled_siblings() {
         Err(OperatingError::NotRun)
     );
 }
-/// Many files selecting the same roots share one table per request; a changed selection recomputes.
-fn remaining_is_computed_once_per_selection() {
-    let program = program();
-    let selected = std::collections::HashMap::from([(RegionId(0), ReaderMultiplicity(1))]);
-    let files = 8;
-    let mut computations = super::super::types::ComputationCount::default();
-    for _ in 0..files {
-        computations = super::service::remaining(
-            program.file_readers(),
-            program.regions(),
-            &selected,
-        )
-        .unwrap()
-        .computations;
-    }
-    assert_eq!(computations, super::super::types::ComputationCount(1), "{files} files with one selection compute once");
-    let other = std::collections::HashMap::from([(RegionId(1), ReaderMultiplicity(1))]);
-    let changed =
-        super::service::remaining(program.file_readers(), program.regions(), &other)
-            .unwrap();
-    assert_eq!(changed.computations, super::super::types::ComputationCount(2), "a different selection computes again");
+/// Rule A's absent root (region 1) reads X (region 2), which reads Y (region 3); A is also an input of admitted rule F's root
+/// (region 0). The walk counts A for F's edge and its own selection, and never follows A's edges: X and Y get no count. When
+/// F also reads Y directly, Y is counted once, through F.
+fn absent_roots_stop_the_walk_at_any_depth() {
+    let program = |shared: bool| {
+        let f: Box<[RegionId]> = if shared {
+            vec![RegionId(1), RegionId(3)].into_boxed_slice()
+        } else {
+            vec![RegionId(1)].into_boxed_slice()
+        };
+        let regions = [f, vec![RegionId(2)].into_boxed_slice(), vec![RegionId(3)].into_boxed_slice(), Box::new([])]
+            .into_iter()
+            .map(|dependencies| {
+                let mut region = Region::new(
+                    RuleIndex(0),
+                    Ok(Box::new([])),
+                    StepScope::PerFile,
+                    Box::new([]),
+                    Box::new([]),
+                    ReaderMultiplicity(1),
+                );
+                region.set_dependencies(dependencies);
+                region
+            })
+            .collect::<Vec<_>>()
+            .into_boxed_slice();
+        let rules = vec![RuleProgram {
+            root_readers: vec![RegionId(0), RegionId(1)].into_boxed_slice(),
+            original_steps: Box::new([]),
+            emit: Ok(RegionId(0)),
+            frontier: Box::new([]),
+        }]
+        .into_boxed_slice();
+        let file_readers = super::service::readers(&regions, &rules).unwrap();
+        ExecutableProgram::new(regions, file_readers, rules, Box::new([]), Box::new([]))
+    };
+    let selected = std::collections::HashMap::from([
+        (RegionId(0), ReaderMultiplicity(1)),
+        (RegionId(1), ReaderMultiplicity(1)),
+    ]);
+    let mut regions = AbsentRegions::none(crate::domain::readiness::types::RegionCount(4));
+    regions.insert(RegionId(1));
+    let absent = AbsentRoots::decided(regions);
+    let alone = program(false);
+    assert_eq!(walked(&alone, &selected, &absent, RegionId(1)).unwrap(), ReaderMultiplicity(2));
+    assert_eq!(walked(&alone, &selected, &absent, RegionId(2)).unwrap(), ReaderMultiplicity(0));
+    assert_eq!(walked(&alone, &selected, &absent, RegionId(3)).unwrap(), ReaderMultiplicity(0));
+    assert_eq!(
+        walked(&alone, &selected, &AbsentRoots::default(), RegionId(3)).unwrap(),
+        ReaderMultiplicity(1),
+        "with no absent root, the walk is today's table"
+    );
+    let shared = program(true);
+    assert_eq!(walked(&shared, &selected, &absent, RegionId(2)).unwrap(), ReaderMultiplicity(0));
+    assert_eq!(walked(&shared, &selected, &absent, RegionId(3)).unwrap(), ReaderMultiplicity(1));
 }
 enum Scenario {
     Mode(bool, bool, usize, usize, usize),
     Readers,
     DeferredSources,
-    RemainingOnce,
+    AbsentDepth,
 }
 type Input = Scenario;
 type Value = ();
@@ -142,9 +192,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(()),
     },
     Case {
-        name: CaseName("initial reader counts are computed once for many files"),
+        name: CaseName("an absent root's edges are never counted, at any depth"),
         word: Word::Succeeds,
-        input: || Scenario::RemainingOnce,
+        input: || Scenario::AbsentDepth,
         expect: Expect::Value(()),
     },
     Case {
@@ -193,8 +243,8 @@ fn subject(input: Input) -> Result<Value, Failure> {
         Scenario::DeferredSources => {
             return deferred_sources();
         }
-        Scenario::RemainingOnce => {
-            remaining_is_computed_once_per_selection();
+        Scenario::AbsentDepth => {
+            absent_roots_stop_the_walk_at_any_depth();
             return Ok(());
         }
         Scenario::Mode(diagnostic, observations, capture, cancelled, roots) => {

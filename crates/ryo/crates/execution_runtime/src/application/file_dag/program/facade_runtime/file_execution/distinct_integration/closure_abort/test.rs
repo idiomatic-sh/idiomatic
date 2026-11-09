@@ -160,7 +160,7 @@ fn exercise(refusal: Refusal, fused: bool) {
         &mut symbols,
         None,
         None,
-    )
+        &|_| Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead))
     .unwrap();
     let owner = Rc::clone(&file.owner);
     let read = |_| Err::<Rows<'_>, _>(OperatingError::NotRead);

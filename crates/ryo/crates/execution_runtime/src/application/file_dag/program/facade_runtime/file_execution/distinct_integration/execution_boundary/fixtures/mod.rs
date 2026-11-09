@@ -54,7 +54,7 @@ pub(crate) fn source(rows: Rows<'_>) -> Result<Table, OperatingError> {
         &mut symbols,
         None,
         None,
-    )?;
+        &|_| Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead))?;
     let read = |relation| {
         if relation == Relation::SyntaxTree {
             Ok(rows.clone())

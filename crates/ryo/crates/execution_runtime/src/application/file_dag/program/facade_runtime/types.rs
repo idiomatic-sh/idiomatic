@@ -61,6 +61,54 @@ pub(super) struct CachedInput {
     pub(super) input: AvailableInput,
 }
 
+/// What one presence test or formula answered on the current file.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum Truth {
+    Unknown,
+    Holds,
+    Fails,
+}
+/// Whether a file decides presence: off on any file with a partial read, where every root runs in full.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum PresenceGate {
+    On,
+    Off,
+}
+/// A run rule's prepared root, which the presence gate may find absent.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) struct RootCandidate {
+    pub(super) rule: ryo_execution_domain::domain::coverage::types::RuleIndex,
+    pub(super) region: ryo_execution_domain::domain::executable_program::types::RegionId,
+}
+/// Whether a file instantiated a region: a slot, only a dormant reader count, or nothing at all.
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Instantiated {
+    Never,
+    Slot,
+    Dormant,
+}
+/// Whether a region's inputs are released, or still owed by it.
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum InputRelease {
+    Released,
+    Owed,
+}
+/// What a file left of one region, observed only by tests.
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct RegionProbe {
+    pub(crate) instantiated: Instantiated,
+    pub(crate) inputs: Option<InputRelease>,
+}
+/// One file's presence memo: what each test and formula of the program answered on the file, filled lazily, each
+/// relation's pending tests decided together in one pass over its rows.
+pub(crate) struct FilePresence {
+    pub(super) tests: Vec<Truth>,
+    pub(super) formulas: Vec<Truth>,
+    pub(super) scratch: ryo_execution_domain::domain::table_scratch::types::SelectScratch,
+}
 pub(super) struct FileRoot {
     pub(super) readiness: Option<ryo_values::domain::records::types::ProducerReadiness>,
     pub(super) commit: FrontierCommit,

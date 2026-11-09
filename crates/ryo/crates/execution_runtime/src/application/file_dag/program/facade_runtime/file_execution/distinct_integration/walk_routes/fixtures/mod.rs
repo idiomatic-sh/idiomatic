@@ -155,7 +155,7 @@ impl Program {
             symbols,
             None,
             None,
-        )
+        &|_| Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead))
     }
     pub(super) fn read(&self, relation: Relation) -> Result<Rows<'_>, OperatingError> {
         self.reads.fetch_add(1, Ordering::Relaxed);

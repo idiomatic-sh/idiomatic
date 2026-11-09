@@ -96,7 +96,7 @@ fn run(
         &mut symbols,
         None,
         None,
-    )
+        &|_| Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead))
     .unwrap();
     let stored = providers
         .iter()

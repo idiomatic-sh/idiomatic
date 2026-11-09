@@ -115,6 +115,20 @@ pub(crate) struct CallCount(pub usize);
 #[derive(Clone, Copy, Default, Debug, PartialEq, Eq)]
 pub(crate) struct ReaderInitializations(pub usize);
 
+/// Whether a scope holds an entry for a region, observed only by tests.
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum SlotHolding {
+    Held,
+    Missing,
+}
+/// Whether a scope holds a slot and a dormant reader count for a region, observed only by tests.
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct Instantiation {
+    pub(crate) slot: SlotHolding,
+    pub(crate) dormant: SlotHolding,
+}
 /// Whether a region's dependencies were already released by its consumers.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Dependencies {

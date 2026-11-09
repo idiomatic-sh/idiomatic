@@ -80,9 +80,12 @@ impl ProgramExecution {
                 }
                 let remaining = ReaderCount(current.0 - 1);
                 work.simulated.insert(id, remaining);
+                // An absent root owes no input, whether or not it was ever touched: its edges were never counted.
                 if remaining.0 == 0
                     && !slot
                         .is_some_and(|slot| slot.dependencies_consumed == Dependencies::Consumed)
+                    && state.absent.borrow().presence(id)
+                        == ryo_execution_domain::domain::presence::types::RegionPresence::Present
                 {
                     work.pending
                         .extend(self.program.regions()[id.0].dependencies().iter().copied());

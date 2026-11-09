@@ -1,5 +1,8 @@
 //! Preparation rejects foreign operations and retains input/value errors for execution.
 use super::service::prepare_operator;
+
+const PER_FILE: ryo_values::domain::plan_parts::types::StepScope =
+    ryo_values::domain::plan_parts::types::StepScope::PerFile;
 use crate::domain::{operating::errors::OperatingError, operation_schema::types::InputShape};
 use ryo_relations::domain::relations::types::{CellKind, Relation};
 use ryo_values::{
@@ -51,7 +54,7 @@ fn census(scenario: Scenario) {
             for kind in OperationKind::ALL {
                 let foreign = if *kind == OperationKind::Union { &project } else { &union };
                 assert_eq!(
-                    prepare_operator(*kind, foreign, &[], &[]).map(|_| ()),
+                    prepare_operator(*kind, foreign, &[], &[], PER_FILE).map(|_| ()),
                     Err(OperatingError::WrongOperation),
                     "{kind:?} prepared an operation of another kind"
                 );
@@ -80,6 +83,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             &project,
             &[InputShape { kinds: &kinds, tree: None }],
             &[],
+            PER_FILE,
         ),
         Scenario::Foreign => prepare_operator(
             OperationKind::Project,
@@ -92,8 +96,9 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 tree: None,
             }],
             &[],
+            PER_FILE,
         ),
-        Scenario::Missing => prepare_operator(OperationKind::Project, &project, &[], &[]),
+        Scenario::Missing => prepare_operator(OperationKind::Project, &project, &[], &[], PER_FILE),
         Scenario::EveryOperatorDescribesItself | Scenario::EveryKindRefusesAForeignOperation => {
             return Ok(());
         }
@@ -108,6 +113,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 tree: None,
             }],
             &[],
+            PER_FILE,
         ),
     }
     .and_then(|contract| {

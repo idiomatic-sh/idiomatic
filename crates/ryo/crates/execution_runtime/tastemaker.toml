@@ -52,6 +52,7 @@ templates = [
   { template = "idiomatic.ryo/application-part", file = "src/application/file_dag/acceptance.rs", description = "One explicitly placed nested part of a cohesive application operation." },
   { template = "idiomatic.ryo/application-part", file = "src/application/file_dag/acceptance/observations_test/fixtures.rs", description = "One explicitly placed nested part of a cohesive application operation." },
   { template = "idiomatic.ryo/application-part", file = "src/application/file_dag/acceptance/request_graph_test.rs", description = "One explicitly placed nested part of a cohesive application operation." },
+  { template = "idiomatic.ryo/application-part", file = "src/application/file_dag/acceptance/presence_service_test.rs", description = "One explicitly placed nested part of a cohesive application operation." },
   { template = "idiomatic.ryo/application-part", file = "src/application/file_dag/acceptance/fixtures.rs", description = "One explicitly placed nested part of a cohesive application operation." },
   { template = "idiomatic.ryo/application-part", file = "src/application/file_dag/acceptance/layout_service_test.rs", description = "One explicitly placed nested part of a cohesive application operation." },
   { template = "idiomatic.ryo/application-part", file = "src/application/file_dag/acceptance/observed_replay_test.rs", description = "One explicitly placed nested part of a cohesive application operation." },

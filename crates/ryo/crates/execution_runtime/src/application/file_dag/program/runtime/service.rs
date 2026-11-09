@@ -160,6 +160,10 @@ pub(crate) struct RuntimeState {
     slots: RefCell<rustc_hash::FxHashMap<RegionId, Slot>>,
     dormant: RefCell<rustc_hash::FxHashMap<RegionId, ReaderCount>>,
     retirement: RefCell<RetirementWork>,
+    /// The file roots this file found absent: each publishes the empty table and owes no input.
+    absent: RefCell<ryo_execution_domain::domain::executable_program::file_demand::types::AbsentRoots>,
+    /// The other regions the file's admitted roots reach whose skip formula fails on the file.
+    interior: RefCell<ryo_execution_domain::domain::executable_program::file_demand::types::AbsentRegions>,
     #[cfg(test)]
     reader_initializations: std::cell::Cell<ReaderInitializations>,
 }
@@ -231,6 +235,7 @@ pub(crate) struct PermittedPhysical<'permit, 'meaning, 'scope> {
 /// The borrowed frame of one poll that the demand stages share; it grants nothing the poll lacked.
 pub(crate) struct Poll<'call, 'ctx> {
     id: RegionId,
+    state: &'call RuntimeState,
     region: &'call Region,
     completion: &'call ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy,
     kernels: &'call dyn KernelInvocation,

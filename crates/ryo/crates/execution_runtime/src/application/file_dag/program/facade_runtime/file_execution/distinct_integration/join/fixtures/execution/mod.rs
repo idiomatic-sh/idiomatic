@@ -160,7 +160,7 @@ pub(crate) fn execute(
         symbols,
         None,
         None,
-    )?;
+        &|_| Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead))?;
     if let Some(limit) = faults.optional_limit {
         file.owner.derived().set_optional_limit(
             ryo_execution_store::application::file_dag::derived::owner::index::types::ByteLimit(limit),

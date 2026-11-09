@@ -32,6 +32,8 @@ impl Slot {
             None => state.initial_remaining(program, id)?,
         };
         let cancelled = remaining.0 == 0;
+        // An absent root owes no input: the walk never counted its edges, so nothing is released when it publishes.
+        let absent = state.absent.borrow().presence(id) == ryo_execution_domain::domain::presence::types::RegionPresence::Absent;
         // Compiled obligations include roots in other project populations. They
         // remain a conservative upper bound until phase finish; no bank may
         // retire another population's publication or claim exact last use.
@@ -53,7 +55,7 @@ impl Slot {
             ]
             .into_boxed_slice(),
             remaining,
-            dependencies_consumed: if cancelled {
+            dependencies_consumed: if cancelled || absent {
                 Dependencies::Consumed
             } else {
                 Dependencies::Pending
@@ -84,7 +86,16 @@ impl RuntimeState {
                 retired_states: Vec::new(),
                 retired_scratch: Vec::new(),
             }),
+            absent: RefCell::new(Default::default()),
+            interior: RefCell::new(Default::default()),
         }
+    }
+    /// Whether a region the file's admitted roots reach has a skip formula that fails on the file.
+    pub(crate) fn presence(
+        &self,
+        id: RegionId,
+    ) -> ryo_execution_domain::domain::presence::types::RegionPresence {
+        self.interior.borrow().presence(id)
     }
     pub(crate) fn initial_remaining(
         &self,
@@ -102,7 +113,8 @@ impl RuntimeState {
                 .map(|region| ReaderCount(region.consumers().0))
                 .ok_or_else(|| OperatingError::NotRun),
             RootReaders::Selected(selected) => {
-                Ok(ReaderCount(ryo_execution_domain::domain::executable_program::file_demand::service::reader_count(selected, id).0))
+                ryo_execution_domain::domain::executable_program::file_demand::service::reader_count(selected, id)
+                    .map(|count| ReaderCount(count.0))
             }
         }
     }
@@ -149,10 +161,12 @@ impl ProgramExecution {
             producer_lease_probe: RefCell::new(None),
         }
     }
-    /// Bind the immutable declared file intents before any region is touched.
+    /// Bind the immutable declared file intents before any region is touched: the reader counts of one walk from the
+    /// admitted roots that stops at the absent ones.
     pub(crate) fn activate_file_roots(
         &self,
         readers: &[RegionId],
+        absent: ryo_execution_domain::domain::executable_program::file_demand::types::AbsentRoots,
     ) -> Result<(), OperatingError> {
         if !matches!(self.partition, Partition::File(_))
             || !self.file_state.slots.borrow().is_empty()
@@ -161,23 +175,50 @@ impl ProgramExecution {
         {
             return Err(OperatingError::NotRun);
         }
-        let mut selected = std::collections::HashMap::new();
+        let mut counted = rustc_hash::FxHashMap::<RegionId, usize>::default();
         for &root in readers {
-            if !self.program.file_readers().consumers.contains_key(&root) {
+            if !self.program.file_readers().roots.contains(&root) {
                 return Err(OperatingError::NotRun);
             }
-            selected
-                .entry(root)
-                .or_insert(ryo_execution_domain::domain::executable_program::types::ReaderMultiplicity(0))
-                .0 += 1;
+            *counted.entry(root).or_default() += 1;
         }
-        let remaining = ryo_execution_domain::domain::executable_program::file_demand::service::remaining(
-            self.program.file_readers(),
+        let selected: Vec<_> = counted
+            .into_iter()
+            .map(|(region, count)| {
+                ryo_execution_domain::domain::executable_program::file_demand::types::SelectedRoot {
+                    region,
+                    readers: ryo_execution_domain::domain::executable_program::types::ReaderMultiplicity(count),
+                }
+            })
+            .collect();
+        let table = ryo_execution_domain::domain::executable_program::file_demand::service::table(
             self.program.regions(),
             &selected,
+            &absent,
         )?;
-        *self.file_state.roots.borrow_mut() = RootReaders::Selected(remaining.table);
+        *self.file_state.roots.borrow_mut() = RootReaders::Selected(Arc::new(table));
+        *self.file_state.absent.borrow_mut() = absent;
         Ok(())
+    }
+    /// The regions the file's walk counted a reader for: what its admitted roots can reach, and its absent roots.
+    pub(crate) fn reached(&self) -> Vec<RegionId> {
+        match &*self.file_state.roots.borrow() {
+            RootReaders::Selected(table) => table
+                .counts
+                .iter()
+                .enumerate()
+                .filter(|(_, count)| count.0 > 0)
+                .map(|(at, _)| RegionId(at))
+                .collect(),
+            RootReaders::Declared => Vec::new(),
+        }
+    }
+    /// The regions found absent at admission: interior regions of admitted rules whose skip formula fails on the file.
+    pub(crate) fn mark_interior(
+        &self,
+        interior: ryo_execution_domain::domain::executable_program::file_demand::types::AbsentRegions,
+    ) {
+        *self.file_state.interior.borrow_mut() = interior;
     }
     pub(crate) fn validate_state(
         &self,

@@ -232,7 +232,8 @@ impl CapturedProject {
             ReuseEligibility::Eligible,
             symbols,
             None,
-            None)?;
+            None,
+        &|_| Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead))?;
         let mut arena = vec![];
         let mut places = vec![];
         let mut words = ryo_relations::domain::relations::types::Words::default();

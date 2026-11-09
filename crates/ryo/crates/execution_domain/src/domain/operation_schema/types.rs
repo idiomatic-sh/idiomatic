@@ -14,3 +14,12 @@ pub struct InputShape<'a> {
     /// Native syntax representation, absent for resident and computed tables.
     pub tree: Option<TreeForm>,
 }
+
+/// Which input of a two-input operation a column of the answer was read from.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum OriginSide {
+    /// The left input.
+    Left,
+    /// The right input.
+    Right,
+}

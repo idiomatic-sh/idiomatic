@@ -44,6 +44,8 @@ pub struct ReadinessCounts {
     pub suspensions: ReadinessEvents,
     /// How many were woken.
     pub wakeups: ReadinessEvents,
+    /// How many published the empty table because their skip formula failed on the file.
+    pub presence_absent: ReadinessEvents,
 }
 impl std::ops::AddAssign for ReadinessCounts {
     fn add_assign(&mut self, other: Self) {
@@ -51,6 +53,7 @@ impl std::ops::AddAssign for ReadinessCounts {
         self.evaluations.0 += other.evaluations.0;
         self.suspensions.0 += other.suspensions.0;
         self.wakeups.0 += other.wakeups.0;
+        self.presence_absent.0 += other.presence_absent.0;
     }
 }
 

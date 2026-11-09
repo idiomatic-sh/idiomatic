@@ -41,6 +41,8 @@ pub fn compile(
         .iter()
         .map(|node| node.contract.schema.as_ref().err().cloned())
         .collect();
+    // Each node's presence and skip formula, folded once before the analysis graph is consumed.
+    let presence = crate::domain::presence::service::of_graph(&graph, partitions);
     for (logical, node) in graph.nodes.into_iter().enumerate() {
         let fuse = match (classification.fusibility[logical], node.inputs.first()) {
             (Fusibility::Fusable, Some(NodeInput::Node(child))) => {
@@ -229,6 +231,36 @@ pub fn compile(
         graph.observations.as_ref(),
         &observed_roots,
     );
+    // Merged twins compute the same rows from the same inputs, so they have the same formula.
+    debug_assert!(representative.iter().enumerate().all(|(node, served)| {
+        presence.nodes.get(node) == presence.nodes.get(served.0)
+    }));
+    // An ordered-existence route certifies its source's numbers from the relations the source's lineage read in this
+    // file, so every region upstream of a route source runs whenever it is reached: an empty publication reads no relation.
+    let mut certified = vec![false; regions.len()];
+    let mut pending: Vec<RegionId> = regions
+        .iter()
+        .filter_map(|region| ordered_existence(region.route()).map(|shape| shape.source))
+        .collect();
+    while let Some(id) = pending.pop() {
+        if let Some(seen) = certified.get_mut(id.0)
+            && !*seen
+        {
+            *seen = true;
+            pending.extend(regions.get(id.0).map_or(&[][..], Region::dependencies).iter().copied());
+        }
+    }
+    let presence = crate::domain::presence::service::for_regions(
+        presence,
+        regions.iter().zip(&certified).map(|(region, certified)| {
+            region
+                .instructions()
+                .last()
+                .map(|instruction| instruction.logical().0)
+                .filter(|logical| *logical < count && !*certified)
+                .map(crate::domain::file_program::types::ProgramNodeId)
+        }),
+    );
     let file_readers = super::file_demand::service::readers(&regions, &rules)?;
     let program = ExecutableProgram::new(
         regions.into_boxed_slice(),
@@ -236,7 +268,8 @@ pub fn compile(
         rules.into_boxed_slice(),
         logical_regions.into_boxed_slice(),
         observation_regions.into_boxed_slice(),
-    );
+    )
+    .with_presence(presence);
     #[cfg(any(test, feature = "fixtures"))]
     let program = program.with_fusibility(fusibility.into_boxed_slice());
     Ok(program)

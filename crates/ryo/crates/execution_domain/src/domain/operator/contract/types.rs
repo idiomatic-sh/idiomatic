@@ -1,5 +1,6 @@
 //! Prepared metadata is request-owned; invocation capabilities borrow engine-owned data.
 use super::primitive::PrimitiveSemantics;
+use crate::domain::presence::types::{PresenceMask, RowFailure};
 use super::views::{IndexedRows, PredicateProgram, ValidatedSource};
 use crate::domain::operating::errors::OperatingError;
 use ryo_language::domain::symbols::types::QuerySymbols;
@@ -100,6 +101,8 @@ pub struct OperationSemantics {
     pub effects: Effects,
     /// The inputs whose absence of rows the operation's answer depends on.
     pub absence: AbsenceMask,
+    /// The inputs that must have rows for the answer to have any.
+    pub presence: PresenceMask,
 }
 
 /// The operands, by their place, whose absence of rows an operator trusts: the bit of an operand is `1 << place`.
@@ -196,6 +199,8 @@ pub struct OperatorContract {
     pub empty_results: Vec<EmptyResult>,
     /// How the operation's rows are checked against the source text.
     pub source_gate: SourceGate,
+    /// Which inputs' rows can make the operation fail, decided from the prepared operation and its input kinds.
+    pub failure: RowFailure,
     /// The error every row of the operation is refused with, when the compiled operation is malformed.
     pub row_error: Option<OperatingError>,
     /// The literal pattern the operation matches, when it has one.

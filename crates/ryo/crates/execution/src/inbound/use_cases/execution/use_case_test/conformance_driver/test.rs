@@ -24,6 +24,67 @@ use super::super::conformance::test::compare_delivery_with_port;
 use super::super::conformance::test::same_rows;
 use super::super::conformance::test::RefusalOutcome;
 
+/// Each operation's presence declaration rests on its kernel: a required input with no rows, the others as authored, gives
+/// no row; a union of two empty inputs gives none; and a reach join over no edge finds no pair, so closure is not
+/// reflexive.
+fn every_required_input_empty_answers_no_rows() -> Result<(), Failure> {
+    use ryo_execution_domain::domain::presence::types::PresenceMask;
+    let semantic = KnownSyntax;
+    let empty = |table: &ryo_values::domain::rows::types::Table| ryo_values::domain::rows::types::Table {
+        kinds: table.kinds.clone(),
+        cells: Vec::new(),
+        count: ryo_values::domain::rows::types::RowCount(0),
+    };
+    let rows = |case: &mut ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::expectations::Fixture| {
+        compare_delivery_with_semantic(
+            &case.operation,
+            &case.inputs,
+            &case.bindings,
+            SOURCE,
+            &mut case.symbols,
+            None,
+            Some(&semantic),
+            RefusalOutcome::Failed,
+        )
+        .map(|observed| (observed.collected.map(|table| table.count.0), observed.rows.len()))
+    };
+    for kind in OperationKind::ALL {
+        let presence = ryo_execution_domain::domain::operator::contract::service::semantics(*kind).presence;
+        let width = fixture(*kind).inputs.len();
+        let emptied: Vec<Vec<usize>> = match presence {
+            PresenceMask::AllOf(mask) => (0..width)
+                .filter(|at| mask.0 & (1 << at) != 0)
+                .map(|at| vec![at])
+                .collect(),
+            PresenceMask::AnyOf(mask) => {
+                vec![(0..width).filter(|at| mask.0 & (1 << at) != 0).collect()]
+            }
+            PresenceMask::Always => continue,
+        };
+        for inputs in emptied {
+            let mut case = fixture(*kind);
+            for at in &inputs {
+                case.inputs[*at] = empty(&case.inputs[*at]);
+            }
+            assert_eq!(rows(&mut case)?, (Ok(0), 0), "{kind:?} with inputs {inputs:?} empty");
+        }
+    }
+    let mut reach = fixture(OperationKind::Join);
+    if let ryo_values::domain::plans::types::Operation::Join { reach: lookup, .. } = &mut reach.operation {
+        *lookup = Some(ryo_values::domain::plan_parts::types::ReachLookup {
+            source: ryo_values::domain::plan_parts::types::ColumnIndex(0),
+            destination: ryo_values::domain::plan_parts::types::ColumnIndex(1),
+            keys: vec![],
+            columns: vec![
+                ryo_values::domain::plan_parts::types::ColumnIndex(0),
+                ryo_values::domain::plan_parts::types::ColumnIndex(1),
+            ],
+        });
+    }
+    reach.inputs[1] = empty(&reach.inputs[1]);
+    assert_eq!(rows(&mut reach)?, (Ok(0), 0), "a reach join over no edge");
+    Ok(())
+}
 type Input = fn() -> Result<Value, Failure>;
 type Value = ();
 type Failure = OperatingError;
@@ -258,6 +319,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName(stringify!(unsupported_semantic_batch_publishes_no_prefix)),
         word: Word::Succeeds,
         input: || unsupported_semantic_batch_publishes_no_prefix,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName(stringify!(every_required_input_empty_answers_no_rows)),
+        word: Word::Succeeds,
+        input: || every_required_input_empty_answers_no_rows,
         expect: Expect::Value(()),
     },];
 fn subject(input: Input) -> Result<Value, Failure> {

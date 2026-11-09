@@ -1,5 +1,5 @@
 //! The `operation_schema` service: output column algebra with no row values, source bytes or execution storage.
-use super::projection::{joined, projected, schema_input};
+use super::projection::{joined, projected, right_column, right_view, schema_input};
 
 use super::types::InputShape;
 use super::types::bindings::value::BindingShape;
@@ -285,19 +285,10 @@ pub(crate) fn join_schema(
         .map(|reach| reach_kinds(right.kinds, reach))
         .transpose()?;
     let right_kinds = virtual_right.as_deref().unwrap_or(right.kinds);
-    let view = if reach.is_some() {
-        None
-    } else {
-        right.tree.map(|_| view.as_slice())
-    };
+    let view = right_view(view, right.tree, reach.as_ref());
     let answer = joined(left.kinds, right_kinds, view, output)?;
     for column in right_on {
-        check_columns(
-            right_kinds,
-            &[view.map_or(*column, |view| {
-                crate::domain::table_cells::service::source_column(view, *column)
-            })],
-        )?;
+        check_columns(right_kinds, &[right_column(view, *column)])?;
     }
     check_columns(left.kinds, left_on)?;
     BindingShape::new(bindings).predicates(filter, right_kinds)?;
@@ -330,3 +321,4 @@ fn appended(
     output.push(kind);
     Ok(output)
 }
+

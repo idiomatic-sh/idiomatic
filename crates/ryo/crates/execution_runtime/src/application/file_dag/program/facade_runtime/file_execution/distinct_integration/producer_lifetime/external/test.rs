@@ -52,7 +52,7 @@ fn external_root_exit(exit: ExternalRootExit) -> Result<(), OperatingError> {
         &mut symbols,
         None,
         None,
-    )?;
+        &|_| Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead))?;
     file.owner.derived().set_optional_limit(
         ryo_execution_store::application::file_dag::derived::owner::index::types::ByteLimit(0),
     )?;

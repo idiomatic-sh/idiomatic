@@ -195,51 +195,17 @@ pub(crate) struct Fusibilities {
 /// Number of independent readers of the same publication.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct ReaderMultiplicity(pub usize);
-/// One direct consumer and the number of its repeated dependency edges.
-#[derive(Debug, Clone, Copy)]
-pub struct ConsumerObligation {
-    /// The region that consumes.
-    pub consumer: RegionId,
-    /// How many dependency edges join the consumer to its producer.
-    pub readers: ReaderMultiplicity,
-}
-/// Request-compiled potential obligations, indexed by external root and producer.
-#[derive(Debug)]
-pub struct FileReaderGraph {
-    /// The direct consumers of each region, with how often each reads it.
-    pub consumers: std::collections::HashMap<
-        RegionId,
-        std::collections::HashMap<RegionId, Box<[ConsumerObligation]>>,
-    >,
-    /// The last initial reader counts, shared by every file that selects the same roots.
-    pub remaining: std::sync::Mutex<RemainingMemo>,
-}
-/// How many reader-count tables a request has computed.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
-pub struct ComputationCount(pub usize);
-/// The retained initial reader counts and how many times they were computed.
+/// Request-compiled file roots: the regions a file may select as external readers.
 #[derive(Debug, Default)]
-pub struct RemainingMemo {
-    /// The initial reader counts, once computed.
-    pub table: Option<std::sync::Arc<RemainingTable>>,
-    /// How many times the table was computed.
-    pub computations: ComputationCount,
+pub struct FileReaderGraph {
+    /// Every region a rule names as a root reader.
+    pub roots: std::collections::HashSet<RegionId>,
 }
-/// Initial reader count of every region for one selection of external roots.
+/// Initial reader count of every region for one file's selection of external roots.
 #[derive(Debug)]
 pub struct RemainingTable {
-    /// The reader multiplicity of each selected external root.
-    pub selected: std::collections::HashMap<RegionId, ReaderMultiplicity>,
     /// The initial reader count of every region, by region.
     pub counts: Box<[ReaderMultiplicity]>,
-}
-/// A shared table and the cumulative number of tables the request has computed.
-#[derive(Debug)]
-pub struct Remaining {
-    /// The shared initial reader counts.
-    pub table: std::sync::Arc<RemainingTable>,
-    #[cfg(test)]
-    pub computations: ComputationCount,
 }
 /// One region as the compiler drafts it, before equivalent regions merge: its instructions `I` in order.
 pub(super) struct DraftRegion<I> {
