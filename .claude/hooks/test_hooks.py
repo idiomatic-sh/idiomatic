@@ -165,7 +165,11 @@ class GuardShell(unittest.TestCase):
         for command in [LOCK + "cargo nextest run -p x" + own, LOCK + "cargo test -p x" + own,
                         LOCK + "cargo test -p x --lib some::test" + own, "timeout 600 " + LOCK + "cargo nextest run -p x" + own,
                         LOCK + "cargo +nightly test --package=x" + own + "/", LOCK + "cargo test -p x" + own + " -- --nocapture",
-                        LOCK + "cargo-nextest nextest run -p x" + own, LOCK + "/usr/local/cargo/bin/cargo test -px" + own]:
+                        LOCK + "cargo-nextest nextest run -p x" + own, LOCK + "/usr/local/cargo/bin/cargo test -px" + own,
+                        "flock -w 600 /workspaces/.cargo-build.lock cargo test -p x" + own,
+                        "flock --timeout 600 /workspaces/.cargo-build.lock cargo test -p x" + own,
+                        "flock -xw 600 /workspaces/.cargo-build.lock cargo nextest run -p x" + own,
+                        LOCK + "cargo --config net.offline=true test -p x" + own]:
             with self.subTest(command=command):
                 self.assertEqual(shell(command, lane), 0)
 
@@ -177,6 +181,13 @@ class GuardShell(unittest.TestCase):
                 "env Z=/workspaces/.cargo-build.lock cargo test -p x" + own,
                 "flock /workspaces/.cargo-build.lockx cargo test -p x" + own,
                 "flock -s /workspaces/.cargo-build.lock cargo test -p x" + own,
+                "flock -w 5 -s /workspaces/.cargo-build.lock cargo test -p x" + own,
+                "flock -sw 5 /workspaces/.cargo-build.lock cargo test -p x" + own,
+                "flock -sw 5 /workspaces/.cargo-build.lock cargo test --workspace" + own,
+                "flock --shared /workspaces/.cargo-build.lock cargo test -p x" + own,
+                # a --config value read as the verb
+                LOCK + "cargo --config check test --workspace" + CHECK,
+                "cargo --config check test -p x" + CHECK,
                 # the target
                 LOCK + "cargo nextest run -p x", LOCK + "cargo nextest run -p x" + CHECK + "/" + os.path.basename(lane),
                 LOCK + "cargo test -p x --target-dir /workspaces/idiomatic-target/other",
@@ -1366,7 +1377,8 @@ class ReviewerStop(unittest.TestCase):
 
     def test_the_tree_token_drops_trailing_punctuation(self):
         self.write("checkpoint/rust-review.json", self.review("rust-review"))
-        for brief in ["INTEGRATION_TREE=" + self.tree + ": SOURCE=" + SHA, "(INTEGRATION_TREE=" + self.tree + "), SOURCE=" + SHA + ".",
+        for brief in ["INTEGRATION_TREE=" + self.tree + ": SOURCE=" + SHA,
+                      "The last pass: INTEGRATION_TREE=/elsewhere SOURCE=" + "b" * 40 + ". Now INTEGRATION_TREE=" + self.tree + " SOURCE=" + SHA, "(INTEGRATION_TREE=" + self.tree + "), SOURCE=" + SHA + ".",
                       "INTEGRATION_TREE=" + self.tree + "; SOURCE=" + SHA + ";"]:
             with self.subTest(brief=brief):
                 self.assertEqual(self.stop("rust-review", brief=brief).returncode, 0)
@@ -1379,6 +1391,8 @@ class ReviewerStop(unittest.TestCase):
                 ("no checks", "checkpoint/rust-review.json", self.review("rust-review", checks=[]), 0, None, True),
                 ("verdict not decided", "checkpoint/rust-review.json", {"reviewer": "rust-review", "verdict": "not decided"}, 0, None, True),
                 ("another source", "checkpoint/rust-review.json", self.review("rust-review", source="b" * 40), 0, None, True),
+                ("the quoted earlier source", "checkpoint/rust-review.json", self.review("rust-review", source="b" * 40), 0,
+                 "The last pass reviewed SOURCE=" + "b" * 40 + ". Now INTEGRATION_TREE=" + self.tree + " SOURCE=" + SHA + ".", True),
                 ("not json", "checkpoint/rust-review.json", "{x", 0, None, True),
                 ("no timestamp", "checkpoint/rust-review.json", self.review("rust-review"), 0, None, False),
                 ("no SOURCE", "checkpoint/rust-review.json", self.review("rust-review"), 0, "INTEGRATION_TREE=" + self.tree, True),

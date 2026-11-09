@@ -84,7 +84,10 @@ def after_wrapper(words):
             return tokens(words[1]) + words[2:]
         if wrapper == "script" and flag in ("-c", "--command") and len(words) > 1:
             command = words[1]
-        words = words[2:] if flag in values or (wrapper == "script" and flag in ("-c", "--command")) else words[1:]
+        short = {v[1] for v in values if len(v) == 2}
+        cluster = flag[:1] == "-" and flag[1:2] != "-" and len(flag) > 2 and flag[-1] in short
+        takes = flag in values or cluster or (wrapper == "script" and flag in ("-c", "--command"))
+        words = words[2:] if takes else words[1:]
     if wrapper == "script":
         return ["sh", "-c", command] if command is not None else []
     if wrapper in ("timeout", "flock") and words:
@@ -127,7 +130,7 @@ def runs_cargo_verb(words):
         return has_cargo_command(inner)
     rest = cargo_args(words)
     if rest is not None:
-        verb = next((w for w in rest if not w.startswith("-")), "")
+        verb = next(iter(cargo_positionals(rest)), "")
         return verb in CARGO_BUILDS or (verb not in CARGO_READS and not (not verb and any(
             w in ("--version", "-V", "--list", "--help", "-h") for w in rest)))
     return False
@@ -146,6 +149,50 @@ def cargo_args(words):
     if plugin and (not rest or rest[0] != plugin.group(1)):
         rest = [plugin.group(1)] + rest
     return rest
+
+
+# cargo options that take the next word as their value, so it is never read as the verb.
+CARGO_VALUE_OPTIONS = {"--config", "-Z", "-C", "--color", "--target-dir", "--manifest-path", "-p", "--package",
+                       "--features", "-F", "-j", "--jobs", "--profile", "--target", "--test", "--bench", "--bin",
+                       "--example", "--exclude", "--message-format", "--lockfile-path", "-E", "--filter-expr",
+                       "--partition", "--test-threads", "--retries", "--explain"}
+
+
+def cargo_positionals(rest):
+    """The words of cargo arguments that are neither options nor option values: the verb first."""
+    found, skip = [], False
+    for w in rest:
+        if skip:
+            skip = False
+        elif w in CARGO_VALUE_OPTIONS:
+            skip = True
+        elif not w.startswith("-"):
+            found.append(w)
+    return found
+
+
+def exclusive_build_lock(before):
+    """True when the words before cargo end in `flock [-w N] <the build lock>`: the exclusive build lock, taken
+    by flock itself directly in front of cargo (no shared lock, no -c command)."""
+    if "flock" not in before:
+        return False
+    options = before[len(before) - before[::-1].index("flock"):]
+    i = 0
+    while i < len(options) and options[i].startswith("-"):
+        o = options[i]
+        if o in ("--timeout", "--conflict-exit-code"):
+            i += 1
+        elif o in ("--shared", "--command", "--unlock") or o.startswith(("--shared", "--command")):
+            return False
+        elif not o.startswith("--"):
+            for j, letter in enumerate(o[1:]):
+                if letter in "scu":
+                    return False
+                if letter in "wE":
+                    i += 1 if j == len(o) - 2 else 0
+                    break
+        i += 1
+    return options[i:] == [LOCK]
 
 
 def has_cargo_command(text):
@@ -243,7 +290,7 @@ def cargo_rules(words, before, dirs):
     if at is None:
         return None
     rest = cargo_args(peel(words))
-    sub = next((w for w in rest if not w.startswith("-")), "")
+    sub = next(iter(cargo_positionals(rest)), "")
     target = target_dir(rest)
     target = os.path.normpath(target) if target else target
     checking = sub == "check" and is_check_target(target)
@@ -338,10 +385,10 @@ def builder_check(words, here):
         return BUILDERS_AUTHOR
     before = words[:len(words) - len(inner)] if words[len(words) - len(inner):] == inner else None
     rest = rest[:rest.index("--")] if "--" in rest else rest
-    verbs = [w for w in rest if not w.startswith("-")]
+    verbs = cargo_positionals(rest)
     sub = verbs[0] if verbs else ""
     if sub == "test" or verbs[:2] == ["nextest", "run"]:
-        if before is None or before[-2:] != ["flock", LOCK]:
+        if before is None or not exclusive_build_lock(before):
             return "a builder's tests run directly behind the exclusive build lock: " + TEST_FORM
         target = target_dir(rest)
         if target is None or os.path.normpath(target) != TARGET_ROOT + "/" + tree_name(here):

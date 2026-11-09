@@ -1,0 +1,25 @@
+# Harness hooks
+
+`guard_shell.py` (PreToolUse, Bash), `guard_write.py` (PreToolUse, edits), `no_subagent_builders.py` (PreToolUse, Agent),
+`acceptance_on_stop.py` (SubagentStop) and `check_in_on_stop.py` (Stop). `test_hooks.py` holds their cases; run it with
+`python3 -m unittest test_hooks` in this directory.
+
+## Threat model
+The hooks stop **honest mistakes by our own agents**: the command an agent writes by habit, by copying an old brief or
+by not knowing the rule, such as a workspace-wide test from a builder tree, a push to `main`, a missing build lock or a
+reviewer that stops before writing its verdict. They are not a defence against deliberate evasion. A text guard over a
+shell command line cannot close every spelling, and chasing obfuscated spellings is a loop with no end. A leak review
+grades a hook escape only for a spelling an agent would plausibly write by accident.
+
+## Known non-goals
+These reach past the guards and are left out on purpose; none is a spelling an agent writes by accident:
+- option clusters that hide a wrapper's value from its parser beyond flock's own (`xargs -0n 1`, `timeout -vs KILL 5`,
+  `env -iu X`, `env -iC /tmp`, `ionice -tc 2`);
+- a command handed to a wrapper as one string (`flock <lock> -c '...'`, `env --split-string='...'`), `rustup run`,
+  `make`, `$(which cargo)`, and an interpreter that runs a command (`python3 -c "os.system(...)"`);
+- push configuration from the environment (`GIT_CONFIG_PARAMETERS`, `GIT_CONFIG_COUNT`/`KEY_n`/`VALUE_n`), git aliases
+  that expand to `push` (`git -c alias.p=push p`, `git config alias.p push`), `push.default` and glob refspecs set in
+  the repository's config before the push, and `git send-pack`;
+- a hand-written log that copies a test runner's frame (`run.py --check` reads the runner's own header and summary
+  lines, which catches a typed result, not a forged one);
+- `gh pr merge`. Server-side branch protection on `main` is the complete fix for every push to it.
