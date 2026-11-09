@@ -1,0 +1,89 @@
+{
+ "checkpoint": "branch:claude/w13-hooks-append-only",
+ "source": "b81150e2c66680089b4cf3210f73950df71df85b",
+ "base": "e839bb19131f315e1685a9a1b2a572c87b0d33ab",
+ "verdict": "PASS",
+ "reviewer": "leak-review",
+ "checks": [
+  {
+   "id": "1",
+   "verdict": "PASS",
+   "evidence": "Hook-only diff (guard_shell.py candidate_problem and the new dropped_candidates, test_hooks.py); proofs beside the hook. In a clone: test_hooks 136 OK in 7 of 8 runs (one run under load average 14 had 1 error that did not recur in 7 reruns and was not captured), ci/contract_review 76 passed."
+  },
+  {
+   "id": "2",
+   "verdict": "PASS",
+   "evidence": "Append-only: dropped_candidates (guard_shell.py:380) unions candidate ids over every version from the previous head to the pushed sha, and candidate_problem (:397, :408) walks every branch path touched in the range. End to end on the PreviousReviewsPush fixture, e839bb1913 against b81150e2c6: (1) added with X, re-reviewed without X, 0 to 2; (2) added with X, re-reviewed with only a decided Y, 0 to 2; (3) existing file deleted, 0 to 2; (4) existing file renamed without X, 0 to 2; (5) added with X then deleted inside the checkpoint, 0 to 2; (6) boundary drop, 2 at both; all refusals name 'append-only'. Controls pass at both: X carried as fixed plus Y with both decided, added with X and decided, an empty file added then deleted. The four new rows fail against the e839bb1913 guard_shell.py and pass here. The only other check-2 failures are the hidden-push residuals, listed as accepted findings."
+  },
+  {
+   "id": "3",
+   "verdict": "PASS",
+   "evidence": "No Rust visibility, manifest or import boundary."
+  },
+  {
+   "id": "4",
+   "verdict": "PASS",
+   "evidence": "dropped_candidates is the one drop check (the M-only comparison of e839bb1913 is deleted); candidate ids still come from ci/contract_review/service.py through service_ids."
+  },
+  {
+   "id": "5",
+   "verdict": "PASS",
+   "evidence": "No crate source in the diff."
+  },
+  {
+   "id": "6",
+   "verdict": "PASS",
+   "evidence": "No cfg(test), feature or fixture seam; the probes reuse the PreviousReviewsPush fixture on temporary repos."
+  }
+ ],
+ "plants": [
+  {
+   "claim": "append-only refuses a re-review drop, a swap, a deletion, a rename and an add-then-delete inside the checkpoint",
+   "file": ".claude/hooks/guard_shell.py:380",
+   "count": 5,
+   "reverted": true
+  },
+  {
+   "claim": "the four new test rows fail against the e839bb1913 guard_shell.py",
+   "file": ".claude/hooks/test_hooks.py",
+   "count": 4,
+   "reverted": true
+  }
+ ],
+ "enforcement_candidates": [],
+ "findings": [
+  "accepted: frozen backlog: hidden push form /usr/bin/git push",
+  "accepted: frozen backlog: hidden push form /usr/bin/env git push",
+  "accepted: frozen backlog: hidden push form /bin/bash -c '<push>'",
+  "accepted: frozen backlog: hidden push form dash -c / su -c '<push>'",
+  "accepted: frozen backlog: hidden push form setsid, chrt, taskset, doas, parallel, find -exec, builtin command in front of a push",
+  "accepted: frozen backlog: hidden push form script -qc '<push>' /dev/null",
+  "accepted: frozen backlog: hidden push form env -S'<push>' (attached)",
+  "accepted: frozen backlog: hidden push form an inline alias: git -c alias.p=push p",
+  "note: deleting a branch file is refused whenever an earlier version carried candidates, even if the steward decided them at an earlier checkpoint; committed branch evidence is never deleted, so this fails closed by design",
+  "note: one unrecurring test error in 8 runs under heavy load; worth a rerun at landing"
+ ],
+ "tests": [
+  {
+   "command": "python3 -m unittest test_hooks",
+   "cwd": "clone at b81150e2c6, .claude/hooks",
+   "result": "136 tests; OK in 7 of 8 runs, 1 error in the first run under load average 14, not recurring"
+  },
+  {
+   "command": "python3 -m unittest test_hooks",
+   "cwd": "clone at b81150e2c6 with the e839bb1913 guard_shell.py",
+   "result": "FAILED (failures=4): the four new append-only rows"
+  },
+  {
+   "command": "pytest ci/contract_review",
+   "cwd": "clone at b81150e2c6",
+   "result": "76 passed"
+  },
+  {
+   "command": "append-only probes",
+   "cwd": "PreviousReviewsPush fixture, clones at e839bb1913 and b81150e2c6",
+   "result": "6 drop shapes all exit 2 at the head (5 were exit 0 at e839bb1913); 3 controls exit 0 at both"
+  }
+ ],
+ "date": "2026-11-09"
+}
