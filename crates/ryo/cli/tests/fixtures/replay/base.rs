@@ -32,7 +32,8 @@ pub(crate) fn directory() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/recordings")
 }
 
-/// Whether a recorded rule waits for something ryo does not do yet.
+/// Whether a recorded rule waits for something ryo does not do yet: only a relation its language does not provide, which the
+/// recording's `pending.txt` names.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum Pending {
     /// The rule runs and is replayed.
@@ -152,14 +153,25 @@ pub(crate) fn recordings() -> Vec<Recording> {
             let unbound = given
                 .iter()
                 .any(|(name, value)| parameter(name, value).is_none());
+            let name = entry.file_name().to_string_lossy().into_owned();
             let query = text(&at.join("query.ryoql"));
             let compiled = compile(&query);
+            // The one state a recording waits in: its `pending.txt` says it reads a relation its language does not provide yet.
+            // Anything else that keeps a rule from running (a query ryo does not compile, a parameter it cannot bind, a run the
+            // engine refuses) fails the recording, never makes it pending: a pending rule is filtered out of every replay.
             let pending = Some(text(&at.join("pending.txt")).trim().to_owned())
-                .filter(|why| !why.is_empty())
-                .or_else(|| unbound.then(|| "a parameter ryo cannot declare or bind".to_owned()))
-                .or_else(|| compiled.as_ref().err().cloned());
-            let mut recording = Recording {
-                name: entry.file_name().to_string_lossy().into_owned(),
+                .filter(|why| !why.is_empty());
+            if pending.is_none() {
+                assert!(
+                    !unbound,
+                    "{name}: a parameter ryo cannot declare or bind, and no pending.txt says why the recording waits"
+                );
+                if let Err(error) = &compiled {
+                    panic!("{name}: {error}");
+                }
+            }
+            let recording = Recording {
+                name,
                 query,
                 parameters: given
                     .iter()
@@ -191,9 +203,10 @@ pub(crate) fn recordings() -> Vec<Recording> {
                 exclude: texts(&scope, "exclude"),
                 pending: pending.map_or(Pending::Missing, Pending::Because),
             };
-            if recording.pending == Pending::Missing {
-                recording.pending =
-                    does_not_run(&recording).map_or(Pending::Missing, Pending::Because);
+            if recording.pending == Pending::Missing
+                && let Some(refusal) = does_not_run(&recording)
+            {
+                panic!("{}: {refusal}", recording.name);
             }
             recording
         })

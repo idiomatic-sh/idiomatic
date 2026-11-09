@@ -144,63 +144,63 @@ fn placed(
     held: fn(CellKind) -> FileOrigin,
 ) -> FileOrigin {
     let per_file = match operation {
-    plans::Operation::SpanBetween { .. }
-    | plans::Operation::SpanBounds { .. }
-    | plans::Operation::SourceMatches { .. }
-    | plans::Operation::RenderSyntax { .. }
-    | plans::Operation::FitsRendered { .. }
-    | plans::Operation::Replace { .. }
-    | plans::Operation::Select { .. }
-    | plans::Operation::Extend { .. }
-    | plans::Operation::Capture { .. }
-    | plans::Operation::Rank { .. }
-    | plans::Operation::Words { .. } => true,
-    plans::Operation::Project { .. } => {
-        keyed(out, held) == FileOrigin::Held || keyed(first, held) == FileOrigin::Loose
-    }
-    plans::Operation::OrderedMatch {
-        left_on, right_on, ..
-    }
-    | plans::Operation::Join {
-        left_on, right_on, ..
-    }
-    | plans::Operation::Antijoin {
-        left_on, right_on, ..
-    } => {
-        keyed_on(first, left_on, held) == FileOrigin::Held
-            && keyed_on(second, right_on, held) == FileOrigin::Held
-    }
-    plans::Operation::Union { .. }
-    | plans::Operation::Intersection { .. }
-    | plans::Operation::Difference { .. } => {
-        keyed(first, held) == FileOrigin::Held && keyed(second, held) == FileOrigin::Held
-    }
-    plans::Operation::GroupCount { keys, .. } | plans::Operation::GroupDigest { keys, .. } => {
-        keyed_on(first, keys, held) == FileOrigin::Held
-    }
-    plans::Operation::OrderedDfs {
-        root,
-        source,
-        root_keys,
-        edge_keys,
-        ..
-    } => {
-        (keyed_on(first, &[*root], held) == FileOrigin::Held
-            || keyed_on(first, root_keys, held) == FileOrigin::Held)
-            && (keyed_on(second, &[*source], held) == FileOrigin::Held
-                || keyed_on(second, edge_keys, held) == FileOrigin::Held)
-    }
-    plans::Operation::Axis { id, .. } => keyed_on(first, &[*id], held) == FileOrigin::Held,
-    plans::Operation::Closure { source, keys, .. } => {
-        keyed_on(first, &[*source], held) == FileOrigin::Held
-            || keyed_on(first, keys, held) == FileOrigin::Held
-    }
-    plans::Operation::Cycles { source, .. } => {
-        keyed_on(first, &[*source], held) == FileOrigin::Held
-    }
-    // The host's rows are the same for every file, so they are made once, after the files.
-    plans::Operation::Rows { .. } | plans::Operation::Hosted { .. } => false,
-};
+        plans::Operation::SpanBetween { .. }
+        | plans::Operation::SpanBounds { .. }
+        | plans::Operation::SourceMatches { .. }
+        | plans::Operation::RenderSyntax { .. }
+        | plans::Operation::FitsRendered { .. }
+        | plans::Operation::Replace { .. }
+        | plans::Operation::Select { .. }
+        | plans::Operation::Extend { .. }
+        | plans::Operation::Capture { .. }
+        | plans::Operation::Rank { .. }
+        | plans::Operation::Words { .. } => true,
+        plans::Operation::Project { .. } => {
+            keyed(out, held) == FileOrigin::Held || keyed(first, held) == FileOrigin::Loose
+        }
+        plans::Operation::OrderedMatch {
+            left_on, right_on, ..
+        }
+        | plans::Operation::Join {
+            left_on, right_on, ..
+        }
+        | plans::Operation::Antijoin {
+            left_on, right_on, ..
+        } => {
+            keyed_on(first, left_on, held) == FileOrigin::Held
+                && keyed_on(second, right_on, held) == FileOrigin::Held
+        }
+        plans::Operation::Union { .. }
+        | plans::Operation::Intersection { .. }
+        | plans::Operation::Difference { .. } => {
+            keyed(first, held) == FileOrigin::Held && keyed(second, held) == FileOrigin::Held
+        }
+        plans::Operation::GroupCount { keys, .. } | plans::Operation::GroupDigest { keys, .. } => {
+            keyed_on(first, keys, held) == FileOrigin::Held
+        }
+        plans::Operation::OrderedDfs {
+            root,
+            source,
+            root_keys,
+            edge_keys,
+            ..
+        } => {
+            (keyed_on(first, &[*root], held) == FileOrigin::Held
+                || keyed_on(first, root_keys, held) == FileOrigin::Held)
+                && (keyed_on(second, &[*source], held) == FileOrigin::Held
+                    || keyed_on(second, edge_keys, held) == FileOrigin::Held)
+        }
+        plans::Operation::Axis { id, .. } => keyed_on(first, &[*id], held) == FileOrigin::Held,
+        plans::Operation::Closure { source, keys, .. } => {
+            keyed_on(first, &[*source], held) == FileOrigin::Held
+                || keyed_on(first, keys, held) == FileOrigin::Held
+        }
+        plans::Operation::Cycles { source, .. } => {
+            keyed_on(first, &[*source], held) == FileOrigin::Held
+        }
+        // The host's rows are the same for every file, so they are made once, after the files.
+        plans::Operation::Rows { .. } | plans::Operation::Hosted { .. } => false,
+    };
     if per_file {
         FileOrigin::Held
     } else {
@@ -209,27 +209,12 @@ fn placed(
 }
 
 /// Refuses a step from `from` on of the plan under construction that compares rows on spans alone, with no file or node key,
-/// over the rows of a step after the files: a span states no file, so equal spans of two files would meet. Such a step is
-/// kept only when every input is per-file, so it runs inside one file. This covers a join, an antijoin, an ordered match, a
-/// group, a closure and the distinct rows of a projection.
+/// over rows made after the files: a span states no file, so equal spans of two files would meet, merge or cancel. Such a step is
+/// kept only when every input is per-file, so it runs inside one file. This covers a join, an antijoin, an ordered match, a group
+/// count or digest, a closure, an ordered depth-first visit, the cycles of a graph, a union, an intersection, a difference, and
+/// the distinct rows of a projection whose rows hold a span and no file or node.
 pub(crate) fn refuse_spans_alone(builder: &Builder<'_>, from: usize) -> Result<(), LoweringError> {
     for (step, lowered) in builder.steps.iter().zip(&builder.lowered).skip(from) {
-        let compares = matches!(
-            step.operation,
-            plans::Operation::Join { .. }
-                | plans::Operation::Antijoin { .. }
-                | plans::Operation::OrderedMatch { .. }
-                | plans::Operation::GroupCount { .. }
-                | plans::Operation::GroupDigest { .. }
-                | plans::Operation::Closure { .. }
-                | plans::Operation::Project {
-                    distinct: parts::RepeatedRows::Dropped,
-                    ..
-                }
-        );
-        if !compares {
-            continue;
-        }
         let inputs: Vec<ScopedInput> = inputs_of(&step.operation)
             .into_iter()
             .map(|input| scoped(builder, input))
@@ -242,9 +227,46 @@ pub(crate) fn refuse_spans_alone(builder: &Builder<'_>, from: usize) -> Result<(
         }
         let first = inputs.first().map_or(&[][..], |input| input.fields.as_slice());
         let second = inputs.get(1).map_or(&[][..], |input| input.fields.as_slice());
-        if placed(&step.operation, first, second, &lowered.fields, held_in_file) == FileOrigin::Loose
-            && placed(&step.operation, first, second, &lowered.fields, held_inside_one_file)
-                == FileOrigin::Held
+        let on_spans_alone = |held: fn(CellKind) -> FileOrigin| match &step.operation {
+            // The distinct rows compare every column they keep, whatever their input held.
+            plans::Operation::Project {
+                distinct: parts::RepeatedRows::Dropped,
+                ..
+            } => keyed(&lowered.fields, held),
+            plans::Operation::Join { .. }
+            | plans::Operation::Antijoin { .. }
+            | plans::Operation::OrderedMatch { .. }
+            | plans::Operation::GroupCount { .. }
+            | plans::Operation::GroupDigest { .. }
+            | plans::Operation::Closure { .. }
+            | plans::Operation::OrderedDfs { .. }
+            | plans::Operation::Cycles { .. }
+            | plans::Operation::Union { .. }
+            | plans::Operation::Intersection { .. }
+            | plans::Operation::Difference { .. } => {
+                placed(&step.operation, first, second, &lowered.fields, held)
+            }
+            plans::Operation::Project {
+                distinct: parts::RepeatedRows::Kept,
+                ..
+            }
+            | plans::Operation::SpanBetween { .. }
+            | plans::Operation::SpanBounds { .. }
+            | plans::Operation::SourceMatches { .. }
+            | plans::Operation::RenderSyntax { .. }
+            | plans::Operation::FitsRendered { .. }
+            | plans::Operation::Replace { .. }
+            | plans::Operation::Select { .. }
+            | plans::Operation::Extend { .. }
+            | plans::Operation::Capture { .. }
+            | plans::Operation::Rank { .. }
+            | plans::Operation::Words { .. }
+            | plans::Operation::Axis { .. }
+            | plans::Operation::Rows { .. }
+            | plans::Operation::Hosted { .. } => FileOrigin::Loose,
+        };
+        if on_spans_alone(held_in_file) == FileOrigin::Loose
+            && on_spans_alone(held_inside_one_file) == FileOrigin::Held
         {
             return Err(LoweringError::CrossFileSpanKey { span: builder.span });
         }
