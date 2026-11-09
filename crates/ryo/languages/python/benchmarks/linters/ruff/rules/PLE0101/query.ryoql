@@ -1,5 +1,4 @@
 import observation_matches from "python/ruff/suppress-matches";
-import suppress from "python/ruff/suppress";
 let functions = select id, file from "semantic-syntax" where kind = "function-def" or kind = "async-function-def";
 let name_edges = select parent as function, child as name from "semantic-child" where field = "name";
 let function_name_nodes = select l.id as function, l.file as file, r.name as name_node from functions as l join name_edges as r on l.id = r.function;
@@ -45,9 +44,10 @@ let indirect_owners = antijoin(left=ancestor_owners, right=direct_owners, left-o
 let evaluated_owners = union(left=direct_owners, right=indirect_owners);
 let candidates = select l.id as id, l.file as file, l.span as span from evaluated_owners as l join init_methods as r on l.function = r.function and l.file = r.file;
 let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from candidates as l join "source-location" as r on l.id = r.id and l.file = r.file;
-let violations = suppress(candidates=candidate_locations, inline-pattern="(?:^|[^A-Z0-9])PLE0101(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:PLE0101)(?:,|$)");
-let ruf100_matches = observation_matches(candidates=candidate_locations, inline-pattern="(?:^|[^A-Z0-9])PLE0101(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:PLE0101)(?:,|$)");
-let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:PLE0101)$");
+let violations_rows = select id, file, span from candidate_locations;
+let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_directives = select directive, file from violations_matches where scope < 2;
 let ruf100_used = extend(from=ruf100_directives, values={code: "PLE0101"});
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

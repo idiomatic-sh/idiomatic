@@ -75,3 +75,15 @@ name = "noqa-suppression"
 comparison = "full"
 files = { "case.py" = "result = list(list(items))  # noqa: C414\n" }
 expected = []
+
+[[cases]]
+name = "code-in-the-reason-does-not-suppress"
+comparison = "full"
+files = { "case.py" = "result = list(list(items))  # noqa: E501 # C414\n" }
+expected = [{ "rule" = "C414", "file" = "case.py", "start" = 9, "end" = 26 }]
+
+[[cases]]
+name = "concatenated-codes-suppress"
+comparison = "full"
+files = { "case.py" = "result = list(list(items))  # noqa: E501C414\n" }
+expected = []

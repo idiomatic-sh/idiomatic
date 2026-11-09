@@ -1,5 +1,4 @@
 import observation_matches from "python/ruff/suppress-matches";
-import suppress from "python/ruff/suppress";
 let functions = select id, file from "semantic-syntax" where kind = "function-def" or kind = "async-function-def";
 let name_edges = select parent as function, child as name from "semantic-child" where field = "name";
 let function_name_nodes = select l.id as function, l.file as file, r.name as name_node from functions as l join name_edges as r on l.id = r.function;
@@ -25,9 +24,10 @@ let first_parameters = select id, owner, name, file, span from "parameter" where
 let static_parameters = select l.id as id, l.owner as function, l.name as parameter, l.file as file, l.span as span from first_parameters as l join static_methods as r on l.owner = r.function and l.file = r.file;
 let candidates = select l.id as id, l.file as file, l.span as span from static_parameters as l join named_methods as r on l.function = r.function and l.file = r.file where r.name != "__new__" or l.parameter != "cls";
 let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from candidates as l join "source-location" as r on l.id = r.id and l.file = r.file;
-let violations = suppress(candidates=candidate_locations, inline-pattern="(?:^|[^A-Z0-9])PLW0211(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:PLW0211)(?:,|$)");
-let ruf100_matches = observation_matches(candidates=candidate_locations, inline-pattern="(?:^|[^A-Z0-9])PLW0211(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:PLW0211)(?:,|$)");
-let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:PLW0211)$");
+let violations_rows = select id, file, span from candidate_locations;
+let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_directives = select directive, file from violations_matches where scope < 2;
 let ruf100_used = extend(from=ruf100_directives, values={code: "PLW0211"});
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

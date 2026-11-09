@@ -1,5 +1,4 @@
 import observation_matches from "python/ruff/suppress-matches";
-import suppress from "python/ruff/suppress";
 let semantic_token_nodes = select id from "semantic-syntax" where kind = "name-token";
 let semantic_identifier_children = select r.child as id, l.name as text from "identifier" as l join "semantic-child" as r on l.id = r.parent;
 let semantic_identifiers = select l.id as id, l.text as text from semantic_identifier_children as l join semantic_token_nodes as r on l.id = r.id;
@@ -32,9 +31,10 @@ let ordered = select l.owner as owner, l.id as id, l.name as name, r."start-byte
 let duplicates = select l.id as id from ordered as l join ordered as r on l.owner = r.owner and l.name = r.name where l.begin > r.begin;
 let reportable = select l.id as id, l.file as file, l.span as span from "semantic-syntax" as l join duplicates as r on l.id = r.id;
 let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id;
-let violations = suppress(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*PIE794(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:PIE794)(?:,|$)");
-let ruf100_matches = observation_matches(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*PIE794(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:PIE794)(?:,|$)");
-let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:PIE794)$");
+let violations_rows = select id, file, span from candidate_locations;
+let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_directives = select directive, file from violations_matches where scope < 2;
 let ruf100_used = extend(from=ruf100_directives, values={code: "PIE794"});
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

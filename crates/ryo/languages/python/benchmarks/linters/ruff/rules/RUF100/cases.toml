@@ -248,3 +248,19 @@ files = { "case.py" = "from a.q import *  # NOQA\nfrom a.q import Query\n" }
 expected = [{ "end" = 25, "file" = "case.py", "rule" = "RUF100", "start" = 19 }]
 "selected-rules" = ["RUF100", "I001"]
 "rule-observations" = { "RUF100" = [{ "name" = "suppression_matches", "columns" = [{ "name" = "directive", "kind" = "node" }, { "name" = "file", "kind" = "file" }, { "name" = "code", "kind" = "symbol" }], "producers" = [{ "kind" = "output", "rule" = "I001", "output" = "noqa_matches" }] }] }
+
+[[cases]]
+name = "redirect-sources-are-used"
+comparison = "full"
+files = { "case.py" = "def u(y):\n    return any([v for v in y])  # noqa: PIE802\n\n\nmapping = {0: value for value in values}  # noqa: RUF011\n" }
+expected = []
+"selected-rules" = ["RUF100", "C419", "B035"]
+"rule-observations" = { "RUF100" = [{ "name" = "suppression_matches", "columns" = [{ "name" = "directive", "kind" = "node" }, { "name" = "file", "kind" = "file" }, { "name" = "code", "kind" = "symbol" }], "producers" = [{ "kind" = "output", "rule" = "C419", "output" = "noqa_matches" }, { "kind" = "output", "rule" = "B035", "output" = "noqa_matches" }] }] }
+
+[[cases]]
+name = "trailing-file-exemption-is-not-a-directive"
+comparison = "full"
+files = { "case.py" = "x = \"\"\"a\n\"\"\"  # flake8: noqa\n" }
+expected = []
+"selected-rules" = ["RUF100"]
+"rule-observations" = { "RUF100" = [{ "name" = "suppression_matches", "columns" = [{ "name" = "directive", "kind" = "node" }, { "name" = "file", "kind" = "file" }, { "name" = "code", "kind" = "symbol" }], "producers" = [] }] }

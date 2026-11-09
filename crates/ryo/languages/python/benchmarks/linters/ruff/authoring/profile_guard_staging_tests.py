@@ -46,12 +46,12 @@ def guards_5(fake_runner, manifest, root, temporary) -> tuple[int, tuple]:
     single_profile = profile_config.PROFILE_DIR / 'UP006' / 'benchmark.toml'
     single_data = tomllib.loads(single_profile.read_text(encoding='utf-8'))
     registry = profile_sources.combined_modules(single_data, ['UP006'], manifest)
-    module_id = 'python/ruff/suppress'
-    module_source = 'fragments/suppress.ryoql'
+    module_id = 'python/ruff/suppress-matches'
+    module_source = 'fragments/suppress-matches.ryoql'
     expected_registry = profile_sources.profile_modules(tomllib.loads((profile_config.RUFF_DIR / 'benchmark.toml').read_text(encoding='utf-8')))
     expected_registry.update(profile_sources.profile_modules(single_data))
-    if expected_registry.get('python/ruff/suppress-directives') != 'fragments/suppress-directives.ryoql':
-        raise AssertionError('standard suppression lost its explicit transitive directive module')
+    if expected_registry.get('python/ruff/noqa-suppressions') != 'fragments/noqa-suppressions.ryoql':
+        raise AssertionError('standard suppression lost its explicit transitive noqa module')
     staged_profile = root / 'single' / 'benchmark.toml'
     staged_profile.parent.mkdir(parents=True)
     profile_sources.write_staged_profile(single_profile, staged_profile, registry, rule_applicability=profile_proofs.selected_rule_applicability(manifest, ['UP006']))
@@ -272,7 +272,7 @@ def guards_7(expanded_descriptor, manifest, root, shape_descriptor) -> tuple[int
     shape_stage.mkdir()
     profile_sources.copy_modules(shape_registry, shape_stage)
     profile_sources.write_staged_profile(profile_config.REPOSITORY / shape_descriptor['profile_file'], shape_stage / 'benchmark.toml', shape_registry)
-    if shape_registry.get('python/ruff/suppress') != 'fragments/suppress.ryoql' or not (shape_stage / 'fragments/suppress.ryoql').is_file() or tomllib.loads((shape_stage / 'benchmark.toml').read_text(encoding='utf-8')).get('query-modules', {}).get('python/ruff/suppress') != 'fragments/suppress.ryoql':
+    if shape_registry.get('python/ruff/suppress-matches') != 'fragments/suppress-matches.ryoql' or not (shape_stage / 'fragments/suppress-matches.ryoql').is_file() or tomllib.loads((shape_stage / 'benchmark.toml').read_text(encoding='utf-8')).get('query-modules', {}).get('python/ruff/suppress-matches') != 'fragments/suppress-matches.ryoql':
         print("combined profile omitted an active rule's query module", file=sys.stderr)
         return 1, ()
     for receipt in manifest.pop('actual_proof_receipts', []):

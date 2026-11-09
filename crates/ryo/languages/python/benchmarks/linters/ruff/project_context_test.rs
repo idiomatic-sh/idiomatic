@@ -34,13 +34,16 @@ fn staged(root: &Path) -> Result<(PathBuf, Vec<PreparedCase>), Error> {
     )?;
     for name in [
         "suppress-matches",
-        "suppress",
-        "suppress-directives",
         "text-units",
         "noqa-line-map",
         "noqa-locations",
         "noqa-additional-locations",
-        "suppression-edges",
+        "noqa-heads",
+        "noqa-codes",
+        "noqa-blankets",
+        "noqa-ranges",
+        "noqa-suppressions",
+        "noqa-suppressions-with-additional-lines",
     ] {
         let _copied_fragment = std::fs::copy(
             source.join(format!("fragments/{name}.ryoql")),

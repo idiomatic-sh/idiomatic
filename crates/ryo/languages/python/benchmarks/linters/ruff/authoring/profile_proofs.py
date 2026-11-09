@@ -4,6 +4,7 @@ import json
 import re
 from pathlib import Path
 import tomllib
+from authoring import noqa_policy
 from authoring import profile_config
 from authoring import profile_sources
 from authoring import reference_discrepancies
@@ -27,6 +28,7 @@ def manifest_paths(manifest: dict[str, object], helper_path: str) -> set[str]:
         paths.update((source.relative_to(profile_config.REPOSITORY).as_posix() for source, _digest in reference_discrepancies.declared_discrepancy_artifacts(native_source_profile, native_cases, source_root=profile_config.discrepancy_source_root(profile['rule_id'], native_source_profile)).values()))
     paths.add(profile_config.RULE_PHASES_FILE.relative_to(profile_config.REPOSITORY).as_posix())
     paths.add((profile_config.RUFF_DIR / 'results/standard-suppression-policy.json').relative_to(profile_config.REPOSITORY).as_posix())
+    paths.add((profile_config.RUFF_DIR / 'profiles/pinned-noqa-code-policy.json').relative_to(profile_config.REPOSITORY).as_posix())
     base_data = tomllib.loads(base_profile.read_text(encoding='utf-8'))
     paths.update((profile_sources.module_path(path) for path in profile_sources.profile_modules(base_data).values()))
     for profile_name, recorded in profiles.items():
@@ -237,23 +239,37 @@ def check_staged_applicability(profile: Path, selected_rules: list[str], manifes
         raise ValueError('staged rule applicability differs from the pinned phase registry')
 
 def check_canonical_standard_suppression(profile: Path, query_sources: dict[str, Path]) -> None:
-    """Apply migration policy to canonical sources; retain historical snapshots."""
+    """Apply the suppression policy to canonical sources; retain historical snapshots."""
     policy = json.loads((profile_config.RUFF_DIR / 'results/standard-suppression-policy.json').read_text(encoding='utf-8'))
-    selected = [rule for rule, source in query_sources.items() if rule in policy['canonical_queries'] and source == profile_config.RUFF_DIR / policy['canonical_queries'][rule]]
+    canonical = {rule: source for rule, source in query_sources.items() if source == profile_config.RUFF_DIR / 'rules' / rule / 'query.ryoql'}
+    for rule in sorted(canonical):
+        check_noqa_grammar(rule, (profile.parent / 'rules' / rule / 'query.ryoql').read_text(encoding='utf-8'))
+    selected = [rule for rule, source in canonical.items() if rule in policy['canonical_queries'] and source == profile_config.RUFF_DIR / policy['canonical_queries'][rule]]
     check_standard_suppression(profile, selected)
+
+def check_noqa_grammar(rule: str, source: str) -> None:
+    """The noqa directive grammar lives in the shared noqa fragments; a rule never parses directives itself."""
+    if re.search('^let\\s+(?:mapping_edges|supp_range_comments)\\s*=', source, re.MULTILINE):
+        raise ValueError(f'{rule} contains a copied suppression implementation')
+    if re.search('from\\s+"comment"\\s+where\\s+matches\\(text,\\s*"\\(\\?i:noqa\\)"\\)', source):
+        raise ValueError(f'{rule} contains a copied noqa directive grammar')
+    for expression in re.findall('^let\\s+\\w+\\s*=\\s*(.*);\\s*$', source, re.MULTILINE):
+        if 'source-matches(' in expression and '(?i:noqa)' in expression and 'capture=' in expression:
+            raise ValueError(f'{rule} contains a copied noqa directive grammar')
 
 def check_standard_suppression(profile: Path, selected_rules: list[str], policies: dict[str, str] | None=None) -> None:
     """Guard the explicitly migrated source forms, not arbitrary query semantics."""
     if policies is None:
         policy = json.loads((profile_config.RUFF_DIR / 'results/standard-suppression-policy.json').read_text(encoding='utf-8'))
-        if policy.get('schema') != 'standard-suppression-policy/v1':
+        if policy.get('schema') != 'standard-suppression-policy/v2':
             raise ValueError('unsupported standard suppression policy')
         policies = policy['rules']
     scoped = set(selected_rules) & policies.keys()
     if not scoped:
         return
     registry = profile_sources.profile_modules(tomllib.loads(profile.read_text(encoding='utf-8')))
-    variants = {'standard-module': 'suppress', 'unmapped-module': 'suppress-unmapped', 'additional-lines-module': 'suppress-with-additional-lines', 'explicit-edges-module': 'suppression-edges'}
+    variants = {'standard-module': 'suppress-matches', 'unmapped-module': 'suppress-unmapped-matches', 'additional-lines-module': 'suppress-with-additional-lines-matches', 'explicit-edges-module': 'noqa-suppressions-with-additional-lines'}
+    noqa_codes = json.loads((profile_config.RUFF_DIR / 'profiles/pinned-noqa-code-policy.json').read_text(encoding='utf-8'))
     for rule in sorted(scoped):
         if policies[rule] not in variants:
             raise ValueError(f'unreviewed suppression policy for {rule}')
@@ -278,8 +294,13 @@ def check_standard_suppression(profile: Path, selected_rules: list[str], policie
         imports = re.findall('^import\\s+(\\w+)\\s+from\\s+"' + re.escape(logical) + '"\\s*;', source, re.MULTILINE)
         if len(imports) != 1:
             raise ValueError(f'{rule} requires one declared suppression-family import')
-        if re.search('^let\\s+(?:mapping_edges|supp_range_comments)\\s*=', source, re.MULTILINE):
-            raise ValueError(f'{rule} contains a copied suppression implementation')
+        check_noqa_grammar(rule, source)
+        # The generator's own renderer is the only writer of a rule's spellings and of its published code.
+        if re.findall('\\bcodes="([^"]*)"', source) != [noqa_policy.render_codes(noqa_codes, rule)]:
+            raise ValueError(f'{rule} codes differ from the pinned noqa code policy')
+        published = re.findall('values=\\{code:\\s*"([^"]*)"\\}', source)
+        if not published or set(published) != {rule}:
+            raise ValueError(f'{rule} publishes noqa matches under another code')
         bindings = dict(re.findall('^let\\s+(\\w+)\\s*=\\s*(.*);\\s*$', source, re.MULTILINE))
         def depends_on_family(roots: list[str]) -> bool:
             pending = list(roots)

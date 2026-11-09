@@ -1,5 +1,4 @@
 import observation_matches from "python/ruff/suppress-matches";
-import suppress from "python/ruff/suppress";
 import without_effect from "python/ruff/without-effect";
 let b_calls = select id, file, span from "semantic-syntax" where kind = "call";
 let b_function_fields = select parent, child from "semantic-child" where field = "func";
@@ -87,9 +86,10 @@ let translated_ancestors = axis(from=call_ids, relation="semantic-child", direct
 let in_translation = select id, file from translated_ancestors;
 let selected = antijoin(left=calls3, right=in_translation, left-on=[call,file], right-on=[id,file]);
 let locations = select l.call as id, l.file as file, l.span as span, r."start-line" as line from selected as l join "source-location" as r on l.call = r.id and l.file = r.file;
-let violations = suppress(candidates=locations, inline-pattern="(?:^|[^A-Z0-9])UP032(?:$|[^A-Z0-9])", range-pattern="(?:^|,)UP032(?:,|$)");
-let ruf100_matches = observation_matches(candidates=locations, inline-pattern="(?:^|[^A-Z0-9])UP032(?:$|[^A-Z0-9])", range-pattern="(?:^|,)UP032(?:,|$)");
-let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let violations_matches = observation_matches(candidates=locations, codes="^(?:UP032)$");
+let violations_rows = select id, file, span from locations;
+let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_directives = select directive, file from violations_matches where scope < 2;
 let ruf100_used = extend(from=ruf100_directives, values={code: "UP032"});
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

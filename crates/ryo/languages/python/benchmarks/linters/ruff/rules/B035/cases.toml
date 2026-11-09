@@ -42,3 +42,9 @@ expected = []
 name = "noqa-codes-trailing-reason-suppress-static_integer_key"
 files = { "case.py" = "mapping = {0: value for value in values}  # noqa: B035 # why\n" }
 expected = []
+
+[[cases]]
+name = "redirect-source-noqa-suppresses"
+comparison = "full"
+files = { "case.py" = "mapping = {0: value for value in values}  # noqa: RUF011\n" }
+expected = []

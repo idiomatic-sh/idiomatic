@@ -117,3 +117,15 @@ name = "noqa"
 comparison = "full"
 files = { "case.py" = "isinstance(x, int) or isinstance(x, str) # noqa: SIM101\n" }
 expected = []
+
+[[cases]]
+name = "disable-range-covers-the-operation"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[SIM101]\nif isinstance(x, int) or isinstance(x, str):\n    pass\n# ruff: enable[SIM101]\n" }
+expected = []
+
+[[cases]]
+name = "disable-range-starts-inside-the-operation"
+comparison = "full"
+files = { "case.py" = "if (\n    isinstance(x, int)\n    # ruff: disable[SIM101]\n    or isinstance(x, str)\n):\n    pass\n# ruff: enable[SIM101]\n" }
+expected = [{ "rule" = "SIM101", "file" = "case.py", "start" = 9, "end" = 81 }]

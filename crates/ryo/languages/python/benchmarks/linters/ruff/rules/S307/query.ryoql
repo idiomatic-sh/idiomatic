@@ -1,6 +1,6 @@
 import noqa_line_map from "python/ruff/noqa-line-map";
 import noqa_locations from "python/ruff/noqa-locations";
-import suppression_edges from "python/ruff/suppression-edges";
+import suppression_edges from "python/ruff/noqa-suppressions-with-additional-lines";
 let qualified_names = select q.id as id, q.path as path, q.provenance as provenance, q."since-major" as since_major, q."since-minor" as since_minor from "qualified-name" as q;
 let calls = select id, file, span from "semantic-syntax" where kind = "call";
 let functions = select parent, child from "semantic-child" where field = "func";
@@ -11,9 +11,9 @@ let candidate_locations = select l.id as id, l.file as file, l.span as span, r."
 let mappings = noqa_line_map();
 let locations = noqa_locations(candidates=candidate_locations, mappings=mappings);
 let additional = select id, file, line from candidate_locations where id != id;
-let matches = suppression_edges(candidates=candidate_locations, locations=locations, additional_locations=additional, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*(?:PGH001|S307)(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:PGH001|S307)(?:,|$)");
+let matches = suppression_edges(candidates=candidate_locations, locations=locations, additional_locations=additional, codes="^(?:PGH001|S307)$");
 let violations = antijoin(left=locations, right=matches, left-on=[id, span], right-on=[id, span]);
-let matched = select directive, file from matches where scope = 0 or scope = 1;
+let matched = select directive, file from matches where scope < 2;
 let noqa_matches = extend(from=matched, values={code: "S307"});
 observe noqa_matches as noqa_matches;
 emit violations subject file key(id);

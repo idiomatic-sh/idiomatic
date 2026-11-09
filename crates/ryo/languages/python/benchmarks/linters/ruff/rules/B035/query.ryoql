@@ -1,5 +1,4 @@
 import observation_matches from "python/ruff/suppress-matches";
-import suppress from "python/ruff/suppress";
 let comprehensions = select id, file from "semantic-syntax" where kind = "dict-comp";
 let keys = select parent, child, file from "semantic-child" where field = "key";
 let comprehension_keys = select l.id as comprehension, r.child as key, l.file as file from comprehensions as l join keys as r on l.id = r.parent and l.file = r.file;
@@ -24,9 +23,10 @@ let static_names_and_attributes = union(left=static_named_keys, right=static_att
 let literal_and_tuple_keys = union(left=literal_keys, right=shaped_literals);
 let all_literals_and_names = union(left=literal_and_tuple_keys, right=static_names_and_attributes);
 let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from all_literals_and_names as l join "source-location" as r on l.id = r.id and l.file = r.file;
-let violations = suppress(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*B035(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:B035)(?:,|$)");
-let ruf100_matches = observation_matches(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*B035(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:B035)(?:,|$)");
-let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:B035|RUF011)$");
+let violations_rows = select id, file, span from candidate_locations;
+let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_directives = select directive, file from violations_matches where scope < 2;
 let ruf100_used = extend(from=ruf100_directives, values={code: "B035"});
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

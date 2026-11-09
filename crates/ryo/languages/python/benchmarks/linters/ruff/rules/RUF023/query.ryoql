@@ -1,5 +1,4 @@
 import observation_matches from "python/ruff/suppress-matches";
-import suppress from "python/ruff/suppress";
 let nodes = select id, kind, text, file, span from "semantic-syntax";
 let assignments = select id, kind, file from nodes where kind = "assign" or kind = "ann-assign";
 let plain_assignments = select id, file from assignments where kind = "assign";
@@ -42,9 +41,10 @@ let decoded = select l.collection as collection, l.id as id, l.ordinal as ordina
 let unsorted = select l.collection as id, l.file as file from decoded as l join decoded as r on l.collection = r.collection and l.file = r.file where l.ordinal < r.ordinal and natural_lt(r.value, l.value);
 let unique_unsorted = group-count(from=unsorted, keys=["id","file"], count="inversions");
 let candidates = select l.id as id, l.file as file, r.span as span, r."start-line" as line from unique_unsorted as l join "source-location" as r on l.id = r.id and l.file = r.file;
-let violations = suppress(candidates=candidates, inline-pattern="(?:^|[^A-Z0-9])RUF023(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:RUF023)(?:,|$)");
-let ruf100_matches = observation_matches(candidates=candidates, inline-pattern="(?:^|[^A-Z0-9])RUF023(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:RUF023)(?:,|$)");
-let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let violations_matches = observation_matches(candidates=candidates, codes="^(?:RUF023)$");
+let violations_rows = select id, file, span from candidates;
+let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_directives = select directive, file from violations_matches where scope < 2;
 let ruf100_used = extend(from=ruf100_directives, values={code: "RUF023"});
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

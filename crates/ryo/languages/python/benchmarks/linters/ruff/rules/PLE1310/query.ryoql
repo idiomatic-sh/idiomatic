@@ -1,5 +1,4 @@
 import observation_matches from "python/ruff/suppress-matches";
-import suppress from "python/ruff/suppress";
 import repeated_characters from "python/ruff/repeated-characters";
 import repeated_octets from "python/ruff/repeated-octets";
 import binding_type from "python/ruff/binding-type";
@@ -43,9 +42,10 @@ let byte_reports = select l.argument as id, l.file as file from typed_byte_argum
 let reportable = union(left=string_reports, right=byte_reports);
 let locations = select id, span, "start-line", file from "source-location";
 let candidates = select l.id as id, l.file as file, r.span as span, r."start-line" as line from reportable as l join locations as r on l.id = r.id and l.file = r.file;
-let violations = suppress(candidates=candidates, inline-pattern="PLE1310($|[, #])", range-pattern="(?:^|,)PLE1310(?:,|$)");
-let ruf100_matches = observation_matches(candidates=candidates, inline-pattern="PLE1310($|[, #])", range-pattern="(?:^|,)PLE1310(?:,|$)");
-let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let violations_matches = observation_matches(candidates=candidates, codes="^(?:PLE1310)$");
+let violations_rows = select id, file, span from candidates;
+let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_directives = select directive, file from violations_matches where scope < 2;
 let ruf100_used = extend(from=ruf100_directives, values={code: "PLE1310"});
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

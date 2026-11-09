@@ -1,6 +1,6 @@
 import noqa_line_map from "python/ruff/noqa-line-map";
 import noqa_locations from "python/ruff/noqa-locations";
-import suppression_edges from "python/ruff/suppression-edges";
+import suppression_edges from "python/ruff/noqa-suppressions-with-additional-lines";
 let expressions = select id from "semantic-syntax" where kind = "joined-str";
 let parts = select id, file, span from "semantic-syntax" where kind = "f-string-part";
 let parented_parts = select l.parent as parent, r.id as id, r.file as file, r.span as span from "semantic-child" as l join parts as r on l.child = r.id;
@@ -13,10 +13,10 @@ let candidate_locations = select l.id as id, l.file as file, l.span as span, r."
 let suppression_mappings = noqa_line_map();
 let suppression_locations = noqa_locations(candidates=candidate_locations, mappings=suppression_mappings);
 let suppression_parents = select id, file, line from candidate_locations where id != id;
-let suppression_matches = suppression_edges(candidates=candidate_locations, locations=suppression_locations, additional_locations=suppression_parents, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*(?:F541)(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:F541)(?:,|$)");
+let suppression_matches = suppression_edges(candidates=candidate_locations, locations=suppression_locations, additional_locations=suppression_parents, codes="^(?:F541)$");
 let suppression_candidates = select id, file, span from suppression_locations;
 let violations = antijoin(left=suppression_candidates, right=suppression_matches, left-on=[id, span], right-on=[id, span]);
-let matched_directives = select directive, file from suppression_matches where scope = 0 or scope = 1;
+let matched_directives = select directive, file from suppression_matches where scope < 2;
 let noqa_matches = extend(from=matched_directives, values={code: "F541"});
 observe noqa_matches as noqa_matches;
 emit violations subject file key(id);

@@ -1,5 +1,4 @@
 import observation_matches from "python/ruff/suppress-matches";
-import suppress from "python/ruff/suppress";
 import type_context from "python/ruff/type-definition-context";
 import annotation_context from "python/ruff/annotation-evaluation-context";
 let strings = select id, file from "literal-properties" where kind = "string";
@@ -18,9 +17,10 @@ let eligible = antijoin(left=eligible0, right=literal_ids, left-on=["id","file"]
 let parsed = select id, file from "literal-expression-parse" where dialect = "python-string-annotation" and outcome = "parsed";
 let valid = select l.id as id, l.file as file from eligible as l join parsed as r on l.id = r.id and l.file = r.file;
 let candidates = select l.id as id, l.file as file, r.span as span, r."start-line" as line from valid as l join "source-location" as r on l.id = r.id and l.file = r.file;
-let violations = suppress(candidates=candidates, inline-pattern="(?:^|[^A-Z0-9])UP037(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:UP037)(?:,|$)");
-let ruf100_matches = observation_matches(candidates=candidates, inline-pattern="(?:^|[^A-Z0-9])UP037(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:UP037)(?:,|$)");
-let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let violations_matches = observation_matches(candidates=candidates, codes="^(?:UP037)$");
+let violations_rows = select id, file, span from candidates;
+let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_directives = select directive, file from violations_matches where scope < 2;
 let ruf100_used = extend(from=ruf100_directives, values={code: "UP037"});
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

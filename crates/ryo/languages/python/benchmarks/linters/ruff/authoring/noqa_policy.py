@@ -2,15 +2,25 @@
 from __future__ import annotations
 import json
 import re
-import tomllib
 from collections import defaultdict
 from pathlib import Path
 from authoring import profile_config
 
 
-def render_lookup(policy: dict[str, object]) -> str:
+def check_policy(policy: dict[str, object]) -> None:
     if policy.get('schema') != 'pinned-noqa-code-policy/v1' or policy.get('ruff_version') != profile_config.PINNED_RUFF_VERSION or policy.get('ruff_source_commit') != profile_config.PINNED_RUFF_SOURCE_COMMIT:
         raise ValueError('different pinned noqa policy')
+
+
+def render_codes(policy: dict[str, object], rule: str) -> str:
+    """The exact noqa spellings that suppress a rule: its code and every redirect source of it."""
+    check_policy(policy)
+    spellings = sorted({rule, *(before for before, after in policy['redirects'].items() if after == rule and re.fullmatch('[A-Z]+[0-9]+', before))})
+    return '^(?:' + '|'.join(spellings) + ')$'
+
+
+def render_lookup(policy: dict[str, object]) -> str:
+    check_policy(policy)
     codes = set(policy['registered_codes'])
     redirects = policy['redirects']
     if any(not re.fullmatch('[A-Z]+[0-9]+', code) for code in codes):
@@ -66,18 +76,13 @@ def generate(root: Path) -> None:
     query.write_text(text, encoding='utf-8')
 
     # The same redirect source controls producer suppression and the consumer's code identity.
-    profile = tomllib.loads((root / 'profiles/RUF100/benchmark.toml').read_text(encoding='utf-8'))
-    for code in profile['supporting-rules']:
-        aliases = sorted({code, *(before for before, after in policy['redirects'].items() if after == code and re.fullmatch('[A-Z]+[0-9]+', before))})
-        alternatives = '(?:' + '|'.join(aliases) + ')'
-        inline = '^[\\s,]*(?:[A-Z]+[0-9]+[\\s,]*)*' + alternatives + '(?:$|[\\s,#]|[A-Z])'
-        ranges = '(?:^|,)' + alternatives + '(?:,|$)'
+    suppression = json.loads((root / 'results/standard-suppression-policy.json').read_text(encoding='utf-8'))
+    for code in suppression['rules']:
         query = root / f'rules/{code}/query.ryoql'
         text = query.read_text(encoding='utf-8')
-        for name, value in [('inline-pattern', inline), ('range-pattern', ranges)]:
-            text, count = re.subn(name + r'="[^"]*"', lambda match: name + '="' + value + '"', text)
-            if count != 1:
-                raise ValueError(f'{code} does not have one authored suppression-edge call')
+        text, count = re.subn(r'\bcodes="[^"]*"', lambda match: 'codes="' + render_codes(policy, code) + '"', text)
+        if count != 1:
+            raise ValueError(f'{code} does not have one suppression call')
         query.write_text(text, encoding='utf-8')
 
 

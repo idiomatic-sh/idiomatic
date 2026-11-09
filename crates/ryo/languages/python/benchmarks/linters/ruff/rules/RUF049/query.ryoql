@@ -1,5 +1,4 @@
 import observation_matches from "python/ruff/suppress-matches";
-import suppress from "python/ruff/suppress";
 let nodes = select id, kind, file, span from "semantic-syntax";
 let classes = select id, file from nodes where kind = "class-def";
 let class_definitions = select id, owner, name, file from "defines" where kind = "class";
@@ -145,9 +144,10 @@ let direct_context_enum_classes = select l.context as context, r.id as id, l.fil
 let enum_classes = union(left=direct_context_enum_classes,right=indirect_enum_classes);
 let candidates = select l.decorator as id, l.file as file, l.span as span from dataclass_decorators as l join enum_classes as r on l.declaration = r.context and l.declaration = r.id and l.file = r.file;
 let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from candidates as l join "source-location" as r on l.id = r.id and l.file = r.file;
-let violations = suppress(candidates=candidate_locations, inline-pattern="(?:^|[^A-Z0-9])RUF049(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:RUF049)(?:,|$)");
-let ruf100_matches = observation_matches(candidates=candidate_locations, inline-pattern="(?:^|[^A-Z0-9])RUF049(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:RUF049)(?:,|$)");
-let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:RUF049)$");
+let violations_rows = select id, file, span from candidate_locations;
+let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_directives = select directive, file from violations_matches where scope < 2;
 let ruf100_used = extend(from=ruf100_directives, values={code: "RUF049"});
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

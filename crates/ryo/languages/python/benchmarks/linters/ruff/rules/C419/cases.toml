@@ -112,3 +112,37 @@ expected = [{ "rule" = "C419", "file" = "case.py", "start" = 52, "end" = 106 }]
 name = "rooted-two-files-reused-identities"
 files = { "a.py" = "async def f(items):\n    return any([await work(x) for x in items])\n", "b.py" = "async def f(items):\n    await work()\n    return any([call(deep(x)) for x in items])\n" }
 expected = [{ "rule" = "C419", "file" = "b.py", "start" = 52, "end" = 82 }]
+
+[[cases]]
+name = "redirect-source-noqa-suppresses"
+comparison = "full"
+files = { "case.py" = "def u(y):\n    return any([v for v in y])  # noqa: PIE802\n" }
+expected = []
+
+[[cases]]
+name = "redirect-source-file-noqa-suppresses"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa: PIE802\n\n\ndef u(y):\n    return any([v for v in y])\n" }
+expected = [{ "rule" = "RUF101", "file" = "case.py", "start" = 14, "end" = 20 }]
+"selected-rules" = ["C419", "RUF101"]
+
+[[cases]]
+name = "redirect-source-disable-range-suppresses"
+comparison = "full"
+files = { "case.py" = "def u(y):\n    # ruff: disable[PIE802]\n    x = any([v for v in y])\n    # ruff: enable[PIE802]\n    return x\n" }
+expected = []
+"selected-rules" = ["C419", "RUF101"]
+
+[[cases]]
+name = "redirect-source-trailing-ignore-suppresses"
+comparison = "full"
+files = { "case.py" = "def u(y):\n    return any([v for v in y])  # ruff: ignore[PIE802]\n" }
+expected = []
+"selected-rules" = ["C419", "RUF101"]
+
+[[cases]]
+name = "redirect-source-file-ignore-suppresses"
+comparison = "full"
+files = { "case.py" = "# ruff: file-ignore[PIE802]\n\n\ndef u(y):\n    return any([v for v in y])\n" }
+expected = []
+"selected-rules" = ["C419", "RUF101"]

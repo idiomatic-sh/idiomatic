@@ -1,5 +1,4 @@
 import observation_matches from "python/ruff/suppress-matches";
-import suppress from "python/ruff/suppress";
 let lexical = select source, target, file from "token-link" as t where t."link-kind" = "next-token";
 let starts = select source as id from lexical;
 let ends = select target as id from lexical;
@@ -48,9 +47,10 @@ let reached = select l.id as id, l.close_id as close_id, l.file as file, l.start
 let bounds = select l.id as id, l.file as file, l.start_span as start_span, r.span as end_span from reached as l join significant as r on l.close_id = r.id;
 let composed = span-between(from=bounds, start="start_span", end="end_span", output="span");
 let findings = select l.id as id, l.file as file, l.span as span, r."start-line" as line from composed as l join "source-location" as r on l.id = r.id;
-let violations = suppress(candidates=findings, inline-pattern="(?:^|[^A-Z0-9])UP034(?:$|[^A-Z0-9])", range-pattern="(?:^|,)UP034(?:,|$)");
-let ruf100_matches = observation_matches(candidates=findings, inline-pattern="(?:^|[^A-Z0-9])UP034(?:$|[^A-Z0-9])", range-pattern="(?:^|,)UP034(?:,|$)");
-let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let violations_matches = observation_matches(candidates=findings, codes="^(?:UP034)$");
+let violations_rows = select id, file, span from findings;
+let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_directives = select directive, file from violations_matches where scope < 2;
 let ruf100_used = extend(from=ruf100_directives, values={code: "UP034"});
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

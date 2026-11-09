@@ -1,7 +1,6 @@
 import observation_matches from "python/ruff/suppress-matches";
 import class_bases from "python/ruff/class-bases";
 import metaclass from "python/ruff/metaclass";
-import suppress from "python/ruff/suppress";
 
 let classes = select id, file from "semantic-syntax" where kind = "class-def";
 let sync_functions = select id, file from "semantic-syntax" where kind = "function-def";
@@ -100,9 +99,10 @@ let fixed_method_candidates = select name_id as id, file from nonmetaclass_metho
 let all_method_candidates = union(left=fixed_method_candidates, right=typed_iterator_candidates);
 let locations = select id, file, span, "start-line" from "source-location";
 let candidates = select l.id as id, l.file as file, r.span as span, r."start-line" as line from all_method_candidates as l join locations as r on l.id = r.id and l.file = r.file;
-let violations = suppress(candidates=candidates, inline-pattern="PYI034($|[, #])", range-pattern="(?:^|,)PYI034(?:,|$)");
-let ruf100_matches = observation_matches(candidates=candidates, inline-pattern="PYI034($|[, #])", range-pattern="(?:^|,)PYI034(?:,|$)");
-let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let violations_matches = observation_matches(candidates=candidates, codes="^(?:PYI034)$");
+let violations_rows = select id, file, span from candidates;
+let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_directives = select directive, file from violations_matches where scope < 2;
 let ruf100_used = extend(from=ruf100_directives, values={code: "PYI034"});
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

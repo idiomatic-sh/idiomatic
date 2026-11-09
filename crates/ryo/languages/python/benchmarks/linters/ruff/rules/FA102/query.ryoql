@@ -1,5 +1,4 @@
 import observation_matches from "python/ruff/suppress-matches";
-import suppress from "python/ruff/suppress";
 import annotation_context from "python/ruff/annotation-evaluation-context";
 let nodes = select id, kind, text, file, span from "semantic-syntax";
 let subscripts = select id, file from nodes where kind = "subscript";
@@ -29,9 +28,10 @@ let runtime = antijoin(left=eager, right=tc_members, left-on=["id","file"], righ
 let selected = select id, file from runtime where matches(file, "[.]py$");
 let candidates = select l.id as id, l.file as file, r.span as span from selected as l join nodes as r on l.id = r.id and l.file = r.file;
 let located = select l.id as id, l.file as file, l.span as span, r."start-line" as line from candidates as l join "source-location" as r on l.id = r.id and l.file = r.file;
-let violations = suppress(candidates=located, inline-pattern="(?:^|[^A-Z0-9])FA102(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:FA102)(?:,|$)");
-let ruf100_matches = observation_matches(candidates=located, inline-pattern="(?:^|[^A-Z0-9])FA102(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:FA102)(?:,|$)");
-let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let violations_matches = observation_matches(candidates=located, codes="^(?:FA102)$");
+let violations_rows = select id, file, span from located;
+let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_directives = select directive, file from violations_matches where scope < 2;
 let ruf100_used = extend(from=ruf100_directives, values={code: "FA102"});
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

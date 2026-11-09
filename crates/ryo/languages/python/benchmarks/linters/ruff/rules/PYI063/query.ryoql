@@ -1,5 +1,4 @@
 import observation_matches from "python/ruff/suppress-matches";
-import suppress from "python/ruff/suppress";
 let targets = select file, major, minor from "language-target" where major > 3 or major = 3 and minor >= 8;
 let functions = select id, file from "semantic-syntax" where kind = "function-def" or kind = "async-function-def";
 let function_targets = select l.id as function, l.file as file from functions as l join targets as r on l.file = r.file;
@@ -50,9 +49,10 @@ let dunder_names = select id, file from named_parameters where ends_with(name, "
 let private_names = antijoin(left=private_prefix, right=dunder_names, left-on=["id", "file"], right-on=["id", "file"]);
 let locations = select id, file, span, "start-line" as line from "source-location";
 let located = select l.id as id, l.file as file, r.span as span, r.line as line from private_names as l join locations as r on l.id = r.id and l.file = r.file;
-let violations = suppress(candidates=located, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*PYI063(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:PYI063)(?:,|$)");
-let ruf100_matches = observation_matches(candidates=located, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*PYI063(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:PYI063)(?:,|$)");
-let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let violations_matches = observation_matches(candidates=located, codes="^(?:PYI063)$");
+let violations_rows = select id, file, span from located;
+let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_directives = select directive, file from violations_matches where scope < 2;
 let ruf100_used = extend(from=ruf100_directives, values={code: "PYI063"});
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

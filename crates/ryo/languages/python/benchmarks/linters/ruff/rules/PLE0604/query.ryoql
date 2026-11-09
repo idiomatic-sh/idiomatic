@@ -1,5 +1,4 @@
 import observation_matches from "python/ruff/suppress-matches";
-import suppress from "python/ruff/suppress";
 let assignments = select id, file, span, kind from "semantic-syntax" where kind = "assign" or kind = "ann-assign" or kind = "aug-assign";
 let modules = select id, file from "semantic-syntax" where kind = "module";
 let scopes = select id, file from "semantic-syntax" where kind = "module" or kind = "class-def" or kind = "function-def" or kind = "async-function-def" or kind = "lambda" or kind = "list-comp" or kind = "set-comp" or kind = "dict-comp" or kind = "generator-exp";
@@ -54,9 +53,10 @@ let string_literals = select id, file from "literal-properties" where kind = "st
 let invalid_elements = antijoin(left=sequence_elements, right=string_literals, left-on=["element", "file"], right-on=["id", "file"]);
 let candidates = select target as id, file, target_span as span from invalid_elements;
 let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from candidates as l join "source-location" as r on l.id = r.id and l.file = r.file;
-let violations = suppress(candidates=candidate_locations, inline-pattern="(?:^|[^A-Z0-9])PLE0604(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:PLE0604)(?:,|$)");
-let ruf100_matches = observation_matches(candidates=candidate_locations, inline-pattern="(?:^|[^A-Z0-9])PLE0604(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:PLE0604)(?:,|$)");
-let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:PLE0604)$");
+let violations_rows = select id, file, span from candidate_locations;
+let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_directives = select directive, file from violations_matches where scope < 2;
 let ruf100_used = extend(from=ruf100_directives, values={code: "PLE0604"});
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

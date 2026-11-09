@@ -1,5 +1,4 @@
 import observation_matches from "python/ruff/suppress-matches";
-import suppress from "python/ruff/suppress";
 let executable_files = select path as file from "filesystem.executable" where executable = "true";
 let shebangs = select file from "syntax-tree" where kind = "comment" and matches(text, "^#!");
 let missing = antijoin(left=executable_files, right=shebangs, left-on=["file"], right-on=["file"]);
@@ -8,9 +7,10 @@ let origins = source-matches(from=modules, span="span", pattern="^", output="poi
 let points = select id, file, point as span from origins;
 let located = extend(from=points, values={line: 1});
 let candidates = select l.id as id, l.file as file, l.span as span, l.line as line from located as l join missing as r on l.file = r.file;
-let violations = suppress(candidates=candidates, inline-pattern="(?:^|[^A-Z0-9])EXE002(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:EXE002)(?:,|$)");
-let ruf100_matches = observation_matches(candidates=candidates, inline-pattern="(?:^|[^A-Z0-9])EXE002(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:EXE002)(?:,|$)");
-let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let violations_matches = observation_matches(candidates=candidates, codes="^(?:EXE002)$");
+let violations_rows = select id, file, span from candidates;
+let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_directives = select directive, file from violations_matches where scope < 2;
 let ruf100_used = extend(from=ruf100_directives, values={code: "EXE002"});
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

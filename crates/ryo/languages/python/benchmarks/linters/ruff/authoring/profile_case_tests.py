@@ -128,91 +128,89 @@ def report_cache_contract_self_test() -> None:
             raise AssertionError('unbound, overridden or default-enabled cache was accepted')
 
 def self_test_standard_suppression() -> None:
-    """Reject declaration-only, dead-call, missing-module and copied-body forms."""
+    """Reject declaration-only, dead-call, missing-module, copied-grammar and hand-edited-spelling forms."""
+    def refuse(rules: list[str], policies: dict[str, str], message: str) -> None:
+        try:
+            profile_proofs.check_standard_suppression(profile, rules, policies)
+        except ValueError:
+            return
+        raise AssertionError(message)
     with tempfile.TemporaryDirectory() as temporary:
         root = Path(temporary)
         profile = root / 'benchmark.toml'
-        module = root / 'fragments/suppress.ryoql'
+        module = root / 'fragments/suppress-matches.ryoql'
         module.parent.mkdir()
         module.write_text('return candidates;\n', encoding='utf-8')
         query = root / 'rules/GUARD001/query.ryoql'
         query.parent.mkdir(parents=True)
-        declared = '[query-modules]\n"python/ruff/suppress" = "fragments/suppress.ryoql"\n'
-        imported = 'import hide from "python/ruff/suppress";\n'
-        called = 'let filtered = hide(candidates=candidate_locations);\n'
+        declared = '[query-modules]\n"python/ruff/suppress-matches" = "fragments/suppress-matches.ryoql"\n'
+        imported = 'import hide from "python/ruff/suppress-matches";\n'
+        called = 'let matched = hide(candidates=candidate_locations, codes="^(?:GUARD001)$");\nlet rows = select id, file, span from candidate_locations;\nlet filtered = antijoin(left=rows, right=matched, left-on=[id, span], right-on=[id, span]);\n'
+        published = 'let used_directives = select directive, file from matched where scope < 2;\nlet used = extend(from=used_directives, values={code: "GUARD001"});\nobserve used as noqa_matches;\n'
         emitted = 'let violations = select id, file, span from filtered;\nemit violations subject file key(id);\n'
         policies = {'GUARD001': 'standard-module'}
         profile.write_text(declared, encoding='utf-8')
-        query.write_text(imported + called + emitted, encoding='utf-8')
+        query.write_text(imported + called + published + emitted, encoding='utf-8')
         profile_proofs.check_standard_suppression(profile, ['GUARD001'], policies)
-        for source in (imported + 'emit candidate_locations subject file key(id);\n', imported + called + 'emit candidate_locations subject file key(id);\n', called + emitted, imported + called + emitted + 'let mapping_edges = select * from "semantic-child";\n'):
+        copied_grammar = (
+            'let mapping_edges = select * from "semantic-child";\n',
+            'let directives = select id, file from "comment" where matches(text, "(?i:noqa)");\n',
+            'let heads = source-matches(from=located, span="comment_span", pattern="#[^\\S\\r\\n]*(?i:noqa)(?P<suffix>.*)$", output="marker", capture="suffix", capture-output="suffix_span");\n',
+        )
+        for source in (imported + published + 'emit candidate_locations subject file key(id);\n', imported + called + published + 'emit candidate_locations subject file key(id);\n', called + published + emitted, *(imported + called + published + emitted + copy for copy in copied_grammar)):
             query.write_text(source, encoding='utf-8')
+            refuse(['GUARD001'], policies, 'invalid standard suppression source was accepted')
+        for copy in copied_grammar:
             try:
-                profile_proofs.check_standard_suppression(profile, ['GUARD001'], policies)
+                profile_proofs.check_noqa_grammar('RUF100', copy)
             except ValueError:
                 continue
-            raise AssertionError('invalid standard suppression source was accepted')
-        query.write_text(imported + called + emitted, encoding='utf-8')
+            raise AssertionError('a rule-local noqa directive grammar was accepted')
+        # A pragma test that parses no directive is a rule body, not a copied grammar.
+        profile_proofs.check_noqa_grammar('E501', 'let pragma_comments = source-matches(from=comments, span="span", pattern="#[^\\S\\r\\n]*(?:(?i:noqa)(?:$|\\s|:)|type:[^\\S\\r\\n]*ignore).*", output="pragma_span");\n')
+        query.write_text(imported + called + published + emitted, encoding='utf-8')
         profile.write_text('', encoding='utf-8')
-        try:
-            profile_proofs.check_standard_suppression(profile, ['GUARD001'], policies)
-        except ValueError:
-            pass
-        else:
-            raise AssertionError('undeclared standard suppression module was accepted')
+        refuse(['GUARD001'], policies, 'undeclared standard suppression module was accepted')
         profile.write_text(declared, encoding='utf-8')
         module.unlink()
-        try:
-            profile_proofs.check_standard_suppression(profile, ['GUARD001'], policies)
-        except ValueError:
-            pass
-        else:
-            raise AssertionError('unstaged standard suppression module was accepted')
-        module.write_text('import core from "python/ruff/suppress-directives";\nreturn candidates;\n', encoding='utf-8')
-        try:
-            profile_proofs.check_standard_suppression(profile, ['GUARD001'], policies)
-        except ValueError:
-            pass
-        else:
-            raise AssertionError('undeclared transitive suppression module was accepted')
-        profile.write_text(declared + '"python/ruff/suppress-directives" = "fragments/suppress-directives.ryoql"\n', encoding='utf-8')
-        try:
-            profile_proofs.check_standard_suppression(profile, ['GUARD001'], policies)
-        except ValueError:
-            pass
-        else:
-            raise AssertionError('unstaged transitive suppression module was accepted')
-        (module.parent / 'suppress-directives.ryoql').write_text('return candidates;\n', encoding='utf-8')
+        refuse(['GUARD001'], policies, 'unstaged standard suppression module was accepted')
+        module.write_text('import core from "python/ruff/noqa-suppressions";\nreturn candidates;\n', encoding='utf-8')
+        refuse(['GUARD001'], policies, 'undeclared transitive suppression module was accepted')
+        profile.write_text(declared + '"python/ruff/noqa-suppressions" = "fragments/noqa-suppressions.ryoql"\n', encoding='utf-8')
+        refuse(['GUARD001'], policies, 'unstaged transitive suppression module was accepted')
+        (module.parent / 'noqa-suppressions.ryoql').write_text('return candidates;\n', encoding='utf-8')
         profile_proofs.check_standard_suppression(profile, ['GUARD001'], policies)
-        for policy_name, wrapper in (('unmapped-module', 'suppress-unmapped'), ('additional-lines-module', 'suppress-with-additional-lines')):
+        # The spellings and the published code are the generator's; a hand edit is refused.
+        spelled = imported + called.replace('GUARD001', 'B035') + published.replace('GUARD001', 'B035') + emitted
+        b035 = root / 'rules/B035/query.ryoql'
+        b035.parent.mkdir(parents=True)
+        for codes in ('^(?:B035)$', '^(?:B035|PIE999|RUF011)$'):
+            b035.write_text(spelled.replace('^(?:B035)$', codes), encoding='utf-8')
+            refuse(['B035'], {'B035': 'standard-module'}, 'a hand-edited codes spelling was accepted')
+        b035.write_text(spelled.replace('^(?:B035)$', '^(?:B035|RUF011)$'), encoding='utf-8')
+        profile_proofs.check_standard_suppression(profile, ['B035'], {'B035': 'standard-module'})
+        b035.write_text(spelled.replace('^(?:B035)$', '^(?:B035|RUF011)$').replace('values={code: "B035"}', 'values={code: "RUF011"}'), encoding='utf-8')
+        refuse(['B035'], {'B035': 'standard-module'}, 'noqa matches published under another code were accepted')
+        for policy_name, wrapper in (('unmapped-module', 'suppress-unmapped-matches'), ('additional-lines-module', 'suppress-with-additional-lines-matches')):
             variant = {'GUARD001': policy_name}
             profile.write_text('[query-modules]\n' + f'"python/ruff/{wrapper}" = "fragments/{wrapper}.ryoql"\n', encoding='utf-8')
             (module.parent / (wrapper + '.ryoql')).write_text('return candidates;\n', encoding='utf-8')
-            query.write_text(imported.replace('python/ruff/suppress', 'python/ruff/' + wrapper) + called + emitted, encoding='utf-8')
+            query.write_text(imported.replace('python/ruff/suppress-matches', 'python/ruff/' + wrapper) + called + published + emitted, encoding='utf-8')
             profile_proofs.check_standard_suppression(profile, ['GUARD001'], variant)
-            query.write_text(imported + called + emitted, encoding='utf-8')
-            try:
-                profile_proofs.check_standard_suppression(profile, ['GUARD001'], variant)
-            except ValueError:
-                pass
-            else:
-                raise AssertionError('wrong mapped/unmapped suppression import was accepted')
+            query.write_text(imported + called + published + emitted, encoding='utf-8')
+            refuse(['GUARD001'], variant, 'wrong mapped/unmapped suppression import was accepted')
         profile_proofs.check_standard_suppression(profile, ['UNMAPPED001'], policies)
         # The explicit matching family must feed both diagnostic filtering and named publication.
-        profile.write_text('[query-modules]\n"python/ruff/suppression-edges" = "fragments/suppression-edges.ryoql"\n', encoding='utf-8')
-        (module.parent / 'suppression-edges.ryoql').write_text('return candidates;\n', encoding='utf-8')
-        explicit = 'import matching from "python/ruff/suppression-edges";\nlet matched = matching(candidates=candidate_locations);\nlet visible = antijoin(left=candidate_locations, right=matched, left-on=[id], right-on=[id]);\n'
-        publication = 'let published = select directive, file from matched;\nobserve published as used;\n'
+        profile.write_text('[query-modules]\n"python/ruff/noqa-suppressions-with-additional-lines" = "fragments/noqa-suppressions-with-additional-lines.ryoql"\n', encoding='utf-8')
+        (module.parent / 'noqa-suppressions-with-additional-lines.ryoql').write_text('return candidates;\n', encoding='utf-8')
+        explicit = 'import matching from "python/ruff/noqa-suppressions-with-additional-lines";\nlet matched = matching(candidates=candidate_locations, codes="^(?:GUARD001)$");\nlet visible = antijoin(left=candidate_locations, right=matched, left-on=[id], right-on=[id]);\n'
+        publication = 'let published = extend(from=matched, values={code: "GUARD001"});\nobserve published as used;\n'
         emission = 'emit visible subject file key(id);\n'
         query.write_text(explicit + publication + emission, encoding='utf-8')
         profile_proofs.check_standard_suppression(profile, ['GUARD001'], {'GUARD001': 'explicit-edges-module'})
-        for source in (explicit + emission, explicit + 'observe candidate_locations as used;\n' + emission, explicit + publication + 'emit candidate_locations subject file key(id);\n'):
+        for source in (explicit + 'let stray = extend(from=candidate_locations, values={code: "GUARD001"});\n' + emission, explicit + 'let published = extend(from=candidate_locations, values={code: "GUARD001"});\nobserve published as used;\n' + emission, explicit + publication + 'emit candidate_locations subject file key(id);\n'):
             query.write_text(source, encoding='utf-8')
-            try:
-                profile_proofs.check_standard_suppression(profile, ['GUARD001'], {'GUARD001': 'explicit-edges-module'})
-            except ValueError:
-                continue
-            raise AssertionError('explicit matching family lost its Emit or named-output dependency')
+            refuse(['GUARD001'], {'GUARD001': 'explicit-edges-module'}, 'explicit matching family lost its Emit or named-output dependency')
     valid_report = {'execution_metadata': {'availability': 'complete'}, 'diagnostics': [], 'skipped': [], 'files': ['case.py'], 'coverage': {'selected': 1, 'evaluated': 1, 'skipped': 0, 'unknown_or_unread': 0}}
     case_records.complete_run_ryo_report(0, json.dumps(valid_report), '', ['case.py'], ['GUARD001'])
     phases = json.loads(profile_config.RULE_PHASES_FILE.read_text(encoding='utf-8'))

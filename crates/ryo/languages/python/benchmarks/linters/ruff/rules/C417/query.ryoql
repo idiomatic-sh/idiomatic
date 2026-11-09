@@ -1,5 +1,4 @@
 import observation_matches from "python/ruff/suppress-matches";
-import suppress from "python/ruff/suppress";
 let calls = select id, file, span from "semantic-syntax" where kind = "call";
 let function_fields = select parent, child from "semantic-child" where field = "func";
 let call_functions = select l.parent as call, r.file as file, r.span as span, l.child as function from function_fields as l join calls as r on l.parent = r.id;
@@ -103,9 +102,10 @@ let direct_only_map_calls = antijoin(left=safe_map_calls, right=contained_map_ca
 let direct_candidates = select map_call as id, file, span from direct_only_map_calls;
 let raw_candidates = union(left=direct_candidates, right=container_candidates);
 let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from raw_candidates as l join "source-location" as r on l.id = r.id and l.file = r.file;
-let located = suppress(candidates=candidate_locations, inline-pattern="(?:^|[^A-Z0-9])C417(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:C417)(?:,|$)");
-let ruf100_matches = observation_matches(candidates=candidate_locations, inline-pattern="(?:^|[^A-Z0-9])C417(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:C417)(?:,|$)");
-let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let located_matches = observation_matches(candidates=candidate_locations, codes="^(?:C417)$");
+let located_rows = select id, file, span from candidate_locations;
+let located = antijoin(left=located_rows, right=located_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_directives = select directive, file from located_matches where scope < 2;
 let ruf100_used = extend(from=ruf100_directives, values={code: "C417"});
 observe ruf100_used as noqa_matches;
 emit located subject file key(id);

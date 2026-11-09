@@ -1,0 +1,52 @@
+{
+ "bead": "ryo-fpg4.20 (with ryo-9ukc.13.8)",
+ "source": "ad6bb94f5d9b2909cfb21e44f1f6de476e315e80",
+ "measured_source": "57d3675517c4513fd792cf34b41fa6e46af238a3",
+ "measured_source_note": "ad6bb94f5d changes only authoring/profile_case_tests.py (the guard self-test, compacted) and prepared.json's digest of it; the self-test and tm rows were rerun on ad6bb94f5d",
+ "baseline_source": "79ef18b419d4cafe87305f374b714cb109b2a8ad",
+ "worker_sha256": "40f8ce0dcebe9daab1de44e4f14e1d43dad04bff7ea863795712bdf2dc66d0f1",
+ "staged_digest": "5f5c52336fe9c7eb6e8c618fc62903e8a97787a79489d16a2a8a98382dd3bae7",
+ "staged_request_sha256": "8c753ea4e40399deacdc6091fe7e949d7281fec36443df1381b934e7a04823a0",
+ "pinned_request_sha256": "e2cf371ce293114d45ce407b1b47a2f7eb3d3169a2a59af3367ec691ab52ed3e",
+ "reference": "ruff 0.16.5 (/home/vscode/.local/bin/ruff)",
+ "proofs": [
+  {
+   "name": "plan size (proof step 1)",
+   "result": "44,813 nodes / 66,609 edges / 193,797 raw steps on the 3-file request; 332 baseline 112,063 / 167,721 / 296,923; see diagnosis.json",
+   "pass": "within the design's acceptance bounds; 76 nodes over the design's absolute 44,737, explained in diagnosis.json"
+  },
+  {
+   "name": "rule fixture cases (proof steps 2-4)",
+   "command": "verify_profiles.py <ruff> --full-inventory --prepare-inventory --worker <worker> --output-dir <dir>, then worker verify-cases <ruff> . in each of the 413 staged rule directories",
+   "staged": "413 of 413 rules, 11,277 cases (11,263 at the baseline plus the 14 new cases), no registration refusal",
+   "result": "412 rules pass against both contestants (ryo and Ruff); RUF100 fails 1 of 30: blanket-noqa-on-a-star-import-that-needs-no-combining-is-unused, an incomplete I001 candidate (physical source facts, project namespace membership), which fails the same way on the baseline staging",
+   "ruf100_ruf101": "RUF100 29 of 30 (the I001 row above; its 2 new cases pass), RUF101 47 of 47",
+   "new_cases": "14 cases, each passing against both ryo and Ruff: C419 x5 (redirect source PIE802 on the noqa, file-noqa with RUF101 only, disable/enable, trailing ignore and file-ignore paths), B035 under # noqa: RUF011, RUF100 x2 (redirect sources used; a trailing # flake8: noqa is no directive), PIE790 # noqa: XPIE790 reports, C414 x2 (code in the reason reports; E501C414 suppresses), W605 in a triple-quoted string inside a backslash continuation, SIM101 x2 (disable range covering the operation; starting inside it). On the baseline assets B035, both RUF100, PIE790 and both C414 cases fail (the behaviour changes); the C419 redirect behaviour on the baseline is the design's C1 probe run (old ryo reported C419 on all five redirect files)",
+   "guard": "verify_profiles.py --self-test exits 0 on ad6bb94f5d (68.9 s), including self_test_standard_suppression: dropped and added spellings, a wrong published code, the three copied grammars and the declared-module refusals; the v2 guard checks all 414 suppressing rules at full-inventory staging"
+  },
+  {
+   "name": "parity through the bench crate (proof step 5)",
+   "command": "verify_profiles.py --stage-request /tmp/ryo-event-ready-django213-20261105/cold-request.json --source 57d3675517, then worker parity <ruff> <worker> stage/request.json docs/contracts/evidence/parity/django-413/accepted-differences.json per-rule.json, under the measure lock",
+   "result": "ruff parity: 412 identical of 413 rules; 0 unaccepted (FURB122: 3 ryo-extra findings, accepted)",
+   "per_rule_sha256": "d707aa9445c57b15c7b8e85f95416b623cdb14bbe3659fe0984aadbbe7f4f760, byte-identical to the committed evidence/parity/django-413/per-rule.json"
+  },
+  {
+   "name": "Django byte identity (proof step 6)",
+   "command": "/usr/bin/time -v worker run-ryo --request-file stage/request.json python-target=3.10 (2,875 files x 413 rules, fresh store, under the measure lock)",
+   "output_bytes": 981027,
+   "output_sha256": "f50bb571d41ee89719c9abcfb0cd1d6382a2b20af6db4ae36b6929286e062cbc",
+   "receipt_332_sha256": "f50bb571d41ee89719c9abcfb0cd1d6382a2b20af6db4ae36b6929286e062cbc",
+   "identical": true,
+   "timing_note": "recorded only, not a measurement: the parity and tm runs started during it (load 2.12 at start, 34.58 at end); wall 568.6 s, user 2,411.4 s, sys 105.3 s, peak 2,978,528 KB"
+  },
+  {
+   "name": "tm check (proof step 7)",
+   "command": "tm 0.1.1 (/tmp/ryo-tm332/pinned/tm, the workspace pin) --root crates/ryo check <every touched non-asset file> --format json",
+   "result": "0 findings, 0 suppressed"
+  },
+  {
+   "name": "skip rate on top of perf step 2 (proof step 8)",
+   "result": "not run on this base (perf step 2 is not merged here); gate relaxed to the measured 87.76% as a recorded give-back until L-span (ryo-fpg4.21) restores 89.16%"
+  }
+ ]
+}

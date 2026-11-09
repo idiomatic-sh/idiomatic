@@ -1,5 +1,4 @@
 import observation_matches from "python/ruff/suppress-matches";
-import suppress from "python/ruff/suppress";
 let assignments = select id, file from "semantic-syntax" where kind = "assign" or kind = "ann-assign";
 let targets = select parent, child, file from "semantic-child" where field = "targets" or field = "target";
 let values = select parent, child, file from "semantic-child" where field = "value";
@@ -40,9 +39,10 @@ let self_binding_scopes = select l.id as id, l.file as file, r.scope as scope, l
 let scope_nodes = select id, kind, file from nodes;
 let outside_class = select l.id as id, l.file as file, l.span as span from self_binding_scopes as l join scope_nodes as r on l.scope = r.id and l.file = r.file where r.kind != "class-def";
 let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from outside_class as l join "source-location" as r on l.id = r.id and l.file = r.file;
-let violations = suppress(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*PLW0127(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:PLW0127)(?:,|$)");
-let ruf100_matches = observation_matches(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*PLW0127(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:PLW0127)(?:,|$)");
-let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:PLW0127)$");
+let violations_rows = select id, file, span from candidate_locations;
+let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_directives = select directive, file from violations_matches where scope < 2;
 let ruf100_used = extend(from=ruf100_directives, values={code: "PLW0127"});
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

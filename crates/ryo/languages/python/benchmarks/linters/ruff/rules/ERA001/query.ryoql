@@ -1,6 +1,6 @@
 import noqa_line_map from "python/ruff/noqa-line-map";
 import noqa_locations from "python/ruff/noqa-locations";
-import suppression_edges from "python/ruff/suppression-edges";
+import suppression_edges from "python/ruff/noqa-suppressions-with-additional-lines";
 let module_roots = select id, file, span from "semantic-syntax" where kind = "module";
 let modules = extend(from=module_roots, values={base_line: 1});
 let own_lines = source-matches(from=modules, span="span", base-line="base_line", pattern="(?m)^[ \t]*(?P<comment>#[^\r\n]*)", output="whole", line-output="whole_line", capture="comment", capture-output="comment_span", capture-text-output="text", capture-line-output="line");
@@ -22,9 +22,9 @@ let candidates = antijoin(left=recognized, right=tasks, left-on=[id, file], righ
 let mappings = noqa_line_map();
 let locations = noqa_locations(candidates=candidates, mappings=mappings);
 let additional = select id, file, line from candidates where id != id;
-let matches = suppression_edges(candidates=candidates, locations=locations, additional_locations=additional, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*(?:ERA001)(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:ERA001)(?:,|$)");
+let matches = suppression_edges(candidates=candidates, locations=locations, additional_locations=additional, codes="^(?:ERA001)$");
 let violations = antijoin(left=locations, right=matches, left-on=[id, span], right-on=[id, span]);
-let matched = select directive, file from matches where scope = 0 or scope = 1;
+let matched = select directive, file from matches where scope < 2;
 let noqa_matches = extend(from=matched, values={code: "ERA001"});
 observe noqa_matches as noqa_matches;
 emit violations subject file key(id);
