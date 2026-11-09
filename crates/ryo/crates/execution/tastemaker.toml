@@ -23,6 +23,7 @@ templates = [
   { template = "idiomatic.ryo/program-runtime-proof", file = "tests/shared_walk/cohort/mod.rs", description = "A generic role of the compiled-owner proof concept, reached through normal Rust registration." },
   { template = "idiomatic.ryo/program-runtime-proof", file = "tests/shared_walk/compact/mod.rs", description = "A generic role of the compiled-owner proof concept, reached through normal Rust registration." },
   { template = "idiomatic.ryo/program-runtime-proof", file = "tests/shared_walk/fixtures.rs", description = "A generic role of the compiled-owner proof concept, reached through normal Rust registration." },
+  { template = "idiomatic.ryo/program-runtime-proof", file = "src/inbound/use_cases/execution/use_case_test/conformance/fixtures.rs", description = "The delivery protocol every conformance group drives through the real prepare, open_file, collect and forward steps." },
   { template = "idiomatic.ryo/program-runtime-proof", file = "tests/shared_walk/order/mod.rs", description = "A generic role of the compiled-owner proof concept, reached through normal Rust registration." },
   { template = "idiomatic.ryo/program-runtime-proof", file = "tests/shared_walk/projection/mod.rs", description = "A generic role of the compiled-owner proof concept, reached through normal Rust registration." },
   { template = "idiomatic.ryo/program-runtime-proof", file = "tests/shared_walk/readiness/mod.rs", description = "A generic role of the compiled-owner proof concept, reached through normal Rust registration." },

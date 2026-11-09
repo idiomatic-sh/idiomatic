@@ -1,12 +1,11 @@
 {
- "bead": "ryo-fpg4.20 (with ryo-9ukc.13.8)",
- "question": "plan size of the noqa fragment rewrite: nodes and input edges after CSE, raw lowered steps, on the spike's 3-file request (design section 4, proof step 1)",
+ "question": "plan size of the noqa fragment rewrite: nodes and input edges after CSE, raw lowered steps, on the 3-file request (design section 4, proof step 1)",
  "source": "57d3675517c4513fd792cf34b41fa6e46af238a3",
  "baseline_source": "79ef18b419d4cafe87305f374b714cb109b2a8ad",
  "worker_sha256": "40f8ce0dcebe9daab1de44e4f14e1d43dad04bff7ea863795712bdf2dc66d0f1",
- "worker_note": "the ruff bench worker built for checkpoint 332 at a4cc608275ada8b3fef840ef7c36729cf122b06a (target ryo-332, release/deps/ruff-1de4fc5ebd18a6ab); the rewrite changes no worker source, only runtime assets",
- "request": "the spike's 3-file request (django/__init__.py, tests/admin_views/__init__.py, tests/admin_views/urls.py; subplans and steps diagnostics on, sha256 4f4b662148a256d18e1cc5bac1606e9b246c09f105bc5fd9878afc901d945ee7) with rules, query_modules, rule_applicability and rule_observations taken from verify_profiles.py --stage-request --source <source>",
- "command": "worker diagnostic-ryo --request-file <request> python-target=3.10 events.jsonl, under the measure lock; counted by the spike's plans.py",
+ "worker_note": "the ruff bench worker built for checkpoint 332 at a4cc608275ada8b3fef840ef7c36729cf122b06a (the 332 tree's own target, release/deps/ruff-1de4fc5ebd18a6ab); the rewrite changes no worker source, only runtime assets",
+ "request": "the 3-file request (django/__init__.py, tests/admin_views/__init__.py, tests/admin_views/urls.py; subplans and steps diagnostics on, sha256 4f4b662148a256d18e1cc5bac1606e9b246c09f105bc5fd9878afc901d945ee7) with rules, query_modules, rule_applicability and rule_observations taken from verify_profiles.py --stage-request --source <source>",
+ "command": "worker diagnostic-ryo --request-file <request> python-target=3.10 events.jsonl, under the measure lock; counted by plans.py (a step-dump counter outside the repository)",
  "rows": [
   {"name": "332 assets (old fragments), staged at 79ef18b419", "raw_steps": 296923, "nodes": 112063, "edges": 167721},
   {"name": "design draft 3 (scratchpad frag/after3, 330 rule bodies)", "raw_steps": 194125, "nodes": 44719, "edges": 66465},
@@ -15,5 +14,5 @@
  ],
  "after_kinds": {"Select": 10268, "Join": 9995, "Project": 9823, "Union": 7942, "Antijoin": 2881, "Extend": 2390, "Axis": 481, "SpanBounds": 424, "GroupCount": 268, "Replace": 113, "SourceMatches": 70, "Closure": 66, "Capture": 31, "SpanBetween": 24, "OrderedMatch": 13, "FitsRendered": 7, "OrderedDfs": 7, "RenderSyntax": 7, "Hosted": 3},
  "change": {"nodes": "112,063 -> 44,813 (-60.0%)", "edges": "167,721 -> 66,609 (-60.3%)", "raw_steps": "296,923 -> 193,797 (-34.7%)"},
- "against_the_design_figures": "The design's 44,737 nodes / 66,496 edges were measured on 330 rule bodies with the 330 worker. On the same worker the 332 tree's own old-fragment baseline is 112,063 / 167,721, 61 nodes / 85 edges above the spike's 112,002 / 167,636 (rule bodies changed between 330 and 332), and the draft gives 44,719 / 66,465. This change is 44,813 / 66,609: the design-required node-extent join of 2.6 adds 12 / 24, and the rest follows the 332 rule bodies and RUF100's own span-between (4.1). It is within the design's acceptance (nodes <= 45,000, edges <= 67,000, raw steps <= 195,000) and 76 nodes / 113 edges over the absolute 44,737 / 66,496."
+ "against_the_design_figures": "The design's 44,737 nodes / 66,496 edges were measured on 330 rule bodies with the 330 worker. On the same worker the 332 tree's own old-fragment baseline is 112,063 / 167,721, 61 nodes / 85 edges above the 330 measurement's 112,002 / 167,636 (rule bodies changed between 330 and 332), and the draft gives 44,719 / 66,465. This change is 44,813 / 66,609: the design-required node-extent join of 2.6 adds 12 / 24, and the rest follows the 332 rule bodies and RUF100's own span-between (4.1). It is within the design's acceptance (nodes <= 45,000, edges <= 67,000, raw steps <= 195,000) and 76 nodes / 113 edges over the absolute 44,737 / 66,496."
 }

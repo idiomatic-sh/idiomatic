@@ -30,8 +30,6 @@ use ryo_execution_store::application::file_dag::service::open_program_owner;
 use ryo_relations::domain::relations::types::FileId;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::files::types::SourceView;
-#[cfg(test)]
-use ryo_values::domain::rows::types::Table;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -188,44 +186,6 @@ impl FileRun<'_> {
         self.execution.finish()?;
         drop(self.routes);
         Ok(readiness)
-    }
-    /// Whether the file holds a slot and a dormant count for a region, and its checkpoint: what a presence skip left.
-    #[cfg(test)]
-    pub(crate) fn region_probe(
-        &self,
-        region: ryo_execution_domain::domain::executable_program::types::RegionId,
-    ) -> super::types::RegionProbe {
-        use super::types::{InputRelease, Instantiated};
-        use crate::application::file_dag::program::runtime::types::{
-            DependencyCheckpoint, SlotHolding,
-        };
-        let held = self.execution.instantiated(region);
-        super::types::RegionProbe {
-            instantiated: match (held.slot, held.dormant) {
-                (SlotHolding::Held, _) => Instantiated::Slot,
-                (SlotHolding::Missing, SlotHolding::Held) => Instantiated::Dormant,
-                (SlotHolding::Missing, SlotHolding::Missing) => Instantiated::Never,
-            },
-            inputs: match (
-                held.slot,
-                self.execution
-                    .retry_checkpoint(self.execution.file_state(), region),
-            ) {
-                (SlotHolding::Held, Ok(checkpoint)) => Some(match checkpoint.dependencies {
-                    DependencyCheckpoint::Consumed => InputRelease::Released,
-                    DependencyCheckpoint::Pending => InputRelease::Owed,
-                }),
-                (SlotHolding::Held | SlotHolding::Missing, _) => None,
-            },
-        }
-    }
-    /// Releases a region's inputs once more, as a consumer that already released them would.
-    #[cfg(test)]
-    pub(crate) fn retire_again(
-        &self,
-        region: ryo_execution_domain::domain::executable_program::types::RegionId,
-    ) -> Result<(), OperatingError> {
-        self.execution.retire(self.execution.file_state(), region)
     }
     /// Whether the file's cleanup has recorded a refusal.
     #[cfg(test)]

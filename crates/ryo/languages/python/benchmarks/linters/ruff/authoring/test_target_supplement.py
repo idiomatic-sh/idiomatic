@@ -15,6 +15,8 @@ RUFF = Path(__file__).resolve().parents[1]
 CURRENT = "results/full-inventory-current"
 SUPPLEMENT = "up035-up036-target-supplement"
 PREVIOUS = {rule: {"status": "FAIL"} for rule in ["UP035", "UP036"]}
+# Every query module a control's staged profile may import: the fragments the controls bind by digest.
+FRAGMENTS = sorted(str(path.relative_to(RUFF)) for path in (RUFF / "fragments").glob("*.ryoql"))
 
 
 def sha(path):
@@ -29,7 +31,7 @@ class TargetEvidenceTests(unittest.TestCase):
         shutil.copytree(RUFF / CURRENT / SUPPLEMENT, target)
         proof = json.loads((target / "proof.json").read_text())
         controls = json.loads((target / "controls.json").read_text())
-        needed = {"fragments/suppress.ryoql", "fragments/suppress-directives.ryoql"}
+        needed = set(FRAGMENTS)
         for item in controls["controls"]:
             needed.update([item["cases_file"], item["settings_source"], f'rules/{item["rule"]}/query.ryoql'])
             evidence = (RUFF / item["settings_source"]).parent / "evidence"
@@ -99,8 +101,7 @@ class OptionalModuleAndFailureEvidenceTests(unittest.TestCase):
         proof = json.loads((target / "proof.json").read_text())
         controls = json.loads((target / "controls.json").read_text())
         needed = {"rules/PLE0116/query.ryoql", "rules/PLE0116/cases.toml",
-                  "profiles/PLE0116/benchmark.toml", "fragments/suppress.ryoql",
-                  "fragments/suppress-directives.ryoql"}
+                  "profiles/PLE0116/benchmark.toml", *FRAGMENTS}
         needed.update(CURRENT + "/" + name for name in proof["prior_summaries_sha256"])
         for relative in needed:
             path = root / relative
@@ -148,9 +149,9 @@ class OptionalModuleAndFailureEvidenceTests(unittest.TestCase):
 
     def test_rehashed_direct_request_cannot_switch_to_noop_rules(self):
         with tempfile.TemporaryDirectory() as directory:
-            root, current, target, proof, _ = self.direct_fixture(directory)
+            root, current, target, proof, controls = self.direct_fixture(directory)
             archive = target / "raw-receipts.tar.gz"
-            name = "py310/direct/00/request.json"
+            name = controls["direct_negative"][0]["archive_prefix"] + "/00/request.json"
             replacement = target / "replacement.tar.gz"
             with tarfile.open(archive, "r:gz") as source:
                 request = json.loads(source.extractfile(name).read())
@@ -171,16 +172,18 @@ class OptionalModuleAndFailureEvidenceTests(unittest.TestCase):
     def test_helper_free_actual_fixture_proof_validates(self):
         target = RUFF / CURRENT / "ruf101-target-supplement"
         rows = verified_rows(RUFF, RUFF / CURRENT, {"RUF101": {"status": "FAIL"}}, target)
-        self.assertEqual([(row["status"], row["case_count"]) for row in rows], [("PASS", 40)])
+        self.assertEqual([(row["status"], row["case_count"]) for row in rows], [("PASS", 47)])
 
     def test_actual_failed_fixture_evidence_cannot_promote(self):
         target = RUFF / CURRENT / "latest-failed-observations"
         if not target.is_dir():
             target = RUFF / CURRENT / "ruf101-target-supplement"
-        rows = verified_failed_rows(RUFF, {"N999": {"status": "FAIL"}}, target)
-        self.assertEqual([(row["rule_id"], row["status"]) for row in rows], [("N999", "FAIL")])
+        # RUF100 is the rule that fails a case on the current engine (29 of 30); N999, the earlier failed observation,
+        # passes all 55 of its cases since checkpoint 333 and stays only as the superseded observation below.
+        rows = verified_failed_rows(RUFF, {"RUF100": {"status": "FAIL"}}, target)
+        self.assertEqual([(row["rule_id"], row["status"]) for row in rows], [("RUF100", "FAIL")])
         with self.assertRaisesRegex(ValueError, "changed failed fixture source/settings"):
-            verified_failed_rows(RUFF, {"N999": {"status": "PASS"}}, target)
+            verified_failed_rows(RUFF, {"RUF100": {"status": "PASS"}}, target)
 
     def test_superseded_settings_cannot_certify_current_failed_observation(self):
         if not (RUFF / CURRENT / "latest-failed-observations").is_dir():

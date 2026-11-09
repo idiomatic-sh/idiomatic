@@ -7,11 +7,24 @@ from pathlib import Path, PurePosixPath
 import tarfile
 import tomllib
 
-from authoring import case_records, reference_discrepancies
+from authoring import case_observations, reference_discrepancies
 
 
 def sha(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def observed_row(observed: dict[str, object], rule: str) -> dict[str, object]:
+    """The control's one executed row. The collector reports the whole pinned inventory: every other row is a rule the
+    registration did not select, which fails as not selected and carries no cases."""
+    rows = observed.get("rules", [])
+    selected = [row for row in rows if row.get("rule_id") == rule]
+    others = [row for row in rows if row.get("rule_id") != rule]
+    if (len(selected) != 1 or observed.get("counts") != {"PASS": 1, "FAIL": len(others)}
+        or any(row.get("status") != "FAIL" or row.get("reason") != "not selected for this invocation"
+               or row.get("case_count") != 0 for row in others)):
+        raise ValueError("target fixture execution is incomplete or failed")
+    return selected[0]
 
 
 def verified_rows(ruff: Path, current: Path, previous: dict[str, object], directory: Path) -> list[dict[str, object]]:
@@ -102,9 +115,8 @@ def verified_rows(ruff: Path, current: Path, previous: dict[str, object], direct
                 or counts["raw_parity_matches"] != raw or counts["documented_reference_discrepancies"] != differences
                 or counts["unexplained_mismatches"] or any(record.get("case_passed") is not True for record in records)
                 or observed.get("run_state") != "complete"
-                or observed.get("counts") != {"PASS": 1, "FAIL": 0}
-                or observed["rules"][0].get("status") != "PASS"
-                or observed["rules"][0].get("case_results_sha256") != item["case_results_sha256"]):
+                or observed_row(observed, rule).get("status") != "PASS"
+                or observed_row(observed, rule).get("case_results_sha256") != item["case_results_sha256"]):
                 raise ValueError("target fixture execution is incomplete or failed")
         direct = controls.get("direct_negative", [])
         required_direct = proof.get("direct_negative_requirements", {})

@@ -1,5 +1,4 @@
 {
- "bead": "ryo-fpg4.20 (with ryo-9ukc.13.8)",
  "source": "ad6bb94f5d9b2909cfb21e44f1f6de476e315e80",
  "measured_source": "57d3675517c4513fd792cf34b41fa6e46af238a3",
  "measured_source_note": "ad6bb94f5d changes only authoring/profile_case_tests.py (the guard self-test, compacted) and prepared.json's digest of it; the self-test and tm rows were rerun on ad6bb94f5d",
@@ -46,7 +45,7 @@
   },
   {
    "name": "skip rate on top of perf step 2 (proof step 8)",
-   "result": "not run on this base (perf step 2 is not merged here); gate relaxed to the measured 87.76% as a recorded give-back until L-span (ryo-fpg4.21) restores 89.16%"
+   "result": "not run on this base (perf step 2 is not merged here); gate relaxed to the measured 87.76% as a recorded give-back until the span work restores 89.16%"
   }
  ]
 }

@@ -348,3 +348,43 @@ impl FilePresence {
         }
     }
 }
+
+/// What a presence skip left on the file, read by the presence proofs.
+#[cfg(test)]
+impl FileRun<'_> {
+    /// Whether the file holds a slot and a dormant count for a region, and its checkpoint: what a presence skip left.
+    pub(crate) fn region_probe(
+        &self,
+        region: RegionId,
+    ) -> crate::application::file_dag::program::facade_runtime::types::RegionProbe {
+        use crate::application::file_dag::program::facade_runtime::types::{
+            InputRelease, Instantiated,
+        };
+        use crate::application::file_dag::program::runtime::types::{
+            DependencyCheckpoint, SlotHolding,
+        };
+        let held = self.execution.instantiated(region);
+        crate::application::file_dag::program::facade_runtime::types::RegionProbe {
+            instantiated: match (held.slot, held.dormant) {
+                (SlotHolding::Held, _) => Instantiated::Slot,
+                (SlotHolding::Missing, SlotHolding::Held) => Instantiated::Dormant,
+                (SlotHolding::Missing, SlotHolding::Missing) => Instantiated::Never,
+            },
+            inputs: match (
+                held.slot,
+                self.execution
+                    .retry_checkpoint(self.execution.file_state(), region),
+            ) {
+                (SlotHolding::Held, Ok(checkpoint)) => Some(match checkpoint.dependencies {
+                    DependencyCheckpoint::Consumed => InputRelease::Released,
+                    DependencyCheckpoint::Pending => InputRelease::Owed,
+                }),
+                (SlotHolding::Held | SlotHolding::Missing, _) => None,
+            },
+        }
+    }
+    /// Releases a region's inputs once more, as a consumer that already released them would.
+    pub(crate) fn retire_again(&self, region: RegionId) -> Result<(), OperatingError> {
+        self.execution.retire(self.execution.file_state(), region)
+    }
+}
