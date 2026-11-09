@@ -52,7 +52,7 @@ def shape(review: object, reviewer: str = "contract-review") -> None:
         decided(review["candidate_decisions"])
 
 
-TRACKER = re.compile(r"\bryo-[a-z0-9]{3,}(\.[0-9]+)*\b")
+TRACKER = re.compile(r"(?<![\w-])ryo-[a-z0-9]{3,}(\.[0-9]+)*\b")
 MECHANISMS = re.compile(r"compiler|new rule|strengthen \S.*")
 
 

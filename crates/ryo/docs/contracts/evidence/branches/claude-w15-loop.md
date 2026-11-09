@@ -1,56 +1,52 @@
-# Leak review: claude/w15-loop at b59b22c6e7, round 5
+# Leak review: claude/w15-loop at 794ec68025 (delta b59b22c6e7..794ec68025)
 
-Base dcea2ee7df. Reviewed tree: the builder's worktree, HEAD b59b22c6e72b9c84f63c1ca0bcc2a8395dfddca5, clean status before and after the review.
-
-This round re-checks the round-4 finding (census-cfg-test-angle-bracket-depth-334fc686) and spot-checks the round-1 to round-4 fixes. It is graded under the hooks README's threat model, which covers honest mistakes, not obfuscation. Plants ran in a `git archive` copy, which was deleted afterwards. Evidence: `claude-w15-loop.json` beside this file, with 10 plants and 32 enforcement candidates. 334fc686 is now fixed, and one candidate is new.
+The delta touches four files and no Rust source:
+- `.agents/agents/leak-review.md:13`
+- `.claude/hooks/README.md:14-16`
+- `crates/ryo/docs/contracts/evidence/checkpoint/run.py:523-530`
+- `crates/ryo/docs/contracts/evidence/checkpoint/run_test.py:261-267`
 
 ## Check 1: proof where the contract lives: PASS
-No Rust source changes. The only manifest edit is crates/ryo/Cargo.toml:149-152.
+No Rust source or manifest changed. The census reads source statically and proves no contract.
 
-## Check 2: every enforcement claim fires: FAIL
-**The round-4 escape is closed (run.py:522-538).** Angle brackets count only while `header` is true, and the first `{` sets it to false. Bodies track `{}()[]`. `literal_end` (run.py:510-521) skips comments, strings, raw strings and char literals, and leaves lifetimes alone.
+## Check 2: every enforcement claim fires: PASS
+The open finding census-cfg-test-header-initializer-angle-c993d1af is closed. run.py:530 ends the header at a depth-0 `=` that is not part of `==`, `=>`, `<=`, `>=` or `!=`.
 
-Each plant below sat before a method in the same impl that matches 8 Operation variants: the count is 24 without that method and 25 with it. All of these stay at 25:
-- `self.seen < 4`, `n << 2` and `if n < 4 {}`
-- `'{'`, `"("` and `r#"}{"#`
-- a `}` in a comment
-- lifetimes
-- nested generics with a closure `> 1 && >= 2`
-- a where clause
-- `[b'{', b'(']`
+Plants were made in a git archive copy, in the real file `core/src/outbound/lint_store/adapters/memory/constants.rs`. Each was followed by a production fn naming 8 Operation variants. The control count is 25.
+- Positive control: b59b22c6e7's run.py drops `#[cfg(test)] const LIMIT: usize = 1 << 10;` and `const SMALL: bool = 3 < 4;` to 24, so the escape is reproduced.
+- With 794ec68025's run.py, these all stay at 25:
+  - LIMIT and SMALL
+  - `static S: [u8; 2] = [1 << 2, 0];`
+  - a cfg(test) discriminant `A = 1 << 3,`
+  - `const V: Vec<Option<u8>>`
+  - a closure const with `x > 1 && x >= 2`
+  - `type A<T = u8>`
+  - mixed `<= != >= << ==`
+  - `Iterator<Item = u8>` with a where clause
+  - macro_rules `=>`
+  - an impl holding an associated const
+- run_test passes 42 tests. run_test.py:261 is the new regression case.
+- The hooks change is README text only, so hook code is unchanged since round 4.
 
-The round-4 advisory on literals is closed too. run_test.py:254 has a regression case.
-
-**New escape, a variant of the same class: an initializer counts as header (run.py:529, 531).** For a const, static or enum discriminant, the header runs up to the `;` or `,`, so a `<` or `<<` in the initializer raises the depth. The depth is still above 0 at the `;`, and the following production items count as test.
-- Plant: either line below takes operation_exhaustive_matches from 25 to 24.
-  ```rust
-  #[cfg(test)]
-  const LIMIT: usize = 1 << 10;
-  ```
-  The same happens with `const SMALL: bool = 3 < 4;`.
-- This shape is plausible here. core/src/outbound/lint_store/adapters/memory/constants.rs:4-5 is a `#[cfg(test)]` const in a production file. core/src/domain/ordering/service.rs:138 and :153, and execution_domain/src/domain/comparing/service.rs:33, are `1 << N` consts.
-- Required change: end the header at a depth-0 `=` as well as at `{`. After that, count `{}()[]` only. Add a run_test case with `#[cfg(test)] const X: usize = 1 << 10;` and `const B: bool = 3 < 4;` ahead of production code.
-
-**Rounds 1-4 still hold.**
-- .claude/ is byte-identical to 1c2a73da64.
-- test_hooks passes. It still includes the cases for `flock --wait` and `--shared` (test_hooks.py:171-191) and for a token named twice (test_hooks.py:1385-1403).
-- is_test_file treats `use_case_test/` as test, and `latest/` and `contest/` as production.
-- A cfg(test) field still ends at its comma.
-- run_test passes all 41 tests.
+**Advisory under the recorded decision.** leak-review.md:13 and the hooks README:14-16 make further census-scanner edge cases advisories owned by the ryo-query replacement, unless the shape occurs in the real tree.
+- An array length in the header still escapes. `#[cfg(test)] fn arr() -> [u8; 1 << 2]` and `const A: [u8; 1 << 2]` drop the count to 24.
+- `git grep` at 794ec68025 finds this shape only inside string literals in test files, never in Rust code. So it is an advisory, not a FAIL.
+- It is carried as census-cfg-test-header-array-length-angle-1f312aff for the replacement query.
 
 ## Check 3: boundaries hold across crates: PASS
-The repair touches only run.py and run_test.py.
+The delta changes no visibility, allowlist, import boundary or feature.
 
 ## Check 4: one implementation and one representation per concept: PASS
-`item_end` and `literal_end` are the only extent scanner, and `is_test_file` is the only test-file classifier.
+item_end (run.py:522) is still the only extent scanner. The fix edits it in place.
 
 ## Check 5: layer direction: PASS
-No .rs file changed in dcea2ee7df..b59b22c6e7.
+The delta changes no .rs file.
 
 ## Check 6: test seams stay out of production: PASS
-No feature, cfg(test) bypass or public test helper was added.
+The delta adds no feature, cfg(test) bypass or public test helper.
 
-## Beads (one per class, for the PM to file)
-- census cfg(test) const, static or discriminant initializer counted as header, so `<` or `<<` raises the depth: run.py:529-531 (census-cfg-test-header-initializer-angle-c993d1af). Under ryo-xzox, this shape becomes a case for the replacement query.
+## Enforcement candidates
+- All earlier entries are carried forward, and c993d1af is now `fixed`.
+- New `open` advisory: census-cfg-test-header-array-length-angle-1f312aff.
 
-VERDICT: FAIL: 2
+VERDICT: PASS

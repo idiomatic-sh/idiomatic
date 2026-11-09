@@ -1,345 +1,73 @@
 {
-  "checkpoint": 331,
-  "source": "b1e81f724206237fad67a42bfe1557fdb838b9e2",
-  "previous": "1086daee4b3a4435e60438d2df6ec7a7128dd883",
-  "verdict": "FAIL",
-  "verdict_reason": "the lint group fails on the landed sha: cargo-fmt (3,371 files, carried by owner decision to the fmt-only commit of 332), cargo-machete (unused dependencies in cli, core, execution and derived after the self-ignore was dropped), and tastemaker 18 findings / 6 suppressed against the lock (the execution_domain ring, standing). No new Tastemaker finding class; no asset authored",
-  "reviewer": "tm-steward",
-  "date": "2026-11-09T01:30:00Z",
-  "checks": [
-    {
-      "id": "gate-lint",
-      "verdict": "FAIL",
-      "evidence": "asymptote check --groups lint in crates/ryo of a git archive copy of b1e81f7242: rc 2, 20 new / 174 resolved; failing tools cargo-fmt (cargo fmt --check: 3,377 diff hunks in 3,371 files), cargo-machete (rc 123: cli ryo_derived; core hashbrown, heck, num-bigint, toml, unicode-width; execution blake3, divan, hashbrown, ignore, postcard, rayon, rustc-hash, serde, sysinfo, tempfile, toml, unicode-width; derived ryo_language), tastemaker (the 18 no-domain-concept-cycles of the ring plus 2 in-source file-length ignores shown as new against the lock); cargo-deny passes"
-    },
-    {
-      "id": "gate-lint-since",
-      "verdict": "FAIL",
-      "evidence": "asymptote check --since <local commit holding the 1086daee4b tree> --groups lint in the same copy: rc 2, 20 introduced since the base, 174 resolved; the same tools fail"
-    },
-    {
-      "id": "gate-tm-direct",
-      "verdict": "FAIL",
-      "evidence": "tm check --format json in crates/ryo of the copy: rc 1, 18 findings (all idiomatic-rust/no-domain-concept-cycles in crates/execution_domain/src/domain) and 6 suppressed (file-length in-source ignores); equal to the contract and leak reviews' 18/6"
-    },
-    {
-      "id": "gate-check",
-      "verdict": "NOTE",
-      "evidence": "asymptote check --groups check not run: nextest, the bdd and doc test runs, the doc build and the ruff correctness tool each build the workspace, which the hook refuses"
-    },
-    {
-      "id": "gate-clippy",
-      "verdict": "NOTE",
-      "evidence": "asymptote check --groups clippy not run: the workspace clippy run is beyond the one cargo form the hook allows"
-    },
-    {
-      "id": "bloat-budget",
-      "verdict": "PASS",
-      "evidence": "crates/ryo/tastemaker.toml at b1e81f7242: 27 rules, 11 specs, 27 templates, 185 placements (51 rule, 39 spec, 95 template entries) before and after; no asset added"
-    },
-    {
-      "id": "raw-backslash-census",
-      "verdict": "PASS",
-      "evidence": "a census of RyoQL string literals holding an even backslash run before one of dDsSwWbBAzntrfv: 22 Ruff rule queries at b1e81f7242 (20 noqa [\\\\s,] forms, I001 [ \\\\t], SIM401 ^elif\\\\b), 0 at 8987ff92f8 where the 18 remaining backslash lines (line continuations and W605) give 0; 51 copies under profiles/ (hash-named evidence and recorded profile inputs) at both; tm rule queries: 0 regex hits (the 2 hits are glob_any arguments in no-packed-strings and serialize-dont-format, which match a written escape on purpose)"
-    },
-    {
-      "id": "c332-gate",
-      "verdict": "FAIL",
-      "evidence": "crates/ryo/docs/contracts/evidence/checkpoint/asymptote.json at a4efba6af5: source 883f0d6dd6 (not the landed head a4efba6af5; the 29 files changed since are the F5 to F9 repairs and evidence), verdict FAIL: lint FAIL (tastemaker 11 new against the lock: 9 reasoned file-length ignores, 2 untracked drafts; fmt, machete and deny pass), check FAIL (test-core core_allocation, test-cli replay and cost reds, test-language manifest line 0 and python allocation, correctness-python-ruff usage), clippy FAIL (3 pre-332 expect_used denials in crates/language parse fixtures). Not rerun; no workspace build. Because the gate is red, no Tastemaker asset is authored."
-    },
-    {
-      "id": "c332-tm-direct",
-      "verdict": "PASS",
-      "evidence": "tm check --format json in crates/ryo of a git archive copy of a4efba6af5, with tm 0.1.2 copied from the 332 integration target (release/tm, sha256 f335d4ab): rc 0, 0 findings, 13 suppressed (file-length in-source ignores), 267 s, 4.39 GB peak"
-    },
-    {
-      "id": "c332-plants",
-      "verdict": "PASS",
-      "evidence": "one tm check run in the same copy with three plants in the python provider's domain: merging/service.rs `use ryo::resources::languages::Parse;` -> 1 import-directions; binding_lookup/service.rs `fn planted(_: &dyn ryo::resources::languages::Parse) {}` -> 1; brace_format/service.rs `use ryo::languages as l; fn planted(_: &dyn l::Parse) {}` -> 0 (the open alias form, owned by claude/w14-provider-alias). Plants reverted, copy deleted"
-    },
-    {
-      "id": "c332-candidates",
-      "verdict": "PASS",
-      "evidence": "20 distinct candidate ids (21 entries; provider-alias-resolved-across-blocks-3c609ce6 appears in both w14-provider-alias and w14-tm-import-reading) from the 8 branch files added in 332; 331's leak-review.json carries none. 1 strengthen (already landed in 332, plant-proven 1/1), 19 none with reasons; 5 recommended compiler, type or runtime follow-ups"
-    },
-    {
-      "id": "c332-bloat",
-      "verdict": "PASS",
-      "evidence": "crates/ryo/tastemaker.toml at b1e81f7242 and a4efba6af5: 27 rules, 11 specs, 27 templates, 185 placements (51 rule, 39 spec, 95 template entries); idiomatic-rust moved to 0.1.13 inside 332 by claude/w13-leak-repairs-b; the steward adds no asset"
-    }
-  ],
-  "classes": [
-    {
-      "class": "raw-string doubled backslash in RyoQL regexes (parity-fixes, 21 rules fixed unenforced)",
-      "decision": "a",
-      "mechanism": "refusal in the one regex compile site, ryo_matching domain/matching/service.rs compile_regex: parse with regex-syntax's AST (already in the lock under regex-automata) and refuse an escaped backslash followed directly by a letter of dDsSwWbBAzntrfv, in a concatenation or a bracketed class, naming \\x5C as the spelling for a literal backslash then a letter; every rule's cases run reaches it",
-      "proof_count": 22
-    },
-    {
-      "class": "new public items without # Examples (Rust gate F1, recurring after 330 F1.2)",
-      "decision": "d",
-      "mechanism": "the bar is diff-relative: about 3,074 of 3,087 pub items in non-test src files carry no example, so a tree-wide rule would refuse thousands or need a baseline; rustdoc missing_doc_code_examples is nightly-only; the Rust gate's item 1 holds it",
-      "proof_count": null
-    },
-    {
-      "class": "record names the wrong cause for the store and peak rise (F2; contract P6; leak record advisory)",
-      "decision": "d",
-      "mechanism": "record tooling, not a property of the source tree; the A/B or frontier census is the span-semantics branch's",
-      "proof_count": null
-    },
-    {
-      "class": "span-equality semantics differ between placement and the rewrites (A1)",
-      "decision": "a",
-      "mechanism": "open branch claude/w13-span-semantics; not re-encoded",
-      "proof_count": null
-    },
-    {
-      "class": "phase entry points public beside evaluate_occurrences; forwards no outside consumer names; library-surface description claims an unenforced rule; population_reads proof narrowed (leak checks 1-3)",
-      "decision": "a",
-      "mechanism": "open branch claude/w13-side-doors; not re-encoded",
-      "proof_count": null
-    },
-    {
-      "class": "branch evidence predating the shared schema; hook fail-open",
-      "decision": "a",
-      "mechanism": "open branch claude/w13-agent-tuning (shape in ci/contract_review/service.py, fail-closed guard); not re-encoded",
-      "proof_count": null
-    },
-    {
-      "class": "relation change lands new reds called real findings with no provider test (import-fan-in 67 vs 32)",
-      "decision": "a",
-      "mechanism": "a cross-crate case in the Rust provider's source-dependency tests that fixes the intended count; Tastemaker cannot prove a relation's rows",
-      "proof_count": null
-    },
-    {
-      "class": "review README known-red list, branch table and 11 matrix rows stale (contract P4)",
-      "decision": "d",
-      "mechanism": "docs upkeep on the author; run.py --check is the place a binding check belongs, not Tastemaker",
-      "proof_count": null
-    },
-    {
-      "class": "doctest gate logs carry no source sha; tm_whole_tree status wording",
-      "decision": "d",
-      "mechanism": "record tooling",
-      "proof_count": null
-    },
-    {
-      "class": "one refusal index held twice (A3)",
-      "decision": "d",
-      "mechanism": "semantic duplication across a path-keyed and a file-number map; one refactor, no recurring shape a query can name",
-      "proof_count": null
-    },
-    {
-      "class": "identity hasher stability (A4)",
-      "decision": "d",
-      "mechanism": "a doc sentence; a change only causes a cache miss",
-      "proof_count": null
-    },
-    {
-      "class": "non_exhaustive on public causes; semver of new public fields (A5, A6)",
-      "decision": "a",
-      "mechanism": "the compiler's exhaustiveness policy and cargo-semver-checks in the release group",
-      "proof_count": null
-    },
-    {
-      "class": "merge resolved a string with raw NUL bytes (store-key merge 472de945b6)",
-      "decision": "d",
-      "mechanism": "one merge artifact, repaired in 44d7da8f00; the trailer change is a cache miss by test",
-      "proof_count": null
-    },
-    {
-      "class": "a cfg(test) fixture skips an undeclared rule with a quiet continue (kept_facts)",
-      "decision": "d",
-      "mechanism": "one-off; no-silent-skip requires a print, and widening it to every let-else continue in tests would refuse correct code",
-      "proof_count": null
-    },
-    {
-      "class": "a sealing pass made CapturedOrigin private though a feature-gated diagnostic route names it (integration fix 7b1fcd3ed5)",
-      "decision": "a",
-      "mechanism": "the all-features workspace check caught it",
-      "proof_count": null
-    },
-    {
-      "class": "execution_domain ring",
-      "decision": "d",
-      "mechanism": "already enforced, standing",
-      "proof_count": 18
-    },
-    {
-      "class": "fmt and machete gate failures",
-      "decision": "a",
-      "mechanism": "rustfmt and cargo-machete already gate; carried by owner decision to 332",
-      "proof_count": null
-    }
-  ],
-  "assets": {
-    "before": {
-      "rules": 27,
-      "specs": 11,
-      "templates": 27,
-      "placements": 185
-    },
-    "after": {
-      "rules": 27,
-      "specs": 11,
-      "templates": 27,
-      "placements": 185
-    }
-  },
-  "findings": [
-    "open item: refuse an escaped backslash before a regex escape letter in ryo_matching compile_regex",
-    "open item: Rust provider source-dependency cross-crate case that fixes the import-fan-in count",
-    "332: compiler follow-up: make KeyIndex.heads/.next private in ryo_derived behind one probe (duplicate-key-index-probe-09dbebd5)",
-    "332: types follow-up: PartialScope::OneFile without a file number (stored-file-number-reused-across-runs-13950b5d)",
-    "332: engine follow-up: write_embedded refuses or cannot express a nested call (nested-write-embedded-in-callback-0badb528)",
-    "332: re-plant the module-alias form of directions-domain when claude/w14-provider-alias lands (728218ac)",
-    "332: profile_proofs.py: require antijoin subtraction and policy completeness (361ac554, a5132b93), with claude/w14-noqa-fragments"
-  ],
-  "branch": null,
-  "candidate_decisions": [
-    {
-      "id": "literal-pattern-missing-from-failure-dc2bb9e8",
-      "decision": "none",
-      "mechanism": "compiler: an exhaustive match over Operation with no wildcard arm, on claude/p7-skip-rules",
-      "plant_counts": [],
-      "reason": "The compiler holds it once claude/p7-skip-rules lands: invalid_patterns matches every Operation variant with no wildcard arm, so a new variant with a literal pattern cannot compile until it is placed, and the R6 runtime tests cover the failure verdict. That branch is not merged into 332, so no real-tree plant can fire here, and a Tastemaker query over match arms would add nothing to exhaustiveness."
-    },
-    {
-      "id": "presence-read-unbound-from-admission-e5ef354a",
-      "decision": "none",
-      "mechanism": "types and runtime: presence pins the read through RelationOwner::source and admission returns the recorded refusal (claude/p7-skip-rules)",
-      "plant_counts": [],
-      "reason": "This is a property of runtime state: one provider read is pinned and handed to admission. Tastemaker cannot prove that from syntax. The branch holds it with the RelationOwner::source pin and the restored one-read assertions. It is a one-off at one call site, and the branch is not merged into 332."
-    },
-    {
-      "id": "test-loop-skips-a-kind-cd234251",
-      "decision": "none",
-      "plant_counts": [],
-      "reason": "A one-off, fixed by removing the SpanBetween continue (compare_emptied now runs every kind). The 331 steward decided the wider shape (a quiet continue in a test loop) already: no-silent-skip covers it where a print is due, and widening it to every continue in tests would refuse correct code."
-    },
-    {
-      "id": "shrink-only-list-grows-69954a9d",
-      "decision": "none",
-      "mechanism": "a test in cli that pins the unfed.toml table count, or a review check",
-      "plant_counts": [],
-      "reason": "Shrink-only is a property of a change, not of a tree. tm check reads one tree and cannot compare it with an earlier version, so no Tastemaker asset can see a table being added. The one open entry (relation:Annotates) has an accepted reason until a replay file covers it."
-    },
-    {
-      "id": "duplicate-key-index-probe-09dbebd5",
-      "decision": "none",
-      "mechanism": "compiler (recommended): make KeyIndex.heads and .next private in ryo_derived and expose one probe method that table_model calls",
-      "plant_counts": [],
-      "reason": "Visibility is the cheapest control that fully holds this: with private fields and one probe method in ryo_derived, a second hash-chain walk cannot compile. That change is not in the 332 tree, so there is nothing to plant. A Tastemaker rule over field names would be a string marker. It is filed as a follow-up open item."
-    },
-    {
-      "id": "test-imports-a-parent-concept-7c7a3416",
-      "decision": "none",
-      "mechanism": "idiomatic.arch/idiomatic-rust@0.1.13 no-domain-concept-cycles (deliberately leaves tests out of the edges)",
-      "plant_counts": [
-        0
-      ],
-      "reason": "The cited instance, value_test.rs:5 naming operator::types::OperatorContext, is in the 332 tree, and no-domain-concept-cycles reports 0 for it by design. The rule's why leaves tests out of the edges because a test that builds a parent's value couples no production code. Counting test edges would refuse correct fixtures across every crate."
-    },
-    {
-      "id": "domain-names-a-use-case-trait-through-an-sdk-re-export-4d51765b",
-      "decision": "strengthen",
-      "mechanism": "idiomatic.arch/idiomatic-rust@0.1.13 directions-domain (forbidden languages::Parse, languages::Project, *::languages::Parse, *::languages::Project, *::languages::\\*; landed in 332 by 3938f4a022)",
-      "plant_counts": [
-        1,
-        1
-      ],
-      "reason": "The strengthening landed in 332 with claude/w13-leak-repairs-b. Planted in an archive copy of a4efba6af5: use ryo::resources::languages::Parse; in python domain/merging/service.rs gives 1 import-directions finding, and fn planted(_: &dyn ryo::resources::languages::Parse) {} in python domain/binding_lookup/service.rs gives 1. Baseline is 0 findings. No new asset."
-    },
-    {
-      "id": "domain-names-a-use-case-trait-through-an-sdk-re-export-reached-by-its-module-728218ac",
-      "decision": "none",
-      "mechanism": "idiomatic.arch/idiomatic-rust@0.1.13 directions-domain plus the Rust provider's alias resolution (claude/w14-provider-alias)",
-      "plant_counts": [
-        0
-      ],
-      "reason": "Planted use ryo::languages as l; fn planted(_: &dyn l::Parse) {} in python domain/brace_format/service.rs: 0 findings at a4efba6af5. The rule's forbidden globs already name the target, so a new glob would not help. The gap is the Rust provider's reference resolution of a module alias, which claude/w14-provider-alias (not merged into 332) owns. Re-plant at the checkpoint that lands it, and if the count is still 0 the provider gets the fix, not the rule."
-    },
-    {
-      "id": "provider-reimplements-engine-embedded-lookup-9aea485e",
-      "decision": "none",
-      "plant_counts": [],
-      "reason": "Fixed: the python and markdown providers call the engine's embedded lookup. EmbeddedSource's root, start and end fields are legitimately read elsewhere, so visibility cannot close them, and a rule keyed on partition_point would be a string marker that refuses correct binary searches. This was a one-off duplication caught by review."
-    },
-    {
-      "id": "nested-write-embedded-in-callback-0badb528",
-      "decision": "none",
-      "mechanism": "compiler or runtime in ryo_language (recommended): the write_embedded callback receives a builder type with no write_embedded, or the engine refuses the nested call",
-      "plant_counts": [],
-      "reason": "The right control is in the engine. Either the callback gets a type that cannot call write_embedded again (compiler), or write_embedded refuses re-entry (runtime). The visibility review left this open in the engine, and neither control is in the 332 tree to plant against. A Tastemaker syntax query cannot follow the call through closures and adapters reliably."
-    },
-    {
-      "id": "sibling-index-scan-per-element-38619f80",
-      "decision": "none",
-      "plant_counts": [],
-      "reason": "A one-off quadratic scan, fixed in python semantic_syntax. A rule keyed on position() inside a per-element function cannot know the call frequency. Perf regressions of this kind belong to the benchmark ratchets, not to Tastemaker."
-    },
-    {
-      "id": "suppression-guard-accepts-non-subtraction-361ac554",
-      "decision": "none",
-      "mechanism": "strengthen the benchmark's own guard, profile_proofs.py: require antijoin(left=rows, right=suppression family)",
-      "plant_counts": [],
-      "reason": "The suppression policy is owned by the benchmark's authoring guard, profile_proofs.py, which already refuses the other mutations (widened or narrowed codes, emit independent of the family). Requiring antijoin is one more check in that guard, not a Tastemaker asset over .ryoql, and claude/w14-noqa-fragments is not merged into 332."
-    },
-    {
-      "id": "suppression-policy-completeness-unchecked-a5132b93",
-      "decision": "none",
-      "mechanism": "strengthen profile_proofs.py: every rules/<R>/query.ryoql importing a suppression module has a standard-suppression-policy.json entry",
-      "plant_counts": [],
-      "reason": "The rule list and the policy file are both owned by the benchmark authoring guard, profile_proofs.py, which already reads both. The completeness check belongs there, and the review found today's exempt set correct. A Tastemaker cross-file join between JSON and .ryoql imports would add an asset for a single file pair. The branch is not merged into 332."
-    },
-    {
-      "id": "alias-binding-not-nearest-784e1025",
-      "decision": "none",
-      "mechanism": "provider tests in languages/rust links service_test/aliases_test.rs (claude/w14-provider-alias)",
-      "plant_counts": [],
-      "reason": "This is the correctness of a name resolver: the innermost in-scope binding wins. Tastemaker cannot prove what a resolver computes. The provider's alias tests do, and the branch adds them. The branch is not merged into 332."
-    },
-    {
-      "id": "module-identity-by-name-chain-23c55763",
-      "decision": "none",
-      "mechanism": "provider tests in languages/rust links service_test/aliases_test.rs (claude/w14-provider-alias)",
-      "plant_counts": [],
-      "reason": "This is resolver correctness (same-named inline modules in different blocks are different modules). That is a semantic property, so only the provider's tests can prove it, not a placement or a syntax query. The branch is not merged into 332."
-    },
-    {
-      "id": "note-decode-failure-is-absence-cb263667",
-      "decision": "none",
-      "mechanism": "types (recommended): linked() returns the decode error instead of mapping NotANote to None",
-      "plant_counts": [],
-      "reason": "A one-off arm in the Rust provider's project contract. Having the function return a Result is the compiler-held fix. A rule against Err(..) => None would refuse many correct fallbacks. Fixed on claude/w14-provider-alias, which is not merged into 332."
-    },
-    {
-      "id": "provider-alias-resolved-across-blocks-3c609ce6",
-      "decision": "none",
-      "mechanism": "provider tests in languages/rust links service_test (claude/w14-provider-alias)",
-      "plant_counts": [],
-      "reason": "This is resolver scope correctness (the block that holds a use bounds its binding), which Tastemaker cannot prove. The provider's tests hold it on claude/w14-provider-alias, which is not merged into 332. The same id comes from claude-w14-tm-import-reading.json and is decided once here."
-    },
-    {
-      "id": "use-site-binding-matched-file-wide-f7738c58",
-      "decision": "none",
-      "mechanism": "Tastemaker engine tests for import_rows (crates/tastemaker/crates/core)",
-      "plant_counts": [],
-      "reason": "An engine bug in Tastemaker's import_rows, fixed in 332 (db77cdd326, beb55b206a) with engine tests. The plants are in a demo fixture tree, not this product. provider-imports is a spec over placements and cannot prove what the engine reads. The engine's own tests are the proof."
-    },
-    {
-      "id": "stored-file-number-reused-across-runs-13950b5d",
-      "decision": "none",
-      "mechanism": "types (recommended): PartialScope::OneFile carries no file number",
-      "plant_counts": [],
-      "reason": "Fixed in 332 (bec665436a): the partial is restored as the reading file's own, not by the keeping run's number. The compiler-held form, OneFile carrying no number, would remove the stored PartialAt(0) entirely. That type change is not in the tree to plant, and is recorded as a follow-up. A Tastemaker rule would be a string marker on PartialAt(."
-    },
-    {
-      "id": "per-file-partial-names-another-file-2a55efb0",
-      "decision": "none",
-      "mechanism": "runtime (recommended): the per-file writer refuses a partial_at naming a file other than the one it reads",
-      "plant_counts": [],
-      "reason": "No instance exists today. Which FileId a reader names is a runtime value, so a syntax query over item.rs could only match literal FileId(..), a string marker that misses computed ids. A refusal in the per-file writer holds the property fully, and t611 made the restore side independent of the number."
-    }
-  ]
+ "checkpoint": 332,
+ "source": "dcea2ee7df7c02711f42c332cbc403ff7b84a034",
+ "previous": "b1e81f724206237fad67a42bfe1557fdb838b9e2",
+ "verdict": "FAIL",
+ "verdict_reason": "The gate fails at the 333 head: the lint group has 1 new Tastemaker finding (file-length on the claude-w15-loop leak evidence, 708 lines) and the check group has reds, among them the javascript and typescript manifest_diagnostic rows, which the 333 record does not list. Every enforcement candidate the push of 333 requires is decided (44: 4 of the 332 leak review, 7 of claude-w15-ci, 33 of claude-w15-loop; claude-w14-isolation-lens carries none). All are none: 7 are harness or hook classes the hooks README threat model, its Known non-goals or the census replacement by ryo queries own; 33 are fixed on their branches with run_test.py or test_hooks.py cases; the 4 Rust-side ones are fixed at 333 or cost more than the risk. No asset is authored. Gate: asymptote check --groups lint,check at the 333 head e4f1d396eb.",
+ "reviewer": "tm-steward",
+ "date": "2026-11-09T19:00:00Z",
+ "checks": [
+  {"id": "gate", "verdict": "FAIL", "evidence": "asymptote check --groups lint,check in crates/ryo at e4f1d396eb (tm 0.1.2 release build sha256 33bba487 first on PATH, CARGO_TARGET_DIR the 333 tree's own target, under the build lock): exit 2, 16 new / 174 resolved. Lint: cargo-fmt, cargo-machete and cargo-deny pass; tastemaker gives 1 new finding, idiomatic.arch/file-length on docs/contracts/evidence/branches/claude-w15-loop.json (708 lines at the head, 713 in the uncommitted PASS overwrite), and 15 in-source ignores shown against the lock. Check: test-core red (core allocation list panics: a file allocated more than one block beyond the parser library, owned as at 332); test-cli 119 passed / 5 failed (replay behavior::ruff_findings_equal_the_expected_findings and every_recorded_rule_gives_the_recorded_rows, cost cold peak, every-live-rule cold and warm/edit ratchets: the owned replay and cli_cost reds); test-language/python red (its allocation list panics: 40 blocks in 20 files beyond the library's 1500); test-language/javascript and test-language/typescript red on manifest_diagnostic item_test row a_manifest_that_is_not_json_is_a_row_of_the_parse_at_the_file_origin (expected a leading 1, answered 0), not among the reds the 333 record lists; correctness-python-ruff could not start (no python executable on PATH, only python3)"},
+  {"id": "candidates", "verdict": "PASS", "evidence": "the push hook's candidate_problem (guard_shell.py), run against e4f1d396eb with this file: every candidate id decided; plant_mismatch empty (no decision other than none)"},
+  {"id": "hook-tracker-false-positive", "verdict": "FAIL", "evidence": "the same call refuses before reading this file: leak-review.json candidate cross-product-path-patch-a711e823 'carries a tracker id' because service.py TRACKER (\\bryo-[a-z0-9]{3,}) matches the published SDK and core package names (idiomatic-sh- then ryo- then the crate) inside its signature. With the lookbehind (?<![\\w-]) the call returns None. The landing is blocked until the validator or that signature changes; the steward changes neither"},
+  {"id": "bloat-budget", "verdict": "PASS", "evidence": "crates/ryo/tastemaker.toml at e4f1d396eb: 27 rules, 11 specs, 27 templates, 185 placements (51 rule, 39 spec, 95 template entries) before and after; no asset added"}
+ ],
+ "candidate_decisions": [
+  {"id": "stale-red-owner-5fdfc825", "decision": "none", "mechanism": "none", "plant_counts": [], "reason": "Fixed at 333: run.py --check reports every OWNERS key whose result or test is not red as a stale owner, and run_test.py holds it (checkpoint_check 17/0 at 563c0bc69b, the stale-owner plant among its cases). The control is the harness's own runtime check; run.py is Python outside the Tastemaker workspace, so no Tastemaker asset applies."},
+  {"id": "cross-product-path-patch-a711e823", "decision": "none", "mechanism": "none", "plant_counts": [], "reason": "Fixed at 333: the ryo crates are 0.1.3 (crates/ryo/Cargo.toml:23), an unpublished version, and tastemaker core and cli require 0.1.3, so the [patch.crates-io] paths resolve only unreleased source and a registry build fails to resolve instead of compiling against the wrong API. What breaks it is a later release leaving the patch in place; whether a version is published is registry state Tastemaker cannot read. The control is cargo's resolver and the release job's package verification, which builds without [patch]."},
+  {"id": "replay-language-set-split-e2460590", "decision": "none", "mechanism": "none", "plant_counts": [], "reason": "Fixed at 333: base.rs replay_languages() is the one definition, and provided(), the hosted lint and the counting lint call it; dependency-feature-sprawl's pending.txt is deleted, so its rows are compared. The Rust-only set at base.rs:490 for rules that read no manifest is deliberate, so a rule refusing a second language vector would fight correct code; the recording's exactness assert is the runtime control. One-off."},
+  {"id": "test-only-import-in-production-allowlist-77f00ace", "decision": "none", "mechanism": "none", "plant_counts": [], "reason": "Open, decided none on cost. Tastemaker's import policy sees files, not cfg: the atomic uses in provider src are #[cfg(test)] fields of production files (ruff_python_parser adapter.rs:28,31, semantic.rs:30, parse contract.rs:46), *_test.rs files and fixtures/. Dropping std::sync::atomic::* from the placement fires on those correct cfg(test) fields; holding it needs a second provider-imports placement repeating the 40-entry allow list for test paths. Risk is low (a std sync primitive, no boundary crossed). The control is Rust's #[cfg(test)], which keeps the counters out of the production build."},
+  {"id": "secret-allowlist-unscoped-by-path-2ff533be", "decision": "none", "mechanism": "none", "plant_counts": [], "reason": "Repository-root tool configuration (asymptote.toml, .gitleaks.toml) outside the crates/ryo Tastemaker workspace; fixed once on claude/w15-ci, where the range now fails closed on a shallow clone or a missing base and the allowlist is path-scoped. One-off; the lint group running the tool is the control, and a TOML text rule over one line would be a marker."},
+  {"id": "lint-range-against-every-remote-3613f7e4", "decision": "none", "mechanism": "none", "plant_counts": [], "reason": "Repository-root tool configuration (asymptote.toml, .gitleaks.toml) outside the crates/ryo Tastemaker workspace; fixed once on claude/w15-ci, where the range now fails closed on a shallow clone or a missing base and the allowlist is path-scoped. One-off; the lint group running the tool is the control, and a TOML text rule over one line would be a marker."},
+  {"id": "lint-range-fails-open-on-missing-ref-6b69463f", "decision": "none", "mechanism": "none", "plant_counts": [], "reason": "Repository-root tool configuration (asymptote.toml, .gitleaks.toml) outside the crates/ryo Tastemaker workspace; fixed once on claude/w15-ci, where the range now fails closed on a shallow clone or a missing base and the allowlist is path-scoped. One-off; the lint group running the tool is the control, and a TOML text rule over one line would be a marker."},
+  {"id": "secret-allowlist-key-last-part-unrestricted-4be7069e", "decision": "none", "mechanism": "none", "plant_counts": [], "reason": "Repository-root tool configuration (asymptote.toml, .gitleaks.toml) outside the crates/ryo Tastemaker workspace; fixed once on claude/w15-ci, where the range now fails closed on a shallow clone or a missing base and the allowlist is path-scoped. One-off; the lint group running the tool is the control, and a TOML text rule over one line would be a marker."},
+  {"id": "red-owned-by-coarse-key-9a5b6f2b", "decision": "none", "mechanism": "none", "plant_counts": [], "reason": "run.py's red ownership is checkpoint harness Python outside the crates/ryo Tastemaker workspace; the instance is fixed on claude/w15-ci with its case in run_test.py (checkpoint_check), the runtime control that holds it; a text rule over one harness file would be a string marker."},
+  {"id": "crashed-binary-hidden-behind-owned-red-ce18d982", "decision": "none", "mechanism": "none", "plant_counts": [], "reason": "run.py's red ownership is checkpoint harness Python outside the crates/ryo Tastemaker workspace; the instance is fixed on claude/w15-ci with its case in run_test.py (checkpoint_check), the runtime control that holds it; a text rule over one harness file would be a string marker."},
+  {"id": "red-owned-despite-truncated-log-1456be1a", "decision": "none", "mechanism": "none", "plant_counts": [], "reason": "Open on claude/w15-ci: run.py owning a red command whose exit is not cargo's test failure 101. Whether a log was truncated is a fact of a run (exit code, log tail), which no static asset can read; the control is a runtime check in run.py (own only exit 101) with a run_test.py case, owned by that branch's next repair. run.py is Python outside the crates/ryo Tastemaker workspace."},
+  {"id": "hook-argument-scan-past-double-dash-10512216", "decision": "none", "mechanism": "none", "plant_counts": [], "reason": "A hook class under the hooks README threat model (honest mistakes, not evasion); the instance is fixed on claude/w15-loop with its case in test_hooks.py, which is the control. The hooks are Python outside the crates/ryo Tastemaker workspace and a text rule over guard_shell.py or acceptance_on_stop.py would be a string marker."},
+  {"id": "cargo-package-glob-accepted-3b04ff14", "decision": "none", "mechanism": "none", "plant_counts": [], "reason": "A hook class under the hooks README threat model (honest mistakes, not evasion); the instance is fixed on claude/w15-loop with its case in test_hooks.py, which is the control. The hooks are Python outside the crates/ryo Tastemaker workspace and a text rule over guard_shell.py or acceptance_on_stop.py would be a string marker."},
+  {"id": "lock-substring-match-38bf0f42", "decision": "none", "mechanism": "none", "plant_counts": [], "reason": "A hook class under the hooks README threat model (honest mistakes, not evasion); the instance is fixed on claude/w15-loop with its case in test_hooks.py, which is the control. The hooks are Python outside the crates/ryo Tastemaker workspace and a text rule over guard_shell.py or acceptance_on_stop.py would be a string marker."},
+  {"id": "cargo-verb-set-misses-aliases-c5f1d132", "decision": "none", "mechanism": "none", "plant_counts": [], "reason": "A hook class under the hooks README threat model (honest mistakes, not evasion); the instance is fixed on claude/w15-loop with its case in test_hooks.py, which is the control. The hooks are Python outside the crates/ryo Tastemaker workspace and a text rule over guard_shell.py or acceptance_on_stop.py would be a string marker."},
+  {"id": "push-refspec-empty-source-skipped-675cdcce", "decision": "none", "mechanism": "none", "plant_counts": [], "reason": "A hook class under the hooks README threat model (honest mistakes, not evasion); the instance is fixed on claude/w15-loop with its case in test_hooks.py, which is the control. The hooks are Python outside the crates/ryo Tastemaker workspace and a text rule over guard_shell.py or acceptance_on_stop.py would be a string marker."},
+  {"id": "reviewer-verdict-second-validator-28e12b70", "decision": "none", "mechanism": "none", "plant_counts": [], "reason": "A hook class under the hooks README threat model (honest mistakes, not evasion); the instance is fixed on claude/w15-loop with its case in test_hooks.py, which is the control. The hooks are Python outside the crates/ryo Tastemaker workspace and a text rule over guard_shell.py or acceptance_on_stop.py would be a string marker."},
+  {"id": "reviewer-hold-any-file-in-directory-bdd367cd", "decision": "none", "mechanism": "none", "plant_counts": [], "reason": "A hook class under the hooks README threat model (honest mistakes, not evasion); the instance is fixed on claude/w15-loop with its case in test_hooks.py, which is the control. The hooks are Python outside the crates/ryo Tastemaker workspace and a text rule over guard_shell.py or acceptance_on_stop.py would be a string marker."},
+  {"id": "shared-failure-counter-per-agent-type-252e8c5c", "decision": "none", "mechanism": "none", "plant_counts": [], "reason": "A hook class under the hooks README threat model (honest mistakes, not evasion); the instance is fixed on claude/w15-loop with its case in test_hooks.py, which is the control. The hooks are Python outside the crates/ryo Tastemaker workspace and a text rule over guard_shell.py or acceptance_on_stop.py would be a string marker."},
+  {"id": "reviewer-token-first-match-332f487a", "decision": "none", "mechanism": "none", "plant_counts": [], "reason": "A hook class under the hooks README threat model (honest mistakes, not evasion); the instance is fixed on claude/w15-loop with its case in test_hooks.py, which is the control. The hooks are Python outside the crates/ryo Tastemaker workspace and a text rule over guard_shell.py or acceptance_on_stop.py would be a string marker."},
+  {"id": "flock-long-option-unlisted-4240df61", "decision": "none", "mechanism": "none", "plant_counts": [], "reason": "A hook class under the hooks README threat model (honest mistakes, not evasion); the instance is fixed on claude/w15-loop with its case in test_hooks.py, which is the control. The hooks are Python outside the crates/ryo Tastemaker workspace and a text rule over guard_shell.py or acceptance_on_stop.py would be a string marker."},
+  {"id": "reviewer-token-ambiguous-a57ec567", "decision": "none", "mechanism": "none", "plant_counts": [], "reason": "A hook class under the hooks README threat model (honest mistakes, not evasion); the instance is fixed on claude/w15-loop with its case in test_hooks.py, which is the control. The hooks are Python outside the crates/ryo Tastemaker workspace and a text rule over guard_shell.py or acceptance_on_stop.py would be a string marker."},
+  {"id": "wrapper-option-cluster-hides-command-c198ea5b", "decision": "none", "mechanism": "none", "plant_counts": [], "reason": "The hooks README lists this spelling under Known non-goals (no agent writes it by accident); the threat model covers honest mistakes, not evasion, and server-side branch protection is the complete control for pushes. Tastemaker governs Rust and manifests in crates/ryo, not shell command lines, so no asset can hold it."},
+  {"id": "cargo-behind-unrecognised-launcher-2ea2a219", "decision": "none", "mechanism": "none", "plant_counts": [], "reason": "The hooks README lists this spelling under Known non-goals (no agent writes it by accident); the threat model covers honest mistakes, not evasion, and server-side branch protection is the complete control for pushes. Tastemaker governs Rust and manifests in crates/ryo, not shell command lines, so no asset can hold it."},
+  {"id": "push-destination-outside-argv-9151a27d", "decision": "none", "mechanism": "none", "plant_counts": [], "reason": "The hooks README lists this spelling under Known non-goals (no agent writes it by accident); the threat model covers honest mistakes, not evasion, and server-side branch protection is the complete control for pushes. Tastemaker governs Rust and manifests in crates/ryo, not shell command lines, so no asset can hold it."},
+  {"id": "diff-filter-skips-renames-aceba679", "decision": "none", "mechanism": "none", "plant_counts": [], "reason": "run.py is the checkpoint harness, Python outside the crates/ryo Tastemaker workspace; the instance is fixed on claude/w15-loop with its regression case in run_test.py (checkpoint_check), the runtime control that holds the class. A Tastemaker rule over one Python file would be a string marker on that file, which the steward rejects as proof."},
+  {"id": "fail-open-on-missing-base-3183081a", "decision": "none", "mechanism": "none", "plant_counts": [], "reason": "run.py is the checkpoint harness, Python outside the crates/ryo Tastemaker workspace; the instance is fixed on claude/w15-loop with its regression case in run_test.py (checkpoint_check), the runtime control that holds the class. A Tastemaker rule over one Python file would be a string marker on that file, which the steward rejects as proof."},
+  {"id": "doc-exemption-by-name-only-c7d940e1", "decision": "none", "mechanism": "none", "plant_counts": [], "reason": "run.py is the checkpoint harness, Python outside the crates/ryo Tastemaker workspace; the instance is fixed on claude/w15-loop with its regression case in run_test.py (checkpoint_check), the runtime control that holds the class. A Tastemaker rule over one Python file would be a string marker on that file, which the steward rejects as proof."},
+  {"id": "fix-entry-unbound-to-test-and-log-bdafa8b8", "decision": "none", "mechanism": "none", "plant_counts": [], "reason": "run.py is the checkpoint harness, Python outside the crates/ryo Tastemaker workspace; the instance is fixed on claude/w15-loop with its regression case in run_test.py (checkpoint_check), the runtime control that holds the class. A Tastemaker rule over one Python file would be a string marker on that file, which the steward rejects as proof."},
+  {"id": "fix-exemption-by-commit-type-da27fb6c", "decision": "none", "mechanism": "none", "plant_counts": [], "reason": "run.py is the checkpoint harness, Python outside the crates/ryo Tastemaker workspace; the instance is fixed on claude/w15-loop with its regression case in run_test.py (checkpoint_check), the runtime control that holds the class. A Tastemaker rule over one Python file would be a string marker on that file, which the steward rejects as proof."},
+  {"id": "fix-scope-excludes-harness-code-db7cadbc", "decision": "none", "mechanism": "none", "plant_counts": [], "reason": "run.py is the checkpoint harness, Python outside the crates/ryo Tastemaker workspace; the instance is fixed on claude/w15-loop with its regression case in run_test.py (checkpoint_check), the runtime control that holds the class. A Tastemaker rule over one Python file would be a string marker on that file, which the steward rejects as proof."},
+  {"id": "fix-skips-merge-commits-8f027951", "decision": "none", "mechanism": "none", "plant_counts": [], "reason": "run.py is the checkpoint harness, Python outside the crates/ryo Tastemaker workspace; the instance is fixed on claude/w15-loop with its regression case in run_test.py (checkpoint_check), the runtime control that holds the class. A Tastemaker rule over one Python file would be a string marker on that file, which the steward rejects as proof."},
+  {"id": "fix-log-provenance-unbound-d24d168c", "decision": "none", "mechanism": "none", "plant_counts": [], "reason": "run.py is the checkpoint harness, Python outside the crates/ryo Tastemaker workspace; the instance is fixed on claude/w15-loop with its regression case in run_test.py (checkpoint_check), the runtime control that holds the class. A Tastemaker rule over one Python file would be a string marker on that file, which the steward rejects as proof."},
+  {"id": "doc-examples-heading-only-074a596b", "decision": "none", "mechanism": "none", "plant_counts": [], "reason": "run.py is the checkpoint harness, Python outside the crates/ryo Tastemaker workspace; the instance is fixed on claude/w15-loop with its regression case in run_test.py (checkpoint_check), the runtime control that holds the class. A Tastemaker rule over one Python file would be a string marker on that file, which the steward rejects as proof."},
+  {"id": "perf-evidence-unbound-to-commit-e5d70ab6", "decision": "none", "mechanism": "none", "plant_counts": [], "reason": "run.py is the checkpoint harness, Python outside the crates/ryo Tastemaker workspace; the instance is fixed on claude/w15-loop with its regression case in run_test.py (checkpoint_check), the runtime control that holds the class. A Tastemaker rule over one Python file would be a string marker on that file, which the steward rejects as proof."},
+  {"id": "test-file-classifier-three-definitions-c7d88a5c", "decision": "none", "mechanism": "none", "plant_counts": [], "reason": "run.py is the checkpoint harness, Python outside the crates/ryo Tastemaker workspace; the instance is fixed on claude/w15-loop with its regression case in run_test.py (checkpoint_check), the runtime control that holds the class. A Tastemaker rule over one Python file would be a string marker on that file, which the steward rejects as proof."},
+  {"id": "census-literal-name-regex-edc8de66", "decision": "none", "mechanism": "none", "plant_counts": [], "reason": "A census scanner edge case: the hooks README threat model assigns every edge case of the hand-written census scanner to its replacement by ryo queries over the source (tracked), and the instance is fixed on claude/w15-loop with a run_test.py case. Tastemaker does not read run.py; when the census becomes RyoQL the parser holds cfg(test) extents, aliases and names."},
+  {"id": "census-tests-rs-counted-production-ef46c4d0", "decision": "none", "mechanism": "none", "plant_counts": [], "reason": "A census scanner edge case: the hooks README threat model assigns every edge case of the hand-written census scanner to its replacement by ryo queries over the source (tracked), and the instance is fixed on claude/w15-loop with a run_test.py case. Tastemaker does not read run.py; when the census becomes RyoQL the parser holds cfg(test) extents, aliases and names."},
+  {"id": "census-test-split-by-text-position-2c355bb0", "decision": "none", "mechanism": "none", "plant_counts": [], "reason": "A census scanner edge case: the hooks README threat model assigns every edge case of the hand-written census scanner to its replacement by ryo queries over the source (tracked), and the instance is fixed on claude/w15-loop with a run_test.py case. Tastemaker does not read run.py; when the census becomes RyoQL the parser holds cfg(test) extents, aliases and names."},
+  {"id": "census-vocabulary-decoy-declaration-c9bc4e18", "decision": "none", "mechanism": "none", "plant_counts": [], "reason": "A census scanner edge case: the hooks README threat model assigns every edge case of the hand-written census scanner to its replacement by ryo queries over the source (tracked), and the instance is fixed on claude/w15-loop with a run_test.py case. Tastemaker does not read run.py; when the census becomes RyoQL the parser holds cfg(test) extents, aliases and names."},
+  {"id": "census-cfg-test-field-extent-5c02f2ee", "decision": "none", "mechanism": "none", "plant_counts": [], "reason": "A census scanner edge case: the hooks README threat model assigns every edge case of the hand-written census scanner to its replacement by ryo queries over the source (tracked), and the instance is fixed on claude/w15-loop with a run_test.py case. Tastemaker does not read run.py; when the census becomes RyoQL the parser holds cfg(test) extents, aliases and names."},
+  {"id": "census-cfg-test-angle-bracket-depth-334fc686", "decision": "none", "mechanism": "none", "plant_counts": [], "reason": "A census scanner edge case: the hooks README threat model assigns every edge case of the hand-written census scanner to its replacement by ryo queries over the source (tracked), and the instance is fixed on claude/w15-loop with a run_test.py case. Tastemaker does not read run.py; when the census becomes RyoQL the parser holds cfg(test) extents, aliases and names."},
+  {"id": "census-cfg-test-header-initializer-angle-c993d1af", "decision": "none", "mechanism": "none", "plant_counts": [], "reason": "A census scanner edge case: the hooks README threat model assigns every edge case of the hand-written census scanner to its replacement by ryo queries over the source (tracked), and the instance is fixed on claude/w15-loop with a run_test.py case. Tastemaker does not read run.py; when the census becomes RyoQL the parser holds cfg(test) extents, aliases and names."},
+  {"id": "census-cfg-test-header-array-length-angle-1f312aff", "decision": "none", "mechanism": "none", "plant_counts": [], "reason": "Open advisory, a census scanner edge case (a shift in an array length of a #[cfg(test)] header). The hooks README threat model and the recorded PM decision assign every edge case of the hand-written census scanner to its replacement by ryo queries over the source (tracked), where the parser gives cfg(test) extents; the shape is not in the real tree. Tastemaker does not read run.py, and a rule over one Python file would be a string marker."}
+ ],
+ "classes": [
+  {"class": "stale red owner", "decision": "d", "mechanism": "run.py --check stale-owner check with its run_test.py case (runtime)", "proof_count": 0},
+  {"class": "cross-product path patch", "decision": "d", "mechanism": "unpublished 0.1.3 version; cargo resolver and release package verification", "proof_count": 0},
+  {"class": "replay language set split", "decision": "d", "mechanism": "one function replay_languages() in the replay fixtures", "proof_count": 0},
+  {"class": "test-only import in production allowlist", "decision": "d", "mechanism": "Rust #[cfg(test)]; TM cannot see cfg", "proof_count": 0},
+  {"class": "checkpoint harness (run.py) red ownership, fix and doc checks", "decision": "d", "mechanism": "run_test.py cases on the branch", "proof_count": 0},
+  {"class": "census scanner edge cases", "decision": "d", "mechanism": "census replacement by ryo queries", "proof_count": 0},
+  {"class": "hook command-line and reviewer-token parsing", "decision": "d", "mechanism": "test_hooks.py cases; hooks README Known non-goals", "proof_count": 0},
+  {"class": "root tool configuration ranges and secret allowlist", "decision": "d", "mechanism": "fixed on claude/w15-ci; the lint group runs the tools", "proof_count": 0}
+ ],
+ "assets": {"before": {"rules": 27, "specs": 11, "templates": 27, "placements": 185}, "after": {"rules": 27, "specs": 11, "templates": 27, "placements": 185}},
+ "branch": null
 }

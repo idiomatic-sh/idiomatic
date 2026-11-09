@@ -1,88 +1,64 @@
-# Rust gate, checkpoint 333: FAIL (6 of 7 PASS; item 2 FAILs)
+# Rust gate, checkpoint 333, second pass: PASS (7 of 7)
 
-- Source reviewed: `6af005e9f749d03192fb87f68db577ef42944ce5`. The prompt gave `6af005e9f7c6c1e70ae7d98d7a3a5d6f6e6a52c0`, and git has no such object. Its 10-hex prefix `6af005e9f7` matches the reviewed HEAD.
-- Base: `dcea2ee7df7c02711f42c332cbc403ff7b84a034` (the landed 332).
-- Scope: perf step 2 skip rules (`8eeb39f8ed`), the noqa fragment rewrite (`555076902b`), the provider alias fix (`6e7265eaac`), the integrator's merge repairs and splits (`28efeb7bf0`, `5339ed5df3`), the removal of asymptote.json (`5e2aad3bf1`), and the census and record commits.
-- Tree: HEAD was `6af005e9f749` at the start and `226de88f02` at the end. Three docs-only commits landed during the pass (`3d1e6d91a4`, `623ef2feaa`, `226de88f02`), and `.agents/agents/contract-review.md` and `README.md` had uncommitted edits. `git diff --name-only 6af005e9f749` names only those two files and the two `evidence/branches/claude-w14-isolation-lens.*` files. No `.rs`, `.py` or `.toml` file changed, so every file this review read is byte-identical at the reviewed sha. The PM decides whether that is enough or whether the pass is discarded under the "tree changed" rule.
+- Source reviewed: `e4f1d396eb8cdd57ecf77357ad72b58b9487b76a`.
+- Base: `6af005e9f749d03192fb87f68db577ef42944ce5`, where the first pass failed item 2 (F1).
+- Scope: only the delta `6af005e9f7..e4f1d396eb`. Commits in it:
+  - `8bf8ae89a1`: the repair pass (F1, leak 332 checks 2a, 2b and 3);
+  - `7e5beb9128` and `563c0bc69b`: the unfed list loses `relation:Entry` and `relation:Mapping`;
+  - `e4f1d396eb`: the record (docs and evidence only);
+  - the merged docs-only commits `3d1e6d91a4`, `623ef2feaa` and `226de88f02`.
+
+  The full validation ran at `563c0bc69b`. After that only docs and evidence changed.
+- Tree: HEAD was `e4f1d396eb` both before and after the pass, and `git status --porcelain` was empty both times.
 
 ## 1 Ownership and API shape: PASS
-- The diff touches no public SDK surface: no `api.txt`, no `crates/sdk` and no `Cargo.toml` change.
-- `presence::service::of_graph` builds its tables by value. `for_regions` consumes `GraphPresence` into the region table (`execution_domain/src/domain/executable_program/presence/service.rs:280-308`).
-- `FilePresence` is a plain field of `FileRun` that keeps its buffers across files (`execution_runtime/.../file_execution/presence/service.rs:147-174`).
-- The new `RefCell` fields (`absent`, `interior`, `refused`) extend `RuntimeState`'s existing `&self` design (`runtime/service.rs:169-177`). They add no new pattern.
-- `NotesError` becomes `ProjectError::Context` through a typed `From` (`languages/rust/src/outbound/notes/errors.rs:11-18`).
-- Advisories A1, A2, A4 and A5 cover the remaining clones and the leftover `Arc`.
+- The only public-surface change is the version bump of the ryo workspace from 0.1.2 to 0.1.3. It is at `crates/ryo/Cargo.toml:23`, in every crate's path dependencies (for example `crates/sdk/Cargo.toml:18-26`), and in Tastemaker's registry requirements (`crates/tastemaker/cli/Cargo.toml:35-46`).
+- `8bf8ae89a1` gives the reason: 0.1.2 is a released tag, and the local crates carry unreleased API. Tastemaker keeps the `[patch.crates-io]` until release (`crates/tastemaker/Cargo.toml:238`).
+- No `api.txt` and no SDK source changes.
+- No clone, `Arc` or interior mutability is added.
 
-## 2 Compiler over tests: FAIL
-**F1.** `crates/ryo/crates/execution_domain/src/domain/operator/contract/service.rs:230`: `failure()` ends with `_ => RowFailure::Never`.
-
-Why it matters:
-- The skip-rules design is sound only if every operation declares which input rows can fail it. If one does not, its region publishes the empty table on a file where the full run reports a row error.
-- With the wildcard, a new `Operation` variant compiles as `Never` by default.
-- Only a hand-maintained test census defends this today: the `Raiser` lists and `every_fault_has_a_verdict` (`presence/service_test.rs:517-560`, `:684-705`). The census is exhaustive over `OperatingError`, but not over `Operation`. A new operation that raises an existing error passes unless its author adds it to a raiser list.
-- The same change already uses exhaustive matches for the twin declarations: `presence()` (`service.rs:174-191`) matches every `OperationKind`. `invalid_patterns` (`presence/narrowing.rs:96-124`) names every `Operation` and its doc says "so a new one that carries a literal pattern cannot be left out".
-
-**Required change:** replace the wildcard with the explicit list:
-
-```rust
-Operation::Project { .. } | Operation::Extend { .. } | Operation::Union { .. }
-| Operation::Intersection { .. } | Operation::Difference { .. } | Operation::Antijoin { .. }
-| Operation::GroupCount { .. } | Operation::GroupDigest { .. } | Operation::Capture { .. }
-| Operation::Rank { .. } | Operation::Words { .. } | Operation::Closure { .. }
-| Operation::Cycles { .. } | Operation::Rows { .. } | Operation::Hosted { .. } => RowFailure::Never,
-```
-
-This is a compile-only change with no behaviour change. The existing presence `service_test` stays the behaviour proof, and the compiler becomes the guard. The other new wildcards are safe: `node_narrowing` (`narrowing.rs:66`) and `tree_output` (`projection.rs:124`) default to the conservative answer (no narrowing, no tree).
+## 2 Compiler over tests: PASS
+- F1 is repaired. `failure()` now lists the 15 remaining `Operation` variants as `RowFailure::Never` (`crates/ryo/crates/execution_domain/src/domain/operator/contract/service.rs:230-244`). This matches the exhaustive form of `presence()` and `invalid_patterns`, so a new variant is now a compile error rather than a silent `Never`.
+- The compile ran green at `563c0bc69b` in the full validation. The arm is therefore exhaustive over the enum as it stands.
+- The delta adds no new wildcard and no test that reads source.
 
 ## 3 Hot path: PASS
-- The per-row presence loop allocates nothing. It reads rows into the reused `cells`, retains open tests in place, and takes `scratch` and `memo` from the file (`file_execution/presence/service.rs:278-337`).
-- The runtime uses `FxHashMap` (`state/service.rs:190`).
-- The fold's std `HashMap`s (`presence/types.rs:145-160`) run once per request at compile, not per file or per row.
-- Removing the per-request reader memo for a per-file walk (`file_demand/service.rs:157-230`) is a measured perf trade under the perf rule: `evidence/perf/p7/after.json` shows byte-identical output on the one-file, 100-file and Django workloads.
-- Per-file allocations of O(regions) remain: `AbsentRegions::none`, `reached()`, the walk's `counts`/`queued`/`pending`, and `Arc::new(table)`. They are per file, not per node or per row, so they do not fail this item (A2, A3).
+- The only new Rust code is test-side. `replay_languages()` (`cli/tests/fixtures/replay/base.rs:336-342`) builds a two-element `Vec` once per lint composition, not per file or per row.
+- No production loop, map or dispatch changes.
 
 ## 4 One representation per concept: PASS
-The diff removes duplicates rather than adding them:
-- Column-origin propagation has one definition, `output_origins` (`operation_schema/projection.rs:134-233`). `trust/reads.rs:71-82` calls it instead of its own copy.
-- `tree_output` (`projection.rs:103-124`) replaces the inline copy in `file_program/service/operators.rs:96-99`.
-- `RegionCount` moved to `executable_program/types.rs:12` and is deleted from readiness.
-- `AbsentRoots` is a newtype over `AbsentRegions` (`file_demand/types.rs:118`), not a second store.
+- The pending check, the hosted lint and the counting lint each had their own language list. They now share one `replay_languages()` (`base.rs:336`, `:352`, `:488`; `counting.rs:176`).
+- The delta removes a duplicate and adds none.
 
 ## 5 Standard crate over home-grown: PASS
-- No dependency change.
-- `AbsentRegions` (`file_demand/types.rs:136-166`) is a 30-line bitset, the same kind of glue as the existing `ReadinessBits` (`values/src/domain/records/types.rs:307`). No bitset crate is in `crates/ryo/Cargo.lock`, and adding one for this would not fit.
+- No dependency is added in either workspace.
+- In `crates/tastemaker/Cargo.lock`, 11 dependents re-resolved from `windows-sys 0.60.2` to `0.61.2`. Both versions were already locked (`:4218-4228`), so this is not a new crate (see A2).
 
 ## 6 Tests: PASS
-- **Provider alias:** both fixes name their cases in their messages (`a33a4c13f1`, `6e7265eaac`). The red-then-green record is at `crates/ryo/docs/contracts/README.md:78`:
-  - compile reds without the notes' `scope` field;
-  - a behaviour red on the after-plant built at `28efeb7bf0`;
-  - a tm plant red on `0f2fa35a12`;
-  - green at `cbdc70adad` (9 / 0).
-- **`28efeb7bf0`:** a compile repair with no behaviour change.
-- **Skip rules and noqa rewrite:** these follow the perf rule (`evidence/perf/p7/after.json`, `evidence/perf/noqa-fragments/after.json`).
-- **Premise changes, each with a stated reason:**
-  - `remaining_is_computed_once_per_selection` is removed with the memo it measured (`c84c355dfb`).
-  - `target_supplement.observed_row` now accepts the whole-inventory summary. It still refuses any other row that is not `FAIL` / "not selected for this invocation" / 0 cases (`target_supplement.py:17-27`), and `5339ed5df3` states the reason.
-  - The expected values 40→47 and N999→RUF100 were re-executed, not read off.
-  - The two UP035/UP036 reds stay red and are named.
-  - The hook test `test_asymptote_record_is_validated_when_present` went with the mechanism it tested (`5e2aad3bf1`).
-  - The step-8 skip-gate relaxation to 87.76% is recorded as a give-back in `57d3675517`.
-- No skip, ignore, caught error or wall-time assertion is added. The `continue` in `presence_service_test.rs` records `Err(NotRun)` for a non-run intent and is not a pass.
+- **Leak 332 check 2a, a harness change.** `run.py` `own()` now refuses an `OWNERS` entry whose result or replay test is not red (`run.py:269`), and the 30 stale entries are deleted. This tightens the harness: a red with no owner is still reported (`:272-278`).
+  - `8bf8ae89a1` names the test `test_a_green_result_with_only_a_stale_owner_fails_the_check` (`run_test.py:102`).
+  - `validation.json` `red_green` records it as red at base `8e4d22b3a5` and green at merge `563c0bc69b`.
+  - The existing test now uses the `owned_reds()` fixture (`run_test.py:89`), so the new refusal does not fire on its setup. Its assertions are unchanged.
+  - The 7 owners that remain match today's reds in `validation.json`: `benchmark_library`, `core_allocation`, `cli_cost` and `tastemaker_workspace` are failed results, and the three `::` keys are exactly `cli_replay_reds`.
+- **Check 2b.** Deleting `recordings/dependency-feature-sprawl/pending.txt` turns a waiting recording into a compared one: its 6 recorded rows are now checked.
+- **The unfed list.** Removing `relation:Entry` and `relation:Mapping` from `fixtures/unfed.toml` is what the shrink-only test `ruff_rules_feed_every_catalog_feature_a_thousand_rows` demands once they are fed (`answers.rs:517-527`).
+  - `7e5beb9128` and `563c0bc69b` state the reason.
+  - `SequenceElement` stays in the list, and its reason now carries the measured count of 268 rows (`unfed.toml:50-51`). The test was run green in a narrow run.
+- **F1** is a compile-only change with no behaviour change. The existing presence `service_test` stays the behaviour proof.
+- The delta adds no skip, `continue`, caught error, filtered result or wall-time assertion.
 
 ## 7 Rust fit: PASS
-- No `unsafe` and no production `unwrap`, `expect` or panic.
-- The one `#[allow(clippy::too_many_arguments, reason = ...)]` is test-side (`execution/.../conformance/fixtures.rs:47-50`).
-- The compile-time twin check is a `debug_assert!` (`executable_program/service.rs:245-251`).
-- Lookups return `OperatingError::NotRun`.
+- The delta adds no `unsafe`, no `unwrap` or `expect`, no panic and no `#[allow]` (`service.rs:199-245`, `base.rs:333-492`, `counting.rs:157-177`).
 
-## Advisories (open-source hygiene; beads for the PM to file, or drop with a reason)
-- **A1, per-file double ownership clones.**
-  - `walk/service.rs:237` passes `AbsentRoots::decided(decided.clone())` and then reads `decided`.
-  - `file_execution/presence/service.rs:140` passes `mark_interior(interior.clone())` and returns `interior` only for a trace count.
-  - Fix: store once in `RuntimeState` and read back through the existing `presence()` accessor, or have `mark_interior` return the count.
-- **A2, reader table built twice per file with absences.** `bind_intents` calls `activate_file_roots(&readers, AbsentRoots::default())` (`walk/service.rs:200`), and `activate` builds the table again when presence finds absences (`:237`). Fix: build the default table lazily, or only when the presence gate is off.
-- **A3, `Representation::empty` takes an owned schema it only borrows.** `admission.rs:211-216` takes `Result<Vec<CellKind>, _>` and only reads `&schema?`. The new `absent` strategy clones `output_kinds` for every absent region of every file (`strategies/service.rs:77`), and so does the blocked strategy (`:38`). Fix: take `Result<&[CellKind], &OperatingError>`.
-- **A4, `RootReaders::Selected` keeps an `Arc` with one owner.** With the per-request memo gone, `Arc::new(table)` (`state/service.rs:213`, `runtime/service.rs:158`) has a single owner. Fix: hold `RemainingTable` directly.
-- **A5, project contract clones each parsed note for `facts_in`.** `note.clone()` at `languages/rust/src/inbound/contracts/project/contract.rs:147`. Fix: collect `notes` by value and let `facts_in` consume them, or have `facts_in` borrow the note.
+## Repaired
+- F1 (item 2, first pass) is repaired in `8bf8ae89a1` (`service.rs:230-244`).
 
-The JSON lists each advisory as `open item: <title>`. Their bead ids are for the PM to fill in when filing.
+## Advisories (open-source hygiene; for each, the PM files a bead or drops it with a reason)
+- **A1, the doc of `replay_languages` says more than the code does.** `base.rs:333-335` and the 333 record (`crates/ryo/docs/contracts/README.md:102`) say that the hosted lint links these languages.
+  - In fact `lint_report_with_languages` links them only when `manifests_read` is true. Otherwise it links Rust alone (`base.rs:485-492`).
+  - This is not a leak. The replay path always passes `true` (`base.rs:431`), and a relation that `provided()` reports but a Rust-only run lacks makes the run fail loudly, not pass.
+  - Fix: reword the doc to "the pending check, the counting lint, and the hosted lint when it reads manifests". Alternatively, drop the `bool` and always link `replay_languages()`.
+- **A2, the Tastemaker lock churn is unexplained.** In `crates/tastemaker/Cargo.lock`, 11 `windows-sys 0.60.2` references became `0.61.2` in the bump commit, and no message mentions it.
+  - Fix: state the re-resolution in the record, or regenerate the lock with only the version bump (`cargo update -p idiomatic-sh-ryo-sdk --precise 0.1.3` style).
+
+The JSON lists both advisories as `open item: <title>`. Their bead ids are for the PM to fill in when filing.

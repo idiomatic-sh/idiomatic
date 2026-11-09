@@ -103,6 +103,8 @@ Checkpoint 333 merges, into the 332 head `a19f3047c6` and each as a merge commit
   - Contract review 332 (BLOCKING, committed as `evidence/checkpoint/contract-review.json`): P1, one full committed validation set ran on this checkpoint's final head (below), covering 332's code too; P2, matrix row 1 reads 12/0; P3, `validation.json` `ownership_graph` is rebound to the final run's edges log; P4, the memory guard is on the review README's known-red list; P5, the parity `summary.json` names the source of the run whose `per-rule.json` is committed. Change isolation, recorded with owners and not fixed here: C1, execution tests import deep domain paths and the `project_phase/axis` tests name internals, owned by the port landing's seam contract suite; C2, the domain-cycle merge's 44 path-only edits, historical, owned by the port's seam sealing; C3, the `Operation` matches rising 23 to 24 from query_language `refusing/service.rs`, owned by the operator registry, now in the oxlint phase.
 - **Merged after the record's first draft:** `claude/w14-isolation-lens` (`3d1e6d91a4`, merge `226de88f02`), the contract review's "Change isolation" criterion, after its leak PASS; and two edits to that criterion's part (c): it links `census.md` and compares the census proxy rows against the previous checkpoint's figures.
 
+- **Before landing:** the Rust re-check is PASS 7/7 at `e4f1d396eb` (`evidence/checkpoint/rust-review.json`), and the TM steward decided all 44 enforcement candidates (`evidence/checkpoint/tm-steward.json`, source `dcea2ee7df`). Three blockers, fixed in one pass: the contract-review validator's tracker pattern read package names such as `idiomatic-sh-ryo-sdk` in the 332 leak review's candidate signatures as tracker ids, so it now refuses a match preceded by `-` or a word character (case in `ci/contract_review/service_test.py`, red at `e4f1d396eb`, green after); the w15-loop leak JSON its reviewer rewrote is compacted again, content identical; and the javascript and typescript `manifest_diagnostic` reds are named, not fixed: `item_test::succeeds`, row `a_manifest_that_is_not_json_is_a_row_of_the_parse_at_the_file_origin`, expects file 1 for `lib/package.json`, which the fixture's sorted listing makes file 0; red at 332 too, owned by its own tracker item. The same `asymptote check --groups lint,check` also stops on reds older than 333, each owned: `correctness-python-ruff` refuses because the native standalone descriptor pins a ruff `benchmark.toml` digest stale since before 330 (its own tracker item), and the core and python `allocation` targets, owned as `core_allocation` is.
+
 **Cycle metrics:**
 
 | Metric | Checkpoint 333 |
@@ -111,7 +113,7 @@ Checkpoint 333 merges, into the 332 head `a19f3047c6` and each as a merge commit
 | Not merged | none |
 | Compile passes | 9 workspace check passes, errors 1 / 0 / 13 / 0 / 0 / 0 / 0 / 0 / 0 |
 | Validation runs | 4 full (`28efeb7bf0`, `cbdc70adad`, `e0a566da62`, final `563c0bc69b`) and 2 aborted when the feed check named fixture entries to drop |
-| Red then green | 6 entries (validation.json `red_green`) |
+| Red then green | 7 entries (validation.json `red_green`) |
 | Full Django 413 cold | exit 0, 95.7 s wall, 663.5 CPU-s, 2.62 GB peak, store 160,616,150 B, byte-identical (`e0a566da62`) |
 | Reviews run | 332: contract (BLOCKING) and leak (FAIL), repaired here; 333: Rust gate FAIL item 2 at `6af005e9f7`, repaired here; the next Rust gate reads this head |
 

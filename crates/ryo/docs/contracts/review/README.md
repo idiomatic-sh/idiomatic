@@ -122,6 +122,9 @@ Each is named with its reason and owner in `validation.json` (`results`, the fin
 - Cli `replay` target: 96 passed / 3 failed, each owned: import-fan-in's false `derive_message_formats.rs` edge, an
   `error-variant-never-constructed` row for a variant `?` constructs through `#[from]`, and the warm peak.
 - Cli `cli_cost`: 4 / 3, the three unseeded ruff ratchet rows; the Django rows answer not available without a preflight worker.
+- Asymptote check group, beyond the rows above: javascript and typescript `manifest_diagnostic` `item_test::succeeds` (the not-JSON row expects
+  file 1 for the manifest the fixture lists first), `correctness-python-ruff` (a stale native descriptor digest) and the python
+  `allocation` target; each red before 333 and owned.
 - Tastemaker workspace 264 / 4: three red since 331 (two `scaffold` replays and one `validate` bound) and the cold check of
   crates/ryo over its memory guard (4,424,456 KiB against 1,331,200): the project phase's row retention, recorded red by owner
   decision and owned by the fused rewrite.

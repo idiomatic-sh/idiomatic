@@ -1,84 +1,72 @@
 {
   "checkpoint": 333,
-  "source": "6af005e9f749d03192fb87f68db577ef42944ce5",
-  "base": "dcea2ee7df7c02711f42c332cbc403ff7b84a034",
+  "source": "e4f1d396eb8cdd57ecf77357ad72b58b9487b76a",
+  "base": "6af005e9f749d03192fb87f68db577ef42944ce5",
+  "previous_source": "6af005e9f749d03192fb87f68db577ef42944ce5",
   "scope": "333",
-  "verdict": "FAIL",
+  "verdict": "PASS",
   "reviewer": "rust-review",
-  "date": "2026-11-09T18:00:00Z",
+  "date": "2026-11-09T18:28:33+00:00",
   "checks": [
     {
       "id": "1",
       "verdict": "PASS",
-      "evidence": "No api.txt, SDK or Cargo.toml change in the diff. The presence fold owns its tables by value and consumes GraphPresence into the region table (execution_domain/src/domain/executable_program/presence/service.rs:280-308). FilePresence is a plain field of FileRun that reuses its buffers each file (file_execution/presence/service.rs:147-174). The new RefCell fields follow RuntimeState's existing &self design (runtime/service.rs:169-177). NotesError reaches ProjectError through a typed From (languages/rust/src/outbound/notes/errors.rs:11-18). The per-file clones are advisories in the report."
+      "evidence": "crates/ryo/crates/sdk/Cargo.toml:18-26, crates/ryo/Cargo.toml:23, crates/tastemaker/cli/Cargo.toml:35-46: the only public-surface change is the 0.1.2 to 0.1.3 version bump of the ryo crates, with the reason stated in 8bf8ae89a1 (0.1.2 is a released tag; local crates carry unreleased API); no api.txt or SDK source changes, and no clone, Arc or interior mutability is added."
     },
     {
       "id": "2",
-      "verdict": "FAIL",
-      "evidence": "execution_domain/src/domain/operator/contract/service.rs:230 ends failure() with `_ => RowFailure::Never`. Presence soundness depends on every operation declaring the rows that can fail it: an undeclared row-fallible operation lets a region publish the empty table where its full run reports an error. With the wildcard, a new Operation variant defaults to Never, and only a hand-maintained test census catches it (presence/service_test.rs:517-560 and :684-705, every_fault_has_a_verdict). An exhaustive match would make the compiler require the choice, as presence() (service.rs:174-191) and invalid_patterns (presence/narrowing.rs:96-124) already do."
+      "verdict": "PASS",
+      "evidence": "crates/ryo/crates/execution_domain/src/domain/operator/contract/service.rs:230-244: F1 is repaired: failure() lists the 15 remaining Operation variants as RowFailure::Never instead of a wildcard, so a new variant is a compile error; no new wildcard or source-reading test is in the delta."
     },
     {
       "id": "3",
       "verdict": "PASS",
-      "evidence": "The per-row presence loop allocates nothing: rows read into the reused cells buffer, tests are retained in place, and scratch and memo are taken from the file (file_execution/presence/service.rs:278-337). Maps in the runtime are FxHashMap (state/service.rs:190). The fold's std HashMaps run once per request at compile, not per file (presence/types.rs:145-160). The per-file reader-table walk replaces the per-request memo, and its cost is measured in evidence/perf/p7/after.json under the perf rule."
+      "evidence": "crates/ryo/cli/tests/fixtures/replay/base.rs:336-342: the only new Rust code is test-side wiring that builds a two-element Vec once per lint composition; no production loop, map or dispatch changes."
     },
     {
       "id": "4",
       "verdict": "PASS",
-      "evidence": "Column-origin propagation now has one definition, output_origins (operation_schema/projection.rs:134-233). trust/reads.rs:71-82 calls it in place of its own copy. tree_output (projection.rs:103-124) replaces the inline copy in file_program/service/operators.rs:96-99. RegionCount moved from readiness to executable_program/types.rs:12 and was not duplicated. AbsentRoots is a newtype over AbsentRegions (file_demand/types.rs:118)."
+      "evidence": "crates/ryo/cli/tests/fixtures/replay/base.rs:336, :352, :488 and counting.rs:176: three separate language lists (pending check, hosted lint, counting lint) become one replay_languages(); the delta removes a duplicate rather than adding one."
     },
     {
       "id": "5",
       "verdict": "PASS",
-      "evidence": "No dependency change in the diff. The AbsentRegions bitset (file_demand/types.rs:136-166) is 30 lines of glue, like the existing ReadinessBits (values/src/domain/records/types.rs:307), and no bitset crate is in the lock."
+      "evidence": "crates/ryo/Cargo.lock and crates/tastemaker/Cargo.lock: no dependency is added; the only lock changes are the 0.1.3 versions and 11 dependents re-resolved from windows-sys 0.60.2 to 0.61.2, which were both already in the lock (crates/tastemaker/Cargo.lock:4218-4228)."
     },
     {
       "id": "6",
       "verdict": "PASS",
-      "evidence": "The provider-alias fixes name their cases in the commit messages (a33a4c13f1, 6e7265eaac). Red then green is recorded at README.md:78: compile reds without the scope field, plus behaviour reds on the plant and on the tm built from 0f2fa35a12. 28efeb7bf0 is a compile repair. The skip rules and the noqa rewrite follow the perf rule (evidence/perf/p7/after.json, perf/noqa-fragments/after.json). Three changes are stated with reasons. The memo test was removed with the memo in c84c355dfb. The target-supplement validator change states its reason, still refuses any non-selected row that is not FAIL, 'not selected', 0 cases (target_supplement.py:17-27), and two reds stay named in 5339ed5df3. The removed asymptote.json hook test went with its mechanism (5e2aad3bf1). The diff adds no skip, ignore or wall-time assertion."
+      "evidence": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:269 and run_test.py:102: the stale-owner refusal tightens the harness, and test_a_green_result_with_only_a_stale_owner_fails_the_check is named in 8bf8ae89a1 and recorded red-then-green in validation.json red_green (base 8e4d22b3a5, merge 563c0bc69b); deleting dependency-feature-sprawl/pending.txt makes its 6 recorded rows compared; the unfed.toml shrink (Entry, Mapping) is what ruff_rules_feed_every_catalog_feature_a_thousand_rows requires, with the reason stated in 7e5beb9128 and 563c0bc69b; the owned_reds fixture change keeps the old test's assertion unchanged."
     },
     {
       "id": "7",
       "verdict": "PASS",
-      "evidence": "No unsafe and no production unwrap or expect in the diff. The only allow is test-side and carries a reason (execution/.../conformance/fixtures.rs:47-50). The compile-time check is a debug_assert (executable_program/service.rs:245-251). The rest is checked lookups returning OperatingError::NotRun."
+      "evidence": "crates/ryo/crates/execution_domain/src/domain/operator/contract/service.rs:199-245: the delta adds no unsafe, no unwrap or expect, no panic and no #[allow]."
     }
   ],
   "findings": [
     {
-      "id": "F1",
-      "check": "2",
-      "where": "crates/ryo/crates/execution_domain/src/domain/operator/contract/service.rs:230",
-      "required": "Replace `_ => RowFailure::Never` with an exhaustive list of every Operation variant (Project, Extend, Union, Intersection, Difference, Antijoin, GroupCount, GroupDigest, Capture, Rank, Words, Closure, Cycles, Rows, Hosted => RowFailure::Never), as invalid_patterns does, so that a new operation cannot compile without a row-failure declaration."
-    },
-    {
       "id": "A1",
       "check": "advisory",
-      "evidence": "open item: per-file double ownership clones of the absent sets"
+      "evidence": "open item: replay_languages doc overstates the hosted lint's languages"
     },
     {
       "id": "A2",
       "check": "advisory",
-      "evidence": "open item: reader table built twice per file with absences"
-    },
+      "evidence": "open item: unexplained windows-sys re-resolution in the Tastemaker lock"
+    }
+  ],
+  "repaired": [
     {
-      "id": "A3",
-      "check": "advisory",
-      "evidence": "open item: Representation::empty takes an owned schema it only borrows"
-    },
-    {
-      "id": "A4",
-      "check": "advisory",
-      "evidence": "open item: RootReaders::Selected keeps an Arc with one owner"
-    },
-    {
-      "id": "A5",
-      "check": "advisory",
-      "evidence": "open item: project contract clones each parsed note for facts_in"
+      "id": "F1",
+      "check": "2",
+      "where": "crates/ryo/crates/execution_domain/src/domain/operator/contract/service.rs:230-244",
+      "commit": "8bf8ae89a1c501dbd8c1d63008541d86ecfb739e"
     }
   ],
   "tree": {
-    "head_before": "6af005e9f749d03192fb87f68db577ef42944ce5",
-    "head_after": "226de88f02de89e1ee59a1fa20c8df3fc1ee53af",
-    "note": "HEAD moved during the pass by docs-only commits (3d1e6d91a4, 623ef2feaa, 226de88f02) and uncommitted edits to .agents/agents/contract-review.md and README.md; git diff --name-only 6af005e9f749 shows no .rs, .py or .toml file changed, so every file read is byte-identical at the reviewed sha"
+    "head_before": "e4f1d396eb8cdd57ecf77357ad72b58b9487b76a",
+    "head_after": "e4f1d396eb8cdd57ecf77357ad72b58b9487b76a",
+    "note": "git status --porcelain empty before and after the pass"
   }
 }
