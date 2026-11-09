@@ -139,35 +139,82 @@ class GuardShell(unittest.TestCase):
     def test_builder_test_build_clippy_with_a_package_are_refused(self):
         for command in ["cargo test -p x" + CHECK, "cargo build -p x" + CHECK, "cargo clippy -p x" + CHECK,
                         LOCK + "cargo test -p x", "bash -c 'cargo check -p x" + CHECK + "'",
-                        LOCK + "cargo build -p x" + OWN, LOCK + "cargo clippy -p x" + OWN,
-                        LOCK + "cargo nextest list -p x" + OWN]:
+                        LOCK + "cargo build -p x" + OWN, LOCK + "cargo clippy -p x" + OWN]:
             with self.subTest(command=command):
                 self.assertEqual(shell(command, self.builder), 2)
 
-    def test_builder_runs_one_packages_tests_into_its_own_target_under_the_lock(self):
-        for command in [LOCK + "cargo nextest run -p x" + OWN, LOCK + "cargo test -p x" + OWN,
-                        LOCK + "cargo test -p x --lib some::test" + OWN, "timeout 600 " + LOCK + "cargo nextest run -p x -p y" + OWN,
-                        LOCK + "cargo +nightly test --package=x" + OWN + "/"]:
-            with self.subTest(command=command):
-                self.assertEqual(shell(command, self.builder), 0)
+    def lane(self):
+        """A builder worktree whose branch changes package x (untracked) over a base holding package y."""
+        lane = repo(self.dir.name, "lane-" + str(len(os.listdir(self.dir.name))), "claude/p2-lane")
+        git = ["git", "-C", lane, "-c", "user.email=t@example.com", "-c", "user.name=t"]
+        os.makedirs(os.path.join(lane, "y"))
+        with open(os.path.join(lane, "y", "Cargo.toml"), "w", encoding="utf-8") as handle:
+            handle.write('[package]\nname = "y"\n')
+        subprocess.run(git + ["add", "-A"], check=True)
+        subprocess.run(git + ["commit", "-q", "-m", "base"], check=True)
+        subprocess.run(git + ["update-ref", "refs/remotes/origin/claude/ryo-consolidation", "HEAD"], check=True)
+        os.makedirs(os.path.join(lane, "x", "src"))
+        with open(os.path.join(lane, "x", "Cargo.toml"), "w", encoding="utf-8") as handle:
+            handle.write('[package]\nname = "x"\n')
+        with open(os.path.join(lane, "x", "src", "lib.rs"), "w", encoding="utf-8") as handle:
+            handle.write("")
+        return lane, " --target-dir /workspaces/idiomatic-target/" + os.path.basename(lane)
 
-    def test_builder_tests_without_the_lock_their_own_target_or_a_package_are_refused(self):
-        for command in ["cargo nextest run -p x" + OWN, "cargo test -p x" + OWN,
-                        LOCK + "cargo nextest run -p x", LOCK + "cargo nextest run -p x" + CHECK + "/builder",
-                        LOCK + "cargo test -p x --target-dir /workspaces/idiomatic-target/other",
-                        LOCK + "cargo nextest run" + OWN, LOCK + "cargo test --workspace" + OWN,
-                        LOCK + "cargo nextest run --workspace -p x" + OWN, LOCK + "cargo test --all" + OWN]:
+    def test_builder_runs_one_changed_packages_tests_into_its_own_target_directly_behind_the_lock(self):
+        lane, own = self.lane()
+        for command in [LOCK + "cargo nextest run -p x" + own, LOCK + "cargo test -p x" + own,
+                        LOCK + "cargo test -p x --lib some::test" + own, "timeout 600 " + LOCK + "cargo nextest run -p x" + own,
+                        LOCK + "cargo +nightly test --package=x" + own + "/", LOCK + "cargo test -p x" + own + " -- --nocapture",
+                        LOCK + "cargo-nextest nextest run -p x" + own, LOCK + "/usr/local/cargo/bin/cargo test -px" + own]:
             with self.subTest(command=command):
-                self.assertEqual(shell(command, self.builder), 2)
+                self.assertEqual(shell(command, lane), 0)
+
+    def test_builder_tests_escaping_the_lane_are_refused(self):
+        lane, own = self.lane()
+        for command in [
+                # the lock: missing, a substring elsewhere, another file, shared
+                "cargo nextest run -p x" + own, "echo /workspaces/.cargo-build.lock; cargo test -p x" + own,
+                "env Z=/workspaces/.cargo-build.lock cargo test -p x" + own,
+                "flock /workspaces/.cargo-build.lockx cargo test -p x" + own,
+                "flock -s /workspaces/.cargo-build.lock cargo test -p x" + own,
+                # the target
+                LOCK + "cargo nextest run -p x", LOCK + "cargo nextest run -p x" + CHECK + "/" + os.path.basename(lane),
+                LOCK + "cargo test -p x --target-dir /workspaces/idiomatic-target/other",
+                # the packages: none, the workspace, a pattern, several, one the branch does not change, after --
+                LOCK + "cargo nextest run" + own, LOCK + "cargo test --workspace" + own, LOCK + "cargo test --all" + own,
+                LOCK + "cargo nextest run --workspace -p x" + own, LOCK + "cargo test -p '*'" + own,
+                LOCK + "cargo nextest run -p 'x*'" + own, LOCK + "cargo test -p x -p y" + own, LOCK + "cargo test -p y" + own,
+                LOCK + "cargo test" + own + " -- -p x", LOCK + "cargo test" + own + " -- --package x",
+                LOCK + "cargo nextest run" + own + " -- -p x",
+                # aliases, plugins and other verbs
+                LOCK + "cargo t --workspace" + own, LOCK + "cargo b --workspace" + own, LOCK + "cargo coverage-all" + own,
+                LOCK + "cargo-nextest nextest run --workspace" + own, LOCK + "cargo build -p x" + own,
+                LOCK + "cargo clippy -p x" + own, LOCK + "cargo nextest list -p x" + own]:
+            with self.subTest(command=command):
+                self.assertEqual(shell(command, lane), 2)
+
+    def test_a_builder_tree_without_a_known_base_runs_no_tests(self):
+        self.assertEqual(shell(LOCK + "cargo test -p x" + OWN, self.builder), 2)
 
     def test_a_push_to_main_is_refused_in_every_spelling(self):
         main = repo(self.dir.name, "on-main", "main")
+        tracking = repo(self.dir.name, "tracking-main", "claude/p3-tracking")
+        subprocess.run(["git", "-C", tracking, "config", "branch.claude/p3-tracking.remote", "origin"], check=True)
+        subprocess.run(["git", "-C", tracking, "config", "branch.claude/p3-tracking.merge", "refs/heads/main"], check=True)
+        configured = repo(self.dir.name, "configured-push", "claude/p3-configured")
+        subprocess.run(["git", "-C", configured, "config", "remote.origin.push", "HEAD:refs/heads/main"], check=True)
         for command, where in [("git push origin main", self.builder), ("git push origin HEAD:refs/heads/main", self.builder),
                                ("git push -u origin +HEAD:master", self.builder), ("git push", main), ("git push origin HEAD", main),
-                               ("git -C " + main + " push origin", self.builder)]:
+                               ("git -C " + main + " push origin", self.builder), ("git push -d origin main", self.builder),
+                               ("git push origin :main", self.builder), ("git push origin +:refs/heads/main", self.builder),
+                               ("git push origin HEAD:heads/main", self.builder),
+                               ("git -c push.default=upstream push", self.builder),
+                               ("git -c remote.origin.push=HEAD:refs/heads/main push origin", self.builder),
+                               ("git push", tracking), ("git push origin", configured)]:
             with self.subTest(command=command, where=where):
                 self.assertEqual(shell(command, where), 2)
         self.assertEqual(shell("git push origin claude/p1-coverage-kinds", self.builder), 0)
+        self.assertEqual(shell("git push origin HEAD:claude/p3-configured", configured), 0)
 
     def test_integration_tree_nextest_needs_the_lock(self):
         self.assertEqual(shell(LOCK + "cargo nextest run --workspace", self.integration), 0)
@@ -1261,6 +1308,9 @@ class Acceptance(unittest.TestCase):
         self.assertEqual(codes, [2, 2, 2, 2, 0])
 
 
+SHA = "a" * 40
+
+
 class ReviewerStop(unittest.TestCase):
     def setUp(self):
         self.dir = tempfile.TemporaryDirectory()
@@ -1268,6 +1318,12 @@ class ReviewerStop(unittest.TestCase):
         self.tree = os.path.join(self.dir.name, "ryo-333")
         os.makedirs(os.path.join(self.tree, "crates/ryo/docs/contracts/evidence/checkpoint"))
         os.makedirs(os.path.join(self.tree, "crates/ryo/docs/contracts/evidence/branches"))
+
+    def review(self, agent, **changes):
+        review = {"source": SHA, "verdict": "FAIL", "reviewer": agent,
+                  "checks": [{"id": "1", "verdict": "FAIL", "evidence": "x.rs:1"}]}
+        review.update(changes)
+        return review
 
     def write(self, rel, review, age=0):
         path = os.path.join(self.tree, "crates/ryo/docs/contracts/evidence", rel)
@@ -1277,44 +1333,68 @@ class ReviewerStop(unittest.TestCase):
             stamp = os.path.getmtime(path) - age
             os.utime(path, (stamp, stamp))
 
-    def stop(self, agent, report="Report.", brief=None):
+    def stop(self, agent, report="Report.", brief=None, stamped=True):
         transcript = os.path.join(self.dir.name, "agent.jsonl")
         clock = __import__("datetime")
         now = clock.datetime.now(clock.timezone.utc) - clock.timedelta(seconds=60)
-        rows = [{"type": "user", "timestamp": now.isoformat(), "message": {"role": "user", "content": brief or
-                 "INTEGRATION_TREE: " + self.tree + "\nReview 333 at abc."}},
-                {"type": "assistant", "message": {"role": "assistant", "content": [{"type": "text", "text": report}]}}]
+        first = {"type": "user", "message": {"role": "user", "content": brief if brief is not None else
+                 "Review 333. INTEGRATION_TREE=" + self.tree + ": SOURCE=" + SHA + "."}}
+        if stamped:
+            first["timestamp"] = now.isoformat()
+        rows = [first, {"type": "assistant", "message": {"role": "assistant", "content": [{"type": "text", "text": report}]}}]
         with open(transcript, "w", encoding="utf-8") as handle:
             handle.write("\n".join(json.dumps(r) for r in rows))
         env = dict(os.environ, CLAUDE_HOOKS_STATE=os.path.join(self.dir.name, "state"))
-        return run_hook("acceptance_on_stop.py", {"agent_type": agent, "agent_transcript_path": transcript,
+        return run_hook("acceptance_on_stop.py", {"agent_type": agent, "agent_id": "a1", "agent_transcript_path": transcript,
                                                   "transcript_path": "/nonexistent", "stop_hook_active": False}, env)
 
-    def test_each_reviewer_without_its_verdict_file_is_held(self):
+    def test_each_reviewer_without_its_verdict_file_is_held_every_time(self):
         for agent in ["rust-review", "contract-review", "leak-review", "tm-steward"]:
             with self.subTest(agent=agent):
-                result = self.stop(agent)
-                self.assertEqual(result.returncode, 2)
-                self.assertIn("write the verdict file", result.stderr)
+                codes = [self.stop(agent).returncode for _ in range(6)]
+                self.assertEqual(codes, [2] * 6)
 
-    def test_each_reviewer_with_its_verdict_written_this_run_stops(self):
-        for agent, rel in [("rust-review", "checkpoint/rust-review.json"), ("contract-review", "checkpoint/contract-review.json"),
-                           ("leak-review", "checkpoint/leak-review.json"), ("leak-review", "branches/claude-w15-loop.json"),
-                           ("tm-steward", "checkpoint/tm-steward.json")]:
+    def test_each_reviewer_with_its_valid_verdict_for_the_source_written_this_run_stops(self):
+        for agent, rel, brief in [
+                ("rust-review", "checkpoint/rust-review.json", None), ("contract-review", "checkpoint/contract-review.json", None),
+                ("leak-review", "checkpoint/leak-review.json", None), ("tm-steward", "checkpoint/tm-steward.json", None),
+                ("leak-review", "branches/claude-w15-loop.json",
+                 "INTEGRATION_TREE=" + self.tree + " SOURCE=" + SHA + " BRANCH=claude/w15-loop.")]:
             with self.subTest(rel=rel):
-                self.write(rel, {"reviewer": agent, "verdict": "FAIL"})
-                self.assertEqual(self.stop(agent).returncode, 0)
+                self.write(rel, self.review(agent))
+                self.assertEqual(self.stop(agent, brief=brief).returncode, 0)
 
-    def test_a_stale_another_reviewers_or_unparsable_file_does_not_count(self):
-        for review, age in [({"reviewer": "rust-review", "verdict": "PASS"}, 3600), ({"reviewer": "leak-review", "verdict": "PASS"}, 0),
-                            ({"reviewer": "rust-review"}, 0), ("{not json", 0)]:
-            with self.subTest(review=review, age=age):
-                self.write("checkpoint/rust-review.json", review, age)
-                self.assertEqual(self.stop("rust-review").returncode, 2)
+    def test_the_tree_token_drops_trailing_punctuation(self):
+        self.write("checkpoint/rust-review.json", self.review("rust-review"))
+        for brief in ["INTEGRATION_TREE=" + self.tree + ": SOURCE=" + SHA, "(INTEGRATION_TREE=" + self.tree + "), SOURCE=" + SHA + ".",
+                      "INTEGRATION_TREE=" + self.tree + "; SOURCE=" + SHA + ";"]:
+            with self.subTest(brief=brief):
+                self.assertEqual(self.stop("rust-review", brief=brief).returncode, 0)
 
-    def test_blocked_no_tree_and_other_agents_stop(self):
+    def test_a_verdict_that_is_not_this_runs_valid_review_of_the_source_is_held(self):
+        branch = "INTEGRATION_TREE=" + self.tree + " SOURCE=" + SHA + " BRANCH=claude/w15-loop"
+        for name, rel, review, age, brief, stamped in [
+                ("stale", "checkpoint/rust-review.json", self.review("rust-review"), 3600, None, True),
+                ("another reviewer", "checkpoint/rust-review.json", self.review("leak-review"), 0, None, True),
+                ("no checks", "checkpoint/rust-review.json", self.review("rust-review", checks=[]), 0, None, True),
+                ("verdict not decided", "checkpoint/rust-review.json", {"reviewer": "rust-review", "verdict": "not decided"}, 0, None, True),
+                ("another source", "checkpoint/rust-review.json", self.review("rust-review", source="b" * 40), 0, None, True),
+                ("not json", "checkpoint/rust-review.json", "{x", 0, None, True),
+                ("no timestamp", "checkpoint/rust-review.json", self.review("rust-review"), 0, None, False),
+                ("no SOURCE", "checkpoint/rust-review.json", self.review("rust-review"), 0, "INTEGRATION_TREE=" + self.tree, True),
+                ("colon form", "checkpoint/rust-review.json", self.review("rust-review"), 0, "INTEGRATION_TREE: " + self.tree + " SOURCE=" + SHA, True),
+                ("another branch's file", "branches/claude-other.json", self.review("leak-review"), 0, branch, True)]:
+            with self.subTest(name=name):
+                for rel_old in ("checkpoint/rust-review.json", "branches/claude-other.json", "branches/claude-w15-loop.json"):
+                    path = os.path.join(self.tree, "crates/ryo/docs/contracts/evidence", rel_old)
+                    if os.path.exists(path):
+                        os.remove(path)
+                self.write(rel, review, age)
+                agent = "leak-review" if rel.startswith("branches/") else "rust-review"
+                self.assertEqual(self.stop(agent, brief=brief, stamped=stamped).returncode, 2)
+
+    def test_blocked_and_other_agents_stop(self):
         self.assertEqual(self.stop("rust-review", report="BLOCKED: which base sha?").returncode, 0)
-        self.assertEqual(self.stop("rust-review", brief="Review this diff.").returncode, 0)
         self.assertEqual(self.stop("perf-diagnosis").returncode, 0)
 
 

@@ -1,5 +1,6 @@
 """SubagentStop hook: a builder may stop only on a passing acceptance script (DONE) or one question (BLOCKED); a review
-agent may stop only once its verdict file is written into the INTEGRATION_TREE its prompt names (or on BLOCKED)."""
+agent may stop only once the verdict file its prompt names (INTEGRATION_TREE=, SOURCE=, and BRANCH= for a branch
+review) is written during its run and valid by the one review evidence validator, or on BLOCKED."""
 
 import json
 import os
@@ -13,10 +14,10 @@ LIMIT = 5
 STATE = os.environ.get("CLAUDE_HOOKS_STATE", "/tmp/claude-hooks")
 BD_HOME = "/workspaces/idiomatic"
 EVIDENCE = "crates/ryo/docs/contracts/evidence/"
-# The verdict files each review agent writes (agent name -> evidence paths, a trailing / meaning any .json inside).
-REVIEWERS = {"rust-review": ["checkpoint/rust-review.json"], "contract-review": ["checkpoint/contract-review.json"],
-             "leak-review": ["checkpoint/leak-review.json", "branches/"], "tm-steward": ["checkpoint/tm-steward.json"]}
-
+# The verdict file of each review agent, under the evidence directory; a leak review of a branch writes branches/<branch>.json.
+REVIEWERS = {"rust-review": "checkpoint/rust-review.json", "contract-review": "checkpoint/contract-review.json",
+             "leak-review": "checkpoint/leak-review.json", "tm-steward": "checkpoint/tm-steward.json"}
+TRAILING = ".,;:)]}>'\"`"
 
 def text_of(message):
     content = message.get("content")
@@ -56,49 +57,73 @@ def started_at(path):
     return None
 
 
-def verdict_files(tree, agent):
-    found = []
-    for rel in REVIEWERS[agent]:
-        path = os.path.join(tree, EVIDENCE, rel)
-        if rel.endswith("/"):
-            found += [os.path.join(path, n) for n in sorted(os.listdir(path)) if n.endswith(".json")] \
-                if os.path.isdir(path) else []
-        else:
-            found.append(path)
-    return found
+def token(text, name):
+    """The value of the one `NAME=<value>` token in text, trailing punctuation stripped, or None."""
+    found = re.search(r"(?<![A-Za-z0-9_])" + name + r"=(\S+)", text)
+    return found.group(1).rstrip(TRAILING) if found else None
 
 
-def written_verdict(path, agent, since):
-    """True when path holds this agent's verdict, written during this run."""
+def shape_problem(review, agent):
+    """The problem with review against the one validator of review evidence, shape() in
+    ci/contract_review/service.py (loaded by path, as guard_shell.py does), or None."""
+    import importlib.util
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "ci", "contract_review", "service.py")
     try:
-        if since is not None and os.path.getmtime(path) < since:
-            return False
+        spec = importlib.util.spec_from_file_location("contract_review_service", path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        module.shape(review, agent)
+    except ValueError as error:
+        return str(error)
+    except Exception as error:  # a missing or old service.py holds the stop, never releases it
+        return "cannot be validated (" + type(error).__name__ + ": " + str(error) + ")"
+    return None
+
+
+def verdict_problem(path, agent, source, since):
+    """Why path is not this run's verdict for source, or None."""
+    try:
+        if os.path.getmtime(path) < since:
+            return path + " was not written during this run"
         with open(path, encoding="utf-8") as handle:
             review = json.load(handle)
-    except (OSError, ValueError):
-        return False
-    return isinstance(review, dict) and review.get("reviewer") == agent and isinstance(review.get("verdict"), str) \
-        and bool(review["verdict"])
+    except OSError:
+        return path + " does not exist"
+    except ValueError:
+        return path + " is not JSON"
+    problem = shape_problem(review, agent)
+    if problem:
+        return path + " " + problem
+    if review.get("source") != source:
+        return path + " reviews " + repr(review.get("source")) + ", not SOURCE=" + source
+    return None
 
 
 def reviewer_stop(data, agent):
-    """A review agent stops only after writing its verdict file into the tree its prompt names as INTEGRATION_TREE."""
+    """A review agent stops only after writing the verdict file its prompt names, or on BLOCKED: <question>."""
     path = data.get("agent_transcript_path") or data.get("transcript_path")
     if not path or not os.path.exists(path):
-        return 0
+        return hold("its transcript is unreadable, so the run's start is unknown")
     first, last = read_transcript(path)
     last = data.get("last_assistant_message") or last
-    tree = re.search(r"INTEGRATION_TREE\W{0,3}\s*(/[^\s`'\"]+)", first)
-    if not tree or last.strip().startswith("BLOCKED:"):
+    if last.strip().startswith("BLOCKED:"):
         return 0
-    tree = tree.group(1).rstrip(".,;")
-    if any(written_verdict(f, agent, started_at(path)) for f in verdict_files(tree, agent)):
-        return success("review-" + agent)
-    wanted = " or ".join(os.path.join(tree, EVIDENCE, r) + ("<branch>.json" if r.endswith("/") else "")
-                         for r in REVIEWERS[agent])
-    return failure("review-" + agent, "Review not finished: write the verdict file " + wanted + " (reviewer " +
-                   repr(agent) + ", a verdict) the moment the verdict is decided, then the write-up; or reply "
-                   "BLOCKED: <one question>.")
+    tree, source, branch = token(first, "INTEGRATION_TREE"), token(first, "SOURCE"), token(first, "BRANCH")
+    if not tree or not source or not re.fullmatch(r"[0-9a-f]{40}", source):
+        return hold("the prompt must name INTEGRATION_TREE=<path> and SOURCE=<40-hex sha> (and BRANCH=<name> for a "
+                    "branch review)")
+    since = started_at(path)
+    if since is None:
+        return hold("its transcript has no timestamp, so the run's start is unknown")
+    rel = "branches/" + branch.replace("/", "-") + ".json" if agent == "leak-review" and branch else REVIEWERS[agent]
+    problem = verdict_problem(os.path.join(tree, EVIDENCE, rel), agent, source, since)
+    return hold(problem) if problem else 0
+
+
+def hold(why):
+    print("Review not finished: " + why + ". Write the verdict file (the review evidence schema, reviewer and source "
+          "set) the moment the verdict is decided, then the write-up; or reply BLOCKED: <one question>.", file=sys.stderr)
+    return 2
 
 
 def acceptance_script(bead):
