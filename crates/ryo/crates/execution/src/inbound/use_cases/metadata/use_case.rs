@@ -32,7 +32,7 @@ impl MetadataUseCase for MetadataUseCaseImpl {
         ryo_execution_domain::domain::kind_check::service::refusal(
             plan,
             vocabularies,
-            ryo_execution_domain::domain::matching::types::PatternMatcher(matching),
+            ryo_execution_domain::domain::matching::types::PatternMatcher(&ryo_execution_domain::application::matching::service::HandedMatching(matching)),
         )
     }
     fn kinds_asked(&self, plan: &Plan, bound: &[ParameterBinding]) -> Vec<AskedKind> {
@@ -49,7 +49,7 @@ impl MetadataUseCase for MetadataUseCaseImpl {
             plans,
             bindings,
             vocabularies,
-            ryo_execution_domain::domain::matching::types::PatternMatcher(matching),
+            ryo_execution_domain::domain::matching::types::PatternMatcher(&ryo_execution_domain::application::matching::service::HandedMatching(matching)),
         )
     }
     fn unknown_kind_message(

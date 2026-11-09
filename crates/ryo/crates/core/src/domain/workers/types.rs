@@ -7,6 +7,11 @@ use ryo_execution::inbound::use_cases::execution::interface::RowsFed;
 use ryo_execution::inbound::use_cases::metadata::interface::Needs;
 use ryo_execution::inbound::use_cases::metadata::interface::{Covered, Partial, Unknown};
 use ryo_execution::inbound::use_cases::metadata::interface::{Mask, PlacedScopes};
+use ryo_execution::inbound::use_cases::metadata::interface::{
+    Bearing, Blocking, CoverageScope, Governing, Message, Recovery, RelationRead, RuleIndex,
+};
+use ryo_values::domain::runs::types::RuleNumber;
+use ryo_values::domain::stored_facts::types::ReadInPart;
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::domain::symbols::types::Symbols;
@@ -294,4 +299,25 @@ pub(crate) struct CrossReading<'a, W> {
     pub unread: &'a [ryo_values::domain::records::types::Unread],
     /// The store's handle of each worker.
     pub workers: Vec<W>,
+}
+
+/// What the domain asks of the rules of a run: where they are placed, whom they govern and what a partial read leaves unknown.
+/// The application hands it down; the domain implements none of it and calls no use case.
+pub(crate) trait RunDecisions {
+    /// The id of the rule at this place.
+    fn rule_id(&self, ids: &[RuleId], rule: RuleIndex) -> RuleId;
+    /// Marks in the mask the rules the scopes place on this path.
+    fn place(&self, placed: &PlacedScopes, path: &FilePath, mask: &mut Mask, hits: &mut Hits);
+    /// Whether this rule governs the file the mask was made for.
+    fn governs(&self, mask: &Mask, rule: RuleNumber) -> Governing;
+    /// Whether any rule governs the file the mask was made for.
+    fn governed(&self, mask: &Mask) -> Governing;
+    /// The partials a language's partial reads leave.
+    fn partial_of(&self, said: &[ReadInPart], recovery: Recovery, wanted: &[Relation]) -> Vec<Partial>;
+    /// Whether a partial bears on a read.
+    fn matters(&self, read: &RelationRead, partial: &Partial) -> Bearing;
+    /// What a partial leaves unknown, said for its scope.
+    fn unknown_message(&self, partial: &Partial, scope: CoverageScope<'_>) -> Message;
+    /// Whether the partials block these reads.
+    fn blocked(&self, needs: &[RelationRead], partial: &[Partial]) -> Blocking;
 }

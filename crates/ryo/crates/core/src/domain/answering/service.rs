@@ -1,6 +1,6 @@
 //! The `answering` service: free functions named by verb over the answers of the cross-file steps, with no IO and no ports.
 
-use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
+use crate::domain::workers::types::RunDecisions;
 use super::types::{CrossSteps, Crossed, Todo};
 use crate::domain::ordering::service::append;
 use crate::domain::render::types::Rendered;
@@ -27,7 +27,7 @@ pub(crate) fn cross_steps(plan: &Plan) -> CrossSteps {
 /// The rules whose cross-file steps are made, in the order of the rules.
 #[must_use]
 pub(crate) fn todo_list(
-    decisions: &impl MetadataUseCase,
+    decisions: &impl RunDecisions,
     metadata: &[RuleRunMetadata],
     ids: &[RuleId],
 ) -> Vec<Todo> {
