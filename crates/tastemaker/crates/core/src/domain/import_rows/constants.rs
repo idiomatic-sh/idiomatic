@@ -35,8 +35,15 @@ pub const KIND: &str = "kind";
 pub const BLOCK_KIND: &str = "stmt-list";
 /// The kind of the node that holds an inline module's items: a `use` written outside it binds nothing within it.
 pub const MODULE_KIND: &str = "item-list";
-/// The nodes a `use` binds within: each block and each inline module, by its file and span.
-pub const SCOPES: &str = r#"let rows = select id, kind, file, span from "syntax-tree" where glob_any(kind, "{stmt-list,item-list}");
+/// The scopes a `use` binds within, and no more: the block that holds each `use` (its parent, once per block) and every
+/// inline module, by its file and span. Each kind is selected by equality, so the engine reads only nodes of that kind.
+pub const SCOPES: &str = r#"let uses = select id from "syntax-tree" where kind = "use" and text = "";
+let blocks = select id, kind, file, span from "syntax-tree" where kind = "stmt-list" and text = "";
+let modules = select id, kind, file, span from "syntax-tree" where kind = "item-list" and text = "";
+let parents = select r.parent as id from uses as l join "syntax-child" as r on l.id = r.child;
+let held = select r.id as id, r.kind as kind, r.file as file, r.span as span from parents as l join blocks as r on l.id = r.id;
+let used = project(from=held, columns=["id", "kind", "file", "span"]);
+let rows = union(left=used, right=modules);
 emit rows subject "file" key("id");
 "#;
 

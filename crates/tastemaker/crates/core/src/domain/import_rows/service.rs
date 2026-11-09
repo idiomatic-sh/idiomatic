@@ -9,6 +9,7 @@ use super::constants::{
     WRITTEN,
 };
 use crate::domain::applications::types::CellText;
+use crate::domain::comments::types::ByteSpan;
 use crate::domain::contracts::types::Holding;
 use crate::domain::definitions::types::QueryText;
 use crate::domain::imports::constants::JOINERS;
@@ -70,13 +71,11 @@ pub fn keep(
             }
         }
         Relation::Names => {
-            if let (Some(written), Some(binding)) =
-                (column(ImportColumn(TARGET)), column(ImportColumn(BINDING)))
-            {
+            if let Some(written) = column(ImportColumn(TARGET)) {
                 rows.names.push(Name {
                     source: path,
                     written: WrittenPath(written.0),
-                    binding: ModuleName(binding.0),
+                    binding: column(ImportColumn(BINDING)).map(|binding| ModuleName(binding.0)),
                     span: place,
                 });
             }
@@ -105,11 +104,10 @@ pub fn keep(
                 Some(MODULE_KIND) => ScopeKind::Module,
                 _ => return,
             };
-            rows.scopes.push(Scope {
-                source: path,
-                span: place,
-                kind,
-            });
+            rows.scopes
+                .entry(path)
+                .or_default()
+                .push(Scope { span: place, kind });
         }
     }
 }
@@ -141,30 +139,40 @@ fn holds(outer: ImportPlace, inner: ImportPlace) -> Holding {
     }
 }
 
-/// Whether the `use` that wrote `name` binds where `edge` is written: the innermost block or inline module of
-/// `scopes` that holds the `use`, or the whole file when none does, holds the edge, and no inline module between them
-/// does, for a module sees no `use` written outside it.
-fn in_scope(name: &Name, edge: &Import, scopes: &[&Scope]) -> Holding {
-    let size = |place: ImportPlace| match place {
-        ImportPlace::At(span) => span.end.0.saturating_sub(span.start.0),
-        ImportPlace::Unplaced => usize::MAX,
+/// The innermost of `sorted` (spans sorted by start, each two nested or apart) that holds `span`: of those that start at
+/// or before it, found by bisection, the latest to start that also ends at or after it.
+fn innermost(sorted: &[ByteSpan], span: ImportPlace) -> Option<ByteSpan> {
+    let ImportPlace::At(span) = span else {
+        return None;
     };
-    let around = scopes
+    let before = sorted.partition_point(|scope| scope.start <= span.start);
+    sorted
+        .get(..before)
+        .unwrap_or_default()
         .iter()
-        .filter(|scope| holds(scope.span, name.span) == Holding::Holds)
-        .min_by_key(|scope| size(scope.span))
-        .map(|scope| scope.span);
-    let within = |place: ImportPlace| around.map_or(Holding::Holds, |outer| holds(outer, place));
-    let shut = scopes.iter().any(|scope| {
-        scope.kind == ScopeKind::Module
-            && Some(scope.span) != around
-            && within(scope.span) == Holding::Holds
-            && holds(scope.span, edge.span) == Holding::Holds
-    });
-    if shut {
-        Holding::Apart
-    } else {
-        within(edge.span)
+        .rev()
+        .find(|scope| span.end <= scope.end)
+        .copied()
+}
+
+/// Whether an import whose innermost scope is `around` (the whole file when `None`) binds where `edge` is written.
+///
+/// The rule: a `use` binds within the innermost block or inline module that holds it, and everything nested in that
+/// scope sees it (items nested in a block are held by the block's span), except what lies in an inline module nested
+/// in it, for a module sees no `use` written outside it. So `around` must hold the edge, and the innermost inline module
+/// that holds the edge, `module`, must be `around` itself or lie outside it. A glob import binds no single name, so a
+/// path through one is never matched to it and stays an import of its own.
+fn in_scope(around: Option<ByteSpan>, module: Option<ByteSpan>, edge: ImportPlace) -> Holding {
+    let within = |inner: ImportPlace| {
+        around.map_or(Holding::Holds, |outer| holds(ImportPlace::At(outer), inner))
+    };
+    match module {
+        Some(module)
+            if Some(module) != around && within(ImportPlace::At(module)) == Holding::Holds =>
+        {
+            Holding::Apart
+        }
+        Some(_) | None => within(edge),
     }
 }
 
@@ -199,14 +207,31 @@ pub fn imports(rows: &ImportRows) -> Vec<Import> {
             &package.target,
         ));
     }
-    let mut scopes: BTreeMap<&RepoPath, Vec<&Scope>> = BTreeMap::new();
-    for scope in &rows.scopes {
-        scopes.entry(&scope.source).or_default().push(scope);
-    }
     let mut found = Vec::new();
     for (source, paths) in &edges {
         let brought = names.get(source).map(Vec::as_slice).unwrap_or_default();
-        let within = scopes.get(source).map(Vec::as_slice).unwrap_or_default();
+        let spans = |kept: &dyn Fn(ScopeKind) -> bool| {
+            let mut spans = rows
+                .scopes
+                .get(*source)
+                .into_iter()
+                .flatten()
+                .filter(|scope| kept(scope.kind))
+                .filter_map(|scope| match scope.span {
+                    ImportPlace::At(span) => Some(span),
+                    ImportPlace::Unplaced => None,
+                })
+                .collect::<Vec<_>>();
+            spans.sort();
+            spans
+        };
+        let scopes = spans(&|_| true);
+        let modules = spans(&|kind| kind == ScopeKind::Module);
+        // Each import's innermost scope, read once: the bindings a use-site path may start at, where each binds.
+        let bindings = brought
+            .iter()
+            .filter_map(|name| Some((name.binding.as_ref()?, innermost(&scopes, name.span))))
+            .collect::<Vec<_>>();
         for edge in paths {
             let held = brought
                 .iter()
@@ -217,8 +242,9 @@ pub fn imports(rows: &ImportRows) -> Vec<Import> {
             // exempted once.
             if held.is_none()
                 && segments(&edge.written).first().is_some_and(|first| {
-                    brought.iter().any(|name| {
-                        name.binding == *first && in_scope(name, edge, within) == Holding::Holds
+                    let module = innermost(&modules, edge.span);
+                    bindings.iter().any(|(binding, around)| {
+                        *binding == first && in_scope(*around, module, edge.span) == Holding::Holds
                     })
                 })
             {

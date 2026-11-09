@@ -77,19 +77,19 @@ fn rows() -> ImportRows {
             Name {
                 source: path("src/a.txt"),
                 written: "crate::types::T".into(),
-                binding: ModuleName("T".into()),
+                binding: Some(ModuleName("T".into())),
                 span: span(4, 19),
             },
             Name {
                 source: path("src/a.txt"),
                 written: "other::X".into(),
-                binding: ModuleName("X".into()),
+                binding: Some(ModuleName("X".into())),
                 span: span(24, 32),
             },
             Name {
                 source: path("src/a.txt"),
                 written: "std::fmt".into(),
-                binding: ModuleName("fmt".into()),
+                binding: Some(ModuleName("fmt".into())),
                 span: span(37, 45),
             },
         ],
@@ -102,7 +102,7 @@ fn rows() -> ImportRows {
             path: path("src/a.txt"),
             package: path("Cargo.toml"),
         }],
-        scopes: Vec::new(),
+        scopes: BTreeMap::new(),
     }
 }
 
