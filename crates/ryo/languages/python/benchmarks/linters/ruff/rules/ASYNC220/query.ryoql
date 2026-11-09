@@ -1,5 +1,7 @@
 import observation_matches from "python/ruff/suppress-matches";
-let calls = select id, file from "semantic-syntax" where kind = "call";
+import call_syntax from "python/ruff/calls";
+let call_syntax_rows = call_syntax();
+let calls = select id, file from call_syntax_rows;
 let function_fields = select parent as call, child as function, file from "semantic-child" where field = "func";
 let call_functions = select l.call as call, l.function as function, l.file as file from function_fields as l join calls as r on l.call = r.id and l.file = r.file;
 let scope_boundaries = select id, file from "semantic-syntax" where kind = "function-def" or kind = "async-function-def" or kind = "class-def" or kind = "lambda";

@@ -1,4 +1,5 @@
 import observation_matches from "python/ruff/suppress-matches";
+import line_located from "python/ruff/candidate-locations";
 let expressions = select id, file, span from "semantic-syntax" where kind = "if-exp";
 let body_fields = select parent, child from "semantic-child" where field = "body";
 let else_fields = select parent, child from "semantic-child" where field = "orelse";
@@ -10,7 +11,7 @@ let matching_body = select l.parent as id from body_fields as l join body_litera
 let matching_else = select l.parent as id from else_fields as l join else_literals as r on l.child = r.id;
 let matching = select l.id as id from matching_body as l join matching_else as r on l.id = r.id;
 let reportable = select l.id as id, l.file as file, l.span as span from expressions as l join matching as r on l.id = r.id;
-let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id;
+let candidate_locations = line_located(candidates=reportable);
 let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:SIM211)$");
 let violations_rows = select id, file, span from candidate_locations;
 let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);

@@ -1,4 +1,5 @@
 import observation_matches from "python/ruff/suppress-matches";
+import line_located from "python/ruff/candidate-locations";
 let statement_loops = select id, file from "semantic-syntax" where kind = "for" or kind = "async-for";
 let comprehensions = select id, file from "semantic-syntax" where kind = "list-comp" or kind = "set-comp" or kind = "dict-comp" or kind = "generator-exp";
 let comprehension_loops = select r.child as id, l.file as file from comprehensions as l join "semantic-child" as r on l.id = r.parent and l.file = r.file where r.field = "generators";
@@ -14,7 +15,7 @@ let key_counts = group-count(from=keyed_elements, keys=["set_id","file","key"], 
 let duplicate_sets = select set_id, file from key_counts where count > 1;
 let literal_sets = antijoin(left=sets, right=nonliteral_elements, left-on=["id","file"], right-on=["set_id","file"]);
 let candidates = antijoin(left=literal_sets, right=duplicate_sets, left-on=["id","file"], right-on=["set_id","file"]);
-let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from candidates as l join "source-location" as r on l.id = r.id and l.file = r.file;
+let candidate_locations = line_located(candidates=candidates);
 let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:PLC0208)$");
 let violations_rows = select id, file, span from candidate_locations;
 let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);

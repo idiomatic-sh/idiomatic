@@ -1,6 +1,6 @@
 //! Actual I001 suppression output and RUF100 readiness across project inventory changes.
 use super::constants::{
-    BENCHMARK_TOML, BENCHMARKS_LINTERS_RUFF, BROKEN_PY, CASE_PY, CODE, CONFIG_DISABLED,
+    BENCHMARK_TOML, BROKEN_PY, CASE_PY, CODE, CONFIG_DISABLED,
     CONFIG_EXTERNAL, CONFIG_SELECTED, DEF_BROKEN_NOQA_I001, DIRECTIVE, EMPTY, FILE, HIDDEN, I001,
     IMPORT_A_IMPORT_B, IMPORT_B_IMPORT_A, IMPORT_LOCAL_IMPORT_NUMPY_NOQA_I00,
     IMPORT_LOCAL_NOQA_I001_IMPORT_NUMP, INCOMING, LET_LOCATED_SELECT_L_DIRECTIVE_AS, LOCAL_PY,
@@ -21,7 +21,7 @@ use std::collections::BTreeMap;
 pub(super) fn i001_hidden_match_and_ruf100_output_follow_first_import_and_unknown_inventory() {
     let root = tempfile::tempdir().unwrap();
     let store = tempfile::tempdir().unwrap();
-    let authored = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(BENCHMARKS_LINTERS_RUFF);
+    let authored = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let profile: toml::Value =
         toml::from_str(&std::fs::read_to_string(authored.join(BENCHMARK_TOML)).unwrap()).unwrap();
     let modules = profile[QUERY_MODULES]

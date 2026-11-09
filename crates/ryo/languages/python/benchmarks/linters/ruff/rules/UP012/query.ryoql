@@ -1,6 +1,8 @@
 import observation_matches from "python/ruff/suppress-matches";
+import call_syntax from "python/ruff/calls";
 let nodes = select id, kind, file from "semantic-syntax";
-let calls = select id, file from nodes where kind = "call";
+let call_syntax_rows = call_syntax();
+let calls = select id, file from call_syntax_rows;
 let functions = select parent, child, file from "semantic-child" where field = "func";
 let called_values = select l.id as call, r.child as function, l.file as file from calls as l join functions as r on l.id = r.parent and l.file = r.file;
 let attributes = select id, file from nodes where kind = "attribute";

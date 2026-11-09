@@ -1,6 +1,7 @@
 import noqa_line_map from "python/ruff/noqa-line-map";
 import noqa_locations from "python/ruff/noqa-locations";
 import suppression_edges from "python/ruff/noqa-suppressions-with-additional-lines";
+import line_located from "python/ruff/candidate-locations";
 let expressions = select id from "semantic-syntax" where kind = "joined-str";
 let parts = select id, file, span from "semantic-syntax" where kind = "f-string-part";
 let parented_parts = select l.parent as parent, r.id as id, r.file as file, r.span as span from "semantic-child" as l join parts as r on l.child = r.id;
@@ -9,7 +10,7 @@ let interpolated_parts = select l.parent as parent from "semantic-child" as l jo
 let interpolated_expressions = select l.parent as parent from parented_parts as l join interpolated_parts as r on l.id = r.parent;
 let static_expressions = antijoin(left=expressions, right=interpolated_expressions, left-on=["id"], right-on=["parent"]);
 let reportable = select r.id as id, r.file as file, r.span as span from static_expressions as l join parented_parts as r on l.id = r.parent;
-let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id;
+let candidate_locations = line_located(candidates=reportable);
 let suppression_mappings = noqa_line_map();
 let suppression_locations = noqa_locations(candidates=candidate_locations, mappings=suppression_mappings);
 let suppression_parents = select id, file, line from candidate_locations where id != id;

@@ -1,5 +1,9 @@
 # benchmark
 
+## 0.2.2
+
+Places `benchmark-linter` 0.2.2, which places the linter's own Cargo package. Nothing else changes.
+
 ## 0.2.1
 
 Places `benchmark-linter` 0.2.1, which places the parts of the sharing fixtures. Nothing else changes.

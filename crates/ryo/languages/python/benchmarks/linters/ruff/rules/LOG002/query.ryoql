@@ -1,5 +1,7 @@
 import observation_matches from "python/ruff/suppress-matches";
-let calls = select id, file, span from "semantic-syntax" where kind = "call";
+import call_syntax from "python/ruff/calls";
+import line_located from "python/ruff/candidate-locations";
+let calls = call_syntax();
 let function_fields = select parent, child from "semantic-child" where field = "func";
 let call_functions = select l.parent as call, l.child as function from function_fields as l join calls as r on l.parent = r.id;
 let logger_functions = select id, file from "qualified-name" where path = "logging.getLogger";
@@ -48,7 +50,7 @@ let prior_events = select name, scope, ordinal, file from "binding-event" where 
 let shadowed = select l.call as call, l.id as id from lookup_scopes as l join prior_events as r on l.name = r.name and l.lookup_scope = r.scope and l.file = r.file where r.ordinal < l.ordinal;
 let unshadowed = antijoin(left=candidates, right=shadowed, left-on=["call", "id"], right-on=["call", "id"]);
 let reportable = select id, file, span from unshadowed;
-let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id and l.file = r.file;
+let candidate_locations = line_located(candidates=reportable);
 let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:LOG002)$");
 let violations_rows = select id, file, span from candidate_locations;
 let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);

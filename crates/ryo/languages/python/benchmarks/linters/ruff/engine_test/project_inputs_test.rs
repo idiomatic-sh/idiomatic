@@ -1,6 +1,6 @@
 //! Authored project cases reach the SDK through the real suite and prepared worker boundaries.
 use super::constants::{
-    ALWAYS, BENCHMARK_TOML, BENCHMARKS_LINTERS_RUFF, BROKEN_OFFSET, BROKEN_SOURCE, CASES,
+    ALWAYS, BENCHMARK_TOML, BROKEN_OFFSET, BROKEN_SOURCE, CASES,
     CASES_TOML, EXPLICIT_PYTHON_UNRELATED_TOML_STI, FULL, INVALID_SYNTAX,
     INVALID_TOML_AND_INVALID_PYTHON, KEY_CASES, KEY_COMPARISON, KEY_CONTEXT, KEY_END, KEY_EXPECTED,
     KEY_FILE, KEY_FILES, KEY_LOGICAL_ROOT, KEY_NAME, KEY_RULE, KEY_START, OTHER_TOML,
@@ -21,7 +21,7 @@ use std::collections::BTreeSet;
 pub(super) fn listed_project_inputs_and_invalid_sources_keep_distinct_readers() -> Result<(), Error>
 {
     let scratch = tempfile::tempdir()?;
-    let source = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(BENCHMARKS_LINTERS_RUFF);
+    let source = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let profile = scratch.path().join(PROFILE);
     let rules = profile.join(RULES);
     let rule = rules.join(RUF200);

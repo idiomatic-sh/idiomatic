@@ -1,10 +1,12 @@
 import observation_matches from "python/ruff/suppress-matches";
+import call_syntax from "python/ruff/calls";
 let nodes = select id, kind, file, span from "semantic-syntax";
 let edges = select parent, child, field, ordinal, file from "semantic-child";
 let ancestry_edges = select child as origin, parent as destination from edges;
 let ancestry = closure(edges=ancestry_edges, source="origin", destination="destination");
 let loops = select id, file from nodes where kind = "for";
-let calls = select id, file from nodes where kind = "call";
+let call_syntax_rows = call_syntax();
+let calls = select id, file from call_syntax_rows;
 let call_functions = select l.id as call, r.child as function, l.file as file from calls as l join edges as r on l.id = r.parent and l.file = r.file where r.field = "func";
 let groupby_names = select id, file from "qualified-name" where path = "itertools.groupby";
 let groupby_calls = select l.call as id, l.file as file from call_functions as l join groupby_names as r on l.function = r.id and l.file = r.file;

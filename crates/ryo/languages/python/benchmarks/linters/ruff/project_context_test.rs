@@ -16,7 +16,7 @@ use std::{
 };
 
 fn staged(root: &Path) -> Result<(PathBuf, Vec<PreparedCase>), Error> {
-    let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("benchmarks/linters/ruff");
+    let source = Path::new(env!("CARGO_MANIFEST_DIR")).to_path_buf();
     let profile = root.join("profile");
     std::fs::create_dir_all(profile.join("rules/PLW0406"))?;
     std::fs::create_dir_all(profile.join("fragments"))?;

@@ -1,5 +1,9 @@
 # benchmark-linter
 
+## 0.2.2
+
+Places `Cargo.toml`, the linter's own unpublished package: its `bench.rs` and `tests.rs` targets move out of the language provider's manifest, so the provider's published package carries no linter rule set or harness. Nothing else changes.
+
 ## 0.2.1
 
 Places `sharing/fixtures/{part}.rs`, one file per concept of the inventory proof's fixtures, beside `sharing/fixtures/mod.rs`, which the 400-line limit otherwise forces to hold all of them. A nested directory or a file outside `sharing/fixtures/` is still refused. Nothing else changes.

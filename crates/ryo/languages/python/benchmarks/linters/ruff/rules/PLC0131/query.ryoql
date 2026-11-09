@@ -1,8 +1,10 @@
 import observation_matches from "python/ruff/suppress-matches";
+import call_syntax from "python/ruff/calls";
+import line_located from "python/ruff/candidate-locations";
 let assignments = select id, file from "semantic-syntax" where kind = "assign";
 let value_edges = select parent, child from "semantic-child" where field = "value";
 let assignment_values = select l.id as assignment, l.file as file, r.child as call from assignments as l join value_edges as r on l.id = r.parent;
-let calls = select id, file, span from "semantic-syntax" where kind = "call";
+let calls = call_syntax();
 let direct_calls = select l.assignment as assignment, l.file as file, l.call as call, r.span as call_span from assignment_values as l join calls as r on l.call = r.id and l.file = r.file;
 let callee_edges = select parent, child from "semantic-child" where field = "func";
 let call_callees = select l.assignment as assignment, l.call as call, l.call_span as call_span, l.file as file, r.child as callee from direct_calls as l join callee_edges as r on l.call = r.parent;
@@ -32,7 +34,7 @@ let covariant_calls = select call, file from true_keywords where name = "covaria
 let contravariant_calls = select call, file from true_keywords where name = "contravariant";
 let bivariant_calls = select l.call as call, l.file as file from covariant_calls as l join contravariant_calls as r on l.call = r.call and l.file = r.file;
 let candidates = select l.callee as id, l.file as file, l.callee_span as span from variable_calls as l join bivariant_calls as r on l.call = r.call and l.file = r.file;
-let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from candidates as l join "source-location" as r on l.id = r.id and l.file = r.file;
+let candidate_locations = line_located(candidates=candidates);
 let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:PLC0131)$");
 let violations_rows = select id, file, span from candidate_locations;
 let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);

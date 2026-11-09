@@ -1,5 +1,6 @@
 import observation_matches from "python/ruff/suppress-matches";
 import builtin_match from "python/ruff/builtin-match-at-visit";
+import call_syntax from "python/ruff/calls";
 let nodes = select id, kind, file, span from "semantic-syntax";
 let edges = select parent, child, field, ordinal, file from "semantic-child";
 let identifiers = select id, name, file from "identifier";
@@ -7,7 +8,8 @@ let handlers = select id, file from nodes where kind = "except-handler";
 let tuples = select id, file from nodes where kind = "tuple";
 let names = select id, file from nodes where kind = "name";
 let attributes = select id, file from nodes where kind = "attribute";
-let calls = select id, file from nodes where kind = "call";
+let call_syntax_rows = call_syntax();
+let calls = select id, file from call_syntax_rows;
 let type_roots = select l.id as handler, r.child as root, l.file as file from handlers as l join edges as r on l.id = r.parent and l.file = r.file where r.field = "type";
 let tuple_elements = select l.id as source, r.child as destination, l.file as file from tuples as l join edges as r on l.id = r.parent and l.file = r.file where r.field = "elts";
 let tuple_paths = closure(edges=tuple_elements, source="source", destination="destination", keys=["file"]);

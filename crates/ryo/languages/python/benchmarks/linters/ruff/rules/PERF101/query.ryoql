@@ -1,9 +1,11 @@
 import observation_matches from "python/ruff/suppress-matches";
 import assigned_values from "python/ruff/assigned-values";
+import call_syntax from "python/ruff/calls";
 let loops = select id, file from "semantic-syntax" where kind = "for" or kind = "async-for";
 let iter_fields = select parent, child from "semantic-child" where field = "iter";
 let loop_iterators = select l.id as loop, l.file as file, r.child as iterator from loops as l join iter_fields as r on l.id = r.parent;
-let calls = select id, file from "semantic-syntax" where kind = "call";
+let call_syntax_rows = call_syntax();
+let calls = select id, file from call_syntax_rows;
 let function_fields = select parent, child, file from "semantic-child" where field = "func";
 let call_functions = select l.parent as call, l.child as function, r.file as file from function_fields as l join calls as r on l.parent = r.id;
 let list_functions = select id, file from "qualified-name" where path = "builtins.list";

@@ -3,6 +3,7 @@ import noqa_locations from "python/ruff/noqa-locations";
 import suppression_edges from "python/ruff/noqa-suppressions-with-additional-lines";
 import deferred_resolutions from "python/ruff/deferred-read-resolutions";
 import eager_before_future from "python/ruff/eager-before-future";
+import line_located from "python/ruff/candidate-locations";
 let read_rows = select reference, name, scope, phase, context, state, "since-major" as since_major, "since-minor" as since_minor, file, span from "binding-read";
 let ordinary_missing0 = select reference as id, name, scope, phase, file, span from read_rows where state = "unbound" and context != "deletion";
 let replay_reads = select reference as id, name, scope, phase, file from read_rows where context != "deletion";
@@ -116,7 +117,7 @@ let unresolved_reads = select id, name, scope, phase, file from ordinary_missing
 let deferred_known = deferred_resolutions(missing=unresolved_reads);
 let final_candidates = antijoin(left=report_candidates, right=deferred_known, left-on=["id", "file"], right-on=["id", "file"]);
 let reportable = select id, file, span from final_candidates;
-let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id;
+let candidate_locations = line_located(candidates=reportable);
 let suppression_mappings = noqa_line_map();
 let suppression_locations = noqa_locations(candidates=candidate_locations, mappings=suppression_mappings);
 let suppression_parents = select id, file, line from candidate_locations where id != id;

@@ -1,0 +1,11 @@
+input keywords: relation<call: node, id: node>;
+input identifiers: relation<id: node, text: symbol>;
+output relation<call: node, id: node, name: symbol>;
+let arg_fields = select parent, child from "semantic-child" where field = "arg";
+let arg_tokens = select l.parent as keyword, r.child as token from arg_fields as l join "semantic-child" as r on l.child = r.parent;
+let named_keywords = select l.keyword as id, r.text as name from arg_tokens as l join identifiers as r on l.token = r.id;
+let unordered_keyword_names = select l.call as call, l.id as id, r.name as name from keywords as l join named_keywords as r on l.id = r.id;
+let ordered_keyword_names = select l.call as call, l.id as id, l.name as name, r."start-byte" as begin from unordered_keyword_names as l join "source-location" as r on l.id = r.id;
+let later_keyword_names = select l.id as id from ordered_keyword_names as l join ordered_keyword_names as r on l.call = r.call and l.name = r.name where l.begin > r.begin;
+let keyword_names = antijoin(left=unordered_keyword_names, right=later_keyword_names, left-on=["id"], right-on=["id"]);
+return keyword_names;

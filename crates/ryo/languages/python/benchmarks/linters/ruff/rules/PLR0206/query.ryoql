@@ -1,4 +1,5 @@
 import observation_matches from "python/ruff/suppress-matches";
+import line_located from "python/ruff/candidate-locations";
 let functions = select id, file from "semantic-syntax" where kind = "function-def" or kind = "async-function-def";
 let name_edges = select parent as function, child as name from "semantic-child" where field = "name";
 let function_name_nodes = select l.id as function, l.file as file, r.name as name_node from functions as l join name_edges as r on l.id = r.function;
@@ -20,7 +21,7 @@ let property_decorators = select function, file from decorator_origins where pat
 let parameter_counts = group-count(from="parameter", keys=["owner","file"], count="count", distinct="id");
 let extra_parameters = select l.function as function, l.file as file from property_decorators as l join parameter_counts as r on l.function = r.owner and l.file = r.file where r.count > 1;
 let candidates = select l.name_id as id, l.file as file, l.name_span as span from named_functions as l join extra_parameters as r on l.function = r.function and l.file = r.file;
-let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from candidates as l join "source-location" as r on l.id = r.id and l.file = r.file;
+let candidate_locations = line_located(candidates=candidates);
 let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:PLR0206)$");
 let violations_rows = select id, file, span from candidate_locations;
 let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);

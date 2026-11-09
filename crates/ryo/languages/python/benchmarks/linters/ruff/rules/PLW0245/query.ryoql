@@ -1,11 +1,14 @@
 import observation_matches from "python/ruff/suppress-matches";
+import call_syntax from "python/ruff/calls";
+import line_located from "python/ruff/candidate-locations";
 let attributes = select id, file from "semantic-syntax" where kind = "attribute";
 let value_fields = select parent, child from "semantic-child" where field = "value";
 let name_nodes = select id, file from "semantic-syntax" where kind = "name";
 let attribute_bases = select l.parent as attribute, r.id as base, r.file as file from value_fields as l join name_nodes as r on l.child = r.id;
 let super_names = select id, file, span from "qualified-name" where path = "builtins.super";
 let super_base_attributes = select l.attribute as attribute, l.base as base, l.file as file, r.span as span from attribute_bases as l join super_names as r on l.base = r.id and l.file = r.file;
-let calls = select id, file from "semantic-syntax" where kind = "call";
+let call_syntax_rows = call_syntax();
+let calls = select id, file from call_syntax_rows;
 let function_fields = select parent, child from "semantic-child" where field = "func";
 let call_functions = select l.parent as call, l.child as function, r.file as file from function_fields as l join calls as r on l.parent = r.id;
 let called_attributes = select l.call as call, l.function as attribute, l.file as file from call_functions as l join attributes as r on l.function = r.id and l.file = r.file;
@@ -24,7 +27,7 @@ let new_functions = select function, file from named_functions where name = "__n
 let ordinary_method_functions = antijoin(left=method_functions,right=new_functions,left-on=["function","file"],right-on=["function","file"]);
 let eligible_method_contexts = select l.base as base, l.file as file from function_contexts as l join ordinary_method_functions as r on l.function = r.function and l.file = r.file;
 let reportable = select l.base as id, l.file as file, r.span as span from eligible_method_contexts as l join super_names as r on l.base = r.id and l.file = r.file;
-let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id and l.file = r.file;
+let candidate_locations = line_located(candidates=reportable);
 let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:PLW0245)$");
 let violations_rows = select id, file, span from candidate_locations;
 let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);

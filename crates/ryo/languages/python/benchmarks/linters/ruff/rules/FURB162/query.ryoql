@@ -1,5 +1,7 @@
 import observation_matches from "python/ruff/suppress-matches";
-let calls = select id, file, span from "semantic-syntax" where kind = "call";
+import call_syntax from "python/ruff/calls";
+import line_located from "python/ruff/candidate-locations";
+let calls = call_syntax();
 let function_edges = select parent, child, file from "semantic-child" where field = "func";
 let call_functions = select l.parent as call, l.child as function, r.file as file, r.span as span from function_edges as l join calls as r on l.parent = r.id and l.file = r.file;
 let target_versions = select file, major, minor from "language-target";
@@ -102,7 +104,7 @@ let all_matches = union(left=matched_replace_calls, right=concat_candidates);
 let target_matches = select l.id as id, l.file as file from all_matches as l join python311_targets as r on l.file = r.file;
 let candidate_nodes = select id, file, span from "semantic-syntax";
 let candidates = select l.id as id, l.file as file, r.span as span from target_matches as l join candidate_nodes as r on l.id = r.id and l.file = r.file;
-let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from candidates as l join "source-location" as r on l.id = r.id and l.file = r.file;
+let candidate_locations = line_located(candidates=candidates);
 let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:FURB162)$");
 let violations_rows = select id, file, span from candidate_locations;
 let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);

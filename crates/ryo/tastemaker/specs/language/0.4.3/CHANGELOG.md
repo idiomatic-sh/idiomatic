@@ -1,3 +1,7 @@
+# language 0.4.3
+
+Places `benchmark` 0.2.2 (and through it `benchmark-linter` 0.2.2) and holds `benchmark-targets` 0.2.0: a linter's bench and test targets are declared by its own package under `benchmarks/linters/<linter>/`, and refused in the language's `Cargo.toml`.
+
 # language 0.4.2
 
 Places `benchmark` 0.2.1 (and through it `benchmark-linter` 0.2.1).

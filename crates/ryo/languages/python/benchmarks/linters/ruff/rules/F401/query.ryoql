@@ -2,6 +2,7 @@ import noqa_line_map from "python/ruff/noqa-line-map";
 import noqa_locations from "python/ruff/noqa-locations";
 import noqa_additional_locations from "python/ruff/noqa-additional-locations";
 import suppression_edges from "python/ruff/noqa-suppressions-with-additional-lines";
+import line_located from "python/ruff/candidate-locations";
 let nodes = select id, kind, file, span from "semantic-syntax";
 let modules = select id, file from nodes where kind = "module";
 let scopes = select id from nodes where kind = "module" or kind = "class-def" or kind = "function-def" or kind = "async-function-def" or kind = "lambda";
@@ -129,7 +130,7 @@ let import_statements = select id from nodes where kind = "import" or kind = "im
 let import_owners = axis(from=aliases,relation="semantic-child",direction=nearest-ancestor,domain=import_statements);
 let report_parents = select l.id as id, l.file as file, r.related as parent from report_candidates as l join import_owners as r on l.binding = r.id;
 let export_parent_lines = select l.id as id, l.file as file, r."start-line" as line from report_parents as l join "source-location" as r on l.parent = r.id;
-let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id;
+let candidate_locations = line_located(candidates=reportable);
 let suppression_mappings = noqa_line_map();
 let suppression_locations = noqa_locations(candidates=candidate_locations, mappings=suppression_mappings);
 let suppression_parents = noqa_additional_locations(additional_locations=export_parent_lines, mappings=suppression_mappings);

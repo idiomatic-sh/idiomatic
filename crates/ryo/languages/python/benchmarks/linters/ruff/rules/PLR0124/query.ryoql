@@ -1,4 +1,5 @@
 import observation_matches from "python/ruff/suppress-matches";
+import call_syntax from "python/ruff/calls";
 let comparisons = select id, file from "semantic-syntax" where kind = "compare";
 let left_fields = select parent, child from "semantic-child" where field = "left";
 let comparison_lefts = select l.id as comparison, r.child as operand, l.file as file from comparisons as l join left_fields as r on l.id = r.parent;
@@ -18,7 +19,7 @@ let name_fields = select parent, child from "semantic-child" where field = "id";
 let named_nodes = select l.parent as id, r.text as name from name_fields as l join semantic_identifiers as r on l.child = r.id;
 let left_named_pairs = select l.comparison as comparison, l.left as left, l.right as right, r.name as name from pair_union as l join named_nodes as r on l.left = r.id;
 let name_pairs = select l.comparison as comparison, l.left as left, l.right as right from left_named_pairs as l join named_nodes as r on l.right = r.id and l.name = r.name;
-let calls = select id, file, span from "semantic-syntax" where kind = "call";
+let calls = call_syntax();
 let call_args_nodes = select id from "semantic-syntax" where kind = "call-arguments";
 let call_args = select l.parent as call, l.child as args from "semantic-child" as l join call_args_nodes as r on l.child = r.id;
 let positional_fields = select parent, child from "semantic-child" where field = "args";

@@ -1,4 +1,5 @@
 import observation_matches from "python/ruff/suppress-matches";
+import line_located from "python/ruff/candidate-locations";
 let imported = select occurrence as id, target, file, span from "static-import";
 let exact_path = select id, file, span from imported where target = "xml.etree.cElementTree";
 let asnames = select parent from "semantic-child" where field = "asname";
@@ -14,7 +15,7 @@ let parents = select l.parent as parent from "semantic-child" as l join imported
 let from_imports = select id, file, span from "semantic-syntax" where kind = "import-from";
 let statements = select l.id as id, l.file as file, l.span as span from from_imports as l join parents as r on l.id = r.parent;
 let reportable = union(left=aliased, right=statements);
-let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id;
+let candidate_locations = line_located(candidates=reportable);
 let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:UP023)$");
 let violations_rows = select id, file, span from candidate_locations;
 let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);

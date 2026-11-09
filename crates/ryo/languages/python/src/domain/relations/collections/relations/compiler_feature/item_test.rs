@@ -6,7 +6,7 @@ use crate::settings::{PythonParserSettings, PythonTargetVersion};
 use ryo::languages::{self, contract::Want};
 
 /// Read the actual provider projection at an explicitly selected language version and source kind.
-fn feature(source: &'static str, path: &'static str, target: PythonTargetVersion) -> bool {
+fn feature(source: &'static str, path: &str, target: PythonTargetVersion) -> bool {
     let report = languages::contract::reading::<CompilerFeatureItem>(
         &crate::linked_with_settings(PythonParserSettings::new(target)),
         languages::SourcePath(path),
@@ -79,6 +79,33 @@ fn native_deferred_annotations_do_not_invent_a_future_feature() {
     }
 }
 
+/// Every annotation context of the language fixture (`tests/fixtures/compiler-features`) enables the future-annotations feature
+/// exactly where the fixture says the validated module future flag is on, at the fixture's own parser target and file name.
+fn annotation_context_fixture_flags_follow_the_fixture() {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/compiler-features/annotation-contexts.json");
+    let cases: Vec<serde_json::Value> =
+        serde_json::from_slice(&std::fs::read(path).expect("the fixture")).expect("JSON");
+    assert!(cases.len() >= 40, "the fixture stays nonvacuous");
+    for case in &cases {
+        let text = |key: &str| case[key].as_str().expect("a text field").to_owned();
+        let target = match text("target").as_str() {
+            "py313" => PythonTargetVersion::Py313,
+            "py314" => PythonTargetVersion::Py314,
+            "py315" => PythonTargetVersion::Py315,
+            other => panic!("unknown fixture target {other}"),
+        };
+        // The sample text of a provider reading is `'static`: the fixture's 51 sources are leaked for this one test.
+        let source: &'static str = Box::leak(text("source").into_boxed_str());
+        assert_eq!(
+            feature(source, &text("file"), target),
+            case["feature"].as_bool().expect("a flag"),
+            "{}",
+            text("name")
+        );
+    }
+}
+
 /// Each check below states its own source and asserts its own outcome.
 const CASES: &[Case<fn(), (), ()>] = &[
     Case {
@@ -91,6 +118,12 @@ const CASES: &[Case<fn(), (), ()>] = &[
         name: CaseName("native_deferred_annotations_do_not_invent_a_future_feature"),
         word: Word::Succeeds,
         input: || native_deferred_annotations_do_not_invent_a_future_feature,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("annotation_context_fixture_flags_follow_the_fixture"),
+        word: Word::Succeeds,
+        input: || annotation_context_fixture_flags_follow_the_fixture,
         expect: Expect::Value(()),
     },
 ];

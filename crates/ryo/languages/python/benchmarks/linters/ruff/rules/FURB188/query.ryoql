@@ -1,4 +1,5 @@
 import observation_matches from "python/ruff/suppress-matches";
+import call_syntax from "python/ruff/calls";
 let nodes = select id, file, kind, text, span from "semantic-syntax";
 let edges = select parent, child, field, file from "semantic-child";
 let shapes = select id, shape, file from "expression-shape";
@@ -23,7 +24,8 @@ let subscript_patterns = select l.id as id, l.sliced as sliced, l.test as test, 
 let texts = select l.id as id, l.sliced as sliced, l.test as test, l.other as other, r.child as value, l.file as file from subscript_patterns as l join edges as r on l.sliced = r.parent and l.file = r.file where r.field = "value";
 let text_shapes = select l.id as id, l.sliced as sliced, l.test as test, l.other as other, l.value as value, r.shape as shape, l.file as file from texts as l join shapes as r on l.value = r.id and l.file = r.file;
 let same_other = select l.id as id, l.sliced as sliced, l.test as test, l.value as value, l.shape as shape, l.file as file from text_shapes as l join shapes as r on l.other = r.id and l.shape = r.shape and l.file = r.file;
-let calls = select id, file from nodes where kind = "call";
+let call_syntax_rows = call_syntax();
+let calls = select id, file from call_syntax_rows;
 let funcs = select l.id as call, r.child as func, l.file as file from calls as l join edges as r on l.id = r.parent and l.file = r.file where r.field = "func";
 let attrs = select id, file from nodes where kind = "attribute";
 let attr_labels = select l.id as attr, r.child as label, l.file as file from attrs as l join edges as r on l.id = r.parent and l.file = r.file where r.field = "attr";

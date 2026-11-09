@@ -1,8 +1,9 @@
 import observation_matches from "python/ruff/suppress-matches";
 import type_match_at_check from "python/ruff/type-match-at-check";
+import call_syntax from "python/ruff/calls";
 
 let syntax = select id, kind, file, span from "semantic-syntax";
-let calls = select id, file, span from syntax where kind = "call";
+let calls = call_syntax();
 let names = select id, file from syntax where kind = "name";
 let functions = select id, file from syntax where kind = "function-def" or kind = "async-function-def" or kind = "lambda";
 let classes = select id, file from syntax where kind = "class-def";

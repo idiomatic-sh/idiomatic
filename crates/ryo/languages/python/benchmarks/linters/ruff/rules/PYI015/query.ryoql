@@ -1,5 +1,6 @@
 import observation_matches from "python/ruff/suppress-matches";
 import simple_defaults from "python/ruff/simple-stub-defaults";
+import call_syntax from "python/ruff/calls";
 let nodes = select id, kind, file from "semantic-syntax";
 let stubs = select path as file from "filesystem.file" where ends_with(path, ".pyi");
 let assignments0 = select l.id as id, l.kind as kind, l.file as file from nodes as l join stubs as r on l.file = r.file where l.kind = "assign" or l.kind = "ann-assign";
@@ -28,7 +29,8 @@ let final_annotations = select l.assignment as assignment, l.file as file from a
 let final_value_kinds = select id, file from nodes where kind = "name" or kind = "attribute";
 let final_values = select l.assignment as assignment, l.file as file from values as l join final_value_kinds as r on l.value = r.id and l.file = r.file;
 let final_assignments = select l.assignment as assignment, l.file as file from final_annotations as l join final_values as r on l.assignment = r.assignment and l.file = r.file;
-let calls = select id, file from nodes where kind = "call";
+let call_syntax_rows = call_syntax();
+let calls = select id, file from call_syntax_rows;
 let call_functions = select l.id as call, r.child as function, l.file as file from calls as l join "semantic-child" as r on l.id = r.parent and l.file = r.file where r.field = "func";
 let typevar_names = select id, file from "qualified-name" where path = "typing.TypeVar" or path = "typing.ParamSpec" or path = "typing.TypeVarTuple" or path = "typing.NewType" or path = "typing_extensions.TypeVar" or path = "typing_extensions.ParamSpec" or path = "typing_extensions.TypeVarTuple" or path = "typing_extensions.NewType";
 let typevar_calls = select l.call as id, l.file as file from call_functions as l join typevar_names as r on l.function = r.id and l.file = r.file;

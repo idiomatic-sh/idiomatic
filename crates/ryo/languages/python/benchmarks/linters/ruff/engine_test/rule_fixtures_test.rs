@@ -27,7 +27,7 @@ pub(super) fn write_rule_fixtures(
             | EngineScenario::OrdinaryAnnotationNamedExpression
     ) {
         let source =
-            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("benchmarks/linters/ruff");
+            std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         for path in modules_for(scenario)?.values() {
             let destination = root.join(path);
             let parent = destination

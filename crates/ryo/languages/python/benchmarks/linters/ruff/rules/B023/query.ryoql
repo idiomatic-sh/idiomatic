@@ -1,4 +1,5 @@
 import observation_matches from "python/ruff/suppress-matches";
+import line_located from "python/ruff/candidate-locations";
 let nodes = select id, kind, text, file, span from "semantic-syntax";
 let loops = select id, kind, file from nodes where kind = "for" or kind = "async-for" or kind = "list-comp" or kind = "set-comp" or kind = "dict-comp" or kind = "generator-exp";
 let target_fields = select parent, child from "semantic-child" where field = "target";
@@ -71,7 +72,7 @@ let function_uses = select reference, binding, phase, file from "binding-use";
 let uses_in_function = select l.loop as loop, l.function as function, r.reference as id, r.binding as binding, l.file as file from function_loops as l join function_uses as r on l.function = r.phase and l.file = r.file;
 let captured_loop_bindings = select l.id as id, l.file as file from uses_in_function as l join bindings as r on l.loop = r.loop and l.binding = r.binding and l.file = r.file;
 let reportable = select l.id as id, l.file as file, r.span as span from captured_loop_bindings as l join nodes as r on l.id = r.id and l.file = r.file;
-let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id and l.file = r.file;
+let candidate_locations = line_located(candidates=reportable);
 let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:B023)$");
 let violations_rows = select id, file, span from candidate_locations;
 let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);

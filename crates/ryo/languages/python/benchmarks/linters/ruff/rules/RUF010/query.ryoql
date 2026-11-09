@@ -1,4 +1,5 @@
 import observation_matches from "python/ruff/suppress-matches";
+import call_syntax from "python/ruff/calls";
 let nodes = select id, kind, file, span from "semantic-syntax";
 let edges = select parent, child, field, file from "semantic-child";
 let fstring_parts = select id, file from nodes where kind = "f-string-part";
@@ -11,7 +12,8 @@ let child_tokens = select l.formatted as formatted, r.child as token, l.file as 
 let debug_values = select l.formatted as formatted, l.file as file from child_tokens as l join "semantic-syntax" as r on l.token = r.id and l.file = r.file where r.text = "=";
 let eligible_values = antijoin(left=without_conversion, right=debug_values, left-on=["formatted", "file"], right-on=["formatted", "file"]);
 let values = select l.formatted as formatted, r.child as call, l.file as file from eligible_values as l join edges as r on l.formatted = r.parent and l.file = r.file where r.field = "value";
-let calls = select id, file from nodes where kind = "call";
+let call_syntax_rows = call_syntax();
+let calls = select id, file from call_syntax_rows;
 let call_values = select l.formatted as formatted, l.call as call, l.file as file from values as l join calls as r on l.call = r.id and l.file = r.file;
 let functions = select l.formatted as formatted, l.call as call, r.child as function, l.file as file from call_values as l join edges as r on l.call = r.parent and l.file = r.file where r.field = "func";
 let builtin_functions = select q.id as id, q.path as path, q.file as file from "qualified-name" as q where (q.path = "builtins.str" or q.path = "builtins.repr" or q.path = "builtins.ascii") and (q.provenance != "builtin" or q."since-major" < 3 or q."since-major" = 3 and q."since-minor" <= 10);

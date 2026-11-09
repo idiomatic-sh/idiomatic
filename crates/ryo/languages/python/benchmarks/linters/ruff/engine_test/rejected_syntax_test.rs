@@ -104,7 +104,7 @@ pub(super) fn a_rejected_file_leaves_pt020_pt025_and_pt026_answering_the_valid_f
 /// lineage, the one rejected file left all three Unknown at every file.
 pub(super) fn a_rejected_file_leaves_i001_plw0406_and_ruf100_answering_the_valid_file() {
     use super::constants::{
-        BENCHMARK_TOML, BENCHMARKS_LINTERS_RUFF, CODE, CONFIG_DISABLED, CONFIG_EXTERNAL,
+        BENCHMARK_TOML, CODE, CONFIG_DISABLED, CONFIG_EXTERNAL,
         CONFIG_SELECTED, DIRECTIVE, EMPTY, FILE, NOQA_MATCHES, PREFIX, QUERY_MODULES,
         RULES_I001_QUERY_RYOQL, RULES_RUF100_QUERY_RYOQL, SUPPRESSION_MATCHES,
     };
@@ -121,7 +121,7 @@ pub(super) fn a_rejected_file_leaves_i001_plw0406_and_ruf100_answering_the_valid
     const PACKAGE: &str = "pkg/__init__.py";
     const BROKEN: &str = "broken.py";
     let root = tempfile::tempdir().unwrap();
-    let authored = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(BENCHMARKS_LINTERS_RUFF);
+    let authored = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let profile: toml::Value =
         toml::from_str(&std::fs::read_to_string(authored.join(BENCHMARK_TOML)).unwrap()).unwrap();
     let modules = profile[QUERY_MODULES]

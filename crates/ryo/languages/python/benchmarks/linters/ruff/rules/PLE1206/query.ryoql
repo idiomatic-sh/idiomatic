@@ -1,5 +1,7 @@
 import observation_matches from "python/ruff/suppress-matches";
-let calls = select id, file, span from "semantic-syntax" where kind = "call";
+import call_syntax from "python/ruff/calls";
+import line_located from "python/ruff/candidate-locations";
+let calls = call_syntax();
 let function_fields = select parent, child from "semantic-child" where field = "func";
 let call_functions = select l.parent as call, l.child as function, r.file as file, r.span as span from function_fields as l join calls as r on l.parent = r.id;
 let logging_function_names = select id, file from "qualified-name" where path = "logging.debug" or path = "logging.critical" or path = "logging.error" or path = "logging.exception" or path = "logging.info" or path = "logging.warn" or path = "logging.warning";
@@ -80,7 +82,7 @@ let compared_argument_counts = select l.call as call, l.file as file, l.position
 let too_few_calls = select call, file from compared_argument_counts where provided_count > 0 and provided_count < positional_consumption;
 let too_few_functions = select r.function as id, l.file as file from too_few_calls as l join call_functions as r on l.call = r.call and l.file = r.file;
 let candidates = select l.id as id, l.file as file, r.span as span from too_few_functions as l join "semantic-syntax" as r on l.id = r.id and l.file = r.file;
-let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from candidates as l join "source-location" as r on l.id = r.id and l.file = r.file;
+let candidate_locations = line_located(candidates=candidates);
 let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:PLE1206)$");
 let violations_rows = select id, file, span from candidate_locations;
 let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);

@@ -1,4 +1,5 @@
 import observation_matches from "python/ruff/suppress-matches";
+import line_located from "python/ruff/candidate-locations";
 let handlers = select id from "semantic-syntax" where kind = "except-handler";
 let types = select parent, child from "semantic-child" where field = "type";
 let handled = select r.child as child from handlers as l join types as r on l.id = r.parent;
@@ -8,7 +9,7 @@ let elements = select parent, child from "semantic-child" where field = "elts";
 let named_elements = select l.parent as parent, l.child as child, r.target as target from elements as l join "reference" as r on l.child = r.occurrence;
 let duplicates = select l.parent as parent from named_elements as l join named_elements as r on l.parent = r.parent and l.target = r.target where l.child != r.child;
 let reportable = select l.id as id, l.file as file, l.span as span from exception_tuples as l join duplicates as r on l.id = r.parent;
-let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id;
+let candidate_locations = line_located(candidates=reportable);
 let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:B014)$");
 let violations_rows = select id, file, span from candidate_locations;
 let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);

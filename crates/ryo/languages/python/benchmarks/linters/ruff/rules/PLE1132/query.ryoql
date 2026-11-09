@@ -1,8 +1,11 @@
 import observation_matches from "python/ruff/suppress-matches";
+import call_syntax from "python/ruff/calls";
+import line_located from "python/ruff/candidate-locations";
 let semantic_token_nodes = select id from "semantic-syntax" where kind = "name-token";
 let semantic_identifier_children = select r.child as id, l.name as text from "identifier" as l join "semantic-child" as r on l.id = r.parent;
 let semantic_identifiers = select l.id as id, l.text as text from semantic_identifier_children as l join semantic_token_nodes as r on l.id = r.id;
-let calls = select id from "semantic-syntax" where kind = "call";
+let call_syntax_rows = call_syntax();
+let calls = select id from call_syntax_rows;
 let arguments = select id from "semantic-syntax" where kind = "call-arguments";
 let argument_parents = select l.parent as parent, r.id as id from "semantic-child" as l join arguments as r on l.child = r.id;
 let call_arguments = select r.id as id from calls as l join argument_parents as r on l.id = r.parent;
@@ -28,7 +31,7 @@ let earlier_keywords = select l.id as id, l.file as file, l.span as span from ke
 let earlier_keys = select l.id as id, l.file as file, l.span as span from keys as l join keys as r on l.call = r.call and l.keyword = r.keyword and l.name = r.name where r.position < l.position;
 let dictionary_duplicates = union(left=earlier_keywords, right=earlier_keys);
 let reportable = union(left=explicit_duplicates, right=dictionary_duplicates);
-let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id;
+let candidate_locations = line_located(candidates=reportable);
 let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:PLE1132)$");
 let violations_rows = select id, file, span from candidate_locations;
 let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);

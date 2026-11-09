@@ -2,6 +2,7 @@ import observation_matches from "python/ruff/suppress-matches";
 import io_base_binding from "python/ruff/io-base-binding";
 import lookup_symbol_events from "python/ruff/lookup-symbol-events";
 import modernization_symbols from "python/ruff/modernization-symbols";
+import call_syntax from "python/ruff/calls";
 let nodes = select id, kind, file from "semantic-syntax";
 let loops = select id, file from nodes where kind = "for";
 let else_parents = select parent as id, file from "semantic-child" where field = "orelse";
@@ -13,7 +14,8 @@ let single_bodies = select l.loop as loop, l.statement as statement, l.file as f
 let expression_statements = select l.loop as loop, l.statement as statement, l.file as file from single_bodies as l join nodes as r on l.statement = r.id and l.file = r.file where r.kind = "expr";
 let value_fields = select parent, child, file from "semantic-child" where field = "value";
 let expressions = select l.loop as loop, r.child as value, l.file as file from expression_statements as l join value_fields as r on l.statement = r.parent and l.file = r.file;
-let calls = select id, file from nodes where kind = "call";
+let call_syntax_rows = call_syntax();
+let calls = select id, file from call_syntax_rows;
 let body_calls = select l.loop as loop, l.value as call, l.file as file from expressions as l join calls as r on l.value = r.id and l.file = r.file;
 let arguments = select call, expression, passes, file from "call-argument";
 let argument_counts = group-count(from=arguments, keys=["call","file"], count="count", distinct="expression");

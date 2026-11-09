@@ -1,4 +1,5 @@
 import observation_matches from "python/ruff/suppress-matches";
+import line_located from "python/ruff/candidate-locations";
 let statements = select * from "semantic-syntax" where kind = "break";
 let loops = select id from "semantic-syntax" where kind = "for" or kind = "async-for" or kind = "while";
 let body_edges = select parent, child from "semantic-child" where field = "body";
@@ -13,7 +14,7 @@ let valid_direct = select l.id as id from statements as l join body_nodes as r o
 let valid = union(left=valid_nested, right=valid_direct);
 let invalid = antijoin(left=statements, right=valid, left-on=["id"], right-on=["id"]);
 let reportable = select id, file, span from invalid;
-let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id;
+let candidate_locations = line_located(candidates=reportable);
 let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:F701)$");
 let violations_rows = select id, file, span from candidate_locations;
 let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);

@@ -1,4 +1,6 @@
 import observation_matches from "python/ruff/suppress-matches";
+import call_syntax from "python/ruff/calls";
+import line_located from "python/ruff/candidate-locations";
 let assignments = select id, file, span, kind from "semantic-syntax" where kind = "assign" or kind = "ann-assign" or kind = "aug-assign";
 let modules = select id, file from "semantic-syntax" where kind = "module";
 let scopes = select id, file from "semantic-syntax" where kind = "module" or kind = "class-def" or kind = "function-def" or kind = "async-function-def" or kind = "lambda" or kind = "list-comp" or kind = "set-comp" or kind = "dict-comp" or kind = "generator-exp";
@@ -14,7 +16,8 @@ let assignment_values = select l.statement as statement, l.file as file, r.child
 let export_values = select l.id as target, l.file as file, l.span as target_span, r.value as value from export_targets as l join assignment_values as r on l.statement = r.statement and l.file = r.file;
 let sequences = select id, file from "semantic-syntax" where kind = "list" or kind = "tuple" or kind = "set";
 let direct_sequence_values = select l.target as target, l.file as file, l.target_span as target_span, l.value as sequence from export_values as l join sequences as r on l.value = r.id and l.file = r.file;
-let calls = select id, file from "semantic-syntax" where kind = "call";
+let call_syntax_rows = call_syntax();
+let calls = select id, file from call_syntax_rows;
 let function_fields = select parent, child from "semantic-child" where field = "func";
 let call_functions = select l.parent as call, l.child as function, r.file as file from function_fields as l join calls as r on l.parent = r.id;
 let sequence_constructors = select q.id as id, q.file as file from "qualified-name" as q where (q.path = "builtins.list" or q.path = "builtins.tuple") and (q.provenance = "import" or q.provenance = "builtin" and (q."since-major" < 3 or q."since-major" = 3 and q."since-minor" <= 10));
@@ -52,7 +55,7 @@ let sequence_elements = select l.target as target, l.file as file, l.target_span
 let string_literals = select id, file from "literal-properties" where kind = "string";
 let invalid_elements = antijoin(left=sequence_elements, right=string_literals, left-on=["element", "file"], right-on=["id", "file"]);
 let candidates = select target as id, file, target_span as span from invalid_elements;
-let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from candidates as l join "source-location" as r on l.id = r.id and l.file = r.file;
+let candidate_locations = line_located(candidates=candidates);
 let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:PLE0604)$");
 let violations_rows = select id, file, span from candidate_locations;
 let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);

@@ -1,4 +1,5 @@
 import observation_matches from "python/ruff/suppress-matches";
+import call_syntax from "python/ruff/calls";
 let definitions = select id as binding, kind, refinement, name, owner as scope, file, span from "defines";
 let private_definitions = select * from definitions where starts_with(name, "_");
 let uses = select binding, file from "binding-use";
@@ -20,7 +21,8 @@ let assignment_targets = select parent as assignment, child as target, file from
 let assignment_values = select parent as assignment, child as value, file from "semantic-child" where field = "value";
 let other_target_pairs = select l.assignment as assignment from assignment_targets as l join assignment_targets as r on l.assignment = r.assignment and l.file = r.file where l.target != r.target;
 let single_assignment_targets = antijoin(left=assignment_targets, right=other_target_pairs, left-on=["assignment"], right-on=["assignment"]);
-let calls = select id, file from "semantic-syntax" where kind = "call";
+let call_syntax_rows = call_syntax();
+let calls = select id, file from call_syntax_rows;
 let call_functions = select parent as call, child as function, file from "semantic-child" where field = "func";
 let typed_dict_functions = select id, file from "qualified-name" where path = "typing.TypedDict" or path = "typing_extensions.TypedDict";
 let typed_dict_calls = select l.call as call, l.file as file from call_functions as l join typed_dict_functions as r on l.function = r.id and l.file = r.file;

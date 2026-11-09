@@ -1,5 +1,7 @@
 import observation_matches from "python/ruff/suppress-unmapped-matches";
-let calls = select id, file, span from "semantic-syntax" where kind = "call";
+import call_syntax from "python/ruff/calls";
+import line_located from "python/ruff/candidate-locations";
+let calls = call_syntax();
 let function_fields = select parent, child from "semantic-child" where field = "func";
 let call_functions = select l.parent as call, l.child as function, r.file as file from function_fields as l join calls as r on l.parent = r.id;
 let name_nodes = select id, file from "semantic-syntax" where kind = "name";
@@ -124,7 +126,7 @@ let qualified_without_direct = antijoin(left=qualified_valid_calls,right=unshado
 let direct_reportable = select call as id, file, span from unshadowed;
 let qualified_reportable = select call as id, file, span from qualified_without_direct;
 let reportable = union(left=direct_reportable,right=qualified_reportable);
-let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id and l.file = r.file;
+let candidate_locations = line_located(candidates=reportable);
 let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:UP018)$");
 let violations_rows = select id, file, span from candidate_locations;
 let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);

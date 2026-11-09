@@ -1,4 +1,5 @@
 import observation_matches from "python/ruff/suppress-matches";
+import line_located from "python/ruff/candidate-locations";
 let comparisons = select id, file, span from "semantic-syntax" where kind = "compare" and glob_any(file, "**/*.pyi");
 let left_edges = select parent, child, file from "semantic-child" where field = "left";
 let version = select id, file from "qualified-name" where path = "sys.version_info";
@@ -42,7 +43,7 @@ let wrong_two_tuple_rows = select l.comparison as comparison, l.file as file fro
 let two_mismatches = select l.comparison as comparison, l.file as file from wrong_two_tuple_rows as l join two_uppers as u on l.comparison = u.comparison and l.file = u.file;
 let mismatches = union(left=one_mismatches, right=two_mismatches);
 let reportable = select l.comparison as id, r.file as file, r.span as span from mismatches as l join comparisons as r on l.comparison = r.id and l.file = r.file;
-let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id;
+let candidate_locations = line_located(candidates=reportable);
 let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:PYI005)$");
 let violations_rows = select id, file, span from candidate_locations;
 let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);

@@ -1,5 +1,7 @@
 import observation_matches from "python/ruff/suppress-matches";
-let calls = select id, file, span from "semantic-syntax" where kind = "call";
+import call_syntax from "python/ruff/calls";
+import line_located from "python/ruff/candidate-locations";
+let calls = call_syntax();
 let functions = select parent, child from "semantic-child" where field = "func";
 let call_functions = select l.parent as call, l.child as function from functions as l join calls as r on l.parent = r.id;
 let async_functions = select id from "qualified-name" where path = "trio.aclose_forcefully" or path = "trio.lowlevel.cancel_shielded_checkpoint" or path = "trio.lowlevel.checkpoint" or path = "trio.lowlevel.checkpoint_if_cancelled" or path = "trio.lowlevel.open_process" or path = "trio.lowlevel.permanently_detach_coroutine_object" or path = "trio.lowlevel.reattach_detached_coroutine_object" or path = "trio.lowlevel.temporarily_detach_coroutine_object" or path = "trio.lowlevel.wait_readable" or path = "trio.lowlevel.wait_task_rescheduled" or path = "trio.lowlevel.wait_writable" or path = "trio.open_file" or path = "trio.open_ssl_over_tcp_listeners" or path = "trio.open_ssl_over_tcp_stream" or path = "trio.open_tcp_listeners" or path = "trio.open_tcp_stream" or path = "trio.open_unix_socket" or path = "trio.run_process" or path = "trio.serve_listeners" or path = "trio.serve_ssl_over_tcp" or path = "trio.serve_tcp" or path = "trio.sleep" or path = "trio.sleep_forever";
@@ -9,7 +11,7 @@ let awaited_calls = select l.call as call, l.function as function from call_func
 let unawaited_calls = antijoin(left=call_functions, right=awaited_calls, left-on=["call"], right-on=["call"]);
 let matching_calls = select l.call as id from unawaited_calls as l join async_functions as r on l.function = r.id;
 let reportable = select l.id as id, r.file as file, r.span as span from matching_calls as l join calls as r on l.id = r.id;
-let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id and l.file = r.file;
+let candidate_locations = line_located(candidates=reportable);
 let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:ASYNC105|TRIO105)$");
 let violations_rows = select id, file, span from candidate_locations;
 let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);

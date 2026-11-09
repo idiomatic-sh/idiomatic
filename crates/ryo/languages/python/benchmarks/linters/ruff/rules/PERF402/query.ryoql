@@ -1,5 +1,6 @@
 import observation_matches from "python/ruff/suppress-matches";
 import binding_type from "python/ruff/binding-type";
+import call_syntax from "python/ruff/calls";
 let loops = select id, file, span from "semantic-syntax" where kind = "for";
 let targets = select parent, child, file from "semantic-child" where field = "target";
 let loop_targets = select l.id as loop, l.file as file, r.child as target from loops as l join targets as r on l.id = r.parent and l.file = r.file;
@@ -15,7 +16,7 @@ let all_body_calls = select l.loop as loop, l.file as file, l.target_binding as 
 let expression_statements = select id, file from "semantic-syntax" where kind = "expr";
 let expression_body_loops = select l.loop as loop, l.file as file from single_body_loops as l join expression_statements as r on l.statement = r.id and l.file = r.file;
 let body_calls = select l.loop as loop, l.file as file, l.target_binding as target_binding, l.call as call from all_body_calls as l join expression_body_loops as r on l.loop = r.loop and l.file = r.file;
-let calls = select id, file, span from "semantic-syntax" where kind = "call";
+let calls = call_syntax();
 let call_functions = select parent, child, file from "semantic-child" where field = "func";
 let call_attributes = select l.call as call, l.file as file, l.target_binding as target_binding, r.child as attribute from body_calls as l join call_functions as r on l.call = r.parent and l.file = r.file;
 let attributes = select id, file from "semantic-syntax" where kind = "attribute";

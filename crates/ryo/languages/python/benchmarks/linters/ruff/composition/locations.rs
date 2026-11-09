@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 
 /// Locate this language-owned linter profile from the Cargo manifest.
 pub(super) fn directory() -> PathBuf {
-    Path::new(constants::MANIFEST_DIRECTORY).join(constants::RUFF_DIRECTORY)
+    PathBuf::from(constants::MANIFEST_DIRECTORY)
 }
 
 /// Make a scratch directory under the suite boundary's default location, removed when the value drops.

@@ -16,15 +16,10 @@ use prepared_engine_test::{
 
 mod scenario_test;
 use scenario_test::EngineScenario;
-mod cache_change_test;
-use cache_change_test::query_module_inline_equivalence;
 mod suppression_fragment_test;
 use suppression_fragment_test::shared_suppression_fragment_matches_the_historical_inline_queries;
 mod consumer_selection_test;
-use consumer_selection_test::{
-    actual_i001_mixed_namespace_observation_stays_unknown_on_cold_and_warm_replay,
-    selected_consumer_keeps_unselected_producer_without_its_diagnostics,
-};
+use consumer_selection_test::actual_i001_mixed_namespace_observation_stays_unknown_on_cold_and_warm_replay;
 mod rule_fixtures_test;
 use rule_fixtures_test::{modules_for, write_rule_fixtures};
 mod rejected_syntax_test;
@@ -100,12 +95,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Error(BoundaryFailure::Invalid),
     },
     Case {
-        name: CaseName("staged_query_module_matches_its_inline_query"),
-        word: Word::Succeeds,
-        input: || EngineScenario::QueryModuleInlineEquivalence,
-        expect: Expect::Value(true),
-    },
-    Case {
         name: CaseName("a_rejected_file_leaves_pt020_pt025_and_pt026_answering_the_valid_file"),
         word: Word::Succeeds,
         input: || EngineScenario::ARejectedFileLeavesPt020Pt025AndPt026AnsweringTheValidFile,
@@ -121,12 +110,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("shared_suppression_fragment_matches_the_historical_inline_queries"),
         word: Word::Succeeds,
         input: || EngineScenario::SharedSuppressionFragmentMatchesTheHistoricalInlineQueries,
-        expect: Expect::Value(true),
-    },
-    Case {
-        name: CaseName("selected_consumer_keeps_unselected_producer_without_its_diagnostics"),
-        word: Word::Succeeds,
-        input: || EngineScenario::SelectedConsumerKeepsUnselectedProducerWithoutItsDiagnostics,
         expect: Expect::Value(true),
     },
     Case {
@@ -174,10 +157,6 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
     if scenario == EngineScenario::SharedSuppressionFragmentMatchesTheHistoricalInlineQueries {
         return shared_suppression_fragment_matches_the_historical_inline_queries().map(|()| true);
     }
-    if scenario == EngineScenario::SelectedConsumerKeepsUnselectedProducerWithoutItsDiagnostics {
-        return selected_consumer_keeps_unselected_producer_without_its_diagnostics()
-            .map(|()| true);
-    }
     if scenario
         == EngineScenario::ActualI001MixedNamespaceObservationStaysUnknownOnColdAndWarmReplay
     {
@@ -197,9 +176,6 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
         return Ok(true);
     }
     let root = tempfile::tempdir()?;
-    if scenario == EngineScenario::QueryModuleInlineEquivalence {
-        return query_module_inline_equivalence(root.path());
-    }
     let rules = root.path().join("rules");
     let selected_rules = write_rule_fixtures(&rules, scenario)?;
     let file = input_file(scenario);
@@ -264,7 +240,7 @@ mod compiler_features;
 
 mod context_case_test;
 
-mod scope_test;
+mod authored_queries_test;
 
 mod future_directives_test;
 

@@ -1,4 +1,5 @@
 import observation_matches from "python/ruff/suppress-matches";
+import line_located from "python/ruff/candidate-locations";
 let comments = select id, file, span, text from "comment";
 let empty_comments = select id, file, span from comments where matches(text, "^[ \t\x0c]*$");
 let comment_locations = select l.id as id, l.file as file, l.span as span, l.text as text, r."start-line" as line, r."start-column" as column, r."start-byte" as start from comments as l join "source-location" as r on l.id = r.id and l.file = r.file;
@@ -17,7 +18,7 @@ let comment_block_paths = closure(edges=comment_block_edges, source="source", de
 let nonempty_own_comments = antijoin(left=own_line_comments, right=empty_comments, left-on=["id", "file"], right-on=["id", "file"]);
 let comments_in_nonempty_blocks = select l.source as id, l.file as file from comment_block_paths as l join nonempty_own_comments as r on l.destination = r.id and l.file = r.file;
 let reportable = antijoin(left=empty_comments, right=comments_in_nonempty_blocks, left-on=["id", "file"], right-on=["id", "file"]);
-let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id and l.file = r.file;
+let candidate_locations = line_located(candidates=reportable);
 let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:PLR2044)$");
 let violations_rows = select id, file, span from candidate_locations;
 let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);

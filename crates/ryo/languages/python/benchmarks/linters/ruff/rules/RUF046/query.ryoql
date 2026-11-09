@@ -1,7 +1,9 @@
 import observation_matches from "python/ruff/suppress-matches";
 import round_values from "python/ruff/round-values";
+import call_syntax from "python/ruff/calls";
 let nodes = select id, kind, file, span from "semantic-syntax";
-let calls = select id, file from nodes where kind = "call";
+let call_syntax_rows = call_syntax();
+let calls = select id, file from call_syntax_rows;
 let funcs = select parent, child, file from "semantic-child" where field = "func";
 let call_origins_join_1 = select l.id as l_id, l.file as l_file, e.parent as e_parent, e.file as e_file, e.child as e_child from calls as l join funcs as e on l.id = e.parent and l.file = e.file;
 let call_origins = select l.l_id as id, r.path as path, l.l_file as file from call_origins_join_1 as l join "qualified-name" as r on l.e_child = r.id and l.e_file = r.file;

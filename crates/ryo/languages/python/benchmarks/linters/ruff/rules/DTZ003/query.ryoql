@@ -1,9 +1,11 @@
 import observation_matches from "python/ruff/suppress-matches";
+import call_syntax from "python/ruff/calls";
+import line_located from "python/ruff/candidate-locations";
 let qualified_names = select q.id as id, q.path as path, q.provenance as provenance, q."since-major" as since_major, q."since-minor" as since_minor from "qualified-name" as q;
 let semantic_token_nodes = select id from "semantic-syntax" where kind = "name-token";
 let semantic_identifier_children = select r.child as id, l.name as text from "identifier" as l join "semantic-child" as r on l.id = r.parent;
 let semantic_identifiers = select l.id as id, l.text as text from semantic_identifier_children as l join semantic_token_nodes as r on l.id = r.id;
-let calls = select id, file, span from "semantic-syntax" where kind = "call";
+let calls = call_syntax();
 let functions = select parent, child from "semantic-child" where field = "func";
 let qualified = select id from qualified_names where path = "datetime.datetime.utcnow" and (provenance != "builtin" or since_major < 3 or since_major = 3 and since_minor <= 10);
 let matching_calls = select l.parent as id, l.child as function from functions as l join qualified as r on l.child = r.id;
@@ -22,7 +24,7 @@ let indirect_timezone = select l.inner as id from replace_paths as l join timezo
 let converted = union(left=timezone_values, right=indirect_timezone);
 let unconverted = antijoin(left=matching_calls, right=converted, left-on=["id"], right-on=["id"]);
 let reportable = select l.id as id, l.file as file, l.span as span from calls as l join unconverted as r on l.id = r.id;
-let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id;
+let candidate_locations = line_located(candidates=reportable);
 let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:DTZ003)$");
 let violations_rows = select id, file, span from candidate_locations;
 let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);

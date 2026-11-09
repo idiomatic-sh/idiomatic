@@ -1,7 +1,7 @@
 import observation_matches from "python/ruff/suppress-matches";
 import annotation_origins from "python/ruff/annotation-origins";
 let nodes = select id, kind, file, span from "semantic-syntax";
-let calls = select id, file, span from nodes where kind = "call";
+let calls = call_syntax();
 let value_edges = select parent, child, file from "semantic-child" where field = "value";
 let func_edges = select parent, child, file from "semantic-child" where field = "func";
 let callee_nodes = select l.id as call, l.file as file, r.child as callee from calls as l join func_edges as r on l.id = r.parent and l.file = r.file;
@@ -24,6 +24,8 @@ let plain_zero = select l.id as id, l.file as file from integer_zero as l join c
 let starred_nodes = select id, file from nodes where kind = "starred";
 let element_edges = select parent, child, file from "semantic-child" where field = "elts";
 import accesses from "python/ruff/sequence-index-accesses";
+import call_syntax from "python/ruff/calls";
+import line_located from "python/ruff/candidate-locations";
 let loop_nodes = select id, file from nodes where kind = "for" or kind = "async-for";
 let comp_nodes = select id, file from nodes where kind = "comprehension";
 let owner_nodes = union(left=loop_nodes, right=comp_nodes);
@@ -78,7 +80,7 @@ let element_starts = select context, entry, destination, position, file from ele
 let selected_starts = union(left=loop_starts, right=element_starts);
 let found = accesses(contexts=contexts, starts=selected_starts);
 let candidates = select l.id as id, l.file as file, r.span as span from found as l join nodes as r on l.id = r.id and l.file = r.file;
-let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from candidates as l join "source-location" as r on l.id = r.id and l.file = r.file;
+let candidate_locations = line_located(candidates=candidates);
 let visible_locations_matches = observation_matches(candidates=candidate_locations, codes="^(?:PLR1736)$");
 let visible_locations_rows = select id, file, span from candidate_locations;
 let visible_locations = antijoin(left=visible_locations_rows, right=visible_locations_matches, left-on=[id, span], right-on=[id, span]);

@@ -1,4 +1,5 @@
 import observation_matches from "python/ruff/suppress-matches";
+import call_syntax from "python/ruff/calls";
 let default_roots = select parent as function, child as value, file from "semantic-child" where field = "defaults";
 let default_wrappers = select id, file from "semantic-syntax" where kind = "parameter-with-default";
 let wrapper_defaults = select l.id as wrapper, l.file as file, r.child as value from default_wrappers as l join "semantic-child" as r on l.id = r.parent and l.file = r.file where r.field = "defaults" or r.field = "kw-defaults";
@@ -62,7 +63,7 @@ let immutable_annotations = antijoin(left=parameter_annotations, right=mutable_a
 let immutable_annotation_defaults = select l.value as id, l.file as file from wrapper_defaults as l join immutable_annotations as r on l.wrapper = r.wrapper and l.file = r.file;
 let default_nodes = select l.value as id, l.file as file, r.kind as kind, r.span as span from default_roots as l join "semantic-syntax" as r on l.value = r.id and l.file = r.file;
 let mutable_defaults = select id, file, span from default_nodes where kind = "list" or kind = "dict" or kind = "set";
-let calls = select id, file, span from "semantic-syntax" where kind = "call";
+let calls = call_syntax();
 let function_fields = select parent, child from "semantic-child" where field = "func";
 let call_functions = select l.parent as call, l.child as function, r.file as file from function_fields as l join calls as r on l.parent = r.id;
 let constructors = select id, file from "qualified-name" where path = "builtins.list" or path = "builtins.set" or path = "builtins.dict";

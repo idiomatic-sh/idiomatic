@@ -14,11 +14,9 @@ pub(super) fn input_file(scenario: EngineScenario) -> &'static str {
         | EngineScenario::LateFutureDirectiveProjection
         | EngineScenario::UnknownFutureWithoutConsumer
         | EngineScenario::FrontendRuleCollision
-        | EngineScenario::QueryModuleInlineEquivalence
         | EngineScenario::ARejectedFileLeavesPt020Pt025AndPt026AnsweringTheValidFile
         | EngineScenario::ARejectedFileLeavesI001Plw0406AndRuf100AnsweringTheValidFile
         | EngineScenario::SharedSuppressionFragmentMatchesTheHistoricalInlineQueries
-        | EngineScenario::SelectedConsumerKeepsUnselectedProducerWithoutItsDiagnostics
         | EngineScenario::ActualI001MixedNamespaceObservationStaysUnknownOnColdAndWarmReplay
         | EngineScenario::LazyFutureStaysVisibleWithoutADedicatedSelectedRule
         | EngineScenario::ListedProjectInputsAndInvalidSourcesKeepDistinctReaders
@@ -46,11 +44,9 @@ pub(super) fn source_for(scenario: EngineScenario) -> &'static str {
         EngineScenario::LateFutureDirectiveProjection => {
             "x = 1\nfrom __future__ import annotations\n"
         }
-        EngineScenario::QueryModuleInlineEquivalence
-        | EngineScenario::ARejectedFileLeavesPt020Pt025AndPt026AnsweringTheValidFile
+        EngineScenario::ARejectedFileLeavesPt020Pt025AndPt026AnsweringTheValidFile
         | EngineScenario::ARejectedFileLeavesI001Plw0406AndRuf100AnsweringTheValidFile
         | EngineScenario::SharedSuppressionFragmentMatchesTheHistoricalInlineQueries
-        | EngineScenario::SelectedConsumerKeepsUnselectedProducerWithoutItsDiagnostics
         | EngineScenario::ActualI001MixedNamespaceObservationStaysUnknownOnColdAndWarmReplay
         | EngineScenario::LazyFutureStaysVisibleWithoutADedicatedSelectedRule
         | EngineScenario::ListedProjectInputsAndInvalidSourcesKeepDistinctReaders
@@ -118,11 +114,9 @@ pub(super) fn expected_diagnostics(
         EngineScenario::FutureFeatureProjection => ("F407", 23, 38),
         EngineScenario::LateFutureDirectiveProjection => ("F404", 6, 40),
         EngineScenario::FrontendRuleCollision
-        | EngineScenario::QueryModuleInlineEquivalence
         | EngineScenario::ARejectedFileLeavesPt020Pt025AndPt026AnsweringTheValidFile
         | EngineScenario::ARejectedFileLeavesI001Plw0406AndRuf100AnsweringTheValidFile
         | EngineScenario::SharedSuppressionFragmentMatchesTheHistoricalInlineQueries
-        | EngineScenario::SelectedConsumerKeepsUnselectedProducerWithoutItsDiagnostics
         | EngineScenario::ActualI001MixedNamespaceObservationStaysUnknownOnColdAndWarmReplay
         | EngineScenario::LazyFutureStaysVisibleWithoutADedicatedSelectedRule
         | EngineScenario::ListedProjectInputsAndInvalidSourcesKeepDistinctReaders

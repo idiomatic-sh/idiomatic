@@ -1,4 +1,5 @@
 import observation_matches from "python/ruff/suppress-matches";
+import call_syntax from "python/ruff/calls";
 let nodes = select id, kind, file, span from "semantic-syntax";
 let assignments = select id, file from nodes where kind = "assign";
 let target_edges = select parent, child, file from "semantic-child" where field = "targets";
@@ -8,7 +9,8 @@ let names = select id, file from nodes where kind = "name";
 let single_targets_join_1 = select l.assignment as l_assignment, l.file as l_file, c.assignment as c_assignment, c.file as c_file, l.target as l_target, c.count as c_count from targets as l join target_counts as c on l.assignment = c.assignment and l.file = c.file;
 let single_targets = select l.l_assignment as assignment, l.l_file as file from single_targets_join_1 as l join names as r on l.l_target = r.id and l.l_file = r.file where l.c_count = 1;
 let values = select parent, child, file from "semantic-child" where field = "value";
-let calls = select id, file from nodes where kind = "call";
+let call_syntax_rows = call_syntax();
+let calls = select id, file from call_syntax_rows;
 let assigned_calls_join_1 = select l.assignment as l_assignment, e.child as e_child, l.file as l_file, e.parent as e_parent, e.file as e_file from single_targets as l join values as e on l.assignment = e.parent and l.file = e.file;
 let assigned_calls = select l.l_assignment as assignment, l.e_child as call, l.l_file as file from assigned_calls_join_1 as l join calls as r on l.e_child = r.id and l.e_file = r.file;
 let functions = select parent, child, file from "semantic-child" where field = "func";

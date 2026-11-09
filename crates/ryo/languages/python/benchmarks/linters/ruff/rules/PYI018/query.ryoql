@@ -1,9 +1,11 @@
 import observation_matches from "python/ruff/suppress-matches";
+import call_syntax from "python/ruff/calls";
 let assignments = select id, file from "semantic-syntax" where kind = "assign";
 let targets = select l.parent as assignment, l.child as target, l.file as file from "semantic-child" as l join assignments as r on l.parent = r.id and l.file = r.file where l.field = "targets";
 let private_targets = select l.assignment as assignment, l.target as target, l.file as file from targets as l join "identifier" as r on l.target = r.id and l.file = r.file where starts_with(r.name, "_");
 let values = select l.parent as assignment, l.child as value, l.file as file from "semantic-child" as l join assignments as r on l.parent = r.id and l.file = r.file where l.field = "value";
-let calls = select id, file from "semantic-syntax" where kind = "call";
+let call_syntax_rows = call_syntax();
+let calls = select id, file from call_syntax_rows;
 let call_values = select l.assignment as assignment, l.value as call, l.file as file from values as l join calls as r on l.value = r.id and l.file = r.file;
 let function_edges = select parent, child from "semantic-child" where field = "func";
 let call_functions = select l.parent as call, l.child as function, r.file as file from function_edges as l join calls as r on l.parent = r.id;

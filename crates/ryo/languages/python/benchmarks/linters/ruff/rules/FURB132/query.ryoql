@@ -1,6 +1,8 @@
 import observation_matches from "python/ruff/suppress-matches";
 import without_effect from "python/ruff/without-effect";
 import binding_type from "python/ruff/binding-type";
+import call_syntax from "python/ruff/calls";
+import line_located from "python/ruff/candidate-locations";
 let ifs = select id, file, span from "semantic-syntax" where kind = "if";
 let tests = select parent, child, file from "semantic-child" where field = "test";
 let if_tests = select l.id as if_stmt, l.file as file, r.child as test from ifs as l join tests as r on l.id = r.parent and l.file = r.file;
@@ -32,7 +34,8 @@ let expression_statements = select id, file from "semantic-syntax" where kind = 
 let expr_bodies = select l.if_stmt as if_stmt, l.file as file, l.element as element, l.set_name as set_name, r.id as statement from one_body as l join expression_statements as r on l.statement = r.id and l.file = r.file;
 let values = select parent, child, file from "semantic-child" where field = "value";
 let body_values = select l.if_stmt as if_stmt, l.file as file, l.element as element, l.set_name as set_name, r.child as call from expr_bodies as l join values as r on l.statement = r.parent and l.file = r.file;
-let calls = select id, file from "semantic-syntax" where kind = "call";
+let call_syntax_rows = call_syntax();
+let calls = select id, file from call_syntax_rows;
 let remove_calls = select l.if_stmt as if_stmt, l.file as file, l.element as element, l.set_name as set_name, l.call as call from body_values as l join calls as r on l.call = r.id and l.file = r.file;
 let funcs = select parent, child, file from "semantic-child" where field = "func";
 let call_functions = select l.if_stmt as if_stmt, l.file as file, l.element as element, l.set_name as set_name, r.child as function from remove_calls as l join funcs as r on l.call = r.parent and l.file = r.file;
@@ -71,7 +74,7 @@ let typed_receivers = binding_type(references=receiver_references, builtin="buil
 let valid_set_bindings = select l.if_stmt as if_stmt, l.file as file from same_set_bindings as l join typed_receivers as r on l.set_name = r.reference and l.file = r.file;
 let matched_valid_cases = select l.if_stmt as if_stmt, l.file as file from matching_elements as l join valid_set_bindings as r on l.if_stmt = r.if_stmt and l.file = r.file;
 let reportable = select l.if_stmt as id, l.file as file, r.span as span from matched_valid_cases as l join ifs as r on l.if_stmt = r.id and l.file = r.file;
-let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id and l.file = r.file;
+let candidate_locations = line_located(candidates=reportable);
 let located_matches = observation_matches(candidates=candidate_locations, codes="^(?:FURB132)$");
 let located_rows = select id, file, span from candidate_locations;
 let located = antijoin(left=located_rows, right=located_matches, left-on=[id, span], right-on=[id, span]);

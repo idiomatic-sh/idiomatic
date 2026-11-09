@@ -1,11 +1,13 @@
 import observation_matches from "python/ruff/suppress-matches";
 import io_base_initializer from "python/ruff/io-base-initializer";
 import io_base_binding from "python/ruff/io-base-binding";
+import call_syntax from "python/ruff/calls";
 let nodes = select id, kind, file from "semantic-syntax";
 let loops = select id, file from nodes where kind = "for" or kind = "async-for" or kind = "comprehension";
 let iter_fields = select parent, child, file from "semantic-child" where field = "iter";
 let iterators = select r.child as id, l.file as file from loops as l join iter_fields as r on l.id = r.parent and l.file = r.file;
-let calls = select id, file from nodes where kind = "call";
+let call_syntax_rows = call_syntax();
+let calls = select id, file from call_syntax_rows;
 let iterator_calls = select l.id as call, l.file as file from iterators as l join calls as r on l.id = r.id and l.file = r.file;
 let calls_with_arguments = select call, file from "call-argument";
 let empty_calls = antijoin(left=iterator_calls, right=calls_with_arguments, left-on=["call","file"], right-on=["call","file"]);

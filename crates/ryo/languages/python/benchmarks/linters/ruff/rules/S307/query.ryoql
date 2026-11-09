@@ -1,13 +1,15 @@
 import noqa_line_map from "python/ruff/noqa-line-map";
 import noqa_locations from "python/ruff/noqa-locations";
 import suppression_edges from "python/ruff/noqa-suppressions-with-additional-lines";
+import call_syntax from "python/ruff/calls";
+import line_located from "python/ruff/candidate-locations";
 let qualified_names = select q.id as id, q.path as path, q.provenance as provenance, q."since-major" as since_major, q."since-minor" as since_minor from "qualified-name" as q;
-let calls = select id, file, span from "semantic-syntax" where kind = "call";
+let calls = call_syntax();
 let functions = select parent, child from "semantic-child" where field = "func";
 let qualified = select id from qualified_names where path = "builtins.eval" and (provenance != "builtin" or since_major < 3 or since_major = 3 and since_minor <= 10);
 let matching_calls = select l.parent as id, l.child as function from functions as l join qualified as r on l.child = r.id;
 let reportable = select l.id as id, l.file as file, l.span as span from "semantic-syntax" as l join matching_calls as r on l.id = r.function;
-let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id;
+let candidate_locations = line_located(candidates=reportable);
 let mappings = noqa_line_map();
 let locations = noqa_locations(candidates=candidate_locations, mappings=mappings);
 let additional = select id, file, line from candidate_locations where id != id;
