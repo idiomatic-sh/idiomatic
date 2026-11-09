@@ -7,8 +7,8 @@ use crate::domain::applications::types::CellText;
 use crate::domain::comments::types::ByteSpan;
 use crate::domain::findings::types::ByteOffset;
 use crate::domain::imports::types::{
-    Import, ImportColumn, ImportPlace, ImportRows, Name, Owner, Package, PackageBinding, Relation,
-    Target, WrittenPath,
+    Import, ImportColumn, ImportPlace, ImportRows, ModuleName, Name, Owner, Package,
+    PackageBinding, Relation, Scope, ScopeKind, Target, WrittenPath,
 };
 use crate::domain::paths::types::RepoPath;
 
@@ -23,6 +23,24 @@ enum Question {
     Resolved(&'static str),
     /// The rows the packages keep from a row whose `target` is empty: a package the repository does not hold.
     Outside,
+    /// What the imports of `src/a.x` written `use crate::contract` (binding `contract`, at 0 to 21) are, with an edge to
+    /// `src/contract/collect.x` written at a use site, at 40 to 56, as this path, in these scopes.
+    UseSite(&'static str, Layout),
+}
+
+/// The blocks and inline modules around the `use` (0 to 21) and the use-site path (40 to 56).
+#[derive(Clone, Copy, Debug)]
+enum Layout {
+    /// None: both are at the top of the file.
+    File,
+    /// An inline module (30 to 60) holds the path alone.
+    ModuleAroundPath,
+    /// A block (0 to 25) holds the `use` alone, as in one function while the path is in another.
+    BlockAroundUse,
+    /// An inline module (0 to 25) holds the `use` alone, as a `#[cfg(test)] mod tests` does.
+    ModuleAroundUse,
+    /// A block (0 to 60) holds both.
+    BlockAroundBoth,
 }
 
 type Input = Question;
@@ -54,6 +72,7 @@ fn expected(relation: Relation) -> ImportRows {
         Relation::Names => rows.names.push(Name {
             source: path("a.txt"),
             written: WrittenPath("b.txt".into()),
+            binding: ModuleName("other".into()),
             span: place(),
         }),
         Relation::Packages => rows.packages.push(Package {
@@ -64,6 +83,11 @@ fn expected(relation: Relation) -> ImportRows {
         Relation::Owners => rows.owners.push(Owner {
             path: path("a.txt"),
             package: path("c.toml"),
+        }),
+        Relation::Scopes => rows.scopes.push(Scope {
+            source: path("a.txt"),
+            span: place(),
+            kind: ScopeKind::Module,
         }),
     }
     rows
@@ -119,6 +143,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(String::new()),
     },
     Case {
+        name: CaseName("the_rule_over_the_scopes_keys_a_row_by_its_node"),
+        word: Word::Succeeds,
+        input: || Question::Query(Relation::Scopes),
+        expect: Expect::Value(String::new()),
+    },
+    Case {
+        name: CaseName("a_scope_keeps_its_place_and_whether_it_is_a_module"),
+        word: Word::Succeeds,
+        input: || Question::Kept(Relation::Scopes),
+        expect: Expect::Value(String::new()),
+    },
+    Case {
         name: CaseName("an_owner_keeps_its_package"),
         word: Word::Succeeds,
         input: || Question::Kept(Relation::Owners),
@@ -142,6 +178,42 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         ),
         word: Word::Succeeds,
         input: || Question::Resolved("@scope/my-lib/thing"),
+        expect: Expect::Value(String::new()),
+    },
+    Case {
+        name: CaseName("a_path_at_a_use_site_through_a_name_an_import_binds_is_that_imports"),
+        word: Word::Succeeds,
+        input: || Question::UseSite("contract::Collect", Layout::File),
+        expect: Expect::Value(String::new()),
+    },
+    Case {
+        name: CaseName("a_path_at_a_use_site_from_the_package_root_is_an_import_of_its_own"),
+        word: Word::Succeeds,
+        input: || Question::UseSite("crate::contract::Collect", Layout::File),
+        expect: Expect::Value(String::new()),
+    },
+    Case {
+        name: CaseName("a_path_in_an_inline_module_sees_no_import_written_outside_it"),
+        word: Word::Succeeds,
+        input: || Question::UseSite("contract::Collect", Layout::ModuleAroundPath),
+        expect: Expect::Value(String::new()),
+    },
+    Case {
+        name: CaseName("a_path_outside_the_block_of_an_import_sees_no_binding_of_it"),
+        word: Word::Succeeds,
+        input: || Question::UseSite("contract::Collect", Layout::BlockAroundUse),
+        expect: Expect::Value(String::new()),
+    },
+    Case {
+        name: CaseName("a_path_outside_the_inline_module_of_an_import_sees_no_binding_of_it"),
+        word: Word::Succeeds,
+        input: || Question::UseSite("contract::Collect", Layout::ModuleAroundUse),
+        expect: Expect::Value(String::new()),
+    },
+    Case {
+        name: CaseName("a_path_in_the_block_of_an_import_is_that_imports"),
+        word: Word::Succeeds,
+        input: || Question::UseSite("contract::Collect", Layout::BlockAroundBoth),
         expect: Expect::Value(String::new()),
     },
 ];
@@ -169,6 +241,11 @@ emit rows subject "source" key("target", "span");
         Relation::Owners => {
             "let rows = select * from \"file-package\";\nemit rows subject \"path\" key(\"path\");\n"
         }
+        Relation::Scopes => {
+            r#"let rows = select id, kind, file, span from "syntax-tree" where glob_any(kind, "{stmt-list,item-list}");
+emit rows subject "file" key("id");
+"#
+        }
     }
 }
 
@@ -179,6 +256,7 @@ fn resolved(written: &'static str) -> String {
         names: vec![Name {
             source: path("src/a.x"),
             written: WrittenPath(written.into()),
+            binding: ModuleName("thing".into()),
             span: place(),
         }],
         packages: vec![
@@ -197,6 +275,7 @@ fn resolved(written: &'static str) -> String {
             path: path("src/a.x"),
             package: path("app.m"),
         }],
+        scopes: Vec::new(),
     };
     let wanted = if written.starts_with('@') {
         "scoped/lib.m"
@@ -209,8 +288,68 @@ fn resolved(written: &'static str) -> String {
     }
 }
 
+fn at(start: usize, end: usize) -> ImportPlace {
+    ImportPlace::At(ByteSpan {
+        start: ByteOffset(start),
+        end: ByteOffset(end),
+    })
+}
+
+/// The imports read when the use-site path is `written`: the `use` alone when the path starts at the name it binds,
+/// the `use` and the path otherwise.
+fn use_site(written: &'static str, layout: Layout) -> String {
+    let scope = |start, end, kind| Scope {
+        source: path("src/a.x"),
+        span: at(start, end),
+        kind,
+    };
+    let (scopes, through) = match layout {
+        Layout::File => (Vec::new(), true),
+        Layout::ModuleAroundPath => (vec![scope(30, 60, ScopeKind::Module)], false),
+        Layout::BlockAroundUse => (vec![scope(0, 25, ScopeKind::Block)], false),
+        Layout::ModuleAroundUse => (vec![scope(0, 25, ScopeKind::Module)], false),
+        Layout::BlockAroundBoth => (vec![scope(0, 60, ScopeKind::Block)], true),
+    };
+    let declared = Import {
+        source: path("src/a.x"),
+        span: at(0, 21),
+        written: WrittenPath("crate::contract".into()),
+        target: Target::File(path("src/contract.x")),
+    };
+    let site = Import {
+        source: path("src/a.x"),
+        span: at(40, 56),
+        written: WrittenPath(written.into()),
+        target: Target::File(path("src/contract/collect.x")),
+    };
+    let rows = ImportRows {
+        edges: vec![declared.clone(), site.clone()],
+        names: vec![Name {
+            source: path("src/a.x"),
+            written: WrittenPath("crate::contract".into()),
+            binding: ModuleName("contract".into()),
+            span: at(0, 21),
+        }],
+        packages: Vec::new(),
+        owners: Vec::new(),
+        scopes,
+    };
+    let wanted = if through && written.starts_with("contract") {
+        vec![declared]
+    } else {
+        vec![declared, site]
+    };
+    let found = imports(&rows);
+    if found == wanted {
+        String::new()
+    } else {
+        format!("{found:?}")
+    }
+}
+
 fn subject(question: Input) -> Value {
     match question {
+        Question::UseSite(written, layout) => use_site(written, layout),
         Question::Resolved(written) => resolved(written),
         Question::Outside => {
             let mut rows = ImportRows::default();
@@ -249,6 +388,7 @@ fn subject(question: Input) -> Value {
                     "binding" => "other",
                     "package" => "c.toml",
                     "written" => "crate::b",
+                    "kind" => "item-list",
                     _ => return None,
                 };
                 Some(CellText(cell.into()))

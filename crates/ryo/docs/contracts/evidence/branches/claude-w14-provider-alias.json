@@ -1,0 +1,44 @@
+{
+ "checkpoint": 332,
+ "source": "6e7265eaac8b60a6ca4a0758ea37667f38456364",
+ "base": "a19f3047c624f2e2c03d0cf85b12ef527aa13f9d",
+ "previous_source": "a33a4c13f15cd0ae5353c9044e4fdc0ae7bc1ae4",
+ "previous_verdict": "FAIL: 2",
+ "branch": "claude/w14-provider-alias",
+ "verdict": "PASS",
+ "reviewer": "leak-review",
+ "date": "2026-11-09",
+ "checks": [
+  {"id": "1", "verdict": "PASS", "evidence": "Proofs in the rust provider (links/service_test/aliases_test.rs, fact_extraction/service_test.rs use_scopes, project/contract_test.rs) on synthetic facts and parsed sources."},
+  {"id": "2", "verdict": "PASS", "evidence": "(A) through_uses (links/service.rs) filters the in-scope bindings and takes min_by_key on the scope size, with a file-top use (no scope) at u32::MAX, so the innermost use shadows the outer ones, as in Rust. The new case an_alias_in_a_block_shadows_one_of_the_same_name_at_the_file_top expects the other.rs target; reverting to `find` would give shared.rs and fail it. (B) scope_of (fact_extraction/service.rs) records the span of the innermost StmtList or ItemList for every use not at the file top, and through_uses requires that span to hold the path. Same-named inline modules in sibling functions therefore stay apart: case an_alias_in_an_inline_module_leaves_a_path_in_another_module_of_the_same_name_to_the_crate, which would fail on the name chain alone. Every span in the six aliases_test cases and in use_scopes (a:7..45 b:16..26 c:33..43) was recomputed from its source text and matches. (C) linked() decodes each note once. Empty bytes are no note; any other bytes that fail to decode propagate NotesError, which converts to ProjectError::Context (outbound/notes/errors.rs). Case bytes_that_hold_no_note_refuse_the_links_and_lose_no_file_without_a_word expects the refusal. cargo check -p idiomatic-sh-ryo-rust --all-targets on an archive copy: 0 errors; the one warning (contract.rs:311, unnecessary qualification) predates this branch. The tests remain unrun here (hook), and are listed for the integrator."},
+  {"id": "3", "verdict": "PASS", "evidence": "No boundary change. From<NotesError> for ryo::languages::ProjectError is a conversion into the SDK's public error type, implemented in the provider (orphan rule allows it: NotesError is local)."},
+  {"id": "4", "verdict": "PASS", "evidence": "One alias resolver (through_uses) and one note decode per file. The double decode (declared, then facts) is gone."},
+  {"id": "5", "verdict": "PASS", "evidence": "Direction unchanged: domain fact_extraction → fact_notes → links; the inbound contract maps the outbound adapter's error at the edge."},
+  {"id": "6", "verdict": "PASS", "evidence": "Fixtures are test-only; trees_agree compares the hand tree with the real parser."}
+ ],
+ "tm_claim": "Verified. tm's import_rows::service::in_scope (f1c9e1c968, service.rs:144-169) never compares module names. It takes the innermost scope holding the `use` by span size from syntax-tree stmt-list/item-list rows, requires that span to hold the edge, and shuts on any item-list span strictly inside it that holds the edge. Same-named inline modules have different spans, so variant B does not apply to tm.",
+ "error_names_no_file": "Advisory. The refusal reads 'the bytes are not exactly one note' without the file, so a user with one stale or corrupt note cannot tell which file to fix. It is a loud refusal, not a silent loss, so it is not a leak. The no-string-literals rule does not force the omission: a constant prefix plus the request file's path (request.files at the same index) in the ToolMessage, or a NotesError variant carrying the path, would name it without a literal.",
+ "files_at_400": "links/service.rs and project/contract.rs are each exactly 400 lines. file-length 0.3.0 refuses only above max-lines = 400, so both pass, but neither has headroom: the next edit to either must split it by role. Not a leak.",
+ "integrator_must_run": [
+  "cargo test -p idiomatic-sh-ryo-rust --lib -- links::service_test fact_extraction::service_test inbound::contracts::project outbound::syntax::adapters::ra_ap_syntax::adapter_test outbound::notes::adapters::postcard",
+  "the after-plant: scratchpad/w14-alias-plant with the 333 build's ryo, `ryo query run --text 'let rows = select * from \"source-dependency\"; emit rows subject \"source\" key(\"target\", \"span\");'`, on a fresh store. It must show fn b's `ryo::query::ValidateRequest` targeting the ryo crate's query.rs, not the aliased module, and no ProjectError",
+  "tm check, with a tm built on this provider, on the real-tree sibling plant (alias in fn a, `ryo::query::ValidateRequest` in fn b of a languages/rust/src provider file): one provider-imports finding at fn b's line",
+  "one whole-repository Rust run on a fresh store (for example the checkpoint's tm check of crates/ryo): no ProjectError::Context, to confirm that no real file's note bytes are non-empty and undecodable now that the links refuse instead of skipping"
+ ],
+ "plants": [],
+ "findings": [
+  "open item: the unreadable-note refusal does not name the file",
+  "open item: links/service.rs and project/contract.rs at exactly 400 lines; the next edit must split",
+  "open item: tests and after-plant unrun until the 333 integrator"
+ ],
+ "enforcement_candidates": [
+  {"id": "alias-binding-not-nearest-784e1025", "class": "alias-binding-not-nearest", "signature": "known.written.iter().find(|each| ... each.bound.as_ref() == Some(first)) in links::service::through_uses taking the first binding in file order instead of the innermost in-scope one", "scope": ["crates/ryo/languages/rust/src/domain/links/service.rs"], "suggested_mechanism": "new rule", "instance_status": "fixed",
+   "plants": [{"file": "crates/ryo/languages/rust/src/domain/links/service_test/aliases_test.rs", "line": 1, "text": "use crate::shared as engine; fn a() { use b::query as engine; engine::f(); }"}]},
+  {"id": "module-identity-by-name-chain-23c55763", "class": "module-identity-by-name-chain", "signature": "each.enclosing == written.enclosing comparing inline-module name chains, so same-named inline modules in different blocks are one module", "scope": ["crates/ryo/languages/rust/src/domain/links/service.rs"], "suggested_mechanism": "new rule", "instance_status": "fixed",
+   "plants": [{"file": "crates/ryo/languages/rust/src/domain/links/service_test/aliases_test.rs", "line": 1, "text": "fn a() { mod m { use crate::shared as e; } } fn b() { mod m { fn g() { e::f(); } } }"}]},
+  {"id": "note-decode-failure-is-absence-cb263667", "class": "note-decode-failure-is-absence", "signature": "Err(NotesError::NotANote) => None in project contract linked(): a note that fails to decode is read as a file with no facts", "scope": ["crates/ryo/languages/rust/src/inbound/contracts/project/contract.rs"], "suggested_mechanism": "new rule", "instance_status": "fixed",
+   "plants": [{"file": "crates/ryo/languages/rust/src/inbound/contracts/project/contract.rs", "line": 130, "text": "            Err(NotesError::NotANote) => None,"}]},
+  {"id": "provider-alias-resolved-across-blocks-3c609ce6", "class": "provider-alias-resolved-across-blocks", "signature": "through_uses in languages/rust/src/domain/links/service.rs matching a binding by each.enclosing == written.enclosing (module) without the block that holds the use", "scope": ["crates/ryo/languages/rust/src/domain/links/service.rs"], "suggested_mechanism": "new rule", "instance_status": "fixed",
+   "plants": [{"file": "crates/ryo/languages/rust/src/domain/relations/collections/relations/annotates/item.rs", "line": 33, "text": "pub fn plant_b() { let _ = ryo::query::ValidateRequest::default; }"}]}
+ ]
+}

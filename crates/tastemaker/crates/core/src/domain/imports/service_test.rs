@@ -9,8 +9,8 @@ use crate::domain::entries::types::{EntryIdentity, ImportDefault};
 use crate::domain::findings::types::ByteOffset;
 use crate::domain::import_rows::service::imports;
 use crate::domain::imports::types::{
-    AllowItem, EntryImports, Import, ImportPlace, ImportRows, Member, Name, Owner, Package,
-    PatternMatch, ScopeImports, Target, WrittenPath,
+    AllowItem, EntryImports, Import, ImportPlace, ImportRows, Member, ModuleName, Name, Owner,
+    Package, PatternMatch, ScopeImports, Target, WrittenPath,
 };
 use crate::domain::module_paths::service::prefixes;
 use crate::domain::paths::types::RepoPath;
@@ -77,16 +77,19 @@ fn rows() -> ImportRows {
             Name {
                 source: path("src/a.txt"),
                 written: "crate::types::T".into(),
+                binding: ModuleName("T".into()),
                 span: span(4, 19),
             },
             Name {
                 source: path("src/a.txt"),
                 written: "other::X".into(),
+                binding: ModuleName("X".into()),
                 span: span(24, 32),
             },
             Name {
                 source: path("src/a.txt"),
                 written: "std::fmt".into(),
+                binding: ModuleName("fmt".into()),
                 span: span(37, 45),
             },
         ],
@@ -99,6 +102,7 @@ fn rows() -> ImportRows {
             path: path("src/a.txt"),
             package: path("Cargo.toml"),
         }],
+        scopes: Vec::new(),
     }
 }
 
