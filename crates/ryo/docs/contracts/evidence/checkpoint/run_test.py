@@ -304,6 +304,10 @@ class Diff(unittest.TestCase):
   commit(self.repo,{'a/src/old.rs':None,'a/src/old/mod.rs':'pub fn kept() {}\n','a/src/x.rs':None,'a/src/y.rs':'pub fn parse() -> Result<(), E> {}\n'},'refactor(a): move')
   found=run.doc_problems(repo=self.repo,base=self.base)
   self.assertFalse(any('pub fn kept:' in x for x in found)); self.assertTrue(any('a/src/y.rs:1 pub fn parse:' in x for x in found),found)
+ def test_an_item_kept_in_its_module_is_not_new_when_the_checks_run_from_a_subdirectory(self):
+  # run.py passes its own directory as the repository, deep inside the tree: base paths must be read from the root.
+  commit(self.repo,{'a/src/old.rs':'pub fn kept() {}\n','d/e/note.md':'deep\n'},'docs: a deep directory')
+  self.assertEqual(run.doc_problems(repo=Path(self.repo)/'d'/'e',base=self.base),[])
  def test_an_examples_heading_without_a_code_block_is_no_example(self):
   commit(self.repo,{'a/src/z.rs':'/// Zed.\n///\n/// # Examples\npub fn zed() {}\n','a/src/w.rs':'/// Wye.\n///\n/// # Examples\n///\n/// # Panics\n/// ```\n/// ```\npub fn wye() {}\n'},'feat(a): zed')
   self.assertEqual(run.doc_problems(repo=self.repo,base=self.base),['a/src/w.rs:8 pub fn wye: no `# Examples` section with a code block','a/src/z.rs:4 pub fn zed: no `# Examples` section with a code block'])

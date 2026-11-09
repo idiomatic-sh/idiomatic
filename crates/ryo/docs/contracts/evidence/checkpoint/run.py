@@ -482,7 +482,7 @@ def module_path(crate,path):
  return '::'.join(x for x in parts if x not in ('lib','main','mod'))
 def base_items(repo,base,crate):
  """(module path, owner, kind, name) of every pub item in the crate's production files at the base."""
- paths=[x for x in (git(repo,'ls-tree','-r','--name-only',base,'--',':(top)'+crate) or '').split() if x.endswith('.rs') and not is_test_file(x)]
+ paths=[x for x in (git(repo,'ls-tree','-r','--full-name','--name-only',base,'--',':(top)'+crate) or '').split() if x.endswith('.rs') and not is_test_file(x)]
  return {(module_path(crate,x),)+i[:3] for x in paths for i in items(git(repo,'show',base+':'+x) or '')}
 def has_example(doc):
  """The doc comment has an `# Examples` section holding a fenced code block before the next heading."""
