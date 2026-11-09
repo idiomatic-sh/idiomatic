@@ -387,5 +387,82 @@
         "crates/execution_domain/src/domain/trust": 0
       }
     }
-  }
+  },
+  "red_green": [
+    {
+      "test": "execution boundary_contract project_phase::axis::test::an_axis_after_the_files_answers_the_parents_it_answers_in_each_file",
+      "base_sha": "4faa55e27d428cc347c1b154c1671763b460973b",
+      "merge_sha": "4f44f32704b45c4cedce7432266a3017739ba9f3"
+    },
+    {
+      "test": "execution boundary_contract project_phase::axis::test::a_join_with_reach_after_the_files_answers_what_it_reaches_in_each_file",
+      "base_sha": "4faa55e27d428cc347c1b154c1671763b460973b",
+      "merge_sha": "4f44f32704b45c4cedce7432266a3017739ba9f3"
+    },
+    {
+      "test": "execution_store lib application::file_dag::derived::owner::cached_graph::test::a_project_owner_declines_the_graph_so_its_axis_walks_its_tables",
+      "base_sha": "4faa55e27d428cc347c1b154c1671763b460973b",
+      "merge_sha": "4f44f32704b45c4cedce7432266a3017739ba9f3"
+    },
+    {
+      "test": "execution boundary_contract project_phase::axis::test::an_anti_join_over_the_self_join_of_syntax_child_ordinals_answers_the_first_token",
+      "base_sha": "1048e4e2b27ee3df42da2942df44f3a0eca9d998",
+      "merge_sha": "4f44f32704b45c4cedce7432266a3017739ba9f3"
+    },
+    {
+      "test": "execution_runtime lib application::file_dag::program::file_session::service_test::the_recogniser_proves_a_number_exactly_when_the_session_hands_it_over_stored",
+      "base_sha": "1048e4e2b27ee3df42da2942df44f3a0eca9d998",
+      "merge_sha": "4f44f32704b45c4cedce7432266a3017739ba9f3"
+    },
+    {
+      "test": "query_language lib domain::planning::service_test::succeeds",
+      "base_sha": "55ad6b619bd5efd01e1f2dcdf275dccec24bcbe2",
+      "merge_sha": "4f44f32704b45c4cedce7432266a3017739ba9f3"
+    },
+    {
+      "test": "query_language lib inbound::use_cases::compile::use_case_test::spans::test::succeeds",
+      "base_sha": "55ad6b619bd5efd01e1f2dcdf275dccec24bcbe2",
+      "merge_sha": "4f44f32704b45c4cedce7432266a3017739ba9f3"
+    },
+    {
+      "test": "cli replay recordings::a_golden_rule_that_is_not_recorded_fails",
+      "base_sha": "09718aee5188d5ba1207124f063f1cfe0a6c415d",
+      "merge_sha": "4f44f32704b45c4cedce7432266a3017739ba9f3"
+    },
+    {
+      "test": "ci/contract_review/service_test.py::test_malformed_or_failing_review_is_refused",
+      "base_sha": "e9a7f3811e7f21a6289cc81c9c994c6fb5951cce",
+      "merge_sha": "4f44f32704b45c4cedce7432266a3017739ba9f3"
+    },
+    {
+      "test": "ci/contract_review/service_test.py::test_the_ci_and_hook_validators_agree_on_every_variant",
+      "base_sha": "17377d25499c8a7a502b864abd754b03afbcdde9",
+      "merge_sha": "4f44f32704b45c4cedce7432266a3017739ba9f3"
+    },
+    {
+      "test": "ci/contract_review/service_test.py::test_a_malformed_asymptote_record_is_refused",
+      "base_sha": "17377d25499c8a7a502b864abd754b03afbcdde9",
+      "merge_sha": "4f44f32704b45c4cedce7432266a3017739ba9f3"
+    },
+    {
+      "test": ".claude/hooks test_hooks.FailsClosed.test_a_missing_service_refuses_the_push",
+      "base_sha": "bd643fd55ec7e8d9a66a380d3b6ba376e34bdb46",
+      "merge_sha": "4f44f32704b45c4cedce7432266a3017739ba9f3"
+    },
+    {
+      "test": ".claude/hooks test_hooks.FailsClosed.test_a_service_without_shape_refuses_the_push",
+      "base_sha": "bd643fd55ec7e8d9a66a380d3b6ba376e34bdb46",
+      "merge_sha": "4f44f32704b45c4cedce7432266a3017739ba9f3"
+    },
+    {
+      "test": ".claude/hooks test_hooks.FailsClosed.test_an_exception_in_any_stage_refuses_a_push_and_a_merge_but_not_other_commands",
+      "base_sha": "61cb67a0749f1629cbfbd5b4f7370f5398146fe1",
+      "merge_sha": "4f44f32704b45c4cedce7432266a3017739ba9f3"
+    },
+    {
+      "test": ".claude/hooks test_hooks.FailsClosed.test_quoted_or_escaped_spellings_of_the_verb_are_still_refused_when_the_guard_breaks",
+      "base_sha": "2f3c17e780fb8806d6dd0e99db866119f80edc99",
+      "merge_sha": "4f44f32704b45c4cedce7432266a3017739ba9f3"
+    }
+  ]
 }
