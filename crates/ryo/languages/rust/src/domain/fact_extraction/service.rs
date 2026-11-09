@@ -178,6 +178,7 @@ fn written_paths<'a>(tree: &Tree<'a>, out: &mut Vec<WrittenNote<'a>>) {
             end: NoteOffset(end(tree, node).0),
             text: spelled(tree, node),
             bound: None,
+            scope: None,
         });
     }
 }
@@ -199,6 +200,21 @@ fn enclosing_of<'a>(tree: &Tree<'a>, node: Position) -> Vec<NoteName<'a>> {
         .filter_map(|each| name_of(*each))
         .map(|name| NoteName(Cow::Borrowed(name.0)))
         .collect()
+}
+
+/// The span of the innermost block of statements or inline module around `node`: where a `use` written there binds. None at the
+/// top of the file.
+fn scope_of(tree: &Tree<'_>, node: Position) -> Option<languages::Span> {
+    let scope = ancestors(tree, node).find(|each| {
+        matches!(
+            kind(tree, *each),
+            Kind::Node(Node::StmtList | Node::ItemList)
+        )
+    })?;
+    Some(languages::Span {
+        start: start(tree, scope),
+        end: end(tree, scope),
+    })
 }
 
 /// Adds each leaf of `use_tree`, under the segments `prefix` its groups write.
@@ -254,6 +270,7 @@ fn flatten<'a>(
             end: NoteOffset(end(tree, use_tree).0),
             text: spelled(tree, use_tree),
             bound,
+            scope: scope_of(tree, use_node),
         });
     }
     prefix.truncate(before);

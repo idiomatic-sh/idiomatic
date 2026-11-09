@@ -12,7 +12,7 @@ mod signatures;
 mod uses;
 
 /// Every source that has a tree here.
-pub(crate) const SOURCES: [&str; 61] = [
+pub(crate) const SOURCES: [&str; 62] = [
     "fn f() {}",
     "fn f() { g(); }",
     "fn f() { a::b(); }",
@@ -74,6 +74,7 @@ pub(crate) const SOURCES: [&str; 61] = [
     "mod outer { mod inner { fn f() { self::a::b(); } } }\n",
     "fn f( {",
     "use crate::a::{b, c};\nfn f() { crate :: m\n    ::g::<u8>(); }\n",
+    "fn f() { use a; { use b; } mod m { use c; } }",
 ];
 
 /// The tree of `source`; none when no tree is written for it.

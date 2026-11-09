@@ -290,6 +290,67 @@ pub(super) fn tree_of(source: &str) -> Option<Piece> {
                 }
             )
         }
+        "fn f() { use a; { use b; } mod m { use c; } }" => crate::scripted_tree!(
+            SourceFile {
+                Fn {
+                    FnKw("fn"),
+                    Whitespace(" "),
+                    Name { Ident("f") },
+                    ParamList { LParen("("), RParen(")") },
+                    Whitespace(" "),
+                    BlockExpr {
+                        StmtList {
+                            LCurly("{"),
+                            Whitespace(" "),
+                            Use {
+                                UseKw("use"),
+                                Whitespace(" "),
+                                UseTree { Path { PathSegment { NameRef { Ident("a") } } } },
+                                Semicolon(";"),
+                            },
+                            Whitespace(" "),
+                            ExprStmt {
+                                BlockExpr {
+                                    StmtList {
+                                        LCurly("{"),
+                                        Whitespace(" "),
+                                        Use {
+                                            UseKw("use"),
+                                            Whitespace(" "),
+                                            UseTree { Path { PathSegment { NameRef { Ident("b") } } } },
+                                            Semicolon(";"),
+                                        },
+                                        Whitespace(" "),
+                                        RCurly("}"),
+                                    },
+                                },
+                            },
+                            Whitespace(" "),
+                            Module {
+                                ModKw("mod"),
+                                Whitespace(" "),
+                                Name { Ident("m") },
+                                Whitespace(" "),
+                                ItemList {
+                                    LCurly("{"),
+                                    Whitespace(" "),
+                                    Use {
+                                        UseKw("use"),
+                                        Whitespace(" "),
+                                        UseTree { Path { PathSegment { NameRef { Ident("c") } } } },
+                                        Semicolon(";"),
+                                    },
+                                    Whitespace(" "),
+                                    RCurly("}"),
+                                },
+                            },
+                            Whitespace(" "),
+                            RCurly("}"),
+                        },
+                    },
+                },
+            }
+        ),
         _ => return None,
     })
 }

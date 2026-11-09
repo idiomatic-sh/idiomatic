@@ -36,6 +36,8 @@ pub(super) const END: &str = "end";
 pub(super) const TEXT: &str = "text";
 /// The name a `use` leaf binds.
 pub(super) const BOUND: &str = "bound";
+/// Where a `use` leaf binds its name.
+pub(super) const SCOPE: &str = "scope";
 /// How many fields a note has.
 pub(super) const NOTE_FIELDS: usize = 3;
 /// How many fields a declaration has.
@@ -43,4 +45,4 @@ pub(super) const DECLARED_FIELDS: usize = 5;
 /// How many fields an inline block has.
 pub(super) const STEP_FIELDS: usize = 2;
 /// How many fields a written path has.
-pub(super) const WRITTEN_FIELDS: usize = 6;
+pub(super) const WRITTEN_FIELDS: usize = 7;

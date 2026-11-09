@@ -192,6 +192,9 @@ pub(crate) struct Written {
     /// The name a `use` leaf binds in its module: its `as` name, or else its last segment; none for a glob, an `as _` or a path
     /// that is not a `use` leaf.
     pub bound: Option<Segment>,
+    /// Where a `use` leaf binds its name: the innermost block of statements or inline module around it, by its span. None for a path
+    /// that is not a `use` leaf and for a `use` written at the top of its file, which binds in the whole file.
+    pub scope: Option<ryo::languages::Span>,
 }
 
 /// A path as the file writes it from where it starts to where it ends, its whitespace left out: `crate::a::<T>::b`.

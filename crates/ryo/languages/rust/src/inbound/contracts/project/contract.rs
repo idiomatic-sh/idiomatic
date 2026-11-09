@@ -117,18 +117,19 @@ impl ProjectContract {
             .collect()
     }
 
-    /// How the source files of the request refer to one another, from what the manifests declared and the notes the parse left of each:
-    /// the names modules bear, the facts of each file, the trees of the packages and the examination of each file are each worked on
-    /// in all the threads there are.
-    fn linked(&self, request: &ProjectRequest, packages: &Packages) -> Linked {
-        let files = &request.files;
-        let kept = kept_files(files, &packages.outputs);
+    /// How the source files of the request refer to one another, from the manifests and the notes the parse left of each, worked on in
+    /// all the threads there are. Empty bytes are a file noted nothing of; other bytes that hold no note refuse the links.
+    fn linked(&self, request: &ProjectRequest, packages: &Packages) -> Result<Linked, NotesError> {
+        let kept = kept_files(&request.files, &packages.outputs);
         let owners = index(&kept, &packages.roots);
-        // Bytes that hold no note are a file the parse noted nothing of.
-        let declared = self.spread(&request.notes, &|_, note| match self.notes.note_in(note) {
-            Ok(each) => Some(declared_in(&each)),
-            Err(NotesError::NotANote) => None,
-        });
+        let notes = self
+            .spread(&request.notes, &|place, _| {
+                let bytes = request.notes.get(place.0).filter(|each| !each.0.is_empty());
+                bytes.map(|each| self.notes.note_in(each)).transpose()
+            })
+            .into_iter()
+            .collect::<Result<Vec<_>, NotesError>>()?;
+        let declared = self.spread(&notes, &|_, note| note.as_ref().map(declared_in));
         let externs = externs_in(packages);
         // A path that starts with the name of a library of the repository names a module of it, as one that starts with a module's name.
         let names: BTreeSet<Segment> = declared
@@ -142,13 +143,12 @@ impl ProjectContract {
                     .flat_map(|each| each.keys().cloned()),
             )
             .collect();
-        let facts = self.spread(&request.notes, &|_, note| match self.notes.note_in(note) {
-            Ok(each) => Some(facts_in(each, &names)),
-            Err(NotesError::NotANote) => None,
+        let facts = self.spread(&notes, &|_, note| {
+            note.clone().map(|each| facts_in(each, &names))
         });
         let run = Run {
             kept: &kept,
-            files,
+            files: &request.files,
             facts: &facts,
         };
         let drawn = self.spread(&owners.directories, &|_, package| draw(run, package));
@@ -156,10 +156,10 @@ impl ProjectContract {
             .into_iter()
             .map(|each| (each.directory, each.trees))
             .collect();
-        let examined = self.spread(files, &|place, file| {
+        let examined = self.spread(&request.files, &|place, file| {
             examine(run, &owners, &trees, &externs, place, file)
         });
-        merged(run, gaps_in(&trees), examined)
+        Ok(merged(run, gaps_in(&trees), examined))
     }
 
     /// What the manifests of the repository at `root` declare, read in process every time: it is a function of the files, and no process
@@ -344,7 +344,7 @@ impl Project for ProjectContract {
             })
             .collect();
         let mut derived = if linking_of(&request.wanted) == PathLinking::Asked {
-            self.linked(request, &packages)
+            self.linked(request, &packages)?
         } else {
             Linked::default()
         };
