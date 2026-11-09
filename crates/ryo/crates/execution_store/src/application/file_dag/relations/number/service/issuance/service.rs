@@ -40,13 +40,19 @@ impl RelationOwner {
                     return true;
                 };
                 let source = &source.population;
-                source.kind != RepresentationKind::Stored
-                    || source.kinds.get(origin.column.0 as usize) != Some(&CellKind::Number)
-                    || source.storage.len() != source.kinds.len()
-                    || source
-                        .storage
-                        .iter()
-                        .any(|span| span.length.0 != source.rows.0)
+                // A stored source decodes its numbers from rectangular columns; a computed one holds them typed.
+                source.kinds.get(origin.column.0 as usize) != Some(&CellKind::Number)
+                    || match source.kind {
+                        RepresentationKind::Stored => {
+                            source.storage.len() != source.kinds.len()
+                                || source
+                                    .storage
+                                    .iter()
+                                    .any(|span| span.length.0 != source.rows.0)
+                        }
+                        RepresentationKind::Computed => false,
+                        _ => true,
+                    }
             })
         {
             return Ok(None);
