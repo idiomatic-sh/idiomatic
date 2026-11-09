@@ -36,8 +36,8 @@ pub(super) const END: &str = "end";
 pub(super) const TEXT: &str = "text";
 /// The name a `use` leaf binds.
 pub(super) const BOUND: &str = "bound";
-/// The block of statements a `use` leaf binds in.
-pub(super) const BLOCK: &str = "block";
+/// Where a `use` leaf binds its name.
+pub(super) const SCOPE: &str = "scope";
 /// How many fields a note has.
 pub(super) const NOTE_FIELDS: usize = 3;
 /// How many fields a declaration has.

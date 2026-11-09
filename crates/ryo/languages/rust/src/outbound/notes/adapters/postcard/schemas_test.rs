@@ -36,7 +36,7 @@ fn note_is_read_as_it_is_written() -> String {
             end: OffsetSchema(9),
             text: NameSchema("crate::a"),
             bound: None,
-            block: None,
+            scope: None,
         }],
     };
     let expected = Note {
@@ -61,7 +61,7 @@ fn note_is_read_as_it_is_written() -> String {
             end: NoteOffset(9),
             text: NoteName(Cow::Borrowed("crate::a")),
             bound: None,
-            block: None,
+            scope: None,
         }],
     };
     (Note::from(schema) == expected).to_string()

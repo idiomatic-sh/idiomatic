@@ -64,7 +64,7 @@ pub(crate) fn note_of(facts: &Facts) -> Note<'_> {
                     .bound
                     .as_ref()
                     .map(|each| NoteName(Cow::Borrowed(each))),
-                block: written.block,
+                scope: written.scope,
             })
             .collect(),
     }
@@ -136,7 +136,7 @@ pub(crate) fn facts_of(note: Note<'_>, names: &dyn Fn(&Segment) -> Naming) -> Fa
             end: Offset(each.end.0),
             text: Spelling(each.text.0.into()),
             bound: each.bound.map(segment),
-            block: each.block,
+            scope: each.scope,
         })
         .collect();
     Facts {

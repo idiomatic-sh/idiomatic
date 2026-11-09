@@ -55,7 +55,7 @@ pub(super) fn writes(segments: &[&str]) -> Written {
         end: Offset(2),
         text: Spelling(segments.join("::").into()),
         bound: None,
-        block: None,
+        scope: None,
     }
 }
 

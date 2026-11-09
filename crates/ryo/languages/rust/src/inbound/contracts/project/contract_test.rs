@@ -4,7 +4,7 @@
 //! a manifest that cannot be read is refused and gives no row.
 
 use super::contract::ProjectContract;
-use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::cases::{Case, CaseName, Expect, Matched, Word, run, selects};
 use crate::fixtures::consulted_test::{members_at, workspace_with};
 use crate::fixtures::project::{
     A_ALONE, A_DEPENDS_ON_B, A_DEPENDS_ON_PATCHED_B, REFUSED, TWO_MEMBERS, Wrote, held_manifest,
@@ -38,6 +38,8 @@ enum Scenario {
     Linked,
     /// The same, and they are not asked for.
     LinkedButNotAsked,
+    /// The same, asked for, with bytes that hold no note in place of the notes of one file: a store kept from another version.
+    LinkedFromAnUnreadableNote,
     /// A manifest the run supplies that is not on disk.
     SuppliedNotOnDisk,
     /// A manifest the run supplies whose text differs from the one on disk, which cannot be read.
@@ -118,6 +120,17 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 },
             },
         ]),
+    },
+    Case {
+        name: CaseName("bytes_that_hold_no_note_refuse_the_links_and_lose_no_file_without_a_word"),
+        word: Word::Refuses,
+        input: || Scenario::LinkedFromAnUnreadableNote,
+        expect: Expect::Refusal(|error| {
+            selects(Matched(matches!(
+                error,
+                languages::ProjectError::Context { .. }
+            )))
+        }),
     },
     Case {
         name: CaseName("the_files_are_not_read_when_no_relation_that_links_them_is_asked_for"),
@@ -201,11 +214,18 @@ fn subject(given: Input) -> Result<Value, Failure> {
         languages::Relation::WorkspaceMember,
     ];
     let (held, manifests) = match given {
-        Scenario::Linked | Scenario::LinkedButNotAsked => {
-            let (made, listed) = linked();
+        Scenario::Linked | Scenario::LinkedButNotAsked | Scenario::LinkedFromAnUnreadableNote => {
+            let (mut made, listed) = linked();
+            if matches!(given, Scenario::LinkedFromAnUnreadableNote) {
+                // `a/src/b.rs`: a byte that is no postcard flag cannot start a note.
+                made[2] = languages::Bytes(vec![0xFF]);
+            }
             notes = made;
             files = listed;
-            if matches!(given, Scenario::Linked) {
+            if matches!(
+                given,
+                Scenario::Linked | Scenario::LinkedFromAnUnreadableNote
+            ) {
                 wanted.extend([
                     languages::Relation::SourceDependency,
                     languages::Relation::AnalyzedSource,
@@ -292,4 +312,9 @@ fn subject(given: Input) -> Result<Value, Failure> {
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
 }

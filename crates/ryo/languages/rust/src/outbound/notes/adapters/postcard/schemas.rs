@@ -7,8 +7,8 @@ use serde::ser::SerializeStruct as _;
 use serde::{Deserialize, Serialize, Serializer};
 
 use super::constants::{
-    AROUND, BLOCK, BOUND, CLEAN, DECLARED, DECLARED_FIELD, DECLARED_FIELDS, ENCLOSING, END, INLINE,
-    NAME, NOTE, NOTE_FIELDS, PATH, SEGMENTS, START, STEP, STEP_FIELDS, TEST_ONLY, TEXT, WRITTEN,
+    AROUND, BOUND, CLEAN, DECLARED, DECLARED_FIELD, DECLARED_FIELDS, ENCLOSING, END, INLINE, NAME,
+    NOTE, NOTE_FIELDS, PATH, SCOPE, SEGMENTS, START, STEP, STEP_FIELDS, TEST_ONLY, TEXT, WRITTEN,
     WRITTEN_FIELD, WRITTEN_FIELDS,
 };
 use super::types::Leftover;
@@ -93,8 +93,8 @@ pub(super) struct WrittenSchema<'a> {
     /// The name a `use` leaf binds, when it binds one.
     #[serde(borrow)]
     bound: Option<NameSchema<'a>>,
-    /// The block of statements a `use` leaf binds in, where it starts and ends, when it binds in one.
-    block: Option<(OffsetSchema, OffsetSchema)>,
+    /// Where a `use` leaf binds its name, where that starts and ends, when it binds short of the whole file.
+    scope: Option<(OffsetSchema, OffsetSchema)>,
 }
 
 impl<'a> From<NoteSchema<'a>> for Note<'a> {
@@ -136,7 +136,7 @@ impl<'a> From<NoteSchema<'a>> for Note<'a> {
                     end: NoteOffset(each.end.0),
                     text: NoteName(Cow::Borrowed(each.text.0)),
                     bound: each.bound.map(|name| NoteName(Cow::Borrowed(name.0))),
-                    block: each.block.map(|(start, end)| Span {
+                    scope: each.scope.map(|(start, end)| Span {
                         start: Offset(start.0),
                         end: Offset(end.0),
                     }),
@@ -224,7 +224,7 @@ impl Serialize for WrittenViewSchema<'_, '_> {
         written.serialize_field(END, &self.0.end.0)?;
         written.serialize_field(TEXT, &*self.0.text.0)?;
         written.serialize_field(BOUND, &self.0.bound.as_ref().map(|name| &*name.0))?;
-        written.serialize_field(BLOCK, &self.0.block.map(|span| (span.start.0, span.end.0)))?;
+        written.serialize_field(SCOPE, &self.0.scope.map(|span| (span.start.0, span.end.0)))?;
         written.end()
     }
 }

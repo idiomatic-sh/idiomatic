@@ -87,7 +87,7 @@ pub(crate) fn linked() -> (Vec<languages::Bytes>, Vec<languages::FilePath>) {
                 end: languages::Offset(20),
                 text: Spelling("crate::c::thing".into()),
                 bound: None,
-                block: None,
+                scope: None,
             }],
         }),
         encode(&Facts {

@@ -226,22 +226,28 @@ fn resolve_extern<'a>(
     resolve(tree, &[], &from_root)
 }
 
-/// The path `written` once a name a `use` of the same file binds where the path is written is replaced by what that `use` names: a
-/// `use` item shadows the crates a package depends on, so `helper::f` after `use crate::util as helper` is `crate::util::f`. A `use`
-/// binds where the innermost block or inline module that holds it holds the path, with no inline module between them: in the same
-/// module, and inside its block when it is written in one. A path whose first segment no other `use` binds there is as written.
+/// The path `written` once its first name is replaced by what the `use` that binds it there names (`helper::f` after `use crate::util
+/// as helper` is `crate::util::f`): a `use` binds where its scope holds the path with no inline module between them, and the one of the
+/// innermost scope shadows the others. A path whose first name no other `use` binds there is as written.
 fn through_uses<'w>(known: &'w Facts, written: &'w Written) -> std::borrow::Cow<'w, [Segment]> {
     let Some(first) = written.segments.first() else {
         return std::borrow::Cow::Borrowed(&written.segments);
     };
-    let binding = known.written.iter().find(|each| {
-        each.start != written.start
-            && each.enclosing == written.enclosing
-            && each
-                .block
-                .is_none_or(|block| block.start <= written.start && written.end <= block.end)
-            && each.bound.as_ref() == Some(first)
-    });
+    let binding = known
+        .written
+        .iter()
+        .filter(|each| {
+            each.start != written.start
+                && each.enclosing == written.enclosing
+                && each
+                    .scope
+                    .is_none_or(|scope| scope.start <= written.start && written.end <= scope.end)
+                && each.bound.as_ref() == Some(first)
+        })
+        .min_by_key(|each| {
+            each.scope
+                .map_or(u32::MAX, |scope| scope.end.0.saturating_sub(scope.start.0))
+        });
     match binding {
         Some(binding) => std::borrow::Cow::Owned(
             binding
