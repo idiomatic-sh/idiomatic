@@ -27,8 +27,8 @@ Where a version is declared:
 
 A Rust tool is fetched prebuilt with `cargo binstall`, which may not compile it: no tool is compiled. A tool with no prebuilt release for a
 machine is named in its `unavailable` (the machine's target) with the reason, and is not installed there: the groups that run it do not run
-on that machine. Any other missing prebuilt fails the install. A tool whose release ships plain archives cargo-binstall does not find is in
-`ARCHIVES`, each archive's SHA-256 recorded. Our own published tools come prebuilt from the GitHub Release of their tag, the installed
+on that machine. Any other missing prebuilt fails the install. A tool whose release ships archives cargo-binstall does not find (a gzipped
+executable, or a tar.gz or zip holding it), Rust or not, is in `ARCHIVES`, each archive's SHA-256 recorded. Our own published tools come prebuilt from the GitHub Release of their tag, the installed
 command checked against the archive the release's `SHA256SUMS` names. A tool whose installed version is the declared one is left as it
 is.
 """
@@ -312,6 +312,20 @@ ARCHIVES = {
             "aarch64-pc-windows-msvc": ("windows-aarch64", "c16a9a1248bdd746fde657b0196bfc47c8bede1e50ae73b7d9d33088a6682180"),
         },
     },
+    # The secret scanner of the root's lint group. Its release ships each executable in a tar.gz (a zip on Windows), beside the
+    # LICENSE and README; each SHA-256 is the one its `gitleaks_<version>_checksums.txt` names.
+    "gitleaks": {
+        "version": "8.30.1",
+        "url": "https://github.com/gitleaks/gitleaks/releases/download/v{version}/gitleaks_{version}_{asset}",
+        "assets": {
+            "x86_64-unknown-linux-gnu": ("linux_x64.tar.gz", "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"),
+            "aarch64-unknown-linux-gnu": ("linux_arm64.tar.gz", "e4a487ee7ccd7d3a7f7ec08657610aa3606637dab924210b3aee62570fb4b080"),
+            "aarch64-apple-darwin": ("darwin_arm64.tar.gz", "b40ab0ae55c505963e365f271a8d3846efbc170aa17f2607f13df610a9aeb6a5"),
+            "x86_64-apple-darwin": ("darwin_x64.tar.gz", "dfe101a4db2255fc85120ac7f3d25e4342c3c20cf749f2c20a18081af1952709"),
+            "x86_64-pc-windows-msvc": ("windows_x64.zip", "d29144deff3a68aa93ced33dddf84b7fdc26070add4aa0f4513094c8332afc4e"),
+            "aarch64-pc-windows-msvc": ("windows_arm64.zip", "b95f5e4f5c425cedca7ee203d9afd29597e692c4924a12ed42f970537c72cc0f"),
+        },
+    },
 }
 
 
@@ -326,6 +340,21 @@ def fetched(url: str, sha256: str) -> bytes:
     return data
 
 
+def unpacked(data: bytes, asset: str, name: str) -> bytes:
+    """The executable `name` from a release archive: the member of that name of a `.tar.gz` or a `.zip`, or the whole of a plain
+    `.gz`."""
+    if asset.endswith(".tar.gz"):
+        with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as archive:
+            member = archive.extractfile(name)
+            if member is None:
+                sys.exit(f"{asset}: {name} is not a file")
+            return member.read()
+    if asset.endswith(".zip"):
+        with zipfile.ZipFile(io.BytesIO(data)) as archive:
+            return archive.read(name)
+    return gzip.decompress(data)
+
+
 def install_archive(command: str, host: str, bin_dir: Path) -> str:
     """Puts `command`'s release executable for `host` in `bin_dir` unless the one there answers its version."""
     tool = ARCHIVES[command]
@@ -336,7 +365,7 @@ def install_archive(command: str, host: str, bin_dir: Path) -> str:
     if host not in tool["assets"]:
         sys.exit(f"{command} {tool['version']} has no archive recorded for {host}")
     asset, sha256 = tool["assets"][host]
-    data = gzip.decompress(fetched(tool["url"].format(version=tool["version"], asset=asset), sha256))
+    data = unpacked(fetched(tool["url"].format(version=tool["version"], asset=asset), sha256), asset, name)
     bin_dir.mkdir(parents=True, exist_ok=True)
     (bin_dir / name).write_bytes(data)
     (bin_dir / name).chmod(0o755)

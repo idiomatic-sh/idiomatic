@@ -42,7 +42,7 @@ tikv-jemallocator.workspace = true
 mimalloc.workspace = true
 
 [dev-dependencies]
-ryo-benchmark-contracts = { package = "idiomatic-sh-ryo-benchmark-contracts", path = "../../crates/benchmark_contracts", version = "0.1.2" }
+ryo-benchmark-contracts = { package = "idiomatic-sh-ryo-benchmark-contracts", path = "../../crates/benchmark_contracts" }
 ryo_benchmark = { package = "idiomatic-sh-ryo-benchmark", path = "../../crates/benchmark", features = ["fixtures"] }
 serde_json.workspace = true
 tempfile.workspace = true

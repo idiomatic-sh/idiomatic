@@ -40,6 +40,10 @@ committed; `validation.json` and `identity.json` are.
 The matrix's numbers come from `validation.json`, which records the exact
 sources and approved reuse of those runs.
 
+On GitHub Actions the checkpoint workflow (`.github/workflows/checkpoint.yml`), started by hand on a ref, runs `run.py` through the
+root `asymptote.toml`'s `checkpoint` tool with `target/checks/checkpoint` as the output directory, and uploads `validation.json`,
+`identity.json`, `tests.json` and every command's `.log` and `.json` as the `checkpoint-validation` artifact.
+
 ## What `run.py` writes and checks
 
 After the commands, `run.py` raises `validation` by one, records the source and

@@ -1,0 +1,16 @@
+# gitleaks (the `gitleaks` tool of asymptote.toml): its default rules, and the allowlist below for what is proven not a secret.
+[extend]
+useDefault = true
+
+[[allowlists]]
+# A content digest: a JSON line mapping a path (one with a directory, such as the relation id
+# `python/ruff/sequence-index-accesses`, or a file name with its extension, such as `access_probe.py`) to its SHA-256.
+# `generic-api-key` reads the word `key`, `token` or `access` in the path as a credential's name and the 64 hex digits as its
+# value. The evidence and result JSON record these digests by the hundred: 643 of the 645 findings of the whole history scanned
+# on 2026-11-09 are such lines; .gitleaksignore names the other two.
+description = "SHA-256 digest of a path in a JSON record"
+regexTarget = "line"
+regexes = [
+  '''^\s*"[\w.@+-]+(/[\w.@+-]+)+":\s*"[0-9a-f]{64}",?\s*$''',
+  '''^\s*"[\w@+-]+(\.[\w@+-]+)*\.[a-z]+":\s*"[0-9a-f]{64}",?\s*$''',
+]

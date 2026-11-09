@@ -17,21 +17,21 @@ from pathlib import Path
 from ci.release.publish.interface import Publish
 from ci.release.use_case import Artifact, Product
 
-# A dependency on a package of this checkout names a `path`; Cargo reports a dependency with no
-# version requirement as `*`, and strips such a development dependency when it packages.
+# A dependency on a package of this checkout names a `path`, or names a version the workspace's `[patch.crates-io]` resolves to
+# the checkout's directory (tastemaker's on ryo's crates); Cargo reports a dependency with no version requirement as `*`, and
+# strips such a development dependency when it packages.
 UNVERSIONED = "*"
 
 
 def local_dependencies(package: dict, local: dict[str, dict]) -> set[str]:
     """The names of the checkout's packages that `package` needs on crates.io before it can
-    be published: its normal and build dependencies that name a path, and its development
-    dependencies that name a path and a version (Cargo keeps those in the published manifest
-    and strips the rest)."""
+    be published: its normal and build dependencies the checkout resolves (a path, or a version
+    the workspace patches to a path), and its development dependencies with a version (Cargo
+    keeps those in the published manifest and strips the rest)."""
     return {
         dependency["name"]
         for dependency in package["dependencies"]
-        if dependency.get("path")
-        and dependency["name"] != package["name"]
+        if dependency["name"] != package["name"]
         and dependency["name"] in local
         and (dependency["kind"] != "dev" or dependency["req"] != UNVERSIONED)
     }

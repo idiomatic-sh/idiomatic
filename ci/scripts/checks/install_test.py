@@ -5,7 +5,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
-import re
+import shlex
 import subprocess
 import sys
 import tomllib
@@ -168,6 +168,29 @@ def test_every_machine_the_checks_run_on_has_a_recorded_archive() -> None:
             assert len(tool["assets"][host][1]) == 64
 
 
+def test_an_archive_s_executable_is_its_member_of_that_name_or_the_whole_of_a_gzip() -> None:
+    import gzip
+    import io
+    import tarfile
+    import zipfile
+
+    packed = io.BytesIO()
+    with tarfile.open(fileobj=packed, mode="w:gz") as archive:
+        for member, body in (("LICENSE", b"license"), ("gitleaks", b"scanner")):
+            info = tarfile.TarInfo(member)
+            info.size = len(body)
+            archive.addfile(info, io.BytesIO(body))
+    assert install.unpacked(packed.getvalue(), "linux_x64.tar.gz", "gitleaks") == b"scanner"
+    zipped = io.BytesIO()
+    with zipfile.ZipFile(zipped, "w") as archive:
+        archive.writestr("README.md", b"readme")
+        archive.writestr("gitleaks.exe", b"scanner")
+    assert install.unpacked(zipped.getvalue(), "windows_x64.zip", "gitleaks.exe") == b"scanner"
+    assert install.unpacked(gzip.compress(b"taplo"), "linux-x86_64", "taplo") == b"taplo"
+    with pytest.raises(KeyError):
+        install.unpacked(packed.getvalue(), "linux_x64.tar.gz", "other")
+
+
 def test_an_own_tool_is_kept_only_when_it_is_the_command_of_the_release_archive_its_sha256sums_names(tmp_path, monkeypatch) -> None:
     import hashlib
     import io
@@ -196,15 +219,34 @@ def test_an_own_tool_is_kept_only_when_it_is_the_command_of_the_release_archive_
 
 
 def test_benchmark_collector_selects_only_one_matching_executable(tmp_path) -> None:
+    """The benchmark tool runs the collector its build names: `seal_cargo_artifact.py` takes the one release executable Cargo's
+    compiler-artifact records name, and refuses a build that names none or two."""
     tools = tomllib.loads((ROOT / "crates/ryo/asymptote.toml").read_text())["tools"]
     command = next(tool["run"][-1] for tool in tools if "ryo-benchmark-collector --message-format=json" in tool["run"][-1])
-    expression = re.search(r"\| jq -r '([^']+)'", command).group(1)
-    assert 'test -x "$collector"' in command
+    (sealing,) = [line for line in command.splitlines() if "seal_cargo_artifact.py" in line and "ryo-benchmark-collector" in line]
+    script, _build, *selection, sealed = shlex.split(sealing)[1:]
+    assert script == "../../.github/scripts/seal_cargo_artifact.py"
+    assert selection == ["ryo-benchmark-collector", "bin", "/crates/benchmark/src/main.rs", "false"]
+    assert f'"$PWD/{sealed}"' in command
     collector = tmp_path / "collector"
     collector.write_text("#!/bin/sh\nexit 0\n")
     collector.chmod(0o755)
-    matching = {"reason": "compiler-artifact", "target": {"name": "ryo-benchmark-collector"}, "executable": str(collector)}
-    for records, accepted in (([matching], True), ([{**matching, "reason": "build-finished"}], False), ([{**matching, "target": {"name": "other"}}], False), ([matching, matching], False)):
-        selected = subprocess.run(["jq", "-r", expression], input="\n".join(json.dumps(record) for record in records), text=True, capture_output=True, check=True).stdout.strip()
-        # The shell passes this as one quoted path; multiple artifacts must not become one executable.
-        assert (bool(selected) and Path(selected).is_file() and os.access(selected, os.X_OK)) == accepted
+    matching = {
+        "reason": "compiler-artifact",
+        "target": {"name": "ryo-benchmark-collector", "kind": ["bin"], "src_path": "/checkout/crates/ryo/crates/benchmark/src/main.rs"},
+        "profile": {"test": False},
+        "executable": str(collector),
+    }
+    cases = (
+        ([matching], True),
+        ([{**matching, "reason": "build-finished"}], False),
+        ([{**matching, "target": {**matching["target"], "name": "other"}}], False),
+        ([matching, matching], False),
+    )
+    for number, (records, accepted) in enumerate(cases):
+        build = tmp_path / f"build-{number}.jsonl"
+        build.write_text("\n".join(json.dumps(record) for record in records) + "\n")
+        out = tmp_path / f"sealed-{number}"
+        run = subprocess.run([sys.executable, "-I", str(ROOT / ".github/scripts/seal_cargo_artifact.py"), str(build), *selection, str(out)], capture_output=True, text=True, check=False)
+        # Two artifacts must not become one executable, and no artifact must not pass.
+        assert (run.returncode == 0 and out.is_file() and os.access(out, os.X_OK)) == accepted, run.stderr

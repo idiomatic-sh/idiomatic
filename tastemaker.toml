@@ -25,6 +25,8 @@ templates = [
   { template = "idiomatic.arch/unchecked", file = ".github/actionlint.yaml", description = "The workflow linter's settings: the hosted runner labels newer than it knows." },
   { template = "idiomatic.arch/unchecked", file = ".gitattributes", description = "Git's attributes: every file checked out as committed." },
   { template = "idiomatic.arch/unchecked", file = ".gitignore", description = "The files git leaves out." },
+  { template = "idiomatic.arch/unchecked", file = ".gitleaks.toml", description = "The secret scanner's settings: its default rules and the allowlist of what is proven not a secret." },
+  { template = "idiomatic.arch/unchecked", file = ".gitleaksignore", description = "The secret scanner's findings proven not secrets, one fingerprint each with its reason." },
   { template = "idiomatic.arch/unchecked", file = ".yamllint.yaml", description = "The YAML lint settings." },
   { template = "idiomatic.arch/unchecked", file = "LICENSE", description = "The MIT license." },
   { template = "idiomatic.arch/unchecked", file = "README.md", description = "The repository's README." },

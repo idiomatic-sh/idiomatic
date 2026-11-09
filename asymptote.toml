@@ -85,12 +85,33 @@ run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz
 timeout-seconds = 300
 
 [[tools]]
+id = "gitleaks"
+group = "lint"
+# No secret is committed (.gitleaks.toml: gitleaks' default rules and the allowlist of what is proven not a secret; .gitleaksignore:
+# single findings proven not secrets). The staged change is scanned before it is committed, and every commit no remote holds yet
+# before it is pushed, so a secret committed and then deleted still fails; what a remote already holds is public. The whole history
+# was scanned once, on 2026-11-09. Exit 1 is a finding; --redact keeps the secret out of the output.
+run = ["bash", "-c", "set -e; gitleaks git --pre-commit --staged --redact --no-banner .; [ -z \"$(git rev-list HEAD --not --remotes)\" ] || gitleaks git --redact --no-banner '--log-opts=HEAD --not --remotes' ."]
+timeout-seconds = 600
+
+[[tools]]
 id = "ci-tests"
 group = "check"
 # The CI code's own tests, which read the workflows and the products' manifests.
 run = ["bash", "-c", "mkdir -p target/checks/ci-tests; set +e; pytest --quiet -p no:cacheprovider --import-mode=importlib -o pythonpath=. -o 'python_files=*_test.py' -o python_classes= -o 'norecursedirs=.* __pycache__' ci > target/checks/ci-tests/stdout.log 2> target/checks/ci-tests/stderr.log; tool_status=$?; cat target/checks/ci-tests/stdout.log; cat target/checks/ci-tests/stderr.log >&2; printf '%s\\n' \"$tool_status\" > target/checks/ci-tests/status; exit \"$tool_status\""]
 timeout-seconds = 1800
 inputs = ["ci", ".claude/hooks", "asymptote.toml", "tastemaker.toml", ".github", "crates/*/asymptote.toml", "crates/*/Cargo.toml", "crates/*/release-plz.toml", "crates/*/distribution/registries/npm/dist-workspace.toml", "tools/install.py"]
+
+[[tools]]
+id = "checkpoint"
+group = "checkpoint"
+# The ryo checkpoint validation (crates/ryo/docs/contracts/evidence/checkpoint/README.md): run.py runs every command of
+# commands.json over the checked-out source, writes each command's log and exit under target/checks/checkpoint, and writes
+# validation.json, identity.json and tests.json beside itself; the checkpoint workflow uploads them with the logs. The commands
+# build offline, so the two workspaces they build are fetched first. Its exit is run.py's, kept in target/checks/checkpoint/status:
+# 1 whenever it rewrites the matrix block, which a full run always does, so the verdict is each command's exit in validation.json.
+run = ["bash", "-c", "set -e; mkdir -p target/checks/checkpoint; cargo fetch --locked --manifest-path crates/ryo/Cargo.toml; cargo fetch --locked --manifest-path crates/tastemaker/Cargo.toml; set +e; python3 -I crates/ryo/docs/contracts/evidence/checkpoint/run.py target/checks/checkpoint; tool_status=$?; printf '%s\\n' \"$tool_status\" > target/checks/checkpoint/status; exit \"$tool_status\""]
+timeout-seconds = 21600
 
 [[tools]]
 id = "speed"
@@ -113,7 +134,7 @@ inputs = ["crates/ryo", "tastemaker", "rust-toolchain.toml", ".cargo"]
 [[tools]]
 id = "benchmarks"
 group = "benchmarks"
-# The weekly record of the whole-project benchmarks: each product's `distribution` bench and ryo's `lint` bench run once, their
+# The record of the whole-project benchmarks, run by hand: each product's `distribution` bench and ryo's `lint` bench run once, their
 # Bencher Metric Format documents kept under target/benchmarks, which the benchmarks workflow uploads. It judges nothing.
 run = ["uv", "run", "ci/perf/command.py", "--bench", "distribution", "--bench", "lint", "--output", "target/benchmarks"]
 timeout-seconds = 21600
