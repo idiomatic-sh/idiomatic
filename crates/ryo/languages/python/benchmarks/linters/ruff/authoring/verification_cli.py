@@ -19,7 +19,6 @@ from authoring import profile_shards
 from authoring import profile_staging
 from authoring import profile_worker
 from authoring import rule_registration
-from authoring import ruff_parity
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -45,15 +44,7 @@ def main() -> int:
     parser.add_argument('--stage-request', type=Path, metavar='PINNED_REQUEST', help='stage rules, fragments and benchmark.toml from --source into a fresh --output-dir and build a run-ryo request over the corpus of PINNED_REQUEST; prints the staged digest')
     parser.add_argument('--source', default='HEAD', help='the measured source commit --stage-request stages from (default: HEAD)')
     parser.add_argument('--cache', type=Path, help='the store directory the staged request names (default: <output-dir>/cache)')
-    parser.add_argument('--ruff-parity', type=Path, metavar='STAGED_REQUEST', help='compare one whole-project ryo report with the pinned Ruff over STAGED_REQUEST, finding by finding; writes summary.json and per-rule.json to a fresh --output-dir and fails on any difference the accepted-differences file does not name')
-    parser.add_argument('--ryo-output', type=Path, help='the ryo run-ryo report --ruff-parity compares (instead of running --worker)')
     arguments = parser.parse_args()
-    if arguments.ruff_parity is not None:
-        if arguments.ruff is None or arguments.output_dir is None or arguments.output_dir.exists() or (arguments.ryo_output is None) == (arguments.worker is None):
-            parser.error('--ruff-parity requires Ruff, a fresh --output-dir, and exactly one of --ryo-output or --worker')
-        return ruff_parity.run_ruff_parity(arguments.ruff, arguments.ruff_parity.resolve(strict=True), arguments.ryo_output.resolve(strict=True) if arguments.ryo_output else None, arguments.worker.resolve(strict=True) if arguments.worker else None, arguments.output_dir.resolve())
-    if arguments.ryo_output is not None:
-        parser.error('--ryo-output is supported only with --ruff-parity')
     if arguments.stage_request is not None:
         if arguments.output_dir is None or arguments.output_dir.exists():
             parser.error('--stage-request requires a fresh --output-dir')

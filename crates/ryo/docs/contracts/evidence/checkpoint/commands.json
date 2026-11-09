@@ -36,12 +36,8 @@
     ["python3", "-I", "crates/ryo/languages/python/benchmarks/linters/ruff/verify_profiles.py", "--self-test"]
   ],
   [
-    "ruff_parity_self_test",
-    ["sh", "-c", "cd crates/ryo/languages/python/benchmarks/linters/ruff && python3 -m unittest -v authoring.test_ruff_parity"]
-  ],
-  [
     "ruff_parity",
-    ["sh", "-c", "set -e; o=/tmp/ryo-ruff-parity-{worktree}; rm -rf \"$o\"; w=$(cargo bench --no-run --manifest-path crates/ryo/Cargo.toml --target-dir /workspaces/idiomatic-target/{worktree} --locked --offline -j6 -p idiomatic-sh-ryo-python --bench ruff --message-format=json | python3 -I -c 'import sys; sys.path.insert(0, \"crates/ryo/languages/python/benchmarks/linters/ruff\"); from authoring.profile_worker import parse_worker_artifact; print(parse_worker_artifact(sys.stdin.buffer.read()))'); python3 -I crates/ryo/languages/python/benchmarks/linters/ruff/verify_profiles.py --stage-request /tmp/ryo-event-ready-django213-20261105/cold-request.json --output-dir \"$o/stage\"; python3 -I crates/ryo/languages/python/benchmarks/linters/ruff/verify_profiles.py ruff --ruff-parity \"$o/stage/request.json\" --worker \"$w\" --output-dir \"$o/parity\""]
+    ["sh", "-c", "set -e; o=/tmp/ryo-ruff-parity-{worktree}; rm -rf \"$o\"; mkdir -p \"$o\"; w=$(cargo bench --no-run --manifest-path crates/ryo/Cargo.toml --target-dir /workspaces/idiomatic-target/{worktree} --locked --offline -j6 -p idiomatic-sh-ryo-python --bench ruff --message-format=json | python3 -I -c 'import sys; sys.path.insert(0, \"crates/ryo/languages/python/benchmarks/linters/ruff\"); from authoring.profile_worker import parse_worker_artifact; print(parse_worker_artifact(sys.stdin.buffer.read()))'); python3 -I crates/ryo/languages/python/benchmarks/linters/ruff/verify_profiles.py --stage-request /tmp/ryo-event-ready-django213-20261105/cold-request.json --output-dir \"$o/stage\"; \"$w\" parity \"$(command -v ruff)\" \"$w\" \"$o/stage/request.json\" crates/ryo/docs/contracts/evidence/parity/django-413/accepted-differences.json \"$o/per-rule.json\""]
   ],
   [
     "core_bdd",

@@ -1,6 +1,6 @@
 {
-  "description": "The Django differences between ryo and the pinned Ruff 0.16.5 that Ruff parity accepts, each pinned by finding. verify_profiles.py --ruff-parity reads this file and refuses it for a request whose corpus digest (its file list and context manifest entries) differs, or when a rule is named twice. Any unmatched finding not named here, any named finding that no longer occurs and any end-position difference fails the run.",
-  "corpus": "9db1209733f1483030cdfab7db0ec9d8646537c05a467bf210dbedda6d3e3d73",
+  "description": "The Django differences between ryo and the pinned Ruff 0.16.5 that Ruff parity accepts, each pinned by finding. The Ruff benchmark's parity command (asymptote tool performance-python-ruff-parity) reads this file and refuses it before either contestant runs for a request whose corpus digest (its file list and sealed context entries, as the benchmark's canonical text spells them) differs, or when a rule is named twice. Any unmatched finding not named here, any named finding that no longer occurs and any end-position difference fails the run.",
+  "corpus": "37e6bfef83fd9a9e098bab0b6788da60f94c21801c1b009b5ad11a61a2a08ee1",
   "differences": [
     {
       "rule": "FURB122",
