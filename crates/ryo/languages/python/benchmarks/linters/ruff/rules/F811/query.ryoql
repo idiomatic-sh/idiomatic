@@ -1,5 +1,4 @@
 import observation_matches from "python/ruff/suppress-matches";
-import suppress from "python/ruff/suppress";
 import deferred_events from "python/ruff/deferred-read-events";
 let nodes = select id, kind, file, span from "semantic-syntax";
 let definitions0 = select l.id as binding, l.kind as declaration_kind, l.refinement as refinement, l.name as name, l.owner as scope, l.file as file, l.span as span from "defines" as l join nodes as r on l.id = r.id;
@@ -133,9 +132,10 @@ let ordinary_report_candidates = select l.id as id, r.file as file, r.span as sp
 let global_report_candidates = select current as id, file, span from unreferenced_global_bindings;
 let report_candidates = union(left=ordinary_report_candidates, right=global_report_candidates);
 let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from report_candidates as l join "source-location" as r on l.id = r.id;
-let violations = suppress(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*F811(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:F811)(?:,|$)");
-let ruf100_matches = observation_matches(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*F811(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:F811)(?:,|$)");
-let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:F811)$");
+let violations_rows = select id, file, span from candidate_locations;
+let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_directives = select directive, file from violations_matches where scope < 2;
 let ruf100_used = extend(from=ruf100_directives, values={code: "F811"});
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

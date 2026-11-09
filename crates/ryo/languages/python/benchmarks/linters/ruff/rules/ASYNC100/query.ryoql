@@ -1,5 +1,4 @@
 import observation_matches from "python/ruff/suppress-matches";
-import suppress from "python/ruff/suppress";
 let with_statements = select id, file, span, kind from "semantic-syntax" where kind = "with" or kind = "async-with";
 let with_items = select l.parent as statement, l.child as item, l.ordinal as ordinal, r.file as file from "semantic-child" as l join with_statements as r on l.parent = r.id where l.field = "items";
 let later_items = select l.statement as statement, l.item as earlier from with_items as l join with_items as r on l.statement = r.statement where r.ordinal > l.ordinal;
@@ -50,9 +49,10 @@ let applicable_statements = group-count(from=applicable_timeout_items, keys=["st
 let reportable_statements = antijoin(left=applicable_statements, right=yield_and_scope_checkpoints, left-on=["statement"], right-on=["statement"]);
 let reportable = select l.statement as id, r.file as file, r.span as span from reportable_statements as l join with_statements as r on l.statement = r.id;
 let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id and l.file = r.file;
-let violations = suppress(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*ASYNC100(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:ASYNC100)(?:,|$)");
-let ruf100_matches_0 = observation_matches(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*ASYNC100(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:ASYNC100)(?:,|$)");
-let ruf100_directives = select directive, file from ruf100_matches_0 where scope = 0 or scope = 1;
+let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:ASYNC100|TRIO100)$");
+let violations_rows = select id, file, span from candidate_locations;
+let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_directives = select directive, file from violations_matches where scope < 2;
 let ruf100_used = extend(from=ruf100_directives, values={code: "ASYNC100"});
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

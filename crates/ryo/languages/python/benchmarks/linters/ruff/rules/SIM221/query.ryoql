@@ -1,5 +1,4 @@
 import observation_matches from "python/ruff/suppress-matches";
-import suppress from "python/ruff/suppress";
 let bool_ops = select id, file, span from "semantic-syntax" where kind = "bool-op";
 let operators = select parent, child from "semantic-child" where field = "op";
 let and_tokens = select id from "semantic-syntax" where text = "or";
@@ -90,12 +89,13 @@ let effect_free = antijoin(left=potential,right=owners_with_effects,left-on=["id
 let reportable = select id, file, span, unary, negated_name, positive_name from effect_free;
 let candidate_locations = select l.id as id, l.file as file, l.span as span, l.unary as unary, l.negated_name as negated_name, l.positive_name as positive_name, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id;
 let suppression_candidates = select id, file, span, line from candidate_locations;
-let visible_candidates = suppress(candidates=suppression_candidates, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*SIM221(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:SIM221)(?:,|$)");
+let visible_candidates_matches = observation_matches(candidates=suppression_candidates, codes="^(?:SIM221)$");
+let visible_candidates_rows = select id, file, span from suppression_candidates;
+let visible_candidates = antijoin(left=visible_candidates_rows, right=visible_candidates_matches, left-on=[id, span], right-on=[id, span]);
 let hidden_candidates = antijoin(left=suppression_candidates, right=visible_candidates, left-on=["id"], right-on=["id"]);
 let kept_candidates = antijoin(left=candidate_locations, right=hidden_candidates, left-on=["id"], right-on=["id"]);
 let violations = select id, file, span, unary, negated_name, positive_name from kept_candidates;
-let ruf100_matches = observation_matches(candidates=suppression_candidates, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*SIM221(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:SIM221)(?:,|$)");
-let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let ruf100_directives = select directive, file from visible_candidates_matches where scope < 2;
 let ruf100_used = extend(from=ruf100_directives, values={code: "SIM221"});
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id, unary, negated_name, positive_name);

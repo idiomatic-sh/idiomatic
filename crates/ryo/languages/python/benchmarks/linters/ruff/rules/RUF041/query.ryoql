@@ -1,6 +1,5 @@
 import observation_matches from "python/ruff/suppress-matches";
 import typing_match from "python/ruff/typing-match-at-visit";
-import suppress from "python/ruff/suppress";
 import type_context from "python/ruff/type-definition-context";
 let nodes = select id, kind, file from "semantic-syntax";
 let subscripts = select id, file from nodes where kind = "subscript";
@@ -24,9 +23,10 @@ let nested_literals = select l.id as root, r.child_literal as literal, l.file as
 let leaf_members = antijoin(left=members, right=subscripts, left-on=["member","file"], right-on=["id","file"]);
 let candidates = select l.root as id, l.file as file from nested_literals as l join leaf_members as r on l.literal = r.literal and l.file = r.file;
 let candidate_locations = select l.id as id, l.file as file, r.span as span, r."start-line" as line from candidates as l join "source-location" as r on l.id = r.id and l.file = r.file;
-let violations = suppress(candidates=candidate_locations, inline-pattern="(?:^|[^A-Z0-9])RUF041(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:RUF041)(?:,|$)");
-let ruf100_matches = observation_matches(candidates=candidate_locations, inline-pattern="(?:^|[^A-Z0-9])RUF041(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:RUF041)(?:,|$)");
-let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:RUF041)$");
+let violations_rows = select id, file, span from candidate_locations;
+let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_directives = select directive, file from violations_matches where scope < 2;
 let ruf100_used = extend(from=ruf100_directives, values={code: "RUF041"});
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

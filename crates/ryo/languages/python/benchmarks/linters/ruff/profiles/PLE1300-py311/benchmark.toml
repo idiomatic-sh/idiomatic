@@ -3,5 +3,5 @@ version = "0.16.5"
 sha256 = ["52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8", "024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32", "515c8e5e3c8c3cd9785f421e050c98748420aae9a02459b7232c89a46bbadba4", "894431afcb8addcd8e3752e53634fdb0a6f9063153cd62ed730ce59d02878487", "29bad4fe4eea42953274db328ce9bd3c8cc2854b1d00d4b90ee48f797795b33e"]
 defaults = ["PLE1300"]
 parser-configuration = "python-target=3.11"
-query-modules = { "python/ruff/assigned-values" = "fragments/assigned-values.ryoql", "python/ruff/suppress" = "fragments/suppress.ryoql", "python/ruff/suppress-directives" = "fragments/suppress-directives.ryoql" }
+query-modules = { "python/ruff/assigned-values" = "fragments/assigned-values.ryoql", "python/ruff/suppress-matches" = "fragments/suppress-matches.ryoql", "python/ruff/noqa-line-map" = "fragments/noqa-line-map.ryoql", "python/ruff/noqa-locations" = "fragments/noqa-locations.ryoql", "python/ruff/noqa-suppressions" = "fragments/noqa-suppressions.ryoql", "python/ruff/noqa-codes" = "fragments/noqa-codes.ryoql", "python/ruff/noqa-blankets" = "fragments/noqa-blankets.ryoql", "python/ruff/noqa-ranges" = "fragments/noqa-ranges.ryoql", "python/ruff/noqa-heads" = "fragments/noqa-heads.ryoql" }
 rule-applicability = { "PLE1300" = "accepted-syntax" }

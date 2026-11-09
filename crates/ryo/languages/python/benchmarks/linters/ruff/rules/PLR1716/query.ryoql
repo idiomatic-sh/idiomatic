@@ -1,5 +1,4 @@
 import observation_matches from "python/ruff/suppress-matches";
-import suppress from "python/ruff/suppress";
 let nodes = select id, kind, file, span from "semantic-syntax";
 let boolops = select id, file from nodes where kind = "bool-op";
 let operators = select parent, child, file from "semantic-child" where field = "op";
@@ -38,9 +37,10 @@ let left_locations = select l.id as id, l.file as file, l.right_compare as right
 let bounds = select l.id as id, l.file as file, l.line as line, l.start_span as start_span, r.span as end_span from left_locations as l join comparisons as r on l.right_compare = r.id and l.file = r.file;
 let composed = span-between(from=bounds, start="start_span", end="end_span", output="span");
 let candidates = select id, file, span, line from composed;
-let violations = suppress(candidates=candidates, inline-pattern="(?:^|[^A-Z0-9])PLR1716(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:PLR1716)(?:,|$)");
-let ruf100_matches = observation_matches(candidates=candidates, inline-pattern="(?:^|[^A-Z0-9])PLR1716(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:PLR1716)(?:,|$)");
-let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let violations_matches = observation_matches(candidates=candidates, codes="^(?:PLR1716)$");
+let violations_rows = select id, file, span from candidates;
+let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_directives = select directive, file from violations_matches where scope < 2;
 let ruf100_used = extend(from=ruf100_directives, values={code: "PLR1716"});
 observe ruf100_used as noqa_matches;
 emit violations subject file key(span,id);

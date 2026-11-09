@@ -1,5 +1,4 @@
 import observation_matches from "python/ruff/suppress-matches";
-import suppress from "python/ruff/suppress";
 let qualified_aliases = select id, file from "qualified-name" where path = "IOError" or path = "EnvironmentError" or path = "builtins.IOError" or path = "builtins.EnvironmentError" or path = "os.error" or path = "mmap.error" or path = "resource.error" or path = "select.error" or path = "socket.error";
 let windows_catalog = select name, file from "implicit-symbol" where name = "WindowsError" and kind = "platform-builtin";
 let windows_names = select l.id as id, l.name as name, l.file as file from "identifier" as l join "binding-read" as r on l.id = r.reference and l.name = r.name and l.file = r.file where r.state = "unbound" and r.context = "value";
@@ -35,9 +34,10 @@ let alias_reportable_ab = union(left=alias_reportable_a,right=alias_reportable_b
 let alias_reportable = union(left=alias_reportable_ab,right=alias_reportable_c);
 let reportable = union(left=alias_reportable,right=tuple_reportable);
 let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id and l.file = r.file;
-let violations = suppress(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*UP024(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:UP024)(?:,|$)");
-let ruf100_matches = observation_matches(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*UP024(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:UP024)(?:,|$)");
-let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:UP024)$");
+let violations_rows = select id, file, span from candidate_locations;
+let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_directives = select directive, file from violations_matches where scope < 2;
 let ruf100_used = extend(from=ruf100_directives, values={code: "UP024"});
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

@@ -93,16 +93,28 @@ pub(super) fn suppress_modules() -> BTreeMap<String, std::path::PathBuf> {
             std::path::PathBuf::from("fragments/noqa-additional-locations.ryoql"),
         ),
         (
-            "python/ruff/suppression-edges".to_owned(),
-            std::path::PathBuf::from("fragments/suppression-edges.ryoql"),
+            "python/ruff/noqa-heads".to_owned(),
+            std::path::PathBuf::from("fragments/noqa-heads.ryoql"),
         ),
         (
-            "python/ruff/suppress".to_owned(),
-            std::path::PathBuf::from("fragments/suppress.ryoql"),
+            "python/ruff/noqa-codes".to_owned(),
+            std::path::PathBuf::from("fragments/noqa-codes.ryoql"),
         ),
         (
-            "python/ruff/suppress-directives".to_owned(),
-            std::path::PathBuf::from("fragments/suppress-directives.ryoql"),
+            "python/ruff/noqa-blankets".to_owned(),
+            std::path::PathBuf::from("fragments/noqa-blankets.ryoql"),
+        ),
+        (
+            "python/ruff/noqa-ranges".to_owned(),
+            std::path::PathBuf::from("fragments/noqa-ranges.ryoql"),
+        ),
+        (
+            "python/ruff/noqa-suppressions".to_owned(),
+            std::path::PathBuf::from("fragments/noqa-suppressions.ryoql"),
+        ),
+        (
+            "python/ruff/noqa-suppressions-with-additional-lines".to_owned(),
+            std::path::PathBuf::from("fragments/noqa-suppressions-with-additional-lines.ryoql"),
         ),
     ])
 }

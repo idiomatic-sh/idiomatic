@@ -1,5 +1,4 @@
 import observation_matches from "python/ruff/suppress-matches";
-import suppress from "python/ruff/suppress";
 let calls = select id, file, span from "semantic-syntax" where kind = "call";
 let function_fields = select parent, child from "semantic-child" where field = "func";
 let call_functions = select l.parent as call, l.child as function, r.file as file, r.span as span from function_fields as l join calls as r on l.parent = r.id;
@@ -21,9 +20,10 @@ let parse_rows = select p.id as id, p.file as file, p.outcome as outcome, p."err
 let parsed_calls = select l.call as call, l.file as file, l.span as span, l.format_id as format_id, r.outcome as outcome, r.error_category as error_category, r.automatic_count as automatic_count, r.indexed_count as indexed_count, r.keyword_count as keyword_count, r.nested_field_count as nested_field_count from format_calls_with_literal as l join parse_rows as r on l.format_id = r.id and l.file = r.file;
 let candidates = select call as call, file as file, span as span from parsed_calls where outcome = "malformed";
 let candidate_locations = select l.call as id, l.file as file, l.span as span, r."start-line" as line from candidates as l join "source-location" as r on l.call = r.id and l.file = r.file;
-let violations = suppress(candidates=candidate_locations, inline-pattern="(?:^|[^A-Z0-9])F521(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:F521)(?:,|$)");
-let ruf100_matches = observation_matches(candidates=candidate_locations, inline-pattern="(?:^|[^A-Z0-9])F521(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:F521)(?:,|$)");
-let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:F521)$");
+let violations_rows = select id, file, span from candidate_locations;
+let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_directives = select directive, file from violations_matches where scope < 2;
 let ruf100_used = extend(from=ruf100_directives, values={code: "F521"});
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

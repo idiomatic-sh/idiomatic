@@ -1,5 +1,4 @@
 import observation_matches from "python/ruff/suppress-matches";
-import suppress from "python/ruff/suppress";
 let comparisons = select id, file, span from "semantic-syntax" where kind = "compare";
 let constant_nodes = select id, file from "semantic-syntax" where kind = "constant";
 let literal_properties = select id, file, kind from "literal-properties";
@@ -38,9 +37,10 @@ let bad_right_only = antijoin(left=bad_right, right=bad_left, left-on=["comparis
 let bad_identity_ops = union(left=bad_left, right=bad_right_only);
 let reportable = select r.operator as id, l.id as comparison, l.file as file, l.span as span from comparisons as l join bad_identity_ops as r on l.id = r.comparison;
 let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.comparison = r.id and l.file = r.file;
-let violations = suppress(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*F632(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:F632)(?:,|$)");
-let ruf100_matches = observation_matches(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*F632(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:F632)(?:,|$)");
-let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:F632)$");
+let violations_rows = select id, file, span from candidate_locations;
+let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_directives = select directive, file from violations_matches where scope < 2;
 let ruf100_used = extend(from=ruf100_directives, values={code: "F632"});
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

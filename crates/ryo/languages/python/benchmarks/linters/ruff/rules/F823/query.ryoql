@@ -1,5 +1,4 @@
 import observation_matches from "python/ruff/suppress-matches";
-import suppress from "python/ruff/suppress";
 let function_scopes = select id, file from "semantic-syntax" where kind = "function-def" or kind = "async-function-def";
 let local_events = select occurrence, name, scope, phase, kind, ordinal, file from "binding-event" where scope = phase and (kind = "bind" or kind = "annotation" or kind = "delete" or kind = "cleanup");
 let deletion_nodes = select occurrence as id from local_events where kind = "delete";
@@ -45,9 +44,10 @@ let later_reads = select l.binding as binding, l.id as id from earlier_reads as 
 let first_reads = antijoin(left=earlier_reads, right=later_reads, left-on=["binding", "id"], right-on=["binding", "id"]);
 let reportable = select id, file, span from first_reads;
 let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id;
-let violations = suppress(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*F823(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:F823)(?:,|$)");
-let ruf100_matches = observation_matches(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*F823(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:F823)(?:,|$)");
-let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:F823)$");
+let violations_rows = select id, file, span from candidate_locations;
+let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_directives = select directive, file from violations_matches where scope < 2;
 let ruf100_used = extend(from=ruf100_directives, values={code: "F823"});
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

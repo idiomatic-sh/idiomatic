@@ -1,5 +1,4 @@
 import observation_matches from "python/ruff/suppress-matches";
-import suppress from "python/ruff/suppress";
 let decorators = select id, file, span from "syntax-tree" where kind = "decorator";
 let decorator_locations = select l.id as decorator, l.file as file, r."start-byte" as begin, r."end-byte" as finish from decorators as l join "source-location" as r on l.id = r.id and l.file = r.file;
 let at_tokens = select id, file from "syntax-tree" where text = "@";
@@ -33,9 +32,10 @@ let eligible_decorators = antijoin(left=matching_decorators, right=nonempty_matc
 let matching_decorator_ids = select decorator as id from eligible_decorators;
 let matching_decorator_rows = select l.id as id, r.file as file, r.span as span from matching_decorator_ids as l join decorators as r on l.id = r.id;
 let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from matching_decorator_rows as l join "source-location" as r on l.id = r.id and l.file = r.file;
-let violations = suppress(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*PT026(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:PT026)(?:,|$)");
-let ruf100_matches = observation_matches(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*PT026(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:PT026)(?:,|$)");
-let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:PT026)$");
+let violations_rows = select id, file, span from candidate_locations;
+let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_directives = select directive, file from violations_matches where scope < 2;
 let ruf100_used = extend(from=ruf100_directives, values={code: "PT026"});
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

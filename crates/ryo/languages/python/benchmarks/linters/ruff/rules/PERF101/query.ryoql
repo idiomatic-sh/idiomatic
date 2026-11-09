@@ -1,6 +1,5 @@
 import observation_matches from "python/ruff/suppress-matches";
 import assigned_values from "python/ruff/assigned-values";
-import suppress from "python/ruff/suppress";
 let loops = select id, file from "semantic-syntax" where kind = "for" or kind = "async-for";
 let iter_fields = select parent, child from "semantic-child" where field = "iter";
 let loop_iterators = select l.id as loop, l.file as file, r.child as iterator from loops as l join iter_fields as r on l.id = r.parent;
@@ -76,9 +75,10 @@ let stable_casts = antijoin(left=named_casts, right=mutated_casts, left-on=["loo
 let variable_casts = select call as id, file from stable_casts;
 let candidates = union(left=direct_literal_casts, right=variable_casts);
 let candidate_locations = select l.id as id, l.file as file, r.span as span, r."start-line" as line from candidates as l join "source-location" as r on l.id = r.id and l.file = r.file;
-let violations = suppress(candidates=candidate_locations, inline-pattern="(?:^|[^A-Z0-9])PERF101(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:PERF101)(?:,|$)");
-let ruf100_matches = observation_matches(candidates=candidate_locations, inline-pattern="(?:^|[^A-Z0-9])PERF101(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:PERF101)(?:,|$)");
-let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:PERF101)$");
+let violations_rows = select id, file, span from candidate_locations;
+let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_directives = select directive, file from violations_matches where scope < 2;
 let ruf100_used = extend(from=ruf100_directives, values={code: "PERF101"});
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

@@ -1,5 +1,4 @@
 import observation_matches from "python/ruff/suppress-matches";
-import suppress from "python/ruff/suppress";
 let nodes = select id, kind, file from "semantic-syntax";
 let sequences = select id, file from nodes where kind = "list" or kind = "tuple";
 let elements = select l.id as sequence, r.child as element, l.file as file from sequences as l join "semantic-child" as r on l.id = r.parent and l.file = r.file where r.field = "elts";
@@ -33,9 +32,10 @@ let negative_zero_empty = select id, file from negative where length = 0 and num
 let negative_bad = union(left=negative_beyond, right=negative_zero_empty);
 let bad = union(left=positive_bad, right=negative_bad);
 let candidates = select l.id as id, l.file as file, r.span as span, r."start-line" as line from bad as l join "source-location" as r on l.id = r.id and l.file = r.file;
-let violations = suppress(candidates=candidates, inline-pattern="PLE0643($|[, #])", range-pattern="(?:^|,)PLE0643(?:,|$)");
-let ruf100_matches = observation_matches(candidates=candidates, inline-pattern="PLE0643($|[, #])", range-pattern="(?:^|,)PLE0643(?:,|$)");
-let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let violations_matches = observation_matches(candidates=candidates, codes="^(?:PLE0643)$");
+let violations_rows = select id, file, span from candidates;
+let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_directives = select directive, file from violations_matches where scope < 2;
 let ruf100_used = extend(from=ruf100_directives, values={code: "PLE0643"});
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

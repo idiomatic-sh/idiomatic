@@ -1,5 +1,4 @@
 import observation_matches from "python/ruff/suppress-matches";
-import suppress from "python/ruff/suppress";
 let calls = select id, file, span from "semantic-syntax" where kind = "call";
 let function_fields = select parent, child from "semantic-child" where field = "func";
 let call_functions = select l.parent as call, l.child as function from function_fields as l join calls as r on l.parent = r.id;
@@ -38,9 +37,10 @@ let duplicate_ranks = group-count(from=comparable_pairs, keys=["later"], count="
 let duplicate_elements = select later as id from duplicate_ranks;
 let candidate_rows = select l.id as id, r.file as file, r.span as span from duplicate_elements as l join "semantic-syntax" as r on l.id = r.id;
 let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from candidate_rows as l join "source-location" as r on l.id = r.id and l.file = r.file;
-let violations = suppress(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*PT014(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:PT014)(?:,|$)");
-let ruf100_matches = observation_matches(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*PT014(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:PT014)(?:,|$)");
-let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:PT014)$");
+let violations_rows = select id, file, span from candidate_locations;
+let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_directives = select directive, file from violations_matches where scope < 2;
 let ruf100_used = extend(from=ruf100_directives, values={code: "PT014"});
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

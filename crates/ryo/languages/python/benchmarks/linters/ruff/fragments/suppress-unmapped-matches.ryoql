@@ -1,9 +1,7 @@
-import suppression_edges from "python/ruff/suppression-edges";
+import noqa_suppressions from "python/ruff/noqa-suppressions";
 input candidates: relation<id: node, file: file, span: span, line: number>;
-param inline-pattern: string;
-param range-pattern: string;
+param codes: string;
 output relation<id: node, file: file, span: span, directive: node, scope: number>;
 let candidate_locations = select id, file, span, line from candidates;
-let empty_additional = select id, file, line from candidate_locations where id != id;
-let matched = suppression_edges(candidates=candidate_locations, locations=candidate_locations, additional_locations=empty_additional, inline-pattern=$inline-pattern, range-pattern=$range-pattern);
+let matched = noqa_suppressions(candidates=candidate_locations, locations=candidate_locations, codes=$codes);
 return matched;

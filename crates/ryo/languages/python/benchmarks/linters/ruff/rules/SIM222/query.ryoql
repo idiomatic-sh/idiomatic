@@ -1,5 +1,4 @@
 import observation_matches from "python/ruff/suppress-matches";
-import suppress from "python/ruff/suppress";
 let boolean_nodes = select id, file, span from "semantic-syntax" where kind = "bool-op";
 let operator_edges = select parent, child, file from "semantic-child" where field = "op";
 let operator_tokens = select id, file from "semantic-syntax" where text = "or";
@@ -43,9 +42,10 @@ let composed = span-between(from=ordinary_bounds, start="literal_span", end="exp
 let test_locations = select r.id as id, r.file as file, r.span as span, r."start-line" as line from tested_values as l join "source-location" as r on l.boolop = r.id and l.file = r.file;
 let ordinary_locations = select id, file, span, line from composed;
 let candidate_locations = union(left=ordinary_locations, right=test_locations);
-let violations = suppress(candidates=candidate_locations, inline-pattern="(?:^|[^A-Z0-9])SIM222(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:SIM222)(?:,|$)");
-let ruf100_matches = observation_matches(candidates=candidate_locations, inline-pattern="(?:^|[^A-Z0-9])SIM222(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:SIM222)(?:,|$)");
-let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:SIM222)$");
+let violations_rows = select id, file, span from candidate_locations;
+let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_directives = select directive, file from violations_matches where scope < 2;
 let ruf100_used = extend(from=ruf100_directives, values={code: "SIM222"});
 observe ruf100_used as noqa_matches;
 emit violations subject file key(span, id);

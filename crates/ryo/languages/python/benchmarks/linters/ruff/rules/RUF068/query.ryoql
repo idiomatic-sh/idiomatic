@@ -1,5 +1,4 @@
 import observation_matches from "python/ruff/suppress-matches";
-import suppress from "python/ruff/suppress";
 let nodes = select id, kind, text, file, span from "semantic-syntax";
 let assignments = select id, kind, file from nodes where kind = "assign" or kind = "ann-assign" or kind = "aug-assign";
 let plain_assignments = select id, file from assignments where kind = "assign";
@@ -56,9 +55,10 @@ let ordered = select l.collection as collection, l.id as id, l.key as key, l.fil
 let repeated = ordered-match(left=ordered, right=ordered, left-on=[collection,file,key], right-on=[collection,file,key], left-order="begin", right-order="begin", output={id:[right,id],file:[right,file]});
 let candidates_join_1 = select l.id as l_id, l.file as l_file, r.span as r_span, r.id as r_id, r.file as r_file from repeated as l join nodes as r on l.id = r.id and l.file = r.file;
 let candidates = select l.l_id as id, l.l_file as file, l.r_span as span, s."start-line" as line from candidates_join_1 as l join "source-location" as s on l.l_id = s.id and l.l_file = s.file;
-let violations = suppress(candidates=candidates, inline-pattern="(?:^|[^A-Z0-9])RUF068(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:RUF068)(?:,|$)");
-let ruf100_matches = observation_matches(candidates=candidates, inline-pattern="(?:^|[^A-Z0-9])RUF068(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:RUF068)(?:,|$)");
-let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let violations_matches = observation_matches(candidates=candidates, codes="^(?:RUF068)$");
+let violations_rows = select id, file, span from candidates;
+let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_directives = select directive, file from violations_matches where scope < 2;
 let ruf100_used = extend(from=ruf100_directives, values={code: "RUF068"});
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

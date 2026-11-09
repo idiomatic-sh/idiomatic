@@ -225,7 +225,3 @@ defaults = [
 "python/ruff/noqa-line-map" = "fragments/noqa-line-map.ryoql"
 "python/ruff/noqa-locations" = "fragments/noqa-locations.ryoql"
 "python/ruff/noqa-additional-locations" = "fragments/noqa-additional-locations.ryoql"
-"python/ruff/suppression-edges" = "fragments/suppression-edges.ryoql"
-"python/ruff/suppress-directives" = "fragments/suppress-directives.ryoql"
-"python/ruff/suppress-unmapped" = "fragments/suppress-unmapped.ryoql"
-"python/ruff/suppress-with-additional-lines" = "fragments/suppress-with-additional-lines.ryoql"

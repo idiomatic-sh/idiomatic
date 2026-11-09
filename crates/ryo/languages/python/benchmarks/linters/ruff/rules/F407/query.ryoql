@@ -1,5 +1,4 @@
 import observation_matches from "python/ruff/suppress-matches";
-import suppress from "python/ruff/suppress";
 let import_statements = select id, file from "semantic-syntax" where kind = "import-from";
 let module_fields = select parent, child, file from "semantic-child" where field = "module";
 let future_module_names = select id, file from "identifier" where name = "__future__";
@@ -35,9 +34,10 @@ let relative_union = union(left=unknown_relative_locations,right=future_wildcard
 let typed_candidate_ids = select id, file from typed_future_candidates;
 let relative_candidates = antijoin(left=relative_union,right=typed_candidate_ids,left-on=["id","file"],right-on=["id","file"]);
 let candidate_locations = union(left=relative_candidates,right=typed_future_candidates);
-let violations = suppress(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*F407(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:F407)(?:,|$)");
-let ruf100_matches = observation_matches(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*F407(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:F407)(?:,|$)");
-let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:F407)$");
+let violations_rows = select id, file, span from candidate_locations;
+let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_directives = select directive, file from violations_matches where scope < 2;
 let ruf100_used = extend(from=ruf100_directives, values={code: "F407"});
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

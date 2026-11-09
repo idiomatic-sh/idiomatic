@@ -1,6 +1,6 @@
 import noqa_line_map from "python/ruff/noqa-line-map";
 import noqa_locations from "python/ruff/noqa-locations";
-import suppression_edges from "python/ruff/suppression-edges";
+import suppression_edges from "python/ruff/noqa-suppressions-with-additional-lines";
 let nodes = select id, file, span, kind from "semantic-syntax";
 let literals = select id, file from nodes where kind = "constant";
 let cased_names = select id, file from "identifier" where matches(name, "\p{Lu}|\p{Lt}");
@@ -53,9 +53,9 @@ let located = select l.id as id, l.file as file, r.span as span, r."start-line" 
 let mappings = noqa_line_map();
 let locations = noqa_locations(candidates=located, mappings=mappings);
 let additional = select id, file, line from located where id != id;
-let matches = suppression_edges(candidates=located, locations=locations, additional_locations=additional, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*(?:SIM300)(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:SIM300)(?:,|$)");
+let matches = suppression_edges(candidates=located, locations=locations, additional_locations=additional, codes="^(?:SIM300)$");
 let violations = antijoin(left=locations, right=matches, left-on=[id, span], right-on=[id, span]);
-let matched = select directive, file from matches where scope = 0 or scope = 1;
+let matched = select directive, file from matches where scope < 2;
 let noqa_matches = extend(from=matched, values={code: "SIM300"});
 observe noqa_matches as noqa_matches;
 emit violations subject file key(id);

@@ -1,5 +1,4 @@
 import observation_matches from "python/ruff/suppress-matches";
-import suppress from "python/ruff/suppress";
 let nodes = select id, kind, file from "semantic-syntax";
 let withs = select id, kind, file from nodes where kind = "with" or kind = "async-with";
 let bodies = select l.id as owner, r.child as member, l.file as file from withs as l join "semantic-child" as r on l.id = r.parent and l.file = r.file where r.field = "body";
@@ -35,9 +34,10 @@ let first_colons = antijoin(left=later_colons, right=not_first, left-on=["id", "
 let bounds = select l.id as id, r.span as start_span, l.colon_span as end_span, r."start-line" as line, l.file as file from first_colons as l join locations as r on l.id = r.id and l.file = r.file;
 let composed = span-between(from=bounds, start="start_span", end="end_span", output="span");
 let candidates = select id, file, span, line from composed;
-let violations = suppress(candidates=candidates, inline-pattern="SIM117($|[, #])", range-pattern="(?:^|,)SIM117(?:,|$)");
-let ruf100_matches = observation_matches(candidates=candidates, inline-pattern="SIM117($|[, #])", range-pattern="(?:^|,)SIM117(?:,|$)");
-let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let violations_matches = observation_matches(candidates=candidates, codes="^(?:SIM117)$");
+let violations_rows = select id, file, span from candidates;
+let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_directives = select directive, file from violations_matches where scope < 2;
 let ruf100_used = extend(from=ruf100_directives, values={code: "SIM117"});
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

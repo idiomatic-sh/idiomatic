@@ -1,0 +1,12 @@
+import noqa_heads from "python/ruff/noqa-heads";
+output relation<id: node, file: file, line: number, scope: number, span: span>;
+let heads = noqa_heads();
+let blanket_heads = select * from heads where matches(suffix, "^(?:$|#|\s+(?:$|[^:\s]))");
+let inline_blanket = select * from blanket_heads where scope = 0;
+let file_blanket = select * from blanket_heads where scope = 1;
+let inline_short = source-matches(from=inline_blanket, span="marker", pattern="#[^\S\r\n]*(?i:noqa)", output="short_marker");
+let file_short = source-matches(from=file_blanket, span="marker", pattern="#[^\S\r\n]*(?:ruff|flake8)[^\S\r\n]*:[^\S\r\n]*(?i:noqa)", output="short_marker");
+let inline_shaped = select id, file, line, scope, short_marker as span from inline_short;
+let file_shaped = select id, file, line, scope, short_marker as span from file_short;
+let blankets = union(left=inline_shaped, right=file_shaped);
+return blankets;

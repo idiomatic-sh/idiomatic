@@ -1,5 +1,4 @@
 import observation_matches from "python/ruff/suppress-matches";
-import suppress from "python/ruff/suppress";
 let binops = select id, file, span from "semantic-syntax" where kind = "bin-op";
 let left_fields = select parent, child from "semantic-child" where field = "left";
 let right_fields = select parent, child from "semantic-child" where field = "right";
@@ -40,9 +39,10 @@ let missing_mapping_fields = antijoin(left=mapping_fields_for_context, right=pre
 let missing_name_counts = group-count(from=missing_mapping_fields, keys=["binop", "file"], count="count", distinct="name");
 let candidates = select l.binop as id, l.file as file, r.span as span from missing_name_counts as l join binops as r on l.binop = r.id and l.file = r.file where l.count > 0;
 let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from candidates as l join "source-location" as r on l.id = r.id and l.file = r.file;
-let violations = suppress(candidates=candidate_locations, inline-pattern="(?:^|[^A-Z0-9])F505(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:F505)(?:,|$)");
-let ruf100_matches = observation_matches(candidates=candidate_locations, inline-pattern="(?:^|[^A-Z0-9])F505(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:F505)(?:,|$)");
-let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:F505)$");
+let violations_rows = select id, file, span from candidate_locations;
+let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_directives = select directive, file from violations_matches where scope < 2;
 let ruf100_used = extend(from=ruf100_directives, values={code: "F505"});
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

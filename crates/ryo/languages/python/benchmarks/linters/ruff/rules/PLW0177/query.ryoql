@@ -1,5 +1,4 @@
 import observation_matches from "python/ruff/suppress-matches";
-import suppress from "python/ruff/suppress";
 let comparisons = select id, file from "semantic-syntax" where kind = "compare";
 let left_fields = select parent, child from "semantic-child" where field = "left";
 let comparator_fields = select parent, child from "semantic-child" where field = "comparators";
@@ -41,9 +40,10 @@ let float_nan_operands = select l.call as id, l.file as file from nan_string_arg
 let all_nan_operands = union(left=qualified_nan_operands, right=float_nan_operands);
 let nan_node_locations = select l.id as id, l.file as file, r.span as span from all_nan_operands as l join "semantic-syntax" as r on l.id = r.id and l.file = r.file;
 let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from nan_node_locations as l join "source-location" as r on l.id = r.id and l.file = r.file;
-let violations = suppress(candidates=candidate_locations, inline-pattern="(?:^|[^A-Z0-9])PLW0177(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:PLW0177)(?:,|$)");
-let ruf100_matches = observation_matches(candidates=candidate_locations, inline-pattern="(?:^|[^A-Z0-9])PLW0177(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:PLW0177)(?:,|$)");
-let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:PLW0117|PLW0177)$");
+let violations_rows = select id, file, span from candidate_locations;
+let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_directives = select directive, file from violations_matches where scope < 2;
 let ruf100_used = extend(from=ruf100_directives, values={code: "PLW0177"});
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

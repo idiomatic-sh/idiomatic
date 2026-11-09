@@ -70,3 +70,9 @@ name = "file-suppression"
 comparison = "full"
 files = { "case.py" = "# ruff: noqa: PIE790\npass\n" }
 expected = []
+
+[[cases]]
+name = "prefixed-code-does-not-suppress"
+comparison = "full"
+files = { "case.py" = "class A:\n    \"\"\"doc\"\"\"\n    pass  # noqa: XPIE790\n" }
+expected = [{ "rule" = "PIE790", "file" = "case.py", "start" = 27, "end" = 31 }]
