@@ -9,9 +9,11 @@ use ryo_matching::inbound::use_cases::matching::types::{
 };
 
 /// Seals [`PatternSemantics`]: the trait is public so the engine crates can lend it, and its one implementation is the blanket
-/// bridge over the kernel's matching use case, which the application layer holds.
+/// bridge in the application layer. The bridge covers every implementation of the kernel's `MatchingUseCase`, in any crate, so
+/// a type gains `PatternSemantics` only by implementing `MatchingUseCase`, never directly.
 pub(crate) mod sealed {
-    /// Implemented only by the application bridge, so no crate outside this one adds a second matching semantics.
+    /// Implemented only by the application bridge's blanket impl over `MatchingUseCase`: no crate implements it, or
+    /// `PatternSemantics`, for a type directly, so every matching semantics is a `MatchingUseCase`'s.
     #[expect(
         unnameable_types,
         reason = "the seal: a supertrait other crates can reach but never name, so they cannot implement PatternSemantics"
@@ -20,7 +22,8 @@ pub(crate) mod sealed {
 }
 
 /// The regex and text-glob semantics the domain compiles and matches through: a port its parent hands down, so the domain names
-/// no use case. It is sealed: any matching use case answers it through this crate's blanket bridge, and nothing else does.
+/// no use case. It is sealed: every `MatchingUseCase` implementation, in this crate or another, answers it through this
+/// crate's blanket bridge, and no type implements it in any other way.
 ///
 /// # Examples
 ///
