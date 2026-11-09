@@ -11373,7 +11373,7 @@
     "crates/ryo/languages/python/benchmarks/linters/ruff/authoring/native_standalone.py": "54037c2b8c9bb5eafdb40d47dc4aa6fab4e2f82e73f0f3df0945f047433694db",
     "crates/ryo/languages/python/benchmarks/linters/ruff/authoring/noqa_policy.py": "d62623a2ab614c4d3f54b0ba3424530a6e0e6be16c7dc43c3c2ecfb572a4b95c",
     "crates/ryo/languages/python/benchmarks/linters/ruff/authoring/preflight_staged_profile.py": "1236e6ed0026ff8c564a103acd7402d023844ced2652fc1fe01adfa6a55b7dde",
-    "crates/ryo/languages/python/benchmarks/linters/ruff/authoring/profile_case_tests.py": "58d497bdeb810f9052d754eba4dd8537cd2cfe540b405a33d73e3577c51cb2d5",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/authoring/profile_case_tests.py": "b9083f1d7655bb41d92a9a41350ef89138b8b3bb495e5f332594d6d37538277a",
     "crates/ryo/languages/python/benchmarks/linters/ruff/authoring/profile_cli_tests.py": "de088e5e99eddc4b69884c24538d508158bb9ac73684ab2c04aab1fb8e0db6fb",
     "crates/ryo/languages/python/benchmarks/linters/ruff/authoring/profile_config.py": "3d9db67f1cc7e46808f421da382b56f114ecff227b649c0dada21433cf43ef80",
     "crates/ryo/languages/python/benchmarks/linters/ruff/authoring/profile_guard_proof_tests.py": "20afd1b8117772ddd67f47f8f5d583ce51e3933d14625270e1276a96db9d2b50",
