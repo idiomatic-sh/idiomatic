@@ -5,7 +5,7 @@ use crate::application::file_dag::execution::CommonOperatorEngine;
 use crate::application::file_dag::program::facade_runtime::file_execution::open_file;
 use crate::application::file_dag::program::facade_runtime::types::ProgramServices;
 use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
-use ryo_execution_domain::domain::file_program::types::RuleSchedule;
+use ryo_execution_domain::domain::observation_schedule::types::RuleSchedule;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::prepared_request::types::{Compiled, ObservationIdentity};
 use ryo_execution_domain::domain::rule_intent::types::{

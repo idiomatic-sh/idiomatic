@@ -7,7 +7,8 @@ use super::types::{
     InputSource, ObservationPlace, ProducerPartitions, RegionId, Route, RuleProgram,
     SourcePartition,
 };
-use crate::domain::file_program::types::{GraphObservations, ResolvedObservationProducer};
+use crate::domain::file_program::types::{GraphObservations};
+use crate::domain::observation_schedule::types::{ResolvedObservationProducer};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::types::ReaderMultiplicity;
 use ryo_values::domain::lineage::types::Lineage;

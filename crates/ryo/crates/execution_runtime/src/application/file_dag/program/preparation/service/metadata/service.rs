@@ -82,7 +82,7 @@ pub(crate) fn rules(
                 .clone()
                 .into_boxed_slice(),
             frontier_dependencies:
-                ryo_execution_domain::domain::file_program::service::link::frontier_dependencies(
+                ryo_execution_domain::domain::observation_schedule::service::frontier_dependencies(
                     plan,
                 )
                 .map_err(|error| OperatingError::ObservationIncomplete {

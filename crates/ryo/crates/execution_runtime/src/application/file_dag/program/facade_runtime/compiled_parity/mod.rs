@@ -13,7 +13,7 @@ use ryo_execution_domain::domain::table_cells::fixtures::{
     SMALL_SOURCE, SmallTree, rows_over, small_tree,
 };
 use ryo_execution_domain::domain::{
-    file_program::types::RuleSchedule,
+    observation_schedule::types::RuleSchedule,
     operating::errors::OperatingError,
     prepared_request::types::{Compiled, ObservationIdentity},
     table_model::types::Rows,

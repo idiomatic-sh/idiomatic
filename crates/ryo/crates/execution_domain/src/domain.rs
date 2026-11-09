@@ -5,6 +5,7 @@ pub mod derived_views;
 pub mod executable_program;
 pub mod features;
 pub mod file_program;
+pub mod observation_schedule;
 pub mod kind_check;
 pub mod kind_sets;
 pub mod matching;

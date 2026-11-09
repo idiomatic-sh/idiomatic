@@ -51,7 +51,7 @@ pub use ryo_execution_domain::domain::coverage::types::Partial;
 pub use ryo_execution_domain::domain::coverage::types::Partials;
 pub use ryo_execution_domain::domain::coverage::types::RefusedFiles;
 pub use ryo_execution_domain::domain::coverage::types::RuleIndex;
-pub use ryo_execution_domain::domain::file_program::types::ObservedFrontierRoot;
+pub use ryo_execution_domain::domain::observation_schedule::types::ObservedFrontierRoot;
 pub use ryo_execution_domain::domain::finish::types::Arena;
 pub use ryo_execution_domain::domain::operating::errors::OperatingError;
 pub use ryo_execution_domain::domain::operating::types::SemanticLookup;

@@ -1,7 +1,7 @@
 //! Schema, publication and refusal controls through production request preparation.
 use ryo_execution_domain::domain::file_program::service::compile_prepared_observations;
 use ryo_execution_domain::domain::file_program::types::NodeInput;
-use ryo_execution_domain::domain::file_program::types::ObservationRequest;
+use ryo_execution_domain::domain::observation_schedule::types::ObservationRequest;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_relations::domain::relations::service::kinds;
 use ryo_relations::domain::relations::types::CellKind;

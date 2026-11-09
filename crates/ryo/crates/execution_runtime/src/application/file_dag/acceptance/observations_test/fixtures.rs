@@ -6,9 +6,9 @@ use ryo_execution_domain::domain::file_program::types::RequestGraph;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::{
     coverage::types::RuleIndex,
-    file_program::types::{
-        ObservationRequest, RequestOperators, ResolvedObservationBinding,
-        ResolvedObservationProducer,
+    file_program::types::RequestOperators,
+    observation_schedule::types::{
+        ObservationRequest, ResolvedObservationBinding, ResolvedObservationProducer,
     },
 };
 use ryo_relations::domain::relations::types::{CellKind, Relation};

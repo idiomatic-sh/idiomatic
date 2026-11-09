@@ -1,7 +1,6 @@
 //! Request-graph dependencies: the producers a rule may read, their schemas and the plans linked beneath them.
 use super::fixtures::{binding, bound_input, export, exporting, observing, plan, rule};
-use super::service::link::{following, link};
-use super::service::observations::{schedule, schemas};
+use super::service::{following, link, schedule, schemas};
 use super::types::ResolvedObservationBinding;
 use crate::domain::rule_intent::errors::RuleIntentError;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};

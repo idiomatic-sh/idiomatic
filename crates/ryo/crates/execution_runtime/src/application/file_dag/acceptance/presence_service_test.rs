@@ -12,7 +12,7 @@ use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
 use ryo_execution_domain::domain::coverage::types::{Partial, RuleIndex};
 use ryo_execution_domain::domain::executable_program::types::RegionId;
-use ryo_execution_domain::domain::file_program::types::RuleSchedule;
+use ryo_execution_domain::domain::observation_schedule::types::RuleSchedule;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::prepared_request::types::{Compiled, ObservationIdentity};
 use ryo_execution_domain::domain::rule_intent::types::{
@@ -1010,9 +1010,7 @@ fn a_schema_error_under_a_false_formula_is_reported() {
 /// arrive, is unconditional even when its other conjunct cannot match.
 #[test]
 fn consumers_of_a_bound_observation_are_never_absent() {
-    use ryo_execution_domain::domain::file_program::types::{
-        ObservationRequest, ResolvedObservationBinding, ResolvedObservationProducer,
-    };
+    use ryo_execution_domain::domain::observation_schedule::types::{ObservationRequest, ResolvedObservationBinding, ResolvedObservationProducer};
     use ryo_values::domain::observations::types::{
         BoundObservationInput, ObservationBindingName, ObservationColumn, ObservationColumnName,
         ObservationName, PlanObservation,

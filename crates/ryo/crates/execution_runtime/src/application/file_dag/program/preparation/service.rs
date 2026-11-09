@@ -232,10 +232,10 @@ pub(crate) fn prepare(
         crate::application::file_dag::service::prepare(&plans, &bindings, hosted, derived.clone())?;
     let request = match identity {
         ObservationIdentity::Independent => {
-            ryo_execution_domain::domain::file_program::types::ObservationRequest::Independent
+            ryo_execution_domain::domain::observation_schedule::types::ObservationRequest::Independent
         }
         ObservationIdentity::Named(layout) => {
-            ryo_execution_domain::domain::file_program::service::observations::request(
+            ryo_execution_domain::domain::observation_schedule::service::request(
                 &schedule,
                 &observations,
                 layout,

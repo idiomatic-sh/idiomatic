@@ -1,5 +1,5 @@
 //! Authored requests for the schema, publication and refusal controls.
-use ryo_execution_domain::domain::file_program::types::RuleSchedule;
+use ryo_execution_domain::domain::observation_schedule::types::RuleSchedule;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::prepared_request::types::Compiled;
 use ryo_execution_domain::domain::prepared_request::types::ObservationIdentity;

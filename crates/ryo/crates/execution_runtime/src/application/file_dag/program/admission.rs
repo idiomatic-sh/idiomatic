@@ -282,7 +282,7 @@ pub(super) fn alias_member(
         .producers
         .get(member.0)
         .ok_or(OperatingError::NotRun)?;
-    let ryo_execution_domain::domain::file_program::types::ResolvedObservationProducer::Output {
+    let ryo_execution_domain::domain::observation_schedule::types::ResolvedObservationProducer::Output {
         rule,
         output,
     } = producer

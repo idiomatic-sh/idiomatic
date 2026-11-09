@@ -1,10 +1,7 @@
 //! Pure named-root dependency resolution; the existing application graph owns execution and resources.
 use crate::domain::coverage::types::RuleIndex;
 use crate::domain::file_program::constants::{EXPECT_BINDING_INDEX, EXPECT_OUTPUT_INDEX};
-use crate::domain::file_program::types::{
-    PreparedObservationInputs, ResolvedObservationBinding, ResolvedObservationProducer,
-    RuleSchedule,
-};
+use crate::domain::observation_schedule::types::{PreparedObservationInputs, ResolvedObservationBinding, ResolvedObservationProducer, RuleSchedule};
 use crate::domain::rule_intent::errors::RuleIntentError;
 use crate::domain::rule_intent::types::FrontierPurpose;
 use ryo_values::domain::observations::types::{BoundObservationInput, ObservationProducer};
@@ -14,161 +11,14 @@ use ryo_values::domain::rule_requests::types::RuleSpec;
 use ryo_values::domain::runs::types::RuleId;
 use std::collections::{BTreeMap, BTreeSet};
 
-/// Resolve only declared dependency edges. No providers or operators are executed here.
-pub fn schedule(rules: &[RuleSpec]) -> Result<RuleSchedule, RuleIntentError> {
-    if rules.iter().all(|rule| rule.observations.is_empty()) {
-        return Ok(RuleSchedule::Independent);
-    }
-    let index: BTreeMap<&RuleId, usize> = rules
-        .iter()
-        .enumerate()
-        .map(|(at, rule)| (&rule.id, at))
-        .collect();
-    let mut needs = vec![BTreeSet::new(); rules.len()];
-    for (consumer, rule) in rules.iter().enumerate() {
-        let mut names = BTreeSet::new();
-        for binding in &rule.observations {
-            if !names.insert(&binding.name) {
-                return Err(RuleIntentError::DuplicateBinding {
-                    rule: rule.id.0.to_string(),
-                    name: binding.name.0.to_string(),
-                });
-            }
-            for producer in &binding.producers {
-                match producer {
-                    ObservationProducer::Output { rule: id, .. } => {
-                        let Some(&producer) = index.get(id) else {
-                            return Err(RuleIntentError::UnknownProducer {
-                                consumer: rule.id.0.to_string(),
-                                producer: id.0.to_string(),
-                            });
-                        };
-                        if producer == consumer {
-                            return Err(RuleIntentError::SelfDependency {
-                                rule: id.0.to_string(),
-                            });
-                        }
-                        needs[consumer].insert(producer);
-                    }
-                    ObservationProducer::NoQuery { rule: id } if index.contains_key(id) => {
-                        return Err(RuleIntentError::ExecutableNoQuery {
-                            rule: id.0.to_string(),
-                        });
-                    }
-                    ObservationProducer::NoQuery { .. } => {}
-                }
-            }
-        }
-    }
-    let mut done = vec![false; rules.len()];
-    let mut order = Vec::with_capacity(rules.len());
-    let mut batches = Vec::new();
-    while order.len() < rules.len() {
-        let ready: Vec<_> = needs
-            .iter()
-            .enumerate()
-            .filter(|(at, reads)| !done[*at] && reads.iter().all(|producer| done[*producer]))
-            .map(|(at, _)| RuleIndex(at))
-            .collect();
-        if ready.is_empty() {
-            return Err(RuleIntentError::Cycle);
-        }
-        for rule in &ready {
-            done[rule.0] = true;
-        }
-        order.extend(ready.iter().copied());
-        batches.push(ready);
-    }
-    Ok(RuleSchedule::Dependencies { order, batches })
-}
-
-/// Infer actual schemas/phases after earlier producer plans compiled, without renumbering rule IDs.
-pub fn schemas<P: std::borrow::Borrow<Plan>>(
-    consumer: &RuleSpec,
-    rules: &[RuleSpec],
-    compiled: &[Option<P>],
-) -> Result<PreparedObservationInputs, RuleIntentError> {
-    let mut schemas = Vec::new();
-    let mut bindings = Vec::new();
-    for (local, binding) in consumer.observations.iter().enumerate() {
-        let mut scope = if binding.producers.is_empty() {
-            StepScope::CrossFile
-        } else {
-            StepScope::PerFile
-        };
-        let mut producers = Vec::new();
-        for reference in &binding.producers {
-            let ObservationProducer::Output { rule, output } = reference else {
-                if let ObservationProducer::NoQuery { rule } = reference {
-                    producers.push(ResolvedObservationProducer::NoQuery { rule: rule.clone() });
-                }
-                scope = StepScope::CrossFile;
-                continue;
-            };
-            let at = rules
-                .iter()
-                .position(|candidate| candidate.id == *rule)
-                .ok_or_else(|| RuleIntentError::UnknownProducer {
-                    consumer: consumer.id.0.to_string(),
-                    producer: rule.0.to_string(),
-                })?;
-            let plan = compiled.get(at).and_then(Option::as_ref).ok_or_else(|| {
-                RuleIntentError::NotCompiled {
-                    rule: rule.0.to_string(),
-                }
-            })?;
-            let plan: &Plan = std::borrow::Borrow::borrow(plan);
-            let (output_index, observed) = plan
-                .observations
-                .iter()
-                .enumerate()
-                .find(|(_, observed)| observed.name == *output)
-                .ok_or_else(|| RuleIntentError::MissingOutput {
-                    producer: rule.0.to_string(),
-                    output: output.0.to_string(),
-                })?;
-            if observed.columns != binding.columns {
-                return Err(RuleIntentError::IncompatibleObservationColumns {
-                    consumer: consumer.id.0.to_string(),
-                    producer: rule.0.to_string(),
-                    output: output.0.to_string(),
-                });
-            }
-            if observed.scope == StepScope::CrossFile {
-                scope = StepScope::CrossFile;
-            }
-            let output_index =
-                u32::try_from(output_index).map_err(|_| RuleIntentError::TooManyOutputs)?;
-            producers.push(ResolvedObservationProducer::Output {
-                rule: RuleIndex(at),
-                output: ryo_values::domain::records::types::ObservationIndex(output_index),
-            });
-        }
-        let schema = BoundObservationInput {
-            name: binding.name.clone(),
-            columns: binding.columns.clone(),
-            scope,
-        };
-        let local = u32::try_from(local).map_err(|_| RuleIntentError::TooManyOutputs)?;
-        bindings.push(ResolvedObservationBinding {
-            input: ryo_values::domain::plan_parts::types::ObservationBindingId(local),
-            schema: schema.clone(),
-            producers,
-        });
-        schemas.push(schema);
-    }
-    Ok(PreparedObservationInputs { schemas, bindings })
-}
-
 /// Bind every output to the existing graph's actual node identity, with explicit unsupported admission.
 pub(crate) fn graph_outputs(
     plans: &[Plan],
     nodes: &[Vec<Option<crate::domain::file_program::types::ProgramNodeId>>],
-    request: crate::domain::file_program::types::ObservationRequest<'_>,
+    request: crate::domain::observation_schedule::types::ObservationRequest<'_>,
 ) -> Option<crate::domain::file_program::types::GraphObservations> {
-    use crate::domain::file_program::types::{
-        GraphObservationOutput, GraphObservationRoot, GraphObservations, ObservationRequest,
-    };
+    use crate::domain::file_program::types::{GraphObservationOutput, GraphObservationRoot, GraphObservations};
+use crate::domain::observation_schedule::types::{ObservationRequest};
     let ObservationRequest::Bound {
         bindings, layout, ..
     } = request
@@ -237,7 +87,7 @@ pub(crate) fn graph_outputs(
                 continue;
             }
             if let Some(&frontier) = positions.get(&root.source) {
-                frontiers.push(crate::domain::file_program::types::ObservedFrontierRoot {
+                frontiers.push(crate::domain::observation_schedule::types::ObservedFrontierRoot {
                     producer: RuleIndex(rule),
                     output: ryo_values::domain::records::types::ObservationIndex(
                         u32::try_from(output).expect(EXPECT_OUTPUT_INDEX),
@@ -350,20 +200,4 @@ pub(crate) fn graph_outputs(
         bindings,
         outputs,
     })
-}
-
-/// A bound request cannot silently fall back to independent execution.
-pub fn request<'a>(
-    schedule: &'a RuleSchedule,
-    bindings: &'a [Vec<ResolvedObservationBinding>],
-    layout: ryo_values::domain::records::types::ObservationReadinessLayout,
-) -> Result<crate::domain::file_program::types::ObservationRequest<'a>, RuleIntentError> {
-    use crate::domain::file_program::types::ObservationRequest;
-    if bindings.is_empty() {
-        return Ok(ObservationRequest::Independent);
-    }
-    match schedule {
-        RuleSchedule::Dependencies { .. } => Ok(ObservationRequest::Bound { layout, bindings }),
-        RuleSchedule::Independent => Err(RuleIntentError::InvalidReference),
-    }
 }

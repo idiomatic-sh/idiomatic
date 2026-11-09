@@ -1,8 +1,6 @@
 //! One operation read by its normalized inputs and the node edges it reads.
 use crate::domain::coverage::types::RuleIndex;
-use crate::domain::file_program::types::{
-    BindingOffset, NodeInput, ObservationGraphInputId, ProgramNodeId,
-};
+use crate::domain::file_program::types::{BindingOffset, NodeInput, ObservationGraphInputId, ProgramNodeId};
 use ryo_values::domain::plan_parts::service::{binding_place, step_in};
 use ryo_values::domain::plan_parts::types::{Input, StepId};
 use ryo_values::domain::plans::service::{inputs_of, named};

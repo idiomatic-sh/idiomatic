@@ -7,7 +7,7 @@ use crate::application::file_dag::program::runtime::types::DependencyCheckpoint;
 #[cfg(test)]
 use ryo_execution_domain::domain::table_cells::fixtures::{SMALL_SOURCE, SmallTree, small_tree};
 use ryo_execution_domain::domain::{
-    file_program::types::RuleSchedule,
+    observation_schedule::types::RuleSchedule,
     operator::types::Emit as RowSink,
     prepared_request::types::{Compiled, ObservationIdentity},
     table_cells::types::{TreeForm, TreeRows},

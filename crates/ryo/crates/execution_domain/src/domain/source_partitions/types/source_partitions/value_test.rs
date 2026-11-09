@@ -2,7 +2,7 @@ use super::value::{SourcePartitions, relation_partition};
 use crate::domain::{
     coverage::types::RuleIndex,
     executable_program::types::{PartitionRequirement, ProducerPartitions},
-    file_program::types::{ResolvedObservationBinding, ResolvedObservationProducer},
+    observation_schedule::types::{ResolvedObservationBinding, ResolvedObservationProducer},
     operating::errors::OperatingError,
 };
 use ryo_relations::domain::relations::types::Relation;

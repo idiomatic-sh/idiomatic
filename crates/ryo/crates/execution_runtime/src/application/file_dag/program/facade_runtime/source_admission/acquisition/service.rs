@@ -185,7 +185,7 @@ impl SourceInputs<'_, '_> {
                     .and_then(|bindings| bindings.get(declaration.input.0 as usize))
                     .and_then(|binding| binding.producers.get(member))
                     .ok_or_else(|| OperatingError::NotRun)?;
-                let ryo_execution_domain::domain::file_program::types::ResolvedObservationProducer::Output {
+                let ryo_execution_domain::domain::observation_schedule::types::ResolvedObservationProducer::Output {
                     rule,
                     output,
                 } = producer
