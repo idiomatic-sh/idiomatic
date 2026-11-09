@@ -7,40 +7,339 @@
   "reviewer": "tm-steward",
   "date": "2026-11-09T01:30:00Z",
   "checks": [
-    {"id": "gate-lint", "verdict": "FAIL", "evidence": "asymptote check --groups lint in crates/ryo of a git archive copy of b1e81f7242: rc 2, 20 new / 174 resolved; failing tools cargo-fmt (cargo fmt --check: 3,377 diff hunks in 3,371 files), cargo-machete (rc 123: cli ryo_derived; core hashbrown, heck, num-bigint, toml, unicode-width; execution blake3, divan, hashbrown, ignore, postcard, rayon, rustc-hash, serde, sysinfo, tempfile, toml, unicode-width; derived ryo_language), tastemaker (the 18 no-domain-concept-cycles of the ring plus 2 in-source file-length ignores shown as new against the lock); cargo-deny passes"},
-    {"id": "gate-lint-since", "verdict": "FAIL", "evidence": "asymptote check --since <local commit holding the 1086daee4b tree> --groups lint in the same copy: rc 2, 20 introduced since the base, 174 resolved; the same tools fail"},
-    {"id": "gate-tm-direct", "verdict": "FAIL", "evidence": "tm check --format json in crates/ryo of the copy: rc 1, 18 findings (all idiomatic-rust/no-domain-concept-cycles in crates/execution_domain/src/domain) and 6 suppressed (file-length in-source ignores); equal to the contract and leak reviews' 18/6"},
-    {"id": "gate-check", "verdict": "NOTE", "evidence": "asymptote check --groups check not run: nextest, the bdd and doc test runs, the doc build and the ruff correctness tool each build the workspace, which the hook refuses"},
-    {"id": "gate-clippy", "verdict": "NOTE", "evidence": "asymptote check --groups clippy not run: the workspace clippy run is beyond the one cargo form the hook allows"},
-    {"id": "bloat-budget", "verdict": "PASS", "evidence": "crates/ryo/tastemaker.toml at b1e81f7242: 27 rules, 11 specs, 27 templates, 185 placements (51 rule, 39 spec, 95 template entries) before and after; no asset added"},
-    {"id": "raw-backslash-census", "verdict": "PASS", "evidence": "a census of RyoQL string literals holding an even backslash run before one of dDsSwWbBAzntrfv: 22 Ruff rule queries at b1e81f7242 (20 noqa [\\\\s,] forms, I001 [ \\\\t], SIM401 ^elif\\\\b), 0 at 8987ff92f8 where the 18 remaining backslash lines (line continuations and W605) give 0; 51 copies under profiles/ (hash-named evidence and recorded profile inputs) at both; tm rule queries: 0 regex hits (the 2 hits are glob_any arguments in no-packed-strings and serialize-dont-format, which match a written escape on purpose)"}
+    {
+      "id": "gate-lint",
+      "verdict": "FAIL",
+      "evidence": "asymptote check --groups lint in crates/ryo of a git archive copy of b1e81f7242: rc 2, 20 new / 174 resolved; failing tools cargo-fmt (cargo fmt --check: 3,377 diff hunks in 3,371 files), cargo-machete (rc 123: cli ryo_derived; core hashbrown, heck, num-bigint, toml, unicode-width; execution blake3, divan, hashbrown, ignore, postcard, rayon, rustc-hash, serde, sysinfo, tempfile, toml, unicode-width; derived ryo_language), tastemaker (the 18 no-domain-concept-cycles of the ring plus 2 in-source file-length ignores shown as new against the lock); cargo-deny passes"
+    },
+    {
+      "id": "gate-lint-since",
+      "verdict": "FAIL",
+      "evidence": "asymptote check --since <local commit holding the 1086daee4b tree> --groups lint in the same copy: rc 2, 20 introduced since the base, 174 resolved; the same tools fail"
+    },
+    {
+      "id": "gate-tm-direct",
+      "verdict": "FAIL",
+      "evidence": "tm check --format json in crates/ryo of the copy: rc 1, 18 findings (all idiomatic-rust/no-domain-concept-cycles in crates/execution_domain/src/domain) and 6 suppressed (file-length in-source ignores); equal to the contract and leak reviews' 18/6"
+    },
+    {
+      "id": "gate-check",
+      "verdict": "NOTE",
+      "evidence": "asymptote check --groups check not run: nextest, the bdd and doc test runs, the doc build and the ruff correctness tool each build the workspace, which the hook refuses"
+    },
+    {
+      "id": "gate-clippy",
+      "verdict": "NOTE",
+      "evidence": "asymptote check --groups clippy not run: the workspace clippy run is beyond the one cargo form the hook allows"
+    },
+    {
+      "id": "bloat-budget",
+      "verdict": "PASS",
+      "evidence": "crates/ryo/tastemaker.toml at b1e81f7242: 27 rules, 11 specs, 27 templates, 185 placements (51 rule, 39 spec, 95 template entries) before and after; no asset added"
+    },
+    {
+      "id": "raw-backslash-census",
+      "verdict": "PASS",
+      "evidence": "a census of RyoQL string literals holding an even backslash run before one of dDsSwWbBAzntrfv: 22 Ruff rule queries at b1e81f7242 (20 noqa [\\\\s,] forms, I001 [ \\\\t], SIM401 ^elif\\\\b), 0 at 8987ff92f8 where the 18 remaining backslash lines (line continuations and W605) give 0; 51 copies under profiles/ (hash-named evidence and recorded profile inputs) at both; tm rule queries: 0 regex hits (the 2 hits are glob_any arguments in no-packed-strings and serialize-dont-format, which match a written escape on purpose)"
+    },
+    {
+      "id": "c332-gate",
+      "verdict": "FAIL",
+      "evidence": "crates/ryo/docs/contracts/evidence/checkpoint/asymptote.json at a4efba6af5: source 883f0d6dd6 (not the landed head a4efba6af5; the 29 files changed since are the F5 to F9 repairs and evidence), verdict FAIL: lint FAIL (tastemaker 11 new against the lock: 9 reasoned file-length ignores, 2 untracked drafts; fmt, machete and deny pass), check FAIL (test-core core_allocation, test-cli replay and cost reds, test-language manifest line 0 and python allocation, correctness-python-ruff usage), clippy FAIL (3 pre-332 expect_used denials in crates/language parse fixtures). Not rerun; no workspace build. Because the gate is red, no Tastemaker asset is authored."
+    },
+    {
+      "id": "c332-tm-direct",
+      "verdict": "PASS",
+      "evidence": "tm check --format json in crates/ryo of a git archive copy of a4efba6af5, with tm 0.1.2 copied from the 332 integration target (release/tm, sha256 f335d4ab): rc 0, 0 findings, 13 suppressed (file-length in-source ignores), 267 s, 4.39 GB peak"
+    },
+    {
+      "id": "c332-plants",
+      "verdict": "PASS",
+      "evidence": "one tm check run in the same copy with three plants in the python provider's domain: merging/service.rs `use ryo::resources::languages::Parse;` -> 1 import-directions; binding_lookup/service.rs `fn planted(_: &dyn ryo::resources::languages::Parse) {}` -> 1; brace_format/service.rs `use ryo::languages as l; fn planted(_: &dyn l::Parse) {}` -> 0 (the open alias form, owned by claude/w14-provider-alias). Plants reverted, copy deleted"
+    },
+    {
+      "id": "c332-candidates",
+      "verdict": "PASS",
+      "evidence": "20 distinct candidate ids (21 entries; provider-alias-resolved-across-blocks-3c609ce6 appears in both w14-provider-alias and w14-tm-import-reading) from the 8 branch files added in 332; 331's leak-review.json carries none. 1 strengthen (already landed in 332, plant-proven 1/1), 19 none with reasons; 5 recommended compiler, type or runtime follow-ups"
+    },
+    {
+      "id": "c332-bloat",
+      "verdict": "PASS",
+      "evidence": "crates/ryo/tastemaker.toml at b1e81f7242 and a4efba6af5: 27 rules, 11 specs, 27 templates, 185 placements (51 rule, 39 spec, 95 template entries); idiomatic-rust moved to 0.1.13 inside 332 by claude/w13-leak-repairs-b; the steward adds no asset"
+    }
   ],
   "classes": [
-    {"class": "raw-string doubled backslash in RyoQL regexes (parity-fixes, 21 rules fixed unenforced)", "decision": "a", "mechanism": "refusal in the one regex compile site, ryo_matching domain/matching/service.rs compile_regex: parse with regex-syntax's AST (already in the lock under regex-automata) and refuse an escaped backslash followed directly by a letter of dDsSwWbBAzntrfv, in a concatenation or a bracketed class, naming \\x5C as the spelling for a literal backslash then a letter; every rule's cases run reaches it", "proof_count": 22},
-    {"class": "new public items without # Examples (Rust gate F1, recurring after 330 F1.2)", "decision": "d", "mechanism": "the bar is diff-relative: about 3,074 of 3,087 pub items in non-test src files carry no example, so a tree-wide rule would refuse thousands or need a baseline; rustdoc missing_doc_code_examples is nightly-only; the Rust gate's item 1 holds it", "proof_count": null},
-    {"class": "record names the wrong cause for the store and peak rise (F2; contract P6; leak record advisory)", "decision": "d", "mechanism": "record tooling, not a property of the source tree; the A/B or frontier census is the span-semantics branch's", "proof_count": null},
-    {"class": "span-equality semantics differ between placement and the rewrites (A1)", "decision": "a", "mechanism": "open branch claude/w13-span-semantics; not re-encoded", "proof_count": null},
-    {"class": "phase entry points public beside evaluate_occurrences; forwards no outside consumer names; library-surface description claims an unenforced rule; population_reads proof narrowed (leak checks 1-3)", "decision": "a", "mechanism": "open branch claude/w13-side-doors; not re-encoded", "proof_count": null},
-    {"class": "branch evidence predating the shared schema; hook fail-open", "decision": "a", "mechanism": "open branch claude/w13-agent-tuning (shape in ci/contract_review/service.py, fail-closed guard); not re-encoded", "proof_count": null},
-    {"class": "relation change lands new reds called real findings with no provider test (import-fan-in 67 vs 32)", "decision": "a", "mechanism": "a cross-crate case in the Rust provider's source-dependency tests that fixes the intended count; Tastemaker cannot prove a relation's rows", "proof_count": null},
-    {"class": "review README known-red list, branch table and 11 matrix rows stale (contract P4)", "decision": "d", "mechanism": "docs upkeep on the author; run.py --check is the place a binding check belongs, not Tastemaker", "proof_count": null},
-    {"class": "doctest gate logs carry no source sha; tm_whole_tree status wording", "decision": "d", "mechanism": "record tooling", "proof_count": null},
-    {"class": "one refusal index held twice (A3)", "decision": "d", "mechanism": "semantic duplication across a path-keyed and a file-number map; one refactor, no recurring shape a query can name", "proof_count": null},
-    {"class": "identity hasher stability (A4)", "decision": "d", "mechanism": "a doc sentence; a change only causes a cache miss", "proof_count": null},
-    {"class": "non_exhaustive on public causes; semver of new public fields (A5, A6)", "decision": "a", "mechanism": "the compiler's exhaustiveness policy and cargo-semver-checks in the release group", "proof_count": null},
-    {"class": "merge resolved a string with raw NUL bytes (store-key merge 472de945b6)", "decision": "d", "mechanism": "one merge artifact, repaired in 44d7da8f00; the trailer change is a cache miss by test", "proof_count": null},
-    {"class": "a cfg(test) fixture skips an undeclared rule with a quiet continue (kept_facts)", "decision": "d", "mechanism": "one-off; no-silent-skip requires a print, and widening it to every let-else continue in tests would refuse correct code", "proof_count": null},
-    {"class": "a sealing pass made CapturedOrigin private though a feature-gated diagnostic route names it (integration fix 7b1fcd3ed5)", "decision": "a", "mechanism": "the all-features workspace check caught it", "proof_count": null},
-    {"class": "execution_domain ring", "decision": "d", "mechanism": "already enforced, standing", "proof_count": 18},
-    {"class": "fmt and machete gate failures", "decision": "a", "mechanism": "rustfmt and cargo-machete already gate; carried by owner decision to 332", "proof_count": null}
+    {
+      "class": "raw-string doubled backslash in RyoQL regexes (parity-fixes, 21 rules fixed unenforced)",
+      "decision": "a",
+      "mechanism": "refusal in the one regex compile site, ryo_matching domain/matching/service.rs compile_regex: parse with regex-syntax's AST (already in the lock under regex-automata) and refuse an escaped backslash followed directly by a letter of dDsSwWbBAzntrfv, in a concatenation or a bracketed class, naming \\x5C as the spelling for a literal backslash then a letter; every rule's cases run reaches it",
+      "proof_count": 22
+    },
+    {
+      "class": "new public items without # Examples (Rust gate F1, recurring after 330 F1.2)",
+      "decision": "d",
+      "mechanism": "the bar is diff-relative: about 3,074 of 3,087 pub items in non-test src files carry no example, so a tree-wide rule would refuse thousands or need a baseline; rustdoc missing_doc_code_examples is nightly-only; the Rust gate's item 1 holds it",
+      "proof_count": null
+    },
+    {
+      "class": "record names the wrong cause for the store and peak rise (F2; contract P6; leak record advisory)",
+      "decision": "d",
+      "mechanism": "record tooling, not a property of the source tree; the A/B or frontier census is the span-semantics branch's",
+      "proof_count": null
+    },
+    {
+      "class": "span-equality semantics differ between placement and the rewrites (A1)",
+      "decision": "a",
+      "mechanism": "open branch claude/w13-span-semantics; not re-encoded",
+      "proof_count": null
+    },
+    {
+      "class": "phase entry points public beside evaluate_occurrences; forwards no outside consumer names; library-surface description claims an unenforced rule; population_reads proof narrowed (leak checks 1-3)",
+      "decision": "a",
+      "mechanism": "open branch claude/w13-side-doors; not re-encoded",
+      "proof_count": null
+    },
+    {
+      "class": "branch evidence predating the shared schema; hook fail-open",
+      "decision": "a",
+      "mechanism": "open branch claude/w13-agent-tuning (shape in ci/contract_review/service.py, fail-closed guard); not re-encoded",
+      "proof_count": null
+    },
+    {
+      "class": "relation change lands new reds called real findings with no provider test (import-fan-in 67 vs 32)",
+      "decision": "a",
+      "mechanism": "a cross-crate case in the Rust provider's source-dependency tests that fixes the intended count; Tastemaker cannot prove a relation's rows",
+      "proof_count": null
+    },
+    {
+      "class": "review README known-red list, branch table and 11 matrix rows stale (contract P4)",
+      "decision": "d",
+      "mechanism": "docs upkeep on the author; run.py --check is the place a binding check belongs, not Tastemaker",
+      "proof_count": null
+    },
+    {
+      "class": "doctest gate logs carry no source sha; tm_whole_tree status wording",
+      "decision": "d",
+      "mechanism": "record tooling",
+      "proof_count": null
+    },
+    {
+      "class": "one refusal index held twice (A3)",
+      "decision": "d",
+      "mechanism": "semantic duplication across a path-keyed and a file-number map; one refactor, no recurring shape a query can name",
+      "proof_count": null
+    },
+    {
+      "class": "identity hasher stability (A4)",
+      "decision": "d",
+      "mechanism": "a doc sentence; a change only causes a cache miss",
+      "proof_count": null
+    },
+    {
+      "class": "non_exhaustive on public causes; semver of new public fields (A5, A6)",
+      "decision": "a",
+      "mechanism": "the compiler's exhaustiveness policy and cargo-semver-checks in the release group",
+      "proof_count": null
+    },
+    {
+      "class": "merge resolved a string with raw NUL bytes (store-key merge 472de945b6)",
+      "decision": "d",
+      "mechanism": "one merge artifact, repaired in 44d7da8f00; the trailer change is a cache miss by test",
+      "proof_count": null
+    },
+    {
+      "class": "a cfg(test) fixture skips an undeclared rule with a quiet continue (kept_facts)",
+      "decision": "d",
+      "mechanism": "one-off; no-silent-skip requires a print, and widening it to every let-else continue in tests would refuse correct code",
+      "proof_count": null
+    },
+    {
+      "class": "a sealing pass made CapturedOrigin private though a feature-gated diagnostic route names it (integration fix 7b1fcd3ed5)",
+      "decision": "a",
+      "mechanism": "the all-features workspace check caught it",
+      "proof_count": null
+    },
+    {
+      "class": "execution_domain ring",
+      "decision": "d",
+      "mechanism": "already enforced, standing",
+      "proof_count": 18
+    },
+    {
+      "class": "fmt and machete gate failures",
+      "decision": "a",
+      "mechanism": "rustfmt and cargo-machete already gate; carried by owner decision to 332",
+      "proof_count": null
+    }
   ],
   "assets": {
-    "before": {"rules": 27, "specs": 11, "templates": 27, "placements": 185},
-    "after": {"rules": 27, "specs": 11, "templates": 27, "placements": 185}
+    "before": {
+      "rules": 27,
+      "specs": 11,
+      "templates": 27,
+      "placements": 185
+    },
+    "after": {
+      "rules": 27,
+      "specs": 11,
+      "templates": 27,
+      "placements": 185
+    }
   },
   "findings": [
     "open item: refuse an escaped backslash before a regex escape letter in ryo_matching compile_regex",
-    "open item: Rust provider source-dependency cross-crate case that fixes the import-fan-in count"
+    "open item: Rust provider source-dependency cross-crate case that fixes the import-fan-in count",
+    "332: compiler follow-up: make KeyIndex.heads/.next private in ryo_derived behind one probe (duplicate-key-index-probe-09dbebd5)",
+    "332: types follow-up: PartialScope::OneFile without a file number (stored-file-number-reused-across-runs-13950b5d)",
+    "332: engine follow-up: write_embedded refuses or cannot express a nested call (nested-write-embedded-in-callback-0badb528)",
+    "332: re-plant the module-alias form of directions-domain when claude/w14-provider-alias lands (728218ac)",
+    "332: profile_proofs.py: require antijoin subtraction and policy completeness (361ac554, a5132b93), with claude/w14-noqa-fragments"
   ],
-  "branch": null
+  "branch": null,
+  "candidate_decisions": [
+    {
+      "id": "literal-pattern-missing-from-failure-dc2bb9e8",
+      "decision": "none",
+      "mechanism": "compiler: an exhaustive match over Operation with no wildcard arm, on claude/p7-skip-rules",
+      "plant_counts": [],
+      "reason": "The compiler holds it once claude/p7-skip-rules lands: invalid_patterns matches every Operation variant with no wildcard arm, so a new variant with a literal pattern cannot compile until it is placed, and the R6 runtime tests cover the failure verdict. That branch is not merged into 332, so no real-tree plant can fire here, and a Tastemaker query over match arms would add nothing to exhaustiveness."
+    },
+    {
+      "id": "presence-read-unbound-from-admission-e5ef354a",
+      "decision": "none",
+      "mechanism": "types and runtime: presence pins the read through RelationOwner::source and admission returns the recorded refusal (claude/p7-skip-rules)",
+      "plant_counts": [],
+      "reason": "This is a property of runtime state: one provider read is pinned and handed to admission. Tastemaker cannot prove that from syntax. The branch holds it with the RelationOwner::source pin and the restored one-read assertions. It is a one-off at one call site, and the branch is not merged into 332."
+    },
+    {
+      "id": "test-loop-skips-a-kind-cd234251",
+      "decision": "none",
+      "plant_counts": [],
+      "reason": "A one-off, fixed by removing the SpanBetween continue (compare_emptied now runs every kind). The 331 steward decided the wider shape (a quiet continue in a test loop) already: no-silent-skip covers it where a print is due, and widening it to every continue in tests would refuse correct code."
+    },
+    {
+      "id": "shrink-only-list-grows-69954a9d",
+      "decision": "none",
+      "mechanism": "a test in cli that pins the unfed.toml table count, or a review check",
+      "plant_counts": [],
+      "reason": "Shrink-only is a property of a change, not of a tree. tm check reads one tree and cannot compare it with an earlier version, so no Tastemaker asset can see a table being added. The one open entry (relation:Annotates) has an accepted reason until a replay file covers it."
+    },
+    {
+      "id": "duplicate-key-index-probe-09dbebd5",
+      "decision": "none",
+      "mechanism": "compiler (recommended): make KeyIndex.heads and .next private in ryo_derived and expose one probe method that table_model calls",
+      "plant_counts": [],
+      "reason": "Visibility is the cheapest control that fully holds this: with private fields and one probe method in ryo_derived, a second hash-chain walk cannot compile. That change is not in the 332 tree, so there is nothing to plant. A Tastemaker rule over field names would be a string marker. It is filed as a follow-up open item."
+    },
+    {
+      "id": "test-imports-a-parent-concept-7c7a3416",
+      "decision": "none",
+      "mechanism": "idiomatic.arch/idiomatic-rust@0.1.13 no-domain-concept-cycles (deliberately leaves tests out of the edges)",
+      "plant_counts": [
+        0
+      ],
+      "reason": "The cited instance, value_test.rs:5 naming operator::types::OperatorContext, is in the 332 tree, and no-domain-concept-cycles reports 0 for it by design. The rule's why leaves tests out of the edges because a test that builds a parent's value couples no production code. Counting test edges would refuse correct fixtures across every crate."
+    },
+    {
+      "id": "domain-names-a-use-case-trait-through-an-sdk-re-export-4d51765b",
+      "decision": "strengthen",
+      "mechanism": "idiomatic.arch/idiomatic-rust@0.1.13 directions-domain (forbidden languages::Parse, languages::Project, *::languages::Parse, *::languages::Project, *::languages::\\*; landed in 332 by 3938f4a022)",
+      "plant_counts": [
+        1,
+        1
+      ],
+      "reason": "The strengthening landed in 332 with claude/w13-leak-repairs-b. Planted in an archive copy of a4efba6af5: use ryo::resources::languages::Parse; in python domain/merging/service.rs gives 1 import-directions finding, and fn planted(_: &dyn ryo::resources::languages::Parse) {} in python domain/binding_lookup/service.rs gives 1. Baseline is 0 findings. No new asset."
+    },
+    {
+      "id": "domain-names-a-use-case-trait-through-an-sdk-re-export-reached-by-its-module-728218ac",
+      "decision": "none",
+      "mechanism": "idiomatic.arch/idiomatic-rust@0.1.13 directions-domain plus the Rust provider's alias resolution (claude/w14-provider-alias)",
+      "plant_counts": [
+        0
+      ],
+      "reason": "Planted use ryo::languages as l; fn planted(_: &dyn l::Parse) {} in python domain/brace_format/service.rs: 0 findings at a4efba6af5. The rule's forbidden globs already name the target, so a new glob would not help. The gap is the Rust provider's reference resolution of a module alias, which claude/w14-provider-alias (not merged into 332) owns. Re-plant at the checkpoint that lands it, and if the count is still 0 the provider gets the fix, not the rule."
+    },
+    {
+      "id": "provider-reimplements-engine-embedded-lookup-9aea485e",
+      "decision": "none",
+      "plant_counts": [],
+      "reason": "Fixed: the python and markdown providers call the engine's embedded lookup. EmbeddedSource's root, start and end fields are legitimately read elsewhere, so visibility cannot close them, and a rule keyed on partition_point would be a string marker that refuses correct binary searches. This was a one-off duplication caught by review."
+    },
+    {
+      "id": "nested-write-embedded-in-callback-0badb528",
+      "decision": "none",
+      "mechanism": "compiler or runtime in ryo_language (recommended): the write_embedded callback receives a builder type with no write_embedded, or the engine refuses the nested call",
+      "plant_counts": [],
+      "reason": "The right control is in the engine. Either the callback gets a type that cannot call write_embedded again (compiler), or write_embedded refuses re-entry (runtime). The visibility review left this open in the engine, and neither control is in the 332 tree to plant against. A Tastemaker syntax query cannot follow the call through closures and adapters reliably."
+    },
+    {
+      "id": "sibling-index-scan-per-element-38619f80",
+      "decision": "none",
+      "plant_counts": [],
+      "reason": "A one-off quadratic scan, fixed in python semantic_syntax. A rule keyed on position() inside a per-element function cannot know the call frequency. Perf regressions of this kind belong to the benchmark ratchets, not to Tastemaker."
+    },
+    {
+      "id": "suppression-guard-accepts-non-subtraction-361ac554",
+      "decision": "none",
+      "mechanism": "strengthen the benchmark's own guard, profile_proofs.py: require antijoin(left=rows, right=suppression family)",
+      "plant_counts": [],
+      "reason": "The suppression policy is owned by the benchmark's authoring guard, profile_proofs.py, which already refuses the other mutations (widened or narrowed codes, emit independent of the family). Requiring antijoin is one more check in that guard, not a Tastemaker asset over .ryoql, and claude/w14-noqa-fragments is not merged into 332."
+    },
+    {
+      "id": "suppression-policy-completeness-unchecked-a5132b93",
+      "decision": "none",
+      "mechanism": "strengthen profile_proofs.py: every rules/<R>/query.ryoql importing a suppression module has a standard-suppression-policy.json entry",
+      "plant_counts": [],
+      "reason": "The rule list and the policy file are both owned by the benchmark authoring guard, profile_proofs.py, which already reads both. The completeness check belongs there, and the review found today's exempt set correct. A Tastemaker cross-file join between JSON and .ryoql imports would add an asset for a single file pair. The branch is not merged into 332."
+    },
+    {
+      "id": "alias-binding-not-nearest-784e1025",
+      "decision": "none",
+      "mechanism": "provider tests in languages/rust links service_test/aliases_test.rs (claude/w14-provider-alias)",
+      "plant_counts": [],
+      "reason": "This is the correctness of a name resolver: the innermost in-scope binding wins. Tastemaker cannot prove what a resolver computes. The provider's alias tests do, and the branch adds them. The branch is not merged into 332."
+    },
+    {
+      "id": "module-identity-by-name-chain-23c55763",
+      "decision": "none",
+      "mechanism": "provider tests in languages/rust links service_test/aliases_test.rs (claude/w14-provider-alias)",
+      "plant_counts": [],
+      "reason": "This is resolver correctness (same-named inline modules in different blocks are different modules). That is a semantic property, so only the provider's tests can prove it, not a placement or a syntax query. The branch is not merged into 332."
+    },
+    {
+      "id": "note-decode-failure-is-absence-cb263667",
+      "decision": "none",
+      "mechanism": "types (recommended): linked() returns the decode error instead of mapping NotANote to None",
+      "plant_counts": [],
+      "reason": "A one-off arm in the Rust provider's project contract. Having the function return a Result is the compiler-held fix. A rule against Err(..) => None would refuse many correct fallbacks. Fixed on claude/w14-provider-alias, which is not merged into 332."
+    },
+    {
+      "id": "provider-alias-resolved-across-blocks-3c609ce6",
+      "decision": "none",
+      "mechanism": "provider tests in languages/rust links service_test (claude/w14-provider-alias)",
+      "plant_counts": [],
+      "reason": "This is resolver scope correctness (the block that holds a use bounds its binding), which Tastemaker cannot prove. The provider's tests hold it on claude/w14-provider-alias, which is not merged into 332. The same id comes from claude-w14-tm-import-reading.json and is decided once here."
+    },
+    {
+      "id": "use-site-binding-matched-file-wide-f7738c58",
+      "decision": "none",
+      "mechanism": "Tastemaker engine tests for import_rows (crates/tastemaker/crates/core)",
+      "plant_counts": [],
+      "reason": "An engine bug in Tastemaker's import_rows, fixed in 332 (db77cdd326, beb55b206a) with engine tests. The plants are in a demo fixture tree, not this product. provider-imports is a spec over placements and cannot prove what the engine reads. The engine's own tests are the proof."
+    },
+    {
+      "id": "stored-file-number-reused-across-runs-13950b5d",
+      "decision": "none",
+      "mechanism": "types (recommended): PartialScope::OneFile carries no file number",
+      "plant_counts": [],
+      "reason": "Fixed in 332 (bec665436a): the partial is restored as the reading file's own, not by the keeping run's number. The compiler-held form, OneFile carrying no number, would remove the stored PartialAt(0) entirely. That type change is not in the tree to plant, and is recorded as a follow-up. A Tastemaker rule would be a string marker on PartialAt(."
+    },
+    {
+      "id": "per-file-partial-names-another-file-2a55efb0",
+      "decision": "none",
+      "mechanism": "runtime (recommended): the per-file writer refuses a partial_at naming a file other than the one it reads",
+      "plant_counts": [],
+      "reason": "No instance exists today. Which FileId a reader names is a runtime value, so a syntax query over item.rs could only match literal FileId(..), a string marker that misses computed ids. A refusal in the per-file writer holds the property fully, and t611 made the restore side independent of the number."
+    }
+  ]
 }
