@@ -12,6 +12,7 @@ PROTECTED = ("crates/ryo/", "ci/", "tools/", ".github/", ".cargo/", ".agents/age
 EXACT = {"rust-toolchain.toml", "Cargo.toml", "Cargo.lock", "asymptote.toml"}
 RECEIPTS = "crates/ryo/docs/contracts/evidence"
 REVIEW = RECEIPTS + "/checkpoint/contract-review.json"
+ASYMPTOTE = RECEIPTS + "/checkpoint/asymptote.json"
 VERDICTS = ("PASS", "FAIL", "NOTE", "BLOCKING")
 
 
@@ -23,7 +24,7 @@ def protected(path: str) -> bool:
     return not path.startswith(RECEIPTS + "/") and (path in EXACT or path.startswith(PROTECTED))
 
 
-def shape(review: object) -> None:
+def shape(review: object, reviewer: str = "contract-review") -> None:
     """Raise unless review has the shared schema in crates/ryo/docs/contracts/review/README.md#review-evidence-schema."""
     if not isinstance(review, dict):
         raise ValueError("review is not a JSON object")
@@ -31,8 +32,8 @@ def shape(review: object) -> None:
         raise ValueError("review has no known verdict")
     if not isinstance(review.get("source"), str) or not re.fullmatch(r"[0-9a-f]{40}", review["source"]):
         raise ValueError("review source must be a full 40-character sha")
-    if review.get("reviewer") != "contract-review":
-        raise ValueError("review is not by contract-review")
+    if review.get("reviewer") != reviewer:
+        raise ValueError(f"review is not by {reviewer}")
     checks = review.get("checks")
     if not isinstance(checks, list) or not checks:
         raise ValueError("review has no non-empty checks list")
@@ -54,6 +55,12 @@ def validate(root: Path, head: str = "HEAD") -> str:
     if not any(protected(path) for path in changed):
         return "No protected changes since activation; historical work is not certified."
     try:
+        try:
+            recorded = json.loads(git(root, "show", f"{head}:{ASYMPTOTE}"))
+        except subprocess.CalledProcessError:
+            recorded = None
+        if recorded is not None:
+            shape(recorded, "integrator")
         review = json.loads(git(root, "show", f"{head}:{REVIEW}"))
         shape(review)
         if review["verdict"] != "PASS":

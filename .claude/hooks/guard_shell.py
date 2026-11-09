@@ -22,6 +22,7 @@ CONSOLIDATION = "claude/ryo-consolidation"
 EVIDENCE_ROOT = "crates/ryo/docs/contracts/evidence/"
 EVIDENCE = EVIDENCE_ROOT + "checkpoint/"
 RUST_REVIEW = EVIDENCE + "rust-review.json"
+ASYMPTOTE = EVIDENCE + "asymptote.json"
 BOOTSTRAP_HEAD = "171789169e"  # checkpoint 329: landed before the leak and TM agents existed
 PREVIOUS_REVIEWS = (("contract-review.json", "contract-review"), ("leak-review.json", "leak-review"),
                     ("tm-steward.json", "tm-steward"))
@@ -309,7 +310,8 @@ REVIEW_VERDICTS = ("PASS", "FAIL", "NOTE", "BLOCKING")
 def review_shape(review, reviewer):
     """The problem with a review evidence file against the shared schema, or None.
 
-    The schema is crates/ryo/docs/contracts/review/README.md#review-evidence-schema.
+    The schema is crates/ryo/docs/contracts/review/README.md#review-evidence-schema. ci/contract_review/service.py
+    holds a copy (CI runs it in isolation); ci/contract_review/service_test.py drives both through one variant table.
     """
     if not isinstance(review, dict):
         return "is not a JSON object"
@@ -441,6 +443,15 @@ def previous_reviews(words, here):
                 return (refused + "the source " + repr(reviewed) + " in " + EVIDENCE + name +
                         " is not the previous landed head " + head +
                         " (or an ancestor with only evidence changed since); " + run)
+        code, text = git_out(tree, "show", sha + ":" + ASYMPTOTE)
+        if code == 0:
+            run = "rerun the integrator's quick checks on " + head
+            try:
+                shape = review_shape(json.loads(text), "integrator")
+            except ValueError:
+                shape = "is not JSON"
+            if shape:
+                return refused + ASYMPTOTE + " at " + source + " " + shape + "; " + run
     return None
 
 

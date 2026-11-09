@@ -361,6 +361,15 @@ class PreviousReviewsPush(unittest.TestCase):
                 self.assertEqual(result.returncode, 2)
                 self.assertIn("leak-review.json", result.stderr)
 
+    def test_asymptote_record_is_validated_when_present(self):
+        self.all_reviews()
+        self.write("asymptote.json", self.body("PASS", "someone", self.previous))
+        result = self.push()
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("asymptote.json", result.stderr)
+        self.write("asymptote.json", self.body("PASS", "integrator", self.previous))
+        self.assertEqual(self.push().returncode, 0)
+
     def test_bootstrap_head_needs_only_the_contract_review(self):
         # the bootstrap sha cannot be forged, so point the constant at this remote head
         import importlib.util

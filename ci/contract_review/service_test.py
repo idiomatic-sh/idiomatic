@@ -85,3 +85,56 @@ def test_malformed_or_failing_review_is_refused(repository, mutation):
     head = commit(source, {service.REVIEW: mutation(review(source))})
     done = run(path, head)
     assert done.returncode == 1 and "No valid exact-source contract review" in done.stderr
+
+
+def hook():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("guard_shell", ROOT / ".claude/hooks/guard_shell.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+SHA = "a" * 40
+VARIANTS = [  # (reviewer, document, valid): the one table both validators are driven through
+    ("contract-review", {"source": SHA, "verdict": "PASS", "reviewer": "contract-review", "checks": GOOD}, True),
+    ("integrator", {"source": SHA, "verdict": "PASS", "reviewer": "integrator", "checks": GOOD}, True),
+    ("contract-review", {"source": SHA, "verdict": "BLOCKING", "reviewer": "contract-review", "checks": GOOD}, True),
+    ("contract-review", {"source": SHA, "verdict": "MAYBE", "reviewer": "contract-review", "checks": GOOD}, False),
+    ("contract-review", {"source": SHA[:12], "verdict": "PASS", "reviewer": "contract-review", "checks": GOOD}, False),
+    ("contract-review", {"source": SHA, "verdict": "PASS", "reviewer": "integrator", "checks": GOOD}, False),
+    ("integrator", {"source": SHA, "verdict": "PASS", "reviewer": "contract-review", "checks": GOOD}, False),
+    ("contract-review", {"source": SHA, "verdict": "PASS", "reviewer": "contract-review"}, False),
+    ("contract-review", {"source": SHA, "verdict": "PASS", "reviewer": "contract-review", "checks": []}, False),
+    ("contract-review", {"source": SHA, "verdict": "PASS", "reviewer": "contract-review", "checks": ["x"]}, False),
+    ("contract-review", {"source": SHA, "verdict": "PASS", "reviewer": "contract-review", "checks": [1]}, False),
+    ("contract-review", {"source": SHA, "verdict": "PASS", "reviewer": "contract-review",
+                         "checks": [{"id": "1", "verdict": "PASS", "evidence": " "}]}, False),
+    ("contract-review", {"source": SHA, "verdict": "PASS", "reviewer": "contract-review",
+                         "checks": [{"id": "1", "verdict": "OK", "evidence": "e"}]}, False),
+    ("contract-review", {"source": SHA, "verdict": "PASS", "reviewer": "contract-review",
+                         "checks": [{"id": "1", "verdict": "FAIL", "evidence": "e"}]}, False),
+    ("contract-review", ["not", "an", "object"], False),
+]
+
+
+@pytest.mark.parametrize("reviewer,document,valid", VARIANTS)
+def test_the_ci_and_hook_validators_agree_on_every_variant(reviewer, document, valid):
+    guard = hook()
+    hook_ok = guard.review_shape(document, reviewer) is None
+    try:
+        service.shape(document, reviewer)
+        ci_ok = True
+    except ValueError:
+        ci_ok = False
+    assert hook_ok == ci_ok == valid
+
+
+def test_a_malformed_asymptote_record_is_refused(repository):
+    path, source, commit, review = repository
+    bad = {"source": source, "verdict": "PASS", "reviewer": "someone", "checks": GOOD}
+    head = commit(source, {service.REVIEW: review(source), service.ASYMPTOTE: bad})
+    assert run(path, head).returncode == 1
+    good = {**bad, "reviewer": "integrator"}
+    head = commit(source, {service.REVIEW: review(source), service.ASYMPTOTE: good})
+    assert run(path, head).returncode == 0
